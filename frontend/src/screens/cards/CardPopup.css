@@ -1,0 +1,919 @@
+/* Unified card detail / inventory popup -- .cp-* styles (BL-111 F5, design
+   handoff claude_design/design_handoff_swu_restyle/README.md §5, "selected-
+   panel" -- prototypes/inventory-popup/InvPanel.dc.html is the pixel
+   reference). Replaces CardDetailPopup.css + CardInventoryPopup.css.
+
+   Steel-ring geometry follows the same double clip-path technique F4's
+   .gallery-plate/.gallery-dossier already shipped (an outer colored layer
+   clipped to the angled-corner polygon, padded by ~1.5px, wrapping an inner
+   layer clipped to the same polygon) -- .cp-shell/.cp-modal is that pattern
+   at modal scale (22px/21px cuts, matching the prototype's literal geometry
+   verbatim), reused again at panel scale (12-14px cuts) for .cp-text/
+   .cp-stats/.cp-plate.
+
+   Ring color: the design tokens section (§ Design Tokens) documents steel
+   rings as `#d3d3d4` at opacity .28 (modal) -- used here (rgba(211,211,212,
+   .28)) rather than the InvPanel prototype's literal inline `#2a3558`, to
+   stay consistent with the rgba(211,211,212,X) convention F2 (circuit-
+   separator), F4 (gallery plate/dossier rings) already shipped. Documented
+   in the F5 PR description.
+
+   Backdrop art: the prototype's stat-plate/inventory-plate/rail backdrops
+   use a `cover`-sized "assets/art/generic-background.jpg" not present in
+   this repo. Reused `/images/circuit-tile.webp` at the same 260px auto tile
+   size F4's gallery plate already established instead of introducing a new
+   asset -- same visual family, one fewer file to ship. */
+
+/* .cp-overlay's backdrop styling moved to index.css's shared .modal-overlay
+   class (BL-153, A3-06) -- the element keeps this class name too (see
+   CardPopup.tsx), just with no rule of its own left here. */
+
+.cp-shell {
+  position: relative;
+  /* BL-140 review finding: 1080 -> 1140, absorbing the printings rail's
+   * widened column (below, 222 -> 300px) minus a modest trim off the image
+   * column (340 -> 320px) -- see .cp-body's own comment for the full
+   * rail-width math. */
+  width: min(1140px, calc(100vw - 44px));
+  max-height: calc(100vh - 36px);
+  background: rgba(211, 211, 212, 0.28);
+  clip-path: polygon(
+    22px 0,
+    100% 0,
+    100% calc(100% - 22px),
+    calc(100% - 22px) 100%,
+    0 100%,
+    0 22px
+  );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  padding: 1.5px;
+  display: flex;
+}
+
+.cp-modal {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    21px 0,
+    100% 0,
+    100% calc(100% - 21px),
+    calc(100% - 21px) 100%,
+    0 100%,
+    0 21px
+  );
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cp-status {
+  padding: 60px 28px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+.cp-status--error {
+  color: var(--color-danger);
+}
+.cp-mutation-error {
+  padding: 10px 28px;
+  text-align: left;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.cp-header {
+  position: relative;
+  background-color: var(--bg-surface);
+  /* BL-148: right padding 60 -> 140px, reserving room for the prev/next nav
+   * cluster now grouped alongside the close button (.cp-header__controls
+   * below) so the title's flex-wrap never runs text under the (absolutely
+   * positioned, out-of-flow) controls at narrow viewports -- same role the
+   * original 60px played for the close button alone. */
+  padding: 20px 140px 22px 30px;
+  flex: none;
+}
+
+.cp-header__art {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.cp-header__row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cp-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--color-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.cp-subtitle {
+  font-size: 15px;
+  font-style: italic;
+  color: #d7dee9;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.cp-header__setlogo {
+  height: 34px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  object-position: right;
+  margin-left: auto;
+  align-self: center;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* BL-148: prev/next + close, grouped in one absolutely-positioned flex row
+   so all three line up on a shared baseline without hand-matched top/right
+   offsets per button (cp-close used to be positioned standalone -- see git
+   history). */
+.cp-header__controls {
+  position: absolute;
+  top: 12px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* BL-148: deliberately the quietest control in the popup -- no background,
+   no clip-path/frame heft (unlike every other button here, e.g. cp-flip/
+   cp-plate__step), a thin angle-quote glyph rather than a bold arrow, and a
+   lower resting opacity than even cp-close (which is otherwise the
+   popup's quietest existing control) per the owner's explicit "quieter
+   than the popup's other controls" constraint. Disabled at a list boundary
+   (not wrapped -- the conventional default) fades it further rather than
+   hiding it, so the cluster's width/position never shifts as you approach
+   an end. */
+.cp-nav-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 7px;
+  opacity: 0.6;
+}
+.cp-nav-btn:hover:not(:disabled) {
+  color: var(--color-text);
+  opacity: 1;
+}
+.cp-nav-btn:disabled {
+  opacity: 0.22;
+  cursor: default;
+}
+
+.cp-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.cp-close:hover {
+  color: var(--color-text);
+}
+
+/* Straddles the header/body seam -- same proportional -height/2 overlap
+   the base .circuit-separator rule already applies (BL-111 dev-review
+   wave 1 fix 1); no extra positioning needed. */
+.cp-separator {
+  flex: none;
+}
+
+/* ── Body grid ──────────────────────────────────────────── */
+/* BL-74 (resolved by BL-111 F5's layout): the three columns scroll
+   INDEPENDENTLY -- each gets its own max-height/overflow-y below, rather
+   than the grid itself scrolling as one unit. A many-variant card (e.g. JTL
+   Black One) can therefore scroll a tall printings rail without carrying the
+   card image out of view alongside it, which was the old single-column
+   CardDetailPopup's exact bug. */
+/* BL-147 dev-review fix (BL-140 review finding): rail widened 222 -> 300px
+ * so the longest real finish names ("Serialized Prestige", "Hyperspace
+ * Foil", "Event Exclusive") never ellipsize (measured against the real
+ * Barlow Condensed 700 12px 0.06em-tracked font via headless Chromium:
+ * "Serialized Prestige" is the longest at ~95px; a full row also carries
+ * the card number, an owned-qty chip, and a right-aligned price, so 300px
+ * leaves ~35-40px of breathing room over the worst-case measured row
+ * rather than a bare fit -- see .cp-rail__item-finish below, which drops
+ * the truncating overflow/ellipsis entirely now that the column is sized
+ * for it). Image column trimmed 340 -> 320px to help absorb the rail's
+ * growth without inflating the shell as much as a straight add would (see
+ * .cp-shell's own 1080 -> 1140 comment). */
+.cp-body {
+  display: grid;
+  grid-template-columns: 300px 320px 1fr;
+  gap: 0;
+  min-height: 0;
+  margin-top: -13px;
+}
+
+/* ── Printings rail ─────────────────────────────────────── */
+.cp-rail {
+  border-right: 1px solid var(--color-border);
+  padding: 26px 14px 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.cp-rail__heading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-rail__heading {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* BL-140 design-conformance pass: rail-header Market/Low toggle
+   (PRICING_DEFAULTS_SPEC.md's per-printing price-KIND switch, right-aligned
+   in the same row as the rail heading label). */
+.cp-rail__pricemode {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  flex: none;
+}
+
+.cp-rail__pricemode-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.cp-rail__pricemode-btn:hover:not(.cp-rail__pricemode-btn--active) {
+  background: rgba(37, 99, 235, 0.12);
+}
+.cp-rail__pricemode-btn--active {
+  background: rgba(37, 99, 235, 0.28);
+  color: #ffffff;
+}
+
+.cp-rail__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cp-rail__group-label {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+
+.cp-rail__items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cp-rail__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(15, 21, 40, 0.85);
+  border: none;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  cursor: pointer;
+  text-align: left;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+.cp-rail__item:hover {
+  background: rgba(37, 99, 235, 0.18);
+}
+.cp-rail__item--active {
+  background: rgba(37, 99, 235, 0.28);
+  border-left-color: var(--color-primary);
+  color: #ffffff;
+}
+
+/* BL-147 dev-review fix (BL-140 review finding, owner constraint: widen the
+ * rail rather than shrink/wrap): NEVER truncate the finish name, at any
+ * printing count. The old overflow:hidden/text-overflow:ellipsis pair is
+ * dropped outright -- .cp-body's rail column (300px, up from 222px) is
+ * sized to fit the longest real finish name single-line at full font size
+ * (see that rule's own comment for the measurement), so this row no longer
+ * needs to shrink its text to fit. white-space:nowrap stays: the owner's
+ * preference is a wider single-line row over wrapping to a second line. */
+.cp-rail__item-finish {
+  white-space: nowrap;
+}
+
+.cp-rail__item-num {
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: auto;
+  opacity: 0.85;
+}
+
+.cp-rail__item-qty {
+  font-weight: 700;
+  font-size: 11px;
+  min-width: 22px;
+  text-align: right;
+  color: #4a5570;
+}
+.cp-rail__item-qty--owned {
+  color: #1fa347;
+}
+
+/* BL-140 design-conformance pass: tileFormat=price-right -- each printing
+   row's own price, right-aligned mono text after the finish/num/qty
+   cluster. `.cp-rail__item-num`'s existing margin-left:auto above already
+   pushes that whole trailing cluster (num, qty, price) to the right as a
+   group; this element just needs to sit last in DOM order among them. */
+.cp-rail__item-price {
+  display: inline-flex;
+  justify-content: flex-end;
+  flex: none;
+  min-width: 44px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.cp-rail__item-price-skeleton {
+  display: inline-block;
+  width: 44px;
+  height: 9px;
+  background: var(--color-border);
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+/* BL-140 design-conformance pass: chartPlacement=under-printings -- the
+   compact HistoryPanel embedded permanently under the printing rows, inside
+   the rail's own scroll region. */
+.cp-rail__history {
+  margin-top: 6px;
+  border-top: 2px solid var(--color-border);
+  padding-top: 12px;
+}
+
+/* Rail-footer attribution, pinned to the rail's bottom via margin-top:auto
+   (works regardless of how tall the groups + history embed above it are,
+   as long as the rail's own content doesn't overflow its max-height). */
+.cp-rail__footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cp-rail__attribution {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+/* ── Center column: image, flip, inventory plate ───────────── */
+/* BL-74: this column (image + flip button + inventory plate) scrolls
+   INDEPENDENTLY of the rail (left) -- the point being that it stays put
+   while a long printings list scrolls past on its own, rather than the two
+   sharing one scroll context (the old single-column CardDetailPopup's bug).
+   In practice this column's own content is short enough that it never needs
+   to scroll itself; max-height/overflow-y here is a safety net, not the
+   primary mechanism. */
+.cp-center {
+  padding: 28px 24px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.cp-image-wrap {
+  width: 100%;
+  perspective: 1400px;
+}
+
+/* BL-111 dev-review wave 1 fix 2: a "flip" that ever RESTS (or animates
+   past) rotateY(90deg) mirrors the flat <img> (there's no real back face to
+   reveal, just the same plane seen from behind), so neither half of this
+   two-phase flip ever crosses that boundary. `--out` rotates whichever side
+   is CURRENTLY showing from 0deg to 90deg (edge-on); CardPopup.tsx's
+   onAnimationEnd handler swaps `showBack` (and therefore `src`) at exactly
+   that boundary, then switches the class to `--in`, which rotates 90deg back
+   to 0deg to reveal the new side. Each half keeps the original combined
+   pulse's total duration (0.36s) split evenly, so the flip reads at the same
+   overall pace as before -- just now in the right visual order. */
+@keyframes cp-flip-out {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes cp-flip-in {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+.cp-image-flip--out {
+  animation: cp-flip-out 0.18s ease forwards;
+}
+
+.cp-image-flip--in {
+  animation: cp-flip-in 0.18s ease forwards;
+}
+
+/* BL-132 J3: leader backs are landscape, fronts portrait -- without this,
+   the container's height snapped instantly to the new side's aspect the
+   moment `src` swapped mid-flip (the "blip"). `transition: height` morphs it
+   smoothly instead, driven by CardPopup.tsx's inline `style={{ height }}`
+   (computed from the measured wrap width and the target side's aspect
+   ratio, kept in React state rather than CSS since CSS alone has no way to
+   know an *image's* aspect ratio ahead of loading it). 0.36s matches the
+   flip's total duration (the two 0.18s rotateY phases combined, above) so
+   the height finishes morphing exactly as the flip itself settles, not
+   before or after it.
+
+   `overflow: hidden` is required for the height transition to visually
+   clip the taller side down to the shrinking box instead of just spilling
+   out of it, but that in turn means the <img>'s own box-shadow/border-radius
+   (previously set directly on .cp-image, below) could never render -- an
+   element cannot clip its own box-shadow away without also hiding the
+   shadow. Moved both onto this element instead so the resting look (no
+   flip in progress, height back to auto/full) stays pixel-identical to
+   before. `display: flex` + centering keeps the (usually narrower, since
+   height is shrinking to fit) image centered in the box during the morph
+   rather than pinned to a corner. */
+.cp-image-flip {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  transition: height 0.36s ease;
+}
+
+.cp-image {
+  width: 100%;
+  display: block;
+}
+
+.cp-flip {
+  display: block;
+  background: var(--color-btn-off);
+  color: var(--color-text);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 7px 16px;
+  cursor: pointer;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.cp-flip:hover {
+  background: var(--color-btn-off-dim);
+}
+
+/* ── Inventory plate (signed-in stepper / signed-out message) ─ */
+.cp-plate {
+  width: 100%;
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+}
+
+.cp-plate__inner {
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  padding: 12px 16px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  clip-path: polygon(
+    13px 0,
+    100% 0,
+    100% calc(100% - 13px),
+    calc(100% - 13px) 100%,
+    0 100%,
+    0 13px
+  );
+}
+
+.cp-plate__inner--signed-out {
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.cp-plate__signed-out-msg {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.cp-plate__signin {
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 7px 18px;
+  cursor: pointer;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.cp-plate__signin:hover {
+  background: var(--color-primary-dim);
+}
+
+.cp-plate__stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.cp-plate__step {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  border: none;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.cp-plate__step:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+}
+.cp-plate__step:disabled {
+  background: #232c40;
+  color: #4a5570;
+  cursor: default;
+}
+
+.cp-plate__qty {
+  font-family: var(--font-ui);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 44px;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.cp-plate__readout {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cp-plate__readout-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.cp-plate__owned-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
+}
+
+.cp-plate__count {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.cp-plate__count--at-limit {
+  color: var(--color-danger);
+}
+/* BL-35 (ported): soft-mode "committed past your keep-limit" warning --
+   amber, distinct from the universal at-cap red above. */
+.cp-plate__count--over-limit {
+  color: var(--color-warning);
+}
+
+.cp-plate__bar {
+  height: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+.cp-plate__bar-fill {
+  height: 100%;
+  background: #1fa347;
+}
+.cp-plate__bar-fill--at-limit {
+  background: var(--color-danger-dim);
+}
+
+.cp-plate__over-limit-tag {
+  align-self: flex-start;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning-dim);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* ── Info column ────────────────────────────────────────── */
+.cp-info {
+  padding: 28px 28px 18px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+/* Owner dev review 2026-07-26 round 2: row = [large rarity symbol] [two-line
+ * text stack] (working/card popup rarity label change.JPG) -- the column
+ * layout moved to the inner .cp-info__set-text. */
+.cp-info__set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-info__set-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Owner dev review 2026-07-26 (round 7): the plate's rarity symbol sat a
+ * touch high of the two-line text stack's optical center -- same small
+ * downward nudge the table's rarity icon got (.td-rarity, cards.css).
+ * BL-173 review round 3 (owner, 2026-07-27): "lowered some more" -- 2px
+ * still read high against the set/rarity stack; stepped to 4px (visible
+ * 2px step, per the sub-pixel-calibration lesson). */
+.cp-info__set-row > .rarity-badge .rarity-badge__icon {
+  position: relative;
+  top: 4px;
+}
+
+.cp-info__set-name {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cp-info__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-info__cardnum {
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: 0.04em;
+}
+
+/* BL-173 review round 4 (owner): type + aspects joined the set row,
+ * right-aligned (margin-left: auto), type text LEFT of the icons; the old
+ * standalone .cp-info__aspects row is retired. Aspect icons render at 34px
+ * to match the rarity icon (CardPopup.tsx). */
+.cp-info__typeaspects {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex: none;
+}
+
+.cp-info__typeline {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.cp-text {
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.cp-text__inner {
+  background: #0d101c;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  clip-path: polygon(
+    11px 0,
+    100% 0,
+    100% calc(100% - 11px),
+    calc(100% - 11px) 100%,
+    0 100%,
+    0 11px
+  );
+}
+
+.cp-text__header {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cp-text__body {
+  margin: 0;
+}
+
+.cp-text__epic-label {
+  font-weight: 600;
+}
+
+.cp-text__back {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cp-stats {
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+}
+
+.cp-stats__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  padding: 12px 10px;
+  clip-path: polygon(
+    13px 0,
+    100% 0,
+    100% calc(100% - 13px),
+    calc(100% - 13px) 100%,
+    0 100%,
+    0 13px
+  );
+}
+
+.cp-stats__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.cp-stats__label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--color-text-muted);
+}
+
+/* ── History expand-below section (BL-140 design-conformance pass) ──── */
+/* historyEmbed=expand-below: the FULL HistoryPanel, appended below the
+   3-column .cp-body grid (a sibling inside .cp-modal) once the compact
+   embed's ⤢ affordance is used. Own internal scroll region (rather than
+   making the whole modal scroll as one unit) so it doesn't reopen the BL-74
+   bug the 3 columns' independent scrolling was built to fix. */
+.cp-history-expand {
+  border-top: 1px solid var(--color-border);
+  padding: 16px 28px 14px 28px;
+  flex: none;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.cp-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+  font-size: 13px;
+}
+
+.cp-facts__row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.cp-facts__label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  min-width: 74px;
+}
+
+.cp-artist {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}

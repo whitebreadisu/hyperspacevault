@@ -1,0 +1,860 @@
+/* ── Deck Check (BL-142) ───────────────────────────────────────────────────
+ * Visual language pulled from the Claude Design deck-check-entry /
+ * deck-check-result templates (project 8145e927, DEFAULT-marked variants --
+ * see claude_design/extracted_2026-07-21/ and each component's own doc
+ * comment for the specifics DesignSync's unavailability required working
+ * around). Reuses cards.css's .screen chrome (loaded globally since
+ * CardsPage is always mounted) for the anonymous sign-in gate only -- the
+ * entry/result panels below are fully self-contained, matching the design's
+ * own clipped-corner console-panel frame rather than the rest of the app's
+ * plain-rectangle cards.
+ *
+ * --dc-frame is this screen's own steel-blue frame color (the design's
+ * --cdp-frame) -- not one of index.css's shared variables (that file's
+ * steel-ring family is a lighter, more neutral grey used for a different
+ * purpose -- CardPopup rings, the circuit separator), so it's scoped here
+ * rather than promoted globally for a single screen's use. */
+/* BL-147 dev-review fix (review finding on BL-142): `.screen` (cards.css)
+ * stretches this to the full `.app-main` width, but the `max-width: 1040px`
+ * cap below then makes it a narrower, flush-LEFT box inside that wider
+ * area -- a stretched flex item that's capped smaller than the available
+ * cross-size doesn't auto-center itself, it just sits at the cross-start
+ * edge. `margin: 0 auto` centers the capped box itself (the result screen's
+ * own "max-width container with margin auto" idiom, per the design) so its
+ * content -- and the entry screen's `.dce-frame`, which already centers
+ * correctly WITHIN this box via its own margin:auto -- reads centered in
+ * the pane instead of hugging the left edge. */
+.deckcheck-screen {
+  --dc-frame: #2a3558;
+  max-width: 1040px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* The entry screen specifically (DeckCheckPage.tsx applies this modifier
+ * only while DeckCheckEntry is rendered) uses `display: grid` so its child
+ * gets independent per-axis alignment: horizontally centered (`justify-
+ * items: center`), matching the pulled design's wrapper -- but TOP-aligned
+ * (`align-items: start`), matching how the result screen sits, rather than
+ * floating mid-pane. BL-147 round 1 centered both axes (`place-items:
+ * center`); owner dev-review round 2 (2026-07-21) called out that the
+ * entry form reading vertically centered looked inconsistent against the
+ * result view's top-anchored long scrolling content -- this keeps the
+ * horizontal centering fix but drops the vertical one. */
+.deckcheck-screen--entry {
+  /* `.screen` (cards.css) already gives this element `flex: 1; min-height:
+   * 0;` inside .app-main's column flex layout, so its block size is
+   * already "fill the remaining space below the header" -- no explicit
+   * height/vh needed here, just grid alignment within whatever box that
+   * flex sizing produces. */
+  display: grid;
+  justify-items: center;
+  align-items: start;
+}
+
+/* ── Sign-in gate (anonymous visitors) ──────────────────────────────────── */
+.deckcheck-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.deckcheck-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.deckcheck-btn:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.deckcheck-btn--primary {
+  background: var(--color-primary);
+  border-color: var(--color-button-edge);
+  color: #ffffff;
+}
+
+.deckcheck-btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+  color: #ffffff;
+}
+
+/* ── Entry screen (DeckCheckEntry.tsx) ─────────────────────────────────────
+ * Clipped-corner console panel: an outer frame-colored box with a polygon
+ * clip-path, holding an inner surface box clipped 1px smaller so a 1.5px
+ * frame-colored border shows through on the angled corners -- the same
+ * technique AboutModal/FeedbackModal use for their own steel-ring shells,
+ * translated to this screen's own frame color and corner radius. */
+.dce-frame {
+  width: min(560px, 94vw);
+  margin: 0 auto;
+  background: var(--dc-frame);
+  padding: 1.5px;
+  clip-path: polygon(
+    18px 0,
+    100% 0,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    0 100%,
+    0 18px
+  );
+}
+
+.dce-panel {
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    17px 0,
+    100% 0,
+    100% calc(100% - 17px),
+    calc(100% - 17px) 100%,
+    0 100%,
+    0 17px
+  );
+  padding: 26px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dce-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dce-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.dce-subtitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.dce-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.dce-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dce-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.dce-textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.dce-hint {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.dce-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Coach boxes (error / shortcut states) ──────────────────────────────── */
+.dce-coach {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-body);
+}
+
+.dce-coach--shortcut {
+  border: 1px solid var(--color-primary);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.dce-coach--error {
+  border: 1px solid #e0565b;
+  background: rgba(224, 86, 91, 0.07);
+}
+
+.dce-coach__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dce-coach__badge {
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: var(--color-primary);
+  padding: 2px 7px;
+}
+
+.dce-coach__title {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.dce-coach__title--error {
+  color: #e0565b;
+}
+
+.dce-coach__body {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.dce-coach__body strong {
+  color: var(--color-text);
+}
+
+/* ── Loading state ───────────────────────────────────────────────────────── */
+.dce-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.dce-spinner {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: dce-spin 0.9s linear infinite;
+}
+
+@keyframes dce-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dce-loading__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dce-loading__title {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.dce-loading__sub {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.dce-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ── Result screen (DeckCheckResult.tsx) ───────────────────────────────────
+ * Same clipped-corner frame technique as the entry panel, at the design's
+ * slightly larger (16px/15px) corner radius for the header block only --
+ * the rest of the result screen uses plain-rectangle surfaces (scope tiles,
+ * list cards, footer strip), matching the design exactly. */
+.dcr {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dcr-header-frame {
+  background: var(--dc-frame);
+  padding: 1.5px;
+  clip-path: polygon(
+    16px 0,
+    100% 0,
+    100% calc(100% - 16px),
+    calc(100% - 16px) 100%,
+    0 100%,
+    0 16px
+  );
+}
+
+.dcr-header {
+  background: var(--bg-surface);
+  clip-path: polygon(
+    15px 0,
+    100% 0,
+    100% calc(100% - 15px),
+    calc(100% - 15px) 100%,
+    0 100%,
+    0 15px
+  );
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dcr-header__art {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.dcr-header__art-img {
+  width: 124px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  display: block;
+}
+
+.dcr-header__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dcr-header__name {
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.dcr-header__meta {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.dcr-header__chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dcr-header__chip {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 2px 8px;
+}
+
+.dcr-header__fine {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.dcr-check-another {
+  margin-left: auto;
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.dcr-check-another:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+/* ── Banners ─────────────────────────────────────────────────────────────── */
+.dcr-banner {
+  padding: 11px 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-family: var(--font-body);
+}
+
+.dcr-banner--amber {
+  border: 1px solid #f0a81c;
+  background: rgba(240, 168, 28, 0.07);
+}
+
+.dcr-banner--amber .dcr-banner__title {
+  color: #f0a81c;
+}
+
+.dcr-banner--blue {
+  border: 1px solid var(--color-primary);
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.dcr-banner--blue .dcr-banner__title {
+  color: var(--color-primary);
+}
+
+.dcr-banner--win {
+  border: 1px solid #3fb950;
+  background: rgba(63, 185, 80, 0.07);
+  align-items: center;
+  padding: 14px 16px;
+  gap: 12px;
+}
+
+.dcr-banner__check {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 2px solid #3fb950;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: #3fb950;
+}
+
+.dcr-banner__win-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dcr-banner__title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dcr-banner__title--win {
+  font-size: 14px;
+  color: #3fb950;
+}
+
+.dcr-banner__body {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* ── ALL CARDS / MISSING ONLY toggle (BL-142) ───────────────────────────── */
+.dcr-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dcr-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+}
+
+.dcr-toggle__btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  padding: 4px 11px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dcr-toggle__btn + .dcr-toggle__btn {
+  border-left: 1px solid var(--color-border);
+}
+
+.dcr-toggle__btn--active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.dcr-toggle-row__caption {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+/* ── Scope columns ───────────────────────────────────────────────────────── */
+.dcr-scopes {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.dcr-scope {
+  flex: 1 1 320px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dcr-scope__tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--dcr-edge, var(--color-border));
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dcr-scope__info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dcr-scope__label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcr-scope__fraction-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dcr-scope__fraction {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dcr-scope__owned-text {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* BL-142: scope-tile market value block (Jeremy's saved
+ * deckValuePlacement=scope-cards) -- pushed to the right of the label/
+ * fraction column via margin-left:auto. */
+.dcr-scope__value {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.dcr-scope__value-label {
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcr-scope__value-amount {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* ── Missing-cards list card ─────────────────────────────────────────────── */
+.dcr-list {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.dcr-list__head {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcr-list__complete {
+  border-bottom: 1px solid var(--color-border);
+  padding: 9px 14px;
+  font-size: 12px;
+  color: #3fb950;
+}
+
+.dcr-row {
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dcr-row__name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: var(--color-text);
+}
+
+.dcr-row__subtitle {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.dcr-row__dots {
+  flex: none;
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.dcr-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dcr-row__cost {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.dcr-row__per {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.dcr-row__subtotal {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.dcr-row__subtotal--unpriced {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.dcr-list__footer {
+  margin-top: auto;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.dcr-list__to-complete {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.dcr-list__to-complete-label {
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcr-list__to-complete-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.dcr-list__to-complete-amount {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.dcr-list__unpriced {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .dcr-scopes {
+    flex-direction: column;
+  }
+}
+
+/* ── Grand total footer strip ────────────────────────────────────────────── */
+.dcr-total {
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dcr-total__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.dcr-total__unpriced {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.dcr-total__amounts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.dcr-total__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.dcr-total__col--grand {
+  border-left: 1px solid var(--color-border);
+  padding-left: 18px;
+}
+
+.dcr-total__col-label {
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcr-total__col-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.dcr-total__col--grand .dcr-total__col-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.dcr-fine-print {
+  margin: 0;
+  padding: 0 2px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

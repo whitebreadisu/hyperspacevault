@@ -1,0 +1,242 @@
+/* ── FeedbackModal (.feedback-*) ─────────────────────────────────────────
+   Co-located with FeedbackModal.tsx (BL-126). Same console "steel ring"
+   shell technique as AboutModal.css (angled-corner clip-path double layer,
+   ~520px panel) -- see that file's header comment for the mechanics. This
+   file only restates the shell (rather than importing AboutModal.css)
+   because the two modals' class names are deliberately independent, matching
+   how auth-modal-* and about-* never cross-reference each other either.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* .feedback-overlay's backdrop styling moved to index.css's shared
+   .modal-overlay class (BL-153, A3-06) -- the element keeps this class
+   name too (see FeedbackModal.tsx), just with no rule of its own left here. */
+
+.feedback-shell {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  background: rgba(211, 211, 212, 0.28);
+  clip-path: polygon(
+    13px 0,
+    100% 0,
+    100% calc(100% - 13px),
+    calc(100% - 13px) 100%,
+    0 100%,
+    0 13px
+  );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  padding: 1.5px;
+  display: flex;
+}
+
+.feedback-modal {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 32px 32px 26px;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.feedback-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.feedback-close:hover {
+  color: var(--color-text);
+}
+
+.feedback-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: center;
+}
+
+/* Circuit-tile backdrop -- same asset/size AboutModal's .about-body uses,
+   so the two console modals read as the same material family. */
+.feedback-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 20px;
+}
+
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feedback-field__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.feedback-textarea,
+.feedback-email-input {
+  background: var(--bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.feedback-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.feedback-textarea:focus,
+.feedback-email-input:focus {
+  border-color: var(--color-primary);
+}
+
+/* Visually hidden but still present/focusable-avoidant (tabIndex -1 on the
+   input itself, set in FeedbackModal.tsx) -- the standard "clip" pattern
+   rather than display:none, since some bots skip fields that are display:
+   none but still fill anything with a real box in the DOM. */
+.feedback-honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.feedback-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.feedback-checkbox-row input {
+  margin-top: 2px;
+}
+
+.feedback-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #f87171;
+}
+
+.feedback-success {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-text);
+  text-align: center;
+  padding: 20px 0;
+}
+
+.feedback-fine-print {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.feedback-cancel {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.feedback-cancel:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.feedback-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feedback-submit {
+  flex: 1;
+  background: var(--color-primary);
+  border: 1px solid var(--color-button-edge);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.feedback-submit:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+}
+
+.feedback-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

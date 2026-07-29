@@ -1,0 +1,94 @@
+name: Promote to prod
+
+# BL-131: explicit prod promotion via workflow_dispatch.
+#
+# History: through 2026-07-14 prod promotion was a `promote-prod` job at the
+# end of the main CI pipeline, gated by the GitHub "production" environment's
+# required-reviewers rule. When the repo went private, GitHub silently removed
+# that rule (environment protection is Enterprise-only on private repos),
+# leaving the gate ABSENT. This workflow is the rework: the main pipeline now
+# ends at deploy-dev for human-gated changes, and promotion to prod happens
+# only through this dispatch — Jeremy in the Actions UI, or Claude via
+# `gh workflow run promote-prod.yml -f sha=<sha>` under the standing
+# "promote it" rule. The `risk:low` fast path in ci.yml is unchanged and
+# still promotes in-pipeline without a human.
+#
+# Build-once semantics (ADR-0007) are preserved: the stated SHA's image was
+# already pushed to prod AR by its main-run build-and-push job; this workflow
+# deploys that image, it never rebuilds it. The promoted commit itself is
+# checked out so the terraform config, frontend build, and composite action
+# all match the promoted state — a dispatch always promotes a stated SHA,
+# which replaces the old reject-the-stale-gate / newest-run-gate dance.
+#
+# Failure modes: a SHA whose image was never built (e.g. a docs-only push)
+# fails at `terraform apply` when Cloud Run can't resolve the tag — the
+# existing prod revision keeps serving; re-run with a correct SHA.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: >-
+          Commit on main to promote (full or short SHA). Its main CI run
+          must have completed build-and-push (non-docs-only merge).
+        required: true
+        type: string
+
+# Serialize promotes against each other. Deliberately NOT the main pipeline's
+# `main-deploy-*` group: joining it could cancel a *queued* main deploy run
+# (GitHub keeps one queued run per group). Prod terraform state locking
+# guards the remaining overlap case (a dispatch racing a risk:low in-pipeline
+# promote) by failing one apply cleanly.
+concurrency:
+  group: prod-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    env:
+      # BL-171: the alert address is operator-personal; the value lives in
+      # the repo's Actions variable, never in the tracked tree.
+      TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+
+    # The "production" environment no longer carries protection rules (see
+    # header) but tagging the job keeps GitHub's deployment history intact.
+    environment: production
+
+    permissions:
+      # contents: write (was read) — BL-96: the promote-prod composite
+      # action's final step force-moves the `prod-current` tag.
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate the requested SHA
+        id: resolve
+        env:
+          SHA_INPUT: ${{ inputs.sha }}
+        run: |
+          full=$(git rev-parse --verify --quiet "${SHA_INPUT}^{commit}") || {
+            echo "::error::'${SHA_INPUT}' is not a commit in this repository"
+            exit 1
+          }
+          if ! git merge-base --is-ancestor "$full" origin/main; then
+            echo "::error::${full} is not on main — only main commits can be promoted"
+            exit 1
+          fi
+          echo "Promoting ${full}: $(git log -1 --format='%s' "$full")"
+          echo "sha=${full}" >> "$GITHUB_OUTPUT"
+
+      # Promote the stated commit's own tree: terraform config, frontend
+      # source, and the promote-prod composite action are all read from the
+      # promoted SHA, not from main's tip.
+      - name: Check out the promoted commit
+        run: git checkout --quiet "${{ steps.resolve.outputs.sha }}"
+
+      - uses: ./.github/actions/promote-prod
+        with:
+          image_tag: ${{ steps.resolve.outputs.sha }}

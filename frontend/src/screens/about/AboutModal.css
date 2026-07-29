@@ -1,0 +1,154 @@
+/* ── AboutModal (.about-*) ──────────────────────────────────────────────
+   Co-located with AboutModal.tsx (BL-125). Deliberately NOT AuthModal.css's
+   plain rounded-card family -- the design record (issue #287) calls for
+   the console "steel ring" treatment (angled corners + steel ring + tile)
+   CardPopup.css's .cp-shell/.cp-modal already established for the card-
+   detail/inventory popups: an outer layer clipped to an angled-corner
+   polygon at the steel-ring color (rgba(211,211,212,.28)), padded ~1.5px,
+   wrapping an inner layer clipped to the same polygon. Same technique, at
+   a much smaller ~520px panel scale (12-13px cuts vs. CardPopup's 21-22px
+   modal-scale cuts) since this is chrome/informational rather than the
+   1080px card-detail shell. ─────────────────────────────────────────── */
+
+/* .about-overlay's backdrop styling moved to index.css's shared
+   .modal-overlay class (BL-153, A3-06) -- the element keeps this class
+   name too (see AboutModal.tsx), just with no rule of its own left here. */
+
+.about-shell {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  background: rgba(211, 211, 212, 0.28);
+  clip-path: polygon(
+    13px 0,
+    100% 0,
+    100% calc(100% - 13px),
+    calc(100% - 13px) 100%,
+    0 100%,
+    0 13px
+  );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  padding: 1.5px;
+  display: flex;
+}
+
+.about-modal {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 32px 32px 26px;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.about-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.about-close:hover {
+  color: var(--color-text);
+}
+
+.about-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: center;
+}
+
+/* Circuit-tile backdrop (same asset/size CardPopup's .cp-rail and the F4
+   gallery plate already use) -- keeps the body reading as the shared
+   console material rather than a plain surface panel. */
+.about-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 18px 20px;
+}
+
+.about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-section__label {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.about-section__text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.about-section__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.about-submit {
+  align-self: center;
+  background: var(--color-primary);
+  border: 1px solid var(--color-button-edge);
+  border-radius: 4px;
+  padding: 10px 32px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.about-submit:hover {
+  background: var(--color-primary-dim);
+}

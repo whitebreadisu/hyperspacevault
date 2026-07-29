@@ -1,0 +1,32 @@
+# Runtime dependencies — everything the shipped container imports (RR-11).
+# Test/lint tooling lives in requirements-dev.txt; the Dockerfile's `runtime`
+# stage installs only this file.
+fastapi==0.140.0
+uvicorn[standard]==0.51.0
+sqlalchemy==2.0.51
+psycopg2-binary==2.9.12
+alembic==1.18.5
+pydantic==2.13.4
+httpx==0.28.1
+# BL-54 S2 (§7.2): POST /api/inventory/import is multipart (file + form
+# fields) -- FastAPI's Form()/File() params require python-multipart
+# installed at runtime, or the route registration itself raises at import
+# time (not just at request time).
+python-multipart==0.0.32
+firebase-admin==6.5.0
+# BL-76 Phase 2 (ADR-0012): card-image mirror/backfill. Pillow stays
+# ingestion-only; google-cloud-storage gained a request-path use in Phase 3
+# (app/routers/images.py streams GCS objects at serve time) -- both already
+# lived in the runtime image because ingestion scripts run from it (see
+# httpx above); adds ~15MB (Pillow) + ~5MB (google-cloud-storage + grpc/
+# protobuf deps) to the image.
+Pillow==12.3.0
+google-cloud-storage==3.13.0
+# BL-136 P3: tcgcsv's daily price-history archives are 7z containers using
+# the PPMd compression method (`prices-YYYY-MM-DD.ppmd.7z`) -- stdlib
+# `lzma`/`zipfile` cannot read the 7z container format at all, and PPMd
+# specifically has no other maintained pure-Python decoder; py7zr is the
+# standard library for this in the Python ecosystem and supports PPMd via
+# its pyppmd dependency (confirmed against a live archive during this
+# build).
+py7zr==1.1.3

@@ -1,0 +1,540 @@
+name: CI
+
+# Build-once / promote model (BL-43 Phase 6, ADR-0007):
+#
+# On every PR and push to main:
+#   backend  — pytest + ruff
+#   frontend — vitest + eslint/prettier/tsc
+#   terraform-fmt — fmt -check across all TF (no GCP auth needed)
+#
+# On push to main only:
+#   build-and-push   — build image once; push to both dev and prod AR
+#   deploy-dev       — terraform validate + apply dev; build + deploy frontend to swu-dev-jbapps;
+#                      smoke-test /health + /api/sets (RR-1)
+#   promote-prod-fast — risk:low merges only: promotes to prod in-pipeline,
+#                      human-free by design (BL-43 Stage 3); BL-96 guard —
+#                      blocked unless EVERY unpromoted commit since the
+#                      prod-current tag is also risk:low (whole-build check)
+#
+# Everything else ENDS at deploy-dev. Prod promotion is an explicit human
+# act via the promote-prod.yml workflow_dispatch (BL-131 — the repo going
+# private removed the old "production" environment required-reviewers gate,
+# which is Enterprise-only on private repos). Dev is auto-deployed on every
+# merge to main.
+
+# RR-6/F27: push is main-only so a PR's commits run CI once (via pull_request)
+# instead of twice (push + pull_request). Branch pushes without an open PR get
+# no CI — open a PR (even draft) to get checks.
+#
+# BL-167: docs-only changes trigger NO run at all (paths-ignore on both
+# events) — on a private repo every job bills a rounded-up minute, and this
+# repo's docs cadence made docs-only runs the dominant Actions cost. The
+# ignore list MUST mirror detect-changes' classification case-arm below
+# (specification_documents/docs/learning_guide/claude_design/.design-sync
+# dirs + root *.md/LICENSE; note `*.md` here matches ROOT-level .md only,
+# same as the case-arm — deliberately NOT `**/*.md`). detect-changes is
+# RETAINED as belt-and-braces for deploy-skipping: if this trigger gate and
+# a mixed push ever disagree, deploys still gate on the job-level check.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "specification_documents/**"
+      - "docs/**"
+      - "learning_guide/**"
+      - "claude_design/**"
+      - ".design-sync/**"
+      - "*.md"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "specification_documents/**"
+      - "docs/**"
+      - "learning_guide/**"
+      - "claude_design/**"
+      - ".design-sync/**"
+      - "*.md"
+      - "LICENSE"
+
+# RR-6/F28 (supersedes BL-79's cancel-in-progress for main, keeps its goal):
+# PR runs still cancel their superseded predecessors, but a main run is never
+# cancelled — cancelling can kill `terraform apply` mid-change and leave
+# infra half-applied with a locked state file. Main runs QUEUE instead, which
+# serializes deploy chains (mechanizing the "watch the full pipeline before
+# the next merge" discipline). GitHub keeps at most one queued run per group
+# and cancels older *queued* (never *running*) entries. Since BL-131 no
+# pipeline run ever waits on a pending gate (promotion moved to
+# promote-prod.yml's dispatch, which uses its own `prod-promote` group), so
+# BL-79's stacked-gate problem is gone structurally. "main-deploy-" avoids
+# colliding with gcp-wif-verify.yml's run group.
+concurrency:
+  group: main-deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: swu_inventory
+          POSTGRES_USER: swu_user
+          POSTGRES_PASSWORD: swu_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U swu_user -d swu_inventory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://swu_user:swu_pass@localhost:5432/swu_inventory
+      APP_DATABASE_URL: postgresql://swu_app:swu_app_pass@localhost:5432/swu_inventory
+      APP_DB_PASSWORD: swu_app_pass
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      # RR-11: CI needs runtime + dev deps (pytest/ruff); the shipped image
+      # installs requirements.txt only (Dockerfile `runtime` stage).
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint (ruff check)
+        working-directory: backend
+        run: ruff check app
+
+      - name: Format check (ruff format)
+        working-directory: backend
+        run: ruff format --check app
+
+      - name: Apply migrations
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Run pytest
+        working-directory: backend
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=75
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Format check (prettier)
+        working-directory: frontend
+        run: npm run format:check
+
+      - name: Type-check and build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run vitest
+        working-directory: frontend
+        run: npx vitest run --coverage
+
+  terraform-fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive terraform/
+
+  # ── docs-only fast-skip (BL-78) ─────────────────────────────────────────
+  # Pushes to main that touch only non-deployed files (root markdown,
+  # LICENSE, specification_documents/, docs/, learning_guide/,
+  # claude_design/, .design-sync/) don't need an image build or a deploy.
+  # This job classifies the push; build-and-push below adds its output to
+  # its own `if`. Everything downstream of build-and-push (check-risk-level,
+  # deploy-dev, promote-prod-fast) already `needs` it
+  # transitively, so GitHub's implicit needs-success check skips them too
+  # when build-and-push is skipped — the same cascade that already skips
+  # them on PR runs today. No other job's wiring changes.
+  #
+  # Squash merges land as a single commit on main, so diffing HEAD^..HEAD
+  # captures exactly what this push changed relative to the prior main tip.
+
+  detect-changes:
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    outputs:
+      docs_only: ${{ steps.check.outputs.docs_only }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Determine if this push touched only non-deployed files
+        id: check
+        run: |
+          if ! git rev-parse HEAD^ >/dev/null 2>&1; then
+            echo "No parent commit available (initial commit) — treating as NOT docs-only."
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+
+          docs_only=true
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              */*)
+                case "$f" in
+                  specification_documents/*|docs/*|learning_guide/*|claude_design/*|.design-sync/*) ;;
+                  *) docs_only=false ;;
+                esac
+                ;;
+              *)
+                case "$f" in
+                  *.md|LICENSE) ;;
+                  *) docs_only=false ;;
+                esac
+                ;;
+            esac
+          done <<< "$changed"
+
+          echo "docs_only=$docs_only"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
+  # ── main-only: build image once, push to both dev and prod AR ──────────────
+
+  build-and-push:
+    needs: [backend, frontend, detect-changes]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.detect-changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROD_IMAGE: us-central1-docker.pkg.dev/swu-prod/backend/api
+      DEV_IMAGE: us-central1-docker.pkg.dev/swu-dev-jbapps/backend/api
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-prod
+          workload_identity_provider: projects/373324715123/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      # BL-170: the swuapi export lives in the private repo-assets bucket,
+      # not in git. Fetch it into the Docker build context so the image
+      # ships a catalog capture exactly as it did when the file was
+      # committed (bootstrap.py resolves swuapi_export_current.json first).
+      # This job authenticates as terraform-ci@swu-prod, hence the prod
+      # bucket; content is runbook-synced to both env buckets.
+      - name: Fetch bootstrap export (repo-assets bucket)
+        run: |
+          gcloud storage cp \
+            gs://swu-prod-repo-assets/exports/swuapi_export_current.json \
+            backend/app/ingestion/data/swuapi_export_current.json
+          test -s backend/app/ingestion/data/swuapi_export_current.json
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push (prod + dev AR)
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          # RR-11: ship the runtime stage only — the Dockerfile's `dev` stage
+          # (test/lint tooling, used by docker compose) is last, so an
+          # untargeted build would ship dev deps to prod.
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.PROD_IMAGE }}:${{ github.sha }}
+            ${{ env.DEV_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── risk classification (runs in parallel with deploy-dev) ────────────────
+  # Reads the merged PR's labels to decide whether prod promotes in-pipeline:
+  #   risk:low  → promote-prod-fast (human-free by design), IF the whole-build
+  #               guard below also passes
+  #   default   → nothing: the pipeline ends at deploy-dev, and promotion
+  #               happens via promote-prod.yml (workflow_dispatch, BL-131)
+  # Stage 3 of the agentic platform roadmap (SWU_Platform_Roadmap.md §7.4).
+  #
+  # BL-96 whole-build guard: the fast path's unit of decision used to be one
+  # PR's label, but its unit of effect is the ENTIRE dev build — everything
+  # merged since prod's current SHA rides along. A risk:low merge landing
+  # after an unpromoted gated merge would auto-promote the gated work without
+  # its own gate ever being satisfied (near-missed live 2026-07-10). The
+  # guard walks `prod-current..HEAD` (the `prod-current` tag is force-moved
+  # by the promote-prod composite action on every successful promote, both
+  # callers) and blocks the fast path unless EVERY unpromoted commit's PR
+  # carries risk:low. Fails closed: a missing tag, a commit with no PR, or
+  # an unreadable label all block — the manual promote-prod.yml path is the
+  # documented fallback and remains unaffected.
+
+  check-risk-level:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    outputs:
+      is_low_risk: ${{ steps.check.outputs.is_low_risk }}
+      build_clean: ${{ steps.lineage.outputs.build_clean }}
+
+    steps:
+      - name: Check merged PR risk label
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labels=$(gh api \
+            "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --header "Accept: application/vnd.github.groot-preview+json" \
+            --jq '.[0].labels[].name' 2>/dev/null || echo "")
+          if echo "$labels" | grep -qx "risk:low"; then
+            echo "is_low_risk=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_low_risk=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Full history + tags: the guard needs prod-current and the lineage
+      # up to HEAD. Only bother when the label check passed — a non-low
+      # merge never reaches the fast path anyway.
+      - uses: actions/checkout@v7
+        if: steps.check.outputs.is_low_risk == 'true'
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Whole-build guard (BL-96) — block if unpromoted gated work rides along
+        id: lineage
+        if: steps.check.outputs.is_low_risk == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! git rev-parse --verify --quiet prod-current >/dev/null; then
+            echo "::warning::BL-96 guard: prod-current tag not found — cannot verify the unpromoted lineage. Blocking the fast path (fail closed); promote via promote-prod.yml, which will re-create the tag."
+            echo "build_clean=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          blockers=""
+          count=0
+          for c in $(git rev-list prod-current..HEAD); do
+            count=$((count+1))
+            if [ "$count" -gt 100 ]; then
+              blockers="$blockers (>100-unpromoted-commits)"
+              break
+            fi
+            # HEAD's own PR label was already checked by the step above.
+            if [ "$c" = "${{ github.sha }}" ]; then
+              continue
+            fi
+            labels=$(gh api "repos/${{ github.repository }}/commits/$c/pulls" \
+              --jq '.[0].labels[].name' 2>/dev/null || echo "")
+            if ! echo "$labels" | grep -qx "risk:low"; then
+              blockers="$blockers $c"
+            fi
+          done
+          if [ -n "$blockers" ]; then
+            echo "::notice::BL-96 guard: auto-promote blocked — unpromoted commit(s) without a risk:low label would ride along:$blockers. Promote deliberately via promote-prod.yml (workflow_dispatch) so the gated work gets its human gate."
+            echo "build_clean=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Guard passed: every unpromoted commit since prod-current carries risk:low."
+            echo "build_clean=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── auto-deploy to dev ─────────────────────────────────────────────────────
+
+  deploy-dev:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    env:
+      # BL-171: the alert address is operator-personal; the value lives in
+      # the repo's Actions variable, never in the tracked tree.
+      TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-dev-jbapps
+          workload_identity_provider: projects/887823370605/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-dev-jbapps.iam.gserviceaccount.com
+
+      # ADR-0011: needed for the `gcloud run jobs execute` migrate step below
+      # (deploy-dev previously only needed terraform + WIF auth).
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform init (dev)
+        working-directory: terraform/environments/dev
+        run: terraform init
+
+      - name: Terraform validate (dev)
+        working-directory: terraform/environments/dev
+        run: terraform validate
+
+      # ADR-0011/BL-8: apply just the migrate Cloud Run Job at the new image
+      # tag (targeted -- the backend service itself isn't touched yet), then
+      # execute it synchronously and fail the pipeline on a bad migration --
+      # before the full apply below deploys the new service revision. This is
+      # what makes "migrate before serve" true: a failing migration stops
+      # here, the current revision keeps serving.
+      - name: Terraform apply migrate job (dev)
+        working-directory: terraform/environments/dev
+        run: terraform apply -auto-approve -target=module.app.google_cloud_run_v2_job.migrate -var="backend_image_tag=${{ github.sha }}"
+
+      - name: Run database migration (dev)
+        run: gcloud run jobs execute migrate --region=us-central1 --project=swu-dev-jbapps --wait
+
+      - name: Terraform apply (dev)
+        working-directory: terraform/environments/dev
+        run: terraform apply -auto-approve -var="backend_image_tag=${{ github.sha }}"
+
+      - name: Read dev backend URL
+        id: backend_url
+        working-directory: terraform/environments/dev
+        run: echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Read dev Firebase config
+        id: firebase_config
+        working-directory: terraform/environments/dev
+        run: |
+          echo "api_key=$(terraform output -raw firebase_web_app_api_key)" >> "$GITHUB_OUTPUT"
+          echo "auth_domain=$(terraform output -raw firebase_web_app_auth_domain)" >> "$GITHUB_OUTPUT"
+          echo "project_id=$(terraform output -raw project_id)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (dev)
+        working-directory: frontend
+        env:
+          VITE_FIREBASE_API_KEY: ${{ steps.firebase_config.outputs.api_key }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ steps.firebase_config.outputs.auth_domain }}
+          VITE_FIREBASE_PROJECT_ID: ${{ steps.firebase_config.outputs.project_id }}
+        run: npm run build
+
+      - name: Deploy frontend to dev Firebase Hosting
+        working-directory: frontend
+        run: npx firebase-tools@latest deploy --only hosting --project swu-dev-jbapps --non-interactive
+
+      # RR-1: post-deploy smoke check. Cloud Run revision rollout isn't
+      # instantaneous, so retry through transient failures before failing
+      # the job. Anonymous endpoints only — no token needed.
+      - name: Smoke test dev deployment
+        env:
+          BACKEND_URL: ${{ steps.backend_url.outputs.url }}
+        run: |
+          echo "GET $BACKEND_URL/health"
+          curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sS \
+            -o /dev/null -w "  -> %{http_code}\n" "$BACKEND_URL/health"
+
+          echo "GET $BACKEND_URL/api/sets"
+          curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sS \
+            -w "  -> %{http_code}\n" "$BACKEND_URL/api/sets" -o /tmp/sets.json
+          count=$(jq 'length' /tmp/sets.json)
+          echo "  -> $count sets"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::GET /api/sets returned an empty array"
+            exit 1
+          fi
+
+  # ── prod promote: fast path (risk:low label — no human gate) ───────────────
+  # The gated default path is NOT here anymore: non-risk:low merges end at
+  # deploy-dev, and prod promotion is promote-prod.yml's explicit
+  # workflow_dispatch (BL-131). BL-96: requires BOTH the merged PR's own
+  # risk:low label AND a clean unpromoted lineage (see check-risk-level's
+  # whole-build guard) — a risk:low merge no longer ships someone else's
+  # gated work as a side effect.
+
+  promote-prod-fast:
+    needs: [deploy-dev, check-risk-level]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.check-risk-level.outputs.is_low_risk == 'true' &&
+      needs.check-risk-level.outputs.build_clean == 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      # BL-171: see deploy-dev — value from the repo Actions variable.
+      TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+
+    permissions:
+      # contents: write (was read) — BL-96: the promote-prod composite
+      # action's final step force-moves the `prod-current` tag.
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/promote-prod
+        with:
+          image_tag: ${{ github.sha }}

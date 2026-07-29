@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    # SQLAlchemy filter clauses use `== True` / `== False` intentionally.
+    # Ruff's suggested fix (`not Column`) calls __bool__() on a Column object,
+    # which SQLAlchemy raises TypeError for at runtime.
+    "E712",
+    # SQLAlchemy resolves forward references in Mapped["ClassName"] strings at
+    # runtime via its registry — these are not undefined names.
+    "F821",
+    # SQL strings and f-strings with long messages can't be broken cleanly;
+    # the formatter already wraps everything it can.
+    "E501",
+]

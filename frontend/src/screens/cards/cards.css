@@ -1,0 +1,1392 @@
+/* ── Cards screen (BL-56 unified Catalog + Inventory view) ──────────────── */
+
+/* BL-56: the unified Cards table has more columns than the old catalog
+ * (Variants + the 360px inventory column), so the old 1600px cap forced a
+ * horizontal scrollbar while leaving empty gutters on wide screens. Fill the
+ * available width instead (breathing room comes from .app-main's 32px padding);
+ * a narrow window still scrolls the table wrapper, not the page.
+ * BL-129 R8 re-introduces a cap, but scoped to `.data-table-wrapper` alone
+ * (below) rather than `.screen` -- unlike the old cap this is sized to the
+ * table's own intrinsic column-width sum (CardsTable.tsx's COLUMN_WIDTHS),
+ * so it never forces a horizontal scrollbar on its own; it only stops
+ * `table-layout: fixed`'s proportional stretch once the wrapper would
+ * otherwise grow past a comfortable width on ultrawide viewports. */
+.screen {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── BL-129 R2: docked filter sidebar (extends R8) ────────────────────────
+   FilterPanel's expanded sidebar (`.ifp-sidebar`, FilterPanel.css) always
+   floats absolutely over this screen's content (BL-111 F6) -- its outer
+   wrapper (`.ifp-sidebar-wrap`) takes zero layout space either way (open or
+   collapsed) since the sidebar/rail inside it is always `position:absolute`.
+   Past a wide-enough viewport, Jeremy wants the expanded sidebar to dock
+   in-flow instead, with the [sidebar + content] pair centering as ONE unit
+   -- whitespace equally left of the sidebar and right of the table -- rather
+   than the sidebar hugging the left edge while the table centers on its own
+   in whatever space is left.
+
+   `.cards-layout` is the new flex row CardsPage.tsx wraps FilterPanel and
+   `.cards-content` (the summary + table/gallery stack, previously three
+   direct `.screen` children) in. `justify-content: center` centers whatever
+   combined width the two items add up to:
+     - Collapsed rail, or expanded-but-too-narrow-to-dock (see FilterPanel.css's
+       media query): `.ifp-sidebar-wrap` still contributes ~0 width (its
+       content is `position:absolute` in both those states), so the row's
+       width is just `.cards-content`'s own -- centering it alone reproduces
+       the exact pre-R2 behavior (`.inv-summary`/`.data-table-wrapper` were
+       already self-centering via their own margin:auto below).
+     - Docked (wide enough, expanded): FilterPanel.css's media query switches
+       `.ifp-sidebar` to an in-flow block, so it now contributes its real
+       rendered width to the row -- `justify-content: center` centers the
+       sidebar+gap+content total automatically, no JS measurement needed.
+   No parallel open/collapsed state is added here -- FilterPanel.tsx's own
+   `open` useState still drives which markup exists inside `.ifp-sidebar-wrap`;
+   this row only reacts to however wide that wrapper's *content* ends up
+   being. */
+.cards-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+  /* Round 7: containing block for the expanded-sidebar rule below. */
+  position: relative;
+}
+
+/* Owner dev review 2026-07-26 (round 7): with the table capped at its
+ * natural width (1526px at round 6; briefly 1572px during BL-173, back to
+ * 1526px content + 2px border = 1528px cap at round 5), wide
+ * monitors have real left-gutter space -- the EXPANDED sidebar pins to the
+ * layout's left edge (the screen side of that gutter) to use it, instead of
+ * floating at the centered column's edge over the table. State-scoped via :has() on the expanded markup
+ * (.ifp-sidebar) ONLY: the collapsed tab keeps its current spot beside the
+ * table (owner likes it there), because collapsed markup is the tab, not
+ * .ifp-sidebar. Docked-mode note: inside this absolute wrap the docked
+ * in-flow sidebar also renders at the far left, which is the same owner
+ * preference applied there. */
+.cards-layout:has(.ifp-sidebar) .ifp-sidebar-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Round 8 (owner): pulling the wrap out of flow above also removed its
+ * in-flow footprint (0 width + the layout's 24px gap) from the centering
+ * math, so the table shifted 12px left whenever the filter expanded. A
+ * compensating margin restores the identical centered position -- a
+ * cap+24 box (1526+24 at round 8; 1528+24 since BL-173 round 5) centered
+ * with the content pushed 24px right lands the table at exactly the
+ * collapsed-state x, so the table never moves as the filter opens/closes. */
+.cards-layout:has(.ifp-sidebar) .cards-content {
+  margin-left: 24px;
+}
+
+/* Owner dev review 2026-07-26 round 3 (revised round 5): the COLLAPSED
+ * filter tab floats absolutely over the content's top-left and was covering
+ * the summary strip's scope toggle. Round 3 answered with a 52px indent
+ * scoped via :has() to the collapsed state; round 5 owner call: 20px, and
+ * UNCONDITIONAL -- the strip's left position stays put whether the filter
+ * is collapsed or not (the rule lives on .inv-summary itself, see below).
+ * The :has() rule is retired. */
+
+/* The summary+table/gallery column. `flex: 0 1 1900px` mirrors
+   `.data-table-wrapper`'s own cap below: a flex-basis at the table's max
+   comfortable width with no grow (0) -- never wider than that cap even when
+   `.cards-layout` has room to spare (that spare room is what
+   `justify-content: center` distributes as symmetric whitespace instead) --
+   but shrinks (flex-shrink defaults to 1) exactly as this column's children
+   already did on their own before this wrapper existed, once the viewport is
+   narrower than the cap. */
+.cards-content {
+  /* Round 6: mirrors the retuned cap (see .data-table-wrapper's sync rule).
+     BL-173 review rounds: 1526 -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 ->
+     1528 (round 5: natural width back to the long-proven 1526 content). */
+  flex: 0 1 1528px;
+  /* `.cards-layout`'s `align-items: flex-start` (above) keeps the sidebar at
+     its own natural content height when docked (rather than an oversized
+     box stretched to match the table) -- this column overrides that back to
+     a full-height stretch for itself, so `.data-table-wrapper`'s own
+     `flex: 1` below still has real vertical space to grow into, same as
+     when these were direct `.screen` children pre-R2. */
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-heading {
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0 0 20px;
+}
+
+/* ── Completion panel (BL-163, Definition_CosmeticsBatch_2026-07-26.md §3) ──
+ * Four clipped-corner "blocks" (summaryStyle=blocks) replacing the old flat
+ * "label: value — label: value" strip. Owner-saved defaults (Definition §0):
+ * summaryAccent=white, progressViz=ticks/blue, breakdownLabel=image. Ported
+ * from InventorySummaryRestyled.jsx's shipping "blocks" branch (design
+ * reference, re-expressed as classed CSS here rather than inline styles). */
+.inv-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  /* Round 5 (owner): constant 20px left inset for the scope toggle + blocks
+   * -- clears the collapsed filter tab enough, and holds the same position
+   * when the filter is open (see the retired :has() note near
+   * .cards-layout). */
+  padding-left: 20px;
+  /* R8b (BL-129 fix round 1): same cap as `.data-table-wrapper` below, so
+     the summary bar and the table read as one aligned column instead of the
+     bar spanning full width while the table caps out narrower underneath.
+     (Round 6: 1900 -> 1526; BL-173 review rounds walked it up and back:
+     -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 -> 1528 -- see the wrapper's
+     comment for the sync rule.) */
+  max-width: 1528px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.inv-summary__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* BL-54 S3 (§8.1 P9): the Import / Export button's signed-in-unverified
+ * click nudge -- same quiet/muted treatment as FilterPanel.css's
+ * .ifp-toggle-nudge (a passive text hint, not a modal), sitting under the
+ * summary bar rather than inside the button row so it doesn't disturb
+ * .inv-summary__actions's flex layout. */
+.ie-entry-nudge {
+  margin: 6px 0 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-warning);
+}
+
+/* Scope toggle (Filtered/All) -- sits LEFT of the blocks with a bracket
+ * divider, only rendered while the visible list is narrowed (Definition
+ * §3; InventorySummary.tsx's `showScopeToggle`). */
+.inv-summary__scope {
+  display: inline-flex;
+  align-items: center;
+  padding-right: 14px;
+  margin-right: 4px;
+  border-right: 1px solid var(--color-border);
+  align-self: stretch;
+}
+
+.inv-summary__scope-toggle {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inv-summary__scope-toggle-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__scope-group {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+}
+
+.inv-summary__scope-btn {
+  padding: 4px 10px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__scope-btn--active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+/* One block: 1px ring (border-color var, or the blue viz color while its
+ * popover is open) around a clipped-corner inner panel. */
+.inv-summary__block-wrap {
+  position: relative;
+  display: inline-flex;
+  /* Owner dev review 2026-07-26 (round 3): all four blocks render uniform
+   * height -- the tick-less Cards/Value blocks stretch to match the two
+   * percentage blocks (the wrap's inner flex chain already stretches its
+   * children, so this one property does the whole job). */
+  align-self: stretch;
+}
+
+.inv-summary__block {
+  display: inline-flex;
+  padding: 1px;
+  background: var(--color-border);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.inv-summary__block--open {
+  background: var(--color-primary);
+}
+
+/* Owner dev review 2026-07-27 (BL-173 round 1): hovering a completion block
+ * previews the same blue outline the open state shows -- the "outline" is
+ * this 1px background-as-border, so hover simply applies the open color. */
+.inv-summary__block-wrap:hover .inv-summary__block {
+  background: var(--color-primary);
+}
+
+.inv-summary__block-inner {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 16px 9px 14px;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.inv-summary__block-inner[role="button"] {
+  cursor: pointer;
+}
+
+.inv-summary__label-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.inv-summary__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__chevron {
+  font-size: 8px;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__value-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* summaryAccent=white (Definition §0). */
+.inv-summary__value {
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.inv-summary__sub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* progressViz=ticks, progressColor=blue: 10 skewed tick marks under the two
+ * percentage blocks (and each popover row's own pct). */
+.inv-summary__ticks {
+  display: inline-flex;
+  gap: 3px;
+  padding-left: 3px;
+}
+
+.inv-summary__tick {
+  width: 7px;
+  height: 5px;
+  background: var(--color-border);
+  transform: skewX(-18deg);
+}
+
+.inv-summary__tick--filled {
+  background: var(--color-primary);
+}
+
+/* Market/Low toggle for the Collection-value block, styled after (not
+ * imported from -- CardPopup is a parallel decomposition target)
+ * CardPopup.css's .cp-rail__pricemode / .cp-rail__pricemode-btn. */
+.inv-summary__pricemode {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  flex: none;
+}
+
+.inv-summary__pricemode-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
+.inv-summary__pricemode-btn:hover:not(.inv-summary__pricemode-btn--active) {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.inv-summary__pricemode-btn--active {
+  background: rgba(37, 99, 235, 0.28);
+  color: #ffffff;
+}
+
+/* "«metric» by set" breakdown popover -- base sets in release order, a
+ * plain list (no canonical/secondary separation, owner call). */
+/* Owner dev review 2026-07-26: expanded panels sized UP relative to the
+ * blocks (logos 24->34, ticks enlarged via the scoped rule below, text
+ * 14->17) -- the popover is a reading surface, not a summary chip. */
+.inv-summary__popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 16px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  cursor: default;
+}
+
+.inv-summary__popover-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.inv-summary__popover-empty {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__popover-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* BL-173 review round 4 (owner, 2026-07-27): a subtle horizontal rule
+ * between popover rows for visual structure -- row-to-row only (the
+ * `+ row` selector never puts a line between the title and the first
+ * row), with matching breathing room above the line so each row keeps
+ * clear separation (the popover's own 10px flex gap sits below it). */
+.inv-summary__popover-row + .inv-summary__popover-row {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+/* Owner dev review 2026-07-26 (round 3): the 190px width cap removed --
+ * wide-aspect logos may use ALL of their row's free width, so they scale up
+ * toward the fixed 34px row height where room exists (mostly the Cards/
+ * Value popovers, whose rows have no ticks). Row height itself is unchanged
+ * (height: 34px stays the cap), so the popover's overall structure/size is
+ * untouched. Known limit, deliberate: in the two percentage popovers the
+ * ticks + pct column reserve ~200px, so wide logos there stay
+ * width-constrained -- growing them would mean widening the panel or
+ * shrinking the ticks (owner excluded structure changes). */
+.inv-summary__popover-logo {
+  height: 34px;
+  object-fit: contain;
+  object-position: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Round 5 (owner): the LAW logo's square-ish aspect made it render notably
+ * larger than its neighbors at the shared 34px height -- pull just that one
+ * down toward the pack. */
+.inv-summary__popover-logo[src*="set_LAW"] {
+  height: 28px;
+}
+
+/* Enlarged ticks inside the popover only (the blocks' own ticks keep the
+ * compact 7x5 size above). */
+.inv-summary__popover .inv-summary__tick {
+  width: 10px;
+  height: 7px;
+}
+
+.inv-summary__popover .inv-summary__ticks {
+  gap: 4px;
+}
+
+/* Owner dev review 2026-07-26: a 100% row's ticks read green in the
+ * expanded panel (matches the playset-complete chip accent). Popover-scoped
+ * on purpose -- the blocks' own ticks stay blue. */
+.inv-summary__popover .inv-summary__ticks--complete .inv-summary__tick--filled {
+  background: #3fb950;
+}
+
+.inv-summary__popover-pct {
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  width: 52px;
+  text-align: right;
+  flex: none;
+}
+
+/* Round 5 (owner): two fixed columns so the popover's rows align down the
+ * whole panel -- the count/value RIGHT-aligned in its column, the
+ * "(N unique)" / "(N unpriced)" sub LEFT-aligned in its own column at a
+ * constant x. Fixed widths (not content-sized) are what make the alignment
+ * hold across rows, including Value rows that have no unpriced sub at all
+ * (their sub cell is simply empty). */
+.inv-summary__popover-right {
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  flex: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.inv-summary__popover-count {
+  min-width: 84px;
+  text-align: right;
+}
+
+.inv-summary__popover-right .inv-summary__sub {
+  margin-left: 8px;
+  min-width: 96px;
+  text-align: left;
+}
+
+/* ── Table/Gallery view toggle (BL-111 F3, design handoff §3) ────────────
+ * "Table/gallery toggle sits LEFT of the Add Cards button" -- rendered here
+ * in InventorySummary.tsx's actions slot, ahead of the Add Cards button
+ * (`children`). This is an ADDITION, not a relocation: FilterPanel's own
+ * .ifp-view-toggle (BL-73 Stage 1) stays put and keeps working -- the
+ * reference screenshot (03-cards-screen.png) shows both controls at once,
+ * wired to the same CardsPage-owned viewMode/onViewModeChange. FilterPanel's
+ * own restyle is BL-111 F6 (out of scope here); this one matches
+ * InventorySummaryRestyled.jsx's inline styles verbatim. */
+.inv-summary__view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  margin-right: 14px;
+}
+
+.inv-summary__view-toggle-btn {
+  padding: 7px 16px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__view-toggle-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* Data table (shared chrome for the unified Cards table) */
+.data-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* BL-129 R8: caps how wide table-layout:fixed's proportional column
+     stretch can go -- below this width the wrapper still fills 100% of
+     .screen exactly as before (the narrow-viewport density Jeremy likes is
+     unaffected); past it, the wrapper stops growing and this element's own
+     `overflow: auto` scrolls horizontally instead, the same mechanism a
+     narrow window already relies on. Sized a little above the intrinsic sum
+     of CardsTable.tsx's COLUMN_WIDTHS (1814px) for breathing room. */
+  /* BL-162: dropping the Inventory column brings the intrinsic sum down to
+     1524px (was 1814px pre-BL-162). */
+  /* Owner dev review 2026-07-26 (round 6): cap retuned from 1900px to the
+     table's exact natural width -- column sum + 2px of this wrapper's own
+     border -- so table-layout:fixed never stretches the columns at all;
+     larger monitors get symmetric empty gutters (the existing margin-auto
+     centering) instead of a wider table. The gallery shares the wrapper, so
+     it fits its columns to the same width. Keep the THREE 1528px values in
+     this file in sync (.inv-summary max-width / .cards-content flex-basis /
+     here) AND retune all three if COLUMN_WIDTHS ever changes. */
+  /* BL-173 review round 1 (2026-07-27): 1526 -> 1634 (Value column +132,
+     Cost/Power/HP -8 each). BL-173's original merge added the Value column
+     WITHOUT retuning this trio -- the capped wrapper grew a horizontal
+     scrollbar, which is exactly the failure mode the sync rule above warns
+     about. Round 2: 1634 -> 1610 (Unit Value 132 -> 108, its toggle now
+     stacks instead of sitting inline). Round 3: -> 1602 (Unit Value
+     108 -> 100). Round 4: -> 1560 (Unit Value 100 -> 90 via tightened
+     cell padding, Aspect 140 -> 108). Round 4 tail: -> 1572 (Unit Value
+     90 -> 102, price text pulled 38px off the right edge -- owner-dialed
+     air before Rarity). Round 5: -> 1528 -- a fixed-layout table never
+     renders narrower than its column sum, so BL-173's net +44px put a
+     sliver h-scrollbar on viewports between 1526 and 1570; 44px reclaimed
+     from six low-risk columns (see COLUMN_WIDTHS' round-5 note), column
+     sum back to the long-proven 1526 + 2px border. */
+  max-width: 1528px;
+  /* R8b (BL-129 fix round 1): BL-129 R8 introduced the cap above but left
+     the wrapper flush left inside `.screen`'s full-width flex column, so
+     past 1900px it visibly hugged the left edge instead of centering. The
+     margin-auto idiom centers it in the remaining space; `.inv-summary`
+     above gets the identical cap + centering so the two read as one
+     aligned column, not two independently-sized bars. */
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  /* BL-111 F3: explicit opaque surface -- once the page background (behind
+     .app-layout, index.css) becomes the circuit tile, a wrapper with no
+     background of its own would let the tile bleed through every unstriped
+     row (only `.row-alt` had a background before). The reference screenshot
+     shows the table as one solid dark surface, so this is the "minimal
+     legibility fix" the new page background requires here. */
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* BL-44 Slice C: fixed layout + the <colgroup> widths in CardsTable.tsx
+ * (COLUMN_WIDTHS) are what keep columns from jittering as the virtualizer
+ * mounts/unmounts rows while scrolling -- auto-layout re-measures column
+ * widths from whichever rows are currently in the DOM, which is exactly
+ * what windowing breaks. table-layout: fixed instead sizes columns purely
+ * from the colgroup (ratios that stretch to fill the table's 100% width). */
+.data-table--cards {
+  table-layout: fixed;
+}
+
+.data-table thead th {
+  background: var(--bg-surface);
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* BL-44 Slice C: striping keys off the data index (CardsTable.tsx sets
+ * `.row-alt` from `virtualRow.index % 2`) rather than `:nth-child(even)`.
+ * With virtualization, DOM child position no longer equals data-array
+ * position 1:1 (the top/bottom spacer rows shift it), so a position-based
+ * selector would make the stripe pattern shift as you scroll. */
+.data-table tbody tr.row-alt {
+  background: var(--bg-surface-alt);
+}
+
+.data-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.data-table tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.data-table .cell-muted {
+  color: var(--color-text-muted);
+}
+
+/* Cards-table column widths: sizing itself now comes from the <colgroup>
+ * in CardsTable.tsx (COLUMN_WIDTHS) now that the table is table-layout:
+ * fixed -- these two min-width rules are superseded and removed. Name still
+ * needs white-space: normal to let a long name + subtitle wrap onto a
+ * second line instead of being clipped by .td-ellipsis elsewhere. */
+.data-table--cards .td-name {
+  white-space: normal;
+}
+
+/* Plain single-value text columns (Rarity, Type, Cost/Power/HP, Trait,
+ * Keyword, Arena, Set): clip with an ellipsis instead of visually
+ * overflowing into the next column now that columns have fixed widths.
+ * Deliberately NOT applied to Variants/Playset/Aspect -- those hold
+ * interactive or absolutely-positioned content (e.g. VariantsTooltip's
+ * popover, PlaysetCell's hover dossier) that `overflow: hidden` would clip. */
+.data-table--cards .td-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* BL-111 F3: tightened vertical padding for the Aspect/Cost/Power/HP cells,
+ * compensating for the larger 22px aspect icons + stat badges so the row
+ * height stays equal to the pre-restyle 7px-padding/16px-icon row (see the
+ * comment above CardsTableRestyled.jsx's aspect/stat cells in the design
+ * handoff -- same technique, ported to real CSS classes instead of inline
+ * styles). `.td-stat` additionally zeroes line-height, collapsing the extra
+ * inline-box space an SVG normally sits in. */
+.data-table--cards .td-icon-pad {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.data-table--cards .td-stat {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 0;
+  /* BL-173 owner review round 1 (2026-07-27): Cost/Power/HP tightened to
+     52px each and their badges CENTERED (was flush-left per BL-129 R8) --
+     the matching .th-stat below centers the header text over them. */
+  text-align: center;
+}
+.data-table--cards thead .th-stat {
+  text-align: center;
+}
+
+/* ── Card name link (opens the unified CardPopup, BL-111 F5) ────────────── */
+
+.card-name-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    color 0.15s,
+    text-decoration-color 0.15s;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+}
+
+.card-name-link:focus-visible {
+  color: var(--color-primary);
+  text-decoration-color: currentColor;
+}
+
+/* BL-132 R2 (Jeremy dev review, 2026-07-15): Name cell gets the same
+   whole-cell click target + hover treatment the Playset cell's
+   click-to-edit affordance uses below (.td-playset--clickable, BL-162 --
+   originally the retired Inventory cell's treatment).
+   The cell background highlight is the ONLY hover affordance -- the link
+   itself never takes hyperlink styling on hover (round 1 did this and
+   Jeremy rejected it as an unwanted blue-link-on-hover look). Focus-visible
+   styling on .card-name-link is retained so keyboard users still get a
+   visible indicator. */
+.td-name--clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s ease;
+}
+.td-name--clickable:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* ── Playset cell (BL-162: merged Playset + Inventory) ────────────────────
+ * PlaysetCell.tsx (screens/cards/) -- pips + an always-on Russo One count
+ * chip (LEFT of the pips, owner-saved defaults invStyle="chip"/
+ * invAlwaysShow=true/invNumLeft=true) + the retired Inventory column's
+ * click-to-edit affordance + a hover dossier reusing GalleryGrid's
+ * .gallery-dossier* classes verbatim (only the anchor position differs,
+ * below). */
+.playset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.playset__pips {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.playset__pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-text-muted);
+  background: transparent;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+.playset__pip--filled {
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.playset--complete .playset__pip--filled {
+  background: var(--aspect-command);
+  border-color: var(--aspect-command);
+}
+
+.playset--empty .playset__pip {
+  border-color: var(--color-border);
+}
+
+/* Count chip -- Russo One (already shipped for stat badges, index.css's
+ * font @import; no new font introduced, per the owner's rule). Complete
+ * uses the same --aspect-command green the filled pips already turn. */
+/* Owner dev review 2026-07-26 (round 2): chip box matches the Variants
+ * count box's shape (.vt-button -- 4px radius, 5px vertical padding) so the
+ * two count boxes in adjacent columns read as one family. */
+.playset-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 5px 8px;
+  box-sizing: border-box;
+  font-family: "Russo One", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-text);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.playset-chip--complete {
+  color: var(--aspect-command);
+  border-color: rgba(23, 138, 58, 0.6);
+  box-shadow: 0 0 6px rgba(23, 138, 58, 0.25);
+}
+
+.playset-chip--empty,
+.playset-chip--signed-out {
+  color: var(--color-text-muted);
+}
+
+/* The td itself: position:relative anchors the hover dossier below;
+ * --clickable adds the same cursor/hover-highlight treatment the old
+ * Inventory cell used (.td-inventory--clickable, retired with that
+ * column) -- signed-out renders plain .td-playset with no click affordance
+ * at all (Definition §2: click-to-edit disabled signed-out). */
+.td-playset {
+  position: relative;
+}
+
+/* Owner dev review 2026-07-26 (round 2): the rarity SYMBOL sat ~2px high of
+ * the row's optical center -- nudge the icon only; the label text is
+ * deliberately untouched. Table-scoped: the popup's rarity icon has its own
+ * geometry (.cp-info__set-row). */
+.td-rarity .rarity-badge__icon {
+  position: relative;
+  top: 2px;
+}
+.td-playset--clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s ease;
+}
+.td-playset--clickable:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* Dossier anchor: GalleryGrid's .gallery-dossier is tuned to float ABOVE a
+ * fixed-height gallery cell, centered under it (bottom/left/transform
+ * below). A table row has no headroom above it worth using (the sticky
+ * header sits right there) -- anchor the table's copy BELOW the cell
+ * instead, left-aligned to the chip. Everything else (inner panel, head,
+ * rows, empty state) is the exact same classes/markup as the gallery's. */
+.td-playset .gallery-dossier {
+  top: 100%;
+  bottom: auto;
+  left: 8px;
+  transform: none;
+  width: 190px;
+  margin-top: 4px;
+  z-index: 30;
+}
+
+/* ── Gallery grid (BL-73 Stage 1) ────────────────────────────────────────
+ * Same scroll-wrapper chrome as .data-table-wrapper (flex/overflow/border),
+ * but the virtualized content is a stack of absolutely-positioned rows
+ * (GalleryGrid.tsx computes `columns` from the wrapper's measured width and
+ * uses that same value for each row's grid-template-columns, so the JS
+ * row-grouping and the CSS layout can never disagree on row width). */
+.gallery-grid-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* BL-111 F3 legibility fix, same reasoning as .data-table-wrapper above:
+     an unfilled wrapper would let the new page tile bleed through behind
+     every gallery cell's gaps. Gallery cell styling itself is BL-111 F4
+     (out of scope here). */
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 14px;
+}
+
+.gallery-grid-scroll {
+  position: relative;
+  width: 100%;
+}
+
+.gallery-grid-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 14px;
+}
+
+/* ── Gallery cell (BL-111 F4, design handoff §4 -- Option D "Plate + hover
+ * dossier", final) ─────────────────────────────────────────────────────
+ * One clickable unit: art frame + console plate footer, stacked (the plate
+ * pushed the cell's total height from Stage 1's flat 196px up to
+ * CELL_TOTAL_HEIGHT in GalleryGrid.tsx -- the two must stay in lockstep).
+ * The outer <button> is a bare flex column (no border/background of its
+ * own); `.gallery-cell__frame` below carries the visual card-frame chrome
+ * that used to live directly on `.gallery-cell` in Stage 1. */
+.gallery-cell {
+  position: relative;
+  width: 140px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Uniform portrait frame, 2.5:3.5 card ratio -- see GalleryGrid.tsx's
+ * CELL_WIDTH/CELL_HEIGHT. Orientation rule (Jeremy's dev review): no card
+ * displays landscape -- leaders show their portrait back side, bases (and
+ * back-less leaders) rotate their landscape front 90° to fill the cell
+ * (.gallery-cell__img--rotated below). position: relative anchors the
+ * absolutely-centered rotated variant. */
+.gallery-cell__frame {
+  position: relative;
+  width: 140px;
+  height: 196px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+
+.gallery-cell:hover .gallery-cell__frame,
+.gallery-cell:focus-visible .gallery-cell__frame {
+  border-color: var(--color-primary);
+}
+.gallery-cell:active .gallery-cell__frame {
+  transform: scale(0.98);
+}
+
+.gallery-cell__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Rotated landscape source (base fronts, back-less leader fronts): the
+ * layout box gets the cell's dimensions swapped (196x140 -- the same
+ * 3.5:2.5 ratio as the landscape art, so object-fit: contain leaves no
+ * letterbox bands), absolutely centered in the cell, then rotated 90° about
+ * its own center so the visual box is exactly the 140x196 portrait cell.
+ * transform-only -- the image stays crisp (no width/height resampling
+ * beyond the same scale the unrotated cells get). Rotation direction is
+ * counter-clockwise (Jeremy's dev review, 2nd pass) -- rotate(-90deg), 180°
+ * from the clockwise rotate(90deg) shipped in #209. */
+.gallery-cell__img--rotated {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 196px;
+  height: 140px;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+/* A card whose representative variant has no usable image (per cellImage's
+ * orientation rule) still needs a cell (so sort positions stay stable) --
+ * a dim dashed placeholder frame, matching the empty state of
+ * .ac-pad__resolve-image. */
+.gallery-cell--empty .gallery-cell__frame {
+  border-style: dashed;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+/* ── Console plate footer (BL-111 F4) ────────────────────────────────────
+ * 24px corner-cut plate under the art: playset pips left, owned/limit
+ * readout right (signed-in), "SIGN IN TO TRACK" centered (signed-out). The
+ * clip-path is applied twice -- once to the outer "steel ring" layer, once
+ * to the inset(1px) inner tile layer -- so the 1px ring survives the
+ * angled corners (a plain border can't follow a clip-path). */
+.gallery-plate {
+  position: relative;
+  height: 24px;
+  box-sizing: border-box;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background: rgba(211, 211, 212, 0.35);
+}
+
+.gallery-plate--complete {
+  background: rgba(31, 163, 71, 0.55);
+}
+
+.gallery-plate__inner {
+  position: absolute;
+  inset: 1px;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 10px;
+  box-sizing: border-box;
+}
+
+.gallery-plate__inner--signed-out {
+  justify-content: center;
+}
+
+.gallery-plate__pips {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.gallery-plate__pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 1px solid rgba(230, 230, 230, 0.45);
+  background: transparent;
+}
+
+.gallery-plate__pip--filled {
+  border-color: #e6e6e6;
+  background: #e6e6e6;
+}
+
+.gallery-plate--complete .gallery-plate__pip--filled {
+  border-color: #1fa347;
+  background: #1fa347;
+}
+
+.gallery-plate__total {
+  font-family: "Russo One", sans-serif;
+  font-size: 11.5px;
+  line-height: 1;
+  color: #e6e6e6;
+}
+
+.gallery-plate__total--empty {
+  color: #6b7a99;
+}
+
+.gallery-plate__total--complete {
+  color: #1fa347;
+}
+
+.gallery-plate__total-limit {
+  opacity: 0.55;
+  font-size: 9.5px;
+}
+
+.gallery-plate__sign-in {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #6b7a99;
+  white-space: nowrap;
+}
+
+/* ── Hover dossier (BL-111 F4) ───────────────────────────────────────────
+ * Console-styled tooltip above the plate, signed-in + hovered only (GalleryCell
+ * gates rendering entirely -- there's nothing in the DOM for signed-out or
+ * unhovered cells, matching components/VariantsTooltip.css's mouseenter/leave
+ * idiom). pointer-events: none -- it must never intercept the click that
+ * would otherwise reach the cell underneath. */
+.gallery-dossier {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 178px;
+  z-index: 20;
+  box-sizing: border-box;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  padding: 1px;
+  background: rgba(211, 211, 212, 0.5);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.gallery-dossier__inner {
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  padding: 9px 12px 11px;
+}
+
+.gallery-dossier__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.gallery-dossier__head--with-rows {
+  margin-bottom: 7px;
+}
+
+.gallery-dossier__label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #9fb0cc;
+}
+
+.gallery-dossier__empty {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #6b7a99;
+}
+
+.gallery-dossier__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+}
+
+.gallery-dossier__row-label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: #cfd6e4;
+}
+
+.gallery-dossier__row-qty {
+  font-family: "Russo One", sans-serif;
+  font-size: 11px;
+  color: #fff;
+}
+
+/* ── BL-173: Variant scope + Value column ─────────────────────────────────
+ * Definition_VariantScope_2026-07-26.md + the owner-locked Claude Design mock
+ * (claude_design/extracted/variant-scope/VariantScopeMock.jsx). Amber is the
+ * scoped-state color throughout, matching the mock's palette: base amber is
+ * the app's existing `--color-warning` (#d99a1f, index.css) -- no new root
+ * token needed, it already IS the exact mock color -- while the "lit" amber
+ * text tone (#f2c14e) and the various wash/border alphas the mock defines
+ * (rgba(217,154,31,.05-.16)) don't have existing tokens and are inlined here,
+ * following the same rgba(217,154,31,X) precedent already used elsewhere in
+ * the app (AddCardsModal.css, ImportExportPage.css). */
+
+/* Scoped pip fills (PlaysetCell.tsx). Round 4 owner revision: scoped
+ * filled pips are ALWAYS amber -- the fill color no longer switches to
+ * green at scoped-complete (the original mock behavior, retired); the
+ * completion signal moved to the GREEN-outlined plate below. Unscoped pips
+ * (.playset__pip--filled with no modifier) are completely untouched. */
+/* The second selector exists purely to OUT-RANK the unscoped
+ * `.playset--complete .playset__pip--filled` green rule (specificity 0,2,0)
+ * -- a card whose TOTAL playset is complete would otherwise paint its pips
+ * green even while scoped. Scoped-INCOMPLETE fill is amber. */
+.playset__pip--scoped,
+.playset--complete .playset__pip--filled.playset__pip--scoped {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+}
+/* Round 4 final scheme (owner): at scoped-COMPLETE the pips go green and
+ * the plate outline is AMBER; below complete, amber pips + no plate. The
+ * triple-class selector out-ranks the amber override above (same 0,3,0
+ * specificity, later in file wins). */
+.playset__pips--scoped-complete {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  background: rgba(217, 154, 31, 0.08);
+}
+.playset__pips--scoped-complete .playset__pip--filled.playset__pip--scoped {
+  background: var(--aspect-command);
+  border-color: var(--aspect-command);
+}
+/* Round 4: the Playset column's cells get the same faint amber wash the
+ * Unit Value cells carry while scoped (.td-value--scoped). */
+.td-playset--scoped {
+  background: rgba(217, 154, 31, 0.05);
+}
+
+/* Hover dossier: the scoped finish's row is amber-highlighted with a
+ * "◂ scope" marker (Definition §2); the head label switches to
+ * "OWNED — ALL VARIANTS" (PlaysetCell.tsx) while the total/complete styling
+ * stays whatever it already was (untouched by scope). */
+.gallery-dossier__row--scoped .gallery-dossier__row-label,
+.gallery-dossier__row-scope-marker {
+  color: #f2c14e;
+}
+
+/* Value column (CardsTable.tsx) -- fixed-width mono cell (COLUMN_WIDTHS),
+ * right-aligned like a price, unpriced state reuses the app's existing
+ * `.cell-muted` (applied conditionally in CardsTable.tsx). */
+/* Two-class selector REQUIRED: the generic `.data-table tbody td` rule
+ * (0,1,2) out-ranks a bare `.td-value` (0,1,0) -- the padding below never
+ * applied at single-class specificity (latent since the original BL-173
+ * build; every cell showed the generic 12px). */
+.data-table--cards .td-value {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  /* Round 4 preview: extra breathing room between the price and the Rarity
+   * column (column 90 -> 102; the gap lives on the price's right side, so
+   * the value text pulls LEFT, away from Rarity). Owner-dialed: 28 -> 40
+   * -> 38 (final). */
+  padding-right: 38px;
+}
+/* Round 4 (owner): the Unit Value column narrows to 90px -- only possible
+ * with tighter side padding on its th (default thead padding is 12px each
+ * side; the MKT/LOW toggle needs ~68px of content width). */
+.data-table--cards thead th.th-value {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.td-value--scoped {
+  background: rgba(217, 154, 31, 0.05);
+}
+
+/* Playset / Unit Value header content (owner dev review rounds 1-2,
+ * 2026-07-27: single-line headers were too crowded; round 2 flipped the
+ * stack order). Both headers are two-line column stacks with the CONTROL on
+ * top and the column label beneath it -- scope trigger over "Playset",
+ * MKT/LOW toggle over "Unit Value" -- and the whole thead is bottom-aligned
+ * (below), so every other single-line header sits on the same baseline as
+ * these labels. */
+.th-playset-inner,
+.th-value-inner {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Round 2 (owner): ALL header cells bottom-align in the row -- the
+ * single-line headers drop to the same text baseline as the two-line
+ * stacked Playset/Unit Value headers instead of floating at the top. */
+.data-table--cards thead th {
+  vertical-align: bottom;
+}
+
+/* Round 2: the scoped amber bracket lives INSIDE the header row (was its
+ * own thead <tr>, which read as table content). Anchored absolutely on the
+ * Playset th, spanning Playset+Unit Value = 128px + 100px (COLUMN_WIDTHS --
+ * retune this width with them), inset 8px each side. The scoped th padding
+ * below reserves the vertical room the retired bracket row used to add.
+ * Round 3 (owner bug report): round 2 put `position: relative` on the
+ * Playset th, which OVERRODE the thead's `position: sticky` -- that one
+ * header cell scrolled away with the table body while every other th
+ * stayed pinned, and the still-sticky Unit Value th painted over the
+ * bracket's right half. Sticky ALREADY establishes the containing block an
+ * absolute child needs, so no positioning override is required at all --
+ * the Playset th just gets a z-index above its sibling th (all z-index: 1,
+ * .data-table thead th) so the overlay's spill into the next column paints
+ * on top. */
+/* Double-class selector: must out-rank the `.vs-bracket` base rule further
+ * down (which sets position: relative / margin: 0 8px). */
+.vs-bracket.vs-bracket--inhead {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  /* Round 4 tail: Playset+Unit Value = 128+102 - 16px inset. */
+  width: 214px;
+  margin: 0;
+}
+.data-table--cards thead th.th-playset.th-scoped {
+  z-index: 2;
+}
+.data-table--cards thead th.th-scoped {
+  padding-top: 28px;
+}
+/* Column tint (Definition §2 "mapping visuals"): stronger wash on the th,
+ * fainter on the td (.td-value--scoped above; the Playset td doesn't get a
+ * separate tint class -- the pip plate above already carries that column's
+ * scoped affordance). */
+.th-scoped {
+  background: rgba(217, 154, 31, 0.12);
+}
+
+/* (Round 2: the Value header's amber finish tag `.vs-tag` is retired --
+ * owner call, the bracket + trigger already name the finish -- and the
+ * separate `.vs-bracket-row` thead row is replaced by the in-header
+ * `.vs-bracket--inhead` overlay above.) */
+.vs-bracket {
+  position: relative;
+  margin: 0 8px;
+  height: 9px;
+  border-top: 2px solid var(--color-warning);
+  border-left: 2px solid var(--color-warning);
+  border-right: 2px solid var(--color-warning);
+  border-radius: 4px 4px 0 0;
+}
+.vs-bracket__label {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  padding: 0 8px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: #f2c14e;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 16px;
+}
+
+/* Playset header's scope trigger (VariantScopeControls.tsx's
+ * CardsScopeTrigger) -- "ALL VARIANTS" / "PIPS · <finish>", amber-bordered
+ * when scoped. */
+.vs-header-scope {
+  display: inline-flex;
+}
+.vs-header-scope__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.vs-header-scope__trigger:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.vs-header-scope__trigger--on {
+  border-color: rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+}
+.vs-header-scope__trigger svg {
+  transition: transform 0.15s;
+}
+.vs-header-scope__trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* Value header's mini Market/Low toggle (CardsValueKindToggle). */
+.vs-price-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex: none;
+}
+.vs-price-toggle__btn {
+  padding: 2px 6px;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+.vs-price-toggle__btn:first-child {
+  border-left: none;
+}
+.vs-price-toggle__btn--on {
+  background: rgba(37, 99, 235, 0.35);
+  color: var(--color-text);
+}
+
+/* Scope dropdown menu (VariantScopeControls.tsx's ScopeMenuContent).
+ * Round 4 (owner): the menu now adopts the FinishFilter's OWN control
+ * anatomy -- ifp-multi__item rows + check glyphs, square ifp-finish-pair
+ * chips, ifp-finish-group expander -- all styled by FilterPanel.css, so
+ * this section shrinks to the two things the sidebar shell doesn't set
+ * (fixed portal width, item-list height) plus the plain-row note. The
+ * bespoke pill chips, dot row, amber row highlights, and the footer
+ * coverage line are all retired. */
+.vs-scope-menu {
+  width: 300px;
+}
+.vs-scope-menu__items {
+  max-height: 380px;
+}
+.vs-scope-menu__row-note {
+  flex: none;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

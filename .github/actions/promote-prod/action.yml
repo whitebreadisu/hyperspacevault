@@ -1,0 +1,142 @@
+name: Promote to prod
+description: >
+  Terraform apply prod, build + deploy the frontend to prod Firebase
+  Hosting, and run the RR-1 post-deploy smoke test. Extracted (RR-6/F26)
+  so both promote callers — the explicit promote-prod.yml dispatch
+  workflow (BL-131) and ci.yml's risk:low fast-path `promote-prod-fast`
+  job — share one step list instead of two hand-kept-in-sync copies.
+  Callers must run `actions/checkout` themselves before this step (a
+  local `uses: ./...` action requires the repo already checked out) and
+  must grant the job `id-token: write` for the GCP auth step below.
+
+inputs:
+  image_tag:
+    description: >
+      Backend image tag to promote to prod — the full commit SHA whose
+      main run built the image (github.sha for the in-pipeline fast path,
+      the resolved dispatch input for promote-prod.yml). Threaded as an
+      input because composite action steps don't get the caller's
+      expression context implicitly.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - id: auth
+      uses: google-github-actions/auth@v3
+      with:
+        project_id: swu-prod
+        workload_identity_provider: projects/373324715123/locations/global/workloadIdentityPools/github-actions/providers/github
+        service_account: terraform-ci@swu-prod.iam.gserviceaccount.com
+
+    # ADR-0011: needed for the `gcloud run jobs execute` migrate step below.
+    - uses: google-github-actions/setup-gcloud@v3
+
+    - uses: hashicorp/setup-terraform@v4
+
+    - name: Terraform init (prod)
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: terraform init
+
+    - name: Terraform validate (prod)
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: terraform validate
+
+    # ADR-0011/BL-8: apply just the migrate Cloud Run Job at the new image
+    # tag (targeted -- the backend service itself isn't touched yet), then
+    # execute it synchronously and fail the promote on a bad migration --
+    # before the full apply below deploys the new prod service revision.
+    # This is what makes "migrate before serve" true in prod: a failing
+    # migration stops here, the current prod revision keeps serving.
+    - name: Terraform apply migrate job (prod)
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: terraform apply -auto-approve -target=module.app.google_cloud_run_v2_job.migrate -var="backend_image_tag=${{ inputs.image_tag }}"
+
+    - name: Run database migration (prod)
+      shell: bash
+      run: gcloud run jobs execute migrate --region=us-central1 --project=swu-prod --wait
+
+    - name: Terraform apply (prod)
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: terraform apply -auto-approve -var="backend_image_tag=${{ inputs.image_tag }}"
+
+    - name: Read prod backend URL
+      id: backend_url
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+
+    - name: Read prod Firebase config
+      id: firebase_config
+      working-directory: terraform/environments/prod
+      shell: bash
+      run: |
+        echo "api_key=$(terraform output -raw firebase_web_app_api_key)" >> "$GITHUB_OUTPUT"
+        echo "auth_domain=$(terraform output -raw firebase_web_app_auth_domain)" >> "$GITHUB_OUTPUT"
+        echo "project_id=$(terraform output -raw project_id)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: frontend
+      shell: bash
+      run: npm ci
+
+    - name: Build frontend (prod)
+      working-directory: frontend
+      shell: bash
+      env:
+        VITE_FIREBASE_API_KEY: ${{ steps.firebase_config.outputs.api_key }}
+        VITE_FIREBASE_AUTH_DOMAIN: ${{ steps.firebase_config.outputs.auth_domain }}
+        VITE_FIREBASE_PROJECT_ID: ${{ steps.firebase_config.outputs.project_id }}
+      run: npm run build
+
+    - name: Deploy frontend to prod Firebase Hosting
+      working-directory: frontend
+      shell: bash
+      run: npx firebase-tools@latest deploy --only hosting --project swu-prod --non-interactive
+
+    # RR-1: post-deploy smoke check. Cloud Run revision rollout isn't
+    # instantaneous, so retry through transient failures before failing
+    # the job. Anonymous endpoints only — no token needed.
+    - name: Smoke test prod deployment
+      shell: bash
+      env:
+        BACKEND_URL: ${{ steps.backend_url.outputs.url }}
+      run: |
+        echo "GET $BACKEND_URL/health"
+        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sS \
+          -o /dev/null -w "  -> %{http_code}\n" "$BACKEND_URL/health"
+
+        echo "GET $BACKEND_URL/api/sets"
+        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sS \
+          -w "  -> %{http_code}\n" "$BACKEND_URL/api/sets" -o /tmp/sets.json
+        count=$(jq 'length' /tmp/sets.json)
+        echo "  -> $count sets"
+        if [ "$count" -eq 0 ]; then
+          echo "::error::GET /api/sets returned an empty array"
+          exit 1
+        fi
+
+    # BL-96: record what prod is now running. The `prod-current` tag is the
+    # single source of truth ci.yml's check-risk-level whole-build guard
+    # reads (`git rev-list prod-current..HEAD`) to decide whether unpromoted
+    # gated work is riding on dev — kept in git (not a Cloud query) so the
+    # guard needs no prod credentials. Force-moved on every successful
+    # promote, from BOTH callers (fast path and dispatch); a dispatch of an
+    # older SHA legitimately moves it backwards, which makes the newer
+    # commits "unpromoted" again — exactly the semantics the guard wants.
+    # Callers must grant `contents: write` for this push. Runs after the
+    # smoke test so a failed promote never advances the tag (the guard
+    # fails closed on a stale-but-truthful tag, never open on a false one).
+    - name: Record promoted SHA (prod-current tag)
+      shell: bash
+      run: git push --force origin "${{ inputs.image_tag }}:refs/tags/prod-current"

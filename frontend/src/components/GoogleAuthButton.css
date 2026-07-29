@@ -1,0 +1,37 @@
+/* ── GoogleAuthButton (.google-auth-button) ────────────────────────────────
+   BL-118. Co-located with GoogleAuthButton.tsx, imported directly by that
+   module. Dark-theme Google Sign-In button per Google's Identity branding
+   guidelines (background/border/text colors are Google's own published
+   values for the dark variant -- not this app's --color-* tokens, since the
+   brand spec is fixed regardless of host theme).
+   ──────────────────────────────────────────────────────────────────────── */
+
+.google-auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background: #131314;
+  border: 1px solid #8e918f;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: "Roboto", var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: #e3e3e3;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.google-auth-button:hover:not(:disabled) {
+  background: #1d1e1f;
+  border-color: #a9adaa;
+}
+
+.google-auth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

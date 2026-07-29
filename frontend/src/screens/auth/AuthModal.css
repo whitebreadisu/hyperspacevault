@@ -1,0 +1,297 @@
+/* ── AuthModal (.auth-modal-*, .auth-*) ────────────────────────────────────
+   Co-located with AuthModal.tsx. Imported directly by that module. The
+   .auth-card__* / .auth-form / .auth-field / .auth-error / .auth-submit /
+   .auth-switch classes are shared with the retired full-screen AuthScreen --
+   same form visuals, now inside an overlay instead of a full-page layout.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* .auth-modal-overlay's backdrop styling moved to index.css's shared
+   .modal-overlay class (BL-153, A3-06 -- this also folds in the blur/tint
+   drift fix: was blur(2px)/rgba(7,9,16,.74), now the shared blur(3px)/
+   rgba(4,6,10,.72) every other modal overlay already used). Every call site
+   (AuthModal, ChangePasswordModal, DeleteAccountModal, VerifyEmailAction)
+   keeps the .auth-modal-overlay class name too, just with no rule of its
+   own left here. */
+
+.auth-modal-card {
+  width: min(360px, 100%);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  box-shadow: 0 32px 80px -16px rgba(0, 0, 0, 0.8);
+}
+
+.auth-modal-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: var(--color-primary);
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.auth-modal-close:hover {
+  color: var(--color-text);
+}
+
+.auth-card__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-card__subtitle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* BL-118: separates the Google button (rendered above the credentials
+   card, GoogleAuthButton.css) from the email/password form below it. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -6px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.auth-divider span {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auth-field input {
+  background: var(--bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.auth-field input:focus {
+  border-color: var(--color-primary);
+}
+
+.auth-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #f87171;
+}
+
+/* BL-23: success text inside ChangePasswordModal's post-submit state. */
+.auth-success {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.auth-submit {
+  background: var(--color-primary);
+  border: 1px solid var(--color-button-edge);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* BL-23: Cancel/Change Password button row in ChangePasswordModal, which has
+   two form actions where AuthModal's form only ever has the one submit. */
+.auth-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.auth-modal-actions .auth-submit {
+  flex: 1;
+}
+
+.auth-cancel {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.auth-cancel:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.auth-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* BL-87: DeleteAccountModal's warning copy (both steps) and its
+   destructive confirm button -- reuses .auth-submit's shape/sizing but in
+   --color-danger rather than --color-primary, so the two-level confirm
+   reads as unambiguously destructive next to ChangePasswordModal's
+   ordinary blue submit. */
+.auth-danger-warning {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-danger-submit {
+  flex: 1;
+  background: var(--color-danger-dim);
+  border: 1px solid var(--color-danger-dim);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.auth-danger-submit:hover:not(:disabled) {
+  background: var(--color-danger);
+}
+
+.auth-danger-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* BL-116: sits inside .auth-form, directly under the password field, so it
+   reads as attached to that field rather than a page-level nav action like
+   .auth-switch below (which sits outside the form, centered, at the card's
+   base). Right-aligned to match the common "Forgot password?" placement
+   convention next to a password input. */
+.auth-forgot-link {
+  align-self: flex-end;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: right;
+  transition: color 0.15s;
+}
+
+.auth-forgot-link:hover {
+  color: var(--color-text);
+}
+
+.auth-switch {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.auth-switch:hover {
+  color: var(--color-text);
+}

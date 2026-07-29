@@ -1,0 +1,1394 @@
+/* Add Cards modal — .ac-* styles.
+   Load after shell.css + inventory.css.
+   Table and Stacked layout styles intentionally omitted (rejected layouts).
+
+   BL-111 F7: restyled to the "Angled console" shell (design handoff
+   claude_design/design_handoff_swu_restyle/README.md §7 -- geometry/colors
+   copied from the canonical prototype prototypes/add-cards/
+   AddCardsRestyle.jsx's CONSOLE_CSS block). Overrides folded directly into
+   the real .ac-* classes below rather than shipped as a scoped layer, per
+   the handoff's own instruction (§ "About the Design Files"). */
+
+/* Missing design tokens not yet in index.css */
+:root {
+  --aspect-aggression: #c0202e;
+  --variant-op: #dc2626;
+}
+
+/* ─── Modal overlay ─────────────────────────────────────── */
+/* .ac-overlay's backdrop styling moved to index.css's shared .modal-overlay
+   + .modal-overlay--top classes (BL-153, A3-06) -- the top-aligned/64px-
+   padded placement is genuine (not drift), so it's kept as the --top
+   modifier rather than folded into the shared base. The element keeps this
+   class name too (see AddCardsModal.tsx), just with no rule of its own
+   left here. */
+
+/* Angled console shell: corner-cut clip + a 1.5px steel-ring reveal (a
+   background-color layer behind an inset-1.5px clipped tile layer, both
+   sharing the same clip-path) + the black circuit-tile fill. The ring wraps
+   the footer too since .ac-modal is one flex column containing head/set-bar/
+   body/foot -- see .ac-modal__foot's transparent background below. */
+.ac-modal {
+  width: min(960px, 100%);
+  position: relative;
+  z-index: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 32px 80px -16px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  clip-path: polygon(
+    20px 0,
+    100% 0,
+    100% calc(100% - 20px),
+    calc(100% - 20px) 100%,
+    0 100%,
+    0 20px
+  );
+}
+.ac-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(211, 211, 212, 0.28);
+  z-index: -2;
+}
+.ac-modal::after {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  clip-path: polygon(
+    20px 0,
+    100% 0,
+    100% calc(100% - 20px),
+    calc(100% - 20px) 100%,
+    0 100%,
+    0 20px
+  );
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+  z-index: -1;
+}
+
+.ac-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px 26px;
+}
+.ac-modal__title {
+  /* BL-111 dev-review wave 1 fix 4: reverted to `--font-ui` (Barlow
+     Condensed) to match the unified CardPopup's `.cp-title` treatment
+     precisely (see CardPopup.css) -- weight/letter-spacing/text-transform
+     already matched cp-title's; font-family was the one straggler still on
+     `--font-body` (Barlow) from the pre-restyle design tokens. Only the
+     font-family changes here; size/color/margin stay as this modal's own. */
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  margin: 0;
+}
+.ac-modal__subtitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ac-modal__close {
+  margin-left: auto;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.ac-modal__close:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+/* Set selector strip */
+.ac-setbar {
+  position: relative;
+  padding: 20px 24px 12px;
+  border-top: none;
+  border-bottom: 1px solid rgba(211, 211, 212, 0.12);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+/* Locked state (a set is chosen): background becomes the set's starfield
+   center strip. `--ac-setbar-starfield` is a per-instance CSS custom
+   property set by AddCardsSetBar's inline style (the URL is per-set data,
+   not a static asset this stylesheet can name) -- same var()-fallback
+   technique as index.css's `.app-header::before` (the ASH strip) and the
+   design prototype's own `--acx-starfield`. Falls back to the circuit tile
+   when no starfield could be resolved (AddCardsSetBar leaves the custom
+   property unset for a non-base, non-derivable set code). Inset 2px on the
+   sides (margin) so the strip never covers the modal's own steel ring. */
+.ac-setbar--locked {
+  margin: 0 2px;
+  background-image:
+    linear-gradient(90deg, rgba(9, 11, 20, 0.72), rgba(9, 11, 20, 0.4)),
+    var(--ac-setbar-starfield, url("/images/circuit-tile.webp"));
+  background-size: cover;
+  background-position: center;
+}
+.ac-setbar__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.ac-setbar__mark {
+  height: 28px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+.ac-setbar__mark--fallback {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: var(--color-text);
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-page);
+}
+.ac-setbar__select {
+  flex: 1;
+  max-width: 360px;
+  position: relative;
+}
+.ac-setbar__locked {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* Design tokens §7: locked set text sits over the starfield strip. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.ac-setbar__locked-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+}
+.ac-setbar__change {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+/* Locked state: "Change set" sits left of the set logo (AddCardsSetBar
+   reorders it first in the JSX) -- undo the unlocked-state's margin-left:auto
+   push-right so it sits flush at the start of the flex row instead. */
+.ac-setbar--locked .ac-setbar__change {
+  margin-left: 0;
+}
+.ac-setbar__change:hover {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* BL-151 S2c (§4-REV2 point 1): the initial/fully-cleared chooser -- neither
+   route locked, so both bars render side by side rather than stacked
+   full-width strips. Reuses the existing .ac-setbar idiom unchanged (each
+   bar keeps its own internal label-beside-select layout); only the OUTER
+   arrangement changes here. Wraps to stacked full-width at narrow widths
+   (min-width forces a wrap rather than letting the bars get too cramped). */
+.ac-chooser-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.ac-chooser-row .ac-setbar {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+.ac-chooser-row .ac-setbar + .ac-setbar {
+  border-left: 1px solid rgba(211, 211, 212, 0.12);
+}
+
+/* Body — scrollable area */
+.ac-modal__body {
+  padding: 18px 28px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+/* Footer -- background transparent so the modal's own tile fill (.ac-modal::after)
+   shows through and the steel ring wraps the footer too (design handoff §7). */
+.ac-modal__foot {
+  padding: 12px 30px 24px 24px;
+  border-top: 1px solid rgba(211, 211, 212, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  flex-wrap: wrap;
+}
+.ac-modal__foot-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ac-modal__foot-spacer {
+  flex: 1;
+}
+/* BL-16: EmailNotVerifiedError message when a commit is rejected mid-batch. */
+.ac-modal__foot-error {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+/* Shared field appearance (design tokens §7 SHARED_CSS) */
+.ac-input,
+.ac-select {
+  background: rgba(9, 11, 20, 0.72);
+  color: var(--color-text);
+  border: 1px solid rgba(211, 211, 212, 0.22);
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.ac-input::placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ac-input:focus,
+.ac-select:focus {
+  border-color: var(--color-primary);
+  background: rgba(9, 11, 20, 0.9);
+}
+.ac-input:disabled,
+.ac-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.18);
+}
+.ac-input--error {
+  border-color: var(--aspect-aggression);
+}
+.ac-input--error:focus {
+  border-color: #ef4444;
+}
+
+.ac-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
+    linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 14px,
+    calc(100% - 10px) 14px;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+.ac-select:disabled {
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(107, 122, 153, 0.35) 50%),
+    linear-gradient(135deg, rgba(107, 122, 153, 0.35) 50%, transparent 50%);
+}
+.ac-select option {
+  background: var(--bg-surface);
+  color: var(--color-text);
+}
+
+.ac-namefield {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+}
+.ac-namefield--empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ac-namefield__name {
+  color: var(--color-text);
+}
+.ac-namefield__subtitle {
+  margin-left: 8px;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* OP checkbox */
+.ac-op {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+}
+.ac-op__box {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.ac-op input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.ac-op input:checked + .ac-op__box {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.ac-op input:checked + .ac-op__box::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+.ac-op--disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.ac-op--disabled .ac-op__box {
+  border-color: rgba(107, 122, 153, 0.4);
+}
+
+/* Inventory indicator dot (keypad input area + verification table) */
+.ac-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid transparent;
+  position: relative;
+  display: inline-block;
+}
+.ac-dot--green {
+  background: var(--aspect-command);
+  box-shadow: 0 0 0 3px rgba(23, 138, 58, 0.18);
+}
+.ac-dot--red {
+  background: var(--aspect-aggression);
+  box-shadow: 0 0 0 3px rgba(192, 32, 46, 0.18);
+}
+/* BL-35: soft-cap over-limit -- still added, just flagged (distinct from a
+   genuine block). */
+.ac-dot--amber {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 3px rgba(217, 154, 31, 0.2);
+}
+.ac-dot--empty {
+  background: transparent;
+  border: 1.5px dashed var(--color-border);
+}
+.ac-dot-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Row-level error message */
+.ac-row-error {
+  color: #f87171;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  padding-left: 4px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ac-row-error::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--aspect-aggression);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ─── Radio idiom (BL-151 S2) ────────────────────────────────
+   Reuses SettingsPage's .sl-capmode radio-row idiom (title-only stacked
+   card, primary-border on the checked option) under the modal's own ac-
+   prefix rather than importing SettingsPage.css into this modal. Used for
+   §4 P2's hard-cap-mode trim/add-above choice. */
+.ac-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ac-radio__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.15s;
+}
+.ac-radio__option:has(input:checked) {
+  border-color: var(--color-primary);
+}
+.ac-radio__option input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ac-radio__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ac-radio__title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+/* ─── Keypad layout ─────────────────────────────────────── */
+.ac-pad {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 22px;
+}
+.ac-pad__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Design handoff §7: card-number input 150px wide + the two-line inventory
+   readout to its right (InventoryReadout, AddCardsKeypad.tsx) replacing the
+   old green/red dot. */
+.ac-pad__cardrow {
+  display: grid;
+  grid-template-columns: 150px auto;
+  gap: 16px;
+  align-items: center;
+  position: relative;
+}
+.ac-pad__big-input {
+  font-family: "Russo One", sans-serif !important;
+  font-size: 30px !important;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 14px 14px !important;
+  width: 150px;
+  background: rgba(9, 11, 20, 0.72) !important;
+  height: auto;
+}
+.ac-pad__big-input::placeholder {
+  font-family: "Russo One", sans-serif;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  font-style: normal;
+  color: rgba(107, 122, 153, 0.6);
+}
+/* BL-111 F7: the two-line inventory readout (IN INVENTORY / AFTER ADD)
+   replacing the old .ac-dot in the card-number row. */
+.ac-pad__readout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ac-pad__readout-line {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ac-pad__readout-line--green {
+  color: #22a44c;
+}
+.ac-pad__readout-line--red {
+  color: #ef4444;
+}
+.ac-pad__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  margin-bottom: 6px;
+  display: block;
+}
+/* Rectangular 1px steel outline (design handoff §7) -- the ::before/::after
+   ring+fill pair stop 223/224px short of the panel's right edge so the
+   outline never runs beneath the rising preview image (.ac-pad__resolve-image
+   below sits in the 196px image column + the panel's own gap/padding). */
+.ac-pad__resolve {
+  position: relative;
+  z-index: 0;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  display: grid;
+  grid-template-columns: 1fr 196px;
+  gap: 10px 18px;
+  align-items: start;
+  overflow: visible;
+}
+.ac-pad__resolve::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  right: 223px;
+  background: rgba(211, 211, 212, 0.3);
+  z-index: -2;
+}
+.ac-pad__resolve::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  right: 224px;
+  background: rgba(9, 11, 20, 0.85);
+  z-index: -1;
+}
+.ac-pad__resolve-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+/* BL-62 live image preview: fixed card-shaped frame. BL-111 F7 grows it to
+   196x274 and pulls it up (negative margin-top) so it rises to span the
+   card-number row too, horizontally centered in the gutter between the
+   resolver panel's drawn border (.ac-pad__resolve::before/::after above,
+   which stop short of this column) and the batch list panel. */
+.ac-pad__resolve-image {
+  width: 196px;
+  height: 274px;
+  margin-top: -89px;
+  position: relative;
+  left: 14px;
+  z-index: 2;
+  border: 1px dashed var(--color-border);
+  background: rgba(9, 11, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.ac-pad__resolve-image--filled {
+  border-style: solid;
+  background: transparent;
+}
+.ac-pad__resolve-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.ac-pad__resolve-name {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+.ac-pad__resolve-name--empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 400;
+}
+.ac-pad__resolve-sub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+/* "Which card?" picker: its own full-width row above Set/Stamp/Finish, so the
+   long name+subtitle option labels have room and never crowd the axis row. */
+.ac-pad__card-row {
+  display: flex;
+  flex-direction: column;
+}
+.ac-pad__card-row .ac-select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ac-pad__resolve-controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.ac-pad__resolve-variant {
+  min-width: 160px;
+  flex: 1;
+}
+/* Fill the slot rather than sizing to content: a native <select> otherwise
+   reports the width of its longest option, so a long "Which card?" label would
+   overflow the slot and overlap the neighbouring Finish picker. */
+.ac-pad__resolve-variant .ac-select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ac-pad__resolve-op {
+  padding-bottom: 9px;
+}
+
+/* Chip list (right column): corner-cut console panel (design handoff §7 --
+   12px cuts, matching the design tokens' "panels" clip size). Same
+   ring+fill-layer technique as the modal shell, scaled down. */
+.ac-pad__list-wrap {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 12px;
+  min-height: 220px;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+.ac-pad__list-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(211, 211, 212, 0.3);
+  z-index: -2;
+}
+.ac-pad__list-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  background: rgba(9, 11, 20, 0.85);
+  z-index: -1;
+}
+.ac-pad__list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.ac-pad__list-title {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.ac-pad__list-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.ac-pad__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+.ac-pad__list-empty {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-muted);
+  padding: 16px 4px;
+  text-align: center;
+}
+
+/* Per-set group within the batch list (BL-61 — a batch can span sets) */
+.ac-pad__list-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ac-pad__list-group + .ac-pad__list-group {
+  margin-top: 6px;
+}
+.ac-pad__list-group-head {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7d8aa5;
+  padding: 2px 2px 0;
+}
+
+/* Chip (committed card entry) */
+.ac-chip {
+  display: grid;
+  grid-template-columns: 32px 1fr auto 12px 22px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(211, 211, 212, 0.14);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.ac-chip__num {
+  font-family: "Russo One", sans-serif;
+  font-size: 11px;
+  color: #9fb0cc;
+  text-align: right;
+}
+.ac-chip__name {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ac-chip__var {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.ac-chip__var--op::before {
+  content: "OP \B7";
+  color: var(--variant-op);
+  margin-right: 4px;
+}
+.ac-chip__del {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  padding: 0;
+}
+.ac-chip__del:hover {
+  color: var(--aspect-aggression);
+  background: var(--bg-page);
+}
+.ac-chip__ind {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1.5px dashed var(--color-border);
+}
+.ac-chip__ind--green {
+  background: var(--aspect-command);
+  border-color: var(--aspect-command);
+}
+.ac-chip__ind--red {
+  background: var(--aspect-aggression);
+  border-color: var(--aspect-aggression);
+}
+.ac-chip__ind--amber {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+/* ─── Verification screen ───────────────────────────────── */
+.ac-verify {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.ac-verify__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ac-verify__section-title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ac-verify__section--add .ac-verify__section-title {
+  color: var(--aspect-command);
+}
+.ac-verify__section--skip .ac-verify__section-title {
+  color: var(--aspect-aggression);
+}
+.ac-verify__section-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.ac-verify__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.ac-verify__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+.ac-verify__table thead th {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 10px;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  border-bottom: 1px solid var(--color-border);
+}
+.ac-verify__table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  color: var(--color-text);
+}
+.ac-verify__table tbody td.ac-verify__name {
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+/* Per-set group header row (BL-61 — a batch can span sets, so verification
+   groups its rows by set). */
+.ac-verify__table tbody tr.ac-verify__group-head td {
+  background: var(--bg-surface-alt);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+.ac-verify__skip-reason {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--aspect-aggression);
+}
+/* BL-151 S2 (§4): precon data is uuid-resolved at prep time, so an
+   unresolved row here is a data-integrity bug, not a normal user-facing
+   outcome -- a left accent bar makes it read as more alarming than the
+   ordinary "will not be added" skip section it otherwise shares styling
+   with. */
+.ac-precon-verify__integrity {
+  border-left: 3px solid var(--aspect-aggression);
+  padding-left: 10px;
+}
+
+/* BL-35: soft-cap over-limit note in the "will add" section (the row stays
+   -- this just flags it, distinct from the skip section's block reason). */
+.ac-verify__over-limit-note {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--color-warning);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* ─── Close-guard confirm (BL-111 F7, design handoff §7) ──
+   Console-styled confirm raised by Cancel/X/Escape/backdrop-click when the
+   batch is non-empty. Rendered as its own fixed overlay layer (sibling of
+   .ac-modal, not nested inside it) above the ac-overlay's z-index:100 so it
+   isn't clipped by the modal's own clip-path. */
+/* .ac-confirm-overlay's backdrop styling moved to index.css's shared
+   .modal-overlay + .modal-overlay--nested classes (BL-153, A3-06) -- the
+   raised z-index/lighter tint is genuine (this overlay stacks on top of
+   .ac-overlay, which is already darkened), so it's kept as the --nested
+   modifier rather than folded into the shared base. The element keeps this
+   class name too (see AddCardsModal.tsx), just with no rule of its own
+   left here. */
+.ac-confirm {
+  position: relative;
+  z-index: 0;
+  width: min(480px, 100%);
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+  padding: 22px 26px 24px;
+}
+.ac-confirm::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(211, 211, 212, 0.35);
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+  z-index: -2;
+}
+.ac-confirm::after {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+  clip-path: polygon(
+    12.5px 0,
+    100% 0,
+    100% calc(100% - 12.5px),
+    calc(100% - 12.5px) 100%,
+    0 100%,
+    0 12.5px
+  );
+  z-index: -1;
+}
+.ac-confirm__title {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+.ac-confirm__body {
+  margin: 0 0 18px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #9fb0cc;
+}
+.ac-confirm__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+/* "Discard & Close" is a destructive action: scope --color-primary to the
+   aggression red so SWUButton (which fills from that var) renders red just
+   for this one button, matching design tokens §7's "SWU button in
+   aggression red". */
+.ac-confirm__danger {
+  --color-primary: #c0202e;
+}
+
+/* ─── BL-164: custom Set / Precon Deck dropdowns (.acx-*) ──────────────────
+   Rebased from claude_design/extracted_2026-07-26/addcards-acx.css (the
+   owner-iterated design-canvas styles) -- asset url()s repointed from the
+   design project's `../../assets/...` layout to the app's own `/images/...`
+   serving path. Ships only the saved-default variants: logo-rail style,
+   logo chips, row glow, beside-left hover preview, front face (see
+   Definition_CosmeticsBatch_2026-07-26.md §5). */
+.acx-pdd {
+  position: relative;
+}
+.acx-pdd__trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  text-align: left;
+  background: rgba(9, 11, 20, 0.72);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(211, 211, 212, 0.22);
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+  padding: 8px 28px 8px 10px;
+  position: relative;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.acx-pdd__trigger:hover,
+.acx-pdd--open .acx-pdd__trigger {
+  border-color: var(--color-primary);
+  background: rgba(9, 11, 20, 0.9);
+}
+.acx-pdd__trigger::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  margin-top: -2px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--color-text-muted);
+}
+.acx-pdd--open .acx-pdd__trigger::after {
+  border-top: none;
+  border-bottom: 5px solid var(--color-text-muted);
+}
+.acx-pdd__pop {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.acx-pdd__pop--flip {
+  flex-direction: row-reverse;
+}
+.acx-pdd__panel {
+  width: 384px;
+  max-width: 82vw;
+  max-height: 396px;
+  overflow-y: auto;
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+  border: 1px solid rgba(211, 211, 212, 0.28);
+  box-shadow: 0 24px 56px -8px rgba(0, 0, 0, 0.85);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+.acx-pdd__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 12px 7px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(211, 211, 212, 0.06);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
+}
+.acx-pdd__row:last-child {
+  border-bottom: none;
+}
+.acx-pdd__row:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+.acx-pdd__row--glow:hover {
+  box-shadow:
+    inset 2px 0 0 var(--color-primary),
+    inset 0 0 22px rgba(37, 99, 235, 0.22);
+}
+.acx-pdd__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.acx-pdd__row-product {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.acx-pdd__row-name {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+}
+.acx-pdd__rgroup {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  border-bottom: 1px solid rgba(211, 211, 212, 0.14);
+}
+.acx-pdd__rgroup:last-child {
+  border-bottom: none;
+}
+.acx-pdd__rlogo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-right: 1px solid rgba(211, 211, 212, 0.14);
+  background: rgba(9, 11, 20, 0.5);
+}
+.acx-pdd__rlogo img {
+  max-width: 112px;
+  max-height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+.acx-pdd__rdecks {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 0;
+}
+.acx-pdd__rdecks .acx-pdd__row {
+  padding-left: 12px;
+  border-bottom: none;
+}
+.acx-pdd__preview {
+  width: 232px;
+  box-sizing: border-box;
+  padding: 12px;
+  /* (see .acx-pdd__preview--wide below -- multi-leader kinds widen the
+     panel so leaders keep the single-preview card size) */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+  border: 1px solid rgba(211, 211, 212, 0.28);
+  box-shadow: 0 24px 56px -8px rgba(0, 0, 0, 0.85);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.acx-pdd__preview-logo {
+  align-self: flex-start;
+  max-height: 24px;
+  max-width: 130px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+.acx-pdd__preview-product {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.acx-pdd__preview-name {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+.acx-sdd__divider {
+  height: 11px;
+  margin: 5px 0;
+  background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(211, 211, 212, 0.35) 20%,
+      rgba(211, 211, 212, 0.35) 80%,
+      transparent
+    )
+    center / 100% 1px no-repeat;
+}
+.acx-sdd__row--sub {
+  padding-left: 34px;
+}
+.acx-sdd__rlabel {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  text-align: center;
+  padding: 0 6px;
+}
+.acx-sdd__foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  padding: 7px 8px;
+  background: rgba(11, 14, 24, 0.97);
+  border-top: 1px solid rgba(211, 211, 212, 0.14);
+}
+
+/* ─── BL-164 §5: precon hover-preview leader+base composition ──────────────
+   Owner-locked composition (supersedes the design prototype's single
+   key-art card): standard = one leader front, its base centered behind,
+   offset up so only the base's title bar peeks out above the leader's top
+   edge (reference: working/precon hover example.jpeg). "dual" (Twin Suns)
+   widens to two leaders side by side sharing one centered base. "ibh" is two
+   standard compositions side by side (each half keeps its own base). */
+.acx-pdd__preview-comp {
+  position: relative;
+  width: 100%;
+}
+/* Owner dev review 2026-07-26: dual/ibh previews widen the PANEL rather than
+   shrinking the cards -- 448px inner-math keeps each leader at ~208px, the
+   same rendered size as a single-leader preview (232 - 2x12 padding).
+   Single-leader previews deliberately stay at the compact 232px width. */
+.acx-pdd__preview--wide {
+  width: 448px;
+}
+.acx-pdd__preview-comp--standard {
+  padding-top: 24px;
+}
+.acx-pdd__preview-comp--dual {
+  padding-top: 24px;
+}
+.acx-pdd__preview-comp--ibh {
+  display: flex;
+  gap: 8px;
+}
+.acx-pdd__preview-comp--ibh .acx-pdd__preview-comp--standard {
+  flex: 1;
+  min-width: 0;
+}
+.acx-pdd__preview-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 88 / 63;
+  border: 1px solid rgba(211, 211, 212, 0.3);
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  background: #0b0e18;
+}
+.acx-pdd__preview-base--dual {
+  left: 50%;
+  width: 62%;
+  transform: translateX(-50%);
+}
+.acx-pdd__preview-base img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+.acx-pdd__preview-leader {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 88 / 63;
+  margin-top: 24px;
+  border: 1px solid rgba(211, 211, 212, 0.35);
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+  z-index: 2;
+  background: #0b0e18;
+}
+.acx-pdd__preview-leader img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.acx-pdd__preview-dual-leaders {
+  display: flex;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+  margin-top: 24px;
+}
+.acx-pdd__preview-dual-leaders .acx-pdd__preview-leader {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+}

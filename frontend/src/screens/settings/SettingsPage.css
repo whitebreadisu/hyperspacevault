@@ -1,0 +1,177 @@
+/* ── Settings page (BL-25) ────────────────────────────────────────────────
+ * Full-page settings surface hosted as a second App pane. Reuses the page
+ * chrome vocabulary from cards.css (.screen / .screen-heading) and the
+ * surface/border variables from index.css. */
+
+.settings-screen {
+  max-width: 860px;
+}
+
+.settings-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-section__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.settings-section__blurb {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  max-width: 620px;
+}
+
+.settings-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+/* ── Keep-limit enforcement (ADR-0013 three-way control) ─────────────────── */
+
+.sl-capmode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sl-capmode__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.sl-capmode__option:has(input:checked) {
+  border-color: var(--color-primary);
+}
+
+.sl-capmode__option input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sl-capmode__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sl-capmode__title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+
+.sl-capmode__desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Action row ────────────────────────────────────────────────────────── */
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-actions__spacer {
+  flex: 1;
+}
+
+.settings-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.settings-btn:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-btn--primary {
+  background: var(--color-primary);
+  border-color: var(--color-button-edge);
+  color: #ffffff;
+}
+
+.settings-btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+  color: #ffffff;
+}
+
+/* ── Danger zone (BL-129 R5) ───────────────────────────────────────────────
+ * Delete Account's trigger, relocated here from the avatar dropdown --
+ * visually separated from the routine keep-limit section above by its own
+ * card with a danger-tinted border/heading, matching the app's existing
+ * --color-danger vocabulary (AuthModal's .auth-danger-* / the retired
+ * UserMenu --danger modifier this section supersedes). */
+.settings-section--danger {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.settings-section__title--danger {
+  color: var(--color-danger);
+}
+
+.settings-btn--danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.settings-btn--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: var(--color-danger-dim);
+  color: var(--color-danger);
+}

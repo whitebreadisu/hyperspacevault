@@ -1,0 +1,80 @@
+/* ── VerifyEmailBanner (.verify-email-banner-*) ────────────────────────────
+   Co-located with VerifyEmailBanner.tsx. Site-wide, persistent -- rendered
+   under the header in App.tsx whenever a signed-in user is unverified.
+   No close button by design (dismiss-proof).
+   ──────────────────────────────────────────────────────────────────────── */
+
+.verify-email-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: #2a2110;
+  border-bottom: 1px solid #b45309;
+}
+
+.verify-email-banner__text {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.verify-email-banner__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.verify-email-banner__button {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.verify-email-banner__button:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.verify-email-banner__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.verify-email-banner__button--primary {
+  background: var(--color-primary);
+  border-color: var(--color-button-edge);
+  color: #ffffff;
+}
+
+.verify-email-banner__button--primary:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+  color: #ffffff;
+}
+
+.verify-email-banner__error {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+/* BL-94 layer 2: neutral inline hint alongside the "Email sent" state. */
+.verify-email-banner__hint {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

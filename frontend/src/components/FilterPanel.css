@@ -1,0 +1,1177 @@
+/* ── FilterPanel (.ifp*) ──────────────────────────────────────────────────
+   Co-located with FilterPanel.tsx. Imported directly by that module (also
+   pulled in transitively by MultiSelect.tsx/RangeSlider.tsx for the shared
+   `.ifp-field`/`.ifp-multi*`/`.ifp-range*` classes those components render).
+
+   BL-111 F6 (design handoff §6, "collapsible sidebar" -- final): the old top
+   panel's shell (`.ifp`, `.ifp__bar`, `.ifp__header`, `.ifp__body`,
+   `.ifp-top-row`, `.ifp-grid`, `.ifp-facet-toggle-row`, `.ifp-reset-btn`,
+   `.ifp-view-toggle*`) is retired outright -- replaced by the `.ifp-sidebar*`
+   console shell below, following the same double clip-path steel-ring
+   technique CardPopup.css's `.cp-shell`/`.cp-modal` and cards.css's
+   `.gallery-plate`/`.gallery-dossier` already established (outer layer
+   clipped + rgba(211,211,212,X) fill, padded ~1.5px, wrapping an inner
+   layer clipped to the same polygon). `.ifp-field`/`.ifp-multi*`/
+   `.ifp-range*` (MultiSelect/RangeSlider's own styling) were originally
+   UNCHANGED by F6 -- the design handoff reused those components verbatim,
+   restyling only the shell/aspects/search/checkboxes/reset button around
+   them. `.pl-toggle*` is also unchanged and shared with CardsPage.tsx's own
+   toggle buttons (incompleteOnly/ownedOnly), rendered as FilterPanel's
+   `children`.
+
+   BL-111 dev-review wave 1 fix 3 (owner decision): `.ifp-field__label`'s
+   standalone label row above each MultiSelect dropdown is gone -- the
+   label now lives inside the trigger button's own text (see
+   `.ifp-multi__trigger` below and MultiSelect.tsx). RangeSlider keeps its
+   own `.ifp-range__label` row unchanged; only the MultiSelect fields
+   (Set/Type/Rarity/Arenas/Keywords/Traits/Finish) shortened.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ── Collapsed rail (BL-111 F6) ──────────────────────────────────────────
+ * A slim edge tab replacing the full sidebar when collapsed -- shows an
+ * active-filter-count badge and a vertical "Filters" label so the control
+ * stays discoverable without taking any table width. Both the rail and the
+ * (pre-R2) expanded sidebar are `position:absolute`, so this wrapper's own
+ * `height:auto` computes to 0 in either state -- nothing in-flow inside it.
+ *
+ * BL-129 R2: `height` was a hardcoded `0` here pre-R2 (CardsPage's `.screen`
+ * was a plain flex column with FilterPanel as a direct child, so a forced-0
+ * wrapper was the simplest way to guarantee it never ate flex space
+ * regardless of state). Now that CardsPage.tsx wraps this alongside
+ * `.cards-content` in a flex ROW (`.cards-layout`, cards.css) so the docked
+ * sidebar below can contribute its real width, the wrapper needs to size
+ * normally: `auto` still computes to 0 whenever its content is
+ * `position:absolute` (collapsed rail; expanded-but-not-docked, below) --
+ * identical to the old hardcoded 0 -- but lets it grow to fit `.ifp-sidebar`
+ * once the media query below switches that to an in-flow block. */
+.ifp-sidebar-wrap {
+  position: relative;
+  z-index: 30;
+  height: auto;
+}
+
+/* BL-121 §6: outline bug fix -- the tab used to draw its own outline with
+   `border` + `clip-path`, so the clipped bottom-right diagonal had no
+   outline. Same double clip-path steel-ring technique as
+   `.ifp-sidebar__ring`: the ring wrapper carries the tab's old absolute
+   positioning + the outline color (steel, primary on hover); the tab itself
+   goes `position:static; border:none` and clips 0.5px smaller so the ring
+   shows as a 1px edge all the way around, including the diagonal corner. */
+.ifp-sidebar-tab-ring {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  z-index: 6;
+  background: rgba(211, 211, 212, 0.3);
+  padding: 1px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  transition: background 0.15s;
+}
+
+.ifp-sidebar-tab-ring:hover {
+  background: var(--color-primary);
+}
+
+.ifp-sidebar-tab {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(11, 15, 31, 0.96);
+  border: none;
+  padding: 12px 9px 14px;
+  cursor: pointer;
+  color: var(--color-text);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8.5px), calc(100% - 8.5px) 100%, 0 100%);
+}
+
+.ifp-sidebar-tab__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  background: var(--color-primary);
+  border-radius: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ifp-sidebar-tab__label {
+  writing-mode: vertical-rl;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ── Expanded sidebar shell (BL-111 F6) ──────────────────────────────────
+ * Floats over the table/gallery (position:absolute, anchored to the same
+ * height:0 wrapper as the collapsed rail) rather than pushing its layout
+ * width -- README §6 / the prototype's Option C exploration both show the
+ * table stand-in at full width with "sidebar floats above" underneath it. */
+.ifp-sidebar {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  z-index: 6;
+  /* BL-121 §2-4: width is a density var so TWO-COL/fallback can widen to
+     452px without a separate rule -- default is the shipped 278px. */
+  width: var(--v-width, 278px);
+  filter: drop-shadow(18px 10px 34px rgba(0, 0, 0, 0.55));
+}
+
+/* ── BL-129 R2: docked sidebar breakpoint ─────────────────────────────────
+   Past this width, dock the expanded sidebar in-flow (cards.css's
+   `.cards-layout` then centers the [sidebar + content] pair as one unit)
+   instead of floating it over the table. The threshold is deliberately the
+   width at which BOTH the sidebar's full rendered width AND the table at
+   ITS full comfortable cap (cards.css's `.data-table-wrapper`, 1900px) fit
+   side by side with no compression to either -- below it, docking would
+   force the table narrower than its cap just to make room for a sidebar
+   that used to float for free, so the float-over behavior (BL-111 F6) is
+   kept instead:
+
+     sidebar width (--v-width default, FULL/COMPACT tier)      278px
+   + gap between docked sidebar and content column (cards.css)  24px
+   + table wrapper's own cap (cards.css .data-table-wrapper)  1900px
+   + .app-main's left+right padding (index.css, 32px each)      64px
+   = 2266px
+
+   TWO-COL/fallback's wider 452px sidebar (BL-121 §4, driven by viewport
+   HEIGHT not width) isn't separately accounted for -- on a viewport both
+   short AND this wide, the table gets ~174px less than "full comfort"
+   (452 - 278), a rare combination and a modest squeeze rather than an
+   overlap. No JS measurement: this is a plain viewport-width media query,
+   the one signal the docked/overlay choice actually depends on.
+
+   BL-144 (issue #356): this same threshold also drives FilterPanel.tsx's
+   initial open/collapsed state (utils/filterPanelTiers.ts's
+   DOCKED_MIN_WIDTH/fitsSideBySide -- a media query can't be read from JS, so
+   the number is duplicated by hand). Keep the two in sync if this value
+   ever moves. */
+@media (min-width: 2266px) {
+  .ifp-sidebar {
+    position: static;
+  }
+}
+
+.ifp-sidebar__ring {
+  background: rgba(211, 211, 212, 0.32);
+  padding: 1.5px;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+
+.ifp-sidebar__panel {
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    11px 0,
+    100% 0,
+    100% calc(100% - 11px),
+    calc(100% - 11px) 100%,
+    0 100%,
+    0 11px
+  );
+  padding: var(--v-pad, 14px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap, 14px);
+  /* BL-121 §2/§5: the old whole-panel scroll cap is retired -- the tier
+     model (data-vtier, below) is sized so FULL/COMPACT/TWO-COL never need
+     an internal scrollbar at all; only the `fallback` tier (< ~600px
+     viewport) reintroduces a cap, and it scrolls a narrower internal
+     region (§5), not the whole panel. Normal tiers get NO max-height/
+     overflow. */
+  max-height: none;
+  overflow: visible;
+}
+
+.ifp-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ifp-sidebar__title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ifp-sidebar__collapse {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  transition: color 0.15s;
+}
+
+.ifp-sidebar__collapse:hover {
+  color: var(--color-text);
+}
+
+.ifp-sidebar__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-ggap, 8px);
+}
+
+.ifp-sidebar__group-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #4fb3e8;
+}
+
+/* BL-130 (issue #306): the Aspects group header pairs its label with the
+   Any/Within/Exact mode control on one row. */
+.ifp-sidebar__group-headrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Three-way aspect matching-mode control (BL-130). Same compact bordered-
+   row segmented idiom as InventorySummary's Table/Gallery toggle
+   (`.inv-summary__view-toggle*`, cards.css) -- transparent inactive
+   segments, steel-blue `var(--color-primary)` fill on the active one --
+   just sized down to fit inline in a group header / the two-col top span. */
+.ifp-aspect-mode {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ifp-aspect-mode__btn {
+  padding: 2px 7px;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ifp-aspect-mode__btn:last-child {
+  border-right: none;
+}
+
+.ifp-aspect-mode__btn:hover:not(.ifp-aspect-mode__btn--active) {
+  color: var(--color-text);
+}
+
+.ifp-aspect-mode__btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* Divider ahead of the cascade checkbox, matching the prototype's
+   border-top on that control. */
+.ifp-sidebar__cascade {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.ifp-sidebar__reset {
+  align-self: flex-start;
+}
+
+/* ── BL-121: vertical-tier model (design_handoff_filter_vertical/README.md
+   §2) ────────────────────────────────────────────────────────────────────
+   FilterPanel.tsx sets `data-vtier` on `.ifp-sidebar` from a resize
+   listener (full / compact / two-col / fallback). Every density metric
+   above is a CSS custom property whose *declared* default (in the rules
+   above) is the shipped FULL value -- these tier rules are the only place
+   that overrides them. No media queries: the JS resize listener is the
+   one source of truth for the height thresholds (utils/filterPanelTiers.ts). */
+
+/* COMPACT (§3): density tightens, width and layout/order stay FULL's. */
+.ifp-sidebar[data-vtier="compact"] {
+  --v-pad: 11px;
+  --v-gap: 10px;
+  --v-ggap: 6px;
+  --v-fgap: 5px;
+  --v-rgap: 4px;
+  --v-search: 28px;
+  --v-chit: 28px;
+  --v-ctlpy: 6px;
+  --v-ctlfs: 12.5px;
+  --v-track: 18px;
+  --v-scale: none;
+  --v-togpy: 4px;
+}
+
+/* TWO-COL (§4) and fallback (§5): COMPACT's density metrics plus the wider
+   452px panel and the two-column grid structure below. */
+.ifp-sidebar[data-vtier="two-col"],
+.ifp-sidebar[data-vtier="fallback"] {
+  --v-width: 452px;
+  --v-pad: 11px;
+  --v-gap: 10px;
+  --v-ggap: 6px;
+  --v-fgap: 5px;
+  --v-rgap: 4px;
+  --v-search: 28px;
+  --v-chit: 28px;
+  --v-ctlpy: 6px;
+  --v-ctlfs: 12.5px;
+  --v-track: 18px;
+  --v-scale: none;
+  --v-togpy: 4px;
+}
+
+/* Top span (§4): search stretches, aspect chits sit beside it; the
+   "Aspects" group label is dropped in two-col (chits are self-evident).
+   Owner dev report 2026-07-24: fixed content (search's 140px floor + 6
+   chits at --v-chit 28px + the ~120px Any/Within/Exact mode control +
+   gaps) exceeded the two-col/fallback tier's 452px panel width (430px
+   content span after the 11px --v-pad on each side), clipping the mode
+   control past the panel's right edge. Wrapping beats shrinking further --
+   the search floor and chit size are already at their density minimums --
+   so the row wraps and the mode control right-aligns onto its own line
+   (see the .ifp-aspect-mode override below). The extra wrapped-row height
+   is priced into H_TWO/MARGIN_TWO in utils/filterPanelTiers.ts so the
+   tier only engages once the taller top span actually fits. */
+.ifp-sidebar__toprow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ifp-sidebar__toprow .ifp-search {
+  flex: 1;
+  min-width: 140px;
+}
+.ifp-sidebar__toprow .ifp-aspects {
+  flex: none;
+}
+/* Right-align the mode control on its own wrapped line; also reads fine
+   packed right in the (hypothetical) case it still fits on one line. */
+.ifp-sidebar__toprow .ifp-aspect-mode {
+  margin-left: auto;
+}
+
+/* Grid (§4): left column Card + Collection, right column Gameplay. */
+.ifp-sidebar__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  align-items: start;
+}
+.ifp-sidebar__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap, 14px);
+  min-width: 0;
+}
+/* Long checkbox labels may wrap to two lines inside a column -- intended
+   per §4 rather than overflowing the narrower column width. */
+.ifp-sidebar__col .pl-toggle {
+  white-space: normal;
+  text-align: left;
+}
+
+/* Footer span (§4): cascade toggle left (its own divider removed here --
+   the row itself carries one), Reset right, shared divider. */
+.ifp-sidebar__footrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+.ifp-sidebar__footrow .ifp-sidebar__cascade {
+  border-top: none;
+  padding-top: var(--v-togpy, 6px);
+}
+
+/* Fallback (§5, < ~600px viewport only): head + top span stay pinned:
+   the panel caps its height and hides overflow, while the grid+footer
+   (wrapped in .ifp-sidebar__scroll-region below) becomes the one scrolling
+   region. 258 = CHROME_OFFSET (utils/filterPanelTiers.ts, re-measured
+   against production at 246 -- NOT the mirror's 140) + 12px breathing room,
+   so the panel's bottom edge lands just inside the viewport instead of
+   running past the fold. This is the ONLY tier with any max-height/
+   overflow on the panel -- FULL/COMPACT/TWO-COL all inherit the "none"/
+   "visible" declared above. */
+.ifp-sidebar[data-vtier="fallback"] .ifp-sidebar__panel {
+  max-height: calc(100vh - 258px);
+  overflow: hidden;
+}
+.ifp-sidebar__scroll-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-gap, 14px);
+  overflow-y: auto;
+  min-height: 0;
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+/* ── Search (BL-111 F6: sidebar-scale dimensions -- the app's other .ifp-*
+   controls are reused unstyled, but the search input is inlined in the
+   prototype's own JSX at sidebar scale, not delegated to a shared
+   component, so it's restyled here to match) ─────────────────────────── */
+
+.ifp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-page);
+  border: 1px solid var(--color-border);
+  padding: 0 10px;
+  height: var(--v-search, 32px);
+}
+
+.ifp-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 0;
+}
+
+.ifp-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.ifp-search__icon {
+  color: var(--color-text-muted);
+  flex: none;
+}
+
+.ifp-search__clear {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex: none;
+}
+
+.ifp-search__clear:hover {
+  color: var(--color-text);
+}
+
+/* ── Aspect picker (BL-111 F6: 31px chits in a single non-wrapping row,
+   down from the old top-panel's 52px centered row; "No Aspect" is now a
+   circle-slash glyph instead of a text pill) ─────────────────────────── */
+
+.ifp-aspects {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.ifp-aspect {
+  width: var(--v-chit, 31px);
+  height: var(--v-chit, 31px);
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--bg-page);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--color-text-muted);
+  transition:
+    opacity 0.15s,
+    border-color 0.15s,
+    filter 0.15s;
+}
+
+.ifp-aspect--checked {
+  border-color: var(--color-primary);
+}
+
+.ifp-aspect--off {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+
+/* BL-70/BL-90 parity with .ifp-multi__item--inert: a faceted-invalid
+ * aspect option, only ever visible via the "show all values" toggle
+ * (or as a stale selected value). Greyed and, unless selected, disabled. */
+.ifp-aspect--inert {
+  opacity: 0.25;
+}
+.ifp-aspect--inert:disabled {
+  cursor: not-allowed;
+}
+
+/* ── Grid + field shells (shared with MultiSelect.tsx) ───────────────────
+   BL-111 dev-review wave 1 fix 3: `.ifp-field__label`'s standalone row is
+   retired -- the label now lives inside `.ifp-multi__trigger` below. */
+
+.ifp-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-fgap, 6px);
+}
+
+.ifp-chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Multi-select (shared with MultiSelect.tsx) ──────────────────────────
+   BL-111 dev-review wave 1 fix 3: the trigger button's text now carries
+   the field's label AND its selection state ("Set — All sets", "Set —
+   SOR, JTL") -- `.ifp-multi__trigger` truncates with an ellipsis (the
+   button's own `title` attribute, set in MultiSelect.tsx, carries the full
+   untruncated text) rather than letting a long comma list wrap the sidebar
+   taller or overflow its fixed width. */
+
+.ifp-multi {
+  position: relative;
+}
+
+.ifp-multi__button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-page);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: var(--v-ctlpy, 10px) 12px;
+  font-family: var(--font-body);
+  font-size: var(--v-ctlfs, 13px);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ifp-multi__button:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.ifp-multi--open .ifp-multi__button {
+  border-color: var(--color-primary);
+}
+.ifp-multi__button .ifp-chevron {
+  transition: transform 0.15s;
+}
+.ifp-multi--open .ifp-multi__button .ifp-chevron {
+  transform: rotate(180deg);
+}
+.ifp-multi__trigger {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ifp-multi__placeholder {
+  color: var(--color-text-muted);
+}
+.ifp-multi__value {
+  color: var(--color-text);
+}
+
+.ifp-multi__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 0;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* BL-147 fix 6 (BL-144-family review finding): the menu now renders via
+   FilterMenuPortal (components/FilterMenuPortal.tsx) into document.body
+   instead of nested under its own `.ifp-multi` -- the sidebar's outer
+   `.ifp-sidebar__ring` clips descendant paint to its own angled-corner
+   polygon (see that rule's own comment), which was cutting off any menu
+   that visually extended past the ring's bottom edge. FilterMenuPortal sets
+   `position: fixed` plus explicit `left`/`top`/`width` inline (computed from
+   the trigger button's own rect), which already overrides this rule's
+   `position`/`top`/`left` -- this modifier only needs to neutralize `right:
+   0` (otherwise over-constrained against the inline left+width; harmless
+   per the CSS2.1 resolution rules for LTR, but explicit is clearer than
+   relying on that) and raise z-index above the popup/modal layer (100,
+   CardPopup.css/AboutModal.css/etc.) since a dropdown can plausibly be left
+   open while a popup opens on top of the sidebar. */
+.ifp-multi__menu--portal {
+  right: auto;
+  z-index: 150;
+}
+
+.ifp-multi__search {
+  position: relative;
+  padding: 8px 8px 0;
+}
+
+.ifp-multi__search input {
+  width: 100%;
+  background: var(--bg-page);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 8px 28px 8px 28px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+
+.ifp-multi__search input::placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ifp-multi__search input:focus {
+  border-color: var(--color-primary);
+}
+
+.ifp-multi__search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.ifp-multi__search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 3px;
+}
+
+.ifp-multi__search-clear:hover {
+  color: var(--color-text);
+  background: var(--color-border);
+}
+
+.ifp-multi__menubar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ifp-multi__bar-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.ifp-multi__bar-btn:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.ifp-multi__bar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ifp-multi__items {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0;
+}
+
+/* R6b (BL-129 fix round 1), still used by BL-133's FinishFilter.tsx: marks
+ * the boundary between the Finish dropdown's pinned section and everything
+ * below it -- MultiSelect no longer renders Finish (see FinishFilter.tsx),
+ * but this class name/rule carries over unchanged since the divider concept
+ * (pinned block vs. everything else) survives BL-133's flat-list ->
+ * two-tier-tree reshape. Renders only between two consecutive visible rows
+ * where the first is pinned and the second isn't, which self-limits it to
+ * "both sections non-empty." Same muted --color-border used for every other
+ * in-panel hairline (menubar, group separators) rather than a new material. */
+.ifp-multi__pin-divider {
+  border-top: 1px solid var(--color-border);
+  margin: 4px 0;
+}
+
+.ifp-multi__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ifp-multi__item:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+.ifp-multi__item--on {
+  color: var(--color-text);
+}
+.ifp-multi__item-label {
+  flex: 1;
+}
+
+/* BL-70: a faceted-invalid option -- either revealed by the "show all
+ * values" toggle, or a stale multi-select value kept visible instead of
+ * silently dropped. Greyed but (if already selected) still clickable to
+ * remove. */
+.ifp-multi__item--inert {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ifp-multi__item--inert:not(:disabled):hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+.ifp-multi__item--inert:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ifp-multi__check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: transparent;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.ifp-multi__check--on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.ifp-multi__empty {
+  padding: 12px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Finish filter -- two-tier tree (BL-133, issue #318) ─────────────────
+ * FinishFilter.tsx reuses the ifp-multi__* shell above (button/menu/
+ * menubar/items/check/pin-divider) for the dropdown chrome and plain rows
+ * -- these classes cover only the two row shapes that don't exist anywhere
+ * else: fused foil/non-foil pair rows and expandable tournament/prestige
+ * groups. */
+
+/* Pair row (Variant B, Jeremy's pick): label + two independent toggle
+ * chips, sized/padded to align with a plain .ifp-multi__item row above it. */
+.ifp-finish-pair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+}
+.ifp-finish-pair__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ifp-finish-pair__chips {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ifp-finish-pair__chip {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+.ifp-finish-pair__chip:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.ifp-finish-pair__chip--on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.ifp-finish-pair__chip--on:hover:not(:disabled) {
+  color: #fff;
+}
+.ifp-finish-pair__chip--inert {
+  opacity: 0.5;
+  font-style: italic;
+}
+.ifp-finish-pair__chip:disabled {
+  cursor: not-allowed;
+}
+
+/* Expandable group row (Prestige, Galactic Championship, ...). The header
+ * is a button that only toggles expand/collapse -- it never selects, so it
+ * intentionally doesn't reuse .ifp-multi__item's selectable styling. */
+.ifp-finish-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+.ifp-finish-group__header:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+.ifp-finish-group__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+}
+.ifp-finish-group__chevron--open {
+  transform: rotate(180deg);
+}
+.ifp-finish-group__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Collapsed-with-selection tint (BL-133 brief: a collapsed group can never
+ * silently hide an active filter) -- shares the primary-tinted background
+ * every "on" control in this panel uses, not a new material. */
+.ifp-finish-group__header--selected {
+  background: rgba(37, 99, 235, 0.12);
+}
+.ifp-finish-group__header--selected:hover {
+  background: rgba(37, 99, 235, 0.18);
+}
+.ifp-finish-group__badge {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+/* All-children-inert group: muted like an inert option, but the header
+ * stays a real button (still clickable to expand). */
+.ifp-finish-group--inert .ifp-finish-group__header {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ifp-finish-group__children {
+  display: flex;
+  flex-direction: column;
+}
+.ifp-multi__item--child {
+  padding-left: 30px;
+}
+
+/* ── Range slider (unchanged -- shared with RangeSlider.tsx) ────────────── */
+
+.ifp-range {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v-rgap, 6px);
+}
+.ifp-range__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ifp-range__label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ifp-range__readout {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.ifp-range__track-wrap {
+  position: relative;
+  height: var(--v-track, 22px);
+  display: flex;
+  align-items: center;
+}
+
+.ifp-range__track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-border);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.ifp-range__fill {
+  position: absolute;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.ifp-range__input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: var(--v-track, 22px);
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: none;
+  margin: 0;
+}
+
+.ifp-range__input::-webkit-slider-runnable-track {
+  background: transparent;
+  height: var(--v-track, 22px);
+}
+.ifp-range__input::-moz-range-track {
+  background: transparent;
+  height: var(--v-track, 22px);
+}
+
+.ifp-range__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-text);
+  border: 2px solid var(--color-primary);
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 0 0 1px var(--bg-surface);
+}
+
+.ifp-range__input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text);
+  border: 2px solid var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--bg-surface);
+}
+
+/* BL-121 §3: COMPACT hides the 0…max scale row (the head readout above
+   already carries the live values); FULL keeps it via the shipped default. */
+.ifp-range__scale {
+  display: var(--v-scale, flex);
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* ── Inline toggle row (screens slot extra controls as FilterPanel's
+   `children` -- CardsPage's incompleteOnly/ownedOnly toggles, rendered
+   inside the Collection group per the design's layout) ─────────────────── */
+
+.ifp-toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ifp-toggle-row__buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* BL-60: quiet persistent nudge for anonymous users, near the toggles --
+ * the passive half of the layered nudge treatment (see SWU_Backlog.md
+ * BL-60). Stays light so it doesn't compete with the toggles themselves. */
+.ifp-toggle-nudge {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.pl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: var(--v-togpy, 6px) 12px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.pl-toggle:hover {
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.pl-toggle__box {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 2px;
+  position: relative;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.pl-toggle__label {
+}
+
+.pl-toggle--on {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.pl-toggle--on .pl-toggle__box {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.pl-toggle--on .pl-toggle__box::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* BL-56 §5.5 Slice 4: anonymous inert-teaser treatment. Stays clickable
+ * (the click surfaces the sign-in prompt) but reads as greyed/off so it
+ * doesn't look like a live control. */
+.pl-toggle--disabled {
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.pl-toggle--disabled:hover {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.pl-toggle--disabled .pl-toggle__box {
+  border-color: var(--color-border);
+}

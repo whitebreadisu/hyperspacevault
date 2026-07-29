@@ -1,0 +1,446 @@
+/* ── Import / Export page (BL-54 S3) ──────────────────────────────────────
+ * Settings-pane visual idiom per §8.2: reuses the page chrome vocabulary
+ * from cards.css (.screen / .screen-heading) and the section/action-row
+ * shape from SettingsPage.css (.settings-section / .settings-actions),
+ * re-expressed under ie- class names since this file owns its own report
+ * rendering the settings pane has no equivalent of. */
+
+.ie-screen {
+  max-width: 860px;
+  /* Owner dev-review 2026-07-23: center the pane in the viewport rather
+   * than hugging the left edge like the full-width Vault table. */
+  width: 100%;
+  margin-inline: auto;
+}
+
+.ie-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.ie-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Owner dev-review 2026-07-23: the Import section's head is a split row --
+ * title/blurb left, the catalog-reference callout top-right (the corner was
+ * empty). Wraps to a stacked column on narrow viewports. */
+.ie-section__head--import {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ie-section__head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 320px;
+}
+
+/* Owner dev-review 2026-07-24 round 4 -- vertical card restored; the file
+ * field moved up into the head's left column so the two columns are
+ * near-equal height and the merge-mode selector starts right below both
+ * (round 2 stranded space under the blurb; round 3's horizontal strip
+ * stranded space to its right). */
+.ie-reference {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  max-width: 320px;
+}
+
+.ie-reference__text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ie-reference__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.ie-reference__blurb {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.ie-section__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.ie-section__blurb {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  max-width: 620px;
+}
+
+.ie-error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+/* BL-173 review round 4 (owner): expected-format callouts in the Import
+ * section -- blurb typography with a primary-accent left rule so they read
+ * as guidance, not body copy. Two stacked notes (owner: format statement
+ * and the other-tracker migration path are separate messages). */
+.ie-format-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ie-format-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--color-primary);
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  max-width: 620px;
+}
+.ie-format-note strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+/* Owner follow-up: the migration note renders in the scoped-playset amber
+ * family (picker's scoped-column wash/accents) -- amber rule/wash and an
+ * amber bold lead-in, with the body text white for contrast. */
+.ie-format-note--amber {
+  border-left-color: var(--color-warning);
+  background: rgba(217, 154, 31, 0.08);
+  /* Owner: straight white read too harsh -- same muted body tone as the
+   * first note; the amber lives in the rule/wash/bold lead-in. */
+  color: var(--color-text-muted);
+}
+.ie-format-note--amber strong {
+  color: #f2c14e;
+}
+
+.ie-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.ie-success {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aspect-command, #178a3a);
+}
+
+/* ── Action rows / links ──────────────────────────────────────────────── */
+
+.ie-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ie-actions__spacer {
+  flex: 1;
+}
+
+.ie-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ie-link:hover {
+  color: var(--color-primary-dim);
+}
+
+/* ── Import form (file picker + radios) ───────────────────────────────── */
+
+.ie-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ie-field-label {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+/* Owner dev-review 2026-07-23: the native file input is visually hidden
+ * (clip-rect, not display:none -- it stays in the a11y tree and keeps its
+ * label association); the SWUButton beside it forwards the click. */
+.ie-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ie-file-field {
+  position: relative;
+}
+
+.ie-section__head-main .ie-file-field {
+  margin-top: 8px;
+}
+
+.ie-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ie-file-name {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.ie-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ie-radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.ie-radio-option:has(input:checked) {
+  border-color: var(--color-primary);
+}
+
+.ie-radio-option input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ie-radio-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ie-radio-option__title {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+
+.ie-radio-option__title--danger {
+  color: var(--color-danger);
+}
+
+.ie-radio-option__desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.ie-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ie-checkbox-row input {
+  margin-top: 3px;
+  accent-color: var(--color-danger);
+  cursor: pointer;
+}
+
+/* ── Report rendering (dry-run preview + commit success) ─────────────── */
+
+.ie-report {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ie-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.ie-totals__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 72px;
+}
+
+.ie-totals__cell dt {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ie-totals__cell dd {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.ie-report-section {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.ie-report-section--danger {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.ie-report-section--warning {
+  border-color: rgba(217, 154, 31, 0.4);
+}
+
+.ie-report-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ie-report-section__title {
+  margin: 0 0 6px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  cursor: default;
+}
+
+details.ie-report-section > summary.ie-report-section__title {
+  cursor: pointer;
+  margin: 0;
+}
+
+.ie-row-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ie-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ie-row:last-child {
+  border-bottom: none;
+}
+
+.ie-row__card {
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+
+.ie-row__detail {
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.ie-row--problem .ie-row__detail,
+.ie-row--removed .ie-row__detail {
+  color: var(--color-danger);
+}
+
+.ie-row--trimmed .ie-row__detail {
+  color: var(--color-warning);
+}

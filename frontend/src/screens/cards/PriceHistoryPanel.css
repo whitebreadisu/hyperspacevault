@@ -1,0 +1,289 @@
+/* Price history panel (BL-140 design-conformance pass) -- .php-* styles.
+   No longer an overlay: this is now embedded content, mounted twice by
+   CardPopup.tsx --
+
+     - .php-panel--compact inside .cp-rail__history (a border-top-2px wrapper
+       under the printings rows, see CardPopup.css)
+     - .php-panel--full inside .cp-history-expand (a border-top-1px wrapper
+       appended below the popup's 3-column grid, see CardPopup.css)
+
+   Both wrappers own the surrounding frame/border; this file styles only the
+   panel's own internals (heading, ranges, chart, sparse/empty states,
+   footer). */
+
+.php-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.php-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.php-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.php-panel--full .php-label {
+  font-size: 12px;
+}
+
+.php-printing {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.php-ranges {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+}
+
+.php-range-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.php-panel--full .php-range-btn {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 3px 9px;
+}
+.php-range-btn:hover:not(.php-range-btn--active) {
+  background: rgba(37, 99, 235, 0.12);
+}
+.php-range-btn--active {
+  background: rgba(37, 99, 235, 0.28);
+  color: var(--color-text);
+}
+
+.php-expand,
+.php-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.php-expand:hover,
+.php-close:hover {
+  color: var(--color-text);
+}
+.php-expand {
+  font-size: 13px;
+}
+.php-close {
+  font-size: 20px;
+}
+
+.php-status {
+  padding: 24px 12px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.php-panel--compact .php-status {
+  padding: 16px 8px;
+  font-size: 12px;
+}
+.php-status--error {
+  color: var(--color-danger);
+}
+
+/* Sparse-data notice: HistoryPanel.dc.html's blue-left-border line. Can
+   render ALONGSIDE the chart (n>1 but still short of the requested range)
+   or alone (n===1, not enough points to draw a line at all). */
+.php-sparse {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border-left: 2px solid var(--color-primary);
+  padding: 2px 0 2px 8px;
+}
+
+.php-chart-box {
+  border: 1px solid var(--color-border);
+  background-color: var(--bg-surface-alt);
+  padding: 10px 12px 6px 12px;
+}
+
+.php-chart-hover {
+  position: relative;
+  cursor: crosshair;
+}
+
+.php-chart {
+  display: block;
+}
+
+.php-chart__hairline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.php-chart__hairline--dashed {
+  stroke-dasharray: 3 4;
+}
+
+.php-chart__line {
+  stroke: var(--color-primary);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.php-chart__ylabel {
+  position: absolute;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-primary);
+  pointer-events: none;
+}
+.php-chart__ylabel--max {
+  top: 2px;
+}
+.php-chart__ylabel--min {
+  bottom: 2px;
+}
+
+.php-chart__hoverline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-text-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.php-chart__hoverdot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+  pointer-events: none;
+}
+
+.php-chart__tooltip {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  padding: 4px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.php-chart__tooltip-date {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.php-chart__tooltip-price {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.php-chart__xticks {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+.php-chart__xticks span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.php-empty {
+  border: 1px solid var(--color-border);
+  background-color: var(--bg-surface-alt);
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.php-empty__dash,
+.php-empty__title,
+.php-empty__sub {
+  display: block;
+  text-align: center;
+}
+.php-empty__dash {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+.php-empty__title {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}
+.php-empty__sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+  margin-top: 6px;
+}
+
+.php-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.php-footer__asof {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.php-fullview {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.php-fullview:hover {
+  color: var(--color-primary-dim);
+}

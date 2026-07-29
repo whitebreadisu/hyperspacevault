@@ -1,0 +1,47 @@
+/* ── AspectIcon styled tooltip (owner dev review 2026-07-26, round 4;
+ * restyled round 5) ────────────────────────────────────────────────────────
+ * Opt-in (`tooltip` prop): the Cards table's aspect cell and CardPopup's
+ * aspect row hover a bubble with the aspect name, replacing the native title
+ * there. Round 5 owner call: match the INVENTORY dossier's console look
+ * (.gallery-dossier -- angled-corner clip, 1px steel ring layer, dark
+ * circuit-tile inner) rather than the earlier VariantsTooltip styling.
+ * Pure CSS :hover -- no JS state. Positioned BELOW the icon. */
+.aspect-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.aspect-tip__bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: none;
+  box-sizing: border-box;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  padding: 1px;
+  background: rgba(211, 211, 212, 0.5);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.aspect-tip__bubble-inner {
+  display: block;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  padding: 5px 11px 6px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.aspect-tip:hover .aspect-tip__bubble {
+  display: block;
+}

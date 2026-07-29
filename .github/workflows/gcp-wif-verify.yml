@@ -1,0 +1,42 @@
+name: GCP WIF Verification
+
+# Manual-only: proves GitHub Actions can authenticate to GCP via Workload
+# Identity Federation (no stored keys) by impersonating terraform-ci and
+# running a harmless gcloud read in each project (P1 stage 4).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-sandbox
+          workload_identity_provider: projects/428226041551/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-sandbox.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify identity (sandbox)
+        run: gcloud projects describe swu-sandbox --format="value(projectId,name)"
+
+  verify-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-prod
+          workload_identity_provider: projects/373324715123/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify identity (prod)
+        run: gcloud projects describe swu-prod --format="value(projectId,name)"

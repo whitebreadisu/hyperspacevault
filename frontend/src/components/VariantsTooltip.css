@@ -1,0 +1,55 @@
+/* ── VariantsTooltip (.vt-*) ──────────────────────────────────────────────
+   Co-located with VariantsTooltip.tsx. Imported directly by that module.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.vt-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.vt-button {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: default;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.vt-button:hover,
+.vt-wrap:hover .vt-button {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.vt-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 220px;
+  max-width: 360px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 8px 0;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+}
+
+.vt-popover__row {
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text);
+  white-space: nowrap;
+}
