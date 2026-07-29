@@ -7,8 +7,8 @@ collection.
 
 **Live app:** [www.hyperspacevault.com](https://www.hyperspacevault.com)
 
-*(The repository keeps its original working name, SWU Inventory Manager; the app
-itself is HyperspaceVault.)*
+*(Some internal documents refer to the project by its original working name,
+SWU Inventory Manager.)*
 
 ## Architecture
 

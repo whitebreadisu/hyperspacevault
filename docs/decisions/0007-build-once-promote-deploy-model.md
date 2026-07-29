@@ -4,6 +4,7 @@
 Accepted — 2026-06-27. **Implemented** (status corrected 2026-07-24, BL-150 W1): BL-43 (Stage 2 of `SWU_Platform_Roadmap.md` §7) fully complete 2026-06-28
 
 > **Update 2026-07-15 (BL-131):** the decision stands, but the human gate's *mechanism* changed. The GitHub Environment required-reviewers rule died when the repo went private (Enterprise-only on private repos), so the gated in-pipeline `promote-prod` job was replaced by an explicit `promote-prod.yml` `workflow_dispatch` (promote a stated main SHA; build-once semantics unchanged; `risk:low` fast path unchanged). Current mechanism: `SWU_Platform_Spec.md` §2.6.
+> **Update 2026-07-29 (BL-172):** the repo is public again (environment protection is available once more); the `workflow_dispatch` mechanism is retained by owner decision — see §2.6.
 
 ## Context
 With a dedicated dev environment decided (ADR-0006), the question is *how code flows to environments.* Today `.github/workflows/ci.yml` **rebuilds the backend image on deploy** and is hardcoded to `swu-prod`, with deploy gated on `push` to `main`. Adding a dev tier forces a deliberate choice of delivery model.
