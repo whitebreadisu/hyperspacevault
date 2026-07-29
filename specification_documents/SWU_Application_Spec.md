@@ -401,7 +401,7 @@ Write the variant-graph invariant and the resolver tests against captured fixtur
 
 ## 10. Variant Census & Classification (BL-27 — resolved 2026-06-21)
 
-Resolved in an Opus session against the captured full export (`backend/app/tests/fixtures/swuapi_export_2026-06-21.json` — 8,353 cards, 27 sets), analyzed **programmatically** (not via WebFetch). This freezes the `variant_type` vocabulary and the §3.2 / §4.3 classification.
+Resolved in an Opus session against the captured full export (`swuapi_export_2026-06-21.json` — 8,353 cards, 27 sets; the capture now lives in the private repo-assets bucket (BL-170), fetched by the realdata test tier rather than tracked in git), analyzed **programmatically** (not via WebFetch). This freezes the `variant_type` vocabulary and the §3.2 / §4.3 classification.
 
 ### 10.1 The graph (base_cards count + resolution)
 
