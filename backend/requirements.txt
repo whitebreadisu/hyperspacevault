@@ -13,7 +13,7 @@ httpx==0.28.1
 # installed at runtime, or the route registration itself raises at import
 # time (not just at request time).
 python-multipart==0.0.32
-firebase-admin==6.5.0
+firebase-admin==7.5.0
 # BL-76 Phase 2 (ADR-0012): card-image mirror/backfill. Pillow stays
 # ingestion-only; google-cloud-storage gained a request-path use in Phase 3
 # (app/routers/images.py streams GCS objects at serve time) -- both already
