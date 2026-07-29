@@ -10,3 +10,4 @@ docker-compose.yml text eol=lf
 *.yml text eol=lf
 *.css text eol=lf
 *.html text eol=lf
+
