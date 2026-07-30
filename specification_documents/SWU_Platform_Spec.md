@@ -392,9 +392,9 @@ The first four secrets use `replication { auto {} }`, values from `random_passwo
 
 ### 3.10 Custom domain
 
-`google_firebase_hosting_custom_domain.swu_subdomain` (`custom_domain.tf`) maps `swu.jeremybradenapps.com` to `swu-prod`'s Firebase Hosting site (`site_id = "swu-prod"`). `wait_dns_verification = false` so `terraform apply` doesn't block on DNS records that don't exist yet — `required_dns_updates` is exposed as an output for manual application to the **separate** `jeremy-portfolio` project's Cloud DNS zone (which is not managed by this Terraform configuration at all).
+`google_firebase_hosting_custom_domain.swu_subdomain` (`custom_domain.tf`) maps `swu.jeremybradenapps.com` to `swu-prod`'s Firebase Hosting site (`site_id = "swu-prod"`). `wait_dns_verification = false` so `terraform apply` doesn't block on DNS records that don't exist yet — `required_dns_updates` is exposed as an output for manual application to the **separate** `jeremy-portfolio` project's Cloud DNS zone (which is not managed by this Terraform configuration at all). **Since 2026-07-30 (public-release plan Phase 2) this domain is a permanent redirect, not a serving alias:** `redirect_target = "www.hyperspacevault.com"` 301s every path (path + query preserved, live-verified incl. `/api/**`); DNS and cert are unchanged, and the domain was removed from Firebase Auth's authorized domains once the redirect verified — the app has exactly one serving identity.
 
-**BL-127 (added 2026-07-20) — `hyperspacevault.com`, a stand-alone app identity.** Unlike the subdomain above, this domain's DNS lives **in `swu-prod` itself** — decoupling the app from the portfolio infra is the point of this addition. `custom_domain.tf` also declares: `google_dns_managed_zone.hyperspacevault` (zone `hyperspacevault-com`, nameservers delegated at Namecheap); `google_firebase_hosting_custom_domain.hyperspacevault_www` (`www.hyperspacevault.com`, canonical) and `.hyperspacevault_apex` (`hyperspacevault.com`, 301-redirects to `www`); and the zone's own `google_dns_record_set` resources (apex A + TXT for Hosting/ownership verification, `www` CNAME to `swu-prod.web.app`, BL-94's DKIM CNAME pair + a monitoring-only DMARC TXT for `noreply@hyperspacevault.com` auth email). `swu.jeremybradenapps.com` is planned to become a permanent redirect to `www.hyperspacevault.com` in a later step, once `www` is confirmed serving.
+**BL-127 (added 2026-07-20) — `hyperspacevault.com`, a stand-alone app identity.** Unlike the subdomain above, this domain's DNS lives **in `swu-prod` itself** — decoupling the app from the portfolio infra is the point of this addition. `custom_domain.tf` also declares: `google_dns_managed_zone.hyperspacevault` (zone `hyperspacevault-com`, nameservers delegated at Namecheap); `google_firebase_hosting_custom_domain.hyperspacevault_www` (`www.hyperspacevault.com`, canonical) and `.hyperspacevault_apex` (`hyperspacevault.com`, 301-redirects to `www`); and the zone's own `google_dns_record_set` resources (apex A + TXT for Hosting/ownership verification, `www` CNAME to `swu-prod.web.app`, BL-94's DKIM CNAME pair + a monitoring-only DMARC TXT for `noreply@hyperspacevault.com` auth email). `swu.jeremybradenapps.com` became that planned permanent redirect on 2026-07-30 (see the subdomain paragraph above), completing this migration — BL-127 closed.
 
 The consumer-facing rename to **HyperspaceVault** rides the same change: `terraform/modules/app/firebase.tf`'s `google_firebase_web_app.default` now has `display_name = "HyperspaceVault"` (was the prior project name).
 
@@ -406,7 +406,7 @@ The consumer-facing rename to **HyperspaceVault** rides the same change: `terraf
 "rewrites": [{ "source": "/api/**", "run": { "serviceId": "backend", "region": "us-central1" } }]
 ```
 
-Firebase Hosting transparently proxies `/api/**` requests to the Cloud Run `backend` service. From the browser's perspective, `https://swu.jeremybradenapps.com/api/cards` and `https://swu-prod.web.app/api/cards` are **same-origin** requests — CORS is never invoked in production.
+Firebase Hosting transparently proxies `/api/**` requests to the Cloud Run `backend` service. From the browser's perspective, `https://www.hyperspacevault.com/api/sets` and `https://swu-prod.web.app/api/sets` are **same-origin** requests — CORS is never invoked in production.
 
 `app/main.py`'s CORS middleware (`allow_origins=["http://localhost:5173"]`) exists purely for local dev, where the Vite dev server (port 5173) talks directly to a locally-running backend on a different port. This is *not* a misconfiguration of the production path — see Section 5.
 
@@ -427,7 +427,7 @@ Firebase Hosting transparently proxies `/api/**` requests to the Cloud Run `back
 
 **Selected (P1, foundational):** one always-on, deliberately minimal production project, plus a separate project for exploring infrastructure patterns (VPCs, load balancers, multi-zone) that would be expensive or noisy to keep running permanently.
 
-This gives a real, low-cost production app (the thing actually serving `swu.jeremybradenapps.com`) while still allowing hands-on access to patterns that don't belong in — and would inflate the cost/complexity of — the production environment. `swu-sandbox` deliberately has not tracked `swu-prod`'s P2-P7 additions; it remains at its P1-bootstrap state by design.
+This gives a real, low-cost production app (the thing actually serving `www.hyperspacevault.com`) while still allowing hands-on access to patterns that don't belong in — and would inflate the cost/complexity of — the production environment. `swu-sandbox` deliberately has not tracked `swu-prod`'s P2-P7 additions; it remains at its P1-bootstrap state by design.
 
 #### 3.13.2 Multi-tenancy: shared schema + Postgres RLS, not schema-per-tenant
 
