@@ -1,14 +1,29 @@
 # HyperspaceVault
 
+[![CI](https://github.com/whitebreadisu/hyperspacevault/actions/workflows/ci.yml/badge.svg)](https://github.com/whitebreadisu/hyperspacevault/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/whitebreadisu/hyperspacevault/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/whitebreadisu/hyperspacevault/security/code-scanning)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Collection tracking for the Star Wars: Unlimited trading card game — a complete card
 catalog with daily market prices, and a private, isolated vault for every signed-in
-collector: track what you own, check what a deck costs you, import/export your
-collection.
+collector.
 
 **Live app:** [www.hyperspacevault.com](https://www.hyperspacevault.com)
 
-*(Some internal documents refer to the project by its original working name,
-SWU Inventory Manager.)*
+*Built end-to-end with AI-assisted engineering — owner-directed sessions, agent-executed
+implementation; [HISTORY.md](HISTORY.md) chronicles the arc.*
+
+## What it does
+
+- **Complete card catalog** with a two-axis variant model — every printing, finish, and
+  treatment (Hyperspace, Showcase, Prestige, serialized chase cards) resolved and browsable
+- **Daily market prices** (TCGplayer data via tcgcsv.com, always attributed and dated) with
+  multi-year price history per variant
+- **A private vault per collector** — track exactly what you own, per finish; tenant
+  isolation enforced in the database by Postgres Row-Level Security
+- **Deck check** — price any decklist against the market and against what you already own
+- **Collection value** — market/low valuation with per-finish and unit-value breakdowns
+- **Import/export** — full-collection portability in and out
 
 ## Architecture
 
@@ -57,8 +72,8 @@ No credentials required:
 Prerequisites: [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Git](https://git-scm.com/).
 
 ```bash
-git clone <repository-url>
-cd swu-inventory-manager
+git clone https://github.com/whitebreadisu/hyperspacevault.git
+cd hyperspacevault
 cp .env.example .env        # defaults work unmodified
 docker compose up --build
 ```
@@ -145,9 +160,10 @@ Public design documentation — one authoritative home per domain:
 | `docs/decisions/` | Architecture Decision Records — why the key decisions were made |
 | [HISTORY.md](HISTORY.md) | The development chronicle |
 
-Docs occasionally reference `BL-###` work-item ids and internal analysis documents —
-those point into a private engineering archive (working records, session logs,
-evidence docs) that isn't part of this repository.
+Docs occasionally reference `BL-###` work-item ids, internal analysis documents, or the
+project's original working name (*SWU Inventory Manager*) — those point into a private
+engineering archive (working records, session logs, evidence docs) that isn't part of
+this repository.
 
 ## License
 
