@@ -1566,3 +1566,41 @@ describe("CardsPage Value price-kind persistence (BL-173, CREATE)", () => {
     expect(screen.getByTitle("Market price")).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+// CREATE (BL-179 round 11, owner follow-up): the rail badge's external
+// count through the REAL CardsPage wiring -- checkboxes one each, the
+// whole base-set selection one unit -- not just FilterPanel's injected
+// number.
+describe("CardsPage external filters feed the rail badge (BL-179 r11, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+
+  it("counts checkboxes individually and the base-set selection as one unit", async () => {
+    const { container } = await renderPage();
+
+    // Two compatible checkboxes (ownedOnly excludes noInventoryOnly, so use
+    // incompleteOnly + ownedOnly).
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+    fireEvent.click(screen.getByRole("button", { name: /incomplete playsets/i }));
+
+    // One base set selected via a completion popover row.
+    fireEvent.click(
+      container.querySelector('[data-testid="inv-summary-block-cards"]') as HTMLElement
+    );
+    fireEvent.click(
+      container.querySelector(".inv-summary__popover-row--selectable") as HTMLElement
+    );
+
+    // Collapse the panel: badge = 2 checkboxes + 1 base-set unit.
+    fireEvent.click(screen.getByTitle("Collapse filters"));
+    expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("3");
+
+    // Clearing the base-set selection from the amber row drops it to 2.
+    fireEvent.click(screen.getByTitle("Expand filters"));
+    fireEvent.click(container.querySelector(".inv-summary__basesets-clear") as HTMLElement);
+    fireEvent.click(screen.getByTitle("Collapse filters"));
+    expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("2");
+  });
+});
