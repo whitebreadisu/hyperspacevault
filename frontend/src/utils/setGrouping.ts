@@ -91,6 +91,39 @@ export function findSet(sets: readonly CardSet[], code: string): CardSet | null 
   return sets.find((s) => s.code === code) ?? null;
 }
 
+/** The base-set logo(s) a locked Add Cards header shows for a selected set.
+ * Logo assets only exist per *base* set (public/images/set_<CODE>.png), so a
+ * non-base selection displays the base set(s) its printings belong to:
+ *
+ *   - a base set shows itself (unchanged);
+ *   - a Weekly Play companion shows its base set (categorical: WP codes are
+ *     always base + trailing "P", the same locked convention
+ *     `weeklyPlayCodeFor` encodes -- no catalog scan needed);
+ *   - any other non-base set (Exclusives: C24/J25/P26/GG/...) shows the
+ *     distinct home base sets (`set_code`) of the printings it released
+ *     (`source_set_code === selected`), in canonical release order -- one
+ *     logo when they all map to a single base set, several side by side
+ *     when the container spans base sets.
+ *
+ * `cards` is the Add Cards catalog (AddCardsCatalogEntry is structurally
+ * compatible); only the two set-code fields are read. A home set that is
+ * somehow not a base set is skipped (no asset to show), so an unknown or
+ * unmapped selection yields [] and the caller renders no logo rather than a
+ * broken image. */
+export function headerLogoCodesFor(
+  selectedCode: string,
+  cards: readonly { set_code: string; source_set_code: string }[]
+): string[] {
+  if (isBaseSetCode(selectedCode)) return [selectedCode];
+  const wpBase = BASE_SET_ORDER.find((base) => weeklyPlayCodeFor(base) === selectedCode);
+  if (wpBase) return [wpBase];
+  const homes = new Set<string>();
+  for (const c of cards) {
+    if (c.source_set_code === selectedCode && isBaseSetCode(c.set_code)) homes.add(c.set_code);
+  }
+  return [...homes].sort((a, b) => setSortRank(a) - setSortRank(b));
+}
+
 /** One rail group for the logo-rail dropdown layout: a rail cell (a base
  * set's logo, or an Exclusives subgroup's text label) beside one or more
  * member rows, in order. `logoCode` is set for a real-set rail cell;
