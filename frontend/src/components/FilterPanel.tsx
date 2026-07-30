@@ -184,12 +184,15 @@ interface FilterPanelProps {
   children?: React.ReactNode;
   /** BL-179 round 9 (owner): "Reset All Filters" clears EVERYTHING --
    * FilterState plus any state living outside it (the completion popovers'
-   * base-set selections). Called alongside the DEFAULT_FILTERS reset. */
+   * base-set selections; round 11: the Collection checkboxes too). Called
+   * alongside the DEFAULT_FILTERS reset. */
   onResetAll?: () => void;
-  /** BL-179 round 9: true when out-of-FilterState selections exist (base
-   * sets) -- keeps the Reset button active even at default FilterState, so
-   * it can clear them. */
-  resetAlsoClears?: boolean;
+  /** BL-179 round 11 (owner): how many out-of-FilterState filters are
+   * active -- the CardsPage-owned Collection checkboxes (one each) and the
+   * popover base-set selection (one when any). Feeds the collapsed rail's
+   * badge (they ARE applied filters) and keeps Reset active whenever > 0 so
+   * it can clear them. Supersedes round 9's boolean `resetAlsoClears`. */
+  externalActiveCount?: number;
 }
 
 /** BL-111 F6: active-filter count for the collapsed rail's badge -- every
@@ -226,7 +229,7 @@ export function FilterPanel({
   cards,
   children,
   onResetAll,
-  resetAlsoClears = false,
+  externalActiveCount = 0,
 }: FilterPanelProps) {
   // BL-111 F6 (superseded by BL-144, then BL-179 round 7): used to start
   // OPEN unconditionally, then BL-144 keyed the initial state to the docked
@@ -263,10 +266,10 @@ export function FilterPanel({
   // (utils/filters.ts) drives the disabled state below so the control
   // doubles as a "filters are active" indicator.
   const isDefault = isDefaultFilterState(filters);
-  // BL-179 round 9 (owner): Reset clears FilterState AND everything wired
-  // through onResetAll (the popover base-set selections) -- and stays
-  // active when only the latter exist.
-  const resetInert = isDefault && !resetAlsoClears;
+  // BL-179 rounds 9/11 (owner): Reset clears FilterState AND everything
+  // wired through onResetAll (base-set selections, Collection checkboxes)
+  // -- and stays active when only those exist.
+  const resetInert = isDefault && externalActiveCount === 0;
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
     onResetAll?.();
@@ -395,7 +398,11 @@ export function FilterPanel({
     showInvalidValues
   );
 
-  const activeCount = countActiveFilters(filters);
+  // BL-179 round 11 (owner): the rail badge counts the external filters
+  // too -- the Collection checkboxes and base-set selection narrow the list
+  // exactly like any facet, so a collapsed rail must not read "0 filters"
+  // while they're active.
+  const activeCount = countActiveFilters(filters) + externalActiveCount;
 
   // ── BL-121: vertical-tier model (design_handoff_filter_vertical/README.md
   // §2) -- one resize listener drives a `data-vtier` attribute that

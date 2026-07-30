@@ -1106,8 +1106,11 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
 // FilterState AND out-of-FilterState selections (the completion popovers'
 // base sets, wired via onResetAll) -- and stays active when only the
 // latter exist.
+// PORT (BL-179 round 11, owner): `resetAlsoClears: boolean` superseded by
+// `externalActiveCount: number` (Collection checkboxes + base-set
+// selection), which also feeds the collapsed rail's badge.
 describe("FilterPanel reset clears external selections (BL-179, CREATE)", () => {
-  async function renderWithReset(resetAlsoClears: boolean) {
+  async function renderWithReset(externalActiveCount: number) {
     getSets.mockResolvedValue([]);
     const onResetAll = vi.fn();
     const setFiltersSpy = vi.fn();
@@ -1123,7 +1126,7 @@ describe("FilterPanel reset clears external selections (BL-179, CREATE)", () => 
           setFilters={wrappedSetFilters}
           cards={[]}
           onResetAll={onResetAll}
-          resetAlsoClears={resetAlsoClears}
+          externalActiveCount={externalActiveCount}
         />
       );
     };
@@ -1134,8 +1137,8 @@ describe("FilterPanel reset clears external selections (BL-179, CREATE)", () => 
     return { onResetAll, setFiltersSpy };
   }
 
-  it("at default FilterState with external selections, Reset is active and clears them", async () => {
-    const { onResetAll, setFiltersSpy } = await renderWithReset(true);
+  it("at default FilterState with external filters, Reset is active and clears them", async () => {
+    const { onResetAll, setFiltersSpy } = await renderWithReset(2);
     const btn = screen.getByRole("button", { name: /reset all filters/i });
     expect(btn.getAttribute("aria-disabled")).not.toBe("true");
     fireEvent.click(btn);
@@ -1143,11 +1146,20 @@ describe("FilterPanel reset clears external selections (BL-179, CREATE)", () => 
     expect(setFiltersSpy).toHaveBeenCalledWith(DEFAULT_FILTERS);
   });
 
-  it("at default FilterState with NO external selections, Reset stays inert", async () => {
-    const { onResetAll } = await renderWithReset(false);
+  it("at default FilterState with NO external filters, Reset stays inert", async () => {
+    const { onResetAll } = await renderWithReset(0);
     const btn = screen.getByRole("button", { name: /reset all filters/i });
     expect(btn.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(btn);
     expect(onResetAll).not.toHaveBeenCalled();
+  });
+
+  it("external filters count toward the collapsed rail's badge (round 11)", async () => {
+    await renderWithReset(2);
+    // Collapse to the rail; the badge must show the external count even
+    // though FilterState is fully default.
+    fireEvent.click(screen.getByTitle("Collapse filters"));
+    const badge = document.querySelector(".ifp-sidebar-tab__badge");
+    expect(badge?.textContent).toBe("2");
   });
 });

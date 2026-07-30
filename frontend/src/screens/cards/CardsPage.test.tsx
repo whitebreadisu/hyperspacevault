@@ -423,14 +423,14 @@ describe("CardsPage summary stats", () => {
   });
 });
 
-// CREATE (BL-91): the reset button lives inside FilterPanel and only ever
-// touches FilterState (props: filters/setFilters); ownedOnly is CardsPage's
-// own useState, entirely separate from FilterState (see FilterState in
-// utils/filters.ts -- no owned/view-mode field on it). This suite proves
-// that at the one place it's actually reachable: narrow both the FilterPanel
-// (Set facet) and the ownedOnly toggle, reset, and confirm the Set facet
-// clears while ownedOnly's effect on the summary survives untouched.
-describe("CardsPage reset all filters (BL-91)", () => {
+// CREATE (BL-91): originally proved reset touched ONLY FilterState, leaving
+// the ownedOnly toggle untouched.
+// DISPOSITION (REPLACE, BL-179 round 11, owner): that contract is designed
+// away -- the Collection checkboxes are real applied filters now (they feed
+// the rail badge and Reset's active state via externalActiveCount), and
+// "Reset All Filters" clears EVERYTHING: FilterState, the checkboxes, and
+// the base-set selection (onResetAll -> CardsPage's resetExternalFilters).
+describe("CardsPage reset all filters (BL-91, replaced by BL-179 round 11)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
@@ -440,8 +440,12 @@ describe("CardsPage reset all filters (BL-91)", () => {
     return screen.getByRole("button", { name: /reset all filters/i });
   }
 
-  it("clears the Set facet but leaves the ownedOnly toggle (and its effect on the summary) untouched", async () => {
+  it("clears the Set facet AND the ownedOnly toggle back to the unfiltered view", async () => {
     const { container } = await renderPage();
+
+    // Baseline (nothing filtered) for the final comparison.
+    const baseline = summaryValues(container);
+    const baselineSub = summarySub(container);
 
     // ownedOnly on: matches the standalone "Show only cards I own" test's
     // expected summary (50%/100%/4, 2 unique) below.
@@ -450,28 +454,32 @@ describe("CardsPage reset all filters (BL-91)", () => {
 
     // Narrow further with a FilterPanel facet (Set = SOR only) -- combined
     // with ownedOnly this drops to just base card 1.
-    // BL-111 dev-review wave 1 fix 3: the Set field's label row is gone --
-    // the trigger button's own accessible name now reads "Set — All sets".
     const setButton = screen.getByRole("button", { name: "Set — All sets" });
     fireEvent.click(setButton);
     fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
     expect(summarySub(container)).toBe("(1 unique)");
 
-    // DISPOSITION (REPLACE, BL-111 F6): the reset control is now the real
-    // SWUButton (README §6), which flags inert state via `aria-disabled`
-    // rather than the native `disabled` attribute -- see FilterPanel.test.tsx's
-    // matching disposition comment for the full rationale.
+    // SWUButton flags inert state via aria-disabled (BL-111 F6 disposition).
     expect(resetBtn().getAttribute("aria-disabled")).toBeNull();
     fireEvent.click(resetBtn());
 
-    // Set facet cleared -- the ownedOnly-only view reappears...
+    // EVERYTHING cleared: Set facet back to All sets, the toggle unpressed,
+    // and the summary back at its unfiltered baseline.
     expect(screen.getByRole("button", { name: "Set — All sets" })).toBeTruthy();
-    expect(summaryValues(container)).toEqual(["50%", "100%", "4", "$0.00"]);
-    expect(summarySub(container)).toBe("(2 unique)");
-    // ...and the toggle itself is still pressed -- reset never touched it.
     expect(
       screen.getByRole("button", { name: /show only cards i own/i }).getAttribute("aria-pressed")
-    ).toBe("true");
+    ).toBe("false");
+    expect(summaryValues(container)).toEqual(baseline);
+    expect(summarySub(container)).toBe(baselineSub);
+  });
+
+  it("the ownedOnly toggle alone activates Reset (external filters count)", async () => {
+    await renderPage();
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+    expect(resetBtn().getAttribute("aria-disabled")).toBeNull();
+    fireEvent.click(resetBtn());
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
   });
 });
 
