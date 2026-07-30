@@ -953,6 +953,14 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     return document.querySelector(".ifp-sidebar") as HTMLElement;
   }
 
+  // DISPOSITION (BL-179 round 7, PORT): dropping below DOCKED_MIN_HEIGHT
+  // (the two-col/fallback tiers) now leaves the docked state, which
+  // auto-collapses the panel to the overlay rail -- tier-markup assertions
+  // at short heights must reopen it first, exactly as a user would.
+  function reopenViaRail() {
+    fireEvent.click(screen.getByTitle("Expand filters"));
+  }
+
   it('renders data-vtier="full" by default (setup.ts\'s tall default innerHeight)', async () => {
     await renderTiered();
     expect(sidebarEl().getAttribute("data-vtier")).toBe("full");
@@ -965,12 +973,21 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     setInnerHeight(COMPACT_HEIGHT);
     expect(sidebarEl().getAttribute("data-vtier")).toBe("compact");
 
+    // BL-179 round 7: two-col height leaves the docked state -- the panel
+    // auto-collapses to the rail (pinned here), and reopening it shows the
+    // two-col tier in the overlay presentation.
     setInnerHeight(TWO_COL_HEIGHT);
+    expect(document.querySelector(".ifp-sidebar")).not.toBeInTheDocument();
+    reopenViaRail();
     expect(sidebarEl().getAttribute("data-vtier")).toBe("two-col");
 
+    // two-col -> fallback is WITHIN the non-docked state (no transition), so
+    // the reopened panel stays open across it.
     setInnerHeight(FALLBACK_HEIGHT);
     expect(sidebarEl().getAttribute("data-vtier")).toBe("fallback");
 
+    // Re-entering the docked state auto-expands (already open here) and the
+    // tier returns to full.
     setInnerHeight(FULL_HEIGHT);
     expect(sidebarEl().getAttribute("data-vtier")).toBe("full");
   });
@@ -991,6 +1008,7 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     // Card then Collection; right: Gameplay) -- NOT the visual reading
     // order -- since both columns are siblings in one CSS grid.
     setInnerHeight(TWO_COL_HEIGHT);
+    reopenViaRail();
     expect(labels()).toEqual(["Card", "Collection", "Gameplay"]);
   });
 
@@ -1028,6 +1046,7 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     expect(document.querySelector(".ifp-sidebar__footrow")).not.toBeInTheDocument();
 
     setInnerHeight(TWO_COL_HEIGHT);
+    reopenViaRail();
     const footrow = document.querySelector(".ifp-sidebar__footrow");
     expect(footrow).toBeInTheDocument();
     expect(within(footrow as HTMLElement).getByText(/show all values/i)).toBeInTheDocument();
@@ -1039,6 +1058,7 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
   it("two-col tier renders the Card+Collection / Gameplay grid columns (§4)", async () => {
     await renderTiered();
     setInnerHeight(TWO_COL_HEIGHT);
+    reopenViaRail();
     const grid = document.querySelector(".ifp-sidebar__grid");
     expect(grid).toBeInTheDocument();
     const cols = grid!.querySelectorAll(".ifp-sidebar__col");
@@ -1058,6 +1078,7 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     expect(document.querySelector(".ifp-sidebar__scroll-region")).not.toBeInTheDocument();
 
     setInnerHeight(TWO_COL_HEIGHT);
+    reopenViaRail();
     expect(document.querySelector(".ifp-sidebar__scroll-region")).not.toBeInTheDocument();
 
     setInnerHeight(FALLBACK_HEIGHT);
@@ -1078,5 +1099,55 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     const tab = ring!.querySelector(".ifp-sidebar-tab");
     expect(tab).toBeInTheDocument();
     expect(screen.getByTitle("Expand filters")).toBe(tab);
+  });
+});
+
+// CREATE (BL-179 round 9, owner): "Reset All Filters" clears everything --
+// FilterState AND out-of-FilterState selections (the completion popovers'
+// base sets, wired via onResetAll) -- and stays active when only the
+// latter exist.
+describe("FilterPanel reset clears external selections (BL-179, CREATE)", () => {
+  async function renderWithReset(resetAlsoClears: boolean) {
+    getSets.mockResolvedValue([]);
+    const onResetAll = vi.fn();
+    const setFiltersSpy = vi.fn();
+    const Wrapper = () => {
+      const [filters, setFilters] = useState(DEFAULT_FILTERS);
+      const wrappedSetFilters: typeof setFilters = (next) => {
+        setFiltersSpy(next);
+        setFilters(next);
+      };
+      return (
+        <FilterPanel
+          filters={filters}
+          setFilters={wrappedSetFilters}
+          cards={[]}
+          onResetAll={onResetAll}
+          resetAlsoClears={resetAlsoClears}
+        />
+      );
+    };
+    await act(async () => {
+      render(<Wrapper />);
+    });
+    await waitFor(() => expect(getSets).toHaveBeenCalled());
+    return { onResetAll, setFiltersSpy };
+  }
+
+  it("at default FilterState with external selections, Reset is active and clears them", async () => {
+    const { onResetAll, setFiltersSpy } = await renderWithReset(true);
+    const btn = screen.getByRole("button", { name: /reset all filters/i });
+    expect(btn.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(btn);
+    expect(onResetAll).toHaveBeenCalledTimes(1);
+    expect(setFiltersSpy).toHaveBeenCalledWith(DEFAULT_FILTERS);
+  });
+
+  it("at default FilterState with NO external selections, Reset stays inert", async () => {
+    const { onResetAll } = await renderWithReset(false);
+    const btn = screen.getByRole("button", { name: /reset all filters/i });
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(btn);
+    expect(onResetAll).not.toHaveBeenCalled();
   });
 });

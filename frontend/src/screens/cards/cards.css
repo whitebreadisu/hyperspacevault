@@ -67,24 +67,38 @@
  * floating at the centered column's edge over the table. State-scoped via :has() on the expanded markup
  * (.ifp-sidebar) ONLY: the collapsed tab keeps its current spot beside the
  * table (owner likes it there), because collapsed markup is the tab, not
- * .ifp-sidebar. Docked-mode note: inside this absolute wrap the docked
- * in-flow sidebar also renders at the far left, which is the same owner
- * preference applied there. */
-.cards-layout:has(.ifp-sidebar) .ifp-sidebar-wrap {
-  position: absolute;
-  left: 0;
-  top: 0;
-}
+ * .ifp-sidebar.
+ *
+ * BL-179 round 6 (owner): round 7's pin is now scoped to OVERLAY widths
+ * only. Its old "docked-mode note" (the docked sidebar also renders far
+ * left) is REVERSED by owner instruction: when both columns genuinely fit
+ * side by side (>= 1906px, the retuned docking breakpoint -- keep in sync
+ * with FilterPanel.css's media query and DOCKED_MIN_WIDTH), the sidebar
+ * docks in-flow against the table's left edge and the [sidebar + gap +
+ * content] pair centers as ONE unit -- the original BL-129 R2 design. The
+ * round-8 compensating margin below only exists to offset this pin, so it
+ * is scoped with it (in docked flow the layout's own 24px gap provides the
+ * spacing; keeping the margin would double it to 48px). */
+/* (BL-179 round 7: the overlay pin applies whenever the viewport fails
+ * EITHER docking condition -- too narrow OR too short for the one-column
+ * tier -- the exact inverse of FilterPanel.css's docking media query. */
+@media (max-width: 1905.98px), (max-height: 1051.98px) {
+  .cards-layout:has(.ifp-sidebar) .ifp-sidebar-wrap {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
 
-/* Round 8 (owner): pulling the wrap out of flow above also removed its
- * in-flow footprint (0 width + the layout's 24px gap) from the centering
- * math, so the table shifted 12px left whenever the filter expanded. A
- * compensating margin restores the identical centered position -- a
- * cap+24 box (1526+24 at round 8; 1528+24 since BL-173 round 5) centered
- * with the content pushed 24px right lands the table at exactly the
- * collapsed-state x, so the table never moves as the filter opens/closes. */
-.cards-layout:has(.ifp-sidebar) .cards-content {
-  margin-left: 24px;
+  /* Round 8 (owner): pulling the wrap out of flow above also removed its
+   * in-flow footprint (0 width + the layout's 24px gap) from the centering
+   * math, so the table shifted 12px left whenever the filter expanded. A
+   * compensating margin restores the identical centered position -- a
+   * cap+24 box (1526+24 at round 8; 1528+24 since BL-173 round 5) centered
+   * with the content pushed 24px right lands the table at exactly the
+   * collapsed-state x, so the table never moves as the filter opens/closes. */
+  .cards-layout:has(.ifp-sidebar) .cards-content {
+    margin-left: 24px;
+  }
 }
 
 /* Owner dev review 2026-07-26 round 3 (revised round 5): the COLLAPSED
@@ -106,8 +120,9 @@
 .cards-content {
   /* Round 6: mirrors the retuned cap (see .data-table-wrapper's sync rule).
      BL-173 review rounds: 1526 -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 ->
-     1528 (round 5: natural width back to the long-proven 1526 content). */
-  flex: 0 1 1528px;
+     1528 (round 5: natural width back to the long-proven 1526 content).
+     BL-179 round 3: -> 1540 (scrollbar-gutter allowance). */
+  flex: 0 1 1540px;
   /* `.cards-layout`'s `align-items: flex-start` (above) keeps the sidebar at
      its own natural content height when docked (rather than an oversized
      box stretched to match the table) -- this column overrides that back to
@@ -152,9 +167,10 @@
      the summary bar and the table read as one aligned column instead of the
      bar spanning full width while the table caps out narrower underneath.
      (Round 6: 1900 -> 1526; BL-173 review rounds walked it up and back:
-     -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 -> 1528 -- see the wrapper's
-     comment for the sync rule.) */
-  max-width: 1528px;
+     -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 -> 1528; BL-179 round 3:
+     -> 1540, scrollbar-gutter allowance -- see the wrapper's comment for
+     the sync rule.) */
+  max-width: 1540px;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
@@ -183,13 +199,56 @@
 /* Scope toggle (Filtered/All) -- sits LEFT of the blocks with a bracket
  * divider, only rendered while the visible list is narrowed (Definition
  * §3; InventorySummary.tsx's `showScopeToggle`). */
+/* BL-179 round 2 (owner): moved to the right of the blocks; round 9: moved
+ * again, into the full-width `.inv-summary__scoperow` under the blocks --
+ * the stretch/divider treatment from its edge-of-strip life is retired. */
 .inv-summary__scope {
   display: inline-flex;
   align-items: center;
-  padding-right: 14px;
-  margin-right: 4px;
-  border-right: 1px solid var(--color-border);
-  align-self: stretch;
+}
+
+/* BL-179 round 9 (owner): full-width second strip row -- the amber
+ * base-set readout + clear, and the (now three-way) scope toggle. width:
+ * 100% forces the wrap onto its own line inside the strip's flex-wrap;
+ * the 20px inset matches the strip's own block inset. */
+.inv-summary__scoperow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 20px;
+}
+
+/* The amber readout borrows `.vs-bracket__label`'s exact type treatment
+ * (the table header's scope/Unit-Value bracket family) per owner request --
+ * same font, size, tracking, and #f2c14e amber. */
+.inv-summary__basesets {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.inv-summary__basesets-label {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #f2c14e;
+  white-space: nowrap;
+}
+.inv-summary__basesets-clear {
+  background: none;
+  border: 1px solid rgba(242, 193, 78, 0.45);
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  color: #f2c14e;
+  cursor: pointer;
+}
+.inv-summary__basesets-clear:hover {
+  border-color: #f2c14e;
+  background: rgba(242, 193, 78, 0.12);
 }
 
 .inv-summary__scope-toggle {
@@ -376,6 +435,10 @@
   top: calc(100% + 8px);
   left: 0;
   z-index: 40;
+  /* BL-179 round 4: the 8px block-to-popover gap is dead space for pointer
+   * events -- crossing it would fire the wrap's hover-dismiss mouseleave.
+   * A transparent bridge extends the popover's hit area up over the gap so
+   * the pointer never "leaves" while moving between block and popover. */
   min-width: 400px;
   display: flex;
   flex-direction: column;
@@ -387,6 +450,14 @@
   cursor: default;
 }
 
+.inv-summary__popover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -9px;
+  height: 9px;
+}
 .inv-summary__popover-title {
   font-family: var(--font-ui);
   font-size: 13px;
@@ -416,6 +487,55 @@
 .inv-summary__popover-row + .inv-summary__popover-row {
   border-top: 1px solid var(--color-border);
   padding-top: 10px;
+}
+
+/* BL-179: popover rows double as a home-base-set filter control when the
+ * toggle is wired (CardsPage). Every row in a wired popover carries exactly
+ * one modifier (--selectable or --inert), and both share the same bleed
+ * (negative margin + matching padding) so the selected/hover tint reads as
+ * a full-width band while the logo/ticks columns stay aligned with the
+ * title. Selected = a quiet primary-tinted band + inset accent edge (blue
+ * stays the panel's working color; green remains reserved for 100%). */
+.inv-summary__popover-row--selectable,
+.inv-summary__popover-row--inert {
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.inv-summary__popover-row--selectable {
+  cursor: pointer;
+}
+.inv-summary__popover-row--selectable:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.inv-summary__popover-row--selected,
+.inv-summary__popover-row--selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+/* Zero-universe rows (no cards in scope map to this set): visibly inert --
+ * selecting one could only produce an empty table. */
+.inv-summary__popover-row--inert {
+  opacity: 0.4;
+}
+
+/* BL-179: the set FACET's selections, top-right of the title row. */
+.inv-summary__popover-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.inv-summary__popover-filtersets {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
 }
 
 /* Owner dev review 2026-07-26 (round 3): the 190px width cap removed --
@@ -567,7 +687,19 @@
      sliver h-scrollbar on viewports between 1526 and 1570; 44px reclaimed
      from six low-risk columns (see COLUMN_WIDTHS' round-5 note), column
      sum back to the long-proven 1526 + 2px border. */
-  max-width: 1528px;
+  /* BL-179 round 3 (owner): the round-5 cap left zero allowance for the
+     VERTICAL scrollbar itself -- `scrollbar-width: thin` (index.css, BL-122)
+     takes ~11px of inner width whenever the list scrolls, dropping the
+     content box below the 1526px column-sum floor and reviving the sliver
+     h-scrollbar; at the list bottom that h-bar's own height then perturbs
+     the virtualizer viewport (visible as row-text shake). Fix by
+     construction: reserve the scrollbar lane permanently (stable gutter, so
+     geometry never changes when the scrollbar appears) and widen the synced
+     trio 1528 -> 1540 (= 1526 columns + 2px border + 12px gutter
+     allowance). Keep the THREE 1540px values in sync (here /
+     .inv-summary max-width / .cards-content flex-basis). */
+  scrollbar-gutter: stable;
+  max-width: 1540px;
   /* R8b (BL-129 fix round 1): BL-129 R8 introduced the cap above but left
      the wrapper flush left inside `.screen`'s full-width flex column, so
      past 1900px it visibly hugged the left edge instead of centering. The

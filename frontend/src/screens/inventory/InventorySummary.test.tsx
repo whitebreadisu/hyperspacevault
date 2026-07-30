@@ -544,3 +544,167 @@ describe("InventorySummary signed-out disables popovers (BL-163, CREATE)", () =>
     expect(container.querySelector(".inv-summary__popover")).toBeNull();
   });
 });
+
+// CREATE (BL-179): the popover set rows double as a global home-base-set
+// filter control, the strip grows an amber base-set readout row, and the
+// scope toggle becomes three-way while selections exist ("Selected sets" =
+// filteredCards, "Filtered" = breakdownCards, "All" = allCards).
+describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
+  const THREE_BASE_SETS: SetMeta[] = [
+    { code: "SOR", name: "Spark of Rebellion" },
+    { code: "SHD", name: "Shadows of the Galaxy" },
+    { code: "TWI", name: "Twilight of the Republic" },
+  ];
+  const THREE_CODES = new Set(["SOR", "SHD", "TWI"]);
+
+  const sorCard = makeCard({
+    base_card_id: 1,
+    set_code: "SOR",
+    variants: [makeVariant({ variant_id: 1, quantity: 2 })],
+    inventory: { 1: 2 },
+  });
+  const shdCard = makeCard({
+    base_card_id: 2,
+    set_code: "SHD",
+    variants: [makeVariant({ variant_id: 2, source_set_code: "SHD", quantity: 3 })],
+    inventory: { 2: 3 },
+  });
+  const sorCardB = makeCard({
+    base_card_id: 3,
+    set_code: "SOR",
+    variants: [makeVariant({ variant_id: 3, quantity: 5 })],
+    inventory: { 3: 5 },
+  });
+  // filteredCards ⊂ breakdownCards ⊂ allCards -- the three scope universes.
+  const FILTERED = [sorCard];
+  const BREAKDOWN = [sorCard, shdCard];
+  const ALL = [sorCard, shdCard, sorCardB];
+
+  function renderControl(overrides: Record<string, unknown> = {}) {
+    const onToggleHomeSet = vi.fn();
+    const onClearHomeSets = vi.fn();
+    const utils = render(
+      <InventorySummary
+        filteredCards={FILTERED}
+        breakdownCards={BREAKDOWN}
+        allCards={ALL}
+        isNarrowed
+        baseSetCodes={THREE_CODES}
+        orderedBaseSets={THREE_BASE_SETS}
+        selectedHomeSets={new Set(["SOR"])}
+        onToggleHomeSet={onToggleHomeSet}
+        onClearHomeSets={onClearHomeSets}
+        {...overrides}
+      />
+    );
+    return { ...utils, onToggleHomeSet, onClearHomeSets };
+  }
+
+  function rows(container: HTMLElement): HTMLElement[] {
+    return Array.from(container.querySelectorAll(".inv-summary__popover-row"));
+  }
+
+  it("popover rows are selectable and toggle the home-set selection by code", () => {
+    const { container, onToggleHomeSet } = renderControl();
+    fireEvent.click(block(container, "cards"));
+    const [sor, shd] = rows(container);
+    expect(sor.className).toContain("--selectable");
+    expect(sor.className).toContain("--selected");
+    expect(shd.className).toContain("--selectable");
+    expect(shd.className).not.toContain("--selected");
+    fireEvent.click(shd);
+    expect(onToggleHomeSet).toHaveBeenCalledWith("SHD");
+  });
+
+  it("a zero-universe row is inert (no toggle call), but stays clickable while selected", () => {
+    const { container, onToggleHomeSet } = renderControl();
+    fireEvent.click(block(container, "cards"));
+    const twi = rows(container)[2];
+    expect(twi.className).toContain("--inert");
+    fireEvent.click(twi);
+    expect(onToggleHomeSet).not.toHaveBeenCalled();
+
+    // Selected-but-empty: TWI has no cards in scope yet is selected -- the
+    // deselect path must stay open or the selection would be stranded.
+    const strandedToggle = vi.fn();
+    const { container: c2 } = render(
+      <InventorySummary
+        filteredCards={[]}
+        breakdownCards={BREAKDOWN}
+        allCards={ALL}
+        isNarrowed
+        baseSetCodes={THREE_CODES}
+        orderedBaseSets={THREE_BASE_SETS}
+        selectedHomeSets={new Set(["TWI"])}
+        onToggleHomeSet={strandedToggle}
+      />
+    );
+    fireEvent.click(block(c2, "cards"));
+    fireEvent.click(rows(c2)[2]);
+    expect(strandedToggle).toHaveBeenCalledWith("TWI");
+  });
+
+  it("three-way scope: Selected sets / Filtered / All map to the three universes", () => {
+    const { container } = renderControl();
+    // Mounted WITH a selection already present: no transition has occurred,
+    // so scope sits at its "filtered" default = breakdownCards (2+3 copies).
+    expect(summaryValues(container)[2]).toBe("5");
+
+    fireEvent.click(screen.getByRole("button", { name: "Selected sets" }));
+    expect(summaryValues(container)[2]).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(summaryValues(container)[2]).toBe("10");
+
+    // Popover rows ignore the base-set dimension under Selected sets (SHD
+    // row still populated from breakdownCards), whole catalog under All.
+    fireEvent.click(screen.getByRole("button", { name: "Selected sets" }));
+    fireEvent.click(block(container, "cards"));
+    const shdRow = rows(container)[1];
+    expect(shdRow.querySelector(".inv-summary__popover-count")?.textContent).toBe("3");
+  });
+
+  it("selecting the first base set auto-jumps scope to Selected sets; clearing falls back to Filtered", () => {
+    const props = {
+      filteredCards: FILTERED,
+      breakdownCards: BREAKDOWN,
+      allCards: ALL,
+      isNarrowed: true,
+      baseSetCodes: THREE_CODES,
+      orderedBaseSets: THREE_BASE_SETS,
+      onToggleHomeSet: vi.fn(),
+    };
+    const { container, rerender } = render(
+      <InventorySummary {...props} selectedHomeSets={new Set<string>()} />
+    );
+    // No selection: two-way toggle, no amber readout.
+    expect(screen.queryByRole("button", { name: "Selected sets" })).toBeNull();
+    expect(container.querySelector(".inv-summary__basesets")).toBeNull();
+
+    rerender(<InventorySummary {...props} selectedHomeSets={new Set(["SOR", "SHD"])} />);
+    const selectedBtn = screen.getByRole("button", { name: "Selected sets" });
+    expect(selectedBtn.className).toContain("--active");
+    expect(container.querySelector(".inv-summary__basesets-label")?.textContent).toBe(
+      "Base sets: SOR · SHD"
+    );
+
+    rerender(<InventorySummary {...props} selectedHomeSets={new Set<string>()} />);
+    expect(screen.queryByRole("button", { name: "Selected sets" })).toBeNull();
+    expect(container.querySelector(".inv-summary__basesets")).toBeNull();
+    expect(screen.getByRole("button", { name: "Filtered" }).className).toContain("--active");
+  });
+
+  it("the amber row's ✕ calls onClearHomeSets", () => {
+    const { container, onClearHomeSets } = renderControl();
+    fireEvent.click(container.querySelector(".inv-summary__basesets-clear") as HTMLElement);
+    expect(onClearHomeSets).toHaveBeenCalledTimes(1);
+  });
+
+  it("popovers show the FilterPanel facet readout when filterSetCodes is set", () => {
+    const { container } = renderControl({ filterSetCodes: ["SORP", "JTL"] });
+    fireEvent.click(block(container, "cards"));
+    expect(container.querySelector(".inv-summary__popover-filtersets")?.textContent).toBe(
+      "Sets selected: SORP, JTL"
+    );
+  });
+});

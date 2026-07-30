@@ -92,14 +92,16 @@ export function tierForViewportHeight(innerHeight: number): FilterPanelTier {
 //
 // Separate axis from the vertical tiers above (those are height-driven
 // density/layout; this is the width-driven docked-vs-overlay choice from
-// BL-129 R2). Mirrors FilterPanel.css's `@media (min-width: 2266px)`
+// BL-129 R2). Mirrors FilterPanel.css's `@media (min-width: 1906px)`
 // exactly -- see that rule's own comment for the full sidebar-width +
-// gap + table-cap + padding arithmetic that derives 2266. Kept here as a
-// plain exported constant (not read from the stylesheet -- a media query
-// isn't introspectable from JS) so FilterPanel.tsx's initial-open decision
+// gap + table-cap + padding arithmetic that derives 1906 (BL-179 round 5:
+// retuned from the stale 2266, which still assumed the wrapper's original
+// 1900px cap). Kept here as a plain exported constant (not read from the
+// stylesheet -- a media query isn't introspectable from JS) so
+// FilterPanel.tsx's initial-open decision, its hover-collapse exception,
 // and the CSS docking rule stay pinned to the same number; if the CSS
 // value ever changes, this one must be updated by hand alongside it.
-export const DOCKED_MIN_WIDTH = 2266;
+export const DOCKED_MIN_WIDTH = 1906;
 
 /** Pure innerWidth -> "does the docked sidebar + full-width table both fit
  * side by side" decision, used by FilterPanel to pick its initial open/
@@ -107,4 +109,28 @@ export const DOCKED_MIN_WIDTH = 2266;
  * at or above it, matching the CSS docking breakpoint above). */
 export function fitsSideBySide(innerWidth: number): boolean {
   return innerWidth >= DOCKED_MIN_WIDTH;
+}
+
+// BL-179 round 7 (owner): the docked state is defined on the sidebar's
+// ONE-COLUMN format specifically -- "if the filter can be expanded in its
+// one-column format and the screen still has room for the table with no
+// overlap". Width alone can't guarantee that: the 1906px arithmetic above
+// assumes the 278px full/compact-tier sidebar, but a SHORT viewport drops
+// the tier to two-col/fallback (452px wide, height-driven -- see
+// tierForViewportHeight), which the docked arithmetic deliberately never
+// accounted for. So docking also requires the viewport to be tall enough
+// that the tier is still one-column: avail >= H_COMPACT + MARGIN_COMPACT,
+// i.e. innerHeight >= 786 + 20 + CHROME_OFFSET(246) = 1052. Mirrored by
+// hand in TWO media queries (FilterPanel.css's docking rule, cards.css's
+// overlay-pin scope) -- keep all three in sync.
+export const DOCKED_MIN_HEIGHT = H_COMPACT + MARGIN_COMPACT + CHROME_OFFSET;
+
+/** Pure viewport -> "dock the one-column sidebar beside the full-width
+ * table" decision: wide enough for the pair AND tall enough that the
+ * sidebar's tier is still one-column (full/compact). Drives FilterPanel's
+ * initial open state, its docked-vs-overlay behavior split (auto-expand on
+ * entering this state; hover-collapse only outside it), and mirrors the
+ * CSS docking media query. */
+export function fitsDockedViewport(innerWidth: number, innerHeight: number): boolean {
+  return fitsSideBySide(innerWidth) && innerHeight >= DOCKED_MIN_HEIGHT;
 }
