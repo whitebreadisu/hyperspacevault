@@ -174,7 +174,7 @@ This is the smallest model that satisfies P5's milestone literally — "two peop
 
 *(Rewritten as-built 2026-07-08 after the RR-6 CI hygiene series — the previous version of this section described the pre-BL-43 five-job pipeline. Corrected 2026-07-24 (BL-150 W1) — the diagram below still showed the pre-BL-131 gated `promote-prod` job and omitted `detect-changes` entirely; see §2.6 for the promotion mechanism the diagram now matches. Phase history: `SWU_Platform_Roadmap.md`; build-once/promote rationale: ADR-0007.)*
 
-`.github/workflows/ci.yml` defines eight jobs in a build-once / promote model:
+`.github/workflows/ci.yml` defines ten jobs in a build-once / promote model:
 
 ```
 backend ──┐
@@ -183,16 +183,19 @@ frontend ─┴─► detect-changes ─► build-and-push ──┬─► check
               skipped if          skipped if
               docs-only)          docs-only)
 
-terraform-fmt — independent of the chain above; gates branch protection alongside backend/frontend (2.1 below), no downstream jobs depend on it
+terraform-fmt — independent of the chain above; feeds the ci-ok gate alongside backend/frontend, no downstream jobs depend on it
+
+classify-pr ─► [backend / frontend / terraform-fmt run or skip] ─► ci-ok   (PR events only, BL-178 — see below)
 ```
 
 Prod promotion beyond the `risk:low` fast path is **not** a ci.yml job — it's the separate `promote-prod.yml` `workflow_dispatch` (§2.6, BL-131).
 
 - **Triggers (RR-6/F27):** `push` is restricted to `main`; PRs run once via `pull_request`. A branch push without an open PR gets no CI.
 - **Concurrency (RR-6/F28, supersedes BL-79's mechanism):** one group per ref; `cancel-in-progress` only for non-main refs. PR runs cancel superseded predecessors; **main runs queue and are never cancelled** — a cancel could kill `terraform apply` mid-change. GitHub holds at most one queued main run (older queued entries are cancelled, running ones never), so deploy chains serialize and at most one prod gate pends at a time. Verified live 2026-07-08 with a deliberate stacked-merge test (evidence on issue #131).
-- `backend` / `frontend` / `terraform-fmt` gate branch protection on `main` (P3 Stage 4).
+- **Branch protection (BL-178, 2026-07-30 — supersedes the P3 Stage 4 configuration).** The original P3 Stage 4 protection (required checks `backend`/`frontend`/`terraform-fmt`) was **silently lost on 2026-07-14** when the repo went private (same failure mode as the BL-131 environment gate — the feature needs Pro/public) and every merge from then until 2026-07-30 was protected by convention only. Re-established on the public repo with a design that coexists with the docs-only flow: `main` requires a PR before merging (0 approvals — single-writer repo, an author can't approve their own PR), requires the single status check **`ci-ok`**, and blocks force-pushes and deletions. `enforce_admins` stays `false` — the owner's documented escape hatch, unchanged from the accepted A08 trade-off (§5).
+- **`classify-pr` + `ci-ok` (BL-178).** PR events only. `classify-pr` classifies the PR's effective change set (`git diff HEAD^1 HEAD` on the PR merge commit — exactly what merging would change) with the same case-arm as `detect-changes`; `backend`/`frontend`/`terraform-fmt` skip when it reports docs-only. `ci-ok` (`if: always()`) is the one required check: it fails unless `classify-pr` succeeded and the three heavy jobs are all green (code PR) or all skipped (docs-only PR) — so a docs-only PR merges cleanly on a ~seconds-long trivial run while a code PR is machine-gated on the full suite, and the check can never hang as "Expected — waiting". Fork PRs run `pull_request` CI and report `ci-ok` like any other PR (with zero repo secrets and WIF rejecting fork OIDC tokens, §2.7.1).
 - **`detect-changes` (BL-78, PR #201).** Runs on every main push, needs `[backend, frontend]`. Diffs `HEAD^..HEAD`; if every changed file is under `specification_documents/`, `docs/`, `learning_guide/`, `claude_design/`, or is a root `*.md`/`LICENSE`, it sets `docs_only=true`. `build-and-push` (and everything that transitively needs it — `check-risk-level`, `deploy-dev`, `promote-prod-fast`) adds `needs.detect-changes.outputs.docs_only != 'true'` to its `if`, so a docs-only push to main skips the image build and both deploys entirely — the tests and `terraform-fmt` still run.
-- **Docs-only trigger gate (BL-167, 2026-07-26).** Both triggers (`push` to main and `pull_request`) carry a `paths-ignore` list mirroring detect-changes' classification exactly — a docs-only push or PR now triggers **no workflow run at all** (a cost measure from the repo's private era, 2026-07-14→2026-07-29, when every job billed a rounded-up minute; retained as hygiene now that public-repo standard-runner minutes are free — BL-172), superseding the "tests still run" behavior above for the docs-only case. Mixed pushes still run the full pipeline. detect-changes is deliberately retained as belt-and-braces for deploy-skipping; the two lists must be kept in sync (cross-referencing comments sit on both).
+- **Docs-only trigger gate (BL-167, 2026-07-26; narrowed to push-only by BL-178, 2026-07-30).** The `push` trigger carries a `paths-ignore` list mirroring detect-changes' classification exactly — a docs-only **push to main** triggers **no workflow run at all** (a cost measure from the repo's private era, 2026-07-14→2026-07-29, when every job billed a rounded-up minute; retained as hygiene now that public-repo standard-runner minutes are free — BL-172). The `pull_request` trigger's `paths-ignore` was **removed** by BL-178: a required check must be able to report on every PR, so docs-only PRs now get one trivial `classify-pr` + `ci-ok` run (~seconds, free) instead of zero — the zero-run property applies to main pushes only. Mixed pushes still run the full pipeline. detect-changes is deliberately retained as belt-and-braces for deploy-skipping; the classification lists must be kept in sync across the push `paths-ignore`, `classify-pr`, and `detect-changes` (cross-referencing comments sit on all three).
 
 ### 2.2 `backend` job
 

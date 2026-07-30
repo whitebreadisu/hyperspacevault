@@ -26,15 +26,26 @@ name: CI
 # instead of twice (push + pull_request). Branch pushes without an open PR get
 # no CI — open a PR (even draft) to get checks.
 #
-# BL-167: docs-only changes trigger NO run at all (paths-ignore on both
-# events) — on a private repo every job bills a rounded-up minute, and this
-# repo's docs cadence made docs-only runs the dominant Actions cost. The
-# ignore list MUST mirror detect-changes' classification case-arm below
-# (specification_documents/docs/learning_guide/claude_design/.design-sync
-# dirs + root *.md/LICENSE; note `*.md` here matches ROOT-level .md only,
-# same as the case-arm — deliberately NOT `**/*.md`). detect-changes is
-# RETAINED as belt-and-braces for deploy-skipping: if this trigger gate and
-# a mixed push ever disagree, deploys still gate on the job-level check.
+# BL-167: docs-only PUSHES to main trigger NO run at all (paths-ignore on
+# the push event) — originally a private-repo cost control (every job billed
+# a rounded-up minute and docs-only runs dominated), kept on public because
+# a docs-only merge deploys nothing and needs no pipeline. The ignore list
+# MUST mirror the classification case-arm shared by classify-pr/
+# detect-changes below (specification_documents/docs/learning_guide/
+# claude_design/.design-sync dirs + root *.md/LICENSE; note `*.md` here
+# matches ROOT-level .md only, same as the case-arm — deliberately NOT
+# `**/*.md`). detect-changes is RETAINED as belt-and-braces for
+# deploy-skipping: if this trigger gate and a mixed push ever disagree,
+# deploys still gate on the job-level check.
+#
+# BL-178: pull_request deliberately has NO paths-ignore. Branch protection
+# on main requires the `ci-ok` check, and a required check must be able to
+# report on EVERY PR — a docs-only PR whose workflow never triggered would
+# hang forever as "Expected — waiting". So every PR runs classify-pr +
+# ci-ok (~seconds, free on public); the heavy jobs still skip on docs-only
+# PRs via classify-pr's output. Docs-only PRs therefore get one trivial
+# run instead of BL-167's original zero — the zero-run property now applies
+# to main pushes only.
 on:
   push:
     branches: [main]
@@ -47,14 +58,6 @@ on:
       - "*.md"
       - "LICENSE"
   pull_request:
-    paths-ignore:
-      - "specification_documents/**"
-      - "docs/**"
-      - "learning_guide/**"
-      - "claude_design/**"
-      - ".design-sync/**"
-      - "*.md"
-      - "LICENSE"
 
 # RR-6/F28 (supersedes BL-79's cancel-in-progress for main, keeps its goal):
 # PR runs still cancel their superseded predecessors, but a main run is never
@@ -72,7 +75,74 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # ── BL-178: PR-side docs-only classification ────────────────────────────
+  # PR-only twin of detect-changes below, feeding the ci-ok gate: required
+  # branch protection needs a check that reports on every PR, but docs-only
+  # PRs shouldn't pay for the heavy jobs. Classifies the PR's effective
+  # change set and the heavy jobs skip when it's docs-only. The case-arm
+  # MUST stay identical to detect-changes' and to the push paths-ignore
+  # list above.
+  #
+  # actions/checkout on pull_request checks out the PR *merge commit*, whose
+  # first parent is the current base tip — so `git diff HEAD^1 HEAD` is
+  # exactly what merging this PR would change. (An unmergeable PR has no
+  # merge commit; checkout fails, ci-ok fails, and the PR is unmergeable
+  # anyway — fail-closed is correct.)
+
+  classify-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    outputs:
+      code_changed: ${{ steps.check.outputs.code_changed }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Determine if this PR touches only non-deployed files
+        id: check
+        run: |
+          if ! git rev-parse HEAD^1 >/dev/null 2>&1; then
+            echo "No parent commit available — treating as code-changed (fail open into running CI)."
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only HEAD^1 HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+
+          code_changed=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              */*)
+                case "$f" in
+                  specification_documents/*|docs/*|learning_guide/*|claude_design/*|.design-sync/*) ;;
+                  *) code_changed=true ;;
+                esac
+                ;;
+              *)
+                case "$f" in
+                  *.md|LICENSE) ;;
+                  *) code_changed=true ;;
+                esac
+                ;;
+            esac
+          done <<< "$changed"
+
+          echo "code_changed=$code_changed"
+          echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
+
   backend:
+    # BL-178: on push, classify-pr is skipped and this runs unconditionally
+    # (docs-only pushes never trigger the workflow at all); on PRs it runs
+    # only when the PR touches deployed files. `!cancelled()` keeps the job
+    # eligible behind the skipped classify-pr on push events.
+    needs: [classify-pr]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
     runs-on: ubuntu-latest
 
     services:
@@ -129,6 +199,9 @@ jobs:
         run: pytest --cov=app --cov-report=term-missing --cov-fail-under=75
 
   frontend:
+    # BL-178: same gating as backend — see the comment there.
+    needs: [classify-pr]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -161,6 +234,9 @@ jobs:
         run: npx vitest run --coverage
 
   terraform-fmt:
+    # BL-178: same gating as backend — see the comment there.
+    needs: [classify-pr]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -170,6 +246,55 @@ jobs:
 
       - name: Terraform format check
         run: terraform fmt -check -recursive terraform/
+
+  # ── BL-178: the single required status check ────────────────────────────
+  # Branch protection on main requires exactly this check ("ci-ok"), not the
+  # heavy jobs individually — that's what lets docs-only PRs merge cleanly
+  # (heavy jobs skipped → gate still reports success) while code PRs are
+  # machine-gated on all three. Runs on every PR regardless of upstream
+  # outcomes (`always()`), so it can never hang as "Expected — waiting".
+  # PR-only: required checks are a PR concept; main pushes keep their
+  # existing pipeline unchanged.
+
+  ci-ok:
+    needs: [classify-pr, backend, frontend, terraform-fmt]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify required outcomes
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify-pr.result }}
+          CODE_CHANGED: ${{ needs.classify-pr.outputs.code_changed }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
+        run: |
+          echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT"
+
+          if [ "$CLASSIFY_RESULT" != "success" ]; then
+            echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
+            exit 1
+          fi
+
+          if [ "$CODE_CHANGED" = "true" ]; then
+            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TERRAFORM_FMT_RESULT"; do
+              if [ "$r" != "success" ]; then
+                echo "::error::code-changing PR requires backend/frontend/terraform-fmt all green."
+                exit 1
+              fi
+            done
+            echo "Code PR: all heavy jobs green."
+          else
+            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TERRAFORM_FMT_RESULT"; do
+              if [ "$r" != "skipped" ] && [ "$r" != "success" ]; then
+                echo "::error::docs-only PR, but a heavy job reports '$r' (expected skipped)."
+                exit 1
+              fi
+            done
+            echo "Docs-only PR: heavy jobs skipped, gate green."
+          fi
 
   # ── docs-only fast-skip (BL-78) ─────────────────────────────────────────
   # Pushes to main that touch only non-deployed files (root markdown,
