@@ -147,11 +147,13 @@ P4 Stage 2 discovered that `swu_user` (`POSTGRES_USER` / Cloud SQL's bootstrap r
 
 This required adding `APP_DB_PASSWORD` as a Cloud Run env var (Section 3.7) so migration 0019's `CREATE ROLE swu_app WITH LOGIN PASSWORD '...'` has a password to use. **As of BL-8/RR-10 (§5.4 #2, PR #433, dev-live 2026-07-25)** this migration runs once per deploy in the discrete `migrate` Cloud Run Job, not on every container start.
 
-#### 1.7.3 Tenant auto-provisioning — "one user, one tenant" (for now)
+#### 1.7.3 Tenant auto-provisioning — "one user, one tenant" (permanent)
 
 **Selected:** the first time a `firebase_uid` is seen, create a brand-new `tenants` row *and* a `users` row pointing at it, in the same request. Every user is the sole member of their own tenant.
 
 This is the smallest model that satisfies P5's milestone literally — "two people, two inventories." The alternative (inviting a user to join an *existing* tenant — a household/team scenario) is a real possible future feature, but `users.tenant_id` is just a foreign key: "invite a teammate" becomes a change to provisioning *logic* (point a new user row at an existing tenant instead of creating one), not a schema migration. The current schema doesn't foreclose it.
+
+**Decision upgrade (2026-07-30, public-release review — this section was originally titled "(for now)"):** one user per tenant is now **permanent** by owner decision ("I do not ever see a need to have multiple users per tenant"; App Spec §2, BL-89 retired). The paragraph above stays as the historical record of why the schema was left flexible; the flexibility is now deliberately unused — no uniqueness constraint is being added, since a migration would buy nothing. Consequence: `DELETE /api/account`'s whole-tenant purge (§1.1, BL-87/BL-88) needs no shared-tenant deletion semantics, ever.
 
 #### 1.7.4 Auth provider selection — Firebase Authentication vs. Auth0 / Clerk / Supabase Auth
 
