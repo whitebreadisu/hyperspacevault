@@ -3,6 +3,14 @@
 # apply so Terraform doesn't block waiting for DNS records that don't exist
 # yet - required_dns_updates tells us what to add to jeremy-portfolio's
 # Cloud DNS zone, then we apply again.
+#
+# Public-release plan Phase 2 (2026-07-30): converted from a serving alias
+# to a PERMANENT REDIRECT — the "later step, only after www serves" the
+# BL-127 comment below always planned. redirect_target is the same Hosting
+# mechanism the hyperspacevault apex already uses; the domain keeps its DNS
+# (jeremy-portfolio's zone, unchanged) and its cert, it just 301s now. The
+# domain was also removed from Firebase Auth authorized domains in the same
+# change — nobody can sign in on a URL that no longer serves the app.
 resource "google_firebase_hosting_custom_domain" "swu_subdomain" {
   provider = google-beta
   project  = var.project_id
@@ -10,6 +18,7 @@ resource "google_firebase_hosting_custom_domain" "swu_subdomain" {
   site_id       = var.project_id
   custom_domain = "swu.jeremybradenapps.com"
 
+  redirect_target       = "www.hyperspacevault.com"
   wait_dns_verification = false
 
   # google_firebase_project.default now lives inside module.app.
