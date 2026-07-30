@@ -373,6 +373,23 @@ export function CardsPage({
 
   const clearHomeSets = useCallback(() => setHomeSets(new Set<string>()), []);
 
+  // BL-179 round 11 (owner): the Collection checkboxes and the base-set
+  // selection are real applied filters living outside FilterState -- they
+  // feed the rail badge and keep Reset All Filters active (which clears
+  // them all alongside the FilterState reset).
+  const externalActiveCount =
+    (incompleteOnly ? 1 : 0) +
+    (ownedOnly ? 1 : 0) +
+    (noInventoryOnly ? 1 : 0) +
+    (homeSets.size > 0 ? 1 : 0);
+
+  const resetExternalFilters = useCallback(() => {
+    setHomeSets(new Set<string>());
+    setIncompleteOnly(false);
+    setOwnedOnly(false);
+    setNoInventoryOnly(false);
+  }, []);
+
   // BL-179: what the table/gallery/popup-nav/headline metrics see --
   // `filtered` further narrowed by the home-base-set selection. `filtered`
   // itself stays the popover rows' universe (every filter EXCEPT this
@@ -470,8 +487,8 @@ export function CardsPage({
             filters={filters}
             setFilters={handleFilterPanelChange}
             cards={toggleNarrowed as BaseCard[]}
-            onResetAll={clearHomeSets}
-            resetAlsoClears={homeSets.size > 0}
+            onResetAll={resetExternalFilters}
+            externalActiveCount={externalActiveCount}
           >
             {/* BL-179: the home-base-set narrowing lives outside FilterState
                 (it's the completion popovers' own dimension), so the panel
