@@ -75,8 +75,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # ── BL-178: PR-side docs-only classification ────────────────────────────
-  # PR-only twin of detect-changes below, feeding the ci-ok gate: required
+  # ── BL-178: docs-only classification (all events) ───────────────────────
+  # PR-side twin of detect-changes below, feeding the ci-ok gate: required
   # branch protection needs a check that reports on every PR, but docs-only
   # PRs shouldn't pay for the heavy jobs. Classifies the PR's effective
   # change set and the heavy jobs skip when it's docs-only. The case-arm
@@ -88,9 +88,17 @@ jobs:
   # exactly what merging this PR would change. (An unmergeable PR has no
   # merge commit; checkout fails, ci-ok fails, and the PR is unmergeable
   # anyway — fail-closed is correct.)
+  #
+  # This job runs on PUSH events too, as a ~3s no-checkout constant
+  # (code_changed=true — docs-only pushes never trigger the workflow, so a
+  # push that got here has code by definition). It CANNOT be PR-only:
+  # GitHub's implicit success() condition looks at the FULL transitive
+  # needs chain, so a skipped classify-pr would silently skip
+  # detect-changes → build-and-push → deploy-dev on every main push even
+  # with backend/frontend green (observed live on the first BL-178 merge,
+  # run 30570639783 — deploy jobs all skipped on a code push).
 
   classify-pr:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     outputs:
@@ -98,12 +106,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
         with:
           fetch-depth: 2
 
       - name: Determine if this PR touches only non-deployed files
         id: check
         run: |
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            echo "Push event — the trigger's paths-ignore already filtered docs-only; code_changed=true by definition."
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if ! git rev-parse HEAD^1 >/dev/null 2>&1; then
             echo "No parent commit available — treating as code-changed (fail open into running CI)."
             echo "code_changed=true" >> "$GITHUB_OUTPUT"
@@ -137,12 +152,13 @@ jobs:
           echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
 
   backend:
-    # BL-178: on push, classify-pr is skipped and this runs unconditionally
-    # (docs-only pushes never trigger the workflow at all); on PRs it runs
-    # only when the PR touches deployed files. `!cancelled()` keeps the job
-    # eligible behind the skipped classify-pr on push events.
+    # BL-178: runs whenever classify-pr says the change set touches
+    # deployed files — always true on push (docs-only pushes never trigger
+    # the workflow at all), computed per-PR otherwise. `!cancelled()` lets
+    # the condition evaluate even if classify-pr failed (heavy jobs then
+    # skip and ci-ok fails on the classify result).
     needs: [classify-pr]
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
     runs-on: ubuntu-latest
 
     services:
@@ -201,7 +217,7 @@ jobs:
   frontend:
     # BL-178: same gating as backend — see the comment there.
     needs: [classify-pr]
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -236,7 +252,7 @@ jobs:
   terraform-fmt:
     # BL-178: same gating as backend — see the comment there.
     needs: [classify-pr]
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.classify-pr.outputs.code_changed == 'true') }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
