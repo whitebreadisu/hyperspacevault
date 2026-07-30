@@ -12,6 +12,7 @@ import {
   findSet,
   baseOnlyGroups,
   allSetsGroups,
+  headerLogoCodesFor,
 } from "./setGrouping";
 import type { CardSet } from "../api/sets";
 
@@ -176,5 +177,43 @@ describe("allSetsGroups (View 2 -- Show all sets)", () => {
     expect(exclusiveGroups[0].memberCodes).toEqual(["J24", "J25"]);
     expect(exclusiveGroups[1].memberCodes).toEqual(["P25"]);
     expect(exclusiveGroups[2].memberCodes).toEqual(["MV26"]);
+  });
+});
+
+describe("headerLogoCodesFor (Add Cards locked-header base-set logos)", () => {
+  const card = (set_code: string, source_set_code: string) => ({ set_code, source_set_code });
+
+  it("a base set shows itself, ignoring the catalog", () => {
+    expect(headerLogoCodesFor("SOR", [card("SHD", "SOR")])).toEqual(["SOR"]);
+    expect(headerLogoCodesFor("TS26", [])).toEqual(["TS26"]);
+  });
+
+  it("a Weekly Play companion shows its base set without a catalog scan", () => {
+    expect(headerLogoCodesFor("SORP", [])).toEqual(["SOR"]);
+    expect(headerLogoCodesFor("LAWP", [])).toEqual(["LAW"]);
+  });
+
+  it("an Exclusives set whose printings all share one home base set shows that one logo", () => {
+    const cards = [card("JTL", "C25"), card("JTL", "C25"), card("SOR", "P26")];
+    expect(headerLogoCodesFor("C25", cards)).toEqual(["JTL"]);
+  });
+
+  it("an Exclusives set spanning base sets shows every home base set in canonical release order", () => {
+    // Deliberately inserted out of order -- the sort must impose
+    // BASE_SET_ORDER, not insertion or alphabetical order.
+    const cards = [
+      card("LOF", "J25"),
+      card("SOR", "J25"),
+      card("TWI", "J25"),
+      card("SOR", "J25"),
+      card("SHD", "OTHER"),
+    ];
+    expect(headerLogoCodesFor("J25", cards)).toEqual(["SOR", "TWI", "LOF"]);
+  });
+
+  it("a non-base home set is never emitted, and an unmapped selection yields []", () => {
+    // A printing whose own home somehow isn't a base set has no logo asset.
+    expect(headerLogoCodesFor("GG", [card("GG", "GG")])).toEqual([]);
+    expect(headerLogoCodesFor("UNKNOWN", [card("SOR", "SORP")])).toEqual([]);
   });
 });

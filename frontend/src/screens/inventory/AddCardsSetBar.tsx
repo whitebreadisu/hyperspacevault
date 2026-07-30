@@ -1,9 +1,15 @@
 import type { CSSProperties } from "react";
 import type { CardSet } from "../../api/sets";
+import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
+import { headerLogoCodesFor } from "../../utils/setGrouping";
 import { SetDropdown } from "./SetDropdown";
 
 interface Props {
   sets: CardSet[];
+  /** Read only by the locked header's base-set logo derivation
+   * (headerLogoCodesFor) -- an Exclusives selection shows the home base
+   * set(s) of the printings it released, which only the catalog knows. */
+  catalog: AddCardsCatalogEntry[];
   setCode: string | null;
   onChoose: (code: string) => void;
   onChangeSet: () => void;
@@ -27,7 +33,7 @@ export function SetMark({ code }: { code: string }) {
 // listbox (SetDropdown) replaces the old native `<select>` + external "Show
 // all sets" button -- that toggle now lives inside the dropdown's own panel
 // footer (Set_Grouping_Context_2026-07-26.md).
-export function AddCardsSetBar({ sets, setCode, onChoose, onChangeSet }: Props) {
+export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }: Props) {
   if (!setCode) {
     return (
       <div className="ac-setbar">
@@ -68,7 +74,17 @@ export function AddCardsSetBar({ sets, setCode, onChoose, onChangeSet }: Props) 
       <button type="button" className="ac-setbar__change" onClick={onChangeSet}>
         Change set
       </button>
-      <SetMark code={setCode} />
+      {/* The header logo is always a BASE set's mark (logo assets exist per
+          base set only): a Weekly Play or Exclusives selection shows the base
+          set(s) its printings belong to -- several side by side, canonical
+          release order, when an Exclusives container spans base sets
+          (headerLogoCodesFor). An unmappable selection renders no logo at
+          all rather than a broken image. */}
+      <span className="ac-setbar__marks">
+        {headerLogoCodesFor(setCode, catalog).map((code) => (
+          <SetMark key={code} code={code} />
+        ))}
+      </span>
       <span className="ac-setbar__locked">
         <span className="ac-setbar__locked-code">{setCode}</span>
         {set ? set.name : setCode}

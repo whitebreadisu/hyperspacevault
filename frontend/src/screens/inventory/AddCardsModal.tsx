@@ -400,6 +400,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         {route === "cards" && (
           <AddCardsSetBar
             sets={sets}
+            catalog={catalog}
             setCode={state.activeSetCode}
             onChoose={setSet}
             onChangeSet={changeSet}
@@ -425,6 +426,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
           <div className="ac-chooser-row">
             <AddCardsSetBar
               sets={sets}
+              catalog={catalog}
               setCode={state.activeSetCode}
               onChoose={setSet}
               onChangeSet={changeSet}
