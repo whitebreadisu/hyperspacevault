@@ -234,7 +234,7 @@ Reviewed 2026-07-30 via the Identity Platform admin API (`admin/v2/projects/swu-
 
 - CI/CD authenticates to GCP via Workload Identity Federation (OIDC) — no long-lived service account keys exist for `terraform-ci`, in git or anywhere else (P1).
 - Every change to `main` runs through `ci.yml`'s `backend`/`frontend` jobs (tests + coverage gates, P7 Stage 3) before `build-and-push`/`deploy` run.
-- Branch protection on `main` requires those checks to pass (P3 Stage 4) — but `enforce_admins: false`, so a repo admin (Jeremy) can push directly, bypassing CI. Documented, accepted trade-off for a single-developer project; would need revisiting if collaborators are added.
+- Branch protection on `main` requires those checks to pass (P3 Stage 4) — but `enforce_admins: false`, so a repo admin (Jeremy) can push directly, bypassing CI. Documented, accepted trade-off for a single-developer project; would need revisiting if collaborators are added. *(Update 2026-07-30: that protection was silently lost at the 2026-07-14 private flip and re-established 2026-07-30 with a different shape — required check `ci-ok` + require-PR, BL-178, `SWU_Platform_Spec.md` §2.1; `enforce_admins: false` and its rationale unchanged.)*
 - Terraform state lives in a GCS bucket (`swu-prod-tfstate`), not in git — infrastructure changes are tracked and applied through a single, auditable path (`terraform apply` in CI).
 
 ### A09:2021 – Security Logging and Monitoring Failures — Addressed (P6)
