@@ -155,7 +155,13 @@ export function FinishFilter({
         {/* BL-173 review round 4: minWidth so the Prestige chip row (label +
             Std/Foil/Serialized) fits on one line -- the sidebar control's own
             width is unchanged, only the portaled menu widens. */}
-        <FilterMenuPortal anchorRef={buttonRef} open={open} fieldLabel={label} minWidth={320}>
+        <FilterMenuPortal
+          anchorRef={buttonRef}
+          open={open}
+          fieldLabel={label}
+          minWidth={320}
+          onHoverDismiss={closeDropdown}
+        >
           <>
             <div className="ifp-multi__menubar">
               <button type="button" className="ifp-multi__bar-btn" onClick={selectAll}>

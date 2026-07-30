@@ -295,7 +295,8 @@ describe("CardsPage FilterPanel integration", () => {
 
   it("renders the FilterPanel header", async () => {
     await renderPage();
-    expect(screen.getByText("Filters")).toBeTruthy();
+    // BL-179 round 10 (owner): label renamed Filters -> Catalog Filters.
+    expect(screen.getByText("Catalog Filters")).toBeTruthy();
   });
 });
 

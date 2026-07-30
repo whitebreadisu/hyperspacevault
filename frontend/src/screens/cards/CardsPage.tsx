@@ -354,12 +354,56 @@ export function CardsPage({
     [toggleNarrowed, filters]
   );
 
+  // BL-179: the completion popovers' "home base set" selection -- a second,
+  // independent set dimension ANDed with every filter above. Distinct from
+  // filters.set on purpose: the facet matches home-OR-printing set (a
+  // non-base selection reaches cards via source_set_code), while this
+  // matches card.set_code (home set) only -- the same grouping the popover
+  // rows themselves use.
+  const [homeSets, setHomeSets] = useState<Set<string>>(new Set());
+
+  const toggleHomeSet = useCallback((code: string) => {
+    setHomeSets((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }, []);
+
+  const clearHomeSets = useCallback(() => setHomeSets(new Set<string>()), []);
+
+  // BL-179: what the table/gallery/popup-nav/headline metrics see --
+  // `filtered` further narrowed by the home-base-set selection. `filtered`
+  // itself stays the popover rows' universe (every filter EXCEPT this
+  // dimension): the rows are the selection menu, and the menu never filters
+  // itself (BL-173's scope-control lesson; same ignore-own-dimension shape
+  // as filters.ts's facetValidValues).
+  const tableCards = useMemo(
+    () => (homeSets.size ? filtered.filter((c) => homeSets.has(c.set_code)) : filtered),
+    [filtered, homeSets]
+  );
+
+  // BL-179: the popovers' top-right "Sets selected:" readout -- the set
+  // FACET's selections (release-ordered codes), shown so the rows' universe
+  // is legible when a FilterPanel set choice is shaping it.
+  const filterSetCodes = useMemo(
+    () => orderSetCodes(Array.from(filters.set), setOrder),
+    [filters.set, setOrder]
+  );
+
   // BL-163 (Definition §3): "any mechanism" that narrows the visible list --
   // a FilterPanel facet/search, or any of the three toggles above -- makes
   // `filtered` a genuine subset of `cards`, which is what governs whether
   // InventorySummary's Filtered/All scope toggle renders at all.
   const isNarrowed =
-    !isDefaultFilterState(filters) || incompleteOnly || ownedOnly || noInventoryOnly;
+    !isDefaultFilterState(filters) ||
+    incompleteOnly ||
+    ownedOnly ||
+    noInventoryOnly ||
+    // BL-179: a home-base-set selection narrows the visible list the same as
+    // any facet -- it must count, or the scope toggle wouldn't render.
+    homeSets.size > 0;
 
   /** BL-148: opens the unified popup AND snapshots `filtered`'s current
    * base_card_id order for prev/next nav -- the single entry point both the
@@ -367,10 +411,10 @@ export function CardsPage({
    * every opener gets identical nav behavior for free. */
   const openPopup = useCallback(
     (baseCardId: number) => {
-      setPopupCardIds(filtered.map((c) => c.base_card_id));
+      setPopupCardIds(tableCards.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
     },
-    [filtered]
+    [tableCards]
   );
 
   const closePopup = useCallback(() => {
@@ -426,7 +470,29 @@ export function CardsPage({
             filters={filters}
             setFilters={handleFilterPanelChange}
             cards={toggleNarrowed as BaseCard[]}
+            onResetAll={clearHomeSets}
+            resetAlsoClears={homeSets.size > 0}
           >
+            {/* BL-179: the home-base-set narrowing lives outside FilterState
+                (it's the completion popovers' own dimension), so the panel
+                gets a visibility + clear affordance for it here -- without
+                this, a selection made in a popover would invisibly shape the
+                table from the filter side. */}
+            {homeSets.size > 0 && (
+              <div className="ifp-baseset-chip">
+                <span className="ifp-baseset-chip__label">
+                  Base sets: {orderSetCodes(Array.from(homeSets), setOrder).join(", ")}
+                </span>
+                <button
+                  type="button"
+                  className="ifp-baseset-chip__clear"
+                  onClick={clearHomeSets}
+                  aria-label="Clear base set selection"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <div className="ifp-toggle-row">
               <div className="ifp-toggle-row__buttons">
                 <button
@@ -512,8 +578,13 @@ export function CardsPage({
           </FilterPanel>
           <div className="cards-content">
             <InventorySummary
-              filteredCards={filtered}
+              filteredCards={tableCards}
               allCards={cards}
+              breakdownCards={filtered}
+              selectedHomeSets={homeSets}
+              onToggleHomeSet={toggleHomeSet}
+              onClearHomeSets={clearHomeSets}
+              filterSetCodes={filterSetCodes}
               isNarrowed={isNarrowed}
               baseSetCodes={baseSetCodes}
               orderedBaseSets={orderedBaseSets}
@@ -577,7 +648,7 @@ export function CardsPage({
             )}
             {viewMode === "table" ? (
               <CardsTable
-                cards={filtered}
+                cards={tableCards}
                 setNameByCode={setNameByCode}
                 isAuthenticated={isAuthenticated}
                 onSelectCard={openPopup}
@@ -589,7 +660,7 @@ export function CardsPage({
               />
             ) : (
               <GalleryGrid
-                cards={filtered}
+                cards={tableCards}
                 onSelectCard={openPopup}
                 activeFinishes={filters.finish}
                 isAuthenticated={isAuthenticated}

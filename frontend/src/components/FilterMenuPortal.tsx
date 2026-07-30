@@ -58,6 +58,15 @@ interface FilterMenuPortalProps {
    * than the sidebar control without touching the control itself. Safe to
    * widen rightward: the sidebar sits at the layout's left edge. */
   minWidth?: number;
+  /** BL-179 round 5 (owner): hover-dismiss, the completion popovers'
+   * pattern applied to the facet menus. Fires when the pointer leaves the
+   * portaled menu -- EXCEPT when it leaves back onto the owning field's own
+   * control (`.ifp-multi`), which shouldn't count as abandoning the menu.
+   * The 4px trigger-to-menu gap is bridged in CSS
+   * (`.ifp-multi__menu--portal::before`) so crossing it never fires a
+   * leave at all (round 4's twitch lesson). Optional: menus opened by
+   * callers that don't pass it keep click-away/Esc-only dismissal. */
+  onHoverDismiss?: () => void;
   children: React.ReactNode;
 }
 
@@ -70,6 +79,7 @@ export function FilterMenuPortal({
   open,
   fieldLabel,
   minWidth,
+  onHoverDismiss,
   children,
 }: FilterMenuPortalProps) {
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
@@ -103,6 +113,18 @@ export function FilterMenuPortal({
       {...{ [FILTER_MENU_PORTAL_ATTR]: "true" }}
       data-ifp-field={fieldLabel}
       style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width, minWidth }}
+      onMouseLeave={
+        onHoverDismiss
+          ? (e) => {
+              const rt = e.relatedTarget;
+              // Back onto the field's own control: not a dismissal.
+              if (rt instanceof Node && anchorRef.current?.closest(".ifp-multi")?.contains(rt)) {
+                return;
+              }
+              onHoverDismiss();
+            }
+          : undefined
+      }
     >
       {children}
     </div>,

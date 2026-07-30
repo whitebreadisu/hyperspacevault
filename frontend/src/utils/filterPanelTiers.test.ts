@@ -7,7 +7,9 @@ import {
   tierForAvail,
   tierForViewportHeight,
   DOCKED_MIN_WIDTH,
+  DOCKED_MIN_HEIGHT,
   fitsSideBySide,
+  fitsDockedViewport,
 } from "./filterPanelTiers";
 
 // DISPOSITION (BL-121, CREATE): net-new pure tier-selection logic extracted
@@ -89,18 +91,23 @@ describe("tierForViewportHeight (applies CHROME_OFFSET)", () => {
 
 // DISPOSITION (BL-144, issue #356, CREATE): pure width -> "does the docked
 // sidebar + full-width table both fit side by side" decision, mirroring
-// FilterPanel.css's `@media (min-width: 2266px)` docking breakpoint --
+// FilterPanel.css's `@media (min-width: 1906px)` docking breakpoint --
 // FilterPanel.tsx's initial open/collapsed useState reads this. Component-
 // level wiring (the actual initial `open` state, the user-toggle-respected
 // case) lives in FilterPanel.test.tsx.
+// DISPOSITION (BL-179 round 5, PORT): breakpoint retuned 2266 -> 1906 (the
+// old value still assumed the wrapper's original 1900px cap); assertions
+// re-pinned, semantics unchanged. 1920 moved from the false side to the
+// true side of the boundary -- a 1080p-wide desktop now docks.
 describe("fitsSideBySide (BL-144 docked breakpoint, width)", () => {
   it("is false comfortably below DOCKED_MIN_WIDTH", () => {
-    expect(fitsSideBySide(1920)).toBe(false);
+    expect(fitsSideBySide(1905)).toBe(false);
     expect(fitsSideBySide(1024)).toBe(false);
   });
 
   it("is true comfortably above DOCKED_MIN_WIDTH", () => {
     expect(fitsSideBySide(2560)).toBe(true);
+    expect(fitsSideBySide(1920)).toBe(true);
   });
 
   it("flips exactly at the DOCKED_MIN_WIDTH boundary (>= is true, one below is false)", () => {
@@ -108,10 +115,37 @@ describe("fitsSideBySide (BL-144 docked breakpoint, width)", () => {
     expect(fitsSideBySide(DOCKED_MIN_WIDTH - 1)).toBe(false);
   });
 
-  it("DOCKED_MIN_WIDTH matches FilterPanel.css's `@media (min-width: 2266px)` docking rule", () => {
+  it("DOCKED_MIN_WIDTH matches FilterPanel.css's `@media (min-width: 1906px)` docking rule", () => {
     // Duplicated by hand (a CSS media query isn't introspectable from JS) --
     // this pins the two together so a future change to one without the
     // other fails loudly here instead of silently drifting.
-    expect(DOCKED_MIN_WIDTH).toBe(2266);
+    expect(DOCKED_MIN_WIDTH).toBe(1906);
+  });
+});
+
+// DISPOSITION (BL-179 round 7, CREATE): the docked state now also requires
+// the viewport to be tall enough that the sidebar's tier is one-column
+// (full/compact) -- a two-col/fallback tier's 452px sidebar never docks.
+describe("fitsDockedViewport (BL-179 docked = one-column tier + side-by-side width)", () => {
+  it("requires BOTH the width and the one-column height", () => {
+    expect(fitsDockedViewport(2560, 1440)).toBe(true);
+    expect(fitsDockedViewport(1905, 1440)).toBe(false); // too narrow
+    expect(fitsDockedViewport(2560, 1051)).toBe(false); // two-col tier height
+  });
+
+  it("flips exactly at the DOCKED_MIN_HEIGHT boundary", () => {
+    expect(fitsDockedViewport(DOCKED_MIN_WIDTH, DOCKED_MIN_HEIGHT)).toBe(true);
+    expect(fitsDockedViewport(DOCKED_MIN_WIDTH, DOCKED_MIN_HEIGHT - 1)).toBe(false);
+  });
+
+  it("DOCKED_MIN_HEIGHT matches the one-column tier floor and the CSS media queries", () => {
+    // = CHROME_OFFSET + H_COMPACT + MARGIN_COMPACT, hand-mirrored in
+    // FilterPanel.css's `(min-height: 1052px)` docking rule and cards.css's
+    // `(max-height: 1051.98px)` overlay-pin scope.
+    expect(DOCKED_MIN_HEIGHT).toBe(1052);
+    // The floor is exactly the compact/two-col tier boundary: at the floor
+    // the tier is still one-column, one pixel below it drops to two-col.
+    expect(tierForViewportHeight(DOCKED_MIN_HEIGHT)).toBe("compact");
+    expect(tierForViewportHeight(DOCKED_MIN_HEIGHT - 1)).toBe("two-col");
   });
 });

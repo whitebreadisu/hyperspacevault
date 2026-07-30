@@ -8,7 +8,7 @@ import { isInsideFilterMenuPortal } from "./FilterMenuPortal";
 import type { BaseCard } from "../utils/catalog";
 import { getSets } from "../api/sets";
 import type { CardSet } from "../api/sets";
-import { tierForViewportHeight, fitsSideBySide } from "../utils/filterPanelTiers";
+import { tierForViewportHeight, fitsDockedViewport } from "../utils/filterPanelTiers";
 import { allSetsGroups, isBaseSetCode } from "../utils/setGrouping";
 import {
   ASPECT_LIST,
@@ -182,6 +182,14 @@ interface FilterPanelProps {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   cards: BaseCard[];
   children?: React.ReactNode;
+  /** BL-179 round 9 (owner): "Reset All Filters" clears EVERYTHING --
+   * FilterState plus any state living outside it (the completion popovers'
+   * base-set selections). Called alongside the DEFAULT_FILTERS reset. */
+  onResetAll?: () => void;
+  /** BL-179 round 9: true when out-of-FilterState selections exist (base
+   * sets) -- keeps the Reset button active even at default FilterState, so
+   * it can clear them. */
+  resetAlsoClears?: boolean;
 }
 
 /** BL-111 F6: active-filter count for the collapsed rail's badge -- every
@@ -212,23 +220,25 @@ function countActiveFilters(filters: FilterState): number {
   return n;
 }
 
-export function FilterPanel({ filters, setFilters, cards, children }: FilterPanelProps) {
-  // BL-111 F6 (superseded by BL-144, issue #356): used to start OPEN
-  // unconditionally, matching the prototype's `useState(true)`. BL-144's
-  // owner decision: default to collapsed when the viewport is narrower than
-  // the docked side-by-side breakpoint (FilterPanel.css's
-  // `@media (min-width: 2266px)`, mirrored as DOCKED_MIN_WIDTH/
-  // fitsSideBySide in utils/filterPanelTiers.ts) -- at/above it, unchanged
-  // (still starts open). This is read ONCE, at mount, as the lazy useState
-  // initializer -- there is deliberately no resize listener wired to `open`
-  // (same as pre-BL-144: nothing but the two toggle buttons below ever calls
-  // setOpen), so once the sidebar mounts, only an explicit click ever
-  // changes its state for the rest of the session, regardless of any later
-  // resize in either direction. That's the simplest state model that
-  // satisfies "respect the user's explicit toggle choice" -- no separate
-  // override flag needed, because nothing competes with the click handlers
-  // to begin with. No persistence across reloads, same as before.
-  const [open, setOpen] = useState(() => fitsSideBySide(window.innerWidth));
+export function FilterPanel({
+  filters,
+  setFilters,
+  cards,
+  children,
+  onResetAll,
+  resetAlsoClears = false,
+}: FilterPanelProps) {
+  // BL-111 F6 (superseded by BL-144, then BL-179 round 7): used to start
+  // OPEN unconditionally, then BL-144 keyed the initial state to the docked
+  // width breakpoint, read once at mount with deliberately no resize
+  // listener. BL-179 round 7 (owner) supersedes that state model: the
+  // docked state (fitsDockedViewport -- one-column tier fits AND both
+  // columns fit side by side) now asserts itself LIVE. Entering it
+  // auto-expands the panel; leaving it collapses back to the overlay rail;
+  // within it, only the explicit « button collapses (no hover-collapse,
+  // and a « collapse is respected until the state is left and re-entered).
+  // See the docked-transition effect below.
+  const [open, setOpen] = useState(() => fitsDockedViewport(window.innerWidth, window.innerHeight));
   const [sets, setSets] = useState<CardSet[]>([]);
   // Base/long-tail set toggle (§5.1): defaults to base sets only; the
   // header button inside the Set dropdown expands to all sets.
@@ -253,7 +263,14 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
   // (utils/filters.ts) drives the disabled state below so the control
   // doubles as a "filters are active" indicator.
   const isDefault = isDefaultFilterState(filters);
-  const resetFilters = () => setFilters(DEFAULT_FILTERS);
+  // BL-179 round 9 (owner): Reset clears FilterState AND everything wired
+  // through onResetAll (the popover base-set selections) -- and stays
+  // active when only the latter exist.
+  const resetInert = isDefault && !resetAlsoClears;
+  const resetFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    onResetAll?.();
+  };
 
   const toggleAspect = (value: string) => {
     setFilters((prev) => {
@@ -411,8 +428,26 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const docked = fitsSideBySide(innerWidth);
+  // BL-179 round 7 (owner): docked = the ONE-COLUMN sidebar and the
+  // full-width table genuinely coexist -- width (1906px pair arithmetic)
+  // AND height (tier still full/compact; a two-col/fallback tier's 452px
+  // sidebar never docks). Mirrors the CSS docking media query exactly.
+  const docked = fitsDockedViewport(innerWidth, innerHeight);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // BL-179 round 7 (owner): the docked state asserts itself on transitions.
+  // Entering it -- page load handled by `open`'s initializer above, resize/
+  // zoom here -- auto-expands the panel (the owner's "only case in which
+  // the filter is auto-expanded"); leaving it collapses to the overlay
+  // rail. Between transitions nothing competes with the user's own clicks:
+  // a « collapse while docked sticks until the state is left and
+  // re-entered.
+  const prevDockedRef = useRef(docked);
+  useEffect(() => {
+    if (prevDockedRef.current === docked) return;
+    prevDockedRef.current = docked;
+    setOpen(docked);
+  }, [docked]);
 
   useEffect(() => {
     if (!open || docked) return undefined;
@@ -437,6 +472,46 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
     };
     document.addEventListener("mousedown", onDocDown);
     return () => document.removeEventListener("mousedown", onDocDown);
+  }, [open, docked]);
+
+  // BL-179 round 5/6 (owner): overlay-mode hover-collapse -- the floating
+  // panel closes when the pointer settles on anything outside it; docked
+  // mode (both columns genuinely fit side by side -- the owner's stated
+  // exception) never auto-collapses. Deliberately a document-level
+  // `mouseover` (fires on whatever element the pointer ENTERS) rather than
+  // the sidebar's own mouseleave: leave-based dismissal misses the exit
+  // path through a portaled facet menu (DOM-outside the sidebar, so the
+  // sidebar's leave fires -- guarded -- when the pointer enters the menu,
+  // and never again when it exits the menu outward; round 5 shipped that
+  // hole). Guards: a held button (slider drag straying past the edge) is
+  // not a leave, and the portaled menus themselves count as inside.
+  //
+  // Round 8 (owner bug report): ARMED like the completion popovers -- the
+  // collapse fires only after the pointer has actually been inside the
+  // panel once per open. The rail and the expanded panel occupy different
+  // spots, so the expand click leaves the pointer "outside" the new panel
+  // and the very next mouseover collapsed it on the spot (open-flash-
+  // collapse). Click-away (the mousedown effect above) still covers a
+  // never-hovered panel.
+  const hoverArmedRef = useRef(false);
+  useEffect(() => {
+    hoverArmedRef.current = false;
+  }, [open]);
+  useEffect(() => {
+    if (!open || docked) return undefined;
+    const onDocOver = (e: MouseEvent) => {
+      if (e.buttons !== 0) return;
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (sidebarRef.current?.contains(target) || isInsideFilterMenuPortal(target)) {
+        hoverArmedRef.current = true;
+        return;
+      }
+      if (!hoverArmedRef.current) return;
+      setOpen(false);
+    };
+    document.addEventListener("mouseover", onDocOver);
+    return () => document.removeEventListener("mouseover", onDocOver);
   }, [open, docked]);
 
   // ── Blocks (identical content across tiers -- only arrangement varies) ──
@@ -618,10 +693,10 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
   const resetBtn = (
     <SWUButton
       size="sm"
-      active={!isDefault}
-      ariaDisabled={isDefault}
+      active={!resetInert}
+      ariaDisabled={resetInert}
       onClick={() => {
-        if (!isDefault) resetFilters();
+        if (!resetInert) resetFilters();
       }}
     >
       Reset All Filters
@@ -710,7 +785,7 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
               />
             </svg>
             {activeCount > 0 && <span className="ifp-sidebar-tab__badge">{activeCount}</span>}
-            <span className="ifp-sidebar-tab__label">Filters</span>
+            <span className="ifp-sidebar-tab__label">Catalog Filters</span>
           </button>
         </div>
       )}
@@ -720,7 +795,7 @@ export function FilterPanel({ filters, setFilters, cards, children }: FilterPane
           <div className="ifp-sidebar__ring">
             <div className="ifp-sidebar__panel">
               <div className="ifp-sidebar__head">
-                <span className="ifp-sidebar__title">Filters</span>
+                <span className="ifp-sidebar__title">Catalog Filters</span>
                 <button
                   type="button"
                   className="ifp-sidebar__collapse"

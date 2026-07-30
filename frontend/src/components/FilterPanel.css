@@ -138,9 +138,18 @@
 
      sidebar width (--v-width default, FULL/COMPACT tier)      278px
    + gap between docked sidebar and content column (cards.css)  24px
-   + table wrapper's own cap (cards.css .data-table-wrapper)  1900px
+   + table wrapper's own cap (cards.css .data-table-wrapper)  1540px
    + .app-main's left+right padding (index.css, 32px each)      64px
-   = 2266px
+   = 1906px
+
+   BL-179 round 5 (owner): retuned 2266 -> 1906. The 2266 derivation used
+   the wrapper's ORIGINAL 1900px cap and was never revisited when BL-163
+   round 6 retuned that cap to the table's natural width (1528, then 1540
+   at BL-179 round 3) -- so for months the app floated the sidebar on
+   viewports where both columns actually fit. The owner's auto-collapse
+   rule (the sidebar collapses on pointer-leave EXCEPT when both fit
+   side by side) makes the threshold behavior-visible, so it now matches
+   the real arithmetic. Keep in sync with the wrapper-cap trio (cards.css).
 
    TWO-COL/fallback's wider 452px sidebar (BL-121 §4, driven by viewport
    HEIGHT not width) isn't separately accounted for -- on a viewport both
@@ -154,7 +163,14 @@
    DOCKED_MIN_WIDTH/fitsSideBySide -- a media query can't be read from JS, so
    the number is duplicated by hand). Keep the two in sync if this value
    ever moves. */
-@media (min-width: 2266px) {
+/* BL-179 round 7 (owner): docking ALSO requires the viewport to be tall
+   enough that the sidebar's tier is still one-column (full/compact) -- a
+   short viewport's two-col/fallback tier renders 452px wide, which the
+   1906px pair arithmetic above never accounted for. 1052px = CHROME_OFFSET
+   (246) + H_COMPACT (786) + MARGIN_COMPACT (20), mirrored as
+   DOCKED_MIN_HEIGHT/fitsDockedViewport in utils/filterPanelTiers.ts (and
+   inverted in cards.css's overlay-pin scope) -- keep all three in sync. */
+@media (min-width: 1906px) and (min-height: 1052px) {
   .ifp-sidebar {
     position: static;
   }
@@ -621,6 +637,20 @@
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7);
 }
 
+/* BL-179 round 5: transparent bridge over the 4px trigger-to-menu gap
+ * (FilterMenuPortal positions the menu at `r.bottom + 4`) so crossing it
+ * never counts as leaving the menu for hover-dismiss -- the completion
+ * popovers' round-4 twitch lesson applied here. Safe: the menu itself has
+ * no overflow (the scroll lives on .ifp-multi__items inside). */
+.ifp-multi__menu--portal::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  height: 5px;
+}
+
 /* BL-147 fix 6 (BL-144-family review finding): the menu now renders via
    FilterMenuPortal (components/FilterMenuPortal.tsx) into document.body
    instead of nested under its own `.ifp-multi` -- the sidebar's outer
@@ -1074,6 +1104,42 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* BL-179: visibility + clear affordance for the completion popovers'
+ * home-base-set selection (it lives outside FilterState, so the panel's
+ * facets can't show it) -- a quiet primary-tinted chip in the children
+ * slot, matching the popover rows' selected-band treatment. */
+.ifp-baseset-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--color-text);
+}
+.ifp-baseset-chip__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ifp-baseset-chip__clear {
+  flex: none;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.ifp-baseset-chip__clear:hover {
+  color: var(--color-text);
 }
 
 .ifp-toggle-row__buttons {

@@ -63,9 +63,32 @@ interface Props {
    * wiring a view mode. */
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  /** BL-179: the popover rows' own universe -- every filter applied EXCEPT
+   * the home-base-set selection below (the rows are the selection menu, and
+   * the menu never filters itself). Defaults to `filteredCards`, which keeps
+   * every call site that doesn't wire selection exactly as it was. */
+  breakdownCards?: InventoryCard[];
+  /** BL-179: the shared home-base-set selection (one state across all four
+   * blocks' popovers -- CardsPage owns it, same single-source-of-truth shape
+   * as viewMode above). Rows render highlighted when their code is here. */
+  selectedHomeSets?: Set<string>;
+  /** BL-179: row-click toggle. Its presence is what makes rows selectable at
+   * all -- omitted (older call sites, tests) renders the popovers exactly as
+   * before. */
+  onToggleHomeSet?: (code: string) => void;
+  /** BL-179: the set FACET's current selections (release-ordered codes) --
+   * the popovers' top-right "Sets selected:" readout, so the rows' universe
+   * is legible when a FilterPanel set choice is shaping it. */
+  filterSetCodes?: string[];
+  /** BL-179 round 9 (owner): clears every popover base-set selection (the
+   * amber strip row's ✕ -- never touches the FilterPanel facet). */
+  onClearHomeSets?: () => void;
 }
 
-type Scope = "filtered" | "all";
+// BL-179 round 9: three-way -- "selected" (filter panel + popover base-set
+// selections) exists only while such selections do; "filtered" (filter
+// panel only); "all" (whole catalog, BL-163's original comparison).
+type Scope = "selected" | "filtered" | "all";
 type BlockId = "playset" | "set" | "cards" | "value";
 
 const EM_DASH = "—";
@@ -208,6 +231,11 @@ export function InventorySummary({
   isAuthenticated = true,
   viewMode,
   onViewModeChange,
+  breakdownCards,
+  selectedHomeSets,
+  onToggleHomeSet,
+  filterSetCodes,
+  onClearHomeSets,
 }: Props) {
   const [scope, setScope] = useState<Scope>("filtered");
   const [priceMode, setPriceMode] = useState<PriceMode>("market");
@@ -217,6 +245,13 @@ export function InventorySummary({
   // boundary. Assigned via the wrap's conditional ref below; React nulls it
   // when the popover closes or moves to another block.
   const openWrapRef = useRef<HTMLSpanElement | null>(null);
+  // BL-179 round 4 (owner): hover-dismiss arming. The popover closes on
+  // pointer-leave only after the pointer has actually been inside it once
+  // (the "display until I mouse over it" rule) -- and the leave boundary is
+  // the whole wrap (block + gap-bridge + popover), so drifting between the
+  // popover and its block never counts as leaving (round 2's popover-only
+  // mouseleave felt twitchy across the 8px gap).
+  const hoverArmedRef = useRef(false);
 
   const codes = baseSetCodes ?? EMPTY_BASE_SET_CODES;
   const sets = orderedBaseSets ?? EMPTY_ORDERED_BASE_SETS;
@@ -225,17 +260,60 @@ export function InventorySummary({
   // caller is authenticated -- Definition §3's "hidden when unfiltered" +
   // signed-out "scope toggle hidden" rules.
   const showScopeToggle = isNarrowed && isAuthenticated;
+
+  // BL-179 round 9 (owner): the toggle is three-way once popover base-set
+  // selections exist. "Selected sets" = filter panel + base-set selections
+  // (what the table shows; segment renders only while selections exist);
+  // "Filtered" = filter panel only; "All" = the whole catalog (BL-163's
+  // original comparison, restored after round-8's two-way redesign briefly
+  // dropped it).
+  const hasHomeSelection = !!onToggleHomeSet && (selectedHomeSets?.size ?? 0) > 0;
+
+  // Auto-follow on transitions so the headline keeps matching the table:
+  // the first base-set selection jumps the scope to "Selected sets"; the
+  // last one clearing falls back to "Filtered". Between transitions the
+  // user's own toggle choice is never fought.
+  const prevHasHomeSelRef = useRef(hasHomeSelection);
+  useEffect(() => {
+    if (prevHasHomeSelRef.current === hasHomeSelection) return;
+    prevHasHomeSelRef.current = hasHomeSelection;
+    if (hasHomeSelection) setScope("selected");
+    else setScope((cur) => (cur === "selected" ? "filtered" : cur));
+  }, [hasHomeSelection]);
+
+  // Effective scope guards the stale-"selected" instant before the effect
+  // above lands (and the toggle-hidden case).
+  const effectiveScope = !showScopeToggle
+    ? "filtered"
+    : scope === "selected" && !hasHomeSelection
+      ? "filtered"
+      : scope;
+
   const activeCards =
-    showScopeToggle && scope === "all" ? (allCards ?? filteredCards) : filteredCards;
+    effectiveScope === "all"
+      ? (allCards ?? filteredCards)
+      : effectiveScope === "filtered" && hasHomeSelection
+        ? (breakdownCards ?? filteredCards)
+        : // "selected" (filter panel + base-set selections), and the plain
+          // filtered case when no base-set selection exists -- both are the
+          // caller's post-everything list.
+          filteredCards;
 
   const metrics = useMemo(
     () => computePanelMetrics(activeCards, codes, priceMode),
     [activeCards, codes, priceMode]
   );
 
+  // BL-179: the rows' universe -- under "Selected sets" AND "Filtered" the
+  // rows ignore the home-base-set selection (the menu never filters
+  // itself), i.e. both use breakdownCards; under "All" they cover the whole
+  // catalog exactly as before.
+  const rowCards =
+    effectiveScope === "all" ? (allCards ?? filteredCards) : (breakdownCards ?? filteredCards);
+
   const breakdown = useMemo(
-    () => buildSetBreakdown(activeCards, sets, priceMode),
-    [activeCards, sets, priceMode]
+    () => buildSetBreakdown(rowCards, sets, priceMode),
+    [rowCards, sets, priceMode]
   );
 
   // Click-away close, MultiSelect.tsx's established idiom: a document-level
@@ -284,46 +362,29 @@ export function InventorySummary({
 
   return (
     <div className="inv-summary" ref={containerRef}>
-      {showScopeToggle && (
-        <span className="inv-summary__scope">
-          <span className="inv-summary__scope-toggle">
-            <span className="inv-summary__scope-toggle-label">Scope</span>
-            <span role="group" aria-label="Metric scope" className="inv-summary__scope-group">
-              <button
-                type="button"
-                className={`inv-summary__scope-btn${
-                  scope === "filtered" ? " inv-summary__scope-btn--active" : ""
-                }`}
-                aria-pressed={scope === "filtered"}
-                onClick={() => setScope("filtered")}
-              >
-                Filtered
-              </button>
-              <button
-                type="button"
-                className={`inv-summary__scope-btn${
-                  scope === "all" ? " inv-summary__scope-btn--active" : ""
-                }`}
-                aria-pressed={scope === "all"}
-                onClick={() => setScope("all")}
-              >
-                All
-              </button>
-            </span>
-          </span>
-        </span>
-      )}
-
       {blocks.map((block) => {
         const clickable = isAuthenticated;
         const open = clickable && expanded === block.id;
-        const toggle = () => setExpanded((cur) => (cur === block.id ? null : block.id));
+        const toggle = () => {
+          hoverArmedRef.current = false;
+          setExpanded((cur) => (cur === block.id ? null : block.id));
+        };
 
         return (
           <span
             className="inv-summary__block-wrap"
             key={block.id}
             ref={open ? openWrapRef : undefined}
+            onMouseLeave={
+              open
+                ? () => {
+                    if (hoverArmedRef.current) {
+                      hoverArmedRef.current = false;
+                      setExpanded(null);
+                    }
+                  }
+                : undefined
+            }
           >
             <span className={`inv-summary__block${open ? " inv-summary__block--open" : ""}`}>
               <div
@@ -363,15 +424,65 @@ export function InventorySummary({
               </div>
             </span>
             {open && (
-              <div className="inv-summary__popover" onClick={(e) => e.stopPropagation()}>
-                <div className="inv-summary__popover-title">{block.label} by set</div>
+              <div
+                className="inv-summary__popover"
+                onClick={(e) => e.stopPropagation()}
+                // BL-179 round 4: entering the popover arms the wrap-level
+                // hover-dismiss above (click-away/Esc still work as
+                // fallbacks for a never-hovered popover).
+                onMouseEnter={() => {
+                  hoverArmedRef.current = true;
+                }}
+              >
+                <div className="inv-summary__popover-title">
+                  <span>{block.label} by set</span>
+                  {/* BL-179: the set FACET's selections, shown so the rows'
+                      universe is legible when a FilterPanel set choice
+                      (typically a non-base set) is shaping it. */}
+                  {filterSetCodes && filterSetCodes.length > 0 && (
+                    <span className="inv-summary__popover-filtersets">
+                      Sets selected: {filterSetCodes.join(", ")}
+                    </span>
+                  )}
+                </div>
                 {sets.length === 0 ? (
                   <div className="inv-summary__popover-empty">No base-set cards in scope</div>
                 ) : (
                   breakdown.map((row) => {
                     const cell = popoverCell(block.id, row, isAuthenticated);
+                    // BL-179: rows are a filter control when the toggle is
+                    // wired. A zero-universe row (no cards in scope map to
+                    // this set) is inert -- selecting it could only produce
+                    // an empty table -- EXCEPT when already selected: a
+                    // selection must always be removable, or a later filter
+                    // change could strand it.
+                    const selected = selectedHomeSets?.has(row.code) ?? false;
+                    const selectable =
+                      isAuthenticated && !!onToggleHomeSet && (row.universeSize > 0 || selected);
+                    const rowToggle = selectable ? () => onToggleHomeSet(row.code) : undefined;
                     return (
-                      <div className="inv-summary__popover-row" key={row.code}>
+                      <div
+                        className={`inv-summary__popover-row${
+                          selectable ? " inv-summary__popover-row--selectable" : ""
+                        }${selected ? " inv-summary__popover-row--selected" : ""}${
+                          onToggleHomeSet && !selectable ? " inv-summary__popover-row--inert" : ""
+                        }`}
+                        key={row.code}
+                        role={rowToggle ? "button" : undefined}
+                        tabIndex={rowToggle ? 0 : undefined}
+                        aria-pressed={rowToggle ? selected : undefined}
+                        onClick={rowToggle}
+                        onKeyDown={
+                          rowToggle
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  rowToggle();
+                                }
+                              }
+                            : undefined
+                        }
+                      >
                         <img
                           className="inv-summary__popover-logo"
                           src={`/images/set_${row.code}.png`}
@@ -413,6 +524,76 @@ export function InventorySummary({
           )}
           {children}
         </span>
+      )}
+
+      {/* BL-179 round 9 (owner): full-width strip row under the blocks --
+          LAST in DOM so flex-wrap keeps the blocks + actions on row one.
+          Amber bracket-style readout of the popover base-set selections
+          (with its clear ✕) when any exist, and the scope toggle (moved
+          from beside the blocks; three-way while selections exist). */}
+      {showScopeToggle && (
+        <div className="inv-summary__scoperow">
+          {hasHomeSelection && (
+            <span className="inv-summary__basesets">
+              <span className="inv-summary__basesets-label">
+                Base sets:{" "}
+                {sets
+                  .filter((s) => selectedHomeSets!.has(s.code))
+                  .map((s) => s.code)
+                  .join(" · ")}
+              </span>
+              {onClearHomeSets && (
+                <button
+                  type="button"
+                  className="inv-summary__basesets-clear"
+                  onClick={onClearHomeSets}
+                  aria-label="Clear base set selections"
+                >
+                  ✕
+                </button>
+              )}
+            </span>
+          )}
+          <span className="inv-summary__scope">
+            <span className="inv-summary__scope-toggle">
+              <span className="inv-summary__scope-toggle-label">Scope</span>
+              <span role="group" aria-label="Metric scope" className="inv-summary__scope-group">
+                {hasHomeSelection && (
+                  <button
+                    type="button"
+                    className={`inv-summary__scope-btn${
+                      effectiveScope === "selected" ? " inv-summary__scope-btn--active" : ""
+                    }`}
+                    aria-pressed={effectiveScope === "selected"}
+                    onClick={() => setScope("selected")}
+                  >
+                    Selected sets
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`inv-summary__scope-btn${
+                    effectiveScope === "filtered" ? " inv-summary__scope-btn--active" : ""
+                  }`}
+                  aria-pressed={effectiveScope === "filtered"}
+                  onClick={() => setScope("filtered")}
+                >
+                  Filtered
+                </button>
+                <button
+                  type="button"
+                  className={`inv-summary__scope-btn${
+                    effectiveScope === "all" ? " inv-summary__scope-btn--active" : ""
+                  }`}
+                  aria-pressed={effectiveScope === "all"}
+                  onClick={() => setScope("all")}
+                >
+                  All
+                </button>
+              </span>
+            </span>
+          </span>
+        </div>
       )}
     </div>
   );

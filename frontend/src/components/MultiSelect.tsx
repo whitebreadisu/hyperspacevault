@@ -156,6 +156,7 @@ export function MultiSelect({
           open={open}
           fieldLabel={label}
           minWidth={menuMinWidth}
+          onHoverDismiss={closeDropdown}
         >
           <>
             {searchable && (
