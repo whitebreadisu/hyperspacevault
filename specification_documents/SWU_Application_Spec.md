@@ -263,7 +263,7 @@ A "Leave Feedback" header button, visible unconditionally (anonymous and signed-
 
 Backend + data model: §4.6. API contract: §12. Platform-level secret/env wiring for the GitHub-issue notification: `SWU_Platform_Spec.md` §3.5/§3.7.
 
-**Known limitation (owner-accepted 2026-07-14, recorded on issue #289):** no notification *email* ever arrives for a new submission — GitHub suppresses notifications for actions taken by the same account that owns the PAT authoring the issue, and the feedback notifier's PAT is the owner's own. The `whitebreadisu/swu-feedback` issues list is the de facto inbox today. Recorded upgrade paths: a bot-collaborator author, or a separate transactional-email step.
+**Known limitation — CLOSED 2026-07-31 (BL-128).** Originally (owner-accepted 2026-07-14, issue #289): no notification *email* ever arrived — GitHub suppresses notifications for one's own actions, and the notifier's PAT was the owner's own. As of BL-128 the issues are authored by a dedicated read-only bot collaborator (`hyperspacevaultbot-png`; classic PAT, `repo` scope — fine-grained can't target repos the token's account doesn't own, and the account's entire world is this one repo), so the owner receives a normal GitHub notification email per submission. Zero code changes — only the `feedback-github-pat` secret's token owner changed (new version per env, out-of-band; backends bounced since env-var secrets resolve at instance start). Live-verified 2026-07-31 on dev and prod (bot-authored issues + owner-inbox email). The transactional-email path remains a recorded future alternative.
 
 ### 5.10 Pricing surfaces (BL-140, shipped prod 2026-07-22)
 
