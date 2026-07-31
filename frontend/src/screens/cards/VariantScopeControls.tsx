@@ -7,7 +7,7 @@ import {
 } from "../../components/FilterMenuPortal";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { SCOPE_EXPANDED_ROWS, SCOPE_PINNED_ROWS, scopeShortName } from "../../utils/variantScope";
-import type { PriceMode, ScopeMenuRow } from "../../utils/variantScope";
+import type { PriceMode, ScopeMenuRow, ValueDisplayMode } from "../../utils/variantScope";
 
 /** BL-173 (Definition_VariantScope_2026-07-26.md §2, VariantScopeMock.jsx):
  * the Playset header's scope trigger + portaled dropdown menu, and the Value
@@ -285,33 +285,100 @@ export function CardsScopeTrigger({ scope, onScopeChange }: CardsScopeTriggerPro
   );
 }
 
+interface CardsValueDisplayToggleProps {
+  mode: ValueDisplayMode;
+  onChange: (mode: ValueDisplayMode) => void;
+}
+
+/** Shared track-and-thumb switch (owner-dialed across the 2026-07-31 local
+ * round): shows only the ACTIVE state's label INSIDE the track; each click
+ * flips to the other state. `large` is the UNIT/COLLECTION size (label
+ * matches the th's own 11px type); the default small size fits the MKT/LOW
+ * uses. EXPORTED for every Market/Low site (Value header, completion
+ * panel's value block, CardPopup rail) so the control reads identically
+ * app-wide. */
+export function ValueSwitch({
+  checked,
+  label,
+  ariaLabel,
+  title,
+  large,
+  onToggle,
+}: {
+  checked: boolean;
+  label: string;
+  ariaLabel: string;
+  title: string;
+  large?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      title={title}
+      className={`vs-value-switch${checked ? " vs-value-switch--on" : ""}${
+        large ? " vs-value-switch--lg" : ""
+      }`}
+      onClick={onToggle}
+    >
+      <span className="vs-value-switch__track">
+        <span className="vs-value-switch__thumb" aria-hidden="true" />
+        <span className="vs-value-switch__label">{label}</span>
+      </span>
+    </button>
+  );
+}
+
+/** The Value header's Unit/Total switch. UNIT = one copy's price (original
+ * semantics); TOTAL = the viewer's owned copies' value (cardCollectionValue
+ * -- the internal mode value stays "collection", only the visible
+ * vocabulary is TOTAL). Sits ABOVE the "Value" label at the large size. */
+export function CardsValueDisplayToggle({ mode, onChange }: CardsValueDisplayToggleProps) {
+  const isTotal = mode === "collection";
+  return (
+    <ValueSwitch
+      checked={isTotal}
+      large
+      label={isTotal ? "COLLECTION" : "UNIT"}
+      ariaLabel={
+        isTotal ? "Showing total value — switch to unit" : "Showing unit value — switch to total"
+      }
+      title={
+        isTotal
+          ? "Total value — what your owned copies are worth. Click for unit price."
+          : "Unit value — price of one copy. Click for your owned copies' total."
+      }
+      onToggle={() => onChange(isTotal ? "unit" : "collection")}
+    />
+  );
+}
+
 interface CardsValueKindToggleProps {
   kind: PriceMode;
   onChange: (kind: PriceMode) => void;
 }
 
-/** The Value header's mini Market/Low toggle (Definition §1/§2). */
+/** The Value header's Market/Low control (Definition §1/§2; owner-dialed
+ * 2026-07-31: same single-label SWITCH idiom as UNIT/TOTAL, at the small
+ * size, sitting RIGHT of the "Value" label). MKT is the unchecked side. */
 export function CardsValueKindToggle({ kind, onChange }: CardsValueKindToggleProps) {
+  const isLow = kind === "low";
   return (
-    <span className="vs-price-toggle">
-      <button
-        type="button"
-        aria-pressed={kind === "market"}
-        title="Market price"
-        className={`vs-price-toggle__btn${kind === "market" ? " vs-price-toggle__btn--on" : ""}`}
-        onClick={() => onChange("market")}
-      >
-        MKT
-      </button>
-      <button
-        type="button"
-        aria-pressed={kind === "low"}
-        title="Low price"
-        className={`vs-price-toggle__btn${kind === "low" ? " vs-price-toggle__btn--on" : ""}`}
-        onClick={() => onChange("low")}
-      >
-        LOW
-      </button>
-    </span>
+    <ValueSwitch
+      checked={isLow}
+      label={isLow ? "LOW" : "MARKET"}
+      ariaLabel={
+        isLow ? "Showing low price — switch to market" : "Showing market price — switch to low"
+      }
+      title={
+        isLow
+          ? "Low price — cheapest listing. Click for market price."
+          : "Market price — TCGplayer market average. Click for low price."
+      }
+      onToggle={() => onChange(isLow ? "market" : "low")}
+    />
   );
 }

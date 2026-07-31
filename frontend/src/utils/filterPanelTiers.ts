@@ -92,7 +92,7 @@ export function tierForViewportHeight(innerHeight: number): FilterPanelTier {
 //
 // Separate axis from the vertical tiers above (those are height-driven
 // density/layout; this is the width-driven docked-vs-overlay choice from
-// BL-129 R2). Mirrors FilterPanel.css's `@media (min-width: 1906px)`
+// BL-129 R2). Mirrors FilterPanel.css's `@media (min-width: 1918px)`
 // exactly -- see that rule's own comment for the full sidebar-width +
 // gap + table-cap + padding arithmetic that derives 1906 (BL-179 round 5:
 // retuned from the stale 2266, which still assumed the wrapper's original
@@ -101,7 +101,7 @@ export function tierForViewportHeight(innerHeight: number): FilterPanelTier {
 // FilterPanel.tsx's initial-open decision, its hover-collapse exception,
 // and the CSS docking rule stay pinned to the same number; if the CSS
 // value ever changes, this one must be updated by hand alongside it.
-export const DOCKED_MIN_WIDTH = 1906;
+export const DOCKED_MIN_WIDTH = 1918;
 
 /** Pure innerWidth -> "does the docked sidebar + full-width table both fit
  * side by side" decision, used by FilterPanel to pick its initial open/

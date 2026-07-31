@@ -416,7 +416,9 @@ describe("InventorySummary Collection value calc (BL-163, CREATE)", () => {
     );
 
     expect(summaryValues(container)[3]).toBe("$10.00");
-    fireEvent.click(screen.getByRole("button", { name: "Low" }));
+    // DISPOSITION (REPLACE, owner-dialed 2026-07-31): the Market/Low pill
+    // became the app-wide ValueSwitch -- one switch that flips per click.
+    fireEvent.click(screen.getByRole("switch", { name: /market price/i }));
     expect(summaryValues(container)[3]).toBe("$6.00");
   });
 });
