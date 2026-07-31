@@ -276,6 +276,10 @@ class TestGithubNotification:
             assert calls[0]["url"].endswith("/repos/whitebreadisu/swu-feedback/issues")
             assert calls[0]["headers"]["Authorization"] == "Bearer test-token"
             assert message in calls[0]["json"]["body"]
+            # BL-128: the body @mentions the repo owner so the notification
+            # email rides the Participating channel (Watching-class emails
+            # verified not delivering, 2026-07-31).
+            assert calls[0]["json"]["body"].endswith("cc @whitebreadisu")
         finally:
             _cleanup_feedback(db, message)
 

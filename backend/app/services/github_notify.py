@@ -43,7 +43,11 @@ def _issue_title(message: str) -> str:
 
 
 def _issue_body(
-    message: str, commit_sha: str | None, created_at: str, contact_email: str | None
+    message: str,
+    commit_sha: str | None,
+    created_at: str,
+    contact_email: str | None,
+    repo: str,
 ) -> str:
     lines = [
         message,
@@ -57,6 +61,15 @@ def _issue_body(
     # function) -- included verbatim, never inferred.
     if contact_email:
         lines.append(f"Contact: {contact_email}")
+    # BL-128: @mention the repo owner so the notification email rides the
+    # Participating channel. Watching-class emails (bot-authored issue
+    # creation alone) were verified NOT delivering on 2026-07-31 despite
+    # the owner's Watching->Email setting; a mention-class email delivered
+    # within minutes in the same test. The owner handle is derived from the
+    # already-configured repo (owner/name), so no new configuration.
+    owner = repo.split("/", 1)[0]
+    if owner:
+        lines.append(f"cc @{owner}")
     return "\n".join(lines)
 
 
@@ -87,7 +100,9 @@ def notify(
                 },
                 json={
                     "title": _issue_title(message),
-                    "body": _issue_body(message, commit_sha, created_at, contact_email),
+                    "body": _issue_body(
+                        message, commit_sha, created_at, contact_email, repo
+                    ),
                 },
             )
             response.raise_for_status()
