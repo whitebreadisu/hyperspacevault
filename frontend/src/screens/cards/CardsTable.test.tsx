@@ -108,6 +108,11 @@ describe("CardsTable column order (BL-56 §5.5)", () => {
   // their labels (trigger before "Playset", toggle before "Unit Value" in
   // DOM order) and the Value column is renamed "Unit Value" -- the two
   // concatenated textContent expectations flip/rename accordingly.
+  // DISPOSITION (REPLACE, owner request 2026-07-31, dialed across the local
+  // round): the Value header is TWO rows -- the UNIT/TOTAL switch above
+  // (active label only, inside the track), then a static "Value" label with
+  // the MKT/LOW SWITCH (same idiom, small size) to its right. Default
+  // textContent: UNIT MARKET Value.
   it("renders the exact spec column order", () => {
     render(
       <CardsTable
@@ -124,7 +129,7 @@ describe("CardsTable column order (BL-56 §5.5)", () => {
       "Name",
       "Variants",
       "ALL FINISHESPlayset",
-      "MKTLOWUnit Value",
+      "UNITMARKETValue",
       "Rarity",
       "Aspect",
       "Type",
@@ -728,9 +733,11 @@ describe("CardsTable Value column (BL-173, CREATE)", () => {
     expect(valueCell(container).textContent).toBe("$4.00");
   });
 
-  it("clicking the MKT/LOW header toggle calls onPriceKindChange with the clicked kind", () => {
+  // DISPOSITION (REPLACE, owner-dialed 2026-07-31): the MKT/LOW pill became
+  // a single-label SWITCH -- one control that flips kinds per click.
+  it("the MKT/LOW switch shows the active kind and each click flips it", () => {
     const onPriceKindChange = vi.fn();
-    render(
+    const { rerender } = render(
       <CardsTable
         cards={[pricedCard]}
         setNameByCode={SET_NAMES}
@@ -740,14 +747,103 @@ describe("CardsTable Value column (BL-173, CREATE)", () => {
         onPriceKindChange={onPriceKindChange}
       />
     );
-    fireEvent.click(screen.getByTitle("Low price"));
+    const kindSwitch = () => screen.getByRole("switch", { name: /market price|low price/i });
+    expect(kindSwitch().textContent).toBe("MARKET");
+    fireEvent.click(kindSwitch());
     expect(onPriceKindChange).toHaveBeenCalledWith("low");
-
-    fireEvent.click(screen.getByTitle("Market price"));
-    expect(onPriceKindChange).toHaveBeenCalledWith("market");
+    rerender(
+      <CardsTable
+        cards={[pricedCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        priceKind="low"
+        onPriceKindChange={onPriceKindChange}
+      />
+    );
+    expect(kindSwitch().textContent).toBe("LOW");
+    fireEvent.click(kindSwitch());
+    expect(onPriceKindChange).toHaveBeenLastCalledWith("market");
   });
 
-  it("reflects aria-pressed for the active kind", () => {
+  // Owner request 2026-07-31: Collection display mode -- per-row owned-copies
+  // value (utils/variantScope.ts cardCollectionValue; rule coverage lives
+  // there, these prove the wiring + header behavior).
+  it("collection mode renders qty x owned variants' own prices and the switch reads TOTAL", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[pricedCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        valueDisplay="collection"
+      />
+    );
+    // 1 owned Standard @ $5 market; the unowned Hyperspace Foil contributes nothing.
+    expect(valueCell(container).textContent).toBe("$5.00");
+    expect(screen.getByRole("switch", { name: /total value/i }).textContent).toBe("COLLECTION");
+  });
+
+  it("collection mode renders the em-dash for an unowned card that has catalog prices", () => {
+    const unowned: InventoryCard = {
+      ...pricedCard,
+      base_card_id: 12,
+      name: "Unowned Priced Card",
+      variants: pricedCard.variants.map((v) => ({ ...v, quantity: 0 })),
+      inventory: { 201: 0, 202: 0 },
+    };
+    const { container } = render(
+      <CardsTable
+        cards={[unowned]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        valueDisplay="collection"
+      />
+    );
+    expect(valueCell(container).textContent).toBe("—");
+  });
+
+  it("the UNIT/TOTAL switch shows only the active mode and each click flips it", () => {
+    const onValueDisplayChange = vi.fn();
+    const { rerender } = render(
+      <CardsTable
+        cards={[pricedCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        onValueDisplayChange={onValueDisplayChange}
+      />
+    );
+    const sw = () => screen.getByRole("switch", { name: /unit value|total value/i });
+    expect(sw().textContent).toBe("UNIT");
+    expect(screen.queryByText("TOTAL")).toBeNull();
+    fireEvent.click(sw());
+    expect(onValueDisplayChange).toHaveBeenCalledWith("collection");
+    rerender(
+      <CardsTable
+        cards={[pricedCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        valueDisplay="collection"
+        onValueDisplayChange={onValueDisplayChange}
+      />
+    );
+    expect(sw().textContent).toBe("COLLECTION");
+    expect(screen.queryByText("UNIT")).toBeNull();
+    fireEvent.click(sw());
+    expect(onValueDisplayChange).toHaveBeenLastCalledWith("unit");
+  });
+
+  // DISPOSITION (REPLACE, owner-dialed 2026-07-31): aria-pressed on two
+  // buttons becomes aria-checked on the single switch.
+  it("reflects aria-checked for the active kind", () => {
     render(
       <CardsTable
         cards={[pricedCard]}
@@ -758,8 +854,10 @@ describe("CardsTable Value column (BL-173, CREATE)", () => {
         priceKind="low"
       />
     );
-    expect(screen.getByTitle("Low price")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTitle("Market price")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("switch", { name: /low price/i })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
   });
 
   it("scoped: shows the SCOPED variant's own price, not Standard's, with the scoped-column tint", () => {

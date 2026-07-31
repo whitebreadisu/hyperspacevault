@@ -18,7 +18,13 @@ import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
 import { deriveRenditions } from "../../utils/cardImages";
 import { orderSetCodes } from "../../utils/catalog";
-import { loadPriceKind, savePriceKind, isFinishSetScopedTo } from "../../utils/variantScope";
+import {
+  loadPriceKind,
+  savePriceKind,
+  loadValueDisplay,
+  saveValueDisplay,
+  isFinishSetScopedTo,
+} from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
@@ -27,7 +33,7 @@ import type { ViewMode } from "../../components/FilterPanel";
 import type { BaseCard, SetOrderMap } from "../../utils/catalog";
 import type { CardSet } from "../../api/sets";
 import type { SetMeta } from "../../utils/completion";
-import type { PriceMode } from "../../utils/variantScope";
+import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import "./cards.css";
 
 interface Props {
@@ -170,6 +176,14 @@ export function CardsPage({
   const handlePriceKindChange = useCallback((kind: PriceMode) => {
     setPriceKind(kind);
     savePriceKind(kind);
+  }, []);
+
+  // Owner request 2026-07-31: Unit/Collection display for the Value column
+  // -- Unit default, persisted like priceKind above.
+  const [valueDisplay, setValueDisplay] = useState<ValueDisplayMode>(() => loadValueDisplay());
+  const handleValueDisplayChange = useCallback((mode: ValueDisplayMode) => {
+    setValueDisplay(mode);
+    saveValueDisplay(mode);
   }, []);
 
   // BL-173: the ONLY other path that ever writes FilterState -- everything
@@ -674,6 +688,8 @@ export function CardsPage({
                 onScopeChange={handleScopeChange}
                 priceKind={priceKind}
                 onPriceKindChange={handlePriceKindChange}
+                valueDisplay={valueDisplay}
+                onValueDisplayChange={handleValueDisplayChange}
               />
             ) : (
               <GalleryGrid

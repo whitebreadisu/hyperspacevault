@@ -138,9 +138,11 @@
 
      sidebar width (--v-width default, FULL/COMPACT tier)      278px
    + gap between docked sidebar and content column (cards.css)  24px
-   + table wrapper's own cap (cards.css .data-table-wrapper)  1540px
+   + table wrapper's own cap (cards.css .data-table-wrapper)  1552px
    + .app-main's left+right padding (index.css, 32px each)      64px
-   = 1906px
+   = 1918px
+   (2026-07-31: 1906 -> 1918 -- the Value column's +12 net for the
+   Unit/Collection switch)
 
    BL-179 round 5 (owner): retuned 2266 -> 1906. The 2266 derivation used
    the wrapper's ORIGINAL 1900px cap and was never revisited when BL-163
@@ -166,11 +168,11 @@
 /* BL-179 round 7 (owner): docking ALSO requires the viewport to be tall
    enough that the sidebar's tier is still one-column (full/compact) -- a
    short viewport's two-col/fallback tier renders 452px wide, which the
-   1906px pair arithmetic above never accounted for. 1052px = CHROME_OFFSET
+   width pair arithmetic above never accounted for. 1052px = CHROME_OFFSET
    (246) + H_COMPACT (786) + MARGIN_COMPACT (20), mirrored as
    DOCKED_MIN_HEIGHT/fitsDockedViewport in utils/filterPanelTiers.ts (and
    inverted in cards.css's overlay-pin scope) -- keep all three in sync. */
-@media (min-width: 1906px) and (min-height: 1052px) {
+@media (min-width: 1918px) and (min-height: 1052px) {
   .ifp-sidebar {
     position: static;
   }

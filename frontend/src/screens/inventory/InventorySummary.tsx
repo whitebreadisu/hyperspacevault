@@ -4,6 +4,7 @@ import type { ViewMode } from "../../components/FilterPanel";
 import { buildSetBreakdown, computePanelMetrics, formatMoney } from "../../utils/completion";
 import type { PriceMode, SetBreakdownRow, SetMeta } from "../../utils/completion";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { ValueSwitch } from "../cards/VariantScopeControls";
 
 /** BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
  * panel revamp -- four clipped-corner "blocks" (Playset complete %, Set
@@ -163,27 +164,24 @@ function PriceModeToggle({
   mode: PriceMode;
   onChange: (mode: PriceMode) => void;
 }) {
-  const btn = (val: PriceMode, label: string) => (
-    <button
-      type="button"
-      className={`inv-summary__pricemode-btn${
-        mode === val ? " inv-summary__pricemode-btn--active" : ""
-      }`}
-      aria-pressed={mode === val}
-      // Nested inside the block's own click-to-expand div -- stopPropagation
-      // keeps a mode switch from also toggling the breakdown popover.
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange(val);
-      }}
-    >
-      {label}
-    </button>
-  );
+  const isLow = mode === "low";
   return (
-    <span className="inv-summary__pricemode" role="group" aria-label="Price display mode">
-      {btn("market", "Market")}
-      {btn("low", "Low")}
+    // Nested inside the block's own click-to-expand div -- stopPropagation
+    // keeps a mode switch from also toggling the breakdown popover.
+    <span className="inv-summary__pricemode" onClick={(e) => e.stopPropagation()}>
+      <ValueSwitch
+        checked={isLow}
+        label={isLow ? "LOW" : "MARKET"}
+        ariaLabel={
+          isLow ? "Showing low price — switch to market" : "Showing market price — switch to low"
+        }
+        title={
+          isLow
+            ? "Low price — cheapest listing. Click for market price."
+            : "Market price — TCGplayer market average. Click for low price."
+        }
+        onToggle={() => onChange(isLow ? "market" : "low")}
+      />
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { CardsPage } from "./CardsPage";
 import type { BaseCardDetail, VariantDetail } from "../../api/baseCards";
@@ -259,7 +259,10 @@ describe("CardsPage column order (BL-56 §5.5, CREATE)", () => {
       // flips in textContent) and Value is renamed "Unit Value". Round 4:
       // "ALL VARIANTS" language normalized to "ALL FINISHES".
       "ALL FINISHESPlayset",
-      "MKTLOWUnit Value",
+      // DISPOSITION (REPLACE, owner request 2026-07-31, dialed): the Value
+      // header is two rows -- the UNIT/TOTAL switch above, then a static
+      // "Value" label with the MKT/LOW switch to its right.
+      "UNITMARKETValue",
       "Rarity",
       "Aspect",
       "Type",
@@ -1548,22 +1551,39 @@ describe("CardsPage Value price-kind persistence (BL-173, CREATE)", () => {
     window.localStorage.clear();
   });
 
+  // DISPOSITION (REPLACE, owner-dialed 2026-07-31): the MKT/LOW pill became
+  // a single-label switch -- assertions move from per-button aria-pressed
+  // to the switch's visible label + aria-checked.
   it("defaults to Market and persists a switch to Low across a remount", async () => {
+    // Two Market/Low switches render on the page (completion panel + table
+    // header, owner-dialed 2026-07-31); this test targets the TABLE header's
+    // (the one CardsPage's priceKind state drives) via its thead scope.
+    const kindSwitch = () =>
+      within(document.querySelector(".data-table--cards thead") as HTMLElement).getByRole(
+        "switch",
+        { name: /market price|low price/i }
+      );
     const { unmount } = await renderPage();
-    expect(screen.getByTitle("Market price")).toHaveAttribute("aria-pressed", "true");
+    expect(kindSwitch().textContent).toBe("MARKET");
 
-    fireEvent.click(screen.getByTitle("Low price"));
+    fireEvent.click(kindSwitch());
     expect(window.localStorage.getItem("swu.cardsValue.kind")).toBe("low");
     unmount();
 
     await renderPage();
-    expect(screen.getByTitle("Low price")).toHaveAttribute("aria-pressed", "true");
+    expect(kindSwitch().textContent).toBe("LOW");
+    expect(kindSwitch()).toHaveAttribute("aria-checked", "true");
   });
 
   it("degrades to Market for a corrupt stored value", async () => {
     window.localStorage.setItem("swu.cardsValue.kind", "bogus");
     await renderPage();
-    expect(screen.getByTitle("Market price")).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(document.querySelector(".data-table--cards thead") as HTMLElement).getByRole(
+        "switch",
+        { name: /market price/i }
+      ).textContent
+    ).toBe("MARKET");
   });
 });
 

@@ -1324,9 +1324,11 @@ describe("CardPopup rail pricing (BL-140 design-conformance pass)", () => {
       })
     );
     expect(railPrice("Standard – #12 – SOR")).toBe("$12.50");
-    fireEvent.click(screen.getByRole("button", { name: "Low" }));
+    // DISPOSITION (REPLACE, owner-dialed 2026-07-31): the rail's Market/Low
+    // pill became the app-wide ValueSwitch -- one switch, flips per click.
+    fireEvent.click(screen.getByRole("switch", { name: /market price/i }));
     expect(railPrice("Standard – #12 – SOR")).toBe("$9.99");
-    fireEvent.click(screen.getByRole("button", { name: "Market" }));
+    fireEvent.click(screen.getByRole("switch", { name: /low price/i }));
     expect(railPrice("Standard – #12 – SOR")).toBe("$12.50");
   });
 
@@ -1342,7 +1344,7 @@ describe("CardPopup rail pricing (BL-140 design-conformance pass)", () => {
         ],
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Low" }));
+    fireEvent.click(screen.getByRole("switch", { name: /market price/i }));
     expect(railPrice("Standard – #12 – SOR")).toBe("—");
   });
 

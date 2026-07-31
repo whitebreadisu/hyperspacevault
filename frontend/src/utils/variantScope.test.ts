@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  cardCollectionValue,
   cardValuePrice,
   formatCardValue,
   isFinishSetScopedTo,
   loadPriceKind,
+  loadValueDisplay,
   savePriceKind,
+  saveValueDisplay,
   scopeShortName,
   scopedOwnedCount,
   SCOPE_EXPANDED_ROWS,
@@ -330,6 +333,123 @@ describe("price-kind persistence (loadPriceKind/savePriceKind)", () => {
       throw new Error("storage denied");
     });
     expect(() => savePriceKind("low")).not.toThrow();
+    spy.mockRestore();
+  });
+});
+
+describe("cardCollectionValue (owner request 2026-07-31: Value column Collection mode)", () => {
+  const price = (market: number | null, low: number | null) =>
+    ({ market, low, as_of: "2026-07-30" }) as InventoryVariant["price"];
+
+  it("unowned card -> null (em-dash), even when the catalog has prices", () => {
+    const variants = [makeVariant({ price: price(10, 8), quantity: 0 })];
+    expect(cardCollectionValue(variants, null, "market")).toBeNull();
+  });
+
+  it("sums qty x each owned variant's own price for the active kind", () => {
+    const variants = [
+      makeVariant({ quantity: 2, price: price(11.13, 10.31) }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Standard Foil",
+        finish: "Standard Foil",
+        quantity: 1,
+        price: price(16.26, 12.99),
+      }),
+    ];
+    expect(cardCollectionValue(variants, null, "market")).toBeCloseTo(2 * 11.13 + 16.26);
+    expect(cardCollectionValue(variants, null, "low")).toBeCloseTo(2 * 10.31 + 12.99);
+  });
+
+  it("an owned unpriced variant falls back to the card's Standard price (completion.ts chain)", () => {
+    const variants = [
+      makeVariant({ quantity: 0, price: price(3, 2) }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        quantity: 2,
+        price: null,
+      }),
+    ];
+    expect(cardCollectionValue(variants, null, "market")).toBeCloseTo(6);
+  });
+
+  it("owned but nothing priced anywhere -> null, never a fabricated $0.00", () => {
+    const variants = [makeVariant({ quantity: 3, price: null })];
+    expect(cardCollectionValue(variants, null, "market")).toBeNull();
+  });
+
+  it("scoped: owned quantity OF THE SCOPED FINISH x that finish's own price", () => {
+    const variants = [
+      makeVariant({ quantity: 5, price: price(3.16, 2.5) }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        quantity: 2,
+        price: price(7, 5),
+      }),
+    ];
+    expect(cardCollectionValue(variants, "Hyperspace", "market")).toBeCloseTo(14);
+    expect(cardCollectionValue(variants, "Hyperspace", "low")).toBeCloseTo(10);
+  });
+
+  it("scoped with zero owned copies of that finish -> null even when other finishes are owned", () => {
+    const variants = [
+      makeVariant({ quantity: 5, price: price(3.16, 2.5) }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        quantity: 0,
+        price: price(7, 5),
+      }),
+    ];
+    expect(cardCollectionValue(variants, "Hyperspace", "market")).toBeNull();
+  });
+
+  it("scoped unpriced printing -> null (no fallback under scope, matching unit mode's rule)", () => {
+    const variants = [
+      makeVariant({ quantity: 1, price: price(3, 2) }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        quantity: 2,
+        price: null,
+      }),
+    ];
+    expect(cardCollectionValue(variants, "Hyperspace", "market")).toBeNull();
+  });
+});
+
+describe("value-display persistence (loadValueDisplay/saveValueDisplay)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("defaults to unit when nothing stored or the stored value is corrupt", () => {
+    expect(loadValueDisplay()).toBe("unit");
+    window.localStorage.setItem("swu.cardsValue.display", "garbage");
+    expect(loadValueDisplay()).toBe("unit");
+  });
+
+  it("round-trips collection", () => {
+    saveValueDisplay("collection");
+    expect(loadValueDisplay()).toBe("collection");
+    saveValueDisplay("unit");
+    expect(loadValueDisplay()).toBe("unit");
+  });
+
+  it("degrades to the default when storage throws", () => {
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    expect(loadValueDisplay()).toBe("unit");
     spy.mockRestore();
   });
 });

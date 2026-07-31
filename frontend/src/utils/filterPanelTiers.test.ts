@@ -115,11 +115,12 @@ describe("fitsSideBySide (BL-144 docked breakpoint, width)", () => {
     expect(fitsSideBySide(DOCKED_MIN_WIDTH - 1)).toBe(false);
   });
 
-  it("DOCKED_MIN_WIDTH matches FilterPanel.css's `@media (min-width: 1906px)` docking rule", () => {
+  it("DOCKED_MIN_WIDTH matches FilterPanel.css's `@media (min-width: 1918px)` docking rule", () => {
     // Duplicated by hand (a CSS media query isn't introspectable from JS) --
     // this pins the two together so a future change to one without the
     // other fails loudly here instead of silently drifting.
-    expect(DOCKED_MIN_WIDTH).toBe(1906);
+    // 2026-07-31: 1906 -> 1918 (Value column +12 net, Unit/Collection switch).
+    expect(DOCKED_MIN_WIDTH).toBe(1918);
   });
 });
 
@@ -129,7 +130,7 @@ describe("fitsSideBySide (BL-144 docked breakpoint, width)", () => {
 describe("fitsDockedViewport (BL-179 docked = one-column tier + side-by-side width)", () => {
   it("requires BOTH the width and the one-column height", () => {
     expect(fitsDockedViewport(2560, 1440)).toBe(true);
-    expect(fitsDockedViewport(1905, 1440)).toBe(false); // too narrow
+    expect(fitsDockedViewport(1917, 1440)).toBe(false); // too narrow
     expect(fitsDockedViewport(2560, 1051)).toBe(false); // two-col tier height
   });
 

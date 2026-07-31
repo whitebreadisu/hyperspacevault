@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ValueSwitch } from "./VariantScopeControls";
 import type { VariantDetail } from "../../api/baseCards";
 import { variantLabel } from "./cardPopupShared";
 import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
@@ -144,23 +145,24 @@ export function CardPopupRail({
           KIND toggle (PRICING_DEFAULTS_SPEC.md's rail-header
           Market/Low switch) -- distinct from the retired
           PriceBlock's Market/Cheapest deck-cost toggle. */}
-        <div className="cp-rail__pricemode" role="group" aria-label="Price display mode">
-          <button
-            type="button"
-            className={`cp-rail__pricemode-btn${priceMode === "market" ? " cp-rail__pricemode-btn--active" : ""}`}
-            aria-pressed={priceMode === "market"}
-            onClick={() => onPriceModeChange("market")}
-          >
-            Market
-          </button>
-          <button
-            type="button"
-            className={`cp-rail__pricemode-btn${priceMode === "low" ? " cp-rail__pricemode-btn--active" : ""}`}
-            aria-pressed={priceMode === "low"}
-            onClick={() => onPriceModeChange("low")}
-          >
-            Low
-          </button>
+        {/* Owner-dialed 2026-07-31: same ValueSwitch control as the table
+            header and completion panel -- one Market/Low idiom app-wide. */}
+        <div className="cp-rail__pricemode">
+          <ValueSwitch
+            checked={priceMode === "low"}
+            label={priceMode === "low" ? "LOW" : "MARKET"}
+            ariaLabel={
+              priceMode === "low"
+                ? "Showing low price — switch to market"
+                : "Showing market price — switch to low"
+            }
+            title={
+              priceMode === "low"
+                ? "Low price — cheapest listing. Click for market price."
+                : "Market price — TCGplayer market average. Click for low price."
+            }
+            onToggle={() => onPriceModeChange(priceMode === "low" ? "market" : "low")}
+          />
         </div>
       </div>
       {printingGroups.map((g) => (

@@ -436,7 +436,7 @@ export function FilterPanel({
     return () => window.removeEventListener("resize", onResize);
   }, []);
   // BL-179 round 7 (owner): docked = the ONE-COLUMN sidebar and the
-  // full-width table genuinely coexist -- width (1906px pair arithmetic)
+  // full-width table genuinely coexist -- width (the docking pair arithmetic)
   // AND height (tier still full/compact; a two-col/fallback tier's 452px
   // sidebar never docks). Mirrors the CSS docking media query exactly.
   const docked = fitsDockedViewport(innerWidth, innerHeight);

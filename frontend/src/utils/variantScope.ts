@@ -48,6 +48,33 @@ export function savePriceKind(kind: PriceMode): void {
   }
 }
 
+// ── Value display mode: Unit vs Collection (owner request 2026-07-31) ───────
+// The Value column header toggles between the unit price of one copy
+// (cardValuePrice below, the original semantics) and the value of the
+// viewer's OWNED copies of the row's card (cardCollectionValue). Persists
+// like MKT/LOW (owner-picked; scope stays transient, this doesn't).
+
+export type ValueDisplayMode = "unit" | "collection";
+
+const VALUE_DISPLAY_STORAGE_KEY = "swu.cardsValue.display";
+
+export function loadValueDisplay(): ValueDisplayMode {
+  try {
+    const stored = window.localStorage.getItem(VALUE_DISPLAY_STORAGE_KEY);
+    return stored === "collection" ? "collection" : "unit";
+  } catch {
+    return "unit";
+  }
+}
+
+export function saveValueDisplay(mode: ValueDisplayMode): void {
+  try {
+    window.localStorage.setItem(VALUE_DISPLAY_STORAGE_KEY, mode);
+  } catch {
+    /* best-effort */
+  }
+}
+
 // ── Value column price (Definition §1) ──────────────────────────────────────
 
 /** A single variant's own price for the active kind. `v.price === undefined`
@@ -95,6 +122,47 @@ export function cardValuePrice(
     if (min == null || price < min) min = price;
   }
   return min;
+}
+
+/** The Value column's per-row COLLECTION value (owner request 2026-07-31):
+ * what the viewer's owned copies of this card are worth, mirroring the
+ * summary panel's Collection-value math (utils/completion.ts cardValue) at
+ * row grain so the column visibly decomposes the header block's total.
+ * - Unscoped: Σ over owned variants of qty × that variant's own price
+ *   (active kind), unpriced variants falling back to the card's Standard
+ *   price -- the completion.ts fallback chain exactly.
+ * - Scoped: owned quantity OF THE SCOPED FINISH × that finish's own price
+ *   (consistent with the scoped pips; deliberately NO fallback, matching
+ *   scoped unit mode's no-fallback rule).
+ * - `null` (renders as the em-dash) when the viewer owns no copies in
+ *   scope, or owns copies but none contributed a price -- a computed $0.00
+ *   would misread as "worthless" rather than "unpriced". */
+export function cardCollectionValue(
+  variants: Pick<InventoryVariant, "variant_type" | "finish" | "price" | "quantity">[],
+  scope: string | null,
+  kind: PriceMode
+): number | null {
+  if (scope) {
+    const qty = scopedOwnedCount(variants, scope);
+    if (qty <= 0) return null;
+    const variant = variants.find((v) => (v.finish ?? v.variant_type) === scope);
+    const price = variant ? variantPriceValue(variant, kind) : null;
+    return price == null ? null : price * qty;
+  }
+  const standard = variants.find((v) => v.variant_type === "Standard");
+  const standardPrice = standard ? variantPriceValue(standard, kind) : null;
+  let value = 0;
+  let priced = false;
+  for (const v of variants) {
+    const qty = v.quantity || 0;
+    if (qty <= 0) continue;
+    const effective = variantPriceValue(v, kind) ?? standardPrice;
+    if (effective != null) {
+      value += effective * qty;
+      priced = true;
+    }
+  }
+  return priced ? value : null;
 }
 
 /** Em-dash for an unpriced printing -- "same quiet state as the popup rail"

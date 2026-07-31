@@ -72,7 +72,7 @@
  * BL-179 round 6 (owner): round 7's pin is now scoped to OVERLAY widths
  * only. Its old "docked-mode note" (the docked sidebar also renders far
  * left) is REVERSED by owner instruction: when both columns genuinely fit
- * side by side (>= 1906px, the retuned docking breakpoint -- keep in sync
+ * side by side (>= 1918px, the retuned docking breakpoint -- keep in sync
  * with FilterPanel.css's media query and DOCKED_MIN_WIDTH), the sidebar
  * docks in-flow against the table's left edge and the [sidebar + gap +
  * content] pair centers as ONE unit -- the original BL-129 R2 design. The
@@ -82,7 +82,7 @@
 /* (BL-179 round 7: the overlay pin applies whenever the viewport fails
  * EITHER docking condition -- too narrow OR too short for the one-column
  * tier -- the exact inverse of FilterPanel.css's docking media query. */
-@media (max-width: 1905.98px), (max-height: 1051.98px) {
+@media (max-width: 1917.98px), (max-height: 1051.98px) {
   .cards-layout:has(.ifp-sidebar) .ifp-sidebar-wrap {
     position: absolute;
     left: 0;
@@ -121,8 +121,8 @@
   /* Round 6: mirrors the retuned cap (see .data-table-wrapper's sync rule).
      BL-173 review rounds: 1526 -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 ->
      1528 (round 5: natural width back to the long-proven 1526 content).
-     BL-179 round 3: -> 1540 (scrollbar-gutter allowance). */
-  flex: 0 1 1540px;
+     BL-179 round 3: -> 1540 (scrollbar-gutter allowance); 2026-07-31 -> 1552 (Value +12 net, Unit/Collection switch round). */
+  flex: 0 1 1552px;
   /* `.cards-layout`'s `align-items: flex-start` (above) keeps the sidebar at
      its own natural content height when docked (rather than an oversized
      box stretched to match the table) -- this column overrides that back to
@@ -170,7 +170,7 @@
      -> 1634 -> 1610 -> 1602 -> 1560 -> 1572 -> 1528; BL-179 round 3:
      -> 1540, scrollbar-gutter allowance -- see the wrapper's comment for
      the sync rule.) */
-  max-width: 1540px;
+  max-width: 1552px;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
@@ -696,10 +696,10 @@
      construction: reserve the scrollbar lane permanently (stable gutter, so
      geometry never changes when the scrollbar appears) and widen the synced
      trio 1528 -> 1540 (= 1526 columns + 2px border + 12px gutter
-     allowance). Keep the THREE 1540px values in sync (here /
+     allowance). Keep the THREE 1552px values in sync (here /
      .inv-summary max-width / .cards-content flex-basis). */
   scrollbar-gutter: stable;
-  max-width: 1540px;
+  max-width: 1552px;
   /* R8b (BL-129 fix round 1): BL-129 R8 introduced the cap above but left
      the wrapper flush left inside `.screen`'s full-width flex column, so
      past 1900px it visibly hugged the left edge instead of centering. The
@@ -947,6 +947,15 @@
 .td-playset {
   position: relative;
 }
+/* Owner-dialed 2026-07-31: Playset header label + cell contents shift 7px
+ * right within the column (12px default td side padding -> 19px left); the
+ * scope trigger stays put by owner instruction. */
+.th-playset-label {
+  margin-left: 7px;
+}
+.data-table--cards tbody td.td-playset {
+  padding-left: 19px;
+}
 
 /* Owner dev review 2026-07-26 (round 2): the rarity SYMBOL sat ~2px high of
  * the row's optical center -- nudge the icon only; the label text is
@@ -976,7 +985,9 @@
   bottom: auto;
   left: 8px;
   transform: none;
-  width: 190px;
+  /* Owner-dialed 2026-07-31: same hug-the-content sizing as the gallery
+   * dossier (the base rule's max-content/min/max apply); the old fixed
+   * 190px is retired. */
   margin-top: 4px;
   z-index: 30;
 }
@@ -1197,7 +1208,13 @@
   bottom: 32px;
   left: 50%;
   transform: translateX(-50%);
-  width: 178px;
+  /* Owner-dialed 2026-07-31: hug the widest actual row (short-finish cards
+   * were mostly empty space at the old fixed 178px) -- rows never wrap
+   * (nowrap below + a max sized past the longest real catalog label,
+   * "Convention Exclusive"). */
+  width: max-content;
+  min-width: 132px;
+  max-width: 200px;
   z-index: 20;
   box-sizing: border-box;
   clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
@@ -1245,6 +1262,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* The "not quite as narrow as possible" slack: a guaranteed minimum gap
+   * between label and count even at the hugged width. */
+  column-gap: 14px;
   padding: 2px 0;
   border-top: 1px solid rgba(211, 211, 212, 0.12);
 }
@@ -1255,6 +1275,7 @@
   font-weight: 500;
   letter-spacing: 0.03em;
   color: #cfd6e4;
+  white-space: nowrap;
 }
 
 .gallery-dossier__row-qty {
@@ -1338,8 +1359,15 @@
  * with tighter side padding on its th (default thead padding is 12px each
  * side; the MKT/LOW toggle needs ~68px of content width). */
 .data-table--cards thead th.th-value {
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+/* Owner-dialed 2026-07-31: both header rows (big switch; Value + MKT/LOW)
+ * center in the column. Scoped here -- .th-playset-inner keeps its shared
+ * flex-start rule below. */
+.data-table--cards thead th.th-value .th-value-inner {
+  width: 100%;
+  align-items: center;
 }
 .td-value--scoped {
   background: rgba(217, 154, 31, 0.05);
@@ -1387,8 +1415,9 @@
   position: absolute;
   top: 6px;
   left: 8px;
-  /* Round 4 tail: Playset+Unit Value = 128+102 - 16px inset. */
-  width: 214px;
+  /* Round 4 tail: Playset+Value = 128+114 - 16px inset (Value 102 -> 114
+   * in the 2026-07-31 Unit/Collection switch round). */
+  width: 226px;
   margin: 0;
 }
 .data-table--cards thead th.th-playset.th-scoped {
@@ -1501,6 +1530,107 @@
 .vs-price-toggle__btn--on {
   background: rgba(37, 99, 235, 0.35);
   color: var(--color-text);
+}
+
+/* Unit/Total value SWITCH (owner request 2026-07-31, revised: a real
+ * track-and-thumb switch, not a text-swap button). One label shows at a
+ * time -- the active mode's -- beside a small sliding track. Palette
+ * mirrors the MKT/LOW pill above it: same border token, same blue accent
+ * for the "on" (TOTAL) side, same 9.5px header-mini type. */
+.vs-value-switch {
+  display: inline-flex;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+/* The label lives INSIDE the track (owner-dialed variant): a pill wide
+ * enough for the text, thumb on the inactive side sliding across on
+ * toggle -- UNIT reads [● UNIT], TOTAL reads [TOTAL ●]. */
+/* Small size = the MKT/LOW row-mate; --lg below = UNIT/TOTAL. Both as
+ * narrow as their longest label allows. */
+.vs-value-switch__track {
+  display: inline-flex;
+  align-items: center;
+  width: 54px;
+  height: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: rgba(9, 11, 20, 0.6);
+  position: relative;
+  flex: none;
+}
+.vs-value-switch__thumb {
+  position: absolute;
+  left: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: transform 120ms ease;
+}
+.vs-value-switch--on .vs-value-switch__track {
+  background: rgba(37, 99, 235, 0.35);
+  border-color: rgba(37, 99, 235, 0.55);
+}
+.vs-value-switch--on .vs-value-switch__thumb {
+  transform: translateX(41px);
+  background: var(--color-text);
+}
+.vs-value-switch__label {
+  flex: 1;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  /* off: thumb sits left -- shift the text right of it; on: mirrored. */
+  padding-left: 11px;
+  transition: padding 120ms ease;
+}
+.vs-value-switch--on .vs-value-switch__label {
+  color: var(--color-text);
+  padding-left: 0;
+  padding-right: 11px;
+}
+.vs-value-switch:hover .vs-value-switch__label {
+  color: var(--color-text);
+}
+/* Large size (UNIT/TOTAL): in-track label matches the th's own 11px/700
+ * uppercase type, track heightened to hold it. */
+.vs-value-switch--lg .vs-value-switch__track {
+  width: 96px;
+  height: 20px;
+  border-radius: 10px;
+}
+.vs-value-switch--lg .vs-value-switch__thumb {
+  width: 13px;
+  height: 13px;
+  left: 3px;
+}
+.vs-value-switch--lg.vs-value-switch--on .vs-value-switch__thumb {
+  transform: translateX(77px);
+}
+.vs-value-switch--lg .vs-value-switch__label {
+  font-size: 11px;
+  font-weight: 700;
+  /* 0.08em (vs the th's 0.1em) buys COLLECTION the narrower track. */
+  letter-spacing: 0.08em;
+  padding-left: 13px;
+}
+.vs-value-switch--lg.vs-value-switch--on .vs-value-switch__label {
+  padding-left: 0;
+  padding-right: 13px;
+}
+/* Row 2 of the Value header: Value [mkt/low switch] -- inherits the th's
+ * own uppercase/spacing type for the label text. */
+.th-value-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 /* Scope dropdown menu (VariantScopeControls.tsx's ScopeMenuContent).

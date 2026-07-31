@@ -6,9 +6,18 @@ import { StatBadge } from "../../components/StatBadge";
 import { RarityBadge } from "../../components/RarityBadge";
 import { VariantsTooltip } from "../../components/VariantsTooltip";
 import { PlaysetCell } from "./PlaysetCell";
-import { CardsScopeTrigger, CardsValueKindToggle } from "./VariantScopeControls";
-import { cardValuePrice, formatCardValue, scopeShortName } from "../../utils/variantScope";
-import type { PriceMode } from "../../utils/variantScope";
+import {
+  CardsScopeTrigger,
+  CardsValueDisplayToggle,
+  CardsValueKindToggle,
+} from "./VariantScopeControls";
+import {
+  cardCollectionValue,
+  cardValuePrice,
+  formatCardValue,
+  scopeShortName,
+} from "../../utils/variantScope";
+import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 
 const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Villainy"] as const;
@@ -81,13 +90,19 @@ const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Vi
  * Arena 80->74 -- all ellipsis-guarded or short content), restoring the
  * long-proven 1526 natural width. The BL-173 columns (Playset/Unit
  * Value/stats/Aspect) keep their owner-dialed widths untouched.
- * SYNC RULE: the sum of these widths (1526) + 2px wrapper border = 1528 must
- * match the THREE 1528px values in cards.css (.inv-summary max-width /
- * .cards-content flex-basis / .data-table-wrapper max-width) -- retune all
- * three whenever this array changes, or the wrapper cap either stretches
- * columns or grows a horizontal scrollbar (which is exactly what happened
- * when BL-173's +92px landed without retuning). */
-const COLUMN_WIDTHS = [50, 210, 86, 128, 102, 128, 108, 90, 52, 52, 52, 144, 180, 74, 70];
+ * Owner-dialed 2026-07-31 (Unit/Collection switch round): Value 102 -> 114
+ * so the large COLLECTION switch (96px track, 0.08em in-track label) clears
+ * the th's own 6px side padding, both header rows centered. Docking
+ * breakpoints and the cards.css cap trio retuned +6 net in the same round
+ * (1906 -> 1918, 1540 -> 1552; MARKET/LOW switch sits LEFT of the Value label).
+ * SYNC RULE: the sum of these widths (1538) + 2px wrapper border = 1540,
+ * + 12px scrollbar-gutter allowance = 1552 must match the THREE 1552px
+ * values in cards.css (.inv-summary max-width / .cards-content flex-basis /
+ * .data-table-wrapper max-width) -- retune all three whenever this array
+ * changes, or the wrapper cap either stretches columns or grows a
+ * horizontal scrollbar (which is exactly what happened when BL-173's +92px
+ * landed without retuning). */
+const COLUMN_WIDTHS = [50, 210, 86, 128, 114, 128, 108, 90, 52, 52, 52, 144, 180, 74, 70];
 const COLUMN_COUNT = COLUMN_WIDTHS.length;
 
 /** Estimated row height in px, used only to seed the virtualizer's scroll
@@ -125,6 +140,11 @@ interface Props {
    * optional/defaulted idiom as `scope` above. */
   priceKind?: PriceMode;
   onPriceKindChange?: (kind: PriceMode) => void;
+  /** Owner request 2026-07-31: Unit vs Collection display for the Value
+   * column -- persisted by CardsPage via load/saveValueDisplay, same idiom
+   * as priceKind above. */
+  valueDisplay?: ValueDisplayMode;
+  onValueDisplayChange?: (mode: ValueDisplayMode) => void;
 }
 
 /** Unified Cards table (BL-56 §5.5) -- merges the old CatalogPage table and
@@ -150,6 +170,8 @@ export function CardsTable({
   onScopeChange = () => {},
   priceKind = "market",
   onPriceKindChange = () => {},
+  valueDisplay = "unit",
+  onValueDisplayChange = () => {},
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -213,18 +235,32 @@ export function CardsTable({
               {/* Round 2: trigger stacked ABOVE the column label. */}
               <span className="th-playset-inner">
                 <CardsScopeTrigger scope={scope} onScopeChange={onScopeChange} />
-                Playset
+                {/* Owner-dialed 2026-07-31: label (and the cells below, via
+                    .td-playset padding) shift 15px right; the scope trigger
+                    deliberately does NOT. */}
+                <span className="th-playset-label">Playset</span>
               </span>
             </th>
             <th className={`th-value${scope ? " th-scoped" : ""}`}>
-              {/* Round 2: MKT/LOW stacked ABOVE the label; label renamed
-                  "Unit Value"; the scoped finish tag is REMOVED from this
-                  header (owner call -- the bracket + trigger already name
-                  the finish). Round 4: .th-value carries the tightened
-                  side padding that lets the column sit at 90px. */}
+              {/* Round 2: MKT/LOW stacked ABOVE the label; the scoped finish
+                  tag is REMOVED from this header (owner call -- the bracket
+                  + trigger already name the finish). Round 4: .th-value
+                  carries the tightened side padding that lets the column sit
+                  at 90px. Owner request 2026-07-31: a second UNIT/COLL pill
+                  joins the stack and the label follows the active mode --
+                  "Unit Value" (one copy's price) vs "Collection" (your owned
+                  copies' worth, cardCollectionValue). */}
+              {/* Owner-dialed (2026-07-31 round): TWO rows, no duplicate
+                  text -- the UNIT/TOTAL switch ABOVE (large size, its
+                  in-track label matching the th's own type), then the
+                  static "Value" label with the small MKT/LOW switch to its
+                  RIGHT. Reads top-to-bottom as "UNIT / VALUE·MKT". */}
               <span className="th-value-inner">
-                <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
-                Unit Value
+                <CardsValueDisplayToggle mode={valueDisplay} onChange={onValueDisplayChange} />
+                <span className="th-value-mode">
+                  <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
+                  Value
+                </span>
               </span>
             </th>
             <th>Rarity</th>
@@ -254,7 +290,12 @@ export function CardsTable({
             // BL-173: unit price of the relevant printing (scoped variant,
             // else Standard w/ min-priced fallback) -- see
             // utils/variantScope.ts's cardValuePrice for the full rule.
-            const cardValue = cardValuePrice(card.variants, scope, priceKind);
+            // Owner request 2026-07-31: collection mode swaps in the owned
+            // copies' value (cardCollectionValue) under the same scope/kind.
+            const cardValue =
+              valueDisplay === "collection"
+                ? cardCollectionValue(card.variants, scope, priceKind)
+                : cardValuePrice(card.variants, scope, priceKind);
             return (
               <tr
                 key={card.base_card_id}
