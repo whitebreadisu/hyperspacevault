@@ -1,7 +1,9 @@
 # ADR-0013: Trim the inventory-limits UI to a three-way enforcement control (build-then-trim)
 
 ## Status
-Accepted — 2026-07-13
+Accepted — 2026-07-13. Partially reversed on its own terms by
+[ADR-0018](0018-category-level-cap-precision-restore.md) (2026-08-01):
+numeric precision restored at category granularity on user demand.
 
 ## Context
 The inventory-limits arc (BL-24/25/35, PRs #241–#244) was built end-to-end in one day by three Sonnet build agents under Opus orchestration: per-tenant keep-limit overrides keyed by type-category × curated bucket (15 buckets × 2 categories), a "No limit" first-class value, a 999 technical ceiling, hard/soft enforcement modes, a 30-cell settings grid, and 75 net-new tests. Everything reached the dev environment fully verified. Nothing reached prod — the per-PR promote gates were deliberately batched.
