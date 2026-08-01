@@ -291,3 +291,196 @@ def test_run_defaults_weekly_play_set_codes_to_the_real_wp_map(db, pricing_test_
     ).first()
     assert row.match_method == "name_tier_exact"
     assert row.sub_type == "Normal"
+
+
+@pytest.fixture
+def early_era_wp_test_set(db):
+    """BL-183: WP-typed variants whose source_set_code is the ROOT code
+    (mirroring the real SOR/SHD/TWI-era convention -- swuapi only adopted
+    dedicated "P" codes for Weekly Play from JTL onward). The variants
+    carry source_set_code=PT1 (FK to sets -- ensured below, conditionally
+    deleted in teardown) but the base card hangs off its OWN sets row
+    (PT1E) so this fixture's teardown never races pricing_test_set's
+    over the shared PT1 set row -- composing both fixtures in one test
+    aborted the teardown transaction otherwise."""
+    db.execute(
+        text(
+            "INSERT INTO sets (code, name, is_base_set) "
+            "VALUES (:code, 'Pricing Test Set', true) "
+            "ON CONFLICT (code) DO NOTHING"
+        ),
+        {"code": SET_CODE},
+    )
+    db.execute(
+        text(
+            "INSERT INTO sets (code, name, is_base_set) "
+            "VALUES (:code, 'Early Era WP Fixture Set', false) "
+            "ON CONFLICT (code) DO NOTHING"
+        ),
+        {"code": "PT1E"},
+    )
+    set_id = db.execute(
+        text("SELECT id FROM sets WHERE code = :code"), {"code": "PT1E"}
+    ).scalar()
+
+    base_card_id = db.execute(
+        text(
+            "INSERT INTO base_cards "
+            "(set_id, base_card_number, name, type, rarity, swuapi_id) "
+            "VALUES (:set_id, '2', 'Early Era WP Card', 'Unit', 'Common', "
+            "'ptwpe-base-1') "
+            "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+            "RETURNING id"
+        ),
+        {"set_id": set_id},
+    ).scalar()
+
+    variant_ids = {}
+    for suffix, variant_type in [
+        ("normal", "Weekly Play"),
+        ("foil", "Weekly Play Foil"),
+    ]:
+        variant_ids[variant_type] = db.execute(
+            text(
+                "INSERT INTO card_variants "
+                "(base_card_id, variant_type, source_set_code, card_number, swuapi_id) "
+                "VALUES (:base_card_id, :variant_type, :set_code, '2', :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET "
+                "card_number = EXCLUDED.card_number "
+                "RETURNING id"
+            ),
+            {
+                "base_card_id": base_card_id,
+                "variant_type": variant_type,
+                "set_code": SET_CODE,
+                "swuapi_id": f"ptwpe-variant-{suffix}",
+            },
+        ).scalar()
+    db.commit()
+
+    yield variant_ids
+
+    for vid in variant_ids.values():
+        db.execute(
+            text("DELETE FROM tcgplayer_products WHERE variant_id = :vid"),
+            {"vid": vid},
+        )
+        db.execute(text("DELETE FROM card_variants WHERE id = :vid"), {"vid": vid})
+    db.execute(text("DELETE FROM base_cards WHERE id = :bid"), {"bid": base_card_id})
+    db.execute(text("DELETE FROM sets WHERE code = :code"), {"code": "PT1E"})
+    # PT1 is shared with pricing_test_set: drop it only once nothing
+    # references it, whichever fixture tears down last.
+    db.execute(
+        text(
+            "DELETE FROM sets WHERE code = :code "
+            "AND NOT EXISTS (SELECT 1 FROM base_cards WHERE set_id = sets.id) "
+            "AND NOT EXISTS "
+            "(SELECT 1 FROM card_variants WHERE source_set_code = :code)"
+        ),
+        {"code": SET_CODE},
+    )
+    db.commit()
+
+
+def _fake_early_era_wp_client() -> FakeTcgcsvClient:
+    """The SOR/SHD/TWI-era WP group shape (live-verified against
+    tcgcsv_files/SparkofRebellionWeeklyPlayPromosProductsAndPrices.csv):
+    a suffix-free card carrying both subTypeName rows on one productId,
+    ALONGSIDE a "(Hyperspace)"-suffixed OP-promo product (Normal row only)
+    that must not produce a false WP match -- its stripped name matches no
+    WP-typed catalog variant."""
+    products = [
+        {"productId": 888801, "name": "Early Era WP Card"},
+        {"productId": 888802, "name": "Unrelated OP Promo (Hyperspace)"},
+    ]
+    prices = [
+        {
+            "productId": 888801,
+            "subTypeName": "Normal",
+            "lowPrice": 0.1,
+            "midPrice": 0.29,
+            "highPrice": 2.99,
+            "marketPrice": 0.24,
+        },
+        {
+            "productId": 888801,
+            "subTypeName": "Foil",
+            "lowPrice": 0.1,
+            "midPrice": 0.45,
+            "highPrice": 3.95,
+            "marketPrice": 0.44,
+        },
+        {
+            "productId": 888802,
+            "subTypeName": "Normal",
+            "lowPrice": 1.0,
+            "midPrice": 2.0,
+            "highPrice": 4.0,
+            "marketPrice": 1.8,
+        },
+    ]
+    return FakeTcgcsvClient(products, prices)
+
+
+def test_wp_pass_maps_root_coded_early_era_variants(db, early_era_wp_test_set):
+    """BL-183 end-to-end: the PT1P WP pass ALSO sources catalog variants
+    from its root companion PT1, so root-coded (early-era) Weekly Play /
+    Weekly Play Foil variants map against the WP group's products. The
+    "(Hyperspace)"-suffixed OP-promo product in the same group maps
+    nothing (no name match against a WP-typed variant)."""
+    client = _fake_early_era_wp_client()
+    report = run(
+        db,
+        client,
+        set_codes=[WP_SET_CODE],
+        set_group_ids={WP_SET_CODE: WP_GROUP_ID},
+        weekly_play_set_codes={WP_SET_CODE},
+    )
+    db.commit()
+
+    assert report.results[WP_SET_CODE].stats.matched == 2
+    assert report.results[WP_SET_CODE].exceptions == []
+
+    rows = db.execute(
+        text(
+            "SELECT variant_id, tcg_product_id, sub_type FROM tcgplayer_products "
+            "WHERE variant_id = ANY(:vids)"
+        ),
+        {"vids": list(early_era_wp_test_set.values())},
+    ).all()
+    by_variant = {r.variant_id: r for r in rows}
+    assert by_variant[early_era_wp_test_set["Weekly Play"]].sub_type == "Normal"
+    assert (
+        by_variant[early_era_wp_test_set["Weekly Play Foil"]].sub_type == "Foil"
+    )
+    assert all(r.tcg_product_id == 888801 for r in rows)
+
+    op_promo_rows = db.execute(
+        text("SELECT count(*) FROM tcgplayer_products WHERE tcg_product_id = 888802")
+    ).scalar()
+    assert op_promo_rows == 0
+
+
+def test_wp_pass_root_companion_ignores_non_wp_variants(
+    db, pricing_test_set, early_era_wp_test_set
+):
+    """The root-companion fetch brings ALL of PT1's variants into the WP
+    pass; build_mapping's target filter must drop the Standard-typed one
+    (it belongs to the root-set pass) -- only the 2 WP-typed variants
+    count toward the WP pass's stats."""
+    client = _fake_early_era_wp_client()
+    report = run(
+        db,
+        client,
+        set_codes=[WP_SET_CODE],
+        set_group_ids={WP_SET_CODE: WP_GROUP_ID},
+        weekly_play_set_codes={WP_SET_CODE},
+    )
+    db.commit()
+
+    assert report.results[WP_SET_CODE].stats.catalog_core_variants == 2
+    mapped_standard = db.execute(
+        text("SELECT count(*) FROM tcgplayer_products WHERE variant_id = :vid"),
+        {"vid": pricing_test_set["variant_id"]},
+    ).scalar()
+    assert mapped_standard == 0

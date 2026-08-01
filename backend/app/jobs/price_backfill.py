@@ -4,11 +4,13 @@
 Downloads tcgcsv's daily archive (`prices-YYYY-MM-DD.ppmd.7z`,
 spike_TCGCSV_Pricing_2026-07-16.md §3 -- 7z/PPMd-compressed, one archive
 per calendar day covering EVERY TCGplayer category), extracts only the
-`{date}/79/{groupId}/prices` entries for the 10 root sets P1 maps
-(app.ingestion.tcgcsv_client.ROOT_SET_GROUP_IDS), and inserts a
-variant_prices row per resolved (variant_id, date) -- ON CONFLICT DO
-NOTHING, since a historical day, once inserted, never changes (unlike the
-daily sync job's DO UPDATE for a still-moving "today").
+`{date}/79/{groupId}/prices` entries for the mapped groups
+(app.ingestion.tcgcsv_client.ALL_PRICED_GROUP_IDS -- the 10 root sets
+plus, since BL-183/BL-175 step 1, the 8 Weekly Play groups; originally
+ROOT_SET_GROUP_IDS only), and inserts a variant_prices row per resolved
+(variant_id, date) -- ON CONFLICT DO NOTHING, since a historical day, once
+inserted, never changes (unlike the daily sync job's DO UPDATE for a
+still-moving "today").
 
 Restartable: `pricing_sync_state` (key='backfill') tracks the last fully-
 completed date. Re-running with no --start resumes the day after the
@@ -44,7 +46,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.ingestion.tcgcsv_client import ROOT_SET_GROUP_IDS, USER_AGENT
+from app.ingestion.tcgcsv_client import ALL_PRICED_GROUP_IDS, USER_AGENT
 from app.jobs.price_sync import load_product_index, upsert_prices
 
 logger = logging.getLogger(__name__)
@@ -138,7 +140,7 @@ def run_backfill(
     per day with sleep_seconds between them. Commits (and advances the
     watermark) after each day -- a crash mid-run loses at most the day in
     progress, not the whole range."""
-    groups = group_ids or ROOT_SET_GROUP_IDS
+    groups = group_ids or ALL_PRICED_GROUP_IDS
     owns_client = http_client is None
     client = http_client or httpx.Client(
         headers={"User-Agent": USER_AGENT}, timeout=DOWNLOAD_TIMEOUT_SECONDS

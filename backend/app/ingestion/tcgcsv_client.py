@@ -112,14 +112,15 @@ ROOT_SET_GROUP_IDS: dict[str, int] = {
 # the category-79 groups endpoint --
 # specification_documents/analysis/Pricing_Coverage_NonCore_Finishes_2026-07-27.md).
 # Keyed by the WP set-code convention (root-set code + "P", e.g. "SORP")
-# already used elsewhere in the codebase: card_variants.source_set_code for
-# a Weekly Play printing IS this code verbatim (straight off swuapi -- see
-# SWU_Standard_Variant_Mapping_Spec.md's SORP walkthrough), and
-# app.services.set_order.CURATED_EXPORT_SET_ORDER /
-# app.ingestion.swuapi_classify's `source_set_code.endswith("P")` channel
-# rule both already assume it. IBH and TS26 never had a Weekly Play
-# program (starter-deck-only releases) -- confirmed absent from the live
-# groups listing -- so there are deliberately no IBHP/TS26P keys here.
+# used elsewhere in the codebase (app.services.set_order.CURATED_EXPORT_
+# SET_ORDER, app.ingestion.swuapi_classify's `source_set_code.endswith("P")`
+# channel rule). CAVEAT (BL-183): card_variants.source_set_code carries the
+# "P" code only from JTL onward -- the first three sets' WP printings are
+# ROOT-coded (SOR/SHD/TWI) on our side, which is why run_tcgplayer_mapping's
+# WP pass sources variants from BOTH the "P" code and its root companion.
+# IBH and TS26 never had a Weekly Play program (starter-deck-only releases)
+# -- confirmed absent from the live groups listing -- so there are
+# deliberately no IBHP/TS26P keys here.
 WEEKLY_PLAY_GROUP_IDS: dict[str, int] = {
     "SORP": 23451,
     "SHDP": 23555,
@@ -131,11 +132,14 @@ WEEKLY_PLAY_GROUP_IDS: dict[str, int] = {
     "ASHP": 24765,
 }
 
-# BL-174: the single fetch-scope source of truth shared by both the
-# mapping builder (app.ingestion.run_tcgplayer_mapping.run()) and the
-# daily price sync job (app.jobs.price_sync.run_sync()) -- deliberately
-# not two independently-maintained lists (the coverage analysis above
-# flagged exactly that fork risk). app.jobs.price_backfill.py is NOT
-# widened to this map -- a historical Weekly Play backfill is a separate,
-# out-of-scope follow-on; it keeps using ROOT_SET_GROUP_IDS.
+# BL-174: the single fetch-scope source of truth shared by the mapping
+# builder (app.ingestion.run_tcgplayer_mapping.run()), the daily price sync
+# job (app.jobs.price_sync.run_sync()), and -- since BL-183/BL-175 step 1
+# -- the history backfill job (app.jobs.price_backfill.py) as well:
+# deliberately not independently-maintained lists (the coverage analysis
+# above flagged exactly that fork risk). The backfill's archive walk
+# extracts these groups' price files per day, so newly mapped WP-group
+# variants gain history on a `--start`-forced re-walk (per-(variant, date)
+# inserts are ON CONFLICT DO NOTHING -- already-walked days only add rows
+# for the newly mapped).
 ALL_PRICED_GROUP_IDS: dict[str, int] = {**ROOT_SET_GROUP_IDS, **WEEKLY_PLAY_GROUP_IDS}
