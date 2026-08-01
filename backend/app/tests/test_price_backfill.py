@@ -329,3 +329,29 @@ def test_run_backfill_missing_archive_day_advances_watermark_without_rows(
     assert report.dates_skipped_no_archive == [date(2024, 3, 8)]
     assert report.rows_inserted == 0
     assert get_backfill_watermark(db) == date(2024, 3, 8)
+
+
+def test_run_backfill_default_scope_includes_weekly_play_groups(db, monkeypatch):
+    """BL-183/BL-175 step 1: with no explicit group_ids, run_backfill's
+    archive walk covers ALL_PRICED_GROUP_IDS -- a day's archive carrying a
+    real Weekly Play group entry (SORP's 23451) is extracted and processed
+    (the deliberately-unmapped productId lands in unmapped_price_rows,
+    proving the file was read rather than skipped as out-of-scope)."""
+    day = date(2024, 3, 8)
+    wp_group_id = 23451  # SORP -- Spark of Rebellion Weekly Play Promos
+    archive_bytes = build_archive(day, wp_group_id, [_price_row(product_id=999999901)])
+    monkeypatch.setattr(
+        "app.jobs.price_backfill.download_archive",
+        lambda client, d: archive_bytes,
+    )
+
+    try:
+        report = run_backfill(db, day, day, group_ids=None, sleep_seconds=0)
+        assert report.unmapped_price_rows == 1
+        assert report.dates_processed == [day]
+    finally:
+        db.execute(
+            text("DELETE FROM pricing_sync_state WHERE key = :key"),
+            {"key": WATERMARK_KEY},
+        )
+        db.commit()

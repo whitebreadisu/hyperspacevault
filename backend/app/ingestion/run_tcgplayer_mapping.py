@@ -251,6 +251,17 @@ def run(
         group_id = group_ids[set_code]
         catalog_variants = fetch_catalog_variants(db, set_code)
 
+        # BL-183: a WP pass ALSO sources variants from its root set code
+        # (SORP -> SOR). The first three sets' Weekly Play printings carry
+        # the ROOT code in card_variants.source_set_code (SOR/SHD/TWI, 63
+        # variants) rather than the "P" code the WP convention comment in
+        # tcgcsv_client assumed -- swuapi only adopted the dedicated
+        # "P"-set typing from JTL onward. Fetching both and concatenating
+        # is era-agnostic: later-era root sets contribute no WP-typed
+        # variants, so build_mapping's target filter drops their extras.
+        if set_code in wp_codes and set_code.endswith("P"):
+            catalog_variants += fetch_catalog_variants(db, set_code[:-1])
+
         if i > 0:
             throttle()
         products = client.products(group_id)
