@@ -339,9 +339,7 @@ def test_run_backfill_default_scope_includes_weekly_play_groups(db, monkeypatch)
     proving the file was read rather than skipped as out-of-scope)."""
     day = date(2024, 3, 8)
     wp_group_id = 23451  # SORP -- Spark of Rebellion Weekly Play Promos
-    archive_bytes = build_archive(
-        day, wp_group_id, [_price_row(product_id=999999901)]
-    )
+    archive_bytes = build_archive(day, wp_group_id, [_price_row(product_id=999999901)])
     monkeypatch.setattr(
         "app.jobs.price_backfill.download_archive",
         lambda client, d: archive_bytes,

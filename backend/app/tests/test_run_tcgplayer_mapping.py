@@ -450,9 +450,7 @@ def test_wp_pass_maps_root_coded_early_era_variants(db, early_era_wp_test_set):
     ).all()
     by_variant = {r.variant_id: r for r in rows}
     assert by_variant[early_era_wp_test_set["Weekly Play"]].sub_type == "Normal"
-    assert (
-        by_variant[early_era_wp_test_set["Weekly Play Foil"]].sub_type == "Foil"
-    )
+    assert by_variant[early_era_wp_test_set["Weekly Play Foil"]].sub_type == "Foil"
     assert all(r.tcg_product_id == 888801 for r in rows)
 
     op_promo_rows = db.execute(
