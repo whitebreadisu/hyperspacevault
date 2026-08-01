@@ -99,6 +99,96 @@
   color: var(--color-text-muted);
 }
 
+/* ── Cap steppers (BL-182) ─────────────────────────────────────────────────
+ * Numeric keep-limit steppers, visual language borrowed from the card
+ * popup's owned-quantity plate (CardPopup.css .cp-plate__step/__qty) --
+ * reimplemented here as a settings-local component (CapStepper.tsx) rather
+ * than shared, since the popup's plate does quantity-vs-limit display and
+ * this is a bare value editor. Active under Hard/Soft, visually present but
+ * inert (dimmed, buttons disabled) under "No limits". */
+
+.sl-capsteppers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sl-capstepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex: 1 1 220px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  transition: opacity 0.15s;
+}
+
+.sl-capstepper--disabled {
+  opacity: 0.5;
+}
+
+.sl-capstepper__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sl-capstepper__title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.sl-capstepper__hint {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.sl-capstepper__control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sl-capstepper__step {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 3px;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sl-capstepper__step:hover:not(:disabled) {
+  background: var(--color-primary-dim);
+}
+
+.sl-capstepper__step:disabled {
+  background: #232c40;
+  color: #4a5570;
+  cursor: not-allowed;
+}
+
+.sl-capstepper__value {
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 700;
+  min-width: 26px;
+  text-align: center;
+  color: var(--color-text);
+}
+
 /* ── Action row ────────────────────────────────────────────────────────── */
 
 .settings-actions {

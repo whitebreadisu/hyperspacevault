@@ -40,6 +40,41 @@ import type {
 //     by the three-way control's own render/derive/save tests below (the
 //     radio mechanics are the same shape, just three options instead of two,
 //     with "No limits" newly mapped to the all-null-cells payload).
+//
+// BL-182 DISPOSITION (adds user-defined numeric caps -- Leaders & Bases /
+// all other cards -- alongside the existing three-way selection):
+//
+// PORT (unchanged behavior, still exercised byte-for-byte):
+//   - "renders exactly three options with Hard cap selected by default"
+//     -- EXTENDED (not just ported) to also assert the default stepper
+//     values (1 / 3), since that's now part of "default render state".
+//   - "renders Soft cap selected when the fetched tenant is already soft"
+//   - "derives 'No limits' selected when every fetched cell is
+//     max_quantity null..." -- EXTENDED to assert both steppers show the
+//     category defaults and are disabled while inert.
+//   - "picking Hard/Soft cap ... saves overrides [] / cap_mode X" (x2) --
+//     unchanged: both caps stay at their defaults in these tests, so the
+//     BL-182 save path (buildCapOverrides) still emits [] exactly like the
+//     pre-BL-182 unconditional overrides:[] did. This is also the "defaults
+//     save []" coverage the BL-182 spec calls for explicitly.
+//   - "picking No limits saves all 30 cells as max_quantity null with
+//     cap_mode hard" -- unchanged; the all-null payload is untouched by
+//     BL-182.
+//   - dirty gating (undirty on re-selecting fetched state, discard reverts
+//     without a PUT), error handling (401 / generic banner), and the danger
+//     zone block are all unaffected by BL-182 and ported verbatim.
+//
+// NEW (BL-182 coverage the old three-way-only suite couldn't have had):
+//   - "SettingsPage cap steppers" describe block: default display,
+//     uniform-raised-matrix derivation, partial/mixed-matrix and
+//     null-mixed-in fallback to default, floor/ceiling button disabling,
+//     inert-under-"No limits", cap-change dirties the page, discard
+//     restores caps.
+//   - "SettingsPage cap save payloads" describe block: raising only the
+//     singleton cap saves 15 uniform rows + cap_mode; raising both caps
+//     saves 30 rows; defaults still save [].
+//
+// No test from the pre-BL-182 suite was deleted without a disposition above.
 
 // LimitsApiError is a real class (the same vi.hoisted pattern
 // CardPopup.test.tsx uses for EmailNotVerifiedError) so the
@@ -110,6 +145,16 @@ function allUnlimitedMatrix(): LimitCell[] {
   return cells;
 }
 
+/** BL-182: all 15 buckets of a single category overridden to the same
+ * value -- the only shape that derives into a raised stepper value. */
+function categoryOverrides(category: TypeCategory, value: number | null): OverrideSpec[] {
+  return CANONICAL_BUCKETS.map((bucket) => ({
+    type_category: category,
+    limit_bucket: bucket,
+    max_quantity: value,
+  }));
+}
+
 /** The full GET/PUT response body (limits + cap_mode). */
 function fullBody(overrides: OverrideSpec[] = [], capMode: CapMode = "hard"): LimitsResponseBody {
   return { limits: fullMatrix(overrides), cap_mode: capMode };
@@ -142,12 +187,30 @@ const hardRadio = () => screen.getByRole("radio", { name: /hard cap/i }) as HTML
 const softRadio = () => screen.getByRole("radio", { name: /soft cap/i }) as HTMLInputElement;
 const noneRadio = () => screen.getByRole("radio", { name: /no limits/i }) as HTMLInputElement;
 
+// BL-182: stepper accessors. Buttons are found by their aria-labels; the
+// numeric readout has no accessible role of its own, so it's read off the
+// DOM from the stepper container the matching label text lives in.
+const singletonDec = () =>
+  screen.getByRole("button", { name: /decrease leaders & bases cap/i }) as HTMLButtonElement;
+const singletonInc = () =>
+  screen.getByRole("button", { name: /increase leaders & bases cap/i }) as HTMLButtonElement;
+const standardDec = () =>
+  screen.getByRole("button", { name: /decrease all other cards cap/i }) as HTMLButtonElement;
+const standardInc = () =>
+  screen.getByRole("button", { name: /increase all other cards cap/i }) as HTMLButtonElement;
+
+function stepperValue(labelText: string): string {
+  const title = screen.getByText(labelText);
+  const stepper = title.closest(".sl-capstepper") as HTMLElement;
+  return stepper.querySelector(".sl-capstepper__value")?.textContent ?? "";
+}
+
 describe("SettingsPage keep-limit enforcement control (ADR-0013)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders exactly three options with Hard cap selected by default", async () => {
+  it("renders exactly three options with Hard cap selected by default, caps at 1 / 3 (BL-182)", async () => {
     await renderPage();
 
     expect(hardRadio().checked).toBe(true);
@@ -155,6 +218,8 @@ describe("SettingsPage keep-limit enforcement control (ADR-0013)", () => {
     expect(noneRadio().checked).toBe(false);
     expect(screen.getAllByRole("radio")).toHaveLength(3);
     expect(saveBtn().disabled).toBe(true);
+    expect(stepperValue("LEADERS & BASES")).toBe("1");
+    expect(stepperValue("ALL OTHER CARDS")).toBe("3");
   });
 
   it("renders Soft cap selected when the fetched tenant is already soft", async () => {
@@ -169,6 +234,11 @@ describe("SettingsPage keep-limit enforcement control (ADR-0013)", () => {
     expect(noneRadio().checked).toBe(true);
     expect(hardRadio().checked).toBe(false);
     expect(saveBtn().disabled).toBe(true);
+    // BL-182: steppers still display the category defaults while inert.
+    expect(stepperValue("LEADERS & BASES")).toBe("1");
+    expect(stepperValue("ALL OTHER CARDS")).toBe("3");
+    expect(singletonDec().disabled).toBe(true);
+    expect(singletonInc().disabled).toBe(true);
   });
 
   it("picking Hard cap after a non-hard fetch dirties the page and saves overrides [] / cap_mode hard", async () => {
@@ -228,6 +298,167 @@ describe("SettingsPage keep-limit enforcement control (ADR-0013)", () => {
     // Re-rendered from the response: still shows as "No limits".
     expect(noneRadio().checked).toBe(true);
     expect(saveBtn().disabled).toBe(true);
+  });
+});
+
+describe("SettingsPage cap steppers (BL-182)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("derives a uniform raised override across all 15 buckets of a category into its stepper value", async () => {
+    await renderPage(fullBody(categoryOverrides("singleton", 5)));
+
+    expect(stepperValue("LEADERS & BASES")).toBe("5");
+    expect(stepperValue("ALL OTHER CARDS")).toBe("3");
+  });
+
+  it("a partial override set for a category displays the category default, not a raised value", async () => {
+    const partial: OverrideSpec[] = CANONICAL_BUCKETS.slice(0, 3).map((bucket) => ({
+      type_category: "singleton",
+      limit_bucket: bucket,
+      max_quantity: 5,
+    }));
+    await renderPage(fullBody(partial));
+
+    expect(stepperValue("LEADERS & BASES")).toBe("1");
+  });
+
+  it("mixed non-uniform override values for a category display the category default", async () => {
+    const mixed: OverrideSpec[] = CANONICAL_BUCKETS.map((bucket, i) => ({
+      type_category: "standard",
+      limit_bucket: bucket,
+      max_quantity: i % 2 === 0 ? 5 : 6,
+    }));
+    await renderPage(fullBody(mixed));
+
+    expect(stepperValue("ALL OTHER CARDS")).toBe("3");
+  });
+
+  it("a null mixed into an otherwise-uniform override set displays the category default", async () => {
+    const overrides = categoryOverrides("singleton", 5);
+    overrides[0] = { ...overrides[0], max_quantity: null };
+    await renderPage(fullBody(overrides));
+
+    expect(stepperValue("LEADERS & BASES")).toBe("1");
+  });
+
+  it("the decrement button is disabled at each category's floor", async () => {
+    await renderPage();
+
+    expect(singletonDec().disabled).toBe(true); // floor 1
+    expect(standardDec().disabled).toBe(true); // floor 3
+    expect(singletonInc().disabled).toBe(false);
+    expect(standardInc().disabled).toBe(false);
+  });
+
+  it("the increment button is disabled at the 999 ceiling", async () => {
+    await renderPage(fullBody(categoryOverrides("singleton", 999)));
+
+    expect(singletonInc().disabled).toBe(true);
+    expect(singletonDec().disabled).toBe(false);
+  });
+
+  it("both steppers are inert (buttons disabled) when 'No limits' is selected", async () => {
+    await renderPage();
+
+    fireEvent.click(noneRadio());
+
+    expect(singletonDec().disabled).toBe(true);
+    expect(singletonInc().disabled).toBe(true);
+    expect(standardDec().disabled).toBe(true);
+    expect(standardInc().disabled).toBe(true);
+  });
+
+  it("raising a stepper value makes the page dirty without touching a radio", async () => {
+    await renderPage();
+    expect(saveBtn().disabled).toBe(true);
+
+    fireEvent.click(singletonInc());
+
+    expect(stepperValue("LEADERS & BASES")).toBe("2");
+    expect(saveBtn().disabled).toBe(false);
+  });
+
+  it("discard restores the fetched cap values without a PUT", async () => {
+    await renderPage();
+
+    fireEvent.click(singletonInc());
+    fireEvent.click(standardInc());
+    expect(saveBtn().disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /discard changes/i }));
+
+    expect(stepperValue("LEADERS & BASES")).toBe("1");
+    expect(stepperValue("ALL OTHER CARDS")).toBe("3");
+    expect(saveBtn().disabled).toBe(true);
+    expect(putLimits).not.toHaveBeenCalled();
+  });
+});
+
+describe("SettingsPage cap save payloads (BL-182)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("raising only the singleton cap saves 15 uniform singleton rows plus cap_mode", async () => {
+    await renderPage();
+    putLimits.mockResolvedValue(fullBody(categoryOverrides("singleton", 2), "hard"));
+
+    fireEvent.click(singletonInc()); // 1 -> 2
+    expect(saveBtn().disabled).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(saveBtn());
+    });
+
+    expect(putLimits).toHaveBeenCalledTimes(1);
+    const [sentOverrides, sentCapMode] = putLimits.mock.calls[0] as [OverrideSpec[], CapMode];
+    expect(sentCapMode).toBe("hard");
+    expect(sentOverrides).toHaveLength(15);
+    expect(
+      sentOverrides.every((c) => c.type_category === "singleton" && c.max_quantity === 2)
+    ).toBe(true);
+    for (const bucket of CANONICAL_BUCKETS) {
+      expect(sentOverrides.some((c) => c.limit_bucket === bucket)).toBe(true);
+    }
+  });
+
+  it("raising both caps saves 30 rows (15 per category) at their respective values", async () => {
+    await renderPage(fullBody([], "soft"));
+    putLimits.mockResolvedValue(
+      fullBody([...categoryOverrides("singleton", 2), ...categoryOverrides("standard", 4)], "soft")
+    );
+
+    fireEvent.click(singletonInc()); // 1 -> 2
+    fireEvent.click(standardInc()); // 3 -> 4
+    expect(saveBtn().disabled).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(saveBtn());
+    });
+
+    const [sentOverrides, sentCapMode] = putLimits.mock.calls[0] as [OverrideSpec[], CapMode];
+    expect(sentCapMode).toBe("soft");
+    expect(sentOverrides).toHaveLength(30);
+    expect(
+      sentOverrides.filter((c) => c.type_category === "singleton" && c.max_quantity === 2)
+    ).toHaveLength(15);
+    expect(
+      sentOverrides.filter((c) => c.type_category === "standard" && c.max_quantity === 4)
+    ).toHaveLength(15);
+  });
+
+  it("saving hard/soft with both caps left at their defaults sends overrides [] (BL-182's defaults-save-[] guarantee)", async () => {
+    await renderPage(fullBody([], "soft"));
+    putLimits.mockResolvedValue(fullBody([], "hard"));
+
+    fireEvent.click(hardRadio());
+    await act(async () => {
+      fireEvent.click(saveBtn());
+    });
+
+    expect(putLimits).toHaveBeenCalledWith([], "hard");
   });
 });
 
