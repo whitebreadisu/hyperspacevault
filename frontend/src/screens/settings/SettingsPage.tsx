@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { useLimits } from "../../context/LimitsContext";
 import { LimitsApiError } from "../../api/settingsLimits";
-import type { CapMode, LimitCell, LimitOverrideInput } from "../../api/settingsLimits";
-import { ALL_TYPE_CATEGORIES, CANONICAL_BUCKETS } from "../../utils/limits";
+import type {
+  CapMode,
+  LimitCell,
+  LimitOverrideInput,
+  TypeCategory,
+} from "../../api/settingsLimits";
+import {
+  ALL_TYPE_CATEGORIES,
+  CANONICAL_BUCKETS,
+  DEFAULT_LIMITS,
+  QUANTITY_CEILING,
+} from "../../utils/limits";
+import { CapStepper } from "./CapStepper";
 import "./SettingsPage.css";
 
 /** BL-25/BL-35/ADR-0013: dedicated full-page settings surface (not a modal),
@@ -24,11 +35,27 @@ import "./SettingsPage.css";
  *
  * Save model unchanged: an explicit Save/Discard for the whole page (not an
  * immediate save on radio click), matching the rest of the app's mutation
- * pattern (Add Cards commits a batch, modals submit forms). Switching the
- * three-way selection deliberately resets any per-bucket overrides that only
- * the API could still produce (e.g. a prior pre-ADR-0013 session, or a
- * future non-UI client) -- the control owns the full override contract from
- * here on.
+ * pattern (Add Cards commits a batch, modals submit forms).
+ *
+ * BL-182 extends the three-way control with two numeric cap steppers
+ * (Leaders & Bases / all other cards) so the keep-limits themselves are
+ * user-defined rather than the fixed 1/3 code defaults. This replaces the
+ * ADR-0013-era behavior where hard/soft saved overrides: [] unconditionally
+ * (wiping any numeric overrides down to the code defaults) -- hard/soft now
+ * save 15-row overrides per category that differs from its default (floor 1
+ * for Leaders & Bases, floor 3 for everything else; both ceilinged at the
+ * existing QUANTITY_CEILING of 999), and a category left at its default
+ * still contributes zero override rows, so a plain hard/soft pick with both
+ * steppers untouched round-trips as overrides: [] exactly as before. "No
+ * limits" is unchanged: still the all-30-cells-null payload with cap_mode
+ * "hard", and its steppers go inert (present, disabled) rather than
+ * disappearing. A fetched matrix only displays a raised stepper value when
+ * ALL 15 buckets of that category carry the SAME non-null override -- any
+ * other shape (no overrides, partial, mixed values, or a null mixed in,
+ * including a matrix from a prior pre-BL-182 session or a non-UI client)
+ * displays the category default and normalizes to it on the next save. The
+ * control still owns the full per-bucket override contract; this just moves
+ * the two numbers it writes from hardcoded constants to page state.
  *
  * BL-129 R5: a "danger zone" section at the bottom of the page now holds the
  * Delete Account trigger, relocated from the avatar dropdown (UserMenu) --
@@ -44,8 +71,7 @@ const OPTIONS: { value: Selection; title: string; description: string }[] = [
   {
     value: "hard",
     title: "Hard cap",
-    description:
-      "At a card's keep-limit (3 copies, or 1 for Leaders and Bases), adding more is blocked.",
+    description: "At a card's keep-limit, adding more is blocked.",
   },
   {
     value: "soft",
@@ -72,6 +98,50 @@ function deriveSelection(cells: LimitCell[], capMode: CapMode): Selection {
   return capMode;
 }
 
+/** BL-182: the floor each category's stepper can't go below -- the same
+ * code default as its unconfigured value (utils/limits.ts DEFAULT_LIMITS),
+ * matching the spec's "Leaders & Bases floor 1 / everything else floor 3". */
+const CATEGORY_FLOOR: Record<TypeCategory, number> = DEFAULT_LIMITS;
+
+function clamp(value: number, floor: number, ceiling: number): number {
+  return Math.min(ceiling, Math.max(floor, value));
+}
+
+/** BL-182: a category's displayed cap. Only a matrix where ALL 15 of that
+ * category's buckets carry the exact same non-null override value displays
+ * that value (clamped into [floor, ceiling] in case a non-UI client wrote
+ * something outside the current stepper bounds); no overrides, a partial
+ * set, mixed values, or a null mixed in (including the all-null "No limits"
+ * matrix, a subset of "all null") all fall back to the category default --
+ * the API-era per-bucket precision the control no longer expresses. */
+function deriveCap(cells: LimitCell[], category: TypeCategory): number {
+  const values = cells
+    .filter((cell) => cell.type_category === category)
+    .map((cell) => cell.max_quantity);
+  const [first] = values;
+  const uniform = values.length > 0 && values.every((v) => v === first);
+  if (uniform && first !== null) {
+    return clamp(first, CATEGORY_FLOOR[category], QUANTITY_CEILING);
+  }
+  return DEFAULT_LIMITS[category];
+}
+
+/** The page's full draft state: the three-way selection plus the two
+ * category caps the steppers show/edit. */
+interface Draft {
+  selection: Selection;
+  singletonCap: number;
+  standardCap: number;
+}
+
+function deriveDraft(cells: LimitCell[], capMode: CapMode): Draft {
+  return {
+    selection: deriveSelection(cells, capMode),
+    singletonCap: deriveCap(cells, "singleton"),
+    standardCap: deriveCap(cells, "standard"),
+  };
+}
+
 /** All 30 (type_category, limit_bucket) cells forced to "No limit" -- the
  * override payload for the "No limits" selection. */
 function allCellsUnlimited(): LimitOverrideInput[] {
@@ -79,6 +149,26 @@ function allCellsUnlimited(): LimitOverrideInput[] {
   for (const category of ALL_TYPE_CATEGORIES) {
     for (const bucket of CANONICAL_BUCKETS) {
       overrides.push({ type_category: category, limit_bucket: bucket, max_quantity: null });
+    }
+  }
+  return overrides;
+}
+
+/** BL-182: the hard/soft override payload -- 15 rows per category whose cap
+ * differs from its default, none for a category left at its default (so
+ * both steppers untouched still saves overrides: [], matching the pre-BL-182
+ * behavior byte for byte). */
+function buildCapOverrides(singletonCap: number, standardCap: number): LimitOverrideInput[] {
+  const caps: Record<TypeCategory, number> = { singleton: singletonCap, standard: standardCap };
+  const overrides: LimitOverrideInput[] = [];
+  for (const category of ALL_TYPE_CATEGORIES) {
+    if (caps[category] === DEFAULT_LIMITS[category]) continue;
+    for (const bucket of CANONICAL_BUCKETS) {
+      overrides.push({
+        type_category: category,
+        limit_bucket: bucket,
+        max_quantity: caps[category],
+      });
     }
   }
   return overrides;
@@ -100,17 +190,17 @@ interface Props {
 
 export function SettingsPage({ onDeleteAccount }: Props) {
   const { cells, capMode, save } = useLimits();
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Rebuild the draft whenever the server truth changes -- initial fetch and
   // every successful save (the PUT response's new effective body).
   useEffect(() => {
-    setSelection(cells ? deriveSelection(cells, capMode) : null);
+    setDraft(cells ? deriveDraft(cells, capMode) : null);
   }, [cells, capMode]);
 
-  if (!cells || selection === null) {
+  if (!cells || draft === null) {
     return (
       <div className="screen settings-screen">
         <h1 className="screen-heading">Settings</h1>
@@ -119,18 +209,42 @@ export function SettingsPage({ onDeleteAccount }: Props) {
     );
   }
 
-  const serverSelection = deriveSelection(cells, capMode);
-  const dirty = selection !== serverSelection;
+  const serverDraft = deriveDraft(cells, capMode);
+  const dirty =
+    draft.selection !== serverDraft.selection ||
+    draft.singletonCap !== serverDraft.singletonCap ||
+    draft.standardCap !== serverDraft.standardCap;
+  const capsInert = draft.selection === "none";
+
+  function setSelection(value: Selection) {
+    setDraft((prev) => (prev ? { ...prev, selection: value } : prev));
+  }
+
+  function setSingletonCap(value: number) {
+    setDraft((prev) =>
+      prev
+        ? { ...prev, singletonCap: clamp(value, CATEGORY_FLOOR.singleton, QUANTITY_CEILING) }
+        : prev
+    );
+  }
+
+  function setStandardCap(value: number) {
+    setDraft((prev) =>
+      prev
+        ? { ...prev, standardCap: clamp(value, CATEGORY_FLOOR.standard, QUANTITY_CEILING) }
+        : prev
+    );
+  }
 
   async function handleSave() {
-    if (selection === null) return;
+    if (draft === null) return;
     setSaving(true);
     setError(null);
     try {
-      if (selection === "none") {
+      if (draft.selection === "none") {
         await save(allCellsUnlimited(), "hard");
       } else {
-        await save([], selection);
+        await save(buildCapOverrides(draft.singletonCap, draft.standardCap), draft.selection);
       }
     } catch (err) {
       setError(describeError(err));
@@ -140,12 +254,55 @@ export function SettingsPage({ onDeleteAccount }: Props) {
   }
 
   function handleDiscard() {
-    setSelection(serverSelection);
+    setDraft(serverDraft);
   }
 
   return (
     <div className="screen settings-screen">
       <h1 className="screen-heading">Settings</h1>
+
+      {/* BL-182 round 2: the keep-limits themselves get their own section
+          (concept explainer + the two category steppers), ABOVE enforcement --
+          what the limit IS before what happens AT it. One shared draft/save
+          still spans both sections; the action row stays at the bottom of the
+          enforcement section. */}
+      <section className="settings-section" aria-labelledby="settings-keeplimits-title">
+        <div className="settings-section__head">
+          <h2 className="settings-section__title" id="settings-keeplimits-title">
+            Keep-limits
+          </h2>
+          <p className="settings-section__blurb">
+            A keep-limit is the most copies of a card your inventory holds before the cap applies.
+            Keep-limits are per variant, not per card — each printing of a card (Standard, Foil,
+            Hyperspace, and so on) counts toward its own limit independently.
+          </p>
+        </div>
+
+        <div className="sl-capsteppers">
+          <CapStepper
+            label="LEADERS & BASES"
+            ariaName="Leaders & Bases"
+            floorHint={`min ${CATEGORY_FLOOR.singleton}`}
+            value={draft.singletonCap}
+            floor={CATEGORY_FLOOR.singleton}
+            ceiling={QUANTITY_CEILING}
+            disabled={saving || capsInert}
+            onDecrement={() => setSingletonCap(draft.singletonCap - 1)}
+            onIncrement={() => setSingletonCap(draft.singletonCap + 1)}
+          />
+          <CapStepper
+            label="ALL OTHER CARDS"
+            ariaName="All other cards"
+            floorHint={`min ${CATEGORY_FLOOR.standard}`}
+            value={draft.standardCap}
+            floor={CATEGORY_FLOOR.standard}
+            ceiling={QUANTITY_CEILING}
+            disabled={saving || capsInert}
+            onDecrement={() => setStandardCap(draft.standardCap - 1)}
+            onIncrement={() => setStandardCap(draft.standardCap + 1)}
+          />
+        </div>
+      </section>
 
       <section className="settings-section" aria-labelledby="settings-capmode-title">
         <div className="settings-section__head">
@@ -153,7 +310,8 @@ export function SettingsPage({ onDeleteAccount }: Props) {
             Keep-limit enforcement
           </h2>
           <p className="settings-section__blurb">
-            What happens when a variant is at (or past) its keep-limit and you add another copy.
+            What happens when a variant is at (or past) its keep-limit above and you add another
+            copy.
           </p>
         </div>
 
@@ -170,7 +328,7 @@ export function SettingsPage({ onDeleteAccount }: Props) {
                 type="radio"
                 name="cap-mode"
                 value={value}
-                checked={selection === value}
+                checked={draft.selection === value}
                 disabled={saving}
                 onChange={() => setSelection(value)}
               />
