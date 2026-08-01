@@ -261,14 +261,57 @@ export function SettingsPage({ onDeleteAccount }: Props) {
     <div className="screen settings-screen">
       <h1 className="screen-heading">Settings</h1>
 
+      {/* BL-182 round 2: the keep-limits themselves get their own section
+          (concept explainer + the two category steppers), ABOVE enforcement --
+          what the limit IS before what happens AT it. One shared draft/save
+          still spans both sections; the action row stays at the bottom of the
+          enforcement section. */}
+      <section className="settings-section" aria-labelledby="settings-keeplimits-title">
+        <div className="settings-section__head">
+          <h2 className="settings-section__title" id="settings-keeplimits-title">
+            Keep-limits
+          </h2>
+          <p className="settings-section__blurb">
+            A keep-limit is the most copies of a card your inventory holds before the cap applies.
+            Keep-limits are per variant, not per card — each printing of a card (Standard, Foil,
+            Hyperspace, and so on) counts toward its own limit independently.
+          </p>
+        </div>
+
+        <div className="sl-capsteppers">
+          <CapStepper
+            label="LEADERS & BASES"
+            ariaName="Leaders & Bases"
+            floorHint={`min ${CATEGORY_FLOOR.singleton}`}
+            value={draft.singletonCap}
+            floor={CATEGORY_FLOOR.singleton}
+            ceiling={QUANTITY_CEILING}
+            disabled={saving || capsInert}
+            onDecrement={() => setSingletonCap(draft.singletonCap - 1)}
+            onIncrement={() => setSingletonCap(draft.singletonCap + 1)}
+          />
+          <CapStepper
+            label="ALL OTHER CARDS"
+            ariaName="All other cards"
+            floorHint={`min ${CATEGORY_FLOOR.standard}`}
+            value={draft.standardCap}
+            floor={CATEGORY_FLOOR.standard}
+            ceiling={QUANTITY_CEILING}
+            disabled={saving || capsInert}
+            onDecrement={() => setStandardCap(draft.standardCap - 1)}
+            onIncrement={() => setStandardCap(draft.standardCap + 1)}
+          />
+        </div>
+      </section>
+
       <section className="settings-section" aria-labelledby="settings-capmode-title">
         <div className="settings-section__head">
           <h2 className="settings-section__title" id="settings-capmode-title">
             Keep-limit enforcement
           </h2>
           <p className="settings-section__blurb">
-            What happens when a variant is at (or past) its keep-limit and you add another copy. The
-            keep-limits themselves are set below.
+            What happens when a variant is at (or past) its keep-limit above and you add another
+            copy.
           </p>
         </div>
 
@@ -295,31 +338,6 @@ export function SettingsPage({ onDeleteAccount }: Props) {
               </span>
             </label>
           ))}
-        </div>
-
-        <div className="sl-capsteppers">
-          <CapStepper
-            label="LEADERS & BASES"
-            ariaName="Leaders & Bases"
-            floorHint={`min ${CATEGORY_FLOOR.singleton}`}
-            value={draft.singletonCap}
-            floor={CATEGORY_FLOOR.singleton}
-            ceiling={QUANTITY_CEILING}
-            disabled={saving || capsInert}
-            onDecrement={() => setSingletonCap(draft.singletonCap - 1)}
-            onIncrement={() => setSingletonCap(draft.singletonCap + 1)}
-          />
-          <CapStepper
-            label="ALL OTHER CARDS"
-            ariaName="All other cards"
-            floorHint={`min ${CATEGORY_FLOOR.standard}`}
-            value={draft.standardCap}
-            floor={CATEGORY_FLOOR.standard}
-            ceiling={QUANTITY_CEILING}
-            disabled={saving || capsInert}
-            onDecrement={() => setStandardCap(draft.standardCap - 1)}
-            onIncrement={() => setStandardCap(draft.standardCap + 1)}
-          />
         </div>
 
         <div className="settings-actions">
