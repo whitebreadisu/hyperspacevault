@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { ValueSwitch } from "./VariantScopeControls";
 import type { VariantDetail } from "../../api/baseCards";
-import { variantLabel } from "./cardPopupShared";
+import { variantLabel, orderVariants } from "./cardPopupShared";
 import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
 
 /** BL-155 decomposition: printings rail, pulled out of CardPopup.tsx
@@ -10,26 +10,9 @@ import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
  * heading, the always-on compact price-history embed, and the rail-footer
  * attribution line. See CardPopupPriceHistory.tsx for the history embed
  * itself and cardPopupShared.ts for variantLabel (shared with
- * CardPopupInventory.tsx's aria-labels). */
-
-/** Ordering for the printings picker (design handoff §5 / mock): base set
- * first (the card's own set_code), then other source sets alphabetically,
- * then card_number ascending within each set. */
-function orderVariants(variants: VariantDetail[], baseSetCode: string): VariantDetail[] {
-  const numericNumber = (v: VariantDetail) => {
-    const n = Number(v.card_number);
-    return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
-  };
-  return [...variants].sort((a, b) => {
-    const aBase = a.source_set_code === baseSetCode ? 0 : 1;
-    const bBase = b.source_set_code === baseSetCode ? 0 : 1;
-    if (aBase !== bBase) return aBase - bBase;
-    if (a.source_set_code !== b.source_set_code) {
-      return a.source_set_code.localeCompare(b.source_set_code);
-    }
-    return numericNumber(a) - numericNumber(b);
-  });
-}
+ * CardPopupInventory.tsx's aria-labels) and orderVariants (BL-192: moved
+ * there so the shell's up/down keyboard cycle uses the identical ordering
+ * rule, not a second hand-kept copy). */
 
 interface PrintingGroup {
   setCode: string;
@@ -179,6 +162,11 @@ export function CardPopupRail({
                   className={`cp-rail__item${active ? " cp-rail__item--active" : ""}`}
                   aria-pressed={active}
                   title={variantLabel(v)}
+                  // BL-192: lookup hook for the up/down keyboard cycle's
+                  // scrollIntoView -- the shell finds this row by id after a
+                  // keyboard cycle to bring it into view (click never needs
+                  // this, the user already sees the row they clicked).
+                  data-variant-id={v.variant_id}
                   onClick={() => onSelectVariant(v.variant_id)}
                 >
                   <span className="cp-rail__item-finish">{v.finish ?? v.variant_type}</span>

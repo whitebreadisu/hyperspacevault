@@ -11,9 +11,15 @@ import { RarityBadge } from "../../components/RarityBadge";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { CardPopupRail, type PriceRailMode } from "./CardPopupRail";
 import { CardPopupExpandedHistory } from "./CardPopupPriceHistory";
-import { CardPopupNavButtons, useArrowKeyNavigation } from "./CardPopupNav";
+import {
+  CardPopupNavButtons,
+  useArrowKeyNavigation,
+  useVariantCycleKeys,
+  type VariantCycleContext,
+} from "./CardPopupNav";
 import { CardPopupInventoryControls, useInventoryMutation } from "./CardPopupInventory";
 import type { CardPopupNavigation } from "./CardPopupNav";
+import { orderVariants } from "./cardPopupShared";
 import "./CardPopup.css";
 
 export type { CardPopupNavigation };
@@ -249,6 +255,41 @@ export function CardPopup({
     setFrontAspect(null);
     setBackAspect(null);
   }, []);
+
+  // BL-192: up/down arrows cycle the rail selection -- routed through the
+  // SAME selectVariant used by a rail click (never setSelectedVariantId
+  // directly), so a keyboard cycle triggers everything a click does (image
+  // swap, per-variant quantity state, price-history re-fetch, and the
+  // flip/aspect reset above). orderVariants here is the identical ordering
+  // rule CardPopupRail renders (cardPopupShared.ts), so "down" always means
+  // the same "next row" the rail shows -- kept as its own memo (rather than
+  // reading CardPopupRail's internal one) since the rail only renders once
+  // `detail` has resolved, but this hook must stay wired even while loading.
+  const orderedVariantIds = useMemo(
+    () => (detail ? orderVariants(variants, detail.set_code).map((v) => v.variant_id) : []),
+    [variants, detail]
+  );
+  // BL-192: keyboard-only scrollIntoView -- a rail click never needs it (the
+  // user is already looking at the row they clicked). Looked up by the
+  // BL-192 data-variant-id attribute rather than waiting for the next
+  // render's `.cp-rail__item--active` class, since the target row's DOM
+  // node already exists (every printing renders at once; only the active
+  // class moves) -- no need to wait on the setSelectedVariantId re-render.
+  const selectVariantViaKeyboard = useCallback(
+    (variantId: number) => {
+      selectVariant(variantId);
+      const row = document.querySelector<HTMLElement>(
+        `.cp-rail__item[data-variant-id="${variantId}"]`
+      );
+      row?.scrollIntoView({ block: "nearest" });
+    },
+    [selectVariant]
+  );
+  const variantCycleContext: VariantCycleContext | undefined =
+    orderedVariantIds.length > 0
+      ? { orderedVariantIds, selectedVariantId, onSelect: selectVariantViaKeyboard }
+      : undefined;
+  useVariantCycleKeys(variantCycleContext);
 
   /** BL-111 dev-review wave 1 fix 2: kicks off the "out" half of the flip;
    * ignored while a flip is already in flight so rapid clicks can't

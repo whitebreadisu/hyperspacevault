@@ -59,3 +59,14 @@ Object.defineProperty(window, "innerWidth", {
   writable: true,
   value: 2400,
 });
+
+// BL-192: jsdom implements no scroll layout, so it has no scrollIntoView at
+// all (unlike offsetHeight/offsetWidth above, which jsdom DOES define, just
+// always at 0) -- the card popup's up/down variant-cycle keyboard shortcut
+// calls it on the newly active rail row, which throws "not a function" under
+// jsdom without this stub. A no-op is sufficient: no test in this suite
+// asserts actual scroll position, only that the call happens (see
+// CardPopup.test.tsx's BL-192 describe block).
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
