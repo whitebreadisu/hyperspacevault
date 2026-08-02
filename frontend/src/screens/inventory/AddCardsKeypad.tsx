@@ -108,7 +108,7 @@ function AxisField({
       <div className="ac-pad__resolve-variant">
         <span className="ac-pad__label">{label}</span>
         <select
-          className="ac-select"
+          className={`ac-select${axis.defaulted ? " ac-select--attention" : ""}`}
           value={draftValue ?? axis.value ?? ""}
           aria-label={label}
           onChange={(e) => onChange(e.target.value || null)}
@@ -389,6 +389,15 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
             {state && !isResolved && !cardNeedsPick && (
               <div className="ac-pad__resolve-sub" style={{ color: "var(--color-primary)" }}>
                 Pick the highlighted option to enable Add Card.
+              </div>
+            )}
+            {/* BL-191: SOR/SHD/TWI shared-number cards default Finish to the
+                probable (non-foil) printing rather than blocking on a pick --
+                foils exist at far lower quantities. The picker stays open for
+                override; this cue just flags that the number is shared. */}
+            {state?.finish.defaulted && (
+              <div className="ac-pad__resolve-sub" style={{ color: "var(--color-warning)" }}>
+                Card number is shared across variants — verify selection.
               </div>
             )}
           </div>

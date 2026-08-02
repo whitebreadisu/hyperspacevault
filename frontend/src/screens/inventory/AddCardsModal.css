@@ -323,6 +323,15 @@
 .ac-input--error:focus {
   border-color: #ef4444;
 }
+/* BL-191: Finish defaults to the probable (non-foil) printing on shared-number
+   early-set cards rather than blocking -- this amber attention treatment cues
+   "defaulted, please verify" without the harder red error affordance above. */
+.ac-select--attention {
+  border-color: var(--color-warning);
+}
+.ac-select--attention:focus {
+  border-color: var(--color-warning);
+}
 
 .ac-select {
   appearance: none;

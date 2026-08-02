@@ -381,6 +381,32 @@ const secHyperspace = makeCard({
   source_set_code: "SEC",
 });
 
+// SOR #777: synthetic Prestige std/foil pair -- BL-191's conservative-guard
+// fixture. Neither finish string is "Standard" or "Hyperspace", so the
+// default rule doesn't apply and this stays a required pick.
+const sorPrestigeStd = makeCard({
+  id: 30,
+  base_card_id: 30,
+  base_card_number: "777",
+  card_number: "777",
+  type: "Leader",
+  name: "Prestige Test Card",
+  subtitle: null,
+  finish: "Standard Prestige",
+  variant_type: "Standard Prestige",
+});
+const sorPrestigeFoil = makeCard({
+  id: 31,
+  base_card_id: 30,
+  base_card_number: "777",
+  card_number: "777",
+  type: "Leader",
+  name: "Prestige Test Card",
+  subtitle: null,
+  finish: "Foil Prestige",
+  variant_type: "Foil Prestige",
+});
+
 const catalog: CardWithQty[] = [
   sorCapCity,
   sorVeersWp,
@@ -404,6 +430,8 @@ const catalog: CardWithQty[] = [
   secpCantwell,
   secpCompanionA,
   secJudgeCompanionB,
+  sorPrestigeStd,
+  sorPrestigeFoil,
 ];
 
 // ─── decompose ────────────────────────────────────────────────────────────────
@@ -588,13 +616,20 @@ describe("resolveRow — card axis", () => {
     }
   });
 
-  it("after choosing General Veers at #20, the finish axis becomes a required pick", () => {
+  // DISPOSITION (BL-191 — default the finish on shared-number early-set
+  // cards, REPLACE): this used to assert `pending` + `needsPick` once General
+  // Veers narrowed the card pick -- the finish axis now defaults to Standard
+  // immediately (same rule exercised directly in "resolveRow — finish axis"
+  // below), still overridable via the Finish options.
+  it("after choosing General Veers at #20, the finish axis defaults to Standard — BL-191", () => {
     const result = resolveRow(makeRow({ cardNumber: "20", cardKey: VEERS }), catalog);
-    expect(result.status).toBe("pending");
-    if (result.status === "pending") {
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
       expect(result.name).toBe("General Veers");
       expect(result.set.value).toBe("Weekly Play");
-      expect(result.finish.needsPick).toBe(true);
+      expect(result.finish.value).toBe("Standard");
+      expect(result.finish.needsPick).toBe(false);
+      expect(result.finish.defaulted).toBe(true);
       expect(result.finish.options).toEqual(["Standard", "Standard Foil"]);
     }
   });
@@ -744,20 +779,47 @@ describe("resolveRow — stamp axis", () => {
 // ─── Finish axis ──────────────────────────────────────────────────────────────
 
 describe("resolveRow — finish axis", () => {
-  it("makes finish a required pick when a card_number maps to >1 finish (standard/foil)", () => {
+  // DISPOSITION (BL-191 — default the finish for shared-number early-set
+  // cards, REPLACE): these two used to assert `pending` + `needsPick` for
+  // every multi-finish card_number. The resolver now defaults to the
+  // probable (non-foil) finish -- Standard / Hyperspace -- and resolves
+  // immediately, keeping the picker up (both options) as an overridable,
+  // cued default rather than a block. The explicit-pick and single-option
+  // tests below are UNCHANGED (existing explicit-selection path).
+  it("defaults finish to Standard when a card_number maps to >1 finish (standard/foil) — BL-191", () => {
     const result = resolveRow(makeRow({ cardNumber: "69" }), catalog);
-    expect(result.status).toBe("pending");
-    if (result.status === "pending") {
-      expect(result.finish.needsPick).toBe(true);
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
+      expect(result.variantId).toBe(sorResilient.id);
+      expect(result.finish.value).toBe("Standard");
+      expect(result.finish.needsPick).toBe(false);
+      expect(result.finish.defaulted).toBe(true);
       expect(result.finish.options).toEqual(["Standard", "Standard Foil"]);
     }
   });
 
-  it("makes finish a required pick for the hyperspace/hyperspace-foil pair", () => {
+  it("defaults finish to Hyperspace for the hyperspace/hyperspace-foil pair — BL-191", () => {
     const result = resolveRow(makeRow({ cardNumber: "334" }), catalog);
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
+      expect(result.variantId).toBe(sorResilientHyper.id);
+      expect(result.finish.value).toBe("Hyperspace");
+      expect(result.finish.needsPick).toBe(false);
+      expect(result.finish.defaulted).toBe(true);
+      expect(result.finish.options).toEqual(["Hyperspace", "Hyperspace Foil"]);
+    }
+  });
+
+  // BL-191: an option set with neither "Standard" nor "Hyperspace" to
+  // default to keeps the original required-pick behavior (conservative
+  // guard) -- exercised via a synthetic Prestige-style pair.
+  it("keeps finish a required pick when the option set has neither Standard nor Hyperspace to default to", () => {
+    const result = resolveRow(makeRow({ cardNumber: "777" }), catalog);
     expect(result.status).toBe("pending");
     if (result.status === "pending") {
-      expect(result.finish.options).toEqual(["Hyperspace", "Hyperspace Foil"]);
+      expect(result.finish.needsPick).toBe(true);
+      expect(result.finish.defaulted).toBeFalsy();
+      expect(result.finish.options).toEqual(["Standard Prestige", "Foil Prestige"]);
     }
   });
 
@@ -968,11 +1030,15 @@ describe("splitForVerification", () => {
     expect(willSkip.some((x) => x.row.id === "l")).toBe(true);
   });
 
+  // DISPOSITION (BL-191, REPLACE): the pending fixture row used to be
+  // cardNumber "69" (Standard/Standard Foil), which now defaults instead of
+  // pending. Swapped to "777" (the synthetic Prestige pair, neither finish
+  // defaultable) -- still genuinely pending, preserving this test's intent.
   it("ignores empty, error, and pending (not-yet-disambiguated) rows", () => {
     const rows = [
       makeRow({ id: "e", cardNumber: "" }),
       makeRow({ id: "x", cardNumber: "999" }),
-      makeRow({ id: "p", cardNumber: "69" }), // pending: needs a finish pick
+      makeRow({ id: "p", cardNumber: "777" }), // pending: needs a finish pick
     ];
     const { willAdd, willSkip } = splitForVerification(rows, catalog);
     expect(willAdd).toHaveLength(0);
