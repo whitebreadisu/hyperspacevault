@@ -1538,7 +1538,7 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
     expect(screen.queryByText("Standard Only")).toBeNull();
   });
 
-  // CREATE (BL-187, Definition_VariantNumberSort_2026-08-02.md): engaging a
+  // CREATE (BL-187): engaging a
   // scope re-orders the table (and the # column) by the SCOPED variant's own
   // card_number -- mirrors the real early-set fact (base_card_number order
   // is the opposite of the Hyperspace printing's own numbering, see

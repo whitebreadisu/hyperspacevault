@@ -225,7 +225,7 @@ describe("scopedOwnedCount", () => {
   });
 });
 
-// CREATE (BL-187, Definition_VariantNumberSort_2026-08-02.md): the # column's
+// CREATE (BL-187): the # column's
 // scoped card_number -- same find-first-match rule as scopedOwnedCount above,
 // but resolving to the matching variant's OWN card_number instead of a
 // summed quantity.

@@ -297,7 +297,7 @@ export function CardsPage({
     }));
   }, [sets, setOrder, setNameByCode]);
 
-  // BL-187 (Definition_VariantNumberSort_2026-08-02.md): row order follows
+  // BL-187: row order follows
   // the active scope -- toInventoryCards already applies the unscoped
   // sortBaseCards order internally; sortCardsByScope re-sorts by the scoped
   // variant's own card_number when a scope is active, and is a no-op re-sort

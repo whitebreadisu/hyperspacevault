@@ -1126,7 +1126,7 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
   });
 });
 
-// CREATE (BL-187, Definition_VariantNumberSort_2026-08-02.md): the # column
+// CREATE (BL-187): the # column
 // follows the active scope -- the scoped variant's own card_number when the
 // card carries one, base_card_number otherwise. Matching rule is the same
 // `(v.finish ?? v.variant_type) === scope` every scope helper in

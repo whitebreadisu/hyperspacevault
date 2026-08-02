@@ -196,7 +196,7 @@ export function scopedOwnedCount(
     .reduce((sum, v) => sum + (v.quantity || 0), 0);
 }
 
-/** BL-187 (Definition_VariantNumberSort_2026-08-02.md): the `#` column's
+/** BL-187: the `#` column's
  * scoped card number -- when a scope is active and the card carries a
  * variant matching it, that variant's OWN `card_number` (early sets: e.g.
  * SOR Corellian Freighter Standard is "019", Hyperspace is "508" -- the two
@@ -215,7 +215,7 @@ export function scopedCardNumber(
   return variant ? variant.card_number : null;
 }
 
-// ── Scoped row order (Definition §1) ────────────────────────────────────────
+// ── Scoped row order (BL-187) ───────────────────────────────────────────────
 
 /** BL-187: the Cards table's row order while a scope is active -- the SAME
  * set-release / tokens-last precedence `sortBaseCards` (utils/catalog.ts)
