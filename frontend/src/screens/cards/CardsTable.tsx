@@ -16,6 +16,7 @@ import {
   cardValuePrice,
   formatCardValue,
   scopeShortName,
+  scopedCardNumber,
 } from "../../utils/variantScope";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
@@ -214,7 +215,11 @@ export function CardsTable({
         </colgroup>
         <thead>
           <tr>
-            <th>#</th>
+            {/* BL-187: tinted with the same `.th-scoped` amber wash the
+                Playset/Value headers carry while scoped -- the # column's
+                content is itself scope-driven now (see the td below), so it
+                joins the same "mapping visuals" affordance. */}
+            <th className={scope ? "th-scoped" : undefined}>#</th>
             <th>Name</th>
             <th>Variants</th>
             <th className={`th-playset${scope ? " th-scoped" : ""}`}>
@@ -296,13 +301,25 @@ export function CardsTable({
               valueDisplay === "collection"
                 ? cardCollectionValue(card.variants, scope, priceKind)
                 : cardValuePrice(card.variants, scope, priceKind);
+            // BL-187: the # column follows the active scope -- the scoped
+            // variant's own card_number when the card carries one, else the
+            // usual base_card_number (see scopedCardNumber's own doc comment
+            // for the early-set early-era finish-numbering rationale).
+            const scopedNumber = scopedCardNumber(card.variants, scope);
+            const cardNumber = scopedNumber ?? card.base_card_number;
             return (
               <tr
                 key={card.base_card_id}
                 data-index={virtualRow.index}
                 className={virtualRow.index % 2 === 1 ? "row-alt" : undefined}
               >
-                <td className="cell-muted td-cardnum">{card.base_card_number}</td>
+                <td
+                  className={`cell-muted td-cardnum${
+                    scopedNumber != null ? " td-cardnum--scoped" : ""
+                  }`}
+                >
+                  {cardNumber}
+                </td>
                 {/* BL-132 J1: the ENTIRE Name cell is the click target (and
                     hover highlight), matching the Playset cell's
                     click-to-edit pattern below (PlaysetCell.tsx). The inner

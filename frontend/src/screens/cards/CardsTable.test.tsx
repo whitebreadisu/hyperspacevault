@@ -1108,7 +1108,10 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
     expect(container.querySelector(".vs-tag")).toBeNull();
   });
 
-  it("gives both the Playset and Value headers the scoped tint class", () => {
+  // DISPOSITION (REPLACE, BL-187): the # header joins the scoped tint too --
+  // its content became scope-driven (the variant number) alongside Playset
+  // and Value, so 2 scoped th's became 3.
+  it("gives the #, Playset, and Value headers the scoped tint class", () => {
     const { container } = render(
       <CardsTable
         cards={[mockCard]}
@@ -1119,7 +1122,79 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
         scope="Standard"
       />
     );
-    expect(container.querySelectorAll("th.th-scoped")).toHaveLength(2);
+    expect(container.querySelectorAll("th.th-scoped")).toHaveLength(3);
+  });
+});
+
+// CREATE (BL-187): the # column
+// follows the active scope -- the scoped variant's own card_number when the
+// card carries one, base_card_number otherwise. Matching rule is the same
+// `(v.finish ?? v.variant_type) === scope` every scope helper in
+// utils/variantScope.ts already uses.
+describe("CardsTable # column -- scoped card number (BL-187, CREATE)", () => {
+  const dualNumberCard: InventoryCard = {
+    ...mockCard,
+    base_card_id: 40,
+    base_card_number: "019",
+    name: "Dual Number Card",
+    variants: [
+      { ...mockCard.variants[0], variant_id: 701, card_number: "019" },
+      {
+        ...mockCard.variants[1],
+        variant_id: 702,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        card_number: "508",
+      },
+    ],
+  };
+
+  function cardNumCell(container: HTMLElement): HTMLElement {
+    return container.querySelector("td.td-cardnum")!;
+  }
+
+  it("unscoped: shows base_card_number, no scoped class", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[dualNumberCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(cardNumCell(container).textContent).toBe("019");
+    expect(cardNumCell(container).className).not.toContain("td-cardnum--scoped");
+  });
+
+  it("scoped to a finish the card carries: shows THAT variant's own card_number, with the scoped class", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[dualNumberCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        scope="Hyperspace Foil"
+      />
+    );
+    expect(cardNumCell(container).textContent).toBe("508");
+    expect(cardNumCell(container).className).toContain("td-cardnum--scoped");
+  });
+
+  it("scoped to a finish the card does NOT carry: falls back to base_card_number, no scoped class", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[dualNumberCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        scope="Movie Promo"
+      />
+    );
+    expect(cardNumCell(container).textContent).toBe("019");
+    expect(cardNumCell(container).className).not.toContain("td-cardnum--scoped");
   });
 });
 
