@@ -1537,6 +1537,131 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
     expect(screen.getByText("Has Serialized")).toBeInTheDocument();
     expect(screen.queryByText("Standard Only")).toBeNull();
   });
+
+  // CREATE (BL-187, Definition_VariantNumberSort_2026-08-02.md): engaging a
+  // scope re-orders the table (and the # column) by the SCOPED variant's own
+  // card_number -- mirrors the real early-set fact (base_card_number order
+  // is the opposite of the Hyperspace printing's own numbering, see
+  // analysis/Spike_CardNumber_Resolution_2026-07-16.md).
+  const numberSortFixtureCards: BaseCardDetail[] = [
+    makeBaseCardDetail({
+      id: 60,
+      set_code: "SOR",
+      base_card_number: "1",
+      name: "Card High HS Number",
+      variants: [
+        makeVariant({
+          variant_id: 601,
+          variant_type: "Standard",
+          finish: "Standard",
+          source_set_code: "SOR",
+          card_number: "1",
+          quantity: 0,
+        }),
+        makeVariant({
+          variant_id: 602,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          source_set_code: "SOR",
+          card_number: "508",
+          quantity: 0,
+        }),
+      ],
+    }),
+    makeBaseCardDetail({
+      id: 61,
+      set_code: "SOR",
+      base_card_number: "2",
+      name: "Card Low HS Number",
+      variants: [
+        makeVariant({
+          variant_id: 611,
+          variant_type: "Standard",
+          finish: "Standard",
+          source_set_code: "SOR",
+          card_number: "2",
+          quantity: 0,
+        }),
+        makeVariant({
+          variant_id: 612,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          source_set_code: "SOR",
+          card_number: "019",
+          quantity: 0,
+        }),
+      ],
+    }),
+  ];
+
+  function nameOrder(container: HTMLElement): (string | null)[] {
+    return Array.from(container.querySelectorAll(".card-name-link")).map((el) => el.textContent);
+  }
+
+  function pickHyperspaceNonFoil(): void {
+    fireEvent.click(scopeTriggerBtn());
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const hyperspaceRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Hyperspace"
+    )!;
+    fireEvent.click(within(hyperspaceRow as HTMLElement).getByText("Non-foil"));
+  }
+
+  it("engaging a scope re-orders rows (and the # column) by the scoped variant's card_number; disengaging restores base order", async () => {
+    mockGetBaseCardsList.mockResolvedValue(numberSortFixtureCards);
+    const { container } = await renderPage();
+
+    // Unscoped: base_card_number order (1, 2).
+    expect(nameOrder(container)).toEqual(["Card High HS Number", "Card Low HS Number"]);
+
+    pickHyperspaceNonFoil();
+
+    // Scoped to Hyperspace: variant card_number order (019, 508) -- flips.
+    expect(nameOrder(container)).toEqual(["Card Low HS Number", "Card High HS Number"]);
+    const numberCells = Array.from(container.querySelectorAll("td.td-cardnum")).map(
+      (el) => el.textContent
+    );
+    expect(numberCells).toEqual(["019", "508"]);
+
+    // Disengage -- back to base_card_number order.
+    fireEvent.click(scopeTriggerBtn());
+    fireEvent.click(screen.getByText("All finishes"));
+    expect(nameOrder(container)).toEqual(["Card High HS Number", "Card Low HS Number"]);
+  });
+
+  it("popup prev/next navigation follows the scoped order while a scope is active", async () => {
+    mockGetBaseCardsList.mockResolvedValue(numberSortFixtureCards);
+    mockGetBaseCardDetail.mockImplementation(async (id: number) => {
+      const found = numberSortFixtureCards.find((c) => c.id === id);
+      if (!found) throw new Error(`no fixture for base card ${id}`);
+      return found;
+    });
+    await renderPage();
+
+    pickHyperspaceNonFoil();
+
+    function navNextBtn(): HTMLButtonElement {
+      return screen.getByRole("button", { name: /next card/i }) as HTMLButtonElement;
+    }
+    function navPrevBtn(): HTMLButtonElement {
+      return screen.getByRole("button", { name: /previous card/i }) as HTMLButtonElement;
+    }
+    function dialogTitle(): string {
+      return document.querySelector(".cp-title")?.textContent ?? "";
+    }
+
+    // First in the SCOPED order is "Card Low HS Number" (019 before 508).
+    fireEvent.click(screen.getByRole("button", { name: "Card Low HS Number" }));
+    await act(async () => {});
+    expect(dialogTitle()).toBe("Card Low HS Number");
+    expect(navPrevBtn().disabled).toBe(true);
+
+    fireEvent.click(navNextBtn());
+    await act(async () => {});
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(60);
+    expect(dialogTitle()).toBe("Card High HS Number");
+    expect(navNextBtn().disabled).toBe(true);
+  });
 });
 
 // CREATE (BL-173): Market/Low price-kind persistence (localStorage,

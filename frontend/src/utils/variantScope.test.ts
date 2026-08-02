@@ -9,11 +9,15 @@ import {
   savePriceKind,
   saveValueDisplay,
   scopeShortName,
+  scopedCardNumber,
   scopedOwnedCount,
+  sortCardsByScope,
   SCOPE_EXPANDED_ROWS,
   SCOPE_PINNED_ROWS,
 } from "./variantScope";
+import { sortBaseCards } from "./catalog";
 import type { InventoryVariant } from "./inventory";
+import type { BaseCard } from "./catalog";
 
 // BL-173 (Definition_VariantScope_2026-07-26.md): unit coverage for the pure
 // scope/value logic backing the Cards table's variant-scope control + Value
@@ -218,6 +222,198 @@ describe("scopedOwnedCount", () => {
       makeVariant({ variant_id: 1, variant_type: "Weekly Play", finish: null, quantity: 1 }),
     ];
     expect(scopedOwnedCount(variants, "Weekly Play")).toBe(1);
+  });
+});
+
+// CREATE (BL-187, Definition_VariantNumberSort_2026-08-02.md): the # column's
+// scoped card_number -- same find-first-match rule as scopedOwnedCount above,
+// but resolving to the matching variant's OWN card_number instead of a
+// summed quantity.
+describe("scopedCardNumber", () => {
+  it("null scope -- always null (caller falls back to base_card_number)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
+    ];
+    expect(scopedCardNumber(variants, null)).toBeNull();
+  });
+
+  it("scoped match -- returns THAT variant's own card_number, not base_card_number", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "019" }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        card_number: "508",
+      }),
+    ];
+    expect(scopedCardNumber(variants, "Hyperspace")).toBe("508");
+  });
+
+  it("first of multiple matches wins (same caveat as scopedOwnedCount)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
+      makeVariant({ variant_id: 2, variant_type: "Standard", finish: "Standard", card_number: "2" }),
+    ];
+    expect(scopedCardNumber(variants, "Standard")).toBe("1");
+  });
+
+  it("no match -- null (caller falls back to base_card_number)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
+    ];
+    expect(scopedCardNumber(variants, "Showcase")).toBeNull();
+  });
+});
+
+// CREATE (BL-187): the Cards table's row order while a scope is active.
+// sortBaseCards' own suite (utils/catalog.test.ts) already covers the
+// set-release / tokens-last precedence in full -- this suite only proves the
+// scoped variant differs from sortBaseCards' behavior in exactly the final
+// tiebreak, plus the null-scope passthrough and the no-match fallback.
+describe("sortCardsByScope", () => {
+  function makeCard(overrides: Partial<BaseCard> = {}): BaseCard {
+    return {
+      base_card_id: 1,
+      set_code: "SOR",
+      base_card_number: "1",
+      name: "Card",
+      subtitle: null,
+      type: "Unit",
+      rarity: "C",
+      aspects: [],
+      keywords: [],
+      traits: [],
+      cost: null,
+      power: null,
+      hp: null,
+      arena: null,
+      is_token: false,
+      variants: [],
+      ...overrides,
+    };
+  }
+
+  function makeCatalogVariant(overrides: Partial<BaseCard["variants"][number]> = {}) {
+    return {
+      variant_id: 1,
+      variant_type: "Standard",
+      finish: "Standard" as string | null,
+      channel: "Retail",
+      source_set_code: "SOR",
+      card_number: "1",
+      front_image_url: null,
+      back_image_url: null,
+      ...overrides,
+    };
+  }
+
+  it("scope null -- identical to sortBaseCards", () => {
+    const high = makeCard({
+      base_card_id: 1,
+      base_card_number: "10",
+      variants: [makeCatalogVariant({ card_number: "10" })],
+    });
+    const low = makeCard({
+      base_card_id: 2,
+      base_card_number: "2",
+      variants: [makeCatalogVariant({ card_number: "2" })],
+    });
+    const bySortBaseCards = sortBaseCards([high, low]);
+    const byScope = sortCardsByScope([high, low], {}, null);
+    expect(byScope.map((c) => c.base_card_id)).toEqual(bySortBaseCards.map((c) => c.base_card_id));
+    expect(byScope.map((c) => c.base_card_id)).toEqual([2, 1]);
+  });
+
+  it("scoped: orders by the SCOPED variant's card_number, numeric, overriding base_card_number order", () => {
+    // Mirrors the real early-set fact: base_card_number order (1, 2) is the
+    // OPPOSITE of the Hyperspace printing's own numbering (508, 019).
+    const cardA = makeCard({
+      base_card_id: 1,
+      base_card_number: "1",
+      variants: [
+        makeCatalogVariant({ variant_id: 11, card_number: "1" }),
+        makeCatalogVariant({
+          variant_id: 12,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          card_number: "508",
+        }),
+      ],
+    });
+    const cardB = makeCard({
+      base_card_id: 2,
+      base_card_number: "2",
+      variants: [
+        makeCatalogVariant({ variant_id: 21, card_number: "2" }),
+        makeCatalogVariant({
+          variant_id: 22,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          card_number: "019",
+        }),
+      ],
+    });
+    const result = sortCardsByScope([cardA, cardB], {}, "Hyperspace");
+    expect(result.map((c) => c.base_card_id)).toEqual([2, 1]);
+  });
+
+  it("a card with no matching variant falls back to base_card_number for the comparison", () => {
+    const noMatch = makeCard({
+      base_card_id: 1,
+      base_card_number: "5",
+      variants: [makeCatalogVariant({ card_number: "5" })],
+    });
+    const matched = makeCard({
+      base_card_id: 2,
+      base_card_number: "9",
+      variants: [
+        makeCatalogVariant({
+          variant_id: 21,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          card_number: "1",
+        }),
+      ],
+    });
+    // matched's scoped number ("1") sorts before noMatch's fallback ("5").
+    const result = sortCardsByScope([noMatch, matched], {}, "Hyperspace");
+    expect(result.map((c) => c.base_card_id)).toEqual([2, 1]);
+  });
+
+  it("preserves the set-release-order and tokens-last tiers ahead of the number tiebreak", () => {
+    const shdToken = makeCard({
+      base_card_id: 1,
+      set_code: "SHD",
+      base_card_number: "1",
+      is_token: true,
+      variants: [makeCatalogVariant({ card_number: "1" })],
+    });
+    const sorCard = makeCard({
+      base_card_id: 2,
+      set_code: "SOR",
+      base_card_number: "1",
+      variants: [makeCatalogVariant({ card_number: "1" })],
+    });
+    const shdCard = makeCard({
+      base_card_id: 3,
+      set_code: "SHD",
+      base_card_number: "1",
+      variants: [makeCatalogVariant({ card_number: "1" })],
+    });
+    const setOrder = { SOR: "2024-03-08", SHD: "2024-08-02" };
+    const result = sortCardsByScope([shdToken, sorCard, shdCard], setOrder, "Standard");
+    expect(result.map((c) => c.base_card_id)).toEqual([2, 3, 1]);
+  });
+
+  it("does not mutate the input array", () => {
+    const cards = [
+      makeCard({ base_card_id: 1, base_card_number: "9" }),
+      makeCard({ base_card_id: 2, base_card_number: "1" }),
+    ];
+    const original = [...cards];
+    sortCardsByScope(cards, {}, "Standard");
+    expect(cards).toEqual(original);
   });
 });
 

@@ -1373,6 +1373,14 @@
   background: rgba(217, 154, 31, 0.05);
 }
 
+/* BL-187: the # column carries the same faint amber wash while scoped AND
+ * displaying a variant number (not every row matches the scope -- see
+ * CardsTable.tsx's scopedCardNumber usage) -- same treatment family as
+ * .td-value--scoped above, .th-scoped covers the header side. */
+.td-cardnum--scoped {
+  background: rgba(217, 154, 31, 0.05);
+}
+
 /* Playset / Unit Value header content (owner dev review rounds 1-2,
  * 2026-07-27: single-line headers were too crowded; round 2 flipped the
  * stack order). Both headers are two-line column stacks with the CONTROL on

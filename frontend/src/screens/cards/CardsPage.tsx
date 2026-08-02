@@ -24,6 +24,7 @@ import {
   loadValueDisplay,
   saveValueDisplay,
   isFinishSetScopedTo,
+  sortCardsByScope,
 } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
@@ -296,9 +297,18 @@ export function CardsPage({
     }));
   }, [sets, setOrder, setNameByCode]);
 
+  // BL-187 (Definition_VariantNumberSort_2026-08-02.md): row order follows
+  // the active scope -- toInventoryCards already applies the unscoped
+  // sortBaseCards order internally; sortCardsByScope re-sorts by the scoped
+  // variant's own card_number when a scope is active, and is a no-op re-sort
+  // (defers straight to sortBaseCards) when it isn't. `scope` joins the dep
+  // list so re-engaging/clearing it recomputes this memo -- everything
+  // downstream (toggleNarrowed -> filtered -> tableCards, plus the popup's
+  // openPopup snapshot) reads off this array, so the # column, table order,
+  // and popup prev/next nav all follow the same order for free.
   const cards = useMemo<InventoryCard[]>(
-    () => toInventoryCards(baseCards, setOrder),
-    [baseCards, setOrder]
+    () => sortCardsByScope(toInventoryCards(baseCards, setOrder), setOrder, scope),
+    [baseCards, setOrder, scope]
   );
 
   /** Flat per-variant rows for the Add Cards resolver (AddCardsModal /

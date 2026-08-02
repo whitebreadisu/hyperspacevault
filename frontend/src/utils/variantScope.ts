@@ -15,6 +15,8 @@
 
 import type { InventoryVariant } from "./inventory";
 import type { PriceMode } from "./completion";
+import type { BaseCard, SetOrderMap } from "./catalog";
+import { sortBaseCards, setReleaseRank } from "./catalog";
 
 export type { PriceMode };
 
@@ -192,6 +194,62 @@ export function scopedOwnedCount(
   return variants
     .filter((v) => (v.finish ?? v.variant_type) === scope)
     .reduce((sum, v) => sum + (v.quantity || 0), 0);
+}
+
+/** BL-187 (Definition_VariantNumberSort_2026-08-02.md): the `#` column's
+ * scoped card number -- when a scope is active and the card carries a
+ * variant matching it, that variant's OWN `card_number` (early sets: e.g.
+ * SOR Corellian Freighter Standard is "019", Hyperspace is "508" -- the two
+ * finishes are genuinely different printings with different numbers).
+ * FIRST match in `variants` order wins (same caveat as `scopedOwnedCount`
+ * above -- normally exactly one variant carries a given raw finish, but this
+ * stays find-first rather than asserting uniqueness). `null` when `scope` is
+ * null (nothing to scope to) or the card has no printing of that finish --
+ * either way the caller falls back to `base_card_number`. */
+export function scopedCardNumber(
+  variants: Pick<InventoryVariant, "variant_type" | "finish" | "card_number">[],
+  scope: string | null
+): string | null {
+  if (!scope) return null;
+  const variant = variants.find((v) => (v.finish ?? v.variant_type) === scope);
+  return variant ? variant.card_number : null;
+}
+
+// ── Scoped row order (Definition §1) ────────────────────────────────────────
+
+/** BL-187: the Cards table's row order while a scope is active -- the SAME
+ * set-release / tokens-last precedence `sortBaseCards` (utils/catalog.ts)
+ * already applies, but the final tiebreak compares the SCOPED variant's
+ * `card_number` (via `scopedCardNumber` above) instead of `base_card_number`,
+ * so the `#` column and the row order always agree while scoped. A card with
+ * no printing of the scoped finish falls back to its own `base_card_number`
+ * -- keeps the comparator total/deterministic even though such cards are
+ * normally filtered out of view while a scope is engaged (engaging a scope
+ * pins `FilterState.finish` to exactly that scope, CardsPage's
+ * `handleScopeChange`) -- the array handed to this function can still
+ * contain them pre-filter (CardsPage sorts before it filters). `scope ===
+ * null` defers entirely to `sortBaseCards` (today's unscoped behavior,
+ * unchanged). Same no-mutation contract as `sortBaseCards` -- a fresh array
+ * via `slice().sort()`, input untouched. */
+export function sortCardsByScope<T extends BaseCard>(
+  cards: T[],
+  setOrder: SetOrderMap = {},
+  scope: string | null = null
+): T[] {
+  if (!scope) return sortBaseCards(cards, setOrder);
+
+  return cards.slice().sort((a, b) => {
+    const [aTier, aKey] = setReleaseRank(a.set_code, setOrder);
+    const [bTier, bKey] = setReleaseRank(b.set_code, setOrder);
+    if (aTier !== bTier) return aTier - bTier;
+    if (aKey !== bKey) return aKey < bKey ? -1 : 1;
+
+    if (a.is_token !== b.is_token) return Number(a.is_token) - Number(b.is_token);
+
+    const aNumber = scopedCardNumber(a.variants, scope) ?? a.base_card_number;
+    const bNumber = scopedCardNumber(b.variants, scope) ?? b.base_card_number;
+    return aNumber.localeCompare(bNumber, undefined, { numeric: true });
+  });
 }
 
 // ── Scope <-> Finish-filter interplay (Definition §1) ───────────────────────
