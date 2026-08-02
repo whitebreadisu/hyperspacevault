@@ -87,6 +87,27 @@ function pickRepresentative(variants: VariantDetail[]): VariantDetail | null {
   return variants.find((v) => v.finish === "Standard") ?? variants[0];
 }
 
+/** BL-193: when the Vault's variant scope (BL-173) is active, the popup
+ * should open on the SAME finish the collector is scoped to -- the whole
+ * click-through path (table row -> popup) stays in their chosen finish
+ * (companion to BL-187's scoped number/sort and BL-192's rail cycling).
+ * Uses the codebase-universal `(v.finish ?? v.variant_type) === scope` rule
+ * (utils/variantScope.ts) and the same find-FIRST-match caveat as
+ * scopedOwnedCount/scopedCardNumber -- normally exactly one variant carries
+ * a given raw finish. Falls back to pickRepresentative when there's no scope
+ * or the card carries no printing of the scoped finish (mid-session edge;
+ * filtered rows normally all match). */
+function pickInitialVariant(
+  variants: VariantDetail[],
+  initialFinish: string | null | undefined
+): VariantDetail | null {
+  if (initialFinish != null) {
+    const scoped = variants.find((v) => (v.finish ?? v.variant_type) === initialFinish);
+    if (scoped) return scoped;
+  }
+  return pickRepresentative(variants);
+}
+
 /** Canonical aspect display order (shared with FilterPanel's ASPECT_LIST /
  * the old CardDetailPopup) plus the header-glow color for each (design
  * handoff §5 mock: card-text section headers tint to the card's primary
@@ -126,6 +147,13 @@ interface Props {
    * caller/test that doesn't wire it keeps working unchanged -- the popup
    * itself doesn't know or care whether it was opened from a list. */
   navigation?: CardPopupNavigation;
+  /** BL-193: the Vault's active variant scope (CardsPage's `scope` state,
+   * BL-173), a raw finish string or null. When set, the popup's initial
+   * selection on EVERY detail fetch (including prev/next navigation between
+   * cards) prefers the variant matching this finish over pickRepresentative
+   * -- see pickInitialVariant above. Optional/undefined behaves exactly like
+   * null (no scope) so every existing caller/test keeps working unchanged. */
+  initialFinish?: string | null;
 }
 
 export function CardPopup({
@@ -136,6 +164,7 @@ export function CardPopup({
   onChanged,
   onRequestSignIn,
   navigation,
+  initialFinish,
 }: Props) {
   const { limits, capMode } = useLimits();
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
@@ -193,7 +222,7 @@ export function CardPopup({
         if (cancelled) return;
         setDetail(data);
         setVariants(data.variants);
-        setSelectedVariantId(pickRepresentative(data.variants)?.variant_id ?? null);
+        setSelectedVariantId(pickInitialVariant(data.variants, initialFinish)?.variant_id ?? null);
         setShowBack(false);
         setFlipPhase(null);
         // BL-132 J3: a different base card (and even a different printing of
@@ -215,7 +244,13 @@ export function CardPopup({
     return () => {
       cancelled = true;
     };
-  }, [baseCardId]);
+    // BL-193: initialFinish is read here for the scoped preselection above.
+    // In practice the popup is a modal (background interaction blocked), so
+    // this never re-fires from a mid-session scope change on its own -- it
+    // rides along with the SAME baseCardId-driven re-fetch that already runs
+    // on prev/next navigation (BL-148), just resolving against whatever
+    // scope is current at that moment.
+  }, [baseCardId, initialFinish]);
 
   const close = useCallback(() => {
     if (changed) onChanged?.();
