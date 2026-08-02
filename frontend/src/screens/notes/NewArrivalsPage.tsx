@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
 import { RELEASE_NOTES } from "../../content/releaseNotes";
 import type { ReleaseNoteSection, ReleaseNotesEntry } from "../../content/releaseNotes";
+import { HEADER_STARFIELD_CODES } from "../../utils/headerStarfield";
 import "./NewArrivalsPage.css";
 
 /** BL-184: the "New Arrivals" release-notes surface -- App.tsx mounts this as
@@ -89,10 +91,33 @@ function NoteSection({ section }: { section: ReleaseNoteSection }) {
   );
 }
 
-function NoteEntry({ entry }: { entry: ReleaseNotesEntry }) {
+/** Owner review round 1 (2026-08-02): each RELEASE header wears one of the
+ * shipped header starfields, assigned in canonical set order from the OLDEST
+ * release up -- 1.0 = SOR, 1.1 = SHD, 1.2 = TWI, ... -- rotating back to SOR
+ * once the pool (utils/headerStarfield.ts, canonical order already) is
+ * exhausted. Keyed by the release's position among RELEASES oldest-first, so
+ * announcements interleaving the list never shift a version's starfield. */
+function starfieldByReleaseKey(): Record<string, string> {
+  const releasesOldestFirst = RELEASE_NOTES.filter((e) => e.kind === "release").reverse();
+  const map: Record<string, string> = {};
+  releasesOldestFirst.forEach((entry, i) => {
+    map[entry.key] = HEADER_STARFIELD_CODES[i % HEADER_STARFIELD_CODES.length];
+  });
+  return map;
+}
+
+function NoteEntry({ entry, starfieldCode }: { entry: ReleaseNotesEntry; starfieldCode?: string }) {
+  const headerStyle = starfieldCode
+    ? ({
+        "--na-starfield": `url("/images/starfields/starfield_${starfieldCode}.jpg")`,
+      } as CSSProperties)
+    : undefined;
   return (
     <section id={entryAnchorId(entry)} className="na-entry" data-testid={`na-entry-${entry.key}`}>
-      <header className="na-entry__header">
+      <header
+        className={`na-entry__header${starfieldCode ? " na-entry__header--starfield" : ""}`}
+        style={headerStyle}
+      >
         {entry.kind === "release" ? (
           <>
             <span className="na-entry__version">v{entry.version}</span>
@@ -103,6 +128,11 @@ function NoteEntry({ entry }: { entry: ReleaseNotesEntry }) {
         )}
         <span className="na-entry__date">{formatDisplayDate(entry.date)}</span>
       </header>
+
+      {/* Owner review round 1: the same circuit-line seam the app uses
+          between sections separates each version header from its content
+          (the between-entries seam below stays too). */}
+      <div className="na-divider na-divider--inner" />
 
       {entry.kind === "release" ? (
         <div className="na-entry__body">
@@ -120,13 +150,31 @@ function NoteEntry({ entry }: { entry: ReleaseNotesEntry }) {
   );
 }
 
-export function NewArrivalsPage() {
+interface Props {
+  /** Opens the shell's AboutModal (App-owned state, same threading idiom as
+   * Header's onOpenAbout). Optional so the page still renders standalone. */
+  onOpenAbout?: () => void;
+}
+
+export function NewArrivalsPage({ onOpenAbout }: Props) {
+  const starfields = starfieldByReleaseKey();
   return (
     <div className="screen na-screen">
-      <h1 className="screen-heading">New Arrivals</h1>
-
       <div className="na-shell">
         <div className="na-panel">
+          {/* Owner review round 1: the page's top band wears the standard
+              black circuit-tile material (the app's console-surface idiom)
+              with the About & Legal entry point top-right, chip-styled like
+              the version quicklinks below it. */}
+          <header className="na-header">
+            <h1 className="na-header__title">New Arrivals</h1>
+            {onOpenAbout && (
+              <button type="button" className="na-quicklink na-header__about" onClick={onOpenAbout}>
+                About &amp; Legal
+              </button>
+            )}
+          </header>
+
           <nav className="na-quicklinks" aria-label="Jump to release">
             {RELEASE_NOTES.map((entry) => (
               <button
@@ -143,7 +191,7 @@ export function NewArrivalsPage() {
           <div className="na-body">
             {RELEASE_NOTES.map((entry, i) => (
               <div key={entry.key}>
-                <NoteEntry entry={entry} />
+                <NoteEntry entry={entry} starfieldCode={starfields[entry.key]} />
                 {i < RELEASE_NOTES.length - 1 && <div className="na-divider" />}
               </div>
             ))}

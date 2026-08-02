@@ -206,8 +206,10 @@ body {
   padding: 0;
   margin: 0;
   font-family: var(--font-ui);
-  font-size: 9px;
-  font-weight: 600;
+  /* Owner review round 1 (2026-08-02): 9px read as fine print -- one step
+     BELOW the brand tag was too far down the hierarchy for a click target. */
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--color-text-muted);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);

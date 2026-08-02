@@ -33,11 +33,12 @@ describe("NewArrivalsPage (BL-184)", () => {
 
   it("renders a human-readable date (no raw ISO string) for every entry", () => {
     render(<NewArrivalsPage />);
-    // v1.3's date is 2026-08-01 -- confirms the ISO string is reformatted,
-    // not passed through verbatim.
+    // REPLACE (owner renumber 2026-08-02): v1.3 is now the upcoming release
+    // (placeholder date 2026-08-02, finalized at promote) -- still confirms
+    // the ISO string is reformatted, not passed through verbatim.
     const entry = screen.getByTestId("na-entry-1.3");
-    expect(entry.textContent).toContain("August 1, 2026");
-    expect(entry.textContent).not.toContain("2026-08-01");
+    expect(entry.textContent).toContain("August 2, 2026");
+    expect(entry.textContent).not.toContain("2026-08-02");
   });
 
   it("renders every item's title and body for a release entry", () => {

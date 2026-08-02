@@ -198,7 +198,7 @@ function AppContent() {
             anonymous, no sign-in gate of its own to render (§2/§4: static
             content, nothing to fetch). */}
         <div style={{ display: view === "new-arrivals" ? "contents" : "none" }}>
-          <NewArrivalsPage />
+          <NewArrivalsPage onOpenAbout={() => setAboutModalOpen(true)} />
         </div>
         {user && (
           <div style={{ display: view === "settings" ? "contents" : "none" }}>

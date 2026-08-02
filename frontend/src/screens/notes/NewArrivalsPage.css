@@ -56,6 +56,35 @@
   min-width: 0;
 }
 
+/* Owner review round 1 (2026-08-02): the page's top band -- title moved
+   inside the shell (was a bare .screen-heading above it), standard black
+   circuit-tile material (same asset/size as .na-body below so the two read
+   as one console surface), About & Legal chip top-right. */
+.na-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.na-header__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.na-header__about {
+  margin-left: auto;
+}
+
 /* Quicklink rail -- one chip per entry, docked at the panel's own top edge
    (sticky within .na-screen's scroll region) so it stays reachable while
    scrolling through a long history. */
@@ -124,6 +153,23 @@
   flex-wrap: wrap;
   gap: 10px;
   font-family: var(--font-ui);
+}
+
+/* Owner review round 1: release headers wear a starfield strip -- canonical
+   set order from the oldest release (1.0 = SOR, 1.1 = SHD, ...), rotating
+   when the pool (utils/headerStarfield.ts) is exhausted. Per-entry image
+   arrives as the --na-starfield custom property (NewArrivalsPage.tsx inline
+   style), layered under the same left-heavy dark gradient the Add Cards
+   locked set bar uses over ITS starfield strip (AddCardsModal.css's
+   .ac-setbar--locked), so text stays readable over any of the nine skies. */
+.na-entry__header--starfield {
+  background-image:
+    linear-gradient(90deg, rgba(9, 11, 20, 0.72), rgba(9, 11, 20, 0.4)),
+    var(--na-starfield, url("/images/circuit-tile.webp"));
+  background-size: cover;
+  background-position: center;
+  padding: 14px 16px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .na-entry__version {
@@ -221,4 +267,12 @@
   mask-position: 0 0;
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+}
+
+/* Owner review round 1: the header-to-content seam WITHIN an entry -- same
+   circuit-line mask, dialed down so the between-entries seam still reads as
+   the stronger break. */
+.na-divider--inner {
+  opacity: 0.28;
+  margin-top: 6px;
 }

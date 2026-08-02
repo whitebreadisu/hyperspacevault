@@ -39,23 +39,63 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // Owner renumber 2026-08-02: the post-announcement shipments (user caps,
+    // Weekly Play pricing) do NOT get their own version -- they roll into
+    // this release's notes instead. Date is a placeholder finalized at
+    // promote time (the release-notes promote ritual owns it).
     key: "1.3",
     version: "1.3",
-    date: "2026-08-01",
+    date: "2026-08-02",
     title: "You Asked, We Built",
     sections: [
       {
+        emoji: "🗞️",
+        heading: "What's new — literally",
+        items: [
+          {
+            title: "New Arrivals & release notes",
+            body: "The app now tells you what's new. A New Arrivals tab appears up top when there's news and steps aside once you've read it — and the version number in the corner reopens these notes anytime.",
+          },
+        ],
+      },
+      {
+        emoji: "📣",
+        heading: "Straight from your feedback",
         items: [
           {
             title: "Keep-limits, your number",
             body: "The playset keep-limit is now yours to set. Settings has a new Keep-limits section with steppers for Leaders & Bases and for everything else (up to 999 — hoarders welcome), alongside the existing hard cap / soft cap / no limits enforcement. Collecting four-of for Twin Suns flexibility? Set it and forget it.",
           },
           {
+            title: "Sort by the finish you collect",
+            body: "Tracking playsets against a specific finish? The card number column and the whole Vault order now follow it — the list sorts by the finish's own card numbers, exactly like your binder does.",
+          },
+          {
+            title: "Add Cards knows the probable printing",
+            body: "Early-set cards that share a number between foil and non-foil no longer stop to ask. The finish defaults to the likely one, highlighted so you can double-check — just hit Enter and keep going.",
+          },
+          {
+            title: "Arrow through the printings",
+            body: "In the card detail, up and down arrows now cycle through a card's printings — and left/right still walks the list. Hands never leave the keyboard.",
+          },
+        ],
+      },
+      {
+        emoji: "💰",
+        heading: "Prices",
+        items: [
+          {
             title: "Weekly Play prices, all the way back",
             body: "63 Weekly Play promos from the SOR/SHD/TWI era weren't getting prices. Now they are. Every Weekly Play printing across every set shows its market and low price.",
           },
+        ],
+      },
+      {
+        emoji: "🛠️",
+        heading: "System upgrades",
+        items: [
           {
-            title: "System upgrades",
+            title: "The boring stuff",
             body: "Behind-the-scenes resilience work. Your collection is very thoroughly backed up.",
           },
         ],
