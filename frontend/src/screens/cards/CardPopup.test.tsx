@@ -1649,3 +1649,154 @@ describe("CardPopup prev/next navigation (BL-148, CREATE)", () => {
     expect(document.querySelector(".cp-history-expand")).toBeNull();
   });
 });
+
+// ─── Up/down variant-rail cycling (BL-192, CREATE) ────────────────────────
+// A different axis from BL-148's ArrowLeft/ArrowRight above (those browse
+// CardsPage's filtered CARD list; these cycle PRINTINGS of the currently
+// open card, through the left-hand rail). Deliberately WRAPS at both ends
+// -- the opposite boundary behavior from BL-148's disable-at-boundary, see
+// CardPopupNav.tsx's useVariantCycleKeys doc comment for why that asymmetry
+// is intentional. Rail order for these fixtures (orderVariants: base set
+// first, then other source sets alphabetically, then card_number
+// ascending): v1 (SOR #12) -> v2 (SOR #13) -> v3 (ASH #1); pickRepresentative
+// lands the initial selection on v1 (the first "Standard"-finish printing).
+describe("CardPopup up/down variant-rail cycling (BL-192, CREATE)", () => {
+  let scrollIntoViewSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getPriceHistory.mockResolvedValue({ variant_id: 1, range: "90d", series: [] });
+    // BL-192: jsdom has no real scrollIntoView (see test/setup.ts's global
+    // no-op stub) -- spied here so these tests can assert it fires only on
+    // an actual keyboard-driven cycle, never on the guarded/no-op paths.
+    scrollIntoViewSpy = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+  });
+
+  function cycleVariants(): VariantDetail[] {
+    return [
+      makeVariant({
+        variant_id: 1,
+        finish: "Standard",
+        card_number: "12",
+        source_set_code: "SOR",
+        quantity: 2,
+      }),
+      makeVariant({
+        variant_id: 2,
+        finish: "Standard Foil",
+        card_number: "13",
+        source_set_code: "SOR",
+        quantity: 5,
+      }),
+      makeVariant({
+        variant_id: 3,
+        finish: "Standard",
+        card_number: "1",
+        source_set_code: "ASH",
+        quantity: 0,
+      }),
+    ];
+  }
+
+  function activeRailTitle(): string | null {
+    return document.querySelector(".cp-rail__item--active")?.getAttribute("title") ?? null;
+  }
+
+  it("ArrowDown selects the next printing in rail order, same as clicking it would", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+
+    expect(activeRailTitle()).toBe("Standard Foil – #13 – SOR");
+    expect(screen.getByText("OWNED — Standard Foil #13")).toBeTruthy();
+    await waitFor(() => expect(getPriceHistory).toHaveBeenCalledWith(1, 2, "90d"));
+    expect(scrollIntoViewSpy).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
+  it("ArrowUp selects the previous printing in rail order", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    fireEvent.click(screen.getByTitle("Standard Foil – #13 – SOR"));
+    expect(activeRailTitle()).toBe("Standard Foil – #13 – SOR");
+
+    fireEvent.keyDown(document, { key: "ArrowUp" });
+
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+    expect(screen.getByText("OWNED — Standard #12")).toBeTruthy();
+    await waitFor(() => expect(getPriceHistory).toHaveBeenCalledWith(1, 1, "90d"));
+  });
+
+  it("ArrowUp wraps from the first printing to the last", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+
+    fireEvent.keyDown(document, { key: "ArrowUp" });
+
+    expect(activeRailTitle()).toBe("Standard – #1 – ASH");
+  });
+
+  it("ArrowDown wraps from the last printing back to the first", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    fireEvent.click(screen.getByTitle("Standard – #1 – ASH"));
+    expect(activeRailTitle()).toBe("Standard – #1 – ASH");
+
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+  });
+
+  it("is suppressed while focus is in an input (guard)", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    document.body.removeChild(input);
+  });
+
+  it("is suppressed while focus is in a select (guard, extends BL-148's guard list)", async () => {
+    await renderPopup(makeDetail({ variants: cycleVariants() }));
+    const select = document.createElement("select");
+    document.body.appendChild(select);
+    select.focus();
+
+    fireEvent.keyDown(select, { key: "ArrowDown" });
+
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    document.body.removeChild(select);
+  });
+
+  it("no-ops when the popup has no variants context (e.g. a base card with zero printings)", async () => {
+    await renderPopup(makeDetail({ variants: [] }));
+    // Nothing to select and nothing should throw.
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+    fireEvent.keyDown(document, { key: "ArrowUp" });
+    expect(document.querySelector(".cp-rail__item")).toBeNull();
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+  });
+
+  it("registers alongside BL-148's ArrowLeft/ArrowRight without either interfering with the other", async () => {
+    const nav: CardPopupNavigation = {
+      canPrev: true,
+      canNext: true,
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+    };
+    await renderPopup(makeDetail({ variants: cycleVariants() }), { navigation: nav });
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    expect(nav.onPrev).toHaveBeenCalledOnce();
+    // Card-nav keys don't touch the printing selection.
+    expect(activeRailTitle()).toBe("Standard – #12 – SOR");
+
+    fireEvent.keyDown(document, { key: "ArrowDown" });
+    expect(activeRailTitle()).toBe("Standard Foil – #13 – SOR");
+    // Variant-cycle keys don't touch card navigation.
+    expect(nav.onNext).not.toHaveBeenCalled();
+  });
+});
