@@ -189,11 +189,11 @@ export function NewArrivalsPage({ onOpenAbout }: Props) {
           </nav>
 
           <div className="na-body">
-            {RELEASE_NOTES.map((entry, i) => (
-              <div key={entry.key}>
-                <NoteEntry entry={entry} starfieldCode={starfields[entry.key]} />
-                {i < RELEASE_NOTES.length - 1 && <div className="na-divider" />}
-              </div>
+            {/* Owner review round 2: no seam BETWEEN entries -- the next
+                entry's starfield band + straddled inner seam carries the
+                break on its own. */}
+            {RELEASE_NOTES.map((entry) => (
+              <NoteEntry key={entry.key} entry={entry} starfieldCode={starfields[entry.key]} />
             ))}
           </div>
         </div>

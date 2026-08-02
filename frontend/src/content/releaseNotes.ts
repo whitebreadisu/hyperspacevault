@@ -49,7 +49,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     title: "You Asked, We Built",
     sections: [
       {
-        emoji: "🗞️",
         heading: "What's new — literally",
         items: [
           {
@@ -59,7 +58,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "📣",
         heading: "Straight from your feedback",
         items: [
           {
@@ -81,7 +79,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "💰",
         heading: "Prices",
         items: [
           {
@@ -91,7 +88,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "🛠️",
         heading: "System upgrades",
         items: [
           {
@@ -110,7 +106,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     title: "The Public Launch",
     sections: [
       {
-        emoji: "🚀",
         heading: "A new name, in the open",
         items: [
           {
@@ -124,7 +119,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "💰",
         heading: "Prices & collection value",
         items: [
           {
@@ -146,7 +140,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "🃏",
         heading: "Deck Check",
         items: [
           {
@@ -160,7 +153,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "📦",
         heading: "Collection management",
         items: [
           {
@@ -178,7 +170,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "🖥️",
         heading: "A refreshed Vault",
         items: [
           {
@@ -212,7 +203,6 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
-        emoji: "🛠️",
         heading: "System upgrades",
         items: [
           {

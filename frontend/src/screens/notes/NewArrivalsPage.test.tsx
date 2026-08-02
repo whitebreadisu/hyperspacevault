@@ -48,11 +48,13 @@ describe("NewArrivalsPage (BL-184)", () => {
     expect(entry.textContent).toContain("The playset keep-limit is now yours to set.");
   });
 
-  it("renders a section heading + emoji for a sectioned entry", () => {
+  // REPLACE (owner review round 2, 2026-08-02): emojis removed from the
+  // shipped content -- the section-emoji RENDER path stays (schema field is
+  // optional and may return), so this now pins heading text only.
+  it("renders a section heading for a sectioned entry", () => {
     render(<NewArrivalsPage />);
     const entry = screen.getByTestId("na-entry-1.2");
     expect(entry.textContent).toContain("A new name, in the open");
-    expect(entry.textContent).toContain("🚀");
   });
 
   it("renders one quicklink chip per entry", () => {

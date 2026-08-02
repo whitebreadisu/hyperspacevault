@@ -192,7 +192,9 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  /* Owner review round 2: same amber as .na-entry__version -- the header's
+     two metadata bookends match. */
+  color: var(--color-warning);
 }
 
 .na-entry__body {
@@ -269,10 +271,19 @@
   mask-size: 100% 100%;
 }
 
-/* Owner review round 1: the header-to-content seam WITHIN an entry -- same
-   circuit-line mask, dialed down so the between-entries seam still reads as
-   the stronger break. */
+/* Owner review round 2: the header-to-content seam straddles the starfield
+   band's bottom edge -- the SAME "straddle pattern" the app header and Add
+   Cards modal use (index.css's .circuit-separator: pulled up half its own
+   aspect-derived height so its midpoint sits ON the seam; the -1.3671875%
+   is half of 70/2560, resolved against width like the height itself).
+   The extra -14px in the calc cancels .na-entry's flex gap so the offset
+   lands on the header's true bottom edge, not gap-shifted below it.
+   z-index paints the rails over the starfield; opacity matches the app
+   header's 0.55 (round 1's dialed-down 0.28 retired with the
+   between-entries seam it was contrasting against). */
 .na-divider--inner {
-  opacity: 0.28;
-  margin-top: 6px;
+  margin-top: calc(-1.3671875% - 14px);
+  position: relative;
+  z-index: 2;
+  opacity: 0.55;
 }
