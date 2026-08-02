@@ -162,19 +162,10 @@ export function NewArrivalsPage({ onOpenAbout }: Props) {
     <div className="screen na-screen">
       <div className="na-shell">
         <div className="na-panel">
-          {/* Owner review round 1: the page's top band wears the standard
-              black circuit-tile material (the app's console-surface idiom)
-              with the About & Legal entry point top-right, chip-styled like
-              the version quicklinks below it. */}
-          <header className="na-header">
-            <h1 className="na-header__title">New Arrivals</h1>
-            {onOpenAbout && (
-              <button type="button" className="na-quicklink na-header__about" onClick={onOpenAbout}>
-                About &amp; Legal
-              </button>
-            )}
-          </header>
-
+          {/* Owner review round 3: no page title -- "New Arrivals" already
+              reads from the app header's active nav tab; the quicklink rail
+              is the page's top edge, with the About & Legal chip riding its
+              right end. */}
           <nav className="na-quicklinks" aria-label="Jump to release">
             {RELEASE_NOTES.map((entry) => (
               <button
@@ -186,6 +177,15 @@ export function NewArrivalsPage({ onOpenAbout }: Props) {
                 {chipLabel(entry)}
               </button>
             ))}
+            {onOpenAbout && (
+              <button
+                type="button"
+                className="na-quicklink na-quicklink--about"
+                onClick={onOpenAbout}
+              >
+                About &amp; Legal
+              </button>
+            )}
           </nav>
 
           <div className="na-body">

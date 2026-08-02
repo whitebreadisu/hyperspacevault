@@ -56,32 +56,10 @@
   min-width: 0;
 }
 
-/* Owner review round 1 (2026-08-02): the page's top band -- title moved
-   inside the shell (was a bare .screen-heading above it), standard black
-   circuit-tile material (same asset/size as .na-body below so the two read
-   as one console surface), About & Legal chip top-right. */
-.na-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
-  background-color: #0b0e18;
-  background-image: url("/images/circuit-tile.webp");
-  background-size: 260px auto;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.na-header__title {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text);
-}
-
-.na-header__about {
+/* Owner review round 3: the round-1 title band is retired ("New Arrivals"
+   already reads from the app header's nav tab); the About & Legal chip
+   joined the quicklink rail, pushed to its right end. */
+.na-quicklink--about {
   margin-left: auto;
 }
 
@@ -168,7 +146,11 @@
     var(--na-starfield, url("/images/circuit-tile.webp"));
   background-size: cover;
   background-position: center;
-  padding: 14px 16px;
+  /* Owner review round 3: asymmetric padding centers the text between the
+     band's TOP and the straddling separator's top edge (the separator's
+     half-height overlap ≈ 12px at the shell's 900px cap eats the band's
+     bottom; bottom padding = top padding + that overlap). */
+  padding: 14px 16px 26px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
