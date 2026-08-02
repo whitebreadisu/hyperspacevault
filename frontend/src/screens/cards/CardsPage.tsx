@@ -723,6 +723,10 @@ export function CardsPage({
           }}
           onRequestSignIn={requestSignIn}
           navigation={popupNavigation}
+          // BL-193: keeps the popup's initial/per-card selection in the same
+          // finish the collector is scoped to (BL-173) -- companion to
+          // BL-187's scoped number/sort and BL-192's rail cycling.
+          initialFinish={scope}
         />
       )}
     </div>

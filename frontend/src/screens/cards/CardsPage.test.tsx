@@ -1662,6 +1662,64 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
     expect(dialogTitle()).toBe("Card High HS Number");
     expect(navNextBtn().disabled).toBe(true);
   });
+
+  // CREATE (BL-193): the popup's initial selection follows the active
+  // scope, same fixture/helper as the reorder + nav tests above -- companion
+  // to BL-187's scoped number/sort and BL-192's rail cycling.
+  function activeRailTitle(): string | null {
+    return document.querySelector(".cp-rail__item--active")?.getAttribute("title") ?? null;
+  }
+
+  it("BL-193: opening a card popup while scoped preselects the scoped variant; disengaged, it opens the Standard representative", async () => {
+    mockGetBaseCardsList.mockResolvedValue(numberSortFixtureCards);
+    mockGetBaseCardDetail.mockImplementation(async (id: number) => {
+      const found = numberSortFixtureCards.find((c) => c.id === id);
+      if (!found) throw new Error(`no fixture for base card ${id}`);
+      return found;
+    });
+    await renderPage();
+
+    // Unscoped: opens on the Standard representative, as always.
+    fireEvent.click(screen.getByRole("button", { name: "Card High HS Number" }));
+    await act(async () => {});
+    expect(activeRailTitle()).toBe("Standard – #1 – SOR");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await act(async () => {});
+
+    pickHyperspaceNonFoil();
+
+    // Scoped: opens on the Hyperspace variant instead.
+    fireEvent.click(screen.getByRole("button", { name: "Card Low HS Number" }));
+    await act(async () => {});
+    expect(activeRailTitle()).toBe("Hyperspace – #019 – SOR");
+  });
+
+  it("BL-193: with a scope active, arrowing to the next card lands on ITS scoped variant too", async () => {
+    mockGetBaseCardsList.mockResolvedValue(numberSortFixtureCards);
+    mockGetBaseCardDetail.mockImplementation(async (id: number) => {
+      const found = numberSortFixtureCards.find((c) => c.id === id);
+      if (!found) throw new Error(`no fixture for base card ${id}`);
+      return found;
+    });
+    await renderPage();
+
+    pickHyperspaceNonFoil();
+
+    function navNextBtn(): HTMLButtonElement {
+      return screen.getByRole("button", { name: /next card/i }) as HTMLButtonElement;
+    }
+
+    // Scoped order: "Card Low HS Number" (019) first, "Card High HS Number"
+    // (508) next -- see the reorder test above.
+    fireEvent.click(screen.getByRole("button", { name: "Card Low HS Number" }));
+    await act(async () => {});
+    expect(activeRailTitle()).toBe("Hyperspace – #019 – SOR");
+
+    fireEvent.click(navNextBtn());
+    await act(async () => {});
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(60);
+    expect(activeRailTitle()).toBe("Hyperspace – #508 – SOR");
+  });
 });
 
 // CREATE (BL-173): Market/Low price-kind persistence (localStorage,

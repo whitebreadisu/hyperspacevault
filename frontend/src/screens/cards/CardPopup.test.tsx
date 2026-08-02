@@ -165,6 +165,7 @@ async function renderPopup(
     onClose?: () => void;
     onChanged?: () => void;
     navigation?: CardPopupNavigation;
+    initialFinish?: string | null;
   } = {}
 ) {
   getBaseCardDetail.mockResolvedValue(detail);
@@ -179,6 +180,7 @@ async function renderPopup(
         onClose={onClose}
         onChanged={onChanged}
         navigation={opts.navigation}
+        initialFinish={opts.initialFinish}
       />
     );
   });
@@ -292,6 +294,85 @@ describe("CardPopup basics (PORT from CardDetailPopup.test.tsx)", () => {
     );
     const active = document.querySelector(".cp-rail__item--active");
     expect(active?.getAttribute("title")).toBe("Standard Foil – #13 – SOR");
+  });
+
+  // BL-193 (CREATE): companion to the two tests above -- initialFinish
+  // (CardsPage's active scope) preselects that finish's variant over
+  // pickRepresentative's Standard-first rule.
+  it("BL-193: initialFinish matching a variant selects that variant on open, not the Standard representative", async () => {
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({
+            variant_id: 1,
+            finish: "Standard",
+            card_number: "12",
+            front_image_url: "front-standard.png",
+          }),
+          makeVariant({
+            variant_id: 2,
+            finish: "Hyperspace",
+            card_number: "14",
+            front_image_url: "front-hyperspace.png",
+          }),
+        ],
+      }),
+      { initialFinish: "Hyperspace" }
+    );
+    const img = document.querySelector(".cp-image") as HTMLImageElement;
+    expect(img.src).toContain("front-hyperspace.png");
+    const active = document.querySelector(".cp-rail__item--active");
+    expect(active?.getAttribute("aria-pressed")).toBe("true");
+    expect(active?.getAttribute("title")).toBe("Hyperspace – #14 – SOR");
+  });
+
+  it("BL-193: initialFinish naming a finish the card doesn't carry falls back to the Standard representative", async () => {
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({
+            variant_id: 1,
+            finish: "Standard Foil",
+            card_number: "13",
+            front_image_url: "front-foil.png",
+          }),
+          makeVariant({
+            variant_id: 2,
+            finish: "Standard",
+            card_number: "12",
+            front_image_url: "front-standard.png",
+          }),
+        ],
+      }),
+      { initialFinish: "Showcase" }
+    );
+    const img = document.querySelector(".cp-image") as HTMLImageElement;
+    expect(img.src).toContain("front-standard.png");
+    const active = document.querySelector(".cp-rail__item--active");
+    expect(active?.getAttribute("title")).toBe("Standard – #12 – SOR");
+  });
+
+  it("BL-193: with no initialFinish prop, behavior is unchanged (Standard representative)", async () => {
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({
+            variant_id: 1,
+            finish: "Standard Foil",
+            card_number: "13",
+            front_image_url: "front-foil.png",
+          }),
+          makeVariant({
+            variant_id: 2,
+            finish: "Standard",
+            card_number: "12",
+            front_image_url: "front-standard.png",
+          }),
+        ],
+      })
+    );
+    const img = document.querySelector(".cp-image") as HTMLImageElement;
+    expect(img.src).toContain("front-standard.png");
   });
 
   it("clicking a printing selects it and updates the image", async () => {
