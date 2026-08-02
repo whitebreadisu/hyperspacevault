@@ -222,6 +222,18 @@ body {
   color: #fff;
 }
 
+/* Owner review round 5 (2026-08-02): "Release Notes" rides after the version
+   number inside the SAME button/link -- smaller, spaced off the number,
+   inheriting the button's color states (rest/hover/cue) so the pair reads
+   as one label. */
+.app-header__version-sub {
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 /* BL-184: subtle unread cue -- shared by the footer version label above and
    the "New Arrivals" nav tab (.nav-tab--cue below), a gentle glow pulse
    rather than a bouncing badge (owner's explicit "keep it SUBTLE" call).

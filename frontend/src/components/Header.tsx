@@ -138,6 +138,10 @@ export function Header({
           onClick={onOpenNotes}
         >
           {formatVersionLabel(__APP_VERSION__)}
+          {/* Owner review round 5: the label says what the click does --
+              "Release Notes" rides after the number in smaller text, one
+              button, one link target. */}
+          <span className="app-header__version-sub">Release Notes</span>
         </button>
       </div>
 

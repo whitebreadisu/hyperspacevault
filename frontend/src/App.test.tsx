@@ -819,7 +819,7 @@ describe("App New Arrivals pane (BL-184)", () => {
 
     const tab = screen.getByRole("button", { name: "New Arrivals" });
     expect(tab.className).toContain("nav-tab--cue");
-    expect(screen.getByRole("button", { name: "v1.3" }).className).toContain(
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).toContain(
       "app-header__version--cue"
     );
   });
@@ -838,7 +838,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     render(<App />);
 
     expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "v1.3" }));
+    fireEvent.click(screen.getByRole("button", { name: /^v1.3/ }));
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
   });
 
@@ -853,7 +853,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
     // Cue is gone from the version label; the nav tab itself stays visible
     // (it's now the active view) but carries no cue class anymore.
-    expect(screen.getByRole("button", { name: "v1.3" }).className).not.toContain(
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).not.toContain(
       "app-header__version--cue"
     );
     expect(screen.getByRole("button", { name: "New Arrivals" }).className).not.toContain(
@@ -866,7 +866,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "v1.3" }));
+    fireEvent.click(screen.getByRole("button", { name: /^v1.3/ }));
 
     expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
