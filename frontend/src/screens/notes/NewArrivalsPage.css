@@ -198,7 +198,10 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--color-text);
+  /* Owner review round 4: section headings join the amber family, one step
+     muted below the version/date bookends (--color-warning-dim is the
+     token's existing dim sibling, index.css :root). */
+  color: var(--color-warning-dim);
 }
 
 .na-section__emoji {
