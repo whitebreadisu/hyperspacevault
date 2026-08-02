@@ -211,15 +211,23 @@ body {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--color-text-muted);
+  /* Owner review round 6: amber at rest, subdued (--color-warning-dim) --
+     the label lives in the amber family full-time now, not muted gray. */
+  color: var(--color-warning-dim);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   cursor: pointer;
-  transition: color 0.15s;
+  transition:
+    color 0.15s,
+    filter 0.15s;
 }
 
+/* Owner review round 6: hover wakes to the full amber + the SAME warm flare
+   the SWU buttons use (.swu-btn:hover's drop-shadow, verbatim value) -- the
+   label reads as the same interactive chrome family as the header buttons. */
 .app-header__version:hover,
 .app-header__version:focus-visible {
-  color: #fff;
+  color: var(--color-warning);
+  filter: drop-shadow(0 0 9px rgba(235, 226, 198, 0.45));
 }
 
 /* Owner review round 5 (2026-08-02): "Release Notes" rides after the version
