@@ -1,0 +1,301 @@
+// BL-184: content module for the "New Arrivals" release-notes surface.
+// Pure data + types -- no formatting/rendering logic lives here (that's
+// screens/notes/NewArrivalsPage.tsx and utils/releaseNotesSeen.ts). Newest
+// first; `key` is the stable identity utils/releaseNotesSeen.ts's
+// unread-tracking compares against (the version string for releases,
+// `a-<date>` for announcements -- no announcements exist yet, but the
+// `announcement` variant is part of the locked design so dated, unversioned
+// entries can join the same chronological list later without a shape
+// change).
+
+export interface ReleaseNoteItem {
+  title: string;
+  body: string;
+}
+
+export interface ReleaseNoteSection {
+  heading?: string;
+  emoji?: string;
+  items: ReleaseNoteItem[];
+}
+
+export type ReleaseNotesEntry =
+  | {
+      kind: "release";
+      key: string;
+      version: string;
+      date: string;
+      title: string;
+      sections: ReleaseNoteSection[];
+    }
+  | {
+      kind: "announcement";
+      key: string;
+      date: string;
+      title: string;
+      body: string;
+    };
+
+export const RELEASE_NOTES: ReleaseNotesEntry[] = [
+  {
+    kind: "release",
+    key: "1.3",
+    version: "1.3",
+    date: "2026-08-01",
+    title: "You Asked, We Built",
+    sections: [
+      {
+        items: [
+          {
+            title: "Keep-limits, your number",
+            body: "The playset keep-limit is now yours to set. Settings has a new Keep-limits section with steppers for Leaders & Bases and for everything else (up to 999 — hoarders welcome), alongside the existing hard cap / soft cap / no limits enforcement. Collecting four-of for Twin Suns flexibility? Set it and forget it.",
+          },
+          {
+            title: "Weekly Play prices, all the way back",
+            body: "63 Weekly Play promos from the SOR/SHD/TWI era weren't getting prices. Now they are. Every Weekly Play printing across every set shows its market and low price.",
+          },
+          {
+            title: "System upgrades",
+            body: "Behind-the-scenes resilience work. Your collection is very thoroughly backed up.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
+    key: "1.2",
+    version: "1.2",
+    date: "2026-07-31",
+    title: "The Public Launch",
+    sections: [
+      {
+        emoji: "🚀",
+        heading: "A new name, in the open",
+        items: [
+          {
+            title: "HyperspaceVault, properly",
+            body: "The app now wears its name: new wordmark, new title, one identity everywhere.",
+          },
+          {
+            title: "Open source",
+            body: 'The project\'s full source code is public on GitHub. Point your favorite LLM at it and ask "is this thing any good?"',
+          },
+        ],
+      },
+      {
+        emoji: "💰",
+        heading: "Prices & collection value",
+        items: [
+          {
+            title: "Card prices everywhere",
+            body: "Every printing shows current market and low prices (TCGplayer data, refreshed daily).",
+          },
+          {
+            title: "Prices with a memory",
+            body: "A price-history panel on every card detail, with real history reaching back over two years. Other trackers tell you what a card costs today; this one shows you where it's been.",
+          },
+          {
+            title: "The chase finishes, priced",
+            body: "Prestige, Showcase, and Weekly Play printings joined the pricing engine (coverage jumped from 83% to 93% of the catalog).",
+          },
+          {
+            title: "Value column & Collection Value",
+            body: "See each card's value right in the table with a UNIT/COLLECTION toggle and a MARKET/LOW switch, and the completion panel now shows what your whole collection is worth — overall, per set, or filtered.",
+          },
+        ],
+      },
+      {
+        emoji: "🃏",
+        heading: "Deck Check",
+        items: [
+          {
+            title: "Paste any decklist",
+            body: "SWUDB .json or a URL from supported sites — instantly see what you own vs. what you're missing: three ownership scopes, full card lists, and the total cost of the gap.",
+          },
+          {
+            title: "Buy the gap in one click",
+            body: "Load your missing cards straight into a TCGplayer Mass Entry cart.",
+          },
+        ],
+      },
+      {
+        emoji: "📦",
+        heading: "Collection management",
+        items: [
+          {
+            title: "Import & Export",
+            body: "Your whole collection as a portable file. Export anytime; import back with a guided preview-then-commit flow. Your data is never locked in.",
+          },
+          {
+            title: "Precon bulk add",
+            body: "Add every card from any of the 22 preconstructed decks (starters, spotlight decks, Twin Suns) in one action.",
+          },
+          {
+            title: "Playset tracking, your way",
+            body: "The Playset cell shows your total count with a per-finish hover breakdown, and a header control lets collectors track playset progress against a specific finish (Hyperspace-only playsets, anyone?).",
+          },
+        ],
+      },
+      {
+        emoji: "🖥️",
+        heading: "A refreshed Vault",
+        items: [
+          {
+            title: '"Inventory" is now the Vault',
+            body: "Sharper name for the same home base.",
+          },
+          {
+            title: "Rarity symbols",
+            body: "The printed rarity glyph plus a color-coded label, in the table and the card popup.",
+          },
+          {
+            title: "Filters, overhauled",
+            body: "The completion panel's set blocks now filter the list, a three-way scope toggle controls what the panel counts, and the filter panel docks properly on smaller windows. Reset actually resets everything.",
+          },
+          {
+            title: "New set & precon pickers",
+            body: "Logo-rail dropdowns in canonical release order; precon rows preview the deck's leaders and base.",
+          },
+          {
+            title: "Finish filter, tiered",
+            body: "Tournament foils grouped and collapsible, foil/non-foil pairs fused onto one row. Far less scrolling.",
+          },
+          {
+            title: "Prev/next in the card popup",
+            body: "Arrow through your filtered list without closing the card.",
+          },
+          {
+            title: "Polish everywhere",
+            body: "A rotating set starfield in the header, smoother leader flips, richer Add Cards headers, and dozens of small fixes.",
+          },
+        ],
+      },
+      {
+        emoji: "🛠️",
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Security hardening, faster catalog loads, smarter rate limits, and a round of price-accuracy fixes — the stuff that keeps the fun stuff standing.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
+    key: "1.1",
+    version: "1.1",
+    date: "2026-07-20",
+    title: "A New Home",
+    sections: [
+      {
+        items: [
+          {
+            title: "hyperspacevault.com",
+            body: "The app moved to its own front door, with the old address redirecting forever. Update your bookmarks anyway.",
+          },
+          {
+            title: "Sign in with Google",
+            body: "One click, and existing email accounts with the same address link automatically.",
+          },
+          {
+            title: "Account emails, from the source",
+            body: "Verification and reset emails now come from noreply@hyperspacevault.com.",
+          },
+          {
+            title: "Sharper cards table",
+            body: "The whole name cell is clickable, empty stat badges no longer render as zeros, and leader cards flip naturally.",
+          },
+          {
+            title: "Finish filter, first pass at taming it",
+            body: "58 finish values collapsed into grouped, expandable rows.",
+          },
+          {
+            title: "System upgrades",
+            body: 'Invisible engine work that made everything in v1.2 possible (if you ever wondered what "laying groundwork" looks like: this).',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
+    key: "1.0",
+    version: "1.0",
+    date: "2026-07-14",
+    title: "Initial Release",
+    sections: [
+      {
+        heading: "The catalog",
+        items: [
+          {
+            title: "Every Star Wars: Unlimited card",
+            body: "9,000+ printings across 28 sets and promo releases, browsable by anyone without an account.",
+          },
+          {
+            title: "Two ways to browse",
+            body: "A fast full-catalog table and a card-image Gallery with finish-aware artwork and per-finish ownership on hover.",
+          },
+          {
+            title: "Card detail view",
+            body: "Every printing of a card with quantities, plus leader card flip.",
+          },
+        ],
+      },
+      {
+        heading: "Your collection",
+        items: [
+          {
+            title: "Track exact printings",
+            body: "Quantities recorded per set, stamp, and finish, with reprints and parallel printings resolved automatically.",
+          },
+          {
+            title: "Add Cards flow built for speed",
+            body: "Type-ahead resolver that only asks for what's ambiguous (set, stamp, finish), batch entry, live card image preview.",
+          },
+          {
+            title: "Playset progress",
+            body: "See at a glance which cards are at a full playset.",
+          },
+          {
+            title: "Keep limits",
+            body: "Three per variant, enforced your way: hard cap, soft cap, or no limits.",
+          },
+        ],
+      },
+      {
+        heading: "Finding cards",
+        items: [
+          {
+            title: "Faceted filters",
+            body: "Set, aspect (with Any/Within/Exact matching), rarity, type, cost, power, HP, trait, keyword, arena, finish — every filter narrows to what's actually available.",
+          },
+          {
+            title: "Ownership filters",
+            body: "Only cards you own, or only cards you're missing.",
+          },
+        ],
+      },
+      {
+        heading: "Accounts",
+        items: [
+          {
+            title: "Email sign-up with verification",
+            body: "Plus password reset, change password, and full account deletion (your data, purged on request).",
+          },
+        ],
+      },
+      {
+        heading: "The look",
+        items: [
+          {
+            title: "SWU-themed identity",
+            body: "Starfield header, console-styled stat badges and panels, themed scrollbars, and a feedback button that goes straight to the maintainer.",
+          },
+        ],
+      },
+    ],
+  },
+];

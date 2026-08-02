@@ -18,6 +18,9 @@ import { DeleteAccountModal } from "./screens/auth/DeleteAccountModal";
 import { VerifyEmailAction } from "./screens/auth/VerifyEmailAction";
 import { AboutModal } from "./screens/about/AboutModal";
 import { FeedbackModal } from "./screens/feedback/FeedbackModal";
+import { NewArrivalsPage } from "./screens/notes/NewArrivalsPage";
+import { RELEASE_NOTES } from "./content/releaseNotes";
+import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
 
 /** BL-56 §5.5: the app no longer gates on auth -- anonymous visitors get the
  * same shell (Header + unified Cards list) as signed-in users. Auth becomes a
@@ -64,6 +67,12 @@ function AppContent() {
   // pattern as aboutModalOpen above -- reachable from the header's Leave
   // Feedback button for both anonymous and signed-in visitors.
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  // BL-184: whether an unseen release-notes entry exists -- computed once at
+  // mount from localStorage (utils/releaseNotesSeen.ts's hasUnread), then
+  // owned as App state so opening the notes view (openNotes below) can clear
+  // it everywhere it's consumed (Header's nav-tab cue + version-label cue)
+  // in the same render, rather than each consumer re-reading storage itself.
+  const [notesUnread, setNotesUnread] = useState(() => hasUnread(RELEASE_NOTES));
   const [signupInFlight, setSignupInFlight] = useState(false);
   // BL-118: see AppContent's doc comment above.
   const [googleLinkedInFlight, setGoogleLinkedInFlight] = useState(false);
@@ -88,6 +97,19 @@ function AppContent() {
   // (import/export is gated on verified email, unlike Settings -- BL-54
   // arc's "settings/limits stays ungated" decision leaves Settings alone).
   const [activeView, setActiveView] = useState<AppView>("cards");
+
+  // BL-184: opens the "New Arrivals" view from either entry point (Header's
+  // nav tab and its version label share this one handler). Marks the latest
+  // entry seen immediately -- before the view switch even -- so the cue
+  // clears in the same click that opens the view, rather than waiting on the
+  // notes screen's own mount. No anonymous guard: unlike settings/
+  // import-export, this view has no gated content (§2 "reachable anonymous").
+  function openNotes() {
+    const latest = latestEntryKey(RELEASE_NOTES);
+    if (latest != null) saveLastSeenKey(latest);
+    setNotesUnread(false);
+    setActiveView("new-arrivals");
+  }
 
   // BL-165: pick the header starfield once per app open (no-repeat-of-last;
   // see utils/headerStarfield.ts). Mount-only by design -- the art must not
@@ -145,6 +167,8 @@ function AppContent() {
         onNavigateCards={() => setActiveView("cards")}
         onNavigateDeckCheck={() => setActiveView("deck-check")}
         hasPasswordProvider={hasPasswordProvider(user)}
+        onOpenNotes={openNotes}
+        hasUnread={notesUnread}
       />
       <VerifyEmailBanner />
       <SectionSeparator />
@@ -168,6 +192,13 @@ function AppContent() {
             an authenticated-only page that silently doesn't exist). */}
         <div style={{ display: view === "deck-check" ? "contents" : "none" }}>
           <DeckCheckPage isAuthenticated={!!user} onRequestSignIn={() => setAuthModalOpen(true)} />
+        </div>
+        {/* BL-184: NewArrivalsPage is always mounted too (like CardsPage/
+            DeckCheckPage above), never gated by `user &&` -- reachable
+            anonymous, no sign-in gate of its own to render (§2/§4: static
+            content, nothing to fetch). */}
+        <div style={{ display: view === "new-arrivals" ? "contents" : "none" }}>
+          <NewArrivalsPage />
         </div>
         {user && (
           <div style={{ display: view === "settings" ? "contents" : "none" }}>

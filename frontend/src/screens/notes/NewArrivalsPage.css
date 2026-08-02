@@ -1,0 +1,224 @@
+/* ── New Arrivals (.na-*) ────────────────────────────────────────────────
+   Co-located with NewArrivalsPage.tsx (BL-184). Composed from three existing
+   console idioms rather than inventing a fourth: AboutModal.css's clipped-
+   corner "steel ring" shell (.about-shell/.about-modal double clip-path,
+   scaled up from its ~520px chrome-panel size to a full-width content page),
+   its circuit-tile backdrop for the content well, and .circuit-separator
+   (SectionSeparator) for the seam between entries. Structural building
+   blocks only -- Jeremy is expected to iterate on this screen live later
+   (see NewArrivalsPage.tsx's doc comment), so hooks (class names) favor
+   obvious targets over cleverness. ─────────────────────────────────────── */
+
+.na-screen {
+  /* Unlike the other `.screen` panes (which lean on the browser's own
+     page-level scrollbar), this view owns its own scroll region -- the
+     quicklink rail's "jump to anchor" targets need a bounded, scrollable
+     ancestor to scroll *within*, and a self-contained region also lets the
+     rail dock sticky at its top edge (below). */
+  overflow-y: auto;
+  align-items: center;
+}
+
+/* Outer clipped-corner ring, same technique as AboutModal.css's .about-shell
+   (angled-corner polygon at the steel-ring color, ~1.5px padding wrapping an
+   inner layer clipped to the same polygon) -- larger cuts (18px vs. 13px)
+   matching the bigger panel scale, and capped/centered rather than
+   modal-width since this is a full page, not a dialog. */
+.na-shell {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 32px;
+  background: rgba(211, 211, 212, 0.28);
+  clip-path: polygon(
+    18px 0,
+    100% 0,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    0 100%,
+    0 18px
+  );
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  padding: 1.5px;
+}
+
+.na-panel {
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    17px 0,
+    100% 0,
+    100% calc(100% - 17px),
+    calc(100% - 17px) 100%,
+    0 100%,
+    0 17px
+  );
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Quicklink rail -- one chip per entry, docked at the panel's own top edge
+   (sticky within .na-screen's scroll region) so it stays reachable while
+   scrolling through a long history. */
+.na-quicklinks {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 20px;
+  background: var(--bg-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.na-quicklink {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.na-quicklink:hover,
+.na-quicklink:focus-visible {
+  color: var(--color-text);
+  border-color: var(--color-warning);
+  background: rgba(217, 154, 31, 0.1);
+}
+
+/* Content well -- circuit-tile backdrop, same asset/size AboutModal's
+   .about-body and CardPopup's .cp-rail already use, so this reads as the
+   same console material rather than a fourth surface treatment. */
+.na-body {
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  padding: 8px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.na-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 0;
+  /* Anchor targets (id set in NewArrivalsPage.tsx) sit flush under the
+     sticky quicklink rail -- offset the scroll landing so a jumped-to
+     entry's header isn't hidden underneath it. */
+  scroll-margin-top: 64px;
+}
+
+.na-entry__header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-family: var(--font-ui);
+}
+
+.na-entry__version {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-warning);
+}
+
+.na-entry__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+.na-entry__date {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.na-entry__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.na-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.na-section__heading {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.na-section__emoji {
+  margin-right: 6px;
+}
+
+.na-section__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.na-item {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.na-item__title {
+  color: var(--color-text);
+}
+
+.na-item__body {
+  color: var(--color-text-muted);
+}
+
+.na-announcement__body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* Seam between entries -- SectionSeparator's own circuit-line mask, reused
+   verbatim rather than a plain <hr>. */
+.na-divider {
+  aspect-ratio: 2560 / 70;
+  background-color: #d3d3d4;
+  opacity: 0.45;
+  -webkit-mask-image: url("/swu-separator.svg");
+  mask-image: url("/swu-separator.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
