@@ -232,14 +232,24 @@ describe("scopedOwnedCount", () => {
 describe("scopedCardNumber", () => {
   it("null scope -- always null (caller falls back to base_card_number)", () => {
     const variants = [
-      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
+      makeVariant({
+        variant_id: 1,
+        variant_type: "Standard",
+        finish: "Standard",
+        card_number: "1",
+      }),
     ];
     expect(scopedCardNumber(variants, null)).toBeNull();
   });
 
   it("scoped match -- returns THAT variant's own card_number, not base_card_number", () => {
     const variants = [
-      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "019" }),
+      makeVariant({
+        variant_id: 1,
+        variant_type: "Standard",
+        finish: "Standard",
+        card_number: "019",
+      }),
       makeVariant({
         variant_id: 2,
         variant_type: "Hyperspace",
@@ -252,15 +262,30 @@ describe("scopedCardNumber", () => {
 
   it("first of multiple matches wins (same caveat as scopedOwnedCount)", () => {
     const variants = [
-      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
-      makeVariant({ variant_id: 2, variant_type: "Standard", finish: "Standard", card_number: "2" }),
+      makeVariant({
+        variant_id: 1,
+        variant_type: "Standard",
+        finish: "Standard",
+        card_number: "1",
+      }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Standard",
+        finish: "Standard",
+        card_number: "2",
+      }),
     ];
     expect(scopedCardNumber(variants, "Standard")).toBe("1");
   });
 
   it("no match -- null (caller falls back to base_card_number)", () => {
     const variants = [
-      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", card_number: "1" }),
+      makeVariant({
+        variant_id: 1,
+        variant_type: "Standard",
+        finish: "Standard",
+        card_number: "1",
+      }),
     ];
     expect(scopedCardNumber(variants, "Showcase")).toBeNull();
   });
