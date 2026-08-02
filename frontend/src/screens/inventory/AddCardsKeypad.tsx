@@ -396,7 +396,7 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
                 foils exist at far lower quantities. The picker stays open for
                 override; this cue just flags that the number is shared. */}
             {state?.finish.defaulted && (
-              <div className="ac-pad__resolve-sub" style={{ color: "var(--color-warning)" }}>
+              <div className="ac-pad__resolve-sub ac-pad__resolve-sub--attention">
                 Card number is shared across variants — verify selection.
               </div>
             )}

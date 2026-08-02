@@ -332,6 +332,11 @@
 .ac-select--attention:focus {
   border-color: var(--color-warning);
 }
+/* BL-191: the verify cue itself carries the same amber, tying the text to
+   the highlighted select above it. */
+.ac-pad__resolve-sub--attention {
+  color: var(--color-warning);
+}
 
 .ac-select {
   appearance: none;

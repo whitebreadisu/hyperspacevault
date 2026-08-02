@@ -281,7 +281,9 @@ describe("AddCardsModal", () => {
 
     const finishSelect = screen.getByLabelText("Finish") as HTMLSelectElement;
     expect(finishSelect.value).toBe("Standard");
-    expect(screen.getByText(/card number is shared across variants — verify selection/i)).toBeTruthy();
+    expect(
+      screen.getByText(/card number is shared across variants — verify selection/i)
+    ).toBeTruthy();
   });
 
   it("commits the row to the batch when Enter is pressed on the last dropdown", async () => {
