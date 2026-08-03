@@ -31,6 +31,19 @@ function cardLabel(card: ImportRowCard): string {
   return "Row with no recognizable identity";
 }
 
+// Owner dev-review 2026-07-23: total physical copies the file carries, as
+// distinct from its row count (a row is one printing at some quantity).
+// Derived client-side from file_quantity -- malformed rows carry no
+// quantity key (exclude_none) and naturally contribute 0.
+// BL-196: exported (was a local var in ImportPreviewReport below) -- the
+// commit-stage busy overlay message on ImportExportPage ("Applying N
+// cards…") wants the exact same figure the preview screen already labels
+// "Cards", computed from the same still-in-hand dry_run report rather than
+// re-deriving it.
+export function totalCardsFromReport(report: ImportReport): number {
+  return report.rows.reduce((sum, r) => sum + (r.file_quantity ?? 0), 0);
+}
+
 /** §8.2c's ordering: problem rows first, then trimmed/clamped rows, then the
  * resolved remainder collapsed -- "the destructive half of the preview must
  * be as visible as the additive half" (§7.3) puts `removed` (replace_all's
@@ -41,11 +54,7 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
   const problemRows = rows.filter((r) => r.status !== "resolved");
   const trimmedRows = rows.filter((r) => r.status === "resolved" && r.trim_reason);
   const resolvedRemainder = rows.filter((r) => r.status === "resolved" && !r.trim_reason);
-  // Owner dev-review 2026-07-23: total physical copies the file carries, as
-  // distinct from its row count (a row is one printing at some quantity).
-  // Derived client-side from file_quantity -- malformed rows carry no
-  // quantity key (exclude_none) and naturally contribute 0.
-  const totalCards = rows.reduce((sum, r) => sum + (r.file_quantity ?? 0), 0);
+  const totalCards = totalCardsFromReport(report);
 
   return (
     <div className="ie-report">

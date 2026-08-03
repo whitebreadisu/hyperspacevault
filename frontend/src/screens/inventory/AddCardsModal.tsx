@@ -21,6 +21,8 @@ import type { PreconEntry } from "../../data/preconDecks";
 import type { CapHandling, ImportReport } from "../../api/inventoryImportExport";
 import type { CardSet } from "../../api/sets";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { useBusyOverlay } from "../../hooks/useBusyOverlay";
+import { BusyOverlay } from "../../components/BusyOverlay";
 import "./AddCardsModal.css";
 
 type Phase = "editing" | "verification";
@@ -77,7 +79,14 @@ function emptyRow(): Row {
 interface Props {
   catalog: AddCardsCatalogEntry[];
   onClose: () => void;
-  onCommitted: () => void;
+  /** BL-196: widened from `() => void` -- CardsPage now passes an async
+   * function (awaiting its own refreshQuantities) so the commit-stage busy
+   * overlay's "Refreshing your Vault…" stage can hold through it. Callers
+   * that still return void/undefined (the EmailNotVerifiedError/precon-
+   * error partial-progress-refresh calls below, and every test's plain
+   * `vi.fn()`) keep working unchanged -- `await onCommitted()` on a
+   * void-returning function just resolves immediately. */
+  onCommitted: () => void | Promise<void>;
 }
 
 export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
@@ -122,6 +131,12 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     else onClose();
   }, [hasBatch, onClose]);
 
+  // BL-196: the commit-stage busy overlay -- shared between the manual
+  // (handleCommit) and precon (handlePreconCommit) commit paths below, same
+  // "overlay state local to the surface" shape ImportExportPage's own
+  // instance uses.
+  const overlay = useBusyOverlay();
+
   useEffect(() => {
     getSets().then(setSets).catch(console.error);
   }, []);
@@ -131,10 +146,16 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   // collapses first" shape as CardPopup's history panel. Backdrop-click
   // dismiss reuses the same target-equality pattern CardPopup uses -- see
   // useModalDismiss's docstring.
+  // BL-196: a no-op while the busy overlay is up -- it renders with no
+  // dismiss affordance of its own (BusyOverlay.tsx's doc comment), but the
+  // Escape LISTENER underneath it (this hook) stays attached the whole time
+  // regardless, so it has to explicitly ignore Escape itself rather than
+  // relying on the overlay to swallow the keypress first.
   const onEscape = useCallback(() => {
+    if (overlay.stage) return;
     if (confirming) setConfirming(false);
     else requestClose();
-  }, [confirming, requestClose]);
+  }, [overlay.stage, confirming, requestClose]);
   const { handleBackdropMouseDown } = useModalDismiss(onEscape, { onBackdropClick: requestClose });
 
   // BL-61: neither of these touches `rows` — the batch is non-destructive
@@ -228,18 +249,46 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   }
 
   async function handlePreconCommit() {
-    if (!state.precon.file || preconCommitting) return;
+    const file = state.precon.file;
+    if (!file || preconCommitting) return;
     setPreconCommitting(true);
     setPreconError(null);
+    // BL-196: the precon dry-run report already sitting in state has the
+    // exact batch size the verify screen's own "N of M cards will be added"
+    // hint shows -- recomputed here via verificationRowsFromReport directly
+    // (not the memoized preconVerifyRows below) since this function is
+    // declared above that useMemo in source order; reaching for the memo
+    // from here defeats React Compiler's ability to preserve it (verified
+    // empirically -- referencing a later-declared memo from an
+    // earlier-declared closure makes it bail on that memo entirely). `file`
+    // and `report` are always set together (handlePreconPreview's one
+    // setState call below), so `file` truthy here guarantees `report` is
+    // too.
+    const count = state.precon.report
+      ? verificationRowsFromReport(state.precon.report).willAdd.length
+      : 0;
     try {
-      await runImport(state.precon.file, "merge_add", effectivePreconCap, "commit");
+      await overlay.run(
+        { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
+        {
+          task: () => runImport(file, "merge_add", effectivePreconCap, "commit"),
+          settleStage: { message: "Refreshing your Vault…" },
+          settle: async () => {
+            await onCommitted();
+          },
+        }
+      );
     } catch (err) {
       if (err instanceof ImportApiError && err.code === "email_not_verified") {
         // BL-16-equivalent gate: stop here and keep the modal open on the
         // same explanatory copy the manual flow's EmailNotVerifiedError
         // branch uses, rather than closing as if the import had succeeded.
+        // onCommitted still fires directly (not through the overlay's
+        // settle, which only runs when the task itself resolved) -- the
+        // partial-progress refresh reason is unchanged from before BL-196.
         setPreconError("Verify your email to manage inventory -- see the banner above.");
         onCommitted();
+        setPreconCommitting(false);
         return;
       }
       // Any other ImportApiError (§4): surface it in the modal foot and stay
@@ -249,11 +298,10 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       setPreconError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."
       );
-      return;
-    } finally {
       setPreconCommitting(false);
+      return;
     }
-    onCommitted();
+    setPreconCommitting(false);
     onClose();
   }
 
@@ -312,10 +360,25 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     if (willAdd.length === 0 || committing) return;
     setCommitting(true);
     setCommitError(null);
+    // BL-196: batch size is already known at commit time (willAdd is the
+    // exact set of rows about to be incremented) -- the same figure the
+    // verification footer's "N of M cards will be added" hint uses.
+    const count = willAdd.length;
     try {
-      for (const { resolved } of willAdd) {
-        await incrementCard(resolved.variantId);
-      }
+      await overlay.run(
+        { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
+        {
+          task: async () => {
+            for (const { resolved } of willAdd) {
+              await incrementCard(resolved.variantId);
+            }
+          },
+          settleStage: { message: "Refreshing your Vault…" },
+          settle: async () => {
+            await onCommitted();
+          },
+        }
+      );
     } catch (err) {
       if (err instanceof EmailNotVerifiedError) {
         // BL-16: stop the batch and keep the modal open on an explanatory
@@ -323,16 +386,20 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         // Still call onCommitted() (but not onClose()) -- some rows in the
         // batch may have already committed before the gate rejected the
         // rest, so the parent's data should refresh even though the modal
-        // stays open for the user to see the error.
+        // stays open for the user to see the error. Called directly (not
+        // through the overlay's settle, which only runs when the task
+        // itself resolved without throwing) -- same reasoning as the precon
+        // flow's own email-not-verified branch above.
         setCommitError("Verify your email to manage inventory -- see the banner above.");
         onCommitted();
+        setCommitting(false);
         return;
       }
       console.error("Commit failed:", err);
-    } finally {
       setCommitting(false);
+      return;
     }
-    onCommitted();
+    setCommitting(false);
     onClose();
   }
 
@@ -652,6 +719,12 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
           </div>
         </div>
       )}
+
+      {/* BL-196: covers a manual or precon commit -- z-index 300 (see
+          BusyOverlay.css) clears both this modal (100) and the close-guard
+          confirm above (200), which can in principle still be up
+          underneath if a stray requestClose slipped through mid-commit. */}
+      <BusyOverlay stage={overlay.stage} />
     </div>
   );
 }

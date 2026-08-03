@@ -1,0 +1,211 @@
+/* ── BusyOverlay (BL-196) ───────────────────────────────────────────────
+ * Full-viewport blocking overlay for large inventory applies. Extends the
+ * shared .modal-overlay backdrop (BL-153) rather than a bespoke scrim --
+ * `.busy-overlay.modal-overlay` (two classes -> specificity (0,2,0)) beats
+ * plain `.modal-overlay` (0,1,0) regardless of stylesheet load order, so the
+ * z-index bump below is guaranteed to win. 300 clears every existing modal
+ * layer, including AddCardsModal's nested close-guard confirm (200) -- a
+ * commit can run with that modal (and its own confirm) still open under
+ * this. */
+.busy-overlay.modal-overlay {
+  z-index: 300;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.busy-overlay__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 32px 44px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.busy-overlay__message {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.busy-overlay__sub {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Glyph row shared chrome ─────────────────────────────────────────── */
+.busy-overlay__glyph,
+.busy-overlay__glyph-track,
+.busy-overlay__glyph-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── The orbit (owner-picked variant, 2026-08-03) ─────────────────────
+ * Six glyphs evenly spaced on a ring, ~10s/rev, each counter-rotating to
+ * stay upright. Each glyph flashes to full color + amber glow as it passes
+ * 6 o'clock, releases the flash across the first quarter-revolution, then
+ * fades linearly to 10% brightness arriving back at the bottom — the ring
+ * reads as a rotating comet tail. (The `--c` class suffix is the pick's
+ * heritage from the three-variant round; the losing variants + dev
+ * switcher were stripped at the pick and live in git history.) Three
+ * nested layers per glyph do the work:
+ *   .busy-overlay__glyph        static per-glyph position on the ring
+ *                                (rotate(var(--busy-angle)), set inline by
+ *                                BusyOverlay.tsx -- 0/60/120/180/240/300deg)
+ *   .busy-overlay__glyph-track  the shared 10s ring rotation (0 -> 360deg),
+ *                                identical for all six -- this is what
+ *                                actually sweeps them around
+ *   .busy-overlay__glyph-inner  counter-rotates by the exact negative of
+ *                                (static angle + ring rotation) so the icon
+ *                                itself never visually spins, plus a
+ *                                second, independently-delayed animation
+ *                                that pulses the amber glow at the moment
+ *                                each glyph's static angle carries it
+ *                                through 12 o'clock.
+ * The per-glyph glow delays below are each angle's "distance" (at 36deg/s)
+ * back to a 0deg (12 o'clock) crossing: angle 0->0s, 60->8.33s, 120->6.67s,
+ * 180->5s, 240->3.33s, 300->1.67s. */
+.busy-overlay__glyphs--c {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--busy-angle, 0deg));
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph-track {
+  position: absolute;
+  inset: 0;
+  animation: busy-orbit-spin-c 10s linear infinite;
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph-inner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin-left: -24px;
+  animation:
+    busy-orbit-counter-c 10s linear infinite,
+    busy-orbit-glow-c 10s linear infinite;
+}
+
+/* Owner mod (2026-08-03): the flash moved from 12 o'clock to 6 o'clock, and
+ * the glow keyframes became a full-revolution sawtooth (flash at the bottom
+ * -> linear fade to 10% brightness arriving back at the bottom). Delays are
+ * NEGATIVE equivalents (phase-shifted -5s for the top->bottom move) so every
+ * glyph is mid-cycle from the first painted frame -- a positive delay would
+ * leave glyphs at full brightness until their first cycle began. Sync math:
+ * glyph at ring angle θ crosses 6 o'clock at t = (180° - θ)/36°·s (10s/rev),
+ * so its cycle phase-0 (the flash) must land there. */
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
+  animation-delay:
+    0s,
+    -5s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
+  animation-delay:
+    0s,
+    -6.67s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
+  animation-delay:
+    0s,
+    -8.33s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 0s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
+  animation-delay:
+    0s,
+    -1.67s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
+  animation-delay:
+    0s,
+    -3.33s;
+}
+
+@keyframes busy-orbit-spin-c {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes busy-orbit-counter-c {
+  from {
+    transform: rotate(calc(-1 * var(--busy-angle, 0deg)));
+  }
+  to {
+    transform: rotate(calc(-1 * var(--busy-angle, 0deg) - 360deg));
+  }
+}
+
+/* Owner mod (2026-08-03): full-revolution sawtooth. Phase 0 = the glyph's
+ * 6-o'clock crossing: flash to full color with the amber glow, glow releases
+ * by 5%, then a LINEAR fade across the entire revolution down to 10%
+ * brightness exactly as the glyph returns to the bottom -- where the loop
+ * boundary snaps it back to the flash. The 100% keyframe keeps a zero-size
+ * transparent drop-shadow so the filter list interpolates smoothly instead
+ * of jumping when the shadow function disappears. */
+@keyframes busy-orbit-glow-c {
+  /* Owner round 2: the flash releases MUCH slower -- full flash at the
+   * bottom, glow + above-full brightness tapering across the first quarter
+   * of the revolution (~2.5s) before the long linear slide to 10% takes
+   * over. Arrival-at-10%-at-the-bottom is unchanged. */
+  0% {
+    filter: brightness(1.35) drop-shadow(0 0 10px var(--color-warning));
+  }
+  12% {
+    filter: brightness(1.18) drop-shadow(0 0 6px var(--color-warning));
+  }
+  25% {
+    filter: brightness(1) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+  }
+  100% {
+    filter: brightness(0.1) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+  }
+}
+
+/* ── Reduced motion: static row of dimmed glyphs ────────────────────── */
+.busy-overlay__glyphs--reduced {
+  display: flex;
+  gap: 14px;
+}
+
+.busy-overlay__glyphs--reduced .busy-overlay__glyph-inner {
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+/* Belt-and-suspenders: BusyOverlay.tsx already swaps to the `--reduced`
+ * layout via a matchMedia-backed hook (the primary, testable mechanism --
+ * see BusyOverlay.test.tsx), but this OS-level media query kills any
+ * animation outright regardless, in case the JS hook's listener hasn't
+ * attached yet or matchMedia is unavailable. */
+@media (prefers-reduced-motion: reduce) {
+  .busy-overlay__glyph-inner {
+    animation: none !important;
+  }
+}
