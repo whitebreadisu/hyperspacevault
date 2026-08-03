@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Header } from "./components/Header";
 import type { AppView } from "./components/Header";
@@ -111,6 +111,19 @@ function AppContent() {
     setActiveView("new-arrivals");
   }
 
+  // BL-196: bridges CardsPage's quantities refetch to ImportExportPage's
+  // "Refreshing your Vault…" busy-overlay stage -- CardsPage stays mounted
+  // the whole time (display:none, not unmounted, see the pane wrappers
+  // below), so a ref is enough; a plain useState would re-render AppContent
+  // on every CardsPage auth-driven identity change for no reason, since
+  // nothing here ever reads the function itself for rendering. See
+  // CardsPage's onQuantitiesRefreshReady prop doc comment for the other
+  // half of this wiring.
+  const quantitiesRefreshRef = useRef<() => Promise<void>>(async () => {});
+  const registerQuantitiesRefresh = useCallback((fn: () => Promise<void>) => {
+    quantitiesRefreshRef.current = fn;
+  }, []);
+
   // BL-165: pick the header starfield once per app open (no-repeat-of-last;
   // see utils/headerStarfield.ts). Mount-only by design -- the art must not
   // change mid-session on re-renders or auth transitions.
@@ -183,6 +196,7 @@ function AppContent() {
             onRequestSignIn={() => setAuthModalOpen(true)}
             isEmailVerified={emailVerified}
             onOpenImportExport={() => setActiveView("import-export")}
+            onQuantitiesRefreshReady={registerQuantitiesRefresh}
           />
         </div>
         {/* BL-142: DeckCheckPage is always mounted (like CardsPage above),
@@ -220,7 +234,10 @@ function AppContent() {
             verified (see its own doc comment). */}
         {user && emailVerified && (
           <div style={{ display: view === "import-export" ? "contents" : "none" }}>
-            <ImportExportPage onBackToVault={() => setActiveView("cards")} />
+            <ImportExportPage
+              onBackToVault={() => setActiveView("cards")}
+              onImported={() => quantitiesRefreshRef.current()}
+            />
           </div>
         )}
       </main>

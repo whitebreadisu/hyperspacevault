@@ -565,6 +565,117 @@ describe("AddCardsModal commit gate (BL-16)", () => {
   });
 });
 
+/** BL-196: a controllable promise -- same technique
+ * ImportExportPage.test.tsx's own deferred() uses -- for observing the busy
+ * overlay WHILE incrementCard/onCommitted are still pending, rather than
+ * mocking values that resolve before the assertion runs. */
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+// DISPOSITION (BL-196, CREATE): net-new coverage -- the manual commit path's
+// busy overlay (handleCommit) stages "Applying N cards…" through the
+// incrementCard loop, then "Refreshing your Vault…" through onCommitted,
+// dismissing only once both settle.
+describe("AddCardsModal busy overlay (BL-196)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function buildOneRowBatchAndReachVerification(onCommitted = vi.fn()) {
+    const onClose = vi.fn();
+    await renderModal(onClose, onCommitted);
+    await chooseSet(/^SOR —/);
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("000"), { target: { value: "12" } });
+    });
+    const finishSelect = screen.getByLabelText("Finish");
+    await act(async () => {
+      fireEvent.change(finishSelect, { target: { value: "Standard Foil" } });
+    });
+    await act(async () => {
+      fireEvent.keyDown(finishSelect, { key: "Enter" });
+    });
+    const footerBtns = screen.getAllByRole("button");
+    const submitBtn = footerBtns.find((b) => b.textContent?.includes("Add Cards to Inventory"));
+    await act(async () => {
+      fireEvent.click(submitBtn!);
+    });
+    expect(screen.getByRole("heading", { name: /verify cards/i })).toBeTruthy();
+    return { onClose, onCommitted };
+  }
+
+  function clickCommit() {
+    const footerBtns = screen.getAllByRole("button");
+    const commitBtn = footerBtns.find((b) => b.textContent?.includes("Add Cards to Inventory"));
+    fireEvent.click(commitBtn!);
+  }
+
+  it("stages 'Applying 1 card…' then 'Refreshing your Vault…', holding until onCommitted settles", async () => {
+    const { promise: incrementPromise, resolve: resolveIncrement } = deferred<{
+      variant_id: number;
+      quantity: number;
+      playset_complete: boolean;
+      blocked: boolean;
+      reason: null;
+    }>();
+    mockIncrementCard.mockReturnValue(incrementPromise);
+    const { promise: committedPromise, resolve: resolveCommitted } = deferred<void>();
+    const onCommitted = vi.fn(() => committedPromise);
+    await buildOneRowBatchAndReachVerification(onCommitted);
+
+    clickCommit();
+
+    await waitFor(() => expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument());
+
+    await act(async () =>
+      resolveIncrement({
+        variant_id: 1,
+        quantity: 1,
+        playset_complete: false,
+        blocked: false,
+        reason: null,
+      })
+    );
+
+    await waitFor(() => expect(screen.getByText("Refreshing your Vault…")).toBeInTheDocument());
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+    // Still up -- the modal hasn't closed yet.
+    expect(screen.getByRole("heading", { name: /verify cards/i })).toBeInTheDocument();
+
+    await act(async () => resolveCommitted());
+
+    await waitFor(() =>
+      expect(screen.queryByText("Refreshing your Vault…")).not.toBeInTheDocument()
+    );
+  });
+
+  it("ignores Escape while the busy overlay is up (no close-guard confirm, no requestClose)", async () => {
+    const { promise: incrementPromise } = deferred<unknown>();
+    mockIncrementCard.mockReturnValue(incrementPromise);
+    const { onClose } = await buildOneRowBatchAndReachVerification();
+
+    clickCommit();
+    await waitFor(() => expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument());
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    // Neither the close-guard confirm nor onClose fired -- Escape was a
+    // pure no-op while the overlay is showing (see AddCardsModal.tsx's
+    // onEscape, guarded on overlay.stage).
+    expect(screen.queryByText(/discard this batch/i)).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument();
+  });
+});
+
 // ─── Close guard (BL-111 F7) ─────────────────────────────────────────────
 // Cancel/X/Escape/backdrop-click with a non-empty batch raises a
 // console-styled confirm instead of closing outright. The X/Escape/backdrop

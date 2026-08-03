@@ -70,3 +70,25 @@ Object.defineProperty(window, "innerWidth", {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
+
+// BL-196: BusyOverlay's dismiss path double-requestAnimationFrames before
+// hiding (hooks/useBusyOverlay.ts's doubleRaf) so it outlives the paint of
+// whatever re-render it was covering for. jsdom DOES implement rAF (unlike
+// matchMedia), but as a REAL, wall-clock timer (~16ms) -- fine for the app
+// itself, but every test that fires an event routing through run() would
+// need to either wait real time or get flaky/order-dependent if a still-
+// pending callback from one test's overlay fires mid-way through the next
+// (observed: ImportExportPage.test.tsx's dry_run/commit tests passed in
+// isolation but failed together once this landed). Rebinding rAF to resolve
+// via queueMicrotask keeps it inside the SAME microtask-draining loop
+// `act(async () => {...})` and `waitFor` already perform, so every existing
+// act()-wrapped test settles deterministically with no rewrite -- rAF's
+// actual browser contract ("before the next repaint") never promised a real
+// timer, just an ordering guarantee this preserves.
+if (typeof window !== "undefined") {
+  window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+    queueMicrotask(() => cb(performance.now()));
+    return 0;
+  };
+  window.cancelAnimationFrame = () => {};
+}
