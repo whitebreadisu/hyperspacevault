@@ -182,16 +182,22 @@ describe("ImportExportPage catalog reference (inside Import section)", () => {
   // CREATE (BL-173 review round 4, owner): the Import section states the
   // expected format up front and points other-tracker users at the catalog
   // CSV + AI-conversion migration path.
-  it("renders the two format notes (HyperspaceVault format + AI-conversion suggestion) at the configure step", async () => {
+  // REPLACE (BL-185/BL-186 follow-up, owner 2026-08-03): the notes now lead
+  // with the native SWUDB / SW-Unlimited-DB acceptance; the AI-conversion
+  // path survives as the everything-else fallback.
+  it("renders the two format notes (native-format acceptance + migration tip) at the configure step", async () => {
     await renderPage();
     const formatNote = screen.getByText(/HyperspaceVault format/i).closest(".ie-format-note");
     expect(formatNote).not.toBeNull();
+    expect(formatNote!.textContent).toMatch(/SW-Unlimited-DB/i);
+    expect(formatNote!.textContent).toMatch(/accepted natively/i);
 
     const migrationNote = screen
       .getByText(/coming from another tracker/i)
       .closest(".ie-format-note");
     expect(migrationNote).not.toBeNull();
     expect(migrationNote).not.toBe(formatNote);
+    expect(migrationNote!.textContent).toMatch(/upload your export file as-is/i);
     expect(migrationNote!.textContent).toMatch(/favorite AI tool/i);
     expect(migrationNote!.textContent).toMatch(/catalog CSV/i);
   });

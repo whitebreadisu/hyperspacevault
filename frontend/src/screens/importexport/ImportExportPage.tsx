@@ -254,17 +254,23 @@ export function ImportExportPage({ onBackToVault }: Props) {
             </p>
             {step === "configure" && (
               // BL-173 review round 4 (owner): imports expect the
-              // HyperspaceVault format -- say so up front, and point
-              // other-tracker users at the catalog CSV + an AI conversion
-              // as the migration path.
+              // HyperspaceVault format -- say so up front. BL-185/BL-186
+              // follow-up (owner, 2026-08-03): SWUDB + SW-Unlimited-DB
+              // exports now import natively, so the amber migration tip
+              // leads with upload-as-is and keeps the catalog-CSV + AI
+              // conversion as the everything-else path.
               <div className="ie-format-notes">
                 <p className="ie-format-note">
                   Imports use the <strong>HyperspaceVault format</strong> — the files Export
-                  produces, or the catalog reference sheet with your quantities filled in.
+                  produces, or the catalog reference sheet with your quantities filled in.{" "}
+                  <strong>SWUDB</strong> and <strong>SW-Unlimited-DB</strong> exports are also
+                  accepted natively.
                 </p>
                 <p className="ie-format-note ie-format-note--amber">
-                  <strong>Coming from another tracker?</strong> Download the catalog CSV and ask
-                  your favorite AI tool to convert your existing inventory file into it.
+                  <strong>Coming from another tracker?</strong> If it&apos;s SWUDB or
+                  SW-Unlimited-DB, just upload your export file as-is — it&apos;s recognized
+                  automatically. From anywhere else, download the catalog CSV and ask your favorite
+                  AI tool to convert your existing inventory file into it.
                 </p>
               </div>
             )}
