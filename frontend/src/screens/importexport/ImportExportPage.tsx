@@ -414,30 +414,6 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
           </p>
         )}
 
-        {/* BL-196 DEV-only: opens the busy overlay on demand so the owner can
-            judge the animation without running a real import -- stripped
-            along with the rest of the dev switcher once a variant is
-            picked. Pairs with BusyOverlay's own HOLD toggle (which only
-            matters for a real run()-driven overlay) to keep this one open
-            for inspection: this button's own previewStage toggle already
-            doesn't auto-dismiss on its own. */}
-        {import.meta.env.DEV && (
-          <div className="ie-actions">
-            <button
-              type="button"
-              className="ie-link"
-              onClick={() =>
-                overlay.previewStage({
-                  message: "Applying 1,240 cards…",
-                  sub: "Dev preview — not a real import",
-                })
-              }
-            >
-              Preview overlay
-            </button>
-          </div>
-        )}
-
         {step === "configure" && (
           <div className="ie-form">
             <div className="ie-radio-group" role="radiogroup" aria-label="Merge mode">
@@ -555,7 +531,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
           </div>
         )}
       </section>
-      <BusyOverlay stage={overlay.stage} hold={overlay.hold} onToggleHold={overlay.toggleHold} />
+      <BusyOverlay stage={overlay.stage} />
     </div>
   );
 }
