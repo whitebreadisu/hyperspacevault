@@ -61,6 +61,16 @@ interface Props {
    * below. Optional for the same standalone-render reason as
    * onRequestSignIn above. */
   onOpenImportExport?: () => void;
+  /** BL-196: hands the Vault's own quantities refetch up to App.tsx, which
+   * forwards it to ImportExportPage as `onImported` -- CardsPage stays
+   * mounted the whole time (App.tsx display:none's the inactive pane rather
+   * than unmounting it), so without this an import commit never refreshed
+   * the Vault's quantities until some unrelated auth change happened to
+   * re-run the effect below. A ref-registration (not a global store): the
+   * function identity is hand-delivered once per refreshQuantities change,
+   * nothing else reaches for it. Optional so CardsPage still renders
+   * standalone (e.g. this file's own tests) without wiring it. */
+  onQuantitiesRefreshReady?: (refresh: () => Promise<void>) => void;
 }
 
 /** Unified Cards view (BL-56 §5.5) -- one list for everyone, inventory data
@@ -84,6 +94,7 @@ export function CardsPage({
   onRequestSignIn,
   isEmailVerified = true,
   onOpenImportExport,
+  onQuantitiesRefreshReady,
 }: Props) {
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -244,6 +255,13 @@ export function CardsPage({
       .catch((err) => setError(String(err)))
       .finally(() => setQuantitiesLoading(false));
   }, [refreshQuantities]);
+
+  // BL-196: hands the current refreshQuantities up to App.tsx on every
+  // identity change (only ever changes with isAuthenticated -- see the
+  // callback's own deps above) -- see this prop's own doc comment for why.
+  useEffect(() => {
+    onQuantitiesRefreshReady?.(refreshQuantities);
+  }, [onQuantitiesRefreshReady, refreshQuantities]);
 
   const loading = catalogLoading || quantitiesLoading;
 
@@ -715,8 +733,13 @@ export function CardsPage({
               <AddCardsModal
                 catalog={addCardsCatalog}
                 onClose={() => setModalOpen(false)}
-                onCommitted={() => {
-                  refreshQuantities().catch(console.error);
+                // BL-196: awaited now (was fire-and-forget) -- the modal's
+                // own commit-stage busy overlay holds its "Refreshing your
+                // Vault…" stage on this promise before dismissing. Errors
+                // still swallowed here (unchanged behavior) so a failed
+                // refresh never rejects the overlay's own settle step.
+                onCommitted={async () => {
+                  await refreshQuantities().catch(console.error);
                 }}
               />
             )}

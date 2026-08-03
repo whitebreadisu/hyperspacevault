@@ -1,0 +1,310 @@
+/* ── BusyOverlay (BL-196) ───────────────────────────────────────────────
+ * Full-viewport blocking overlay for large inventory applies. Extends the
+ * shared .modal-overlay backdrop (BL-153) rather than a bespoke scrim --
+ * `.busy-overlay.modal-overlay` (two classes -> specificity (0,2,0)) beats
+ * plain `.modal-overlay` (0,1,0) regardless of stylesheet load order, so the
+ * z-index bump below is guaranteed to win. 300 clears every existing modal
+ * layer, including AddCardsModal's nested close-guard confirm (200) -- a
+ * commit can run with that modal (and its own confirm) still open under
+ * this. */
+.busy-overlay.modal-overlay {
+  z-index: 300;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.busy-overlay__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 32px 44px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.busy-overlay__message {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.busy-overlay__sub {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Glyph row shared chrome ─────────────────────────────────────────── */
+.busy-overlay__glyph,
+.busy-overlay__glyph-track,
+.busy-overlay__glyph-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Variant A: Sequence pulse ────────────────────────────────────────
+ * A simple flex row -- each glyph brightens + scales(1.15) with an amber
+ * glow in turn, a traveling pulse looping every 2.4s (6 glyphs x 0.4s). */
+.busy-overlay__glyphs--a {
+  display: flex;
+  gap: 14px;
+}
+
+.busy-overlay__glyphs--a .busy-overlay__glyph-inner {
+  animation: busy-pulse-a 2.4s ease-in-out infinite;
+}
+
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
+  animation-delay: 0s;
+}
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
+  animation-delay: 0.4s;
+}
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
+  animation-delay: 0.8s;
+}
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
+  animation-delay: 1.2s;
+}
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
+  animation-delay: 1.6s;
+}
+.busy-overlay__glyphs--a .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
+  animation-delay: 2s;
+}
+
+@keyframes busy-pulse-a {
+  0%,
+  83.34%,
+  100% {
+    transform: scale(1);
+    filter: brightness(0.7);
+  }
+  8.33% {
+    transform: scale(1.15);
+    filter: brightness(1.3) drop-shadow(0 0 8px var(--color-warning));
+  }
+  16.67% {
+    transform: scale(1);
+    filter: brightness(0.7);
+  }
+}
+
+/* ── Variant B: Crossfade cycle ───────────────────────────────────────
+ * One glyph slot -- all six stacked on top of each other (absolute inset:0
+ * inside a fixed-size box), each fading in/out with a gentle scale breathe
+ * on its own turn. 3s loop (6 glyphs x 0.5s). */
+.busy-overlay__glyphs--b {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+
+.busy-overlay__glyphs--b .busy-overlay__glyph {
+  position: absolute;
+  inset: 0;
+}
+
+.busy-overlay__glyphs--b .busy-overlay__glyph-inner {
+  opacity: 0;
+  animation: busy-crossfade-b 3s ease-in-out infinite;
+}
+
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
+  animation-delay: 0s;
+}
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
+  animation-delay: 0.5s;
+}
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
+  animation-delay: 1s;
+}
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
+  animation-delay: 1.5s;
+}
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
+  animation-delay: 2s;
+}
+.busy-overlay__glyphs--b .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
+  animation-delay: 2.5s;
+}
+
+@keyframes busy-crossfade-b {
+  0%,
+  83.34%,
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  8.33% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  16.67% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* ── Variant C: Orbit ─────────────────────────────────────────────────
+ * Six glyphs evenly spaced on a ring, ~10s/rev, each counter-rotating to
+ * stay upright, with an amber glow on the one passing 12 o'clock. Three
+ * nested layers per glyph do the work:
+ *   .busy-overlay__glyph        static per-glyph position on the ring
+ *                                (rotate(var(--busy-angle)), set inline by
+ *                                BusyOverlay.tsx -- 0/60/120/180/240/300deg)
+ *   .busy-overlay__glyph-track  the shared 10s ring rotation (0 -> 360deg),
+ *                                identical for all six -- this is what
+ *                                actually sweeps them around
+ *   .busy-overlay__glyph-inner  counter-rotates by the exact negative of
+ *                                (static angle + ring rotation) so the icon
+ *                                itself never visually spins, plus a
+ *                                second, independently-delayed animation
+ *                                that pulses the amber glow at the moment
+ *                                each glyph's static angle carries it
+ *                                through 12 o'clock.
+ * The per-glyph glow delays below are each angle's "distance" (at 36deg/s)
+ * back to a 0deg (12 o'clock) crossing: angle 0->0s, 60->8.33s, 120->6.67s,
+ * 180->5s, 240->3.33s, 300->1.67s. */
+.busy-overlay__glyphs--c {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--busy-angle, 0deg));
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph-track {
+  position: absolute;
+  inset: 0;
+  animation: busy-orbit-spin-c 10s linear infinite;
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph-inner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin-left: -24px;
+  animation:
+    busy-orbit-counter-c 10s linear infinite,
+    busy-orbit-glow-c 10s linear infinite;
+}
+
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 0s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 8.33s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 6.67s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 5s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 3.33s;
+}
+.busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
+  animation-delay: 0s, 1.67s;
+}
+
+@keyframes busy-orbit-spin-c {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes busy-orbit-counter-c {
+  from {
+    transform: rotate(calc(-1 * var(--busy-angle, 0deg)));
+  }
+  to {
+    transform: rotate(calc(-1 * var(--busy-angle, 0deg) - 360deg));
+  }
+}
+
+@keyframes busy-orbit-glow-c {
+  0% {
+    filter: brightness(1.3) drop-shadow(0 0 8px var(--color-warning));
+  }
+  8.33% {
+    filter: brightness(0.75);
+  }
+  100% {
+    filter: brightness(0.75);
+  }
+}
+
+/* ── Reduced motion: static row of dimmed glyphs ────────────────────── */
+.busy-overlay__glyphs--reduced {
+  display: flex;
+  gap: 14px;
+}
+
+.busy-overlay__glyphs--reduced .busy-overlay__glyph-inner {
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+
+/* Belt-and-suspenders: BusyOverlay.tsx already swaps to the `--reduced`
+ * layout via a matchMedia-backed hook (the primary, testable mechanism --
+ * see BusyOverlay.test.tsx), but this OS-level media query kills any
+ * animation outright regardless, in case the JS hook's listener hasn't
+ * attached yet or matchMedia is unavailable. */
+@media (prefers-reduced-motion: reduce) {
+  .busy-overlay__glyph-inner {
+    animation: none !important;
+  }
+}
+
+/* ── DEV-only variant switcher + HOLD toggle ────────────────────────────
+ * Never rendered outside import.meta.env.DEV (BusyOverlay.tsx gates the
+ * whole block) -- kept in its own clearly-bounded section so stripping it
+ * (along with whichever two variants above lose the owner's pick) is a
+ * clean deletion later. */
+.busy-overlay__dev {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  gap: 6px;
+}
+
+.busy-overlay__dev-btn {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.busy-overlay__dev-btn--active {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}

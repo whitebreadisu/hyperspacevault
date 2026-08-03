@@ -781,6 +781,51 @@ describe("AddCardsModal precon dry-run + commit through the shared Verify Cards 
     expect(onCommitted).toHaveBeenCalled();
   });
 
+  // DISPOSITION (BL-196, CREATE): net-new coverage -- the precon commit
+  // path's busy overlay (handlePreconCommit) stages "Applying N cards…"
+  // through the commit-stage runImport call, then "Refreshing your Vault…"
+  // through onCommitted, dismissing only once both settle. Same
+  // deferred()-promise technique ImportExportPage.test.tsx and
+  // AddCardsModal.test.tsx's own BL-196 coverage use.
+  it("stages 'Applying 1 card…' then 'Refreshing your Vault…' on precon commit, holding until onCommitted settles", async () => {
+    let resolveCommit!: (report: ImportReport) => void;
+    const commitPromise = new Promise<ImportReport>((resolve) => {
+      resolveCommit = resolve;
+    });
+    let resolveCommitted!: () => void;
+    const committedPromise = new Promise<void>((resolve) => {
+      resolveCommitted = resolve;
+    });
+    const onCommitted = vi.fn(() => committedPromise);
+    runImport.mockResolvedValueOnce(baseImportReport());
+    await renderModal(vi.fn(), onCommitted);
+    await waitForPreconBarLoaded();
+    await choosePreconDeck("SOR-LUKE");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /preview adding deck/i }));
+    });
+
+    runImport.mockReturnValueOnce(commitPromise);
+    fireEvent.click(screen.getByRole("button", { name: /add cards to inventory/i }));
+
+    // baseImportReport()'s one row is the batch size the verify screen's own
+    // "N of M cards will be added" hint already shows.
+    await waitFor(() => expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument());
+
+    await act(async () => resolveCommit(baseImportReport({ stage: "commit", committed: true })));
+
+    await waitFor(() => expect(screen.getByText("Refreshing your Vault…")).toBeInTheDocument());
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+    // Still up -- the verify screen is still what's underneath.
+    expect(screen.getByRole("heading", { name: /verify cards to add/i })).toBeInTheDocument();
+
+    await act(async () => resolveCommitted());
+
+    await waitFor(() =>
+      expect(screen.queryByText("Refreshing your Vault…")).not.toBeInTheDocument()
+    );
+  });
+
   it("surfaces the verify-email copy and stays open on a 403 email_not_verified commit", async () => {
     const onClose = vi.fn();
     const onCommitted = vi.fn();

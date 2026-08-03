@@ -13,7 +13,9 @@ import type {
   ImportRowReport,
 } from "../../api/inventoryImportExport";
 import { SWUButton } from "../../components/SWUButton";
-import { ImportPreviewReport } from "./ImportPreviewReport";
+import { BusyOverlay } from "../../components/BusyOverlay";
+import { useBusyOverlay } from "../../hooks/useBusyOverlay";
+import { ImportPreviewReport, totalCardsFromReport } from "./ImportPreviewReport";
 import "./ImportExportPage.css";
 
 interface Props {
@@ -22,7 +24,25 @@ interface Props {
    * activeView, same App-owns-the-pane-switch pattern SettingsPage's
    * onNavigateCards wiring already uses via Header). */
   onBackToVault: () => void;
+  /** BL-196: the Vault's (CardsPage's) own quantities refetch, threaded down
+   * through App.tsx via a ref-registration (CardsPage stays mounted the
+   * whole time -- see App.tsx's onQuantitiesRefreshReady -- so it never
+   * re-fetched on an import commit before this existed). The commit-stage
+   * busy overlay awaits it during its "Refreshing your Vault…" stage before
+   * dismissing. Optional so this pane still renders standalone (e.g. tests
+   * that don't wire App.tsx) -- omitting it just skips the refresh await. */
+  onImported?: () => Promise<void>;
 }
+
+/** BL-196: the three server-generated downloads (export JSON/CSV, catalog
+ * reference) give zero feedback while the file is generated server-side --
+ * a per-button busy state (not the full-screen BusyOverlay: nothing is
+ * being APPLIED here, a blocking overlay would be the wrong weight for a
+ * read-only download), same label-swap idiom the Preview/Confirm buttons
+ * below already use ("Previewing…"/"Importing…"). Tracked as a Set (not
+ * three separate booleans) since the three downloads are independent
+ * network calls that can, in principle, overlap. */
+type DownloadKind = "json" | "csv" | "reference";
 
 type Step = "configure" | "preview" | "success";
 
@@ -100,7 +120,7 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
  * (configure -> preview -> success), matching the Settings-pane visual
  * idiom (.screen/.screen-heading from cards.css, section chrome mirroring
  * SettingsPage.css's .settings-section vocabulary under ie- class names). */
-export function ImportExportPage({ onBackToVault }: Props) {
+export function ImportExportPage({ onBackToVault, onImported }: Props) {
   const [step, setStep] = useState<Step>("configure");
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<ImportMode>("merge_add");
@@ -118,7 +138,11 @@ export function ImportExportPage({ onBackToVault }: Props) {
     source: "export" | "reference";
     message: string;
   } | null>(null);
+  // BL-196: which download button(s) are currently in flight -- button-level
+  // busy state (label swap), independent of the full-screen BusyOverlay.
+  const [downloadingKinds, setDownloadingKinds] = useState<ReadonlySet<DownloadKind>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const overlay = useBusyOverlay();
 
   function handleFileChange(next: File | null) {
     setFile(next);
@@ -130,8 +154,10 @@ export function ImportExportPage({ onBackToVault }: Props) {
     setFileError(null);
   }
 
-  async function handleDownload(kind: "json" | "csv" | "reference") {
+  async function handleDownload(kind: DownloadKind) {
+    if (downloadingKinds.has(kind)) return;
     setDownloadError(null);
+    setDownloadingKinds((prev) => new Set(prev).add(kind));
     try {
       const { blob, filename } =
         kind === "reference" ? await downloadCatalogReference() : await exportInventory(kind);
@@ -144,6 +170,12 @@ export function ImportExportPage({ onBackToVault }: Props) {
             ? err.message
             : "Couldn't download that file. Please try again.",
       });
+    } finally {
+      setDownloadingKinds((prev) => {
+        const next = new Set(prev);
+        next.delete(kind);
+        return next;
+      });
     }
   }
 
@@ -152,7 +184,14 @@ export function ImportExportPage({ onBackToVault }: Props) {
     setPreviewing(true);
     setFileError(null);
     try {
-      const result = await runImport(file, mode, capHandling, "dry_run");
+      // BL-196: dry_run never mutates inventory, so there's no "Refreshing
+      // your Vault…" stage here -- just the one message through to the
+      // preview report's own render (the trailing double-rAF inside run()
+      // still covers that render's paint before the overlay comes down).
+      const result = await overlay.run(
+        { message: "Checking your file…" },
+        { task: () => runImport(file, mode, capHandling, "dry_run") }
+      );
       setReport(result);
       setReplaceAllConfirmed(false);
       setStep("preview");
@@ -176,8 +215,24 @@ export function ImportExportPage({ onBackToVault }: Props) {
     if (!file || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
+    // BL-196: the dry_run report already sitting in state has the exact
+    // "Cards" figure the preview screen shows -- same totalCardsFromReport
+    // ImportPreviewReport itself renders from, so the overlay's count and
+    // the report's own headline total never drift apart.
+    const count = totalCardsFromReport(report);
     try {
-      const result = await runImport(file, mode, capHandling, "commit");
+      const result = await overlay.run(
+        { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
+        {
+          task: () => runImport(file, mode, capHandling, "commit"),
+          settleStage: { message: "Refreshing your Vault…" },
+          // onImported/refreshQuantities already swallows its own errors
+          // (App.tsx/CardsPage.tsx) -- nothing further to catch here.
+          settle: async () => {
+            await onImported?.();
+          },
+        }
+      );
       setSuccessReport(result);
       setStep("success");
     } catch (err) {
@@ -231,11 +286,21 @@ export function ImportExportPage({ onBackToVault }: Props) {
           </p>
         )}
         <div className="ie-actions">
-          <SWUButton size="sm" onClick={() => handleDownload("json")}>
-            Download JSON
+          <SWUButton
+            size="sm"
+            active={!downloadingKinds.has("json")}
+            ariaDisabled={downloadingKinds.has("json")}
+            onClick={() => handleDownload("json")}
+          >
+            {downloadingKinds.has("json") ? "Preparing…" : "Download JSON"}
           </SWUButton>
-          <SWUButton size="sm" onClick={() => handleDownload("csv")}>
-            Download CSV
+          <SWUButton
+            size="sm"
+            active={!downloadingKinds.has("csv")}
+            ariaDisabled={downloadingKinds.has("csv")}
+            onClick={() => handleDownload("csv")}
+          >
+            {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
           </SWUButton>
         </div>
       </section>
@@ -317,8 +382,13 @@ export function ImportExportPage({ onBackToVault }: Props) {
                 </p>
               )}
             </div>
-            <SWUButton size="sm" onClick={() => handleDownload("reference")}>
-              Download catalog (CSV)
+            <SWUButton
+              size="sm"
+              active={!downloadingKinds.has("reference")}
+              ariaDisabled={downloadingKinds.has("reference")}
+              onClick={() => handleDownload("reference")}
+            >
+              {downloadingKinds.has("reference") ? "Preparing…" : "Download catalog (CSV)"}
             </SWUButton>
           </aside>
         </div>
@@ -327,6 +397,30 @@ export function ImportExportPage({ onBackToVault }: Props) {
           <p className="ie-error" role="alert">
             {fileError}
           </p>
+        )}
+
+        {/* BL-196 DEV-only: opens the busy overlay on demand so the owner can
+            judge the animation without running a real import -- stripped
+            along with the rest of the dev switcher once a variant is
+            picked. Pairs with BusyOverlay's own HOLD toggle (which only
+            matters for a real run()-driven overlay) to keep this one open
+            for inspection: this button's own previewStage toggle already
+            doesn't auto-dismiss on its own. */}
+        {import.meta.env.DEV && (
+          <div className="ie-actions">
+            <button
+              type="button"
+              className="ie-link"
+              onClick={() =>
+                overlay.previewStage({
+                  message: "Applying 1,240 cards…",
+                  sub: "Dev preview — not a real import",
+                })
+              }
+            >
+              Preview overlay
+            </button>
+          </div>
         )}
 
         {step === "configure" && (
@@ -446,6 +540,7 @@ export function ImportExportPage({ onBackToVault }: Props) {
           </div>
         )}
       </section>
+      <BusyOverlay stage={overlay.stage} hold={overlay.hold} onToggleHold={overlay.toggleHold} />
     </div>
   );
 }

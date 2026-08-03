@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ImportExportPage } from "./ImportExportPage";
 import { ImportApiError } from "../../api/inventoryImportExport";
@@ -61,12 +61,29 @@ function baseReport(overrides: Partial<ImportReport> = {}): ImportReport {
   };
 }
 
-async function renderPage(onBackToVault: () => void = vi.fn()) {
+async function renderPage(onBackToVault: () => void = vi.fn(), onImported?: () => Promise<void>) {
   let utils!: ReturnType<typeof render>;
   await act(async () => {
-    utils = render(<ImportExportPage onBackToVault={onBackToVault} />);
+    utils = render(<ImportExportPage onBackToVault={onBackToVault} onImported={onImported} />);
   });
   return utils;
+}
+
+/** BL-196: a controllable promise for tests that need to observe the busy
+ * overlay WHILE a call is still in flight (rather than mocking a value that
+ * resolves before the test can ever see the pending state). */
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (err: unknown) => void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (err: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 async function selectFile(): Promise<File> {
@@ -129,6 +146,51 @@ describe("ImportExportPage export section (BL-54 S3, CREATE)", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent(/verify your email/i);
   });
+
+  // BL-196 (owner scope addition): the two export downloads + the catalog
+  // reference download give zero feedback while the server generates the
+  // file -- a button-level busy state (label swap, matching the
+  // Preview/Confirm buttons' own "Previewing…"/"Importing…" idiom), NOT the
+  // full-screen BusyOverlay (nothing is being applied here).
+  it("shows 'Preparing…' on the JSON button while its download is in flight, restored on resolve", async () => {
+    const { promise, resolve } = deferred<{ blob: Blob; filename: string }>();
+    exportInventory.mockReturnValue(promise);
+    await renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Preparing…" })).toBeInTheDocument()
+    );
+    // Sibling buttons are untouched -- this is per-button state, not a
+    // page-wide lock.
+    expect(screen.getByRole("button", { name: "Download CSV" })).toBeInTheDocument();
+
+    await act(async () => resolve({ blob: new Blob(["{}"]), filename: "x.json" }));
+
+    expect(screen.getByRole("button", { name: "Download JSON" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Preparing…" })).not.toBeInTheDocument();
+  });
+
+  it("shows 'Preparing…' on the CSV button while its download is in flight, restored on reject", async () => {
+    const { promise, reject } = deferred<{ blob: Blob; filename: string }>();
+    exportInventory.mockImplementation((format: string) =>
+      format === "csv" ? promise : Promise.resolve({ blob: new Blob(["x"]), filename: "x" })
+    );
+    await renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Preparing…" })).toBeInTheDocument()
+    );
+
+    await act(async () => reject(new ImportApiError("unknown", 500)));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Download CSV" })).toBeInTheDocument()
+    );
+    expect(screen.queryByRole("button", { name: "Preparing…" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
 });
 
 // DISPOSITION (owner dev-review 2026-07-23, REPLACE): the catalog reference
@@ -177,6 +239,24 @@ describe("ImportExportPage catalog reference (inside Import section)", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert.closest(".ie-reference")).not.toBeNull();
+  });
+
+  // BL-196 (owner scope addition): button-level busy state, same idiom as
+  // the export section's own JSON/CSV buttons.
+  it("shows 'Preparing…' on the catalog-reference button while its download is in flight", async () => {
+    const { promise, resolve } = deferred<{ blob: Blob; filename: string }>();
+    downloadCatalogReference.mockReturnValue(promise);
+    await renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /download catalog \(csv\)/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Preparing…" })).toBeInTheDocument()
+    );
+
+    await act(async () => resolve({ blob: new Blob(["x"]), filename: "ref.csv" }));
+
+    expect(screen.getByRole("button", { name: /download catalog \(csv\)/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Preparing…" })).not.toBeInTheDocument();
   });
 
   // CREATE (BL-173 review round 4, owner): the Import section states the
@@ -466,6 +546,93 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent(/more than 20,000 rows/i);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+// DISPOSITION (BL-196, CREATE): net-new coverage -- the busy overlay wraps
+// both runImport stages (dry_run/commit) plus, on commit, a hold through
+// `onImported` before dismissing. deferred() lets each test observe the
+// overlay's staged message WHILE the underlying call is still pending,
+// rather than mocking a value that resolves before the assertion runs.
+describe("ImportExportPage busy overlay (BL-196)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows 'Checking your file…' while dry_run is in flight, hides once it resolves", async () => {
+    const { promise, resolve } = deferred<ImportReport>();
+    runImport.mockReturnValue(promise);
+    await renderPage();
+    await selectFile();
+
+    fireEvent.click(screen.getByRole("button", { name: /preview import/i }));
+
+    await waitFor(() => expect(screen.getByText("Checking your file…")).toBeInTheDocument());
+    // No "Applying"/"Refreshing" staging on the read-only preview path.
+    expect(screen.queryByText(/refreshing your vault/i)).not.toBeInTheDocument();
+
+    await act(async () => resolve(baseReport()));
+
+    await waitFor(() => expect(screen.queryByText("Checking your file…")).not.toBeInTheDocument());
+    expect(screen.getByText("Card One", { exact: false })).toBeInTheDocument();
+  });
+
+  it("surfaces the dry_run error inline and hides the overlay without staging a report", async () => {
+    const { promise, reject } = deferred<ImportReport>();
+    runImport.mockReturnValue(promise);
+    await renderPage();
+    await selectFile();
+
+    fireEvent.click(screen.getByRole("button", { name: /preview import/i }));
+    await waitFor(() => expect(screen.getByText("Checking your file…")).toBeInTheDocument());
+
+    await act(async () => reject(new ImportApiError("unparseable_file", 422)));
+
+    await waitFor(() => expect(screen.queryByText("Checking your file…")).not.toBeInTheDocument());
+    expect(screen.getByRole("alert")).toHaveTextContent(/couldn't read that file/i);
+  });
+
+  it("stages 'Applying N cards…' then 'Refreshing your Vault…' on commit, holding until onImported settles", async () => {
+    runImport.mockResolvedValueOnce(baseReport()); // the dry_run behind Preview
+    const { promise: commitPromise, resolve: resolveCommit } = deferred<ImportReport>();
+    const { promise: importedPromise, resolve: resolveImported } = deferred<void>();
+    const onImported = vi.fn(() => importedPromise);
+    await renderPage(vi.fn(), onImported);
+    await selectFile();
+    await clickPreview();
+
+    runImport.mockReturnValueOnce(commitPromise);
+    fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+
+    // baseReport()'s one row carries file_quantity: 1 -- same totalCards
+    // figure the preview screen's own "Cards" total cell shows.
+    await waitFor(() => expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument());
+
+    await act(async () => resolveCommit(baseReport({ stage: "commit", committed: true })));
+
+    await waitFor(() => expect(screen.getByText("Refreshing your Vault…")).toBeInTheDocument());
+    expect(onImported).toHaveBeenCalledTimes(1);
+    // Still covered by the overlay -- the success screen hasn't rendered.
+    expect(screen.queryByText(/import complete/i)).not.toBeInTheDocument();
+
+    await act(async () => resolveImported());
+
+    await waitFor(() =>
+      expect(screen.queryByText("Refreshing your Vault…")).not.toBeInTheDocument()
+    );
+    expect(screen.getByText(/import complete/i)).toBeInTheDocument();
+  });
+
+  it("DEV: the 'Preview overlay' button opens/closes the overlay on demand without calling runImport", async () => {
+    await renderPage();
+    const previewBtn = screen.getByRole("button", { name: /preview overlay/i });
+
+    fireEvent.click(previewBtn);
+    expect(screen.getByText(/applying 1,240 cards/i)).toBeInTheDocument();
+    expect(runImport).not.toHaveBeenCalled();
+
+    fireEvent.click(previewBtn);
+    expect(screen.queryByText(/applying 1,240 cards/i)).not.toBeInTheDocument();
   });
 });
 
