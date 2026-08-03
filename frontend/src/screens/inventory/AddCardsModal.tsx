@@ -724,7 +724,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
           BusyOverlay.css) clears both this modal (100) and the close-guard
           confirm above (200), which can in principle still be up
           underneath if a stray requestClose slipped through mid-commit. */}
-      <BusyOverlay stage={overlay.stage} hold={overlay.hold} onToggleHold={overlay.toggleHold} />
+      <BusyOverlay stage={overlay.stage} />
     </div>
   );
 }

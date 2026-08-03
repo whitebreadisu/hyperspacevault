@@ -1,10 +1,14 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { BusyOverlay } from "./BusyOverlay";
 
 // DISPOSITION (BL-196, CREATE): net-new component, no prior coverage exists.
-
-const VARIANT_KEY = "swu.busyOverlay.variant";
+// RETIRE (owner pick, 2026-08-03): the "DEV-only variant switcher" describe
+// (5 tests: localStorage variant read/fallback, A/B/C switching, prod
+// hiding, Hold wiring) tested review scaffolding that was designed away
+// when the owner locked the orbit variant -- the switcher, the hold prop,
+// and the localStorage key no longer exist. The surviving behavior (the
+// orbit renders, reduced-motion swaps layouts) is pinned below.
 
 function mockMatchMedia(matches: boolean) {
   const listeners: ((e: MediaQueryListEvent) => void)[] = [];
@@ -27,12 +31,8 @@ function mockMatchMedia(matches: boolean) {
 }
 
 describe("BusyOverlay (BL-196)", () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
   });
 
   it("renders nothing when stage is null", () => {
@@ -72,10 +72,10 @@ describe("BusyOverlay (BL-196)", () => {
   });
 
   describe("reduced motion (matchMedia)", () => {
-    it("renders the animated variant layout when the OS has no reduced-motion preference", () => {
+    it("renders the orbit layout when the OS has no reduced-motion preference", () => {
       mockMatchMedia(false);
       const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-      expect(container.querySelector(".busy-overlay__glyphs--a")).not.toBeNull();
+      expect(container.querySelector(".busy-overlay__glyphs--c")).not.toBeNull();
       expect(container.querySelector(".busy-overlay__glyphs--reduced")).toBeNull();
     });
 
@@ -83,72 +83,23 @@ describe("BusyOverlay (BL-196)", () => {
       mockMatchMedia(true);
       const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
       expect(container.querySelector(".busy-overlay__glyphs--reduced")).not.toBeNull();
-      expect(container.querySelector(".busy-overlay__glyphs--a")).toBeNull();
+      expect(container.querySelector(".busy-overlay__glyphs--c")).toBeNull();
     });
 
     it("switches to the reduced layout live if the OS preference changes mid-session", () => {
       const mq = mockMatchMedia(false);
       const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-      expect(container.querySelector(".busy-overlay__glyphs--a")).not.toBeNull();
+      expect(container.querySelector(".busy-overlay__glyphs--c")).not.toBeNull();
 
       act(() => mq.fire(true));
 
       expect(container.querySelector(".busy-overlay__glyphs--reduced")).not.toBeNull();
     });
-  });
 
-  describe("DEV-only variant switcher", () => {
-    it("reads the persisted variant from localStorage when DEV", () => {
-      vi.stubEnv("DEV", true);
-      localStorage.setItem(VARIANT_KEY, "B");
+    it("renders all six aspect glyphs on the ring", () => {
+      mockMatchMedia(false);
       const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-      expect(container.querySelector(".busy-overlay__glyphs--b")).not.toBeNull();
-    });
-
-    it("falls back to the default variant for an unrecognized stored value", () => {
-      vi.stubEnv("DEV", true);
-      localStorage.setItem(VARIANT_KEY, "not-a-real-variant");
-      const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-      expect(container.querySelector(".busy-overlay__glyphs--a")).not.toBeNull();
-    });
-
-    it("renders the A/B/C + Hold corner control when DEV, and switching variants updates both the render and localStorage", () => {
-      vi.stubEnv("DEV", true);
-      const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-      expect(screen.getByRole("button", { name: "B" })).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole("button", { name: "C" }));
-
-      expect(container.querySelector(".busy-overlay__glyphs--c")).not.toBeNull();
-      expect(localStorage.getItem(VARIANT_KEY)).toBe("C");
-    });
-
-    it("ignores a stored variant and hides the corner switcher entirely outside DEV", () => {
-      vi.stubEnv("DEV", false);
-      localStorage.setItem(VARIANT_KEY, "C");
-      const { container } = render(<BusyOverlay stage={{ message: "x" }} />);
-
-      // Production hardcode point: always the coded default (A) regardless
-      // of whatever a previous DEV session left in localStorage.
-      expect(container.querySelector(".busy-overlay__glyphs--a")).not.toBeNull();
-      expect(screen.queryByRole("button", { name: "A" })).toBeNull();
-      expect(container.querySelector(".busy-overlay__dev")).toBeNull();
-    });
-
-    it("wires the Hold button to onToggleHold and reflects the active hold prop", () => {
-      vi.stubEnv("DEV", true);
-      const onToggleHold = vi.fn();
-      const { rerender } = render(
-        <BusyOverlay stage={{ message: "x" }} hold={false} onToggleHold={onToggleHold} />
-      );
-      const holdBtn = screen.getByRole("button", { name: "Hold" });
-      expect(holdBtn.className).not.toMatch(/--active/);
-
-      fireEvent.click(holdBtn);
-      expect(onToggleHold).toHaveBeenCalledTimes(1);
-
-      rerender(<BusyOverlay stage={{ message: "x" }} hold={true} onToggleHold={onToggleHold} />);
-      expect(screen.getByRole("button", { name: "Hold" }).className).toMatch(/--active/);
+      expect(container.querySelectorAll(".busy-overlay__glyph")).toHaveLength(6);
     });
   });
 });

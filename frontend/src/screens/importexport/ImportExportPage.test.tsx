@@ -676,17 +676,9 @@ describe("ImportExportPage busy overlay (BL-196)", () => {
     expect(screen.getByText(/import complete/i)).toBeInTheDocument();
   });
 
-  it("DEV: the 'Preview overlay' button opens/closes the overlay on demand without calling runImport", async () => {
-    await renderPage();
-    const previewBtn = screen.getByRole("button", { name: /preview overlay/i });
-
-    fireEvent.click(previewBtn);
-    expect(screen.getByText(/applying 1,240 cards/i)).toBeInTheDocument();
-    expect(runImport).not.toHaveBeenCalled();
-
-    fireEvent.click(previewBtn);
-    expect(screen.queryByText(/applying 1,240 cards/i)).not.toBeInTheDocument();
-  });
+  // RETIRE (owner pick, 2026-08-03): the DEV-only "Preview overlay" button
+  // was variant-pick scaffolding, stripped with the switcher when the owner
+  // locked the orbit animation -- the behavior it pinned no longer exists.
 });
 
 describe("ImportExportPage reject-CSV download (BL-54 S3, CREATE)", () => {
