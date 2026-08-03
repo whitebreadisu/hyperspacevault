@@ -260,6 +260,218 @@ def _swudb_csv(header: str, rows: list[str]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# BL-186: sw-unlimited-db (XLSX) import adapter fixture catalog. Base-card-
+# first resolution needs container/promo source_set_codes that live on a
+# base card whose OWN identity is a DIFFERENT (set, number) -- unlike
+# bl185_catalog (whose promo/container rows are entirely synthetic set
+# codes with no FK to satisfy), card_variants.source_set_code is an actual
+# FK to sets.code, so the container codes exercised here (SORP, LAWP, P25)
+# need their own `sets` rows first, same as bl185_catalog's ASH/TS26/C25/GG
+# inserts. High, unclaimed card_numbers (98xx), same dodge-every-other-
+# fixture convention as bl54s2_catalog/bl185_catalog.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def bl186_catalog(db):
+    """
+    - multi (SOR, "9841"): Standard + Standard Foil + Hyperspace -- the
+      multi-column melt fixture (one spreadsheet row, several positive
+      quantity columns) and the compute_import trim/ceiling integration
+      case. Also the base card Event Exclusive's "even with a plausible
+      candidate" test uses (Standard exists, still unmapped_column).
+    - prerelease_proof (SOR, "9836"): Standard + a Prerelease Promo variant
+      living at a COMPLETELY different own (source_set_code, card_number)
+      -- (P25, "9736") -- the base-card-first proof case (§10 owner
+      finding): resolution must find it via base_card_id, not via any
+      (set, number) pair derived from the row's own identity.
+    - prerelease_pair (SOR, "9837"): Prerelease Promo + Prerelease Judge,
+      same (source_set_code, card_number) -- exact-match preference over
+      ambiguity.
+    - wp_home (LAW, "9838"): two "Weekly Play" variants, one source_set_code
+      LAW (home), one LAWP (container) -- home-set preference.
+    - wp_early (SOR, "9839"): Standard + a "Hyperspace"-typed variant living
+      in the SORP container -- the early-era root-coded Weekly Play case
+      (BL-183), resolved via the source_set_code leg of the family
+      predicate rather than variant_type.
+    - serialized (SEC, "9840"): three "Serialized Prestige" variants, same
+      triple -- irreducibly ambiguous (mirrors bl185_catalog's SEC family).
+    """
+    for code, name in (("SORP", "SOR Weekly Play"), ("LAWP", "LAW Weekly Play")):
+        db.execute(
+            text(
+                "INSERT INTO sets (code, name, is_base_set) "
+                "VALUES (:code, :name, false) ON CONFLICT (code) DO NOTHING"
+            ),
+            {"code": code, "name": name},
+        )
+    db.execute(
+        text(
+            "INSERT INTO sets (code, name, is_base_set) "
+            "VALUES ('P25', 'Prerelease 2025', false) ON CONFLICT (code) DO NOTHING"
+        )
+    )
+    db.commit()
+
+    def _upsert_base_card(swuapi_id, set_code, number, name):
+        set_id = db.execute(
+            text("SELECT id FROM sets WHERE code = :code"), {"code": set_code}
+        ).scalar()
+        row = db.execute(
+            text(
+                "INSERT INTO base_cards "
+                "(set_id, base_card_number, name, type, rarity, swuapi_id) "
+                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+                "RETURNING id"
+            ),
+            {"set_id": set_id, "number": number, "name": name, "swuapi_id": swuapi_id},
+        ).first()
+        return row.id
+
+    def _upsert_variant(swuapi_id, base_card_id, set_code, card_number, variant_type):
+        row = db.execute(
+            text(
+                "INSERT INTO card_variants "
+                "(base_card_id, variant_type, source_set_code, card_number, swuapi_id) "
+                "VALUES (:base_card_id, :variant_type, :set_code, :card_number, :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET card_number = EXCLUDED.card_number "
+                "RETURNING id"
+            ),
+            {
+                "base_card_id": base_card_id,
+                "variant_type": variant_type,
+                "set_code": set_code,
+                "card_number": card_number,
+                "swuapi_id": swuapi_id,
+            },
+        ).first()
+        return row.id
+
+    bc_multi = _upsert_base_card(
+        "bl186-bc-multi", "SOR", "9841", "BL186 Multi Melt Hero"
+    )
+    bc_prerelease_proof = _upsert_base_card(
+        "bl186-bc-prerelease-proof", "SOR", "9836", "BL186 Prerelease Proof Hero"
+    )
+    bc_prerelease_pair = _upsert_base_card(
+        "bl186-bc-prerelease-pair", "SOR", "9837", "BL186 Prerelease Pair Hero"
+    )
+    bc_wp_home = _upsert_base_card(
+        "bl186-bc-wp-home", "LAW", "9838", "BL186 WP Home Hero"
+    )
+    bc_wp_early = _upsert_base_card(
+        "bl186-bc-wp-early", "SOR", "9839", "BL186 WP Early Hero"
+    )
+    bc_serialized = _upsert_base_card(
+        "bl186-bc-serialized", "SEC", "9840", "BL186 Serialized Hero"
+    )
+
+    multi_standard = _upsert_variant(
+        "bl186-v-multi-standard", bc_multi, "SOR", "9841", "Standard"
+    )
+    multi_foil = _upsert_variant(
+        "bl186-v-multi-foil", bc_multi, "SOR", "9841", "Standard Foil"
+    )
+    multi_hyperspace = _upsert_variant(
+        "bl186-v-multi-hyperspace", bc_multi, "SOR", "9841", "Hyperspace"
+    )
+    _upsert_variant(
+        "bl186-v-prerelease-proof-standard",
+        bc_prerelease_proof,
+        "SOR",
+        "9836",
+        "Standard",
+    )
+    prerelease_proof_promo = _upsert_variant(
+        "bl186-v-prerelease-proof-promo",
+        bc_prerelease_proof,
+        "P25",
+        "9736",
+        "Prerelease Promo",
+    )
+    prerelease_pair_promo = _upsert_variant(
+        "bl186-v-prerelease-pair-promo",
+        bc_prerelease_pair,
+        "SOR",
+        "9837",
+        "Prerelease Promo",
+    )
+    _upsert_variant(
+        "bl186-v-prerelease-pair-judge",
+        bc_prerelease_pair,
+        "SOR",
+        "9837",
+        "Prerelease Judge",
+    )
+    wp_home_home = _upsert_variant(
+        "bl186-v-wp-home-home", bc_wp_home, "LAW", "9838", "Weekly Play"
+    )
+    _upsert_variant("bl186-v-wp-home-other", bc_wp_home, "LAWP", "9838", "Weekly Play")
+    _upsert_variant("bl186-v-wp-early-standard", bc_wp_early, "SOR", "9839", "Standard")
+    wp_early_container = _upsert_variant(
+        "bl186-v-wp-early-container", bc_wp_early, "SORP", "9839", "Hyperspace"
+    )
+    serialized_c1 = _upsert_variant(
+        "bl186-v-serialized-c1", bc_serialized, "SEC", "9840", "Serialized Prestige"
+    )
+    _upsert_variant(
+        "bl186-v-serialized-c2", bc_serialized, "SEC", "9840", "Serialized Prestige"
+    )
+    _upsert_variant(
+        "bl186-v-serialized-c3", bc_serialized, "SEC", "9840", "Serialized Prestige"
+    )
+    db.commit()
+
+    return {
+        "multi_standard": {"id": multi_standard, "uuid": "bl186-v-multi-standard"},
+        "multi_foil": {"id": multi_foil, "uuid": "bl186-v-multi-foil"},
+        "multi_hyperspace": {
+            "id": multi_hyperspace,
+            "uuid": "bl186-v-multi-hyperspace",
+        },
+        "prerelease_proof_promo": {
+            "id": prerelease_proof_promo,
+            "uuid": "bl186-v-prerelease-proof-promo",
+        },
+        "prerelease_pair_promo": {
+            "id": prerelease_pair_promo,
+            "uuid": "bl186-v-prerelease-pair-promo",
+        },
+        "wp_home_home": {"id": wp_home_home, "uuid": "bl186-v-wp-home-home"},
+        "wp_early_container": {
+            "id": wp_early_container,
+            "uuid": "bl186-v-wp-early-container",
+        },
+        "serialized_uuids": [
+            "bl186-v-serialized-c1",
+            "bl186-v-serialized-c2",
+            "bl186-v-serialized-c3",
+        ],
+        "serialized_ids": [serialized_c1],
+    }
+
+
+def _xlsx_bytes(header: list[str], rows: list[list]) -> bytes:
+    """One in-memory "Data"-sheet XLSX workbook, built via openpyxl -- the
+    same construction the sw-unlimited-db export itself uses (Definition
+    doc §1: "read via openpyxl")."""
+    import io
+
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Data"
+    ws.append(header)
+    for row in rows:
+        ws.append(row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
 # Tenant provisioning -- every test runs under its own throwaway tenant
 # (mirrors test_inventory_limits_api.py's bl24_tenant), so the many varied
 # starting-quantity scenarios below (trim/ceiling/replace_all/partial
@@ -1588,7 +1800,16 @@ class TestSwudbRenames:
 
 
 class TestSwudbUnmappedAndUnknown:
-    def test_gc23_is_unmapped_swudb_set(self, bl54s2_tenant):
+    def test_gc23_is_unmapped_set(self, bl54s2_tenant):
+        """BL-186 REPLACE (disposition log): was
+        test_gc23_is_unmapped_swudb_set, asserting reason ==
+        "unmapped_swudb_set". BL-186 renamed the reason code
+        "unmapped_swudb_set" -> "unmapped_set" (format-agnostic, now
+        shared with the sw-unlimited-db adapter's identical failure mode)
+        -- the behavior this test proves (an unmapped SWUDB Set code is
+        refused, never guessed) is unchanged, only the wire string is
+        different, so the old assertion is superseded rather than ported
+        verbatim."""
         client, _ = bl54s2_tenant
         content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["GC23,2,1,False,"])
         resp = _post_import(
@@ -1602,7 +1823,7 @@ class TestSwudbUnmappedAndUnknown:
         assert resp.status_code == 200
         row = resp.json()["rows"][0]
         assert row["status"] == "unresolved"
-        assert row["reason"] == "unmapped_swudb_set"
+        assert row["reason"] == "unmapped_set"
         assert row["card"]["set_code"] == "GC23"
 
     def test_unknown_number_in_a_mapped_set_is_unknown_set_and_number(
@@ -1731,6 +1952,378 @@ class TestSwudbIntegrationWithComputeImport:
             client,
             content=content,
             filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="commit",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["committed"] is True
+        assert _get_quantity(db, tenant_id, variant["id"]) == 4
+
+
+# ---------------------------------------------------------------------------
+# BL-186: sw-unlimited-db.com collection-export (XLSX) import adapter --
+# router detection (§8.2's xlsx branch), melt, positive-only semantics,
+# base-card-first resolution, and every column family, against
+# bl186_catalog. Pure-Python coverage (set-code table, normalization,
+# column-family selection, melt shape) lives in
+# test_swunlimiteddb_import.py; this section is what needs a real DB.
+# ---------------------------------------------------------------------------
+
+
+def _post_xlsx_import(
+    client, *, header, rows, filename="collection.xlsx", mode, cap_handling, stage
+):
+    return client.post(
+        "/api/inventory/import",
+        files={"file": (filename, _xlsx_bytes(header, rows))},
+        data={"mode": mode, "cap_handling": cap_handling, "stage": stage},
+    )
+
+
+class TestSwunlimiteddbMelt:
+    def test_vader_style_row_melts_into_three_resolved_rows(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """§0.1/§4 row 1: one spreadsheet row with Normal/Foil/Hyperspace
+        all positive melts into 3 separate report rows, each resolving to
+        its own variant with its own file_quantity -- not folded into one."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal", "Foil", "Hyperspace"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 3, 1, 2]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["totals"]["resolved"] == 3
+        resolved_by_uuid = {
+            r["card"]["swuapi_uuid"]: r["file_quantity"] for r in body["rows"]
+        }
+        assert resolved_by_uuid[bl186_catalog["multi_standard"]["uuid"]] == 3
+        assert resolved_by_uuid[bl186_catalog["multi_foil"]["uuid"]] == 1
+        assert resolved_by_uuid[bl186_catalog["multi_hyperspace"]["uuid"]] == 2
+
+
+class TestSwunlimiteddbPositiveOnly:
+    def test_blank_and_literal_zero_cells_never_produce_a_row(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """§2.3/§10 (owner-locked): a blank Foil cell and a literal 0
+        Hyperspace cell both assert nothing -- only Normal's positive
+        value produces a report row."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal", "Foil", "Hyperspace"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 2, None, 0]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["totals"]["rows"] == 1
+        assert (
+            body["rows"][0]["card"]["swuapi_uuid"]
+            == bl186_catalog["multi_standard"]["uuid"]
+        )
+        assert body["rows"][0]["file_quantity"] == 2
+
+
+class TestSwunlimiteddbBaseCardFirst:
+    def test_prerelease_variant_resolves_despite_different_own_identity(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """§10 (load-bearing owner finding): the base card is (SOR, 9836);
+        its Prerelease Promo variant actually lives at (P25, 9736) -- a
+        completely different (source_set_code, card_number). Resolution
+        must find it via base_card_id (base-card-first), not by deriving
+        any (set, number) pair from the row's own identity."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Prerelease Promo"],
+            rows=[["sor", "9836", "BL186 Prerelease Proof Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert (
+            row["card"]["swuapi_uuid"]
+            == bl186_catalog["prerelease_proof_promo"]["uuid"]
+        )
+
+    def test_prerelease_promo_preferred_over_judge_when_both_exist(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Prerelease Promo"],
+            rows=[["sor", "9837", "BL186 Prerelease Pair Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert (
+            row["card"]["swuapi_uuid"] == bl186_catalog["prerelease_pair_promo"]["uuid"]
+        )
+
+
+class TestSwunlimiteddbHomeSetPreference:
+    def test_weekly_play_home_set_preferred_over_container_sibling(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Organized Play"],
+            rows=[["law", "9838", "BL186 WP Home Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl186_catalog["wp_home_home"]["uuid"]
+
+
+class TestSwunlimiteddbWeeklyPlayEarlyEra:
+    def test_organized_play_resolves_via_early_era_container_set(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """BL-183: an early-era root-coded WP printing whose variant_type
+        is "Hyperspace" (not "Weekly Play") but whose source_set_code is
+        the row's own mapped_set + "P" (SORP) -- still resolves as the
+        Organized Play family."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Organized Play"],
+            rows=[["sor", "9839", "BL186 WP Early Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl186_catalog["wp_early_container"]["uuid"]
+
+
+class TestSwunlimiteddbSerializedAmbiguous:
+    def test_serialized_prestige_trio_is_ambiguous_with_all_candidates(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Serialized Prestige"],
+            rows=[["sec", "9840", "BL186 Serialized Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "ambiguous"
+        assert row["reason"] == "ambiguous_triple"
+        assert sorted(row["candidates"]) == sorted(bl186_catalog["serialized_uuids"])
+
+
+class TestSwunlimiteddbUnmappedSet:
+    def test_hmw_is_unmapped_set(self, bl54s2_tenant):
+        """§3.3/§10 (owner-locked): HMW is genuinely unreleased/preview
+        content per the owner's read -- this catalog maps only
+        swuapi-sourced content, so HMW stays unmapped by design."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["HMW", "4", "Hijacked AT-ST", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "unmapped_set"
+        assert row["card"]["set_code"] == "HMW"
+
+
+class TestSwunlimiteddbUnmappedColumn:
+    def test_event_exclusive_is_unmapped_column_even_with_a_resolvable_base_card(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """§6/§10 (owner-locked): Event Exclusive's single observed
+        real-world use is a card-level anomaly -- unmapped_column in v1,
+        even though the base card (SOR, 9841) resolves fine for other
+        columns (bl186_catalog's own Standard/Foil/Hyperspace family)."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Event Exclusive"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "unmapped_column"
+
+    def test_dead_column_positive_is_unmapped_column(self, bl54s2_tenant):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Top 8"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 1]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "unmapped_column"
+
+
+class TestSwunlimiteddbDetection:
+    """The router's XLSX sniff (app/routers/inventory.py's _looks_like_xlsx)
+    exercised end to end through POST /api/inventory/import, plus every
+    OTHER existing format's own routing staying unaffected by the new
+    binary-detection branch running first."""
+
+    def test_xlsx_extension_routes_to_the_new_parser(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 1]],
+            filename="collection.xlsx",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["rows"][0]["status"] == "resolved"
+
+    def test_xlsx_magic_bytes_route_correctly_without_the_extension(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        """A generic filename (no .xlsx extension) still routes correctly
+        via the ZIP magic-byte sniff -- the same posture BL-185's SWUDB
+        header sniff already has for extension-less uploads."""
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 1]],
+            filename="upload",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["rows"][0]["status"] == "resolved"
+
+    def test_canonical_json_still_routes_correctly_after_the_xlsx_branch(
+        self, bl54s2_tenant, bl54s2_catalog
+    ):
+        """The new binary-sniff-before-decode branch must be a pure
+        addition -- a canonical JSON upload (non-xlsx bytes) still decodes
+        and resolves exactly as before."""
+        client, _ = bl54s2_tenant
+        content = _json_doc([{"swuapi_uuid": "bl54s2-v-a-standard", "quantity": 1}])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="upload.json",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["rows"][0]["status"] == "resolved"
+
+    def test_text_starting_with_pk_letters_is_not_misdetected_as_xlsx(
+        self, bl54s2_tenant
+    ):
+        """Cheap edge case: content that merely starts with the letters
+        "PK" (not the real 4-byte ZIP local-file-header signature) must
+        fall through to canonical CSV handling, which then correctly
+        refuses it as unparseable rather than being fed to openpyxl."""
+        client, _ = bl54s2_tenant
+        resp = _post_import(
+            client,
+            content="PK not a real header at all\njust text\n",
+            filename="upload.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 422
+
+
+class TestSwunlimiteddbIntegrationWithComputeImport:
+    """A resolved sw-unlimited-db row must flow through compute_import's
+    merge/cap math identically to a canonical row -- same trim/ceiling
+    behavior, same report shape (BL-186 scope: parse_swunlimiteddb_xlsx
+    only produces a ParsedRow carrying swuapi_uuid; compute_import itself
+    is untouched)."""
+
+    def test_trim_clamps_to_keep_limit_same_as_canonical_import(
+        self, db, bl54s2_tenant, bl186_catalog
+    ):
+        client, tenant_id = bl54s2_tenant
+        variant = bl186_catalog["multi_standard"]
+        _set_quantity(db, tenant_id, variant["id"], 2)
+
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 3]],
+            mode="merge_add",
+            cap_handling="trim",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["current_quantity"] == 2
+        assert row["file_quantity"] == 3
+        # Same keep-limit math as TestMergeCapMath's canonical-format case
+        # and TestSwudbIntegrationWithComputeImport's own SWUDB case (limit
+        # 3, current 2, file 3 -> resulting 3, 2 copies not added).
+        assert row["resulting_quantity"] == 3
+        assert row["copies_not_added"] == 2
+        assert row["trim_reason"] == "keep_limit"
+
+    def test_commit_writes_the_resolved_quantity(
+        self, db, bl54s2_tenant, bl186_catalog
+    ):
+        client, tenant_id = bl54s2_tenant
+        variant = bl186_catalog["multi_foil"]
+
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Foil"],
+            rows=[["sor", "9841", "BL186 Multi Melt Hero", 4]],
             mode="merge_add",
             cap_handling="add_above",
             stage="commit",
