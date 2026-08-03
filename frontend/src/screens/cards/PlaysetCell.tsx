@@ -2,7 +2,6 @@ import { useState } from "react";
 import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard } from "../../utils/inventory";
 import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
-import { useLimits } from "../../context/LimitsContext";
 import { ownedFinishBreakdown } from "./GalleryGrid";
 
 interface Props {
@@ -54,12 +53,6 @@ interface Props {
  * duplicated here. */
 export function PlaysetCell({ card, isAuthenticated, onOpen, scope }: Props) {
   const [hovered, setHovered] = useState(false);
-  // BL-195: scoped completeness (below) is limits-aware -- reads the
-  // tenant's own BL-182/BL-24 keep-limit matrix, same context every other
-  // limits-aware surface (CardPopup's stepper, AddCardsModal) already reads
-  // from. Unaffected (null) for anonymous/not-yet-fetched tenants, which
-  // resolves to the same code defaults (1/3) this cell always used.
-  const { limits } = useLimits();
   const size = getPlaysetSize(card.type);
   const owned = cardOwnedTotal(card.inventory);
   const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
@@ -70,14 +63,13 @@ export function PlaysetCell({ card, isAuthenticated, onOpen, scope }: Props) {
   const isScoped = isAuthenticated && scope != null;
   const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
   const filled = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
-  // BL-195: the plate's complete/incomplete threshold now comes from
+  // BL-195: the plate's complete/incomplete threshold comes from
   // scopedPlaysetComplete (utils/variantScope.ts) -- the SAME helper the
-  // CardsPage "incomplete playsets" filter calls -- rather than the fixed
-  // `size` this used to compare against directly. See that helper's doc
-  // comment for the effective-limit rule and the "no limit configured"
-  // default-vs-1/3 equivalence.
+  // CardsPage "incomplete playsets" filter calls, so the two can never
+  // disagree. Numerically identical to the old inline `scopedOwned >= size`
+  // (the helper is playset-size-based -- owner decision, see its doc).
   const scopedComplete =
-    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type, limits);
+    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
 
   const chipModifier = !isAuthenticated
     ? " playset-chip--signed-out"

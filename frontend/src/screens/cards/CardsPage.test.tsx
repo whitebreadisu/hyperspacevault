@@ -1848,17 +1848,22 @@ describe("CardsPage scoped collection filters (BL-195, CREATE)", () => {
   });
 });
 
-// CREATE (BL-195): the scoped "incomplete playsets" filter respects the
-// tenant's own BL-182/BL-24 keep-limit override rather than the fixed 1/3 --
-// a separate describe from the block above since it's the one BL-195 test
-// that needs useLimitsMock overridden away from its null default.
-describe("CardsPage scoped incomplete-playsets filter respects custom keep-limits (BL-195, CREATE)", () => {
-  const customLimitFixtureCards: BaseCardDetail[] = [
+// RETIRED (owner decision 2026-08-03, same session — never merged): an
+// earlier build of BL-195 made scoped completeness keep-limit-aware and
+// tested it here; the owner ruled "the playset complete flag only cares
+// about playset — keep-limits should not come into play at all in the
+// collection filters." The playset-size semantics are covered by the
+// scopedPlaysetComplete unit describe (variantScope.test.ts) and the
+// scoped-filter integration cases above; a keep-limit override changing
+// NOTHING is the absence-of-behavior those cases already pin (the
+// useLimitsMock default stays null throughout this file).
+describe("CardsPage scoped incomplete-playsets filter ignores keep-limits (BL-195, CREATE)", () => {
+  const scopedIncompleteFixture: BaseCardDetail[] = [
     makeBaseCardDetail({
       id: 90,
       set_code: "SOR",
       base_card_number: "90",
-      name: "Custom Limit Card",
+      name: "Scoped Incomplete Card",
       type: "Unit",
       variants: [
         makeVariant({
@@ -1896,25 +1901,18 @@ describe("CardsPage scoped incomplete-playsets filter respects custom keep-limit
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetBaseCardsList.mockResolvedValue(customLimitFixtureCards);
+    mockGetBaseCardsList.mockResolvedValue(scopedIncompleteFixture);
   });
 
-  afterEach(() => {
-    // Restore the default so later describe blocks in this file (none of
-    // which care about limits) are unaffected by this block's override.
-    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
-  });
-
-  it("default limits (fixed 3): 2/3 Hyperspace Foil copies still read incomplete while scoped", async () => {
-    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+  it("2/3 of the scoped finish reads incomplete while scoped (playset size, not any cap)", async () => {
     await renderPage();
     pickHyperspaceFoil();
 
     fireEvent.click(screen.getByRole("button", { name: /show only incomplete playsets/i }));
-    expect(screen.getByText("Custom Limit Card")).toBeInTheDocument();
+    expect(screen.getByText("Scoped Incomplete Card")).toBeInTheDocument();
   });
 
-  it("custom keep-limit of 2 for Hyperspace Foil: the same 2 owned copies now read COMPLETE while scoped", async () => {
+  it("a configured keep-limit of 2 changes nothing: 2/3 scoped copies still read incomplete", async () => {
     const limits = toMatrix([
       {
         type_category: "standard",
@@ -1928,7 +1926,8 @@ describe("CardsPage scoped incomplete-playsets filter respects custom keep-limit
     pickHyperspaceFoil();
 
     fireEvent.click(screen.getByRole("button", { name: /show only incomplete playsets/i }));
-    expect(screen.queryByText("Custom Limit Card")).toBeNull();
+    expect(screen.getByText("Scoped Incomplete Card")).toBeInTheDocument();
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
   });
 });
 

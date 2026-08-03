@@ -17,8 +17,6 @@ import {
   SCOPE_PINNED_ROWS,
 } from "./variantScope";
 import { sortBaseCards } from "./catalog";
-import { toMatrix } from "./limits";
-import type { LimitCell } from "../api/settingsLimits";
 import type { InventoryVariant } from "./inventory";
 import type { BaseCard } from "./catalog";
 
@@ -257,11 +255,14 @@ describe("scopedOwnedCount as the BL-195 collection-filter predicate", () => {
 
 // CREATE (BL-195, Issue #60): scopedPlaysetComplete -- the single source
 // behind PlaysetCell's scoped-complete plate AND CardsPage's "incomplete
-// playsets" filter. `limits: null` (no tenant override / not fetched)
-// reproduces the pre-BL-195 fixed-1/3 behavior via DEFAULT_LIMITS; a real
-// override matrix moves the threshold to the tenant's own configured cap.
+// playsets" filter. Threshold = the PLAYSET SIZE (getPlaysetSize: 1 for
+// Leaders/Bases, 3 otherwise) -- owner decision 2026-08-03: keep-limits do
+// NOT factor into playset completeness anywhere ("the playset complete flag
+// only cares about playset"). REPLACE note: an earlier build of this
+// describe exercised keep-limit-aware semantics; retired same-session by
+// the owner's call before ever merging.
 describe("scopedPlaysetComplete (BL-195, CREATE)", () => {
-  it("no limits matrix: standard category falls back to the default 3 (matches the old fixed size)", () => {
+  it("standard type: complete at 3 of the scoped finish, incomplete below", () => {
     const variants = [
       makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
       makeVariant({
@@ -271,106 +272,49 @@ describe("scopedPlaysetComplete (BL-195, CREATE)", () => {
         quantity: 2,
       }),
     ];
-    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", null)).toBe(false);
-    expect(scopedPlaysetComplete(variants, "Standard", "Unit", null)).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit")).toBe(false);
+    expect(scopedPlaysetComplete(variants, "Standard", "Unit")).toBe(true);
   });
 
-  it("no limits matrix: singleton category (Leader/Base) falls back to the default 1", () => {
+  it("Leader/Base: complete at 1 of the scoped finish", () => {
     const variants = [
       makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 1 }),
     ];
-    expect(scopedPlaysetComplete(variants, "Standard", "Leader", null)).toBe(true);
-    expect(scopedPlaysetComplete(variants, "Standard", "Base", null)).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Standard", "Leader")).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Standard", "Base")).toBe(true);
   });
 
-  it("custom keep-limit override: a bucket capped BELOW the default 3 goes complete early", () => {
+  it("over-playset counts still read complete (>= not ===)", () => {
     const variants = [
       makeVariant({
         variant_id: 2,
         variant_type: "Hyperspace Foil",
         finish: "Hyperspace Foil",
-        quantity: 2,
+        quantity: 5,
       }),
     ];
-    const limits = toMatrix([
-      {
-        type_category: "standard",
-        limit_bucket: "Hyperspace Foil",
-        max_quantity: 2,
-        is_default: false,
-      } satisfies LimitCell,
-    ]);
-    // Fixed-1/3 rule would call 2/3 incomplete; the tenant's own cap (2)
-    // says otherwise.
-    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit")).toBe(true);
   });
 
-  it("custom keep-limit override: a bucket capped ABOVE the default 3 stays incomplete past 3", () => {
-    const variants = [
-      makeVariant({
-        variant_id: 2,
-        variant_type: "Hyperspace Foil",
-        finish: "Hyperspace Foil",
-        quantity: 3,
-      }),
-    ];
-    const limits = toMatrix([
-      {
-        type_category: "standard",
-        limit_bucket: "Hyperspace Foil",
-        max_quantity: 5,
-        is_default: false,
-      } satisfies LimitCell,
-    ]);
-    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(false);
-  });
-
-  it('"No limit" (explicit null override): never reads complete, regardless of owned count', () => {
-    const variants = [
-      makeVariant({
-        variant_id: 2,
-        variant_type: "Hyperspace Foil",
-        finish: "Hyperspace Foil",
-        quantity: 50,
-      }),
-    ];
-    const limits = toMatrix([
-      {
-        type_category: "standard",
-        limit_bucket: "Hyperspace Foil",
-        max_quantity: null,
-        is_default: false,
-      } satisfies LimitCell,
-    ]);
-    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(false);
-  });
-
-  it("a finish the card carries no printing of: never complete (0 owned, whatever the limit)", () => {
+  it("a finish the card carries no printing of: never complete (0 owned)", () => {
     const variants = [
       makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
     ];
-    expect(scopedPlaysetComplete(variants, "Showcase", "Unit", null)).toBe(false);
+    expect(scopedPlaysetComplete(variants, "Showcase", "Unit")).toBe(false);
   });
 
-  it("bucket resolution falls back to channel when finish is null (Weekly Play etc.)", () => {
+  it("sums across multiple variants sharing the scoped raw finish", () => {
     const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Hyperspace", finish: "Hyperspace", quantity: 2 }),
       makeVariant({
-        variant_id: 1,
-        variant_type: "Weekly Play",
-        finish: null,
-        channel: "Weekly Play",
-        quantity: 2,
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        source_set_code: "C24",
+        quantity: 1,
       }),
     ];
-    const limits = toMatrix([
-      {
-        type_category: "standard",
-        limit_bucket: "Weekly Play",
-        max_quantity: 2,
-        is_default: false,
-      } satisfies LimitCell,
-    ]);
-    expect(scopedPlaysetComplete(variants, "Weekly Play", "Unit", limits)).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Hyperspace", "Unit")).toBe(true);
   });
 });
 

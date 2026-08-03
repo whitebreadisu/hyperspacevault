@@ -28,7 +28,6 @@ import {
   scopedOwnedCount,
   scopedPlaysetComplete,
 } from "../../utils/variantScope";
-import { useLimits } from "../../context/LimitsContext";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
@@ -158,12 +157,6 @@ export function CardsPage({
   // BL-173: Market/Low kind for the Value column -- Market default,
   // persisted across visits (localStorage, headerStarfield's pattern).
   const [priceKind, setPriceKind] = useState<PriceMode>(() => loadPriceKind());
-  // BL-195: the tenant's own BL-182/BL-24 keep-limit matrix -- read here so
-  // toggleNarrowed's scoped "incomplete playsets" predicate below can call
-  // the same limits-aware scopedPlaysetComplete (utils/variantScope.ts)
-  // PlaysetCell.tsx's pips use. null for anonymous/not-yet-fetched, which
-  // resolves to the code defaults (1/3), matching today's unscoped behavior.
-  const { limits } = useLimits();
 
   /** BL-56 §5.5 Slice 4: the single handler every inert anonymous control
    * routes through -- opens the shell's AuthModal via the App-owned callback.
@@ -379,7 +372,7 @@ export function CardsPage({
     if (incompleteOnly) {
       result = result.filter((c) =>
         scope
-          ? !scopedPlaysetComplete(c.variants, scope, c.type, limits)
+          ? !scopedPlaysetComplete(c.variants, scope, c.type)
           : !isPlaysetComplete(c.inventory, c.type)
       );
     }
@@ -403,7 +396,7 @@ export function CardsPage({
       );
     }
     return result;
-  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, scope, limits]);
+  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, scope]);
 
   const filtered = useMemo(
     () => applyFilters(toggleNarrowed as BaseCard[], filters) as InventoryCard[],
