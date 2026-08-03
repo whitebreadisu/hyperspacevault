@@ -103,8 +103,12 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
 export function ImportExportPage({ onBackToVault }: Props) {
   const [step, setStep] = useState<Step>("configure");
   const [file, setFile] = useState<File | null>(null);
-  const [mode, setMode] = useState<ImportMode>("merge_add");
-  const [capHandling, setCapHandling] = useState<CapHandling>("add_above");
+  // Owner review 2026-08-03: NO defaults on merge mode or the keep-limits
+  // rule -- both choices matter enough that the user must actively pick
+  // each before Preview unlocks (null = not yet chosen; the radios render
+  // unselected until then).
+  const [mode, setMode] = useState<ImportMode | null>(null);
+  const [capHandling, setCapHandling] = useState<CapHandling | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [successReport, setSuccessReport] = useState<ImportReport | null>(null);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
@@ -148,7 +152,7 @@ export function ImportExportPage({ onBackToVault }: Props) {
   }
 
   async function handlePreview() {
-    if (!file || previewing) return;
+    if (!file || !mode || !capHandling || previewing) return;
     setPreviewing(true);
     setFileError(null);
     try {
@@ -167,13 +171,15 @@ export function ImportExportPage({ onBackToVault }: Props) {
 
   const confirmBlocked =
     !file ||
+    !mode ||
+    !capHandling ||
     !report ||
     committing ||
     report.totals.resolved === 0 ||
     (mode === "replace_all" && !replaceAllConfirmed);
 
   async function handleConfirm() {
-    if (!file || confirmBlocked) return;
+    if (!file || !mode || !capHandling || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
     try {
@@ -205,6 +211,10 @@ export function ImportExportPage({ onBackToVault }: Props) {
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setStep("configure");
+    // The forced choices reset with the rest of the session -- a fresh
+    // import means fresh, deliberate picks.
+    setMode(null);
+    setCapHandling(null);
     setReport(null);
     setSuccessReport(null);
     setReplaceAllConfirmed(false);
@@ -262,15 +272,14 @@ export function ImportExportPage({ onBackToVault }: Props) {
               <div className="ie-format-notes">
                 <p className="ie-format-note">
                   Imports use the <strong>HyperspaceVault format</strong> — the files Export
-                  produces, or the catalog reference sheet with your quantities filled in.{" "}
-                  <strong>SWUDB</strong> and <strong>SW-Unlimited-DB</strong> exports are also
-                  accepted natively.
+                  produces, or the catalog reference sheet with your quantities filled in. SWUDB and
+                  SW-Unlimited-DB exports are also accepted natively.
                 </p>
                 <p className="ie-format-note ie-format-note--amber">
-                  <strong>Coming from another tracker?</strong> If it&apos;s SWUDB or
-                  SW-Unlimited-DB, just upload your export file as-is — it&apos;s recognized
-                  automatically. From anywhere else, download the catalog CSV and ask your favorite
-                  AI tool to convert your existing inventory file into it.
+                  <strong>Coming from another tracker?</strong> If it&apos;s <strong>SWUDB</strong>{" "}
+                  or <strong>SW-Unlimited-DB</strong>, just upload your export file as-is —
+                  it&apos;s recognized automatically. From anywhere else, download the catalog CSV
+                  and ask your favorite AI tool to convert your existing inventory file into it.
                 </p>
               </div>
             )}
@@ -382,8 +391,8 @@ export function ImportExportPage({ onBackToVault }: Props) {
             <div className="ie-actions">
               <SWUButton
                 size="sm"
-                active={!!file && !previewing}
-                ariaDisabled={!file || previewing}
+                active={!!file && !!mode && !!capHandling && !previewing}
+                ariaDisabled={!file || !mode || !capHandling || previewing}
                 onClick={handlePreview}
               >
                 {previewing ? "Previewing…" : "Preview import"}
