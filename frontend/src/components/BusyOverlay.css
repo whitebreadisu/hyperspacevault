@@ -215,22 +215,32 @@
  * glyph at ring angle θ crosses 6 o'clock at t = (180° - θ)/36°·s (10s/rev),
  * so its cycle phase-0 (the flash) must land there. */
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
-  animation-delay: 0s, -5s;
+  animation-delay:
+    0s,
+    -5s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
-  animation-delay: 0s, -6.67s;
+  animation-delay:
+    0s,
+    -6.67s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
-  animation-delay: 0s, -8.33s;
+  animation-delay:
+    0s,
+    -8.33s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
   animation-delay: 0s, 0s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
-  animation-delay: 0s, -1.67s;
+  animation-delay:
+    0s,
+    -1.67s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
-  animation-delay: 0s, -3.33s;
+  animation-delay:
+    0s,
+    -3.33s;
 }
 
 @keyframes busy-orbit-spin-c {
