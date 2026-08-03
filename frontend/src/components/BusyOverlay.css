@@ -269,10 +269,17 @@
  * transparent drop-shadow so the filter list interpolates smoothly instead
  * of jumping when the shadow function disappears. */
 @keyframes busy-orbit-glow-c {
+  /* Owner round 2: the flash releases MUCH slower -- full flash at the
+   * bottom, glow + above-full brightness tapering across the first quarter
+   * of the revolution (~2.5s) before the long linear slide to 10% takes
+   * over. Arrival-at-10%-at-the-bottom is unchanged. */
   0% {
     filter: brightness(1.35) drop-shadow(0 0 10px var(--color-warning));
   }
-  5% {
+  12% {
+    filter: brightness(1.18) drop-shadow(0 0 6px var(--color-warning));
+  }
+  25% {
     filter: brightness(1) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   }
   100% {
