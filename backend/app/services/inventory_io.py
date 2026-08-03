@@ -144,6 +144,20 @@ class ParsedRow:
     malformed_quantity: bool
     name: str | None = None
     subtitle: str | None = None
+    # BL-185: set only by app/services/swudb_import.py's parse_swudb_csv --
+    # None/False on every row parse_json/parse_csv produce (this module's
+    # own two parsers never touch card_variants, see the module docstring's
+    # scope line). A SWUDB row's raw identity (Set/CardNumber/IsFoil/Stamp)
+    # doesn't fit either the uuid or triple scheme this module resolves, so
+    # swudb_import does its own §6 resolution at parse time and stashes the
+    # verdict here; inventory_import.py's _resolve_row trusts a non-None
+    # preresolved_reason verbatim instead of re-deriving it. A row swudb_
+    # import resolved carries only swuapi_uuid (these three fields stay at
+    # their defaults) and falls through _resolve_row's normal uuid path
+    # unchanged.
+    preresolved_reason: str | None = None
+    preresolved_candidates: list[str] | None = None
+    preresolved_mismatch: bool = False
 
 
 @dataclass
@@ -254,6 +268,14 @@ def _merge_duplicates(rows: list[ParsedRow], notes: ParseNotes) -> list[ParsedRo
             malformed_quantity=False,
             name=first.name,
             subtitle=first.subtitle,
+            # BL-185: carried through so a SWUDB duplicate-uuid merge
+            # doesn't silently drop the first row's confirmatory mismatch
+            # flag -- reason/candidates are always None here regardless
+            # (only a resolved row, which never sets them, has a usable
+            # uuid identity key to merge on in the first place).
+            preresolved_reason=first.preresolved_reason,
+            preresolved_candidates=first.preresolved_candidates,
+            preresolved_mismatch=first.preresolved_mismatch,
         )
 
     for row in passthrough:
