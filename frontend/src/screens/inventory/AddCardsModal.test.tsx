@@ -262,21 +262,28 @@ describe("AddCardsModal", () => {
     expect(screen.getByText("Cards in this batch")).toBeTruthy();
   });
 
-  it("stays in editing with needs-finish hint when card_number is finish-ambiguous", async () => {
+  // DISPOSITION (BL-191 — default the finish on shared-number early-set
+  // cards, REPLACE): card 12 in mockCatalog (Standard + Standard Foil) used
+  // to block editing on a required finish pick. The resolver now defaults to
+  // the probable non-foil finish and resolves immediately -- the Finish
+  // <select> stays up with both options (overridable) and the modal cues
+  // verification instead of blocking.
+  it("defaults the finish to Standard for a finish-ambiguous card_number and shows the verify cue", async () => {
     await renderModal();
     await chooseSet(/^SOR —/);
 
-    // Enter a card number that resolves to 2 finishes (card 12 in mockCatalog
-    // has both Standard and Standard Foil rows at source_set_code SOR) — the
-    // two-axis resolver surfaces needs_finish, not an auto-resolve.
+    // Card 12 resolves to 2 finishes (Standard + Standard Foil at
+    // source_set_code SOR) — BL-191 defaults to Standard rather than pending.
     const input = screen.getByPlaceholderText("000");
     await act(async () => {
       fireEvent.change(input, { target: { value: "12" } });
     });
 
-    // Submit button stays inactive until a finish is picked; the modal stays in
-    // editing phase. The Finish axis surfaces its placeholder option.
-    expect(screen.getByText(/select finish/i)).toBeTruthy();
+    const finishSelect = screen.getByLabelText("Finish") as HTMLSelectElement;
+    expect(finishSelect.value).toBe("Standard");
+    expect(
+      screen.getByText(/card number is shared across variants — verify selection/i)
+    ).toBeTruthy();
   });
 
   it("commits the row to the batch when Enter is pressed on the last dropdown", async () => {
@@ -298,6 +305,27 @@ describe("AddCardsModal", () => {
     });
 
     // The committed card now appears in the batch list.
+    expect(screen.getByText("Cards in this batch")).toBeTruthy();
+    expect(screen.getAllByText("IG-88").length).toBeGreaterThan(0);
+  });
+
+  // BL-191: the finish-ambiguous card resolves immediately (defaulted to
+  // Standard) — Enter on the Finish select with no explicit override should
+  // still commit the defaulted variant.
+  it("commits the defaulted finish to the batch when Enter is pressed without changing it", async () => {
+    await renderModal();
+    await chooseSet(/^SOR —/);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("000"), { target: { value: "12" } });
+    });
+
+    const finishSelect = screen.getByLabelText("Finish") as HTMLSelectElement;
+    expect(finishSelect.value).toBe("Standard");
+    await act(async () => {
+      fireEvent.keyDown(finishSelect, { key: "Enter" });
+    });
+
     expect(screen.getByText("Cards in this batch")).toBeTruthy();
     expect(screen.getAllByText("IG-88").length).toBeGreaterThan(0);
   });
@@ -719,14 +747,21 @@ describe("card image preview (BL-62)", () => {
     });
   });
 
-  it("stays on the placeholder while an axis pick is pending, then shows the picked variant", async () => {
+  // DISPOSITION (BL-191 — default the finish on shared-number early-set
+  // cards, REPLACE): card 12 used to pend on the Finish axis (no image until
+  // a pick was made). It now resolves immediately to the defaulted Standard
+  // finish, so the preview shows right away; overriding still swaps the art.
+  it("shows the defaulted variant's image immediately for a finish-ambiguous card, then swaps on override", async () => {
     await openKeypad("SOR");
     await act(async () => {
       fireEvent.change(screen.getByPlaceholderText("000"), { target: { value: "12" } });
     });
-    // Finish-ambiguous — no concrete variant yet, so no image.
-    expect(screen.getByText(/select finish/i)).toBeTruthy();
-    expect(frame().querySelector("img")).toBeNull();
+    // BL-191: finish defaults to Standard immediately — no pending gap.
+    await waitFor(() => {
+      const img = frame().querySelector("img") as HTMLImageElement;
+      expect(img).toBeTruthy();
+      expect(img.src).toContain("ig88-standard.png");
+    });
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText("Finish"), { target: { value: "Standard Foil" } });

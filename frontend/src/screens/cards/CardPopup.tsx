@@ -11,9 +11,15 @@ import { RarityBadge } from "../../components/RarityBadge";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { CardPopupRail, type PriceRailMode } from "./CardPopupRail";
 import { CardPopupExpandedHistory } from "./CardPopupPriceHistory";
-import { CardPopupNavButtons, useArrowKeyNavigation } from "./CardPopupNav";
+import {
+  CardPopupNavButtons,
+  useArrowKeyNavigation,
+  useVariantCycleKeys,
+  type VariantCycleContext,
+} from "./CardPopupNav";
 import { CardPopupInventoryControls, useInventoryMutation } from "./CardPopupInventory";
 import type { CardPopupNavigation } from "./CardPopupNav";
+import { orderVariants } from "./cardPopupShared";
 import "./CardPopup.css";
 
 export type { CardPopupNavigation };
@@ -81,6 +87,27 @@ function pickRepresentative(variants: VariantDetail[]): VariantDetail | null {
   return variants.find((v) => v.finish === "Standard") ?? variants[0];
 }
 
+/** BL-193: when the Vault's variant scope (BL-173) is active, the popup
+ * should open on the SAME finish the collector is scoped to -- the whole
+ * click-through path (table row -> popup) stays in their chosen finish
+ * (companion to BL-187's scoped number/sort and BL-192's rail cycling).
+ * Uses the codebase-universal `(v.finish ?? v.variant_type) === scope` rule
+ * (utils/variantScope.ts) and the same find-FIRST-match caveat as
+ * scopedOwnedCount/scopedCardNumber -- normally exactly one variant carries
+ * a given raw finish. Falls back to pickRepresentative when there's no scope
+ * or the card carries no printing of the scoped finish (mid-session edge;
+ * filtered rows normally all match). */
+function pickInitialVariant(
+  variants: VariantDetail[],
+  initialFinish: string | null | undefined
+): VariantDetail | null {
+  if (initialFinish != null) {
+    const scoped = variants.find((v) => (v.finish ?? v.variant_type) === initialFinish);
+    if (scoped) return scoped;
+  }
+  return pickRepresentative(variants);
+}
+
 /** Canonical aspect display order (shared with FilterPanel's ASPECT_LIST /
  * the old CardDetailPopup) plus the header-glow color for each (design
  * handoff §5 mock: card-text section headers tint to the card's primary
@@ -120,6 +147,13 @@ interface Props {
    * caller/test that doesn't wire it keeps working unchanged -- the popup
    * itself doesn't know or care whether it was opened from a list. */
   navigation?: CardPopupNavigation;
+  /** BL-193: the Vault's active variant scope (CardsPage's `scope` state,
+   * BL-173), a raw finish string or null. When set, the popup's initial
+   * selection on EVERY detail fetch (including prev/next navigation between
+   * cards) prefers the variant matching this finish over pickRepresentative
+   * -- see pickInitialVariant above. Optional/undefined behaves exactly like
+   * null (no scope) so every existing caller/test keeps working unchanged. */
+  initialFinish?: string | null;
 }
 
 export function CardPopup({
@@ -130,6 +164,7 @@ export function CardPopup({
   onChanged,
   onRequestSignIn,
   navigation,
+  initialFinish,
 }: Props) {
   const { limits, capMode } = useLimits();
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
@@ -187,7 +222,7 @@ export function CardPopup({
         if (cancelled) return;
         setDetail(data);
         setVariants(data.variants);
-        setSelectedVariantId(pickRepresentative(data.variants)?.variant_id ?? null);
+        setSelectedVariantId(pickInitialVariant(data.variants, initialFinish)?.variant_id ?? null);
         setShowBack(false);
         setFlipPhase(null);
         // BL-132 J3: a different base card (and even a different printing of
@@ -209,7 +244,13 @@ export function CardPopup({
     return () => {
       cancelled = true;
     };
-  }, [baseCardId]);
+    // BL-193: initialFinish is read here for the scoped preselection above.
+    // In practice the popup is a modal (background interaction blocked), so
+    // this never re-fires from a mid-session scope change on its own -- it
+    // rides along with the SAME baseCardId-driven re-fetch that already runs
+    // on prev/next navigation (BL-148), just resolving against whatever
+    // scope is current at that moment.
+  }, [baseCardId, initialFinish]);
 
   const close = useCallback(() => {
     if (changed) onChanged?.();
@@ -249,6 +290,41 @@ export function CardPopup({
     setFrontAspect(null);
     setBackAspect(null);
   }, []);
+
+  // BL-192: up/down arrows cycle the rail selection -- routed through the
+  // SAME selectVariant used by a rail click (never setSelectedVariantId
+  // directly), so a keyboard cycle triggers everything a click does (image
+  // swap, per-variant quantity state, price-history re-fetch, and the
+  // flip/aspect reset above). orderVariants here is the identical ordering
+  // rule CardPopupRail renders (cardPopupShared.ts), so "down" always means
+  // the same "next row" the rail shows -- kept as its own memo (rather than
+  // reading CardPopupRail's internal one) since the rail only renders once
+  // `detail` has resolved, but this hook must stay wired even while loading.
+  const orderedVariantIds = useMemo(
+    () => (detail ? orderVariants(variants, detail.set_code).map((v) => v.variant_id) : []),
+    [variants, detail]
+  );
+  // BL-192: keyboard-only scrollIntoView -- a rail click never needs it (the
+  // user is already looking at the row they clicked). Looked up by the
+  // BL-192 data-variant-id attribute rather than waiting for the next
+  // render's `.cp-rail__item--active` class, since the target row's DOM
+  // node already exists (every printing renders at once; only the active
+  // class moves) -- no need to wait on the setSelectedVariantId re-render.
+  const selectVariantViaKeyboard = useCallback(
+    (variantId: number) => {
+      selectVariant(variantId);
+      const row = document.querySelector<HTMLElement>(
+        `.cp-rail__item[data-variant-id="${variantId}"]`
+      );
+      row?.scrollIntoView({ block: "nearest" });
+    },
+    [selectVariant]
+  );
+  const variantCycleContext: VariantCycleContext | undefined =
+    orderedVariantIds.length > 0
+      ? { orderedVariantIds, selectedVariantId, onSelect: selectVariantViaKeyboard }
+      : undefined;
+  useVariantCycleKeys(variantCycleContext);
 
   /** BL-111 dev-review wave 1 fix 2: kicks off the "out" half of the flip;
    * ignored while a flip is already in flight so rapid clicks can't

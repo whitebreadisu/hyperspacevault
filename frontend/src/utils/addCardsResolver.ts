@@ -103,12 +103,18 @@ export interface CardChoice {
 
 /** UI state for one of the Set / Stamp / Finish axes. `show` controls whether
  * the field renders at all; `options.length > 1` means render a <select>
- * (otherwise `value` is shown read-only); `needsPick` blocks commit. */
+ * (otherwise `value` is shown read-only); `needsPick` blocks commit.
+ * BL-191: `defaulted` marks a value the resolver picked on the user's behalf
+ * (still overridable via the same <select>) rather than one the user
+ * explicitly chose or the only option available — the keypad uses it to cue
+ * verification. Optional and only set where an axis actually distinguishes
+ * "defaulted" from "explicit"/"sole option" today (currently Finish only). */
 export interface AxisView {
   show: boolean;
   value: string | null;
   options: string[];
   needsPick: boolean;
+  defaulted?: boolean;
 }
 
 export interface CardAxisView {
@@ -478,21 +484,40 @@ export function resolveRow(row: Row, catalog: AddCardsCatalogEntry[]): ResolveRe
     needsPick: false,
   };
 
-  // ── Axis 4: Finish — required pick when >1 ──
+  // ── Axis 4: Finish — defaults to the probable (non-foil) finish when >1,
+  // overridable; required pick only when the option set has neither
+  // "Standard" nor "Hyperspace" to default to (BL-191). Foils exist at far
+  // lower quantities than their non-foil counterpart, so the non-foil member
+  // is the probable intent for the SOR/SHD/TWI shared-number cases (one card
+  // number for Standard/Standard Foil, a different number for
+  // Hyperspace/Hyperspace Foil) — the picker stays up so it can be verified.
   const finishOptions = [...new Set(dStamp.map((d) => d.finish))];
   let dFinish = dStamp;
   let finishValue = finishOptions[0];
+  let finishDefaulted = false;
   if (finishOptions.length > 1) {
     if (row.finish && finishOptions.includes(row.finish)) {
       finishValue = row.finish;
       dFinish = dStamp.filter((d) => d.finish === row.finish);
     } else {
-      return pending(name, subtitle, null, {
-        card: cardAxis,
-        set: setAxis,
-        stamp: stampAxis,
-        finish: { show: true, value: null, options: finishOptions, needsPick: true },
-      });
+      const probableFinish = finishOptions.includes("Standard")
+        ? "Standard"
+        : finishOptions.includes("Hyperspace")
+          ? "Hyperspace"
+          : null;
+      if (probableFinish === null) {
+        // Conservative guard: an exotic multi-finish set with neither
+        // Standard nor Hyperspace keeps the original required-pick behavior.
+        return pending(name, subtitle, null, {
+          card: cardAxis,
+          set: setAxis,
+          stamp: stampAxis,
+          finish: { show: true, value: null, options: finishOptions, needsPick: true },
+        });
+      }
+      finishValue = probableFinish;
+      dFinish = dStamp.filter((d) => d.finish === probableFinish);
+      finishDefaulted = true;
     }
   }
   const finishAxis: AxisView = {
@@ -500,6 +525,7 @@ export function resolveRow(row: Row, catalog: AddCardsCatalogEntry[]): ResolveRe
     value: finishValue,
     options: finishOptions.length > 1 ? finishOptions : [],
     needsPick: false,
+    defaulted: finishDefaulted,
   };
 
   // dFinish should be a single variant; a genuine duplicate (the Serialized
