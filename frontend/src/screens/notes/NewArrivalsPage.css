@@ -152,6 +152,13 @@
      bottom; bottom padding = top padding + that overlap). */
   padding: 14px 16px 26px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  /* Owner review round 7: the band runs FULL-BLEED to the panel edges --
+     negative margins cancel .na-body's 24px side padding; the extra 24px of
+     horizontal padding puts the text back on the body's content grid. */
+  margin-left: -24px;
+  margin-right: -24px;
+  padding-left: 40px;
+  padding-right: 40px;
 }
 
 .na-entry__version {
@@ -271,4 +278,10 @@
   position: relative;
   z-index: 2;
   opacity: 0.55;
+  /* Owner review round 7: full-bleed with the starfield band above it --
+     same negative side margins (the straddle's %-offset resolves against
+     the parent width while the aspect-height uses the widened own-width; the
+     sub-pixel mismatch is invisible at the shell's 900px cap). */
+  margin-left: -24px;
+  margin-right: -24px;
 }
