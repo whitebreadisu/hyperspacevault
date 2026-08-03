@@ -206,23 +206,31 @@
     busy-orbit-glow-c 10s linear infinite;
 }
 
+/* Owner mod (2026-08-03): the flash moved from 12 o'clock to 6 o'clock, and
+ * the glow keyframes became a full-revolution sawtooth (flash at the bottom
+ * -> linear fade to 10% brightness arriving back at the bottom). Delays are
+ * NEGATIVE equivalents (phase-shifted -5s for the top->bottom move) so every
+ * glyph is mid-cycle from the first painted frame -- a positive delay would
+ * leave glyphs at full brightness until their first cycle began. Sync math:
+ * glyph at ring angle θ crosses 6 o'clock at t = (180° - θ)/36°·s (10s/rev),
+ * so its cycle phase-0 (the flash) must land there. */
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 0s;
+  animation-delay: 0s, -5s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(2) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 8.33s;
+  animation-delay: 0s, -6.67s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(3) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 6.67s;
+  animation-delay: 0s, -8.33s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(4) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 5s;
+  animation-delay: 0s, 0s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(5) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 3.33s;
+  animation-delay: 0s, -1.67s;
 }
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(6) .busy-overlay__glyph-inner {
-  animation-delay: 0s, 1.67s;
+  animation-delay: 0s, -3.33s;
 }
 
 @keyframes busy-orbit-spin-c {
@@ -243,15 +251,22 @@
   }
 }
 
+/* Owner mod (2026-08-03): full-revolution sawtooth. Phase 0 = the glyph's
+ * 6-o'clock crossing: flash to full color with the amber glow, glow releases
+ * by 5%, then a LINEAR fade across the entire revolution down to 10%
+ * brightness exactly as the glyph returns to the bottom -- where the loop
+ * boundary snaps it back to the flash. The 100% keyframe keeps a zero-size
+ * transparent drop-shadow so the filter list interpolates smoothly instead
+ * of jumping when the shadow function disappears. */
 @keyframes busy-orbit-glow-c {
   0% {
-    filter: brightness(1.3) drop-shadow(0 0 8px var(--color-warning));
+    filter: brightness(1.35) drop-shadow(0 0 10px var(--color-warning));
   }
-  8.33% {
-    filter: brightness(0.75);
+  5% {
+    filter: brightness(1) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   }
   100% {
-    filter: brightness(0.75);
+    filter: brightness(0.1) drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   }
 }
 
