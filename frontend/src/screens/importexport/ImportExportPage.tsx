@@ -271,7 +271,7 @@ export function ImportExportPage({ onBackToVault }: Props) {
               // conversion as the everything-else path.
               <div className="ie-format-notes">
                 <p className="ie-format-note">
-                  Imports use the <strong>HyperspaceVault format</strong> — the files Export
+                  Imports use the <strong>[HSV] HyperspaceVault format</strong> — the files Export
                   produces, or the catalog reference sheet with your quantities filled in. SWUDB and
                   SW-Unlimited-DB exports are also accepted natively.
                 </p>
@@ -324,7 +324,7 @@ export function ImportExportPage({ onBackToVault }: Props) {
               </h3>
               <p className="ie-reference__blurb">
                 Every card printing with its IDs and a quantity column, in the{" "}
-                <strong>HSV format</strong> — fill in your quantities and import it directly.
+                <strong>[HSV] format</strong> — fill in your quantities and import it directly.
               </p>
               {downloadError?.source === "reference" && (
                 <p className="ie-error" role="alert">
