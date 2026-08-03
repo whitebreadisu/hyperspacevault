@@ -11,6 +11,7 @@ import {
   scopeShortName,
   scopedCardNumber,
   scopedOwnedCount,
+  scopedPlaysetComplete,
   sortCardsByScope,
   SCOPE_EXPANDED_ROWS,
   SCOPE_PINNED_ROWS,
@@ -222,6 +223,98 @@ describe("scopedOwnedCount", () => {
       makeVariant({ variant_id: 1, variant_type: "Weekly Play", finish: null, quantity: 1 }),
     ];
     expect(scopedOwnedCount(variants, "Weekly Play")).toBe(1);
+  });
+});
+
+// CREATE (BL-195, Issue #60): the "owned"/"don't own" collection filters
+// (CardsPage.tsx) evaluate `scopedOwnedCount(...) > 0` / `=== 0` directly
+// against the scoped finish -- no dedicated wrapper needed, but the owner's
+// worked example (3 Standard, 0 Hyperspace, scoped to Hyperspace) is worth
+// pinning at the helper level since it's the exact edge case the filter
+// change exists for: a card with real inventory in ANOTHER finish still
+// reads as "don't own"/not-"own" once scoped to a finish it has zero of.
+describe("scopedOwnedCount as the BL-195 collection-filter predicate", () => {
+  const vaderStandardOnly = [
+    makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+    makeVariant({
+      variant_id: 2,
+      variant_type: "Hyperspace",
+      finish: "Hyperspace",
+      quantity: 0,
+    }),
+  ];
+
+  it("scoped to Hyperspace: owned-only's predicate (> 0) is false despite 3 Standard copies", () => {
+    expect(scopedOwnedCount(vaderStandardOnly, "Hyperspace") > 0).toBe(false);
+  });
+
+  it("scoped to Hyperspace: don't-own's predicate (=== 0) is true despite 3 Standard copies", () => {
+    expect(scopedOwnedCount(vaderStandardOnly, "Hyperspace") === 0).toBe(true);
+  });
+});
+
+// CREATE (BL-195, Issue #60): scopedPlaysetComplete -- the single source
+// behind PlaysetCell's scoped-complete plate AND CardsPage's "incomplete
+// playsets" filter. Threshold = the PLAYSET SIZE (getPlaysetSize: 1 for
+// Leaders/Bases, 3 otherwise) -- owner decision 2026-08-03: keep-limits do
+// NOT factor into playset completeness anywhere ("the playset complete flag
+// only cares about playset"). REPLACE note: an earlier build of this
+// describe exercised keep-limit-aware semantics; retired same-session by
+// the owner's call before ever merging.
+describe("scopedPlaysetComplete (BL-195, CREATE)", () => {
+  it("standard type: complete at 3 of the scoped finish, incomplete below", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 2,
+      }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit")).toBe(false);
+    expect(scopedPlaysetComplete(variants, "Standard", "Unit")).toBe(true);
+  });
+
+  it("Leader/Base: complete at 1 of the scoped finish", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 1 }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Standard", "Leader")).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Standard", "Base")).toBe(true);
+  });
+
+  it("over-playset counts still read complete (>= not ===)", () => {
+    const variants = [
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 5,
+      }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit")).toBe(true);
+  });
+
+  it("a finish the card carries no printing of: never complete (0 owned)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Showcase", "Unit")).toBe(false);
+  });
+
+  it("sums across multiple variants sharing the scoped raw finish", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Hyperspace", finish: "Hyperspace", quantity: 2 }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        source_set_code: "C24",
+        quantity: 1,
+      }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Hyperspace", "Unit")).toBe(true);
   });
 });
 

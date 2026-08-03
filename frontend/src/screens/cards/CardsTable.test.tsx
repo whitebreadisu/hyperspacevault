@@ -1108,10 +1108,13 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
     expect(container.querySelector(".vs-tag")).toBeNull();
   });
 
-  // DISPOSITION (REPLACE, BL-187): the # header joins the scoped tint too --
-  // its content became scope-driven (the variant number) alongside Playset
-  // and Value, so 2 scoped th's became 3.
-  it("gives the #, Playset, and Value headers the scoped tint class", () => {
+  // DISPOSITION (REPLACE, BL-194): the # header used to join the same
+  // faint `.th-scoped` tint as Playset/Value (BL-187, "2 scoped th's became
+  // 3"). The owner upgraded # to the STRONGER `.th-cardnum-scoped` treatment
+  // instead (full scope-control active-state styling) -- Playset/Value keep
+  // the original faint wash, so the th-scoped count reverts to 2 and # gets
+  // its own dedicated class.
+  it("gives Playset and Value headers the faint scoped tint class, and # the strong scoped-cardnum class", () => {
     const { container } = render(
       <CardsTable
         cards={[mockCard]}
@@ -1122,7 +1125,39 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
         scope="Standard"
       />
     );
-    expect(container.querySelectorAll("th.th-scoped")).toHaveLength(3);
+    expect(container.querySelectorAll("th.th-scoped")).toHaveLength(2);
+    expect(container.querySelectorAll("th.th-cardnum-scoped")).toHaveLength(1);
+  });
+
+  // CREATE (BL-194): # is the ONLY header carrying the strong class; absent
+  // entirely while unscoped.
+  it("BL-194: the # th carries th-cardnum-scoped only while scoped, never th-scoped", () => {
+    const { container, rerender } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        scope="Standard"
+      />
+    );
+    const scopedHeader = container.querySelectorAll("thead th")[0];
+    expect(scopedHeader.className).toContain("th-cardnum-scoped");
+    expect(scopedHeader.className).not.toContain("th-scoped");
+
+    rerender(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        scope={null}
+      />
+    );
+    const unscopedHeader = container.querySelectorAll("thead th")[0];
+    expect(unscopedHeader.className).toBe("");
   });
 });
 

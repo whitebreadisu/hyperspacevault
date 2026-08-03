@@ -215,11 +215,18 @@ export function CardsTable({
         </colgroup>
         <thead>
           <tr>
-            {/* BL-187: tinted with the same `.th-scoped` amber wash the
-                Playset/Value headers carry while scoped -- the # column's
-                content is itself scope-driven now (see the td below), so it
-                joins the same "mapping visuals" affordance. */}
-            <th className={scope ? "th-scoped" : undefined}>#</th>
+            {/* BL-187 gave the # th the same faint `.th-scoped` wash the
+                Playset/Value headers carry while scoped. BL-194 (owner):
+                that faint wash under-sold it -- the # th now gets the SAME
+                strong treatment as the scope control's own active state
+                (amber outline/text/background, `.th-cardnum-scoped`,
+                cards.css -- copies `.vs-header-scope__trigger--on`'s exact
+                tokens) instead, since the # column's content is itself
+                scope-driven (scopedCardNumber below). Playset/Value keep
+                `.th-scoped` untouched -- this modifier is # ONLY. Uses
+                box-shadow (not a border-width change) so the SYNC RULE
+                column widths above are never affected. */}
+            <th className={scope ? "th-cardnum-scoped" : undefined}>#</th>
             <th>Name</th>
             <th>Variants</th>
             <th className={`th-playset${scope ? " th-scoped" : ""}`}>

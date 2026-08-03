@@ -1442,6 +1442,22 @@
   background: rgba(217, 154, 31, 0.12);
 }
 
+/* BL-194: the # th's STRONG scoped treatment -- the # column's own content
+ * is scope-driven (scopedCardNumber, CardsTable.tsx), so while scoped it
+ * gets the exact same active-state look as the scope control itself
+ * (.vs-header-scope__trigger--on below: same amber outline/text/background
+ * tokens, copied verbatim -- var(--color-warning) family, no new ambers).
+ * `box-shadow: inset` stands in for the trigger's `border`, so the # th's
+ * box model (and therefore COLUMN_WIDTHS' SYNC RULE, CardsTable.tsx) is
+ * never touched -- an actual border would grow the cell by the border
+ * width. Playset/Value headers are untouched -- they keep the fainter
+ * `.th-scoped` wash above; this modifier only ever lands on the # th. */
+.th-cardnum-scoped {
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+  box-shadow: inset 0 0 0 1px rgba(217, 154, 31, 0.4);
+}
+
 /* (Round 2: the Value header's amber finish tag `.vs-tag` is retired --
  * owner call, the bracket + trigger already name the finish -- and the
  * separate `.vs-bracket-row` thead row is replaced by the in-header

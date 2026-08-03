@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard } from "../../utils/inventory";
-import { scopedOwnedCount } from "../../utils/variantScope";
+import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
 import { ownedFinishBreakdown } from "./GalleryGrid";
 
 interface Props {
@@ -63,7 +63,13 @@ export function PlaysetCell({ card, isAuthenticated, onOpen, scope }: Props) {
   const isScoped = isAuthenticated && scope != null;
   const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
   const filled = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
-  const scopedComplete = isScoped && scopedOwned >= size;
+  // BL-195: the plate's complete/incomplete threshold comes from
+  // scopedPlaysetComplete (utils/variantScope.ts) -- the SAME helper the
+  // CardsPage "incomplete playsets" filter calls, so the two can never
+  // disagree. Numerically identical to the old inline `scopedOwned >= size`
+  // (the helper is playset-size-based -- owner decision, see its doc).
+  const scopedComplete =
+    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
 
   const chipModifier = !isAuthenticated
     ? " playset-chip--signed-out"

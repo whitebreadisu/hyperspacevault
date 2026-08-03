@@ -17,6 +17,7 @@ import type { InventoryVariant } from "./inventory";
 import type { PriceMode } from "./completion";
 import type { BaseCard, SetOrderMap } from "./catalog";
 import { sortBaseCards, setReleaseRank } from "./catalog";
+import { getPlaysetSize } from "./inventory";
 
 export type { PriceMode };
 
@@ -213,6 +214,30 @@ export function scopedCardNumber(
   if (!scope) return null;
   const variant = variants.find((v) => (v.finish ?? v.variant_type) === scope);
   return variant ? variant.card_number : null;
+}
+
+// ── Scoped completeness (BL-195) ────────────────────────────────────────────
+
+/** BL-195: single source for "is the scoped finish's owned count a full
+ * playset" -- extracted from PlaysetCell.tsx's inline `scopedOwned >= size`
+ * (the amber-plate/green-pips completeness check) so that logic and the
+ * Cards page's "incomplete playsets" toggle (CardsPage.tsx) can never
+ * disagree. The threshold is the PLAYSET SIZE (utils/inventory.ts's
+ * getPlaysetSize: 1 for Leaders/Bases, 3 otherwise) -- the same concept the
+ * header completion panel computes against.
+ *
+ * Owner decision (2026-08-03, review round on this feature): the tenant's
+ * BL-182/BL-24 keep-limit matrix does NOT factor into playset completeness
+ * anywhere -- "the playset complete flag only cares about playset";
+ * keep-limits are an inventory-cap concept, deliberately separate (see
+ * utils/limits.ts's own "do not merge the two" note, which this honors for
+ * the scoped state exactly as the unscoped isPlaysetComplete always has). */
+export function scopedPlaysetComplete(
+  variants: Pick<InventoryVariant, "variant_type" | "finish" | "quantity">[],
+  scope: string,
+  type: string
+): boolean {
+  return scopedOwnedCount(variants, scope) >= getPlaysetSize(type);
 }
 
 // ── Scoped row order (BL-187) ───────────────────────────────────────────────
