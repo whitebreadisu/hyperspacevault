@@ -107,6 +107,159 @@ def bl54s2_catalog(db):
 
 
 # ---------------------------------------------------------------------------
+# BL-185: SWUDB import adapter fixture catalog. Separate from bl54s2_catalog
+# above (which lives entirely in SOR) because the SWUDB adapter's whole
+# point is exercising the set-code translation table -- these rows span
+# ASH/TS26/SEC/C25/GG plus two more SOR families, all at high, unclaimed
+# card_numbers (mirroring bl54s2_catalog's own "97xx dodges every other
+# fixture" convention, widened here to also dodge any REAL catalog number a
+# persistent dev DB might carry for SOR/SEC -- the design doc's own worked
+# examples (SOR_193, SOR_1, SEC_1127) are real production collisions,
+# exactly the shape a synthetic fixture must NOT reuse verbatim).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def bl185_catalog(db):
+    """
+    - ash_standard (ASH, card_number "5"): one Standard variant -- 3-digit
+      zero-pad normalization ("005" -> "5").
+    - ts26_standard (TS26, card_number "8"): one Standard variant -- 2-digit
+      zero-pad normalization ("08" -> "8"). Deliberately NOT "1" --
+      test_catalog_reference_api.py's own fixture already claims TS26/"1".
+    - sorpr_promo / sorpr_judge (SOR, card_number "9820"): "Prerelease
+      Promo" + "Prerelease Judge" -- the SORPR synthetic-code pair,
+      separated only by Stamp (blank vs "Judge"), §3.3/§4.
+    - sor_std / sor_foil (SOR, card_number "9821"): "Standard" + "Standard
+      Foil" sharing one card_number -- the IsFoil tiebreak shape (mirrors
+      the real SOR_193/SOR_237 collisions without reusing their numbers).
+    - sec_serialized_uuids (SEC, card_number "9822"): three "Serialized
+      Prestige" variants sharing one card_number -- the irreducibly
+      ambiguous shape (mirrors real SEC_1127 without reusing its number).
+    - c25_convention (C25, card_number "9823"): one "Convention Exclusive"
+      variant -- the CE25 -> C25 rename target.
+    - gg_token (GG, card_number "9824"): one "Standard" variant -- the
+      GGTS -> GG rename target.
+    """
+    for code, name in (("ASH", "Ash of the Empire"), ("TS26", "2026 Twin Suns")):
+        db.execute(
+            text(
+                "INSERT INTO sets (code, name, is_base_set) "
+                "VALUES (:code, :name, false) ON CONFLICT (code) DO NOTHING"
+            ),
+            {"code": code, "name": name},
+        )
+    for code, name in (("C25", "Convention Exclusive 2025"), ("GG", "Gamegenic")):
+        db.execute(
+            text(
+                "INSERT INTO sets (code, name, is_base_set) "
+                "VALUES (:code, :name, false) ON CONFLICT (code) DO NOTHING"
+            ),
+            {"code": code, "name": name},
+        )
+    db.commit()
+
+    def _upsert_base_card(swuapi_id, set_code, number, name):
+        set_id = db.execute(
+            text("SELECT id FROM sets WHERE code = :code"), {"code": set_code}
+        ).scalar()
+        row = db.execute(
+            text(
+                "INSERT INTO base_cards "
+                "(set_id, base_card_number, name, type, rarity, swuapi_id) "
+                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+                "RETURNING id"
+            ),
+            {"set_id": set_id, "number": number, "name": name, "swuapi_id": swuapi_id},
+        ).first()
+        return row.id
+
+    def _upsert_variant(swuapi_id, base_card_id, set_code, card_number, variant_type):
+        row = db.execute(
+            text(
+                "INSERT INTO card_variants "
+                "(base_card_id, variant_type, source_set_code, card_number, swuapi_id) "
+                "VALUES (:base_card_id, :variant_type, :set_code, :card_number, :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET card_number = EXCLUDED.card_number "
+                "RETURNING id"
+            ),
+            {
+                "base_card_id": base_card_id,
+                "variant_type": variant_type,
+                "set_code": set_code,
+                "card_number": card_number,
+                "swuapi_id": swuapi_id,
+            },
+        ).first()
+        return row.id
+
+    bc_ash = _upsert_base_card("bl185-bc-ash", "ASH", "5", "BL185 Ash Trooper")
+    bc_ts26 = _upsert_base_card("bl185-bc-ts26", "TS26", "8", "BL185 TS26 Trooper")
+    bc_sorpr = _upsert_base_card(
+        "bl185-bc-sorpr", "SOR", "9820", "BL185 Prerelease Hero"
+    )
+    bc_sorfoil = _upsert_base_card("bl185-bc-sorfoil", "SOR", "9821", "BL185 Foil Hero")
+    bc_sec = _upsert_base_card(
+        "bl185-bc-sec", "SEC", "9822", "BL185 Serialized Senator"
+    )
+    bc_c25 = _upsert_base_card("bl185-bc-c25", "C25", "9823", "BL185 Convention Hero")
+    bc_gg = _upsert_base_card("bl185-bc-gg", "GG", "9824", "BL185 Gamegenic Token")
+    bc_showcase = _upsert_base_card(
+        "bl185-bc-showcase", "SOR", "9825", "BL185 Showcase Hero"
+    )
+
+    ash_standard = _upsert_variant("bl185-v-ash", bc_ash, "ASH", "5", "Standard")
+    ts26_standard = _upsert_variant("bl185-v-ts26", bc_ts26, "TS26", "8", "Standard")
+    sorpr_promo = _upsert_variant(
+        "bl185-v-sorpr-promo", bc_sorpr, "SOR", "9820", "Prerelease Promo"
+    )
+    sorpr_judge = _upsert_variant(
+        "bl185-v-sorpr-judge", bc_sorpr, "SOR", "9820", "Prerelease Judge"
+    )
+    sor_std = _upsert_variant("bl185-v-sor-std", bc_sorfoil, "SOR", "9821", "Standard")
+    sor_foil = _upsert_variant(
+        "bl185-v-sor-foil", bc_sorfoil, "SOR", "9821", "Standard Foil"
+    )
+    sec_c1 = _upsert_variant(
+        "bl185-v-sec-c1", bc_sec, "SEC", "9822", "Serialized Prestige"
+    )
+    sec_c2 = _upsert_variant(
+        "bl185-v-sec-c2", bc_sec, "SEC", "9822", "Serialized Prestige"
+    )
+    sec_c3 = _upsert_variant(
+        "bl185-v-sec-c3", bc_sec, "SEC", "9822", "Serialized Prestige"
+    )
+    c25_convention = _upsert_variant(
+        "bl185-v-c25", bc_c25, "C25", "9823", "Convention Exclusive"
+    )
+    gg_token = _upsert_variant("bl185-v-gg", bc_gg, "GG", "9824", "Standard")
+    showcase = _upsert_variant(
+        "bl185-v-showcase", bc_showcase, "SOR", "9825", "Showcase"
+    )
+    db.commit()
+
+    return {
+        "ash_standard": {"id": ash_standard, "uuid": "bl185-v-ash"},
+        "ts26_standard": {"id": ts26_standard, "uuid": "bl185-v-ts26"},
+        "sorpr_promo": {"id": sorpr_promo, "uuid": "bl185-v-sorpr-promo"},
+        "sorpr_judge": {"id": sorpr_judge, "uuid": "bl185-v-sorpr-judge"},
+        "sor_std": {"id": sor_std, "uuid": "bl185-v-sor-std"},
+        "sor_foil": {"id": sor_foil, "uuid": "bl185-v-sor-foil"},
+        "sec_uuids": ["bl185-v-sec-c1", "bl185-v-sec-c2", "bl185-v-sec-c3"],
+        "sec_ids": [sec_c1, sec_c2, sec_c3],
+        "c25_convention": {"id": c25_convention, "uuid": "bl185-v-c25"},
+        "gg_token": {"id": gg_token, "uuid": "bl185-v-gg"},
+        "showcase": {"id": showcase, "uuid": "bl185-v-showcase"},
+    }
+
+
+def _swudb_csv(header: str, rows: list[str]) -> str:
+    """SWUDB's own export/import CSV never carries a meta line."""
+    return "\n".join([header, *rows]) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # Tenant provisioning -- every test runs under its own throwaway tenant
 # (mirrors test_inventory_limits_api.py's bl24_tenant), so the many varied
 # starting-quantity scenarios below (trim/ceiling/replace_all/partial
@@ -1215,3 +1368,373 @@ class TestSingleParse:
         )
         assert resp.status_code == 200
         assert call_count["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# BL-185: SWUDB.com collection-export import adapter -- DB-backed resolution
+# and end-to-end POST /api/inventory/import coverage. Pure-logic unit tests
+# (set-code table, normalization, foil/stamp disambiguation, format
+# detection) live in test_swudb_import.py; this section is what needs a
+# real card_variants catalog (bl185_catalog above).
+# ---------------------------------------------------------------------------
+
+
+class TestSwudbZeroPadding:
+    def test_three_digit_ash_number_normalizes(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,2,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["ash_standard"]["uuid"]
+        assert row["file_quantity"] == 2
+
+    def test_two_digit_ts26_number_normalizes(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["TS26,08,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["ts26_standard"]["uuid"]
+
+
+class TestSwudbSorprPair:
+    """§3.3/§4: SOR_1's Prerelease Promo/Prerelease Judge pair, separated
+    ONLY by Stamp -- the synthetic SORPR set code maps to SOR, and blank vs
+    "Judge" Stamp is the sole disambiguator."""
+
+    def test_blank_and_judge_stamp_resolve_distinctly(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp",
+            ["SORPR,9820,1,True,", "SORPR,9820,1,True,Judge"],
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        rows = resp.json()["rows"]
+        promo_row = next(r for r in rows if r["row_number"] == 1)
+        judge_row = next(r for r in rows if r["row_number"] == 2)
+        assert promo_row["status"] == judge_row["status"] == "resolved"
+        assert promo_row["card"]["swuapi_uuid"] == bl185_catalog["sorpr_promo"]["uuid"]
+        assert judge_row["card"]["swuapi_uuid"] == bl185_catalog["sorpr_judge"]["uuid"]
+
+
+class TestSwudbFoilTiebreak:
+    """SOR,9821 Standard/Standard Foil pair -- IsFoil is the only signal
+    separating them (mirrors the real SOR_193/SOR_237 collision shape)."""
+
+    def test_is_foil_false_resolves_standard(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9821,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["sor_std"]["uuid"]
+        assert row.get("uuid_triple_mismatch") is not True
+
+    def test_is_foil_true_resolves_standard_foil(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9821,1,True,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["sor_foil"]["uuid"]
+
+
+class TestSwudbConfirmatoryMismatch:
+    def test_is_foil_mismatch_against_sole_candidate_is_a_soft_warning(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        """The ASH fixture's sole candidate is plain Standard -- IsFoil=True
+        disagrees, but the row still resolves (§6 step 3 / §7): a soft
+        warning, never a failure."""
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,1,True,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["ash_standard"]["uuid"]
+        assert row["uuid_triple_mismatch"] is True
+
+    def test_showcase_with_is_foil_true_is_not_a_mismatch(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        """§7 locked decision (5): Showcase is always foil as a domain
+        fact -- IsFoil=True on a Showcase candidate agrees, it doesn't
+        warn."""
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9825,1,True,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["showcase"]["uuid"]
+        assert row.get("uuid_triple_mismatch") is not True
+
+
+class TestSwudbAmbiguous:
+    def test_serialized_prestige_trio_is_ambiguous_with_all_candidates(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["SEC,9822,1,True,Serialized"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "ambiguous"
+        assert row["reason"] == "ambiguous_triple"
+        assert sorted(row["candidates"]) == sorted(bl185_catalog["sec_uuids"])
+
+
+class TestSwudbRenames:
+    def test_ce25_renames_to_c25(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["CE25,9823,1,False,"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["c25_convention"]["uuid"]
+
+    def test_ggts_renames_to_gg(self, bl54s2_tenant, bl185_catalog):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["GGTS,9824,1,False,"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["gg_token"]["uuid"]
+
+
+class TestSwudbUnmappedAndUnknown:
+    def test_gc23_is_unmapped_swudb_set(self, bl54s2_tenant):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["GC23,2,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "unmapped_swudb_set"
+        assert row["card"]["set_code"] == "GC23"
+
+    def test_unknown_number_in_a_mapped_set_is_unknown_set_and_number(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9899,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "unknown_set_and_number"
+
+
+class TestSwudbDirectParseRefusals:
+    """parse_swudb_csv's own header/emptiness checks -- belt-and-suspenders
+    against the router's _detect_import_format gate (which already
+    guarantees a swudb-shaped header before dispatching here), exercised
+    directly the same way test_inventory_io.py unit-tests parse_csv/
+    parse_json's refusal paths rather than only through the router."""
+
+    def test_empty_content_is_unparseable(self, db):
+        from app.services import swudb_import
+
+        with pytest.raises(swudb_import.UnparseableFileError):
+            swudb_import.parse_swudb_csv("", db)
+
+    def test_header_missing_a_required_column_is_unparseable(self, db):
+        from app.services import swudb_import
+
+        with pytest.raises(swudb_import.UnparseableFileError):
+            swudb_import.parse_swudb_csv("Set,CardNumber,Count\nASH,005,1\n", db)
+
+
+class TestSwudbFourColumnFile:
+    """SWUDB's own import format is the 4-column subset (no Stamp)."""
+
+    def test_four_column_file_without_stamp_is_accepted(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil", ["ASH,005,3,False"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["ash_standard"]["uuid"]
+        assert row["file_quantity"] == 3
+
+
+class TestSwudbMalformedCount:
+    def test_bad_count_rejected_like_existing_parsers(self, bl54s2_tenant):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,not-a-number,False,"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "malformed_row"
+
+
+class TestSwudbIntegrationWithComputeImport:
+    """A resolved SWUDB row must flow through compute_import's merge/cap
+    math identically to a canonical row -- same trim/ceiling behavior,
+    same report shape (BL-185 scope: parse_swudb_csv only produces a
+    ParsedRow carrying swuapi_uuid; compute_import itself is untouched)."""
+
+    def test_trim_clamps_to_keep_limit_same_as_canonical_import(
+        self, db, bl54s2_tenant, bl185_catalog
+    ):
+        client, tenant_id = bl54s2_tenant
+        variant = bl185_catalog["ash_standard"]
+        _set_quantity(db, tenant_id, variant["id"], 2)
+
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,3,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="trim",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["current_quantity"] == 2
+        assert row["file_quantity"] == 3
+        # Same keep-limit math as TestMergeCapMath's canonical-format case
+        # (limit 3, current 2, file 3 -> resulting 3, 2 copies not added).
+        assert row["resulting_quantity"] == 3
+        assert row["copies_not_added"] == 2
+        assert row["trim_reason"] == "keep_limit"
+
+    def test_commit_writes_the_resolved_quantity(
+        self, db, bl54s2_tenant, bl185_catalog
+    ):
+        client, tenant_id = bl54s2_tenant
+        variant = bl185_catalog["ts26_standard"]
+
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["TS26,08,4,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="commit",
+        )
+        assert resp.status_code == 200
+        assert resp.json()["committed"] is True
+        assert _get_quantity(db, tenant_id, variant["id"]) == 4

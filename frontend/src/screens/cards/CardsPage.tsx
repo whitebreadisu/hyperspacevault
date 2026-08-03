@@ -25,6 +25,8 @@ import {
   saveValueDisplay,
   isFinishSetScopedTo,
   sortCardsByScope,
+  scopedOwnedCount,
+  scopedPlaysetComplete,
 } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
@@ -357,21 +359,44 @@ export function CardsPage({
   // filters are independent per-card predicates, so folding the toggles in
   // first vs. last doesn't change the final `filtered` set -- only what
   // FilterPanel sees.
+  // BL-195 (Issue #60): while a scope is active, all three collection
+  // filters below evaluate against the SCOPED finish instead of the card's
+  // total inventory -- e.g. "cards I don't own" with scope=Hyperspace
+  // includes a card you own 3 Standard copies of but 0 Hyperspace of (the
+  // owner's worked example). scope === null leaves every predicate exactly
+  // as it was pre-BL-195 (isPlaysetComplete/isOwned/cardOwnedTotal, the
+  // fixed-1/3-driven inventory.ts helpers) -- these existing behaviors are
+  // untouched, not routed through the scoped helpers at all.
   const toggleNarrowed = useMemo(() => {
     let result = cards;
-    if (incompleteOnly) result = result.filter((c) => !isPlaysetComplete(c.inventory, c.type));
-    // BL-60: keep only cards with at least one owned copy across variants.
-    // Reuses the existing isOwned helper (same inventory map isPlaysetComplete
-    // reads) rather than re-deriving ownership.
-    if (ownedOnly) result = result.filter((c) => isOwned(c.inventory));
+    if (incompleteOnly) {
+      result = result.filter((c) =>
+        scope
+          ? !scopedPlaysetComplete(c.variants, scope, c.type)
+          : !isPlaysetComplete(c.inventory, c.type)
+      );
+    }
+    // BL-60: keep only cards with at least one owned copy across variants
+    // (or, scoped, at least one owned copy of the scoped finish). Reuses the
+    // existing isOwned/scopedOwnedCount helpers rather than re-deriving
+    // ownership.
+    if (ownedOnly) {
+      result = result.filter((c) =>
+        scope ? scopedOwnedCount(c.variants, scope) > 0 : isOwned(c.inventory)
+      );
+    }
     // BL-115: inverse of ownedOnly -- keep only cards with a zero owned
-    // total. Mutually exclusive with ownedOnly by construction (the setters
-    // below never let both be true at once), so this filter and the one
-    // above never compound in practice, but each is independently correct
-    // if that ever changes.
-    if (noInventoryOnly) result = result.filter((c) => cardOwnedTotal(c.inventory) === 0);
+    // total (or, scoped, zero owned copies of the scoped finish). Mutually
+    // exclusive with ownedOnly by construction (the setters below never let
+    // both be true at once), so this filter and the one above never compound
+    // in practice, but each is independently correct if that ever changes.
+    if (noInventoryOnly) {
+      result = result.filter((c) =>
+        scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
+      );
+    }
     return result;
-  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly]);
+  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, scope]);
 
   const filtered = useMemo(
     () => applyFilters(toggleNarrowed as BaseCard[], filters) as InventoryCard[],
@@ -535,12 +560,20 @@ export function CardsPage({
               </div>
             )}
             <div className="ifp-toggle-row">
+              {/* BL-195 (Issue #60): while `scope` is active, each pl-toggle
+                  below also carries `pl-toggle--scoped` -- the same amber
+                  outline/text/background token family BL-194's # th uses
+                  (cards.css copies `.vs-header-scope__trigger--on` verbatim),
+                  signaling that these three filters now evaluate against the
+                  scoped finish (toggleNarrowed above), not the card's total
+                  inventory. Click handling/behavior is unchanged; this is a
+                  styling-only modifier. */}
               <div className="ifp-toggle-row__buttons">
                 <button
                   type="button"
                   className={`pl-toggle${incompleteOnly ? " pl-toggle--on" : ""}${
                     isAuthenticated ? "" : " pl-toggle--disabled"
-                  }`}
+                  }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
                     if (isAuthenticated) setIncompleteOnly((v) => !v);
                     else requestSignIn();
@@ -558,7 +591,7 @@ export function CardsPage({
                   type="button"
                   className={`pl-toggle${ownedOnly ? " pl-toggle--on" : ""}${
                     isAuthenticated ? "" : " pl-toggle--disabled"
-                  }`}
+                  }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
                     if (!isAuthenticated) {
                       requestSignIn();
@@ -587,7 +620,7 @@ export function CardsPage({
                   type="button"
                   className={`pl-toggle${noInventoryOnly ? " pl-toggle--on" : ""}${
                     isAuthenticated ? "" : " pl-toggle--disabled"
-                  }`}
+                  }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
                     if (!isAuthenticated) {
                       requestSignIn();

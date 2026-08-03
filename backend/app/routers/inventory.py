@@ -25,7 +25,7 @@ from app.schemas.inventory_schema import (
 )
 from app.services import inventory as inventory_service
 from app.services import inventory_import as inventory_import_service
-from app.services import inventory_io
+from app.services import inventory_io, swudb_import
 
 # BL-54 S2 (§7.2/P11): upload limits on the raw file, checked before any
 # parsing -- 10 MB / 20,000 rows. Full catalog is ~9,057 variants; no real
@@ -100,14 +100,34 @@ def decrement_card(variant_id: int, db: Session = Depends(get_db)):
     return result
 
 
+def _looks_like_swudb_header(text: str) -> bool:
+    """BL-185: peeks at the file's first line only -- cheap, and the only
+    thing that can distinguish a SWUDB export from a canonical CSV, since
+    both are ordinary comma-separated text with no meta line. Column-name
+    match, order-agnostic (set membership, not position)."""
+    if not text.strip():
+        return False
+    first_line = text.lstrip().splitlines()[0]
+    columns = {c.strip() for c in first_line.split(",")}
+    return swudb_import.REQUIRED_COLUMNS.issubset(columns)
+
+
 def _detect_import_format(filename: str | None, text: str) -> str:
     """§8.2's file picker accepts .json/.csv -- trust the extension when
-    present (case-insensitively), else sniff the content: a canonical
-    `swu-inv/1` JSON document is always a top-level object, so a file
-    starting with '{' is JSON, otherwise it's treated as CSV."""
+    present (case-insensitively) for JSON (SWUDB has no JSON export, so
+    ".json" is unambiguous); a ".csv" file could be either canonical or
+    SWUDB (same extension, indistinguishable by name alone), so BL-185's
+    SWUDB header sniff runs BEFORE the ".csv" extension short-circuit,
+    not after. Anything left unrecognized by extension falls back to
+    content sniffing: a canonical `swu-inv/1` JSON document is always a
+    top-level object, so a file starting with '{' is JSON, otherwise it's
+    treated as canonical CSV (which does its own recognizability check and
+    refuses what it doesn't understand)."""
     lowered = (filename or "").lower()
     if lowered.endswith(".json"):
         return "json"
+    if _looks_like_swudb_header(text):
+        return "swudb"
     if lowered.endswith(".csv"):
         return "csv"
     return "json" if text.lstrip().startswith("{") else "csv"
@@ -210,11 +230,16 @@ def import_inventory(
     # cost (which only ever sees the merged rows) than the old raw count
     # was, not a regression.
     try:
-        parse_result = (
-            inventory_io.parse_json(raw)
-            if fmt == "json"
-            else inventory_io.parse_csv(raw)
-        )
+        if fmt == "json":
+            parse_result = inventory_io.parse_json(raw)
+        elif fmt == "swudb":
+            # BL-185: the only branch that needs `db` -- SWUDB rows are
+            # resolved against card_variants at parse time (see
+            # swudb_import.py's module docstring for why that can't wait
+            # for compute_import's own resolution step below).
+            parse_result = swudb_import.parse_swudb_csv(raw, db)
+        else:
+            parse_result = inventory_io.parse_csv(raw)
     except (
         inventory_io.UnsupportedFormatVersionError,
         inventory_io.UnparseableFileError,
