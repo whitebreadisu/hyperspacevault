@@ -17,6 +17,8 @@ import type { InventoryVariant } from "./inventory";
 import type { PriceMode } from "./completion";
 import type { BaseCard, SetOrderMap } from "./catalog";
 import { sortBaseCards, setReleaseRank } from "./catalog";
+import { effectiveLimit, limitBucketOf, typeCategoryOf } from "./limits";
+import type { LimitsMatrix } from "./limits";
 
 export type { PriceMode };
 
@@ -213,6 +215,58 @@ export function scopedCardNumber(
   if (!scope) return null;
   const variant = variants.find((v) => (v.finish ?? v.variant_type) === scope);
   return variant ? variant.card_number : null;
+}
+
+// ── Scoped completeness (BL-195) ────────────────────────────────────────────
+
+/** BL-195: single source for "is the scoped finish's owned count at or above
+ * its EFFECTIVE keep-limit" -- extracted from PlaysetCell.tsx's inline
+ * `scopedOwned >= size` (the amber-plate/green-pips completeness check) so
+ * that logic and the Cards page's "incomplete playsets" toggle (CardsPage.tsx)
+ * can never disagree. Both consumers pass this the SAME `limits` matrix
+ * (context/LimitsContext.tsx's `useLimits()`), so a tenant's BL-182/BL-24
+ * keep-limit overrides drive scoped completeness end to end -- not the fixed
+ * getPlaysetSize/PLAYSET_SIZE constant (utils/inventory.ts).
+ *
+ * utils/limits.ts's own doc comment warns "do not merge" keep-limits into
+ * the completion math -- that note is about the UNSCOPED count chip / green-
+ * playset state (isPlaysetComplete), which stays exactly as it was, still
+ * driven by the fixed 1/3 constant. Scoped completeness is the narrower,
+ * BL-173-specific one-finish-at-a-time visual/filter state, and the owner's
+ * BL-195 call is to tie THAT to the tenant's own configured cap: a collector
+ * who set their Hyperspace Foil keep-limit to 2 sees the scoped plate (and
+ * the "incomplete playsets" filter) treat 2 copies as complete, not the
+ * generic 3. When the tenant has no override for the scoped finish's bucket,
+ * `effectiveLimit` resolves to the same DEFAULT_LIMITS (1/3) getPlaysetSize
+ * used to hardcode, so every caller with no custom limits configured sees
+ * byte-identical results to the pre-BL-195 behavior.
+ *
+ * "No limit" (an explicit null override) has no numeric target to compare
+ * against -- resolves to `false` (never "complete") rather than treating
+ * unbounded ownership as trivially satisfied.
+ *
+ * The visual pip COUNT (how many slots PlaysetCell draws) is untouched --
+ * Definition_VariantScope_2026-07-26.md §1's "Playset SIZE never changes
+ * with scope" still governs getPlaysetSize; only the complete/incomplete
+ * THRESHOLD moves to the effective limit. A configured limit below the fixed
+ * size (e.g. 2 on a 3-slot playset) can therefore show a "complete" plate
+ * with a visibly unfilled slot -- an accepted trade-off of honoring the
+ * tenant's own cap over the generic playset shape. */
+export function scopedPlaysetComplete(
+  variants: Pick<InventoryVariant, "variant_type" | "finish" | "channel" | "quantity">[],
+  scope: string,
+  type: string,
+  limits: LimitsMatrix | null
+): boolean {
+  const owned = scopedOwnedCount(variants, scope);
+  const variant = variants.find((v) => (v.finish ?? v.variant_type) === scope);
+  // A card carrying no printing of the scoped finish falls back to `scope`
+  // itself as the bucket key -- harmless, since `owned` is 0 in that case and
+  // no positive effective limit can make 0 read as "complete".
+  const bucket = variant ? limitBucketOf(variant.finish, variant.channel) : scope;
+  const limit = effectiveLimit(limits, typeCategoryOf(type), bucket);
+  if (limit === null) return false;
+  return owned >= limit;
 }
 
 // ── Scoped row order (BL-187) ───────────────────────────────────────────────

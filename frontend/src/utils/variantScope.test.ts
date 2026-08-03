@@ -11,11 +11,14 @@ import {
   scopeShortName,
   scopedCardNumber,
   scopedOwnedCount,
+  scopedPlaysetComplete,
   sortCardsByScope,
   SCOPE_EXPANDED_ROWS,
   SCOPE_PINNED_ROWS,
 } from "./variantScope";
 import { sortBaseCards } from "./catalog";
+import { toMatrix } from "./limits";
+import type { LimitCell } from "../api/settingsLimits";
 import type { InventoryVariant } from "./inventory";
 import type { BaseCard } from "./catalog";
 
@@ -222,6 +225,152 @@ describe("scopedOwnedCount", () => {
       makeVariant({ variant_id: 1, variant_type: "Weekly Play", finish: null, quantity: 1 }),
     ];
     expect(scopedOwnedCount(variants, "Weekly Play")).toBe(1);
+  });
+});
+
+// CREATE (BL-195, Issue #60): the "owned"/"don't own" collection filters
+// (CardsPage.tsx) evaluate `scopedOwnedCount(...) > 0` / `=== 0` directly
+// against the scoped finish -- no dedicated wrapper needed, but the owner's
+// worked example (3 Standard, 0 Hyperspace, scoped to Hyperspace) is worth
+// pinning at the helper level since it's the exact edge case the filter
+// change exists for: a card with real inventory in ANOTHER finish still
+// reads as "don't own"/not-"own" once scoped to a finish it has zero of.
+describe("scopedOwnedCount as the BL-195 collection-filter predicate", () => {
+  const vaderStandardOnly = [
+    makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+    makeVariant({
+      variant_id: 2,
+      variant_type: "Hyperspace",
+      finish: "Hyperspace",
+      quantity: 0,
+    }),
+  ];
+
+  it("scoped to Hyperspace: owned-only's predicate (> 0) is false despite 3 Standard copies", () => {
+    expect(scopedOwnedCount(vaderStandardOnly, "Hyperspace") > 0).toBe(false);
+  });
+
+  it("scoped to Hyperspace: don't-own's predicate (=== 0) is true despite 3 Standard copies", () => {
+    expect(scopedOwnedCount(vaderStandardOnly, "Hyperspace") === 0).toBe(true);
+  });
+});
+
+// CREATE (BL-195, Issue #60): scopedPlaysetComplete -- the single source
+// behind PlaysetCell's scoped-complete plate AND CardsPage's "incomplete
+// playsets" filter. `limits: null` (no tenant override / not fetched)
+// reproduces the pre-BL-195 fixed-1/3 behavior via DEFAULT_LIMITS; a real
+// override matrix moves the threshold to the tenant's own configured cap.
+describe("scopedPlaysetComplete (BL-195, CREATE)", () => {
+  it("no limits matrix: standard category falls back to the default 3 (matches the old fixed size)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 2,
+      }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", null)).toBe(false);
+    expect(scopedPlaysetComplete(variants, "Standard", "Unit", null)).toBe(true);
+  });
+
+  it("no limits matrix: singleton category (Leader/Base) falls back to the default 1", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 1 }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Standard", "Leader", null)).toBe(true);
+    expect(scopedPlaysetComplete(variants, "Standard", "Base", null)).toBe(true);
+  });
+
+  it("custom keep-limit override: a bucket capped BELOW the default 3 goes complete early", () => {
+    const variants = [
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 2,
+      }),
+    ];
+    const limits = toMatrix([
+      {
+        type_category: "standard",
+        limit_bucket: "Hyperspace Foil",
+        max_quantity: 2,
+        is_default: false,
+      } satisfies LimitCell,
+    ]);
+    // Fixed-1/3 rule would call 2/3 incomplete; the tenant's own cap (2)
+    // says otherwise.
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(true);
+  });
+
+  it("custom keep-limit override: a bucket capped ABOVE the default 3 stays incomplete past 3", () => {
+    const variants = [
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 3,
+      }),
+    ];
+    const limits = toMatrix([
+      {
+        type_category: "standard",
+        limit_bucket: "Hyperspace Foil",
+        max_quantity: 5,
+        is_default: false,
+      } satisfies LimitCell,
+    ]);
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(false);
+  });
+
+  it('"No limit" (explicit null override): never reads complete, regardless of owned count', () => {
+    const variants = [
+      makeVariant({
+        variant_id: 2,
+        variant_type: "Hyperspace Foil",
+        finish: "Hyperspace Foil",
+        quantity: 50,
+      }),
+    ];
+    const limits = toMatrix([
+      {
+        type_category: "standard",
+        limit_bucket: "Hyperspace Foil",
+        max_quantity: null,
+        is_default: false,
+      } satisfies LimitCell,
+    ]);
+    expect(scopedPlaysetComplete(variants, "Hyperspace Foil", "Unit", limits)).toBe(false);
+  });
+
+  it("a finish the card carries no printing of: never complete (0 owned, whatever the limit)", () => {
+    const variants = [
+      makeVariant({ variant_id: 1, variant_type: "Standard", finish: "Standard", quantity: 3 }),
+    ];
+    expect(scopedPlaysetComplete(variants, "Showcase", "Unit", null)).toBe(false);
+  });
+
+  it("bucket resolution falls back to channel when finish is null (Weekly Play etc.)", () => {
+    const variants = [
+      makeVariant({
+        variant_id: 1,
+        variant_type: "Weekly Play",
+        finish: null,
+        channel: "Weekly Play",
+        quantity: 2,
+      }),
+    ];
+    const limits = toMatrix([
+      {
+        type_category: "standard",
+        limit_bucket: "Weekly Play",
+        max_quantity: 2,
+        is_default: false,
+      } satisfies LimitCell,
+    ]);
+    expect(scopedPlaysetComplete(variants, "Weekly Play", "Unit", limits)).toBe(true);
   });
 });
 

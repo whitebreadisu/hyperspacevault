@@ -2,6 +2,9 @@ import { render, screen, fireEvent, act, waitFor, within } from "@testing-librar
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { CardsPage } from "./CardsPage";
 import type { BaseCardDetail, VariantDetail } from "../../api/baseCards";
+import type { CapMode, LimitCell } from "../../api/settingsLimits";
+import type { LimitsMatrix } from "../../utils/limits";
+import { toMatrix } from "../../utils/limits";
 
 // DISPOSITION (BL-56 Slice 3): this suite REPLACEd the three-file test
 // structure (components/CatalogPage.test.tsx, screens/inventory/InventoryPage.test.tsx,
@@ -76,6 +79,26 @@ vi.mock("../../api/baseCards", () => ({
   getBaseCardDetail: (id: number) => mockGetBaseCardDetail(id),
   getPriceHistory: (baseCardId: number, variantId: number, range: string) =>
     mockGetPriceHistory(baseCardId, variantId, range),
+}));
+
+// BL-195: CardsPage now reads useLimits() (context/LimitsContext.tsx) so its
+// scoped "incomplete playsets" predicate can call the same limits-aware
+// scopedPlaysetComplete helper PlaysetCell's pips use. Mocked directly
+// (same approach AddCardsModal.precon.test.tsx already uses for the same
+// context) rather than wrapped in a real Provider -- CardsPage only ever
+// destructures `limits` from it. Default mirrors the real DEFAULT_VALUE
+// (LimitsContext.tsx) -- limits: null -- so every pre-existing test in this
+// file (none of which cared about limits before BL-195) renders exactly as
+// it did before this mock existed; only the dedicated custom-limit test
+// below overrides it.
+const { useLimitsMock } = vi.hoisted(() => ({
+  useLimitsMock: vi.fn((): { limits: LimitsMatrix | null; capMode: CapMode } => ({
+    limits: null,
+    capMode: "hard",
+  })),
+}));
+vi.mock("../../context/LimitsContext", () => ({
+  useLimits: useLimitsMock,
 }));
 
 // BL-101 catalog/quantity split: CardsPage now merges getBaseCardsList
@@ -1719,6 +1742,193 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
     await act(async () => {});
     expect(mockGetBaseCardDetail).toHaveBeenCalledWith(60);
     expect(activeRailTitle()).toBe("Hyperspace – #508 – SOR");
+  });
+});
+
+// CREATE (BL-195, Issue #60): while a scope is active, the three collection
+// filters (incompleteOnly/ownedOnly/noInventoryOnly) evaluate against the
+// SCOPED finish instead of the card's total inventory -- CardsPage.tsx's
+// toggleNarrowed. The owner's worked example: own 3 Standard copies, 0
+// Hyperspace -- scoped to Hyperspace, "cards I don't own" INCLUDES the card
+// (it owns none of THAT finish) even though it's far from empty-handed
+// overall, and "cards I own" HIDES it for the same reason.
+describe("CardsPage scoped collection filters (BL-195, CREATE)", () => {
+  const vaderFixtureCards: BaseCardDetail[] = [
+    makeBaseCardDetail({
+      id: 80,
+      set_code: "SOR",
+      base_card_number: "80",
+      name: "Vader Test Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 801,
+          variant_type: "Standard",
+          finish: "Standard",
+          source_set_code: "SOR",
+          card_number: "80",
+          quantity: 3,
+        }),
+        makeVariant({
+          variant_id: 802,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          source_set_code: "SOR",
+          card_number: "580",
+          quantity: 0,
+        }),
+      ],
+    }),
+  ];
+
+  function scopeTriggerBtn(): HTMLElement {
+    return screen.getByTitle("Scope pips + Value to a single variant");
+  }
+
+  function pickHyperspaceNonFoil(): void {
+    fireEvent.click(scopeTriggerBtn());
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const hyperspaceRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Hyperspace"
+    )!;
+    fireEvent.click(within(hyperspaceRow as HTMLElement).getByText("Non-foil"));
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+    mockGetBaseCardsList.mockResolvedValue(vaderFixtureCards);
+  });
+
+  it("unscoped baseline: owned-only shows the card (3 Standard copies owned)", async () => {
+    await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+    expect(screen.getByText("Vader Test Card")).toBeInTheDocument();
+  });
+
+  it("unscoped baseline: don't-own hides the card (3 Standard copies owned)", async () => {
+    await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /only cards with no inventory/i }));
+    expect(screen.queryByText("Vader Test Card")).toBeNull();
+  });
+
+  it("scoped to Hyperspace: owned-only HIDES the card despite 3 owned Standard copies", async () => {
+    await renderPage();
+    pickHyperspaceNonFoil();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+    expect(screen.queryByText("Vader Test Card")).toBeNull();
+  });
+
+  it("scoped to Hyperspace: don't-own INCLUDES the card despite 3 owned Standard copies (owner's worked example)", async () => {
+    await renderPage();
+    pickHyperspaceNonFoil();
+
+    fireEvent.click(screen.getByRole("button", { name: /only cards with no inventory/i }));
+    expect(screen.getByText("Vader Test Card")).toBeInTheDocument();
+  });
+
+  // BL-195 point 2: the three pl-toggle controls pick up the same amber
+  // treatment as the scope control (BL-194's # th token family) while a
+  // scope is active, regardless of their own on/off state.
+  it("the three toggle buttons carry pl-toggle--scoped only while a scope is active", async () => {
+    await renderPage();
+    const incompleteBtn = screen.getByRole("button", { name: /show only incomplete playsets/i });
+    const ownedBtn = screen.getByRole("button", { name: /show only cards i own/i });
+    const noInvBtn = screen.getByRole("button", { name: /only cards with no inventory/i });
+    expect(incompleteBtn.className).not.toContain("pl-toggle--scoped");
+    expect(ownedBtn.className).not.toContain("pl-toggle--scoped");
+    expect(noInvBtn.className).not.toContain("pl-toggle--scoped");
+
+    pickHyperspaceNonFoil();
+
+    expect(incompleteBtn.className).toContain("pl-toggle--scoped");
+    expect(ownedBtn.className).toContain("pl-toggle--scoped");
+    expect(noInvBtn.className).toContain("pl-toggle--scoped");
+  });
+});
+
+// CREATE (BL-195): the scoped "incomplete playsets" filter respects the
+// tenant's own BL-182/BL-24 keep-limit override rather than the fixed 1/3 --
+// a separate describe from the block above since it's the one BL-195 test
+// that needs useLimitsMock overridden away from its null default.
+describe("CardsPage scoped incomplete-playsets filter respects custom keep-limits (BL-195, CREATE)", () => {
+  const customLimitFixtureCards: BaseCardDetail[] = [
+    makeBaseCardDetail({
+      id: 90,
+      set_code: "SOR",
+      base_card_number: "90",
+      name: "Custom Limit Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 901,
+          variant_type: "Standard",
+          finish: "Standard",
+          source_set_code: "SOR",
+          card_number: "90",
+          quantity: 0,
+        }),
+        makeVariant({
+          variant_id: 902,
+          variant_type: "Hyperspace Foil",
+          finish: "Hyperspace Foil",
+          source_set_code: "SOR",
+          card_number: "590",
+          quantity: 2,
+        }),
+      ],
+    }),
+  ];
+
+  function scopeTriggerBtn(): HTMLElement {
+    return screen.getByTitle("Scope pips + Value to a single variant");
+  }
+
+  function pickHyperspaceFoil(): void {
+    fireEvent.click(scopeTriggerBtn());
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const hyperspaceRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Hyperspace"
+    )!;
+    fireEvent.click(within(hyperspaceRow as HTMLElement).getByText("Foil"));
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(customLimitFixtureCards);
+  });
+
+  afterEach(() => {
+    // Restore the default so later describe blocks in this file (none of
+    // which care about limits) are unaffected by this block's override.
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+  });
+
+  it("default limits (fixed 3): 2/3 Hyperspace Foil copies still read incomplete while scoped", async () => {
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+    await renderPage();
+    pickHyperspaceFoil();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only incomplete playsets/i }));
+    expect(screen.getByText("Custom Limit Card")).toBeInTheDocument();
+  });
+
+  it("custom keep-limit of 2 for Hyperspace Foil: the same 2 owned copies now read COMPLETE while scoped", async () => {
+    const limits = toMatrix([
+      {
+        type_category: "standard",
+        limit_bucket: "Hyperspace Foil",
+        max_quantity: 2,
+        is_default: false,
+      } satisfies LimitCell,
+    ]);
+    useLimitsMock.mockReturnValue({ limits, capMode: "hard" });
+    await renderPage();
+    pickHyperspaceFoil();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only incomplete playsets/i }));
+    expect(screen.queryByText("Custom Limit Card")).toBeNull();
   });
 });
 

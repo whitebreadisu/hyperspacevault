@@ -1243,3 +1243,20 @@
 .pl-toggle--disabled .pl-toggle__box {
   border-color: var(--color-border);
 }
+
+/* BL-195 (Issue #60): while a variant scope is active, the three collection
+ * toggles (CardsPage.tsx) carry the SAME active-state treatment as the
+ * scope control itself and BL-194's # th (screens/cards/cards.css's
+ * .vs-header-scope__trigger--on / .th-cardnum-scoped -- same amber tokens,
+ * var(--color-warning) family, copied verbatim, no new ambers). Declared
+ * after .pl-toggle--on/.pl-toggle--disabled above so it wins the cascade at
+ * equal specificity regardless of which of those two also applies (a
+ * scoped toggle reads amber whether it's individually on/off or the
+ * anonymous inert-teaser state) -- signals "this filter now evaluates
+ * against the scoped finish," independent of the toggle's own pressed
+ * state. */
+.pl-toggle--scoped {
+  border-color: rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+}
