@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.base_card import BaseCard
 from app.models.card_variant import CardVariant
 from app.models.inventory import Inventory
+from app.models.set_model import CardSet
 
 # BL-54 S2 (§4): a row of everything the resolution engine and report
 # builder need about a matched variant -- avoids re-querying BaseCard for
@@ -93,6 +94,48 @@ def get_variants_by_set_and_number(
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
     for variant, name, subtitle, base_card_type in rows:
         key = (variant.source_set_code, variant.card_number)
+        grouped[key].append((variant, name, subtitle, base_card_type))
+    return grouped
+
+
+def get_base_card_variants_by_set_and_number(
+    db: Session, pairs: list[tuple[str, str]]
+) -> dict[tuple[str, str], list[VariantMatch]]:
+    """BL-186 §5/§10 step 1: bulk (mapped_set_code, base_card_number) ->
+    EVERY variant belonging to that base card, regardless of each
+    variant's OWN source_set_code/card_number -- the base-card-first
+    lookup the sw-unlimited-db adapter needs (app/services/
+    swunlimiteddb_import.py). This is deliberately NOT the same shape as
+    get_variants_by_set_and_number above (BL-185's lookup keys on a
+    VARIANT's own (source_set_code, card_number)) -- sw-unlimited-db's
+    row identity is the BASE card, and a promo/prerelease/Weekly-Play
+    variant on that base card can live at a completely different own-
+    number in a different source_set_code (the BL-186 definition doc's
+    §10 finding: the Vader prerelease printing lands on the base sor/010
+    row, not on its own SOR/1 identity). The adapter filters this
+    per-base-card variant list down to a column's family and disambiguates
+    (home-set preference, then ambiguous) itself -- this function only
+    does the bulk fetch, mirroring the split between get_variants_by_
+    set_and_number and swudb_import._resolve_candidates."""
+    if not pairs:
+        return {}
+    rows = (
+        db.query(
+            CardVariant,
+            BaseCard.name,
+            BaseCard.subtitle,
+            BaseCard.type,
+            CardSet.code,
+            BaseCard.base_card_number,
+        )
+        .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
+        .join(CardSet, BaseCard.set_id == CardSet.id)
+        .filter(tuple_(CardSet.code, BaseCard.base_card_number).in_(pairs))
+        .all()
+    )
+    grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
+    for variant, name, subtitle, base_card_type, set_code, base_card_number in rows:
+        key = (set_code, base_card_number)
         grouped[key].append((variant, name, subtitle, base_card_type))
     return grouped
 

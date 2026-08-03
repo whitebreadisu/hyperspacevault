@@ -30,3 +30,8 @@ google-cloud-storage==3.13.0
 # its pyppmd dependency (confirmed against a live archive during this
 # build).
 py7zr==1.1.3
+# BL-186: sw-unlimited-db.com's collection-export is XLSX (Sheet "Data",
+# wide shape) -- openpyxl is the standard pure-Python reader/writer for the
+# modern Excel format and is already an indirect dependency of this image
+# (py7zr's own toolchain does not pull it in; brought in directly here).
+openpyxl==3.1.5

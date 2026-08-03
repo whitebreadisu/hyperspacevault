@@ -58,7 +58,9 @@ KNOWN_COLUMNS = {"Set", "CardNumber", "Count", "IsFoil", "Stamp"}
 REQUIRED_COLUMNS = {"Set", "CardNumber", "Count", "IsFoil"}
 
 # §3.1/§10: deliberately incomplete set-code translation table -- an
-# unmapped code is refused (reason "unmapped_swudb_set"), NEVER guessed.
+# unmapped code is refused (reason "unmapped_set" -- renamed from
+# "unmapped_swudb_set" under BL-186, generalized now that a second import
+# format shares the same reason code), NEVER guessed.
 # Extension policy: add a row only once verified against a real SWUDB
 # export cross-checked against the live catalog (the definition doc's §3.5
 # lists container/Weekly-Play/Judge/Convention codes outside SOR/JTL/P25/
@@ -313,7 +315,10 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
             # §6 step 1: unmapped SWUDB set code -- never guessed. The raw
             # SWUDB set carried verbatim (there's no "our" set_code to
             # show -- ImportRowCard's contract is "only whatever raw
-            # identity fragments the file actually carried").
+            # identity fragments the file actually carried"). BL-186:
+            # reason renamed "unmapped_swudb_set" -> "unmapped_set"
+            # (format-agnostic, shared with app/services/
+            # swunlimiteddb_import.py's identical failure mode).
             parsed_rows.append(
                 ParsedRow(
                     row_number=raw.row_number,
@@ -323,7 +328,7 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
                     variant_type=None,
                     quantity=raw.quantity,
                     malformed_quantity=False,
-                    preresolved_reason="unmapped_swudb_set",
+                    preresolved_reason="unmapped_set",
                 )
             )
             continue

@@ -25,7 +25,7 @@ from app.schemas.inventory_schema import (
 )
 from app.services import inventory as inventory_service
 from app.services import inventory_import as inventory_import_service
-from app.services import inventory_io, swudb_import
+from app.services import inventory_io, swudb_import, swunlimiteddb_import
 
 # BL-54 S2 (§7.2/P11): upload limits on the raw file, checked before any
 # parsing -- 10 MB / 20,000 rows. Full catalog is ~9,057 variants; no real
@@ -112,17 +112,41 @@ def _looks_like_swudb_header(text: str) -> bool:
     return swudb_import.REQUIRED_COLUMNS.issubset(columns)
 
 
+# BL-186: the ZIP local-file-header signature every XLSX file starts with
+# (XLSX is a ZIP container of XML parts) -- cheap, reliable magic-byte
+# sniff that works even when the filename is missing/generic (e.g. a
+# browser upload named "upload" with no extension), same posture as
+# _looks_like_swudb_header's text-based sniff below.
+_XLSX_MAGIC = b"PK\x03\x04"
+
+
+def _looks_like_xlsx(filename: str | None, raw: bytes) -> bool:
+    """BL-186: filename OR magic prefix -- checked against RAW BYTES only,
+    never the decoded text (§8.2/definition doc scope: XLSX is binary: an
+    upload this format never reaches inventory_io._decode/utf-8-sig at
+    all, unlike every other branch this router recognizes)."""
+    lowered = (filename or "").lower()
+    return lowered.endswith(".xlsx") or raw.startswith(_XLSX_MAGIC)
+
+
 def _detect_import_format(filename: str | None, text: str) -> str:
-    """§8.2's file picker accepts .json/.csv -- trust the extension when
-    present (case-insensitively) for JSON (SWUDB has no JSON export, so
-    ".json" is unambiguous); a ".csv" file could be either canonical or
+    """§8.2's file picker accepts .json/.csv/.xlsx -- trust the extension
+    when present (case-insensitively) for JSON (SWUDB has no JSON export,
+    so ".json" is unambiguous); a ".csv" file could be either canonical or
     SWUDB (same extension, indistinguishable by name alone), so BL-185's
     SWUDB header sniff runs BEFORE the ".csv" extension short-circuit,
     not after. Anything left unrecognized by extension falls back to
     content sniffing: a canonical `swu-inv/1` JSON document is always a
     top-level object, so a file starting with '{' is JSON, otherwise it's
     treated as canonical CSV (which does its own recognizability check and
-    refuses what it doesn't understand)."""
+    refuses what it doesn't understand).
+
+    BL-186: XLSX detection does NOT live here -- it runs on the RAW BYTES
+    before this function is ever called (see the router body), specifically
+    so a binary XLSX upload never reaches the `raw.decode("utf-8-sig", ...)`
+    call this function's `text` parameter presupposes already succeeded.
+    This function's own contract (text in, format name out) is otherwise
+    unchanged."""
     lowered = (filename or "").lower()
     if lowered.endswith(".json"):
         return "json"
@@ -206,8 +230,20 @@ def import_inventory(
     if len(raw) > IMPORT_MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=422, detail="file_too_large")
 
-    text = raw.decode("utf-8-sig", errors="replace")
-    fmt = _detect_import_format(file.filename, text)
+    # BL-186: XLSX detection runs on the RAW BYTES, before any text decode
+    # is attempted -- an XLSX upload is a ZIP container (binary), and
+    # `raw.decode("utf-8-sig", errors="replace")` below would silently
+    # mangle it into garbage text (errors="replace" never raises, so a
+    # binary file wouldn't even surface as a decode failure -- it would
+    # just corrupt the SWUDB-header/JSON-brace sniffs that come next).
+    # xlsx short-circuits to its own format name here, skipping the decode
+    # entirely; every other branch is unchanged.
+    if _looks_like_xlsx(file.filename, raw):
+        fmt = "xlsx"
+        text = ""  # never consulted by the xlsx branch below
+    else:
+        text = raw.decode("utf-8-sig", errors="replace")
+        fmt = _detect_import_format(file.filename, text)
 
     # BL-53/A4-03 (single parse): the JSON body used to be fully parsed
     # twice per request -- once here (via a since-removed _raw_row_count
@@ -233,11 +269,17 @@ def import_inventory(
         if fmt == "json":
             parse_result = inventory_io.parse_json(raw)
         elif fmt == "swudb":
-            # BL-185: the only branch that needs `db` -- SWUDB rows are
-            # resolved against card_variants at parse time (see
+            # BL-185: the only OTHER branch that needs `db` -- SWUDB rows
+            # are resolved against card_variants at parse time (see
             # swudb_import.py's module docstring for why that can't wait
             # for compute_import's own resolution step below).
             parse_result = swudb_import.parse_swudb_csv(raw, db)
+        elif fmt == "xlsx":
+            # BL-186: sw-unlimited-db's XLSX export -- same "resolve at
+            # parse time" posture as SWUDB (see swunlimiteddb_import.py's
+            # module docstring), reading `raw` directly as bytes (never
+            # `text`, which is empty/unused for this branch).
+            parse_result = swunlimiteddb_import.parse_swunlimiteddb_xlsx(raw, db)
         else:
             parse_result = inventory_io.parse_csv(raw)
     except (

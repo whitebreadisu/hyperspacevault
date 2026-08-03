@@ -70,7 +70,7 @@ async function renderPage(onBackToVault: () => void = vi.fn()) {
 }
 
 async function selectFile(): Promise<File> {
-  const input = screen.getByLabelText(/file \(\.json or \.csv\)/i) as HTMLInputElement;
+  const input = screen.getByLabelText(/file \(\.json, \.csv, or \.xlsx\)/i) as HTMLInputElement;
   const file = makeFile();
   await act(async () => {
     fireEvent.change(input, { target: { files: [file] } });
@@ -212,7 +212,7 @@ describe("ImportExportPage chrome (dev-review polish)", () => {
 
   it("forwards the Choose file button's click to the hidden native input", async () => {
     await renderPage();
-    const input = screen.getByLabelText(/file \(\.json or \.csv\)/i) as HTMLInputElement;
+    const input = screen.getByLabelText(/file \(\.json, \.csv, or \.xlsx\)/i) as HTMLInputElement;
     const clickSpy = vi.spyOn(input, "click");
 
     fireEvent.click(screen.getByRole("button", { name: "Choose file" }));
