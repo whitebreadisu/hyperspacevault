@@ -22,6 +22,12 @@ ReasonCode = Literal[
     "ambiguous_triple",
     "incomplete_identity",
     "malformed_row",
+    # BL-185: SWUDB import adapter reason codes (app/services/
+    # swudb_import.py) -- "ambiguous" outcomes reuse "ambiguous_triple"
+    # itself (locked decision 4: no new UX), these two are the only new
+    # values.
+    "unmapped_swudb_set",
+    "unknown_set_and_number",
 ]
 TrimReason = Literal["keep_limit", "ceiling"]
 ImportMode = Literal["merge_add", "replace", "replace_all"]

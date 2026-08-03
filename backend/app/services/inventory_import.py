@@ -79,6 +79,29 @@ def _resolve_row(
     if row.malformed_quantity:
         return _Resolution(row, "unresolved", "malformed_row", False, False, [], None)
 
+    # BL-185: a SWUDB row's identity was resolved (or determined un-
+    # resolvable/ambiguous) entirely by swudb_import.parse_swudb_csv at
+    # parse time -- its raw identity (Set/CardNumber/IsFoil/Stamp) doesn't
+    # fit the uuid/triple schemes this function otherwise handles, so the
+    # adapter does its own §6 resolution against the DB up front and
+    # stashes the verdict on the row rather than a triple this function
+    # could re-derive. `preresolved_reason` is None on every row parse_
+    # json/parse_csv ever produce, so this branch is a no-op for them.
+    if row.preresolved_reason is not None:
+        if row.preresolved_candidates:
+            return _Resolution(
+                row,
+                "ambiguous",
+                row.preresolved_reason,
+                False,
+                False,
+                row.preresolved_candidates,
+                None,
+            )
+        return _Resolution(
+            row, "unresolved", row.preresolved_reason, False, False, [], None
+        )
+
     triple = _triple_of(row)
 
     # Step 1: uuid present and known -> resolved by uuid, unconditionally
@@ -87,11 +110,18 @@ def _resolve_row(
     if row.swuapi_uuid and row.swuapi_uuid in uuid_map:
         match = uuid_map[row.swuapi_uuid]
         variant = match[0]
-        mismatch = triple is not None and triple != (
-            variant.source_set_code,
-            variant.card_number,
-            variant.variant_type,
-        )
+        mismatch = (
+            triple is not None
+            and triple
+            != (
+                variant.source_set_code,
+                variant.card_number,
+                variant.variant_type,
+            )
+        ) or row.preresolved_mismatch  # BL-185: SWUDB's own IsFoil/Stamp
+        # confirmatory check (soft warning, never a resolution failure --
+        # §6 step 3/§7). preresolved_mismatch is always False on a
+        # canonical-format row (no triple to compare against here anyway).
         return _Resolution(row, "resolved", None, False, mismatch, [], match)
 
     # Step 2: uuid absent OR present-but-unknown -> fall back to the triple.

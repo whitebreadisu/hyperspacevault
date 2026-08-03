@@ -71,6 +71,32 @@ def get_variants_by_triples(
     return grouped
 
 
+def get_variants_by_set_and_number(
+    db: Session, pairs: list[tuple[str, str]]
+) -> dict[tuple[str, str], list[VariantMatch]]:
+    """BL-185 §6 step 3: bulk (set_code, card_number) lookup for the SWUDB
+    import adapter -- mirrors get_variants_by_triples above, but without
+    the variant_type leg of the triple, since SWUDB's own raw identity
+    (Set, CardNumber, IsFoil, Stamp) never carries a variant_type at all.
+    IsFoil/Stamp disambiguate the returned candidate list in app/services/
+    swudb_import.py, not here -- this is a plain bulk lookup, same shape as
+    get_variants_by_triples (usually one candidate; multiple is the
+    expected-collision case, §5)."""
+    if not pairs:
+        return {}
+    rows = (
+        db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
+        .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
+        .filter(tuple_(CardVariant.source_set_code, CardVariant.card_number).in_(pairs))
+        .all()
+    )
+    grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
+    for variant, name, subtitle, base_card_type in rows:
+        key = (variant.source_set_code, variant.card_number)
+        grouped[key].append((variant, name, subtitle, base_card_type))
+    return grouped
+
+
 def get_current_quantities(db: Session, variant_ids: list[int]) -> dict[int, int]:
     """The caller's current quantity for each resolved variant_id -- RLS
     scopes rows to the request's tenant via `db`, same posture as
