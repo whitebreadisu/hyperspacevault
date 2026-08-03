@@ -102,6 +102,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             title: "Weekly Play prices, all the way back",
             body: "63 Weekly Play promos from the SOR/SHD/TWI era weren't getting prices. Now they are. Every Weekly Play printing across every set shows its market and low price.",
           },
+          {
+            title: "Deep price history, incoming",
+            body: "Full price history for every priced printing — reaching back to March 2024, millions of data points — is curated and ready to load. Loading it needs about 30 minutes of system maintenance, which we'll schedule soon and announce right here. When it lands, your price-history panels go from weeks of memory to years.",
+          },
         ],
       },
       {
