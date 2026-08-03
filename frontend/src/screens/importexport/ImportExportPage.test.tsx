@@ -614,6 +614,7 @@ describe("ImportExportPage busy overlay (BL-196)", () => {
     runImport.mockReturnValue(promise);
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
 
     fireEvent.click(screen.getByRole("button", { name: /preview import/i }));
 
@@ -632,6 +633,7 @@ describe("ImportExportPage busy overlay (BL-196)", () => {
     runImport.mockReturnValue(promise);
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
 
     fireEvent.click(screen.getByRole("button", { name: /preview import/i }));
     await waitFor(() => expect(screen.getByText("Checking your file…")).toBeInTheDocument());
@@ -649,6 +651,7 @@ describe("ImportExportPage busy overlay (BL-196)", () => {
     const onImported = vi.fn(() => importedPromise);
     await renderPage(vi.fn(), onImported);
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     runImport.mockReturnValueOnce(commitPromise);
