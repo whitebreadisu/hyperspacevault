@@ -111,7 +111,8 @@ const FILE_ERROR_CODES: ReadonlySet<string> = new Set([
 const CODE_MESSAGES: Record<ImportErrorCode, string> = {
   file_too_large: "That file is over the 10 MB upload limit.",
   too_many_rows: "That file has more than 20,000 rows — split it and try again.",
-  unparseable_file: "Couldn't read that file — check that it's a valid .json, .csv, or .xlsx export.",
+  unparseable_file:
+    "Couldn't read that file — check that it's a valid .json, .csv, or .xlsx export.",
   unsupported_format_version: "That file's format version isn't supported by this app.",
   email_not_verified: "Verify your email to import or export your collection.",
   unknown: "Something went wrong. Please try again.",
