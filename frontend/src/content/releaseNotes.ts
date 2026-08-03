@@ -58,6 +58,19 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         ],
       },
       {
+        heading: "Bring your collection with you",
+        items: [
+          {
+            title: "Import straight from SWUDB",
+            body: "Upload your SWUDB collection export as-is — no conversion, no AI middleman, no reformatting. The preview shows exactly what resolved (and calls out anything that needs your eye) before a single card changes.",
+          },
+          {
+            title: "Import from SW-Unlimited-DB too",
+            body: "Their spreadsheet export drops right in, same deal: upload the .xlsx, review the preview, done. And imports only ever add what your file claims — they never quietly remove anything.",
+          },
+        ],
+      },
+      {
         heading: "Straight from your feedback",
         items: [
           {
@@ -65,8 +78,8 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             body: "The playset keep-limit is now yours to set. Settings has a new Keep-limits section with steppers for Leaders & Bases and for everything else (up to 999 — hoarders welcome), alongside the existing hard cap / soft cap / no limits enforcement. Collecting four-of for Twin Suns flexibility? Set it and forget it.",
           },
           {
-            title: "Sort by the finish you collect",
-            body: "Tracking playsets against a specific finish? The card number column and the whole Vault order now follow it — the list sorts by the finish's own card numbers, exactly like your binder does.",
+            title: "Chase one finish, everywhere",
+            body: "Tracking playsets against a specific finish? The whole Vault now follows it: card numbers and sort order switch to that finish's own numbers (exactly like your binder), the card popup opens on that printing, the ownership filters answer for that finish alone — \"cards I don't own\" means that finish, not any copy — and the amber highlights show you exactly what's adjusted.",
           },
           {
             title: "Add Cards knows the probable printing",
@@ -75,6 +88,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           {
             title: "Arrow through the printings",
             body: "In the card detail, up and down arrows now cycle through a card's printings — and left/right still walks the list. Hands never leave the keyboard.",
+          },
+          {
+            title: "No more mystery waiting",
+            body: "Big imports and batch adds now tell you what's happening while they work — how many cards are being applied, and when your Vault is refreshing — with a little aspect-glyph animation to keep you company.",
           },
         ],
       },
