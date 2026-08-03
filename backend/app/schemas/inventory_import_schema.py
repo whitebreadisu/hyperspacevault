@@ -24,10 +24,24 @@ ReasonCode = Literal[
     "malformed_row",
     # BL-185: SWUDB import adapter reason codes (app/services/
     # swudb_import.py) -- "ambiguous" outcomes reuse "ambiguous_triple"
-    # itself (locked decision 4: no new UX), these two are the only new
-    # values.
-    "unmapped_swudb_set",
+    # itself (locked decision 4: no new UX). "unmapped_swudb_set" was
+    # renamed "unmapped_set" under BL-186 (below) -- now format-agnostic
+    # since a second source format exists.
+    "unmapped_set",
     "unknown_set_and_number",
+    # BL-186: sw-unlimited-db import adapter reason codes (app/services/
+    # swunlimiteddb_import.py). "unmapped_set"/"unknown_set_and_number"
+    # above are shared verbatim with SWUDB (same meaning: the file's set
+    # code isn't in our table / the (set, number) pair isn't a known base
+    # card). "unmapped_column" is new: a quantity column this adapter
+    # deliberately never resolves (Event Exclusive in v1, the 9 dead
+    # tournament columns, Organized Play Foil, Price wall/Event pack/Day
+    # two reward). "unknown_variant_for_column" is new: the base card was
+    # found but none of its variants belong to the column's family.
+    # Multi-match within a family reuses "ambiguous_triple" (existing
+    # bucket, no new UX -- same locked decision 4 as SWUDB).
+    "unmapped_column",
+    "unknown_variant_for_column",
 ]
 TrimReason = Literal["keep_limit", "ceiling"]
 ImportMode = Literal["merge_add", "replace", "replace_all"]

@@ -276,14 +276,21 @@ export function ImportExportPage({ onBackToVault }: Props) {
               // it.
               <div className="ie-file-field">
                 <label className="ie-field-label" htmlFor="ie-file-input">
-                  File (.json or .csv)
+                  File (.json, .csv, or .xlsx)
                 </label>
+                {/* BL-186: accept widened to include .xlsx (sw-unlimited-db's
+                    collection-export format) alongside the existing canonical
+                    .json/.csv and SWUDB's own .csv export -- the backend's
+                    format-detection seam (routers/inventory.py's
+                    _looks_like_xlsx) already routes any .xlsx upload to the
+                    new adapter regardless of this attribute; this is
+                    browser-side file-picker filtering only. */}
                 <input
                   id="ie-file-input"
                   ref={fileInputRef}
                   className="ie-file-input"
                   type="file"
-                  accept=".json,.csv"
+                  accept=".json,.csv,.xlsx"
                   onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 />
                 <div className="ie-file-row">
