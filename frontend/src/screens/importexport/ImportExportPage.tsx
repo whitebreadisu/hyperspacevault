@@ -323,8 +323,8 @@ export function ImportExportPage({ onBackToVault }: Props) {
                 Catalog reference
               </h3>
               <p className="ie-reference__blurb">
-                Every card printing with its IDs and a quantity column — fill in your quantities and
-                import it directly.
+                Every card printing with its IDs and a quantity column, in the{" "}
+                <strong>HSV format</strong> — fill in your quantities and import it directly.
               </p>
               {downloadError?.source === "reference" && (
                 <p className="ie-error" role="alert">
