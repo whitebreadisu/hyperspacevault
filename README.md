@@ -96,7 +96,7 @@ inventory into a fresh database, sign in and use the app's Import/Export feature
 
 Verify: [localhost:5173](http://localhost:5173) (app) · [localhost:8000/health](http://localhost:8000/health) (`{"status": "ok"}`) · [localhost:8000/docs](http://localhost:8000/docs) (API docs).
 
-Stop with `docker compose down` (add `-v` to also wipe the database).
+Stop with `docker compose down`. Local auth-emulator accounts persist across restarts (exported to a volume on clean shutdown); add `-v` to wipe everything — database and local accounts alike.
 
 ## Development workflow
 

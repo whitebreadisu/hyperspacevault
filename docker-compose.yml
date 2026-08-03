@@ -68,15 +68,36 @@ services:
   # offline project id -- firebase-tools runs the emulator against it with
   # no real GCP project or login required. Reuses the frontend image since
   # firebase-tools is already a frontend devDependency.
+  #
+  # Local-auth durability (owner request 2026-08-03): the emulator's account
+  # store is memory-only by default -- every container stop wiped every local
+  # account (postgres_data made inventory survive restarts while the accounts
+  # owning it evaporated). --export-on-exit persists the store into the
+  # firebase_emulator_data volume on clean shutdown; --import restores it on
+  # start, but ONLY once an export exists (firebase-tools hard-errors on
+  # importing a directory without export metadata, hence the conditional).
+  # `exec` makes the emulator PID 1 so compose's SIGTERM reaches it directly
+  # -- without it the sh wrapper swallows the signal and the export never
+  # runs. stop_grace_period gives the export room before the SIGKILL.
   firebase-emulator:
     build:
       context: ./frontend
-    command: npx firebase emulators:start --only auth --project demo-swu
+    # The export target is a SUBDIRECTORY of the mount, not the mount point
+    # itself -- firebase-tools' exporter rmdir-and-recreates its target, and
+    # a volume mount point can't be removed (EBUSY; proven live 2026-08-03,
+    # the export silently failed and the account was lost anyway).
+    command: >
+      sh -c "exec npx firebase emulators:start --only auth --project demo-swu
+      --export-on-exit=/emulator-data/export
+      $$( [ -f /emulator-data/export/firebase-export-metadata.json ] && echo --import=/emulator-data/export )"
+    stop_grace_period: 30s
     ports:
       - "9099:9099"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - firebase_emulator_data:/emulator-data
 
 volumes:
   postgres_data:
+  firebase_emulator_data:

@@ -123,8 +123,12 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
 export function ImportExportPage({ onBackToVault, onImported }: Props) {
   const [step, setStep] = useState<Step>("configure");
   const [file, setFile] = useState<File | null>(null);
-  const [mode, setMode] = useState<ImportMode>("merge_add");
-  const [capHandling, setCapHandling] = useState<CapHandling>("add_above");
+  // Owner review 2026-08-03: NO defaults on merge mode or the keep-limits
+  // rule -- both choices matter enough that the user must actively pick
+  // each before Preview unlocks (null = not yet chosen; the radios render
+  // unselected until then).
+  const [mode, setMode] = useState<ImportMode | null>(null);
+  const [capHandling, setCapHandling] = useState<CapHandling | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [successReport, setSuccessReport] = useState<ImportReport | null>(null);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
@@ -180,7 +184,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
   }
 
   async function handlePreview() {
-    if (!file || previewing) return;
+    if (!file || !mode || !capHandling || previewing) return;
     setPreviewing(true);
     setFileError(null);
     try {
@@ -206,13 +210,15 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
 
   const confirmBlocked =
     !file ||
+    !mode ||
+    !capHandling ||
     !report ||
     committing ||
     report.totals.resolved === 0 ||
     (mode === "replace_all" && !replaceAllConfirmed);
 
   async function handleConfirm() {
-    if (!file || confirmBlocked) return;
+    if (!file || !mode || !capHandling || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
     // BL-196: the dry_run report already sitting in state has the exact
@@ -260,6 +266,10 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setStep("configure");
+    // The forced choices reset with the rest of the session -- a fresh
+    // import means fresh, deliberate picks.
+    setMode(null);
+    setCapHandling(null);
     setReport(null);
     setSuccessReport(null);
     setReplaceAllConfirmed(false);
@@ -319,17 +329,22 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             </p>
             {step === "configure" && (
               // BL-173 review round 4 (owner): imports expect the
-              // HyperspaceVault format -- say so up front, and point
-              // other-tracker users at the catalog CSV + an AI conversion
-              // as the migration path.
+              // HyperspaceVault format -- say so up front. BL-185/BL-186
+              // follow-up (owner, 2026-08-03): SWUDB + SW-Unlimited-DB
+              // exports now import natively, so the amber migration tip
+              // leads with upload-as-is and keeps the catalog-CSV + AI
+              // conversion as the everything-else path.
               <div className="ie-format-notes">
                 <p className="ie-format-note">
-                  Imports use the <strong>HyperspaceVault format</strong> — the files Export
-                  produces, or the catalog reference sheet with your quantities filled in.
+                  Imports use the <strong>[HSV] HyperspaceVault format</strong> — the files Export
+                  produces, or the catalog reference sheet with your quantities filled in. SWUDB and
+                  SW-Unlimited-DB exports are also accepted natively.
                 </p>
                 <p className="ie-format-note ie-format-note--amber">
-                  <strong>Coming from another tracker?</strong> Download the catalog CSV and ask
-                  your favorite AI tool to convert your existing inventory file into it.
+                  <strong>Coming from another tracker?</strong> If it&apos;s <strong>SWUDB</strong>{" "}
+                  or <strong>SW-Unlimited-DB</strong>, just upload your export file as-is —
+                  it&apos;s recognized automatically. From anywhere else, download the catalog CSV
+                  and ask your favorite AI tool to convert your existing inventory file into it.
                 </p>
               </div>
             )}
@@ -373,8 +388,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
                 Catalog reference
               </h3>
               <p className="ie-reference__blurb">
-                Every card printing with its IDs and a quantity column — fill in your quantities and
-                import it directly.
+                Every card printing with its IDs and a quantity column, in the{" "}
+                <strong>[HSV] format</strong> — fill in your quantities and import it directly.
               </p>
               {downloadError?.source === "reference" && (
                 <p className="ie-error" role="alert">
@@ -470,8 +485,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             <div className="ie-actions">
               <SWUButton
                 size="sm"
-                active={!!file && !previewing}
-                ariaDisabled={!file || previewing}
+                active={!!file && !!mode && !!capHandling && !previewing}
+                ariaDisabled={!file || !mode || !capHandling || previewing}
                 onClick={handlePreview}
               >
                 {previewing ? "Previewing…" : "Preview import"}

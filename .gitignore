@@ -109,3 +109,8 @@ backend/app/ingestion/data/*.json
 # private files, so nothing is lost by keeping these rules local; the
 # companion-clone setup doc in the internal repo restores them.
 .git-internal/
+
+# Firebase auth-emulator export fallbacks (the durable store lives in the
+# compose volume; these appear in the emulator cwd only on export-path
+# failures and are local auth dumps that must never be committed)
+frontend/firebase-export-*/
