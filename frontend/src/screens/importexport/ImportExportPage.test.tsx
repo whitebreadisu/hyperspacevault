@@ -84,6 +84,19 @@ async function clickPreview() {
   });
 }
 
+// Owner review 2026-08-03: merge mode + keep-limits rule are forced choices
+// (no defaults) -- every preview flow must pick both first, exactly like a
+// real user now has to.
+async function selectModeAndCap(
+  modeName: RegExp = /merge \(add\)/i,
+  capName: RegExp = /add everything, even above my keep-limits/i
+) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("radio", { name: modeName }));
+    fireEvent.click(screen.getByRole("radio", { name: capName }));
+  });
+}
+
 describe("ImportExportPage export section (BL-54 S3, CREATE)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -182,16 +195,22 @@ describe("ImportExportPage catalog reference (inside Import section)", () => {
   // CREATE (BL-173 review round 4, owner): the Import section states the
   // expected format up front and points other-tracker users at the catalog
   // CSV + AI-conversion migration path.
-  it("renders the two format notes (HyperspaceVault format + AI-conversion suggestion) at the configure step", async () => {
+  // REPLACE (BL-185/BL-186 follow-up, owner 2026-08-03): the notes now lead
+  // with the native SWUDB / SW-Unlimited-DB acceptance; the AI-conversion
+  // path survives as the everything-else fallback.
+  it("renders the two format notes (native-format acceptance + migration tip) at the configure step", async () => {
     await renderPage();
     const formatNote = screen.getByText(/HyperspaceVault format/i).closest(".ie-format-note");
     expect(formatNote).not.toBeNull();
+    expect(formatNote!.textContent).toMatch(/SW-Unlimited-DB/i);
+    expect(formatNote!.textContent).toMatch(/accepted natively/i);
 
     const migrationNote = screen
       .getByText(/coming from another tracker/i)
       .closest(".ie-format-note");
     expect(migrationNote).not.toBeNull();
     expect(migrationNote).not.toBe(formatNote);
+    expect(migrationNote!.textContent).toMatch(/upload your export file as-is/i);
     expect(migrationNote!.textContent).toMatch(/favorite AI tool/i);
     expect(migrationNote!.textContent).toMatch(/catalog CSV/i);
   });
@@ -236,19 +255,44 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     vi.clearAllMocks();
   });
 
-  it("disables Preview import until a file is chosen", async () => {
+  // REPLACE (owner review 2026-08-03): Preview is now gated on file AND both
+  // forced choices -- the old test only knew about the file gate.
+  it("disables Preview import until a file is chosen AND both choices are made", async () => {
     await renderPage();
     const previewBtn = screen.getByRole("button", { name: /preview import/i });
     expect(previewBtn.getAttribute("aria-disabled")).toBe("true");
 
+    await selectFile();
+    expect(previewBtn.getAttribute("aria-disabled")).toBe("true");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: /merge \(add\)/i }));
+    });
+    expect(previewBtn.getAttribute("aria-disabled")).toBe("true");
+
     fireEvent.click(previewBtn);
     expect(runImport).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("radio", { name: /add everything, even above my keep-limits/i })
+      );
+    });
+    // SWUButton omits aria-disabled entirely when enabled.
+    expect(previewBtn.getAttribute("aria-disabled")).not.toBe("true");
   });
 
-  it("calls runImport with dry_run/merge_add/add_above defaults and renders the report on Preview", async () => {
+  // REPLACE (owner review 2026-08-03): merge_add/add_above are no longer
+  // DEFAULTS -- they're the explicit picks this flow now makes; the radios
+  // start unselected.
+  it("starts with no mode/cap selected and calls runImport with the user's explicit picks", async () => {
     runImport.mockResolvedValue(baseReport());
     await renderPage();
+    for (const radio of screen.getAllByRole("radio")) {
+      expect((radio as HTMLInputElement).checked).toBe(false);
+    }
     const file = await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     expect(runImport).toHaveBeenCalledWith(file, "merge_add", "add_above", "dry_run");
@@ -281,6 +325,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     );
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     const cardsCell = screen.getByText("Cards").closest(".ie-totals__cell")!;
@@ -333,6 +378,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     );
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     const text = document.body.textContent ?? "";
@@ -371,6 +417,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     );
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     const confirmBtn = screen.getByRole("button", { name: /confirm import/i });
@@ -405,7 +452,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     await renderPage();
     await selectFile();
 
-    fireEvent.click(screen.getByRole("radio", { name: /replace all/i }));
+    await selectModeAndCap(/replace all/i);
     await clickPreview();
 
     expect(runImport).toHaveBeenCalledWith(expect.any(File), "replace_all", "add_above", "dry_run");
@@ -427,6 +474,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     const onBackToVault = vi.fn();
     await renderPage(onBackToVault);
     const file = await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     await act(async () => {
@@ -445,6 +493,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     runImport.mockRejectedValue(new ImportApiError("unparseable_file", 422));
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     expect(screen.getByRole("alert")).toHaveTextContent(/couldn't read that file/i);
@@ -458,6 +507,7 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
       .mockRejectedValueOnce(new ImportApiError("too_many_rows", 422));
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     await act(async () => {
@@ -518,6 +568,7 @@ describe("ImportExportPage reject-CSV download (BL-54 S3, CREATE)", () => {
     );
     await renderPage();
     await selectFile();
+    await selectModeAndCap();
     await clickPreview();
 
     await act(async () => {
