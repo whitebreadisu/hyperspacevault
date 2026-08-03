@@ -276,7 +276,7 @@ export function ImportExportPage({ onBackToVault }: Props) {
               // it.
               <div className="ie-file-field">
                 <label className="ie-field-label" htmlFor="ie-file-input">
-                  File (.json or .csv)
+                  File (.json, .csv, or .xlsx)
                 </label>
                 {/* BL-186: accept widened to include .xlsx (sw-unlimited-db's
                     collection-export format) alongside the existing canonical
