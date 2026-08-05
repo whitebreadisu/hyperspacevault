@@ -79,7 +79,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           },
           {
             title: "Chase one finish, everywhere",
-            body: "Tracking playsets against a specific finish? The whole Vault now follows it: card numbers and sort order switch to that finish's own numbers (exactly like your binder), the card popup opens on that printing, the ownership filters answer for that finish alone — \"cards I don't own\" means that finish, not any copy — and the amber highlights show you exactly what's adjusted.",
+            body: "Tracking playsets against a specific finish? Open the playset finish filter — the dropdown on the Playset column header — and pick your finish; the whole Vault then follows it: card numbers and sort order switch to that finish's own numbers (exactly like your binder), the card popup opens on that printing, the ownership filters answer for that finish alone — \"cards I don't own\" means that finish, not any copy — and the amber highlights show you exactly what's adjusted.",
           },
           {
             title: "Add Cards knows the probable printing",
