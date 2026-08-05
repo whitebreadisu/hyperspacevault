@@ -141,6 +141,10 @@ export function CardsPage({
   // frozen list rather than jumping around a moving target. Cleared back to
   // null on close so the next open always starts a fresh snapshot.
   const [popupCardIds, setPopupCardIds] = useState<number[] | null>(null);
+  // BL-201: the finish the gallery cell was displaying when clicked (only
+  // when the Finish filter drove that display) -- wins over `scope` as the
+  // popup's initialFinish for that popup session; cleared on close.
+  const [galleryDisplayedFinish, setGalleryDisplayedFinish] = useState<string | null>(null);
   const [setOrder, setSetOrder] = useState<SetOrderMap>({});
   const [setNameByCode, setSetNameByCode] = useState<Record<string, string>>({});
   // BL-163: the raw getSets() rows, kept alongside the two derived maps
@@ -494,7 +498,13 @@ export function CardsPage({
    * table (name cell + inventory cell) and the gallery route through, so
    * every opener gets identical nav behavior for free. */
   const openPopup = useCallback(
-    (baseCardId: number) => {
+    (baseCardId: number, displayedFinish: string | null = null) => {
+      // BL-201: non-null only from a gallery cell whose image the Finish
+      // filter picked -- that popup session opens on the finish the
+      // collector was looking at (precedence over the BL-193 scope
+      // preselect below). Table opens and unfiltered gallery opens pass
+      // nothing and keep the existing rules.
+      setGalleryDisplayedFinish(displayedFinish);
       setPopupCardIds(tableCards.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
     },
@@ -504,6 +514,7 @@ export function CardsPage({
   const closePopup = useCallback(() => {
     setPopupBaseCardId(null);
     setPopupCardIds(null);
+    setGalleryDisplayedFinish(null);
   }, []);
 
   /** BL-148: derives prev/next targets from the snapshotted `popupCardIds`
@@ -782,7 +793,9 @@ export function CardsPage({
           // BL-193: keeps the popup's initial/per-card selection in the same
           // finish the collector is scoped to (BL-173) -- companion to
           // BL-187's scoped number/sort and BL-192's rail cycling.
-          initialFinish={scope}
+          // BL-201: a finish-filtered gallery click showed the collector a
+          // specific printing -- that displayed finish wins for the session.
+          initialFinish={galleryDisplayedFinish ?? scope}
         />
       )}
     </div>
