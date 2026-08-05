@@ -373,18 +373,6 @@
   border-color: rgba(248, 113, 113, 0.4);
 }
 
-.ie-report-section--warning {
-  border-color: rgba(217, 154, 31, 0.4);
-}
-
-.ie-report-section__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .ie-report-section__title {
   margin: 0 0 6px;
   font-family: var(--font-ui);
@@ -395,52 +383,135 @@
   cursor: default;
 }
 
-details.ie-report-section > summary.ie-report-section__title {
-  cursor: pointer;
-  margin: 0;
+/* ── BL-202: totals-header view alignment ─────────────────────────────────
+ * The cells that make up the active view carry the app's amber "aligned to
+ * what you picked" treatment (same var(--color-warning) family the Vault's
+ * scope affordances use -- BL-187/BL-194 lineage; inset box-shadow, not a
+ * border, so cell width never shifts when alignment moves between views). */
+.ie-totals__cell--aligned {
+  box-shadow: inset 0 0 0 1px var(--color-warning);
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  background: rgba(217, 154, 31, 0.08);
 }
 
-.ie-row-list {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 320px;
-  overflow-y: auto;
+.ie-totals__cell--aligned dt,
+.ie-totals__cell--aligned dd {
+  color: var(--color-warning);
 }
 
-.ie-row {
+/* ── BL-202: view bar (tabs + always-visible download button) ──────────── */
+
+.ie-view-bar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 4px 0;
+  flex-wrap: wrap;
+}
+
+.ie-view-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.ie-view-tab {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 4px 4px 0 0;
+  padding: 6px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.ie-view-tab:hover {
+  color: var(--color-text);
+}
+
+.ie-view-tab--active {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  background: rgba(217, 154, 31, 0.08);
+}
+
+/* ── BL-202: tabular row presentation ─────────────────────────────────────
+ * Replaces the flex .ie-row list -- the old right-aligned detail text sat
+ * flush against the scroll container's edge, so the vertical scrollbar
+ * painted over it (the owner's "cuts off the text" report). The wrap keeps
+ * scrolling; the table keeps its own right padding clear of the bar. */
+.ie-table-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0 4px 4px 4px;
+  scrollbar-gutter: stable;
+}
+
+.ie-table {
+  width: 100%;
+  border-collapse: collapse;
   font-family: var(--font-body);
   font-size: 12px;
+}
+
+.ie-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface-alt);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--color-border);
 }
 
-.ie-row:last-child {
+.ie-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  color: var(--color-text);
+}
+
+.ie-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.ie-row__card {
-  color: var(--color-text);
-  flex-shrink: 0;
+.ie-table__th-num,
+.ie-table__num {
+  white-space: nowrap;
+  width: 1%;
 }
 
-.ie-row__detail {
+.ie-table__card {
+  white-space: normal;
+}
+
+.ie-table__detail {
   color: var(--color-text-muted);
-  text-align: right;
 }
 
-.ie-row--problem .ie-row__detail,
-.ie-row--removed .ie-row__detail {
+.ie-table__row--problem .ie-table__detail {
   color: var(--color-danger);
 }
 
-.ie-row--trimmed .ie-row__detail {
+.ie-table__row--removed td {
+  color: var(--color-danger);
+}
+
+.ie-table__candidates {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+}
+
+.ie-table__note--trimmed {
   color: var(--color-warning);
 }
