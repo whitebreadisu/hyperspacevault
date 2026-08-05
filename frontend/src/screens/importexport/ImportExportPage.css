@@ -63,8 +63,10 @@
   margin-top: 12px;
 }
 
+/* Round 4: gap is text-block <-> button only (title/blurb spacing lives
+ * inside __text), so this is exactly "space above the download button". */
 .ie-reference {
-  gap: 14px;
+  gap: 22px;
 }
 
 /* Owner dev-review 2026-07-24 round 4 -- vertical card restored; the file
@@ -285,6 +287,9 @@
   gap: 24px;
   flex-wrap: wrap;
   align-items: flex-start;
+  /* Round 4: extra clearance between the file field above and the
+   * Merge mode / Keep-limits headers. */
+  margin-top: 12px;
 }
 
 .ie-radio-row .ie-radio-group {
@@ -496,6 +501,9 @@
 .ie-table-wrap {
   max-height: 360px;
   overflow-y: auto;
+  /* Round 4: the Card column stopped wrapping -- rare extra-long labels
+   * scroll inside the wrap rather than distorting the page. */
+  overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: 0 4px 4px 4px;
   scrollbar-gutter: stable;
@@ -540,8 +548,10 @@
   width: 1%;
 }
 
+/* Round 4 (owner): the Card column holds its full label on one line --
+ * the What happened / Notes column takes the remaining width instead. */
 .ie-table__card {
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .ie-table__detail {
