@@ -30,7 +30,13 @@ const DEFAULT_CONTAINER_WIDTH = 1200;
 
 interface Props {
   cards: InventoryCard[];
-  onSelectCard: (baseCardId: number) => void;
+  /** BL-201: `displayedFinish` is non-null ONLY when the active Finish
+   * filter drove the cell's image pick (pickRepresentative's filter
+   * branch) -- the finish the collector is literally looking at. CardsPage
+   * feeds it to the popup's initialFinish so the click-through opens on
+   * the displayed printing; null (no filter / fallback pick) keeps the
+   * popup's own default rules (BL-193 scope preselect, then Standard). */
+  onSelectCard: (baseCardId: number, displayedFinish?: string | null) => void;
   /** Active Finish filter selection (FilterState.finish, BL-90/BL-73
    * follow-up from Jeremy's dev review) -- an empty set means "no finish
    * filter active" and pickRepresentative falls back to the Standard/base
@@ -58,21 +64,33 @@ interface Props {
  *   doesn't care which -- first in array order (Array.prototype.find is
  *   already stable, so no extra sort is needed for that case). Falls back to
  *   the no-filter rule if nothing matches (shouldn't happen given the
- *   filtered-array guarantee, but keeps this function total). */
+ *   filtered-array guarantee, but keeps this function total).
+ *
+ * BL-201: `filterDriven` reports WHICH branch produced the pick -- true only
+ * for the filter branch above, so the caller can tell "the collector chose
+ * to look at this finish" (feeds the popup's initial selection) apart from
+ * "the default Standard/base rule happened to run" (popup keeps its own
+ * rules). */
 function pickRepresentative(
   variants: InventoryVariant[],
   activeFinishes?: Set<string>
-): InventoryVariant | null {
-  if (variants.length === 0) return null;
+): { variant: InventoryVariant | null; filterDriven: boolean } {
+  if (variants.length === 0) return { variant: null, filterDriven: false };
   if (activeFinishes && activeFinishes.size > 0) {
     const matches = variants.filter((v) => activeFinishes.has(v.finish ?? v.variant_type));
     if (matches.length > 0) {
-      return matches.reduce((lowest, v) =>
-        Number(v.card_number) < Number(lowest.card_number) ? v : lowest
-      );
+      return {
+        variant: matches.reduce((lowest, v) =>
+          Number(v.card_number) < Number(lowest.card_number) ? v : lowest
+        ),
+        filterDriven: true,
+      };
     }
   }
-  return variants.find((v) => v.finish === "Standard") ?? variants[0];
+  return {
+    variant: variants.find((v) => v.finish === "Standard") ?? variants[0],
+    filterDriven: false,
+  };
 }
 
 /** Orientation rule (Jeremy's dev review of the BL-73 Stage 1 build): no
@@ -94,9 +112,8 @@ const CELL_SIZES = `${CELL_WIDTH}px`;
 
 function cellImage(
   card: InventoryCard,
-  activeFinishes?: Set<string>
+  representative: InventoryVariant | null
 ): { images: CardImageProps | null; rotated: boolean } {
-  const representative = pickRepresentative(card.variants, activeFinishes);
   if (!representative) return { images: null, rotated: false };
   if (card.type === "Leader" && representative.back_image_url) {
     return {
@@ -352,7 +369,18 @@ export function GalleryGrid({ cards, onSelectCard, activeFinishes, isAuthenticat
               }}
             >
               {rowCards.map((card) => {
-                const { images, rotated } = cellImage(card, activeFinishes);
+                const { variant: representative, filterDriven } = pickRepresentative(
+                  card.variants,
+                  activeFinishes
+                );
+                const { images, rotated } = cellImage(card, representative);
+                // BL-201: only a filter-driven pick carries its finish to
+                // the click-through -- the default Standard/base pick sends
+                // null so the popup keeps its own rules (scope, Standard).
+                const displayedFinish =
+                  filterDriven && representative
+                    ? (representative.finish ?? representative.variant_type)
+                    : null;
                 return (
                   <GalleryCell
                     key={card.base_card_id}
@@ -360,7 +388,7 @@ export function GalleryGrid({ cards, onSelectCard, activeFinishes, isAuthenticat
                     images={images}
                     rotated={rotated}
                     isAuthenticated={isAuthenticated}
-                    onSelect={() => onSelectCard(card.base_card_id)}
+                    onSelect={() => onSelectCard(card.base_card_id, displayedFinish)}
                   />
                 );
               })}
