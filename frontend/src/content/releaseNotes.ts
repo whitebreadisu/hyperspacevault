@@ -68,6 +68,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             title: "Import from SW-Unlimited-DB too",
             body: "Their spreadsheet export drops right in, same deal: upload the .xlsx, review the preview, done. And imports only ever add what your file claims — they never quietly remove anything.",
           },
+          {
+            title: "A preview that speaks collector",
+            body: "When a row can't be matched, the preview now explains why in plain words and lists the actual printings it might be — set, number, and name, not machine IDs. Problem rows and resolved rows each get their own clean table with the totals bar highlighting whichever you're viewing, and cards that share a number with tokens or promo printings now resolve to the card you actually meant.",
+          },
         ],
       },
       {
@@ -88,6 +92,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           {
             title: "Arrow through the printings",
             body: "In the card detail, up and down arrows now cycle through a card's printings — and left/right still walks the list. Hands never leave the keyboard.",
+          },
+          {
+            title: "Gallery clicks keep your finish",
+            body: "Filtering the gallery to a specific finish? Clicking a card now opens its detail on the exact printing you were looking at — not the standard art you'd then have to click away from.",
           },
           {
             title: "No more mystery waiting",
