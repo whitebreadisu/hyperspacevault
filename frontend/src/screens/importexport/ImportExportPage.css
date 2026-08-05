@@ -6,6 +6,9 @@
  * rendering the settings pane has no equivalent of. */
 
 .ie-screen {
+  /* BL-202 round 3 (owner): breathing room past the last section, on the
+   * configure and confirmation pages alike. */
+  padding-bottom: 96px;
   max-width: 860px;
   /* Owner dev-review 2026-07-23: center the pane in the viewport rather
    * than hugging the left edge like the full-width Vault table. */
@@ -44,11 +47,24 @@
   flex-wrap: wrap;
 }
 
+/* BL-202 round 3: lives ONLY inside the split (row-direction) Export head
+ * now -- inside a column head its flex-basis reads as a HEIGHT and inflates
+ * empty space (the Import-preview gap the owner caught). */
 .ie-section__head-main {
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex: 1 1 320px;
+}
+
+/* BL-202 round 3 (owner spacing pass): downloads sit clear of their blurb
+ * -- both the Export pair and the reference aside's button. */
+.ie-section__head--split .ie-actions {
+  margin-top: 12px;
+}
+
+.ie-reference {
+  gap: 14px;
 }
 
 /* Owner dev-review 2026-07-24 round 4 -- vertical card restored; the file
@@ -125,7 +141,9 @@
 .ie-format-notes {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  /* BL-202 round 3 (owner spacing pass): clear of the head blurb above. */
+  margin-top: 8px;
 }
 .ie-format-note {
   margin: 0;
@@ -239,20 +257,38 @@
   position: relative;
 }
 
-.ie-section__head-main .ie-file-field {
-  margin-top: 8px;
+/* BL-202 round 3 (owner spacing pass): the file field sits clear of the
+ * amber migration note above it (selector was .ie-section__head-main
+ * before the Import head lost that wrapper). */
+.ie-section__head .ie-file-field {
+  margin-top: 14px;
 }
 
 .ie-file-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* Same clearance above the button the Export downloads got. */
+  margin-top: 12px;
 }
 
 .ie-file-name {
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+/* BL-202 round 3 (owner): Merge mode + Keep-limits side by side, stacking
+ * back to a column when the pane narrows. */
+.ie-radio-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ie-radio-row .ie-radio-group {
+  flex: 1 1 300px;
 }
 
 .ie-radio-group {
@@ -274,6 +310,16 @@
 
 .ie-radio-option:has(input:checked) {
   border-color: var(--color-primary);
+}
+
+/* BL-202 round 3 (owner): selecting the destructive replace-all mode
+ * outlines its box in red, not the neutral selection blue. */
+.ie-radio-option--danger:has(input:checked) {
+  border-color: var(--color-danger);
+}
+
+.ie-radio-option--danger input {
+  accent-color: var(--color-danger);
 }
 
 .ie-radio-option input {

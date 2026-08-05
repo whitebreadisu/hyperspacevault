@@ -1069,6 +1069,37 @@ describe("ImportExportPage report views (BL-202, CREATE)", () => {
     expect(screen.getByText("cards.csv")).toBeInTheDocument();
   });
 
+  // BL-202 round 3 (owner): the import flow owns the page once preview
+  // starts -- Export disappears, the section retitles, and Cancel brings
+  // Export back with the configure step.
+  it("hides the Export section and retitles to 'Import preview' during preview", async () => {
+    runImport.mockResolvedValue(mixedReport());
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Export" })).toBeInTheDocument();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    expect(screen.queryByRole("heading", { name: "Export" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Import preview" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("heading", { name: "Export" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Import" })).toBeInTheDocument();
+  });
+
+  // BL-202 round 3 (owner): the destructive replace-all box outlines red
+  // when selected -- carried by a danger modifier only that option gets.
+  it("marks only the destructive replace-all option with the danger modifier", async () => {
+    await renderPage();
+    const destructive = screen
+      .getByRole("radio", { name: /replace all/i })
+      .closest(".ie-radio-option");
+    expect(destructive?.className).toContain("ie-radio-option--danger");
+    const mergeAdd = screen.getByRole("radio", { name: /merge.*add/i }).closest(".ie-radio-option");
+    expect(mergeAdd?.className).not.toContain("ie-radio-option--danger");
+  });
+
   it("defaults to the Resolved view when the file has no problem rows", async () => {
     const clean = mixedReport();
     clean.totals.rows = 1;
