@@ -164,6 +164,20 @@ UNMAPPED_COLUMNS = frozenset(
 )
 
 
+def _is_token_id(raw: str) -> bool:
+    """BL-199: whether a raw `Base card id` names a TOKEN (T-prefixed,
+    e.g. T1). The prefix is the row's only token signal, and it's decisive:
+    because _normalize_number strips it before lookup, a token row and a
+    real-card row would otherwise land on the SAME (set, number) pair --
+    token base cards are numbered run-locally inside base sets with bare
+    numbers (ASH 1 is both The Armorer and the Mandalorian token). The
+    caller routes T-rows to the token side of the base-card lookup and
+    bare rows to the non-token side (see get_base_card_variants_by_set_
+    and_number's `tokens` param), so neither ever sees the other's
+    candidates."""
+    return raw.strip().startswith("T")
+
+
 def _normalize_number(raw: str) -> str:
     """§2.2: strips a leading `T` (token ids) before the same int-cast/
     re-stringify recipe swudb_import._normalize_number uses -- resolves
@@ -171,10 +185,11 @@ def _normalize_number(raw: str) -> str:
     A token's `T`-prefix is stripped entirely, matching how our own
     card_number field already stores tokens (BL-185 §3.4's P25_T002
     finding: the T-prefixed collector number and the plain numeric
-    card_number are the same bare digits). Falls back to the T-stripped,
-    stripped string when it isn't purely numeric -- never raises; an
-    unparseable number just fails to find any base card downstream
-    (unknown_set_and_number)."""
+    card_number are the same bare digits) -- tokenness itself is preserved
+    by the caller via _is_token_id above (BL-199), not by this string.
+    Falls back to the T-stripped, stripped string when it isn't purely
+    numeric -- never raises; an unparseable number just fails to find any
+    base card downstream (unknown_set_and_number)."""
     stripped = raw.strip()
     if stripped.startswith("T"):
         stripped = stripped[1:]
@@ -368,22 +383,30 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
     # §5 steps 1-2 / §10: map every distinct (raw Set, raw Base card id) up
     # front, so the base-card-first bulk lookup runs ONE query regardless
     # of file size -- mirrors swudb_import.parse_swudb_csv's own bulk-map-
-    # then-lookup shape.
-    pairs: set[tuple[str, str]] = set()
-    mapped_by_candidate: list[tuple[str, str] | None] = []
+    # then-lookup shape. BL-199: pairs are partitioned by tokenness (the
+    # T- prefix _normalize_number strips is the row's only token signal --
+    # see _is_token_id) and fetched in two token-split calls, so a token
+    # row (T1) and a real-card row (1) sharing the same bare number never
+    # see each other's base cards.
+    pairs_by_tokenness: dict[bool, set[tuple[str, str]]] = {False: set(), True: set()}
+    mapped_by_candidate: list[tuple[tuple[str, str], bool] | None] = []
     for cand in candidates:
         set_code = SET_CODE_MAP.get(cand.raw_set.upper())
         if set_code is None:
             mapped_by_candidate.append(None)
             continue
         number = _normalize_number(cand.raw_number)
+        is_token = _is_token_id(cand.raw_number)
         pair = (set_code, number)
-        mapped_by_candidate.append(pair)
-        pairs.add(pair)
+        mapped_by_candidate.append((pair, is_token))
+        pairs_by_tokenness[is_token].add(pair)
 
-    base_card_variants = inventory_import_repo.get_base_card_variants_by_set_and_number(
-        db, list(pairs)
-    )
+    base_card_variants_by_tokenness = {
+        tokens: inventory_import_repo.get_base_card_variants_by_set_and_number(
+            db, list(token_pairs), tokens=tokens
+        )
+        for tokens, token_pairs in pairs_by_tokenness.items()
+    }
 
     parsed_rows: list[ParsedRow] = []
     # BL-186: every melted candidate becomes its own report row -- unlike
@@ -391,7 +414,7 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
     # sequence (a single spreadsheet row can melt into several candidates,
     # §5.1), not the spreadsheet's own row index, so every candidate gets a
     # distinct, stable ordinal.
-    for ordinal, (cand, pair) in enumerate(
+    for ordinal, (cand, mapped) in enumerate(
         zip(candidates, mapped_by_candidate, strict=True), start=1
     ):
         if cand.column in UNMAPPED_COLUMNS:
@@ -423,7 +446,7 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
             )
             continue
 
-        if pair is None:
+        if mapped is None:
             # §3/§10 (owner-locked): unmapped set (incl. HMW and anything
             # else outside the 10 base sets) -- never guessed, same
             # generic reason SWUDB's own unmapped-set case uses.
@@ -441,8 +464,9 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
             )
             continue
 
+        pair, is_token = mapped
         mapped_set, number = pair
-        variants = base_card_variants.get(pair, [])
+        variants = base_card_variants_by_tokenness[is_token].get(pair, [])
         outcome = _resolve_column(variants, cand.column, mapped_set)
         parsed_rows.append(
             ParsedRow(

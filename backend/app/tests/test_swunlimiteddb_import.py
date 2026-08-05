@@ -333,7 +333,7 @@ class TestParseMeltAndPositiveOnly:
         monkeypatch.setattr(
             inventory_import_repo,
             "get_base_card_variants_by_set_and_number",
-            lambda db, pairs: {},
+            lambda db, pairs, tokens=False: {},
         )
         return swi.parse_swunlimiteddb_xlsx(_xlsx_bytes(header, rows), db=None)
 
