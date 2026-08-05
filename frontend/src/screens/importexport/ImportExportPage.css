@@ -6,6 +6,9 @@
  * rendering the settings pane has no equivalent of. */
 
 .ie-screen {
+  /* BL-202 round 3 (owner): breathing room past the last section, on the
+   * configure and confirmation pages alike. */
+  padding-bottom: 96px;
   max-width: 860px;
   /* Owner dev-review 2026-07-23: center the pane in the viewport rather
    * than hugging the left edge like the full-width Vault table. */
@@ -33,7 +36,10 @@
 /* Owner dev-review 2026-07-23: the Import section's head is a split row --
  * title/blurb left, the catalog-reference callout top-right (the corner was
  * empty). Wraps to a stacked column on narrow viewports. */
-.ie-section__head--import {
+/* BL-202 round 2: was .ie-section__head--import (the reference aside lived
+ * in the Import head 2026-07-23 → 2026-08-05); renamed now that the split
+ * two-column head belongs to Export. */
+.ie-section__head--split {
   flex-direction: row;
   justify-content: space-between;
   align-items: flex-start;
@@ -41,11 +47,26 @@
   flex-wrap: wrap;
 }
 
+/* BL-202 round 3: lives ONLY inside the split (row-direction) Export head
+ * now -- inside a column head its flex-basis reads as a HEIGHT and inflates
+ * empty space (the Import-preview gap the owner caught). */
 .ie-section__head-main {
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex: 1 1 320px;
+}
+
+/* BL-202 round 3 (owner spacing pass): downloads sit clear of their blurb
+ * -- both the Export pair and the reference aside's button. */
+.ie-section__head--split .ie-actions {
+  margin-top: 12px;
+}
+
+/* Round 4: gap is text-block <-> button only (title/blurb spacing lives
+ * inside __text), so this is exactly "space above the download button". */
+.ie-reference {
+  gap: 22px;
 }
 
 /* Owner dev-review 2026-07-24 round 4 -- vertical card restored; the file
@@ -122,7 +143,9 @@
 .ie-format-notes {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  /* BL-202 round 3 (owner spacing pass): clear of the head blurb above. */
+  margin-top: 8px;
 }
 .ie-format-note {
   margin: 0;
@@ -236,20 +259,41 @@
   position: relative;
 }
 
-.ie-section__head-main .ie-file-field {
-  margin-top: 8px;
+/* BL-202 round 3 (owner spacing pass): the file field sits clear of the
+ * amber migration note above it (selector was .ie-section__head-main
+ * before the Import head lost that wrapper). */
+.ie-section__head .ie-file-field {
+  margin-top: 14px;
 }
 
 .ie-file-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* Same clearance above the button the Export downloads got. */
+  margin-top: 12px;
 }
 
 .ie-file-name {
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+/* BL-202 round 3 (owner): Merge mode + Keep-limits side by side, stacking
+ * back to a column when the pane narrows. */
+.ie-radio-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  /* Round 4: extra clearance between the file field above and the
+   * Merge mode / Keep-limits headers. */
+  margin-top: 12px;
+}
+
+.ie-radio-row .ie-radio-group {
+  flex: 1 1 300px;
 }
 
 .ie-radio-group {
@@ -271,6 +315,16 @@
 
 .ie-radio-option:has(input:checked) {
   border-color: var(--color-primary);
+}
+
+/* BL-202 round 3 (owner): selecting the destructive replace-all mode
+ * outlines its box in red, not the neutral selection blue. */
+.ie-radio-option--danger:has(input:checked) {
+  border-color: var(--color-danger);
+}
+
+.ie-radio-option--danger input {
+  accent-color: var(--color-danger);
 }
 
 .ie-radio-option input {
@@ -373,18 +427,6 @@
   border-color: rgba(248, 113, 113, 0.4);
 }
 
-.ie-report-section--warning {
-  border-color: rgba(217, 154, 31, 0.4);
-}
-
-.ie-report-section__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .ie-report-section__title {
   margin: 0 0 6px;
   font-family: var(--font-ui);
@@ -395,52 +437,140 @@
   cursor: default;
 }
 
-details.ie-report-section > summary.ie-report-section__title {
-  cursor: pointer;
-  margin: 0;
+/* ── BL-202: totals-header view alignment ─────────────────────────────────
+ * The cells that make up the active view carry the app's amber "aligned to
+ * what you picked" treatment (same var(--color-warning) family the Vault's
+ * scope affordances use -- BL-187/BL-194 lineage; inset box-shadow, not a
+ * border, so cell width never shifts when alignment moves between views). */
+.ie-totals__cell--aligned {
+  box-shadow: inset 0 0 0 1px var(--color-warning);
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  background: rgba(217, 154, 31, 0.08);
 }
 
-.ie-row-list {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 320px;
-  overflow-y: auto;
+.ie-totals__cell--aligned dt,
+.ie-totals__cell--aligned dd {
+  color: var(--color-warning);
 }
 
-.ie-row {
+/* ── BL-202: view bar (tabs + always-visible download button) ──────────── */
+
+.ie-view-bar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 4px 0;
+  flex-wrap: wrap;
+}
+
+.ie-view-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.ie-view-tab {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 4px 4px 0 0;
+  padding: 6px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.ie-view-tab:hover {
+  color: var(--color-text);
+}
+
+.ie-view-tab--active {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  background: rgba(217, 154, 31, 0.08);
+}
+
+/* ── BL-202: tabular row presentation ─────────────────────────────────────
+ * Replaces the flex .ie-row list -- the old right-aligned detail text sat
+ * flush against the scroll container's edge, so the vertical scrollbar
+ * painted over it (the owner's "cuts off the text" report). The wrap keeps
+ * scrolling; the table keeps its own right padding clear of the bar. */
+.ie-table-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  /* Round 4: the Card column stopped wrapping -- rare extra-long labels
+   * scroll inside the wrap rather than distorting the page. */
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0 4px 4px 4px;
+  scrollbar-gutter: stable;
+}
+
+.ie-table {
+  width: 100%;
+  border-collapse: collapse;
   font-family: var(--font-body);
   font-size: 12px;
+}
+
+.ie-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface-alt);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--color-border);
 }
 
-.ie-row:last-child {
+.ie-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  color: var(--color-text);
+}
+
+.ie-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.ie-row__card {
-  color: var(--color-text);
-  flex-shrink: 0;
+.ie-table__th-num,
+.ie-table__num {
+  white-space: nowrap;
+  width: 1%;
 }
 
-.ie-row__detail {
+/* Round 4 (owner): the Card column holds its full label on one line --
+ * the What happened / Notes column takes the remaining width instead. */
+.ie-table__card {
+  white-space: nowrap;
+}
+
+.ie-table__detail {
   color: var(--color-text-muted);
-  text-align: right;
 }
 
-.ie-row--problem .ie-row__detail,
-.ie-row--removed .ie-row__detail {
+.ie-table__row--problem .ie-table__detail {
   color: var(--color-danger);
 }
 
-.ie-row--trimmed .ie-row__detail {
+.ie-table__row--removed td {
+  color: var(--color-danger);
+}
+
+.ie-table__candidates {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+}
+
+.ie-table__note--trimmed {
   color: var(--color-warning);
 }
