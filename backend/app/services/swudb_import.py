@@ -153,6 +153,28 @@ _STAMP_KEYWORDS: dict[str, str] = {
 }
 
 
+# BL-199 (§6 step 3c, amending the BL-185 doc's §6/§7 locked decisions):
+# the main-set printing vocabulary -- the variant_types a SWUDB row's plain
+# (Set, CardNumber) identity actually means when promo-run printings
+# (Prerelease/Judge/SS/Weekly Play, numbered run-locally under the base
+# set) share its number. Same vocabulary as the XLSX adapter's clean-column
+# targets (swunlimiteddb_import._CLEAN_COLUMN_TO_TYPE values): SWUDB gives
+# promo-tier printings their own Set codes (SORPR) and Stamp values, so a
+# row that says neither means the main-set card.
+_MAIN_SET_TYPES = frozenset(
+    {
+        "Standard",
+        "Standard Foil",
+        "Hyperspace",
+        "Hyperspace Foil",
+        "Showcase",
+        "Standard Prestige",
+        "Foil Prestige",
+        "Serialized Prestige",
+    }
+)
+
+
 def _stamp_matches(stamp: str | None, variant_type: str) -> bool:
     """§6 step 3b, widened per the definition doc's worked SORPR example
     (§4/§10): a BLANK Stamp is itself informative, not merely "no signal"
@@ -211,7 +233,27 @@ def _resolve_candidates(
     if len(stamp_matches) == 1:
         return _Outcome(stamp_matches[0][0].swuapi_id, False, None, [])
 
-    # Step (c) / §7 locked decision (4): still ambiguous -- the EXISTING
+    # Step (c) -- BL-199, amending §7 locked decision (4): before falling
+    # into the ambiguous bucket, prefer the sole MAIN-SET printing over
+    # run-locally-numbered promo-tier printings (see _MAIN_SET_TYPES).
+    # The real SOR 1 shape: after the blank-stamp filter, Krennic
+    # (Standard) still shared the family with Vader's Prerelease Promo,
+    # Takedown's SS Participation and Battlefield Marine's Weekly Play --
+    # all run-local number-1s the file's plain "SOR,1" never meant. Fires
+    # only when exactly ONE main-set candidate remains, so a genuine
+    # main-set collision (the SEC Serialized Prestige trio) still lands
+    # in ambiguous_triple below. Mismatch semantics mirror the
+    # single-candidate step: resolve, flag any foil/stamp disagreement.
+    pool = stamp_matches if stamp_matches else base
+    main_set = [c for c in pool if c[0].variant_type in _MAIN_SET_TYPES]
+    if len(main_set) == 1:
+        variant = main_set[0][0]
+        mismatch = _is_foilish(variant.variant_type) != is_foil or (
+            stamp is not None and not _stamp_matches(stamp, variant.variant_type)
+        )
+        return _Outcome(variant.swuapi_id, mismatch, None, [])
+
+    # Step (d) / §7 locked decision (4): still ambiguous -- the EXISTING
     # ambiguous bucket, same reason code inventory_import.py's own triple
     # collisions use (no new UX).
     ids = sorted(c[0].swuapi_id for c in candidates)

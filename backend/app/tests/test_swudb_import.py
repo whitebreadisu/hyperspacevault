@@ -166,6 +166,51 @@ class TestResolveCandidates:
         assert blank_stamp.swuapi_uuid == "uuid-promo"
         assert judge_stamp.swuapi_uuid == "uuid-judge"
 
+    def test_main_set_tier_resolves_the_real_sor_1_shape(self):
+        """BL-199 step (c): the owner's real SOR 1 family (post token
+        exclusion) -- Krennic's Standard sharing its number with four
+        run-locally numbered promo printings of OTHER cards. A plain
+        no-foil, no-stamp row means the main-set card."""
+        candidates = [
+            _variant("Standard", "uuid-krennic"),
+            _variant("Prerelease Promo", "uuid-vader-promo"),
+            _variant("Prerelease Judge", "uuid-vader-judge"),
+            _variant("SS Judge", "uuid-takedown-judge"),
+            _variant("SS Participation", "uuid-takedown-part"),
+            _variant("Weekly Play", "uuid-marine-wp"),
+        ]
+        outcome = swudb._resolve_candidates(candidates, is_foil=False, stamp=None)
+        assert outcome.swuapi_uuid == "uuid-krennic"
+        assert outcome.mismatch is False
+        assert outcome.reason is None
+
+    def test_main_set_tier_foil_disagreement_is_a_soft_mismatch(self):
+        """IsFoil=True against a family whose only main-set printing is
+        non-foil -- still resolves (same posture as the single-candidate
+        step), flagged as a mismatch, never a failure."""
+        candidates = [
+            _variant("Standard", "uuid-krennic"),
+            _variant("Prerelease Promo", "uuid-vader-promo"),
+            _variant("Weekly Play", "uuid-marine-wp"),
+        ]
+        outcome = swudb._resolve_candidates(candidates, is_foil=True, stamp=None)
+        assert outcome.swuapi_uuid == "uuid-krennic"
+        assert outcome.mismatch is True
+
+    def test_main_set_tier_never_steals_a_stamped_row(self):
+        """A Judge stamp narrows to the promo side before the tier runs --
+        two Judge printings of different cards at one number stay
+        ambiguous (the file genuinely can't tell them apart), and the
+        main-set card is never resolved for a stamped row."""
+        candidates = [
+            _variant("Standard", "uuid-krennic"),
+            _variant("Prerelease Judge", "uuid-vader-judge"),
+            _variant("SS Judge", "uuid-takedown-judge"),
+        ]
+        outcome = swudb._resolve_candidates(candidates, is_foil=False, stamp="Judge")
+        assert outcome.swuapi_uuid is None
+        assert outcome.reason == "ambiguous_triple"
+
     def test_still_ambiguous_after_foil_and_stamp_lists_all_candidates(self):
         """The SEC_1127 Serialized Prestige trio shape: identical foil-ness
         and identical stamp keyword across every candidate -- irreducibly

@@ -82,13 +82,23 @@ def get_variants_by_set_and_number(
     IsFoil/Stamp disambiguate the returned candidate list in app/services/
     swudb_import.py, not here -- this is a plain bulk lookup, same shape as
     get_variants_by_triples (usually one candidate; multiple is the
-    expected-collision case, §5)."""
+    expected-collision case, §5).
+
+    BL-199: token base cards are excluded here, not in the adapter's
+    resolution -- tokens are numbered run-locally INSIDE base sets (SOR 1
+    is both Director Krennic and the Experience token), and a SWUDB row's
+    plain CardNumber always means the real card: SWUDB's own token ids are
+    T-prefixed (the BL-185 doc's §3.4 P25_T002 finding), which this
+    adapter's _normalize_number leaves non-numeric so they land in
+    unknown_set_and_number rather than resolving -- tokens stay out of
+    SWUDB import entirely, honestly on both sides."""
     if not pairs:
         return {}
     rows = (
         db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
         .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
         .filter(tuple_(CardVariant.source_set_code, CardVariant.card_number).in_(pairs))
+        .filter(BaseCard.is_token.is_(False))
         .all()
     )
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
@@ -99,7 +109,7 @@ def get_variants_by_set_and_number(
 
 
 def get_base_card_variants_by_set_and_number(
-    db: Session, pairs: list[tuple[str, str]]
+    db: Session, pairs: list[tuple[str, str]], *, tokens: bool = False
 ) -> dict[tuple[str, str], list[VariantMatch]]:
     """BL-186 §5/§10 step 1: bulk (mapped_set_code, base_card_number) ->
     EVERY variant belonging to that base card, regardless of each
@@ -116,7 +126,16 @@ def get_base_card_variants_by_set_and_number(
     per-base-card variant list down to a column's family and disambiguates
     (home-set preference, then ambiguous) itself -- this function only
     does the bulk fetch, mirroring the split between get_variants_by_
-    set_and_number and swudb_import._resolve_candidates."""
+    set_and_number and swudb_import._resolve_candidates.
+
+    BL-199: `tokens` selects which side of the base_cards.is_token split
+    to fetch -- token base cards are numbered run-locally inside base sets
+    (ASH 1 is both The Armorer and the Mandalorian token), and the XLSX
+    adapter strips the T- prefix off token ids before lookup, so WITHOUT
+    the split a token row and a real-card row land on the same (set,
+    number) pair and cross-contaminate each other's candidates. The
+    adapter routes each row by whether its raw id carried the T- prefix
+    (T1 -> tokens=True, 1 -> tokens=False); the two calls never mix."""
     if not pairs:
         return {}
     rows = (
@@ -131,6 +150,7 @@ def get_base_card_variants_by_set_and_number(
         .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
         .join(CardSet, BaseCard.set_id == CardSet.id)
         .filter(tuple_(CardSet.code, BaseCard.base_card_number).in_(pairs))
+        .filter(BaseCard.is_token.is_(tokens))
         .all()
     )
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)

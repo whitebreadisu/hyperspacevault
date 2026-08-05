@@ -122,11 +122,17 @@ def bl54s2_catalog(db):
 @pytest.fixture(scope="module")
 def bl185_catalog(db):
     """
-    - ash_standard (ASH, card_number "5"): one Standard variant -- 3-digit
-      zero-pad normalization ("005" -> "5").
-    - ts26_standard (TS26, card_number "8"): one Standard variant -- 2-digit
-      zero-pad normalization ("08" -> "8"). Deliberately NOT "1" --
-      test_catalog_reference_api.py's own fixture already claims TS26/"1".
+    - ash_standard (ASH, card_number "9826"): one Standard variant --
+      zero-pad normalization ("09826" -> "9826"). BL-199 moved this (and
+      ts26_standard) off the original low numbers ("5"/"8"): the LIVE dev
+      catalog grew real cards there (Luke Skywalker landed on ASH 5), and
+      a second Standard at the fixture's number makes these tests
+      env-dependently ambiguous -- the 98xx unclaimed-range convention the
+      other fixtures already follow applies here too. The leading-zero
+      strip these rows exist to prove is width-independent, so the padded
+      file forms below keep exercising the same normalization path.
+    - ts26_standard (TS26, card_number "9827"): one Standard variant --
+      zero-pad normalization ("09827" -> "9827").
     - sorpr_promo / sorpr_judge (SOR, card_number "9820"): "Prerelease
       Promo" + "Prerelease Judge" -- the SORPR synthetic-code pair,
       separated only by Stamp (blank vs "Judge"), §3.3/§4.
@@ -140,6 +146,14 @@ def bl185_catalog(db):
       variant -- the CE25 -> C25 rename target.
     - gg_token (GG, card_number "9824"): one "Standard" variant -- the
       GGTS -> GG rename target.
+    - ash_token (ASH, card_number "5", is_token=true): a run-locally
+      numbered TOKEN sharing ash_standard's exact (set, number) -- the
+      BL-199 collision shape (the real ASH 1 Armorer/Mandalorian-token
+      pair). Must never enter a SWUDB row's candidate family.
+    - sor_wp_interloper (SOR, card_number "9821", "Weekly Play"): a
+      promo-run printing of a DIFFERENT base card sharing sor_std's
+      number -- BL-199's main-set-tier shape (the real SOR 1
+      Krennic-vs-Weekly-Play-Marine collision).
     """
     for code, name in (("ASH", "Ash of the Empire"), ("TS26", "2026 Twin Suns")):
         db.execute(
@@ -159,19 +173,27 @@ def bl185_catalog(db):
         )
     db.commit()
 
-    def _upsert_base_card(swuapi_id, set_code, number, name):
+    def _upsert_base_card(swuapi_id, set_code, number, name, is_token=False):
         set_id = db.execute(
             text("SELECT id FROM sets WHERE code = :code"), {"code": set_code}
         ).scalar()
         row = db.execute(
             text(
                 "INSERT INTO base_cards "
-                "(set_id, base_card_number, name, type, rarity, swuapi_id) "
-                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id) "
-                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+                "(set_id, base_card_number, name, type, rarity, swuapi_id, is_token) "
+                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id, "
+                ":is_token) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name, "
+                "base_card_number = EXCLUDED.base_card_number "
                 "RETURNING id"
             ),
-            {"set_id": set_id, "number": number, "name": name, "swuapi_id": swuapi_id},
+            {
+                "set_id": set_id,
+                "number": number,
+                "name": name,
+                "swuapi_id": swuapi_id,
+                "is_token": is_token,
+            },
         ).first()
         return row.id
 
@@ -194,8 +216,8 @@ def bl185_catalog(db):
         ).first()
         return row.id
 
-    bc_ash = _upsert_base_card("bl185-bc-ash", "ASH", "5", "BL185 Ash Trooper")
-    bc_ts26 = _upsert_base_card("bl185-bc-ts26", "TS26", "8", "BL185 TS26 Trooper")
+    bc_ash = _upsert_base_card("bl185-bc-ash", "ASH", "9826", "BL185 Ash Trooper")
+    bc_ts26 = _upsert_base_card("bl185-bc-ts26", "TS26", "9827", "BL185 TS26 Trooper")
     bc_sorpr = _upsert_base_card(
         "bl185-bc-sorpr", "SOR", "9820", "BL185 Prerelease Hero"
     )
@@ -209,8 +231,8 @@ def bl185_catalog(db):
         "bl185-bc-showcase", "SOR", "9825", "BL185 Showcase Hero"
     )
 
-    ash_standard = _upsert_variant("bl185-v-ash", bc_ash, "ASH", "5", "Standard")
-    ts26_standard = _upsert_variant("bl185-v-ts26", bc_ts26, "TS26", "8", "Standard")
+    ash_standard = _upsert_variant("bl185-v-ash", bc_ash, "ASH", "9826", "Standard")
+    ts26_standard = _upsert_variant("bl185-v-ts26", bc_ts26, "TS26", "9827", "Standard")
     sorpr_promo = _upsert_variant(
         "bl185-v-sorpr-promo", bc_sorpr, "SOR", "9820", "Prerelease Promo"
     )
@@ -237,6 +259,18 @@ def bl185_catalog(db):
     showcase = _upsert_variant(
         "bl185-v-showcase", bc_showcase, "SOR", "9825", "Showcase"
     )
+    bc_ash_token = _upsert_base_card(
+        "bl185-bc-ash-token", "ASH", "9826", "BL185 Ash Trooper Token", is_token=True
+    )
+    ash_token = _upsert_variant(
+        "bl185-v-ash-token", bc_ash_token, "ASH", "9826", "Standard"
+    )
+    bc_sor_wp = _upsert_base_card(
+        "bl185-bc-sor-wp", "SOR", "9821", "BL185 WP Interloper"
+    )
+    sor_wp_interloper = _upsert_variant(
+        "bl185-v-sor-wp", bc_sor_wp, "SOR", "9821", "Weekly Play"
+    )
     db.commit()
 
     return {
@@ -251,6 +285,8 @@ def bl185_catalog(db):
         "c25_convention": {"id": c25_convention, "uuid": "bl185-v-c25"},
         "gg_token": {"id": gg_token, "uuid": "bl185-v-gg"},
         "showcase": {"id": showcase, "uuid": "bl185-v-showcase"},
+        "ash_token": {"id": ash_token, "uuid": "bl185-v-ash-token"},
+        "sor_wp_interloper": {"id": sor_wp_interloper, "uuid": "bl185-v-sor-wp"},
     }
 
 
@@ -296,6 +332,11 @@ def bl186_catalog(db):
       predicate rather than variant_type.
     - serialized (SEC, "9840"): three "Serialized Prestige" variants, same
       triple -- irreducibly ambiguous (mirrors bl185_catalog's SEC family).
+    - tokencollide real/token pair (LAW, "9842"): a real base card AND an
+      is_token base card sharing one bare (set, number) -- BL-199's token-
+      routing shape: the raw id's T- prefix (T9842 vs 9842) is the row's
+      only token signal, and each side must resolve only among its own
+      kind (the real LAW 1 Saw-Gerrera/Credit-token collision).
     """
     for code, name in (("SORP", "SOR Weekly Play"), ("LAWP", "LAW Weekly Play")):
         db.execute(
@@ -313,19 +354,27 @@ def bl186_catalog(db):
     )
     db.commit()
 
-    def _upsert_base_card(swuapi_id, set_code, number, name):
+    def _upsert_base_card(swuapi_id, set_code, number, name, is_token=False):
         set_id = db.execute(
             text("SELECT id FROM sets WHERE code = :code"), {"code": set_code}
         ).scalar()
         row = db.execute(
             text(
                 "INSERT INTO base_cards "
-                "(set_id, base_card_number, name, type, rarity, swuapi_id) "
-                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id) "
-                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+                "(set_id, base_card_number, name, type, rarity, swuapi_id, is_token) "
+                "VALUES (:set_id, :number, :name, 'Unit', 'Common', :swuapi_id, "
+                ":is_token) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name, "
+                "base_card_number = EXCLUDED.base_card_number "
                 "RETURNING id"
             ),
-            {"set_id": set_id, "number": number, "name": name, "swuapi_id": swuapi_id},
+            {
+                "set_id": set_id,
+                "number": number,
+                "name": name,
+                "swuapi_id": swuapi_id,
+                "is_token": is_token,
+            },
         ).first()
         return row.id
 
@@ -421,6 +470,22 @@ def bl186_catalog(db):
     _upsert_variant(
         "bl186-v-serialized-c3", bc_serialized, "SEC", "9840", "Serialized Prestige"
     )
+    bc_tokencollide_real = _upsert_base_card(
+        "bl186-bc-tokencollide-real", "LAW", "9842", "BL186 Real At Shared Number"
+    )
+    tokencollide_real = _upsert_variant(
+        "bl186-v-tokencollide-real", bc_tokencollide_real, "LAW", "9842", "Standard"
+    )
+    bc_tokencollide_token = _upsert_base_card(
+        "bl186-bc-tokencollide-token",
+        "LAW",
+        "9842",
+        "BL186 Token At Shared Number",
+        is_token=True,
+    )
+    tokencollide_token = _upsert_variant(
+        "bl186-v-tokencollide-token", bc_tokencollide_token, "LAW", "9842", "Standard"
+    )
     db.commit()
 
     return {
@@ -449,6 +514,14 @@ def bl186_catalog(db):
             "bl186-v-serialized-c3",
         ],
         "serialized_ids": [serialized_c1],
+        "tokencollide_real": {
+            "id": tokencollide_real,
+            "uuid": "bl186-v-tokencollide-real",
+        },
+        "tokencollide_token": {
+            "id": tokencollide_token,
+            "uuid": "bl186-v-tokencollide-token",
+        },
     }
 
 
@@ -1592,9 +1665,11 @@ class TestSingleParse:
 
 
 class TestSwudbZeroPadding:
-    def test_three_digit_ash_number_normalizes(self, bl54s2_tenant, bl185_catalog):
+    def test_padded_ash_number_normalizes(self, bl54s2_tenant, bl185_catalog):
         client, _ = bl54s2_tenant
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,2,False,"])
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,09826,2,False,"]
+        )
         resp = _post_import(
             client,
             content=content,
@@ -1609,9 +1684,11 @@ class TestSwudbZeroPadding:
         assert row["card"]["swuapi_uuid"] == bl185_catalog["ash_standard"]["uuid"]
         assert row["file_quantity"] == 2
 
-    def test_two_digit_ts26_number_normalizes(self, bl54s2_tenant, bl185_catalog):
+    def test_padded_ts26_number_normalizes(self, bl54s2_tenant, bl185_catalog):
         client, _ = bl54s2_tenant
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["TS26,08,1,False,"])
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["TS26,09827,1,False,"]
+        )
         resp = _post_import(
             client,
             content=content,
@@ -1692,6 +1769,83 @@ class TestSwudbFoilTiebreak:
         assert row["card"]["swuapi_uuid"] == bl185_catalog["sor_foil"]["uuid"]
 
 
+class TestSwudbTokenExclusion:
+    """BL-199: tokens are numbered run-locally INSIDE base sets (the real
+    ASH 1 is both The Armorer and the Mandalorian token), and a SWUDB row's
+    plain CardNumber always means the real card -- the token at the same
+    (set, number) must never enter the candidate family (excluded at the
+    repo query, get_variants_by_set_and_number)."""
+
+    def test_bare_number_resolves_the_real_card_not_the_token(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,09826,2,False,"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["ash_standard"]["uuid"]
+        assert row["card"]["swuapi_uuid"] != bl185_catalog["ash_token"]["uuid"]
+
+
+class TestSwudbMainSetTier:
+    """BL-199 step (c): a promo-run printing of a DIFFERENT base card
+    sharing the row's number (run-local promo numbering under the base
+    set -- the real SOR 1 Krennic/Weekly-Play-Marine shape) must not
+    ambiguate a plain main-set row."""
+
+    def test_promo_run_interloper_does_not_ambiguate_the_main_set_row(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9821,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["sor_std"]["uuid"]
+
+    def test_stamped_row_still_reaches_the_promo_printing(
+        self, bl54s2_tenant, bl185_catalog
+    ):
+        """The tier must not steal rows that DO carry a promo signal -- a
+        Weekly Play stamp (unrecognized-keyword substring fallback) still
+        resolves the interloper, never the main-set card."""
+        client, _ = bl54s2_tenant
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["SOR,9821,1,False,Weekly Play"]
+        )
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl185_catalog["sor_wp_interloper"]["uuid"]
+
+
 class TestSwudbConfirmatoryMismatch:
     def test_is_foil_mismatch_against_sole_candidate_is_a_soft_warning(
         self, bl54s2_tenant, bl185_catalog
@@ -1700,7 +1854,7 @@ class TestSwudbConfirmatoryMismatch:
         disagrees, but the row still resolves (§6 step 3 / §7): a soft
         warning, never a failure."""
         client, _ = bl54s2_tenant
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,1,True,"])
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,09826,1,True,"])
         resp = _post_import(
             client,
             content=content,
@@ -1862,7 +2016,7 @@ class TestSwudbDirectParseRefusals:
         from app.services import swudb_import
 
         with pytest.raises(swudb_import.UnparseableFileError):
-            swudb_import.parse_swudb_csv("Set,CardNumber,Count\nASH,005,1\n", db)
+            swudb_import.parse_swudb_csv("Set,CardNumber,Count\nASH,09826,1\n", db)
 
 
 class TestSwudbFourColumnFile:
@@ -1872,7 +2026,7 @@ class TestSwudbFourColumnFile:
         self, bl54s2_tenant, bl185_catalog
     ):
         client, _ = bl54s2_tenant
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil", ["ASH,005,3,False"])
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil", ["ASH,09826,3,False"])
         resp = _post_import(
             client,
             content=content,
@@ -1892,7 +2046,7 @@ class TestSwudbMalformedCount:
     def test_bad_count_rejected_like_existing_parsers(self, bl54s2_tenant):
         client, _ = bl54s2_tenant
         content = _swudb_csv(
-            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,not-a-number,False,"]
+            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,09826,not-a-number,False,"]
         )
         resp = _post_import(
             client,
@@ -1921,7 +2075,9 @@ class TestSwudbIntegrationWithComputeImport:
         variant = bl185_catalog["ash_standard"]
         _set_quantity(db, tenant_id, variant["id"], 2)
 
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["ASH,005,3,False,"])
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["ASH,09826,3,False,"]
+        )
         resp = _post_import(
             client,
             content=content,
@@ -1947,7 +2103,9 @@ class TestSwudbIntegrationWithComputeImport:
         client, tenant_id = bl54s2_tenant
         variant = bl185_catalog["ts26_standard"]
 
-        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["TS26,08,4,False,"])
+        content = _swudb_csv(
+            "Set,CardNumber,Count,IsFoil,Stamp", ["TS26,09827,4,False,"]
+        )
         resp = _post_import(
             client,
             content=content,
@@ -2006,6 +2164,48 @@ class TestSwunlimiteddbMelt:
         assert resolved_by_uuid[bl186_catalog["multi_standard"]["uuid"]] == 3
         assert resolved_by_uuid[bl186_catalog["multi_foil"]["uuid"]] == 1
         assert resolved_by_uuid[bl186_catalog["multi_hyperspace"]["uuid"]] == 2
+
+
+class TestSwunlimiteddbTokenRouting:
+    """BL-199: the raw Base card id's T- prefix is the row's only token
+    signal, and _normalize_number strips it before lookup -- so a token
+    row and a real-card row share one bare (set, number) pair. Each must
+    resolve ONLY among its own is_token side of the base-card lookup."""
+
+    def test_bare_number_resolves_the_real_card_not_the_token(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["law", "9842", "BL186 Real At Shared Number", 2]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl186_catalog["tokencollide_real"]["uuid"]
+
+    def test_t_prefixed_number_resolves_the_token_not_the_real_card(
+        self, bl54s2_tenant, bl186_catalog
+    ):
+        client, _ = bl54s2_tenant
+        resp = _post_xlsx_import(
+            client,
+            header=["Set", "Base card id", "Name", "Normal"],
+            rows=[["law", "T9842", "BL186 Token At Shared Number", 3]],
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "resolved"
+        assert row["card"]["swuapi_uuid"] == bl186_catalog["tokencollide_token"]["uuid"]
+        assert row["file_quantity"] == 3
 
 
 class TestSwunlimiteddbPositiveOnly:
