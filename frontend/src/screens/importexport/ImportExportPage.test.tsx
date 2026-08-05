@@ -211,7 +211,7 @@ describe("ImportExportPage export section (BL-54 S3, CREATE)", () => {
 // Import section's top-right callout behind an SWUButton ("Download catalog
 // (CSV)"). The download-wiring assertion survives; the standalone-section
 // shape it asserted is designed away.
-describe("ImportExportPage catalog reference (inside Import section)", () => {
+describe("ImportExportPage catalog reference (inside Export section, BL-202)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -234,12 +234,16 @@ describe("ImportExportPage catalog reference (inside Import section)", () => {
     );
   });
 
-  it("renders the catalog reference callout inside the Import section", async () => {
+  // PORT (BL-202 round 2, owner): the callout moved from the Import head
+  // (its 2026-07-23 home) into the Export section -- it IS a download, so
+  // it lives with the other downloads. Same containment assertion, new home.
+  it("renders the catalog reference callout inside the Export section", async () => {
     await renderPage();
     const callout = screen.getByText("Catalog reference").closest(".ie-reference");
     expect(callout).not.toBeNull();
     const section = callout!.closest(".ie-section");
-    expect(section).toContainElement(screen.getByRole("heading", { name: "Import" }));
+    expect(section).toContainElement(screen.getByRole("heading", { name: "Export" }));
+    expect(section).not.toContainElement(screen.getByRole("heading", { name: "Import" }));
   });
 
   it("shows a reference download error inside the callout, not the Export section", async () => {
@@ -314,7 +318,8 @@ describe("ImportExportPage chrome (dev-review polish)", () => {
     const input = screen.getByLabelText(/file \(\.json, \.csv, or \.xlsx\)/i) as HTMLInputElement;
     const clickSpy = vi.spyOn(input, "click");
 
-    fireEvent.click(screen.getByRole("button", { name: "Choose file" }));
+    // BL-202 round 2 (owner): label extended to "Choose import file".
+    fireEvent.click(screen.getByRole("button", { name: "Choose import file" }));
 
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
@@ -1045,6 +1050,23 @@ describe("ImportExportPage report views (BL-202, CREATE)", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /resolved rows/i }));
     expect(button()).toBeTruthy();
+  });
+
+  // BL-202 round 2 (owner): the preview's back-to-configure control is a
+  // real Cancel button now, not the old "Edit options" text link -- same
+  // return-to-configure behavior, options and file intact.
+  it("Cancel returns to the configure step with the chosen options intact", async () => {
+    runImport.mockResolvedValue(mixedReport());
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    expect(screen.queryByText("Edit options")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByRole("button", { name: /preview import/i })).toBeInTheDocument();
+    expect(screen.getByText("cards.csv")).toBeInTheDocument();
   });
 
   it("defaults to the Resolved view when the file has no problem rows", async () => {

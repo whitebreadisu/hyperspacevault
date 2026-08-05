@@ -290,42 +290,68 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
        * -- the Header's active tab already names the view. */}
 
       <section className="ie-section" aria-labelledby="ie-export-title">
-        <div className="ie-section__head">
-          <h2 className="ie-section__title" id="ie-export-title">
-            Export
-          </h2>
-          <p className="ie-section__blurb">Download your Vault in the canonical format.</p>
-        </div>
-        {downloadError?.source === "export" && (
-          <p className="ie-error" role="alert">
-            {downloadError.message}
-          </p>
-        )}
-        <div className="ie-actions">
-          <SWUButton
-            size="sm"
-            active={!downloadingKinds.has("json")}
-            ariaDisabled={downloadingKinds.has("json")}
-            onClick={() => handleDownload("json")}
-          >
-            {downloadingKinds.has("json") ? "Preparing…" : "Download JSON"}
-          </SWUButton>
-          <SWUButton
-            size="sm"
-            active={!downloadingKinds.has("csv")}
-            ariaDisabled={downloadingKinds.has("csv")}
-            onClick={() => handleDownload("csv")}
-          >
-            {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
-          </SWUButton>
+        {/* BL-202 round 2 (owner, 2026-08-05): the catalog reference moved
+         * from the Import head's corner (its 2026-07-23 home) into Export --
+         * it IS a download, so it sits with the other downloads now. */}
+        <div className="ie-section__head ie-section__head--split">
+          <div className="ie-section__head-main">
+            <h2 className="ie-section__title" id="ie-export-title">
+              Export
+            </h2>
+            <p className="ie-section__blurb">Download your Vault in the canonical format.</p>
+            {downloadError?.source === "export" && (
+              <p className="ie-error" role="alert">
+                {downloadError.message}
+              </p>
+            )}
+            <div className="ie-actions">
+              <SWUButton
+                size="sm"
+                active={!downloadingKinds.has("json")}
+                ariaDisabled={downloadingKinds.has("json")}
+                onClick={() => handleDownload("json")}
+              >
+                {downloadingKinds.has("json") ? "Preparing…" : "Download JSON"}
+              </SWUButton>
+              <SWUButton
+                size="sm"
+                active={!downloadingKinds.has("csv")}
+                ariaDisabled={downloadingKinds.has("csv")}
+                onClick={() => handleDownload("csv")}
+              >
+                {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
+              </SWUButton>
+            </div>
+          </div>
+          <aside className="ie-reference" aria-labelledby="ie-reference-title">
+            <div className="ie-reference__text">
+              <h3 className="ie-reference__title" id="ie-reference-title">
+                Catalog reference
+              </h3>
+              <p className="ie-reference__blurb">
+                Every card printing with its IDs and a quantity column, in the{" "}
+                <strong>[HSV] format</strong> — fill in your quantities and import it directly.
+              </p>
+              {downloadError?.source === "reference" && (
+                <p className="ie-error" role="alert">
+                  {downloadError.message}
+                </p>
+              )}
+            </div>
+            <SWUButton
+              size="sm"
+              active={!downloadingKinds.has("reference")}
+              ariaDisabled={downloadingKinds.has("reference")}
+              onClick={() => handleDownload("reference")}
+            >
+              {downloadingKinds.has("reference") ? "Preparing…" : "Download catalog (CSV)"}
+            </SWUButton>
+          </aside>
         </div>
       </section>
 
       <section className="ie-section" aria-labelledby="ie-import-title">
-        {/* Owner dev-review 2026-07-23: the catalog reference lost its own
-         * section -- it lives in the Import section's top-right corner now
-         * (it exists to help build an import file, so it belongs here). */}
-        <div className="ie-section__head ie-section__head--import">
+        <div className="ie-section__head">
           <div className="ie-section__head-main">
             <h2 className="ie-section__title" id="ie-import-title">
               Import
@@ -381,37 +407,13 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
                 />
                 <div className="ie-file-row">
                   <SWUButton size="sm" onClick={() => fileInputRef.current?.click()}>
-                    Choose file
+                    Choose import file
                   </SWUButton>
                   <span className="ie-file-name">{file ? file.name : "No file chosen"}</span>
                 </div>
               </div>
             )}
           </div>
-          <aside className="ie-reference" aria-labelledby="ie-reference-title">
-            <div className="ie-reference__text">
-              <h3 className="ie-reference__title" id="ie-reference-title">
-                Catalog reference
-              </h3>
-              <p className="ie-reference__blurb">
-                Every card printing with its IDs and a quantity column, in the{" "}
-                <strong>[HSV] format</strong> — fill in your quantities and import it directly.
-              </p>
-              {downloadError?.source === "reference" && (
-                <p className="ie-error" role="alert">
-                  {downloadError.message}
-                </p>
-              )}
-            </div>
-            <SWUButton
-              size="sm"
-              active={!downloadingKinds.has("reference")}
-              ariaDisabled={downloadingKinds.has("reference")}
-              onClick={() => handleDownload("reference")}
-            >
-              {downloadingKinds.has("reference") ? "Preparing…" : "Download catalog (CSV)"}
-            </SWUButton>
-          </aside>
         </div>
 
         {fileError && (
@@ -509,9 +511,12 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             )}
 
             <div className="ie-actions">
-              <button type="button" className="ie-link" onClick={() => setStep("configure")}>
-                Edit options
-              </button>
+              {/* BL-202 round 2 (owner): was an "Edit options" text link --
+               * now a real button, same behavior (back to the configure
+               * step; the picked file and options survive untouched). */}
+              <SWUButton size="sm" onClick={() => setStep("configure")}>
+                Cancel
+              </SWUButton>
               <span className="ie-actions__spacer" />
               <SWUButton
                 size="sm"

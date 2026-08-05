@@ -33,7 +33,10 @@
 /* Owner dev-review 2026-07-23: the Import section's head is a split row --
  * title/blurb left, the catalog-reference callout top-right (the corner was
  * empty). Wraps to a stacked column on narrow viewports. */
-.ie-section__head--import {
+/* BL-202 round 2: was .ie-section__head--import (the reference aside lived
+ * in the Import head 2026-07-23 → 2026-08-05); renamed now that the split
+ * two-column head belongs to Export. */
+.ie-section__head--split {
   flex-direction: row;
   justify-content: space-between;
   align-items: flex-start;
