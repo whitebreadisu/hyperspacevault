@@ -9,14 +9,66 @@ interface Props {
   onDownloadProblemRows: () => void;
 }
 
+/** BL-200 copy pass (specification_documents/analysis/
+ * BL200_Import_ErrorState_Census_2026-08-05.md, §B) -- owner-approved
+ * verbatim. Every row-level reason code the backend can send is covered
+ * here now (was 5 of 9 -- the four adapter-era codes from BL-185/BL-186
+ * used to fall through to GENERIC_REASON_TEXT below and leak their raw
+ * snake_case string). Each string is the census's "what happened" sentence
+ * followed by its "what to do next" sentence. */
 const REASON_TEXT: Record<string, string> = {
-  unknown_uuid_and_triple: "Not found by ID or by set/number/variant.",
-  unknown_triple: "No matching card for that set/number/variant.",
-  ambiguous_triple: "Matches more than one printing — pick a candidate below.",
+  malformed_row:
+    "This row's quantity isn't a number we can use. Fix it in the file to a whole number (0 or more) and re-import — everything else went through fine.",
+  unknown_uuid_and_triple:
+    "We couldn't find this card in the catalog — neither its ID nor its set/number/printing matched anything. Check the row against the catalog reference sheet, or it may be from a set we don't carry yet.",
+  unknown_triple:
+    "No card in the catalog matches that set, number, and printing. Double-check the row against the catalog reference sheet — it's usually a number or printing-type typo.",
   incomplete_identity:
-    "Missing enough identity to resolve (needs a uuid, or set + number + variant).",
-  malformed_row: "Quantity is missing, negative, or not a whole number.",
+    "This row doesn't say enough about which card it is. Fill in the card's ID, or all three of set, number, and printing type, and re-import.",
+  unmapped_set:
+    "This card is from a set (or promo series) we don't have in the catalog yet. Leave it out for now — you can add it by hand once the set lands in HyperspaceVault.",
+  unknown_set_and_number:
+    "We know that set, but there's no card at that number. Double-check the card number — and note that token cards can't be imported from SWUDB files.",
+  unmapped_column:
+    "This copy is logged under a promo column (like Judge or Event Exclusive) that we can't safely match to a specific printing. Add these few cards by hand in your Vault — everything in the regular columns imports normally.",
+  unknown_variant_for_column:
+    "We found the spot in the spreadsheet, but no printing of that card matches this column (and sometimes the card number itself is off). Check the card number and which column the quantity is in against the card's real printings.",
+  ambiguous_triple:
+    "This row matches more than one printing of the same card, and we don't guess. Let the rest import, then add this card by hand from your Vault — the possible printings are listed below.",
 };
+
+/** BL-200: the `?? row.reason` fallback used to render a raw snake_case
+ * code verbatim whenever REASON_TEXT was missing an entry -- now that every
+ * reason code the backend sends is covered above, this only fires for a
+ * future/unrecognized code this build doesn't know about yet, but it must
+ * still never show system vocabulary. Not itself drafted in the BL-200
+ * census (every code it censused now has a real entry above); written to
+ * match the census's stated voice (casual-but-competent, no raw codes). */
+const GENERIC_REASON_TEXT =
+  "This row couldn't be imported, and we don't have a more specific reason to show yet. It's safe to skip for now — everything else in the file still went through.";
+
+/** BL-200 candidate display: "SET number · variant type · name", subtitle
+ * appended when present -- the ambiguous-row candidates used to render as
+ * bare swuapi UUIDs (see the census's "Candidate display" section). */
+function candidateLabel(card: ImportRowCard): string {
+  const identity = [card.set_code, card.card_number].filter(Boolean).join(" ");
+  const parts = [identity, card.variant_type].filter((p): p is string => !!p);
+  let name = card.name ?? "";
+  if (card.subtitle) name = name ? `${name} — ${card.subtitle}` : card.subtitle;
+  if (name) parts.push(name);
+  return parts.join(" · ");
+}
+
+/** BL-200 §C2: the resolved-row "heads-up" flag used to hardcode "uuid/
+ * triple mismatch" for every format, which was actively wrong for SWUDB/
+ * XLSX rows (they never carried a uuid or a triple -- their mismatch is a
+ * foil/stamp disagreement instead). The census's own recommendation is one
+ * honest string that covers both without naming uuid/triple/foil internals
+ * ("if the owner wants precision later, the flag would need a format-aware
+ * split in the payload" -- not requested yet), so this replaces the old
+ * per-format-wrong string rather than branching on format. */
+const MISMATCH_TEXT =
+  "heads-up — some details in this row didn't fully agree, so double-check it landed on the right printing";
 
 /** §7.3's `card` fragment renders as whatever identity the row actually
  * carried -- resolved rows always have set_code/card_number/variant_type
@@ -150,7 +202,7 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
                 <span className="ie-row__detail">
                   {r.current_quantity ?? 0} → {r.resulting_quantity}
                   {r.matched_by_fallback ? " · matched by fallback" : ""}
-                  {r.uuid_triple_mismatch ? " · uuid/triple mismatch" : ""}
+                  {r.uuid_triple_mismatch ? ` · ${MISMATCH_TEXT}` : ""}
                 </span>
               </li>
             ))}
@@ -177,9 +229,9 @@ function ProblemRow({ row }: { row: ImportRowReport }) {
         Row {row.row_number}: {cardLabel(row.card)}
       </span>
       <span className="ie-row__detail">
-        {row.reason ? (REASON_TEXT[row.reason] ?? row.reason) : row.status}
+        {row.reason ? (REASON_TEXT[row.reason] ?? GENERIC_REASON_TEXT) : row.status}
         {row.candidates && row.candidates.length > 0 && (
-          <> — candidates: {row.candidates.join(", ")}</>
+          <> Possible printings: {row.candidates.map(candidateLabel).join("; ")}.</>
         )}
       </span>
     </li>

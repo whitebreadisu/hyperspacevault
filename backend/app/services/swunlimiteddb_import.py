@@ -203,7 +203,9 @@ def _normalize_number(raw: str) -> str:
 class _Outcome:
     swuapi_uuid: str | None
     reason: str | None
-    candidates: list[str]
+    # BL-200: full VariantMatch tuples, not bare swuapi_id strings -- see
+    # inventory_io.ParsedRow.preresolved_candidates' own doc comment.
+    candidates: list[VariantMatch]
 
 
 def _finish_family_resolution(family: list[VariantMatch], mapped_set: str) -> _Outcome:
@@ -220,7 +222,13 @@ def _finish_family_resolution(family: list[VariantMatch], mapped_set: str) -> _O
     home = [v for v in family if v[0].source_set_code == mapped_set]
     if len(home) == 1:
         return _Outcome(home[0][0].swuapi_id, None, [])
-    candidates = sorted({v[0].swuapi_id for v in family})
+    # Dedup by swuapi_id (a family member could in principle repeat) then
+    # sort for a stable candidate order, same posture as swudb_import's
+    # own ambiguous step.
+    by_id: dict[str, VariantMatch] = {}
+    for v in family:
+        by_id.setdefault(v[0].swuapi_id, v)
+    candidates = [by_id[key] for key in sorted(by_id)]
     return _Outcome(None, "ambiguous_triple", candidates)
 
 

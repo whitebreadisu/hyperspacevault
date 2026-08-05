@@ -233,7 +233,13 @@ class TestResolveColumnHomeSetPreference:
         outcome = swi._resolve_column(variants, "Serialized Prestige", "SEC")
         assert outcome.swuapi_uuid is None
         assert outcome.reason == "ambiguous_triple"
-        assert outcome.candidates == ["uuid-c1", "uuid-c2", "uuid-c3"]
+        # BL-200 PORT: `.candidates` widened from bare swuapi_id strings to
+        # full VariantMatch tuples -- see _Outcome's own doc comment.
+        assert [c[0].swuapi_id for c in outcome.candidates] == [
+            "uuid-c1",
+            "uuid-c2",
+            "uuid-c3",
+        ]
 
 
 class TestResolveColumnBaseCardFirst:
