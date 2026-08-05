@@ -629,13 +629,78 @@ describe("GalleryGrid finish-filter-aware representative", () => {
 });
 
 describe("GalleryGrid click wiring", () => {
-  it("clicking a cell calls onSelectCard with that card's base_card_id", () => {
+  // REPLACE (BL-201): the click now also reports the displayed finish --
+  // null here, because no Finish filter drove the image pick.
+  it("clicking a cell calls onSelectCard with the base_card_id and a null displayed finish", () => {
     const onSelectCard = vi.fn();
     const cards = [makeCard({ base_card_id: 42, name: "Clickable Card" })];
     render(<GalleryGrid cards={cards} onSelectCard={onSelectCard} isAuthenticated={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Clickable Card" }));
-    expect(onSelectCard).toHaveBeenCalledWith(42);
+    expect(onSelectCard).toHaveBeenCalledWith(42, null);
+  });
+
+  // BL-201 (CREATE): a filter-driven display carries its finish to the
+  // click-through, so CardsPage can open the popup on the printing the
+  // collector was looking at.
+  it("clicking a finish-filtered cell passes the displayed finish", () => {
+    const onSelectCard = vi.fn();
+    const card = makeCard({
+      base_card_id: 7,
+      name: "Filtered Card",
+      variants: [
+        variant({
+          variant_id: 1,
+          finish: "Standard",
+          front_image_url: "https://cdn.example.com/standard.png",
+        }),
+        variant({
+          variant_id: 2,
+          finish: "Hyperspace",
+          front_image_url: "https://cdn.example.com/hyperspace.png",
+        }),
+      ],
+    });
+    render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={onSelectCard}
+        isAuthenticated={false}
+        activeFinishes={new Set(["Hyperspace"])}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtered Card" }));
+    expect(onSelectCard).toHaveBeenCalledWith(7, "Hyperspace");
+  });
+
+  // BL-201 (CREATE): an ACTIVE filter whose fallback ran (no variant of the
+  // card matches -- the keeps-function-total branch) must NOT claim its
+  // display was filter-driven.
+  it("a non-matching filter falls back to Standard and passes null", () => {
+    const onSelectCard = vi.fn();
+    const card = makeCard({
+      base_card_id: 8,
+      name: "Fallback Card",
+      variants: [
+        variant({
+          variant_id: 1,
+          finish: "Standard",
+          front_image_url: "https://cdn.example.com/standard.png",
+        }),
+      ],
+    });
+    render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={onSelectCard}
+        isAuthenticated={false}
+        activeFinishes={new Set(["Showcase"])}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Fallback Card" }));
+    expect(onSelectCard).toHaveBeenCalledWith(8, null);
   });
 });
 
