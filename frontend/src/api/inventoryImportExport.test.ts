@@ -142,6 +142,44 @@ describe("runImport (BL-54 S3)", () => {
       runImport(new File(["x"], "cards.csv"), "merge_add", "add_above", "dry_run")
     ).rejects.toMatchObject({ code: "unknown", status: 401 });
   });
+
+  // BL-200 (census A5, CREATE): the backend's 429 detail is an OBJECT
+  // ({error: "rate_limited", message: "..."}), not a bare string like every
+  // other code -- before this fix, toImportApiError's `typeof detail ===
+  // "string"` check silently discarded it and every 429 rendered the
+  // generic "Something went wrong" text instead of the backend's actual
+  // friendly message.
+  it("recognizes the 429 rate_limited object-shaped detail and surfaces a friendly message", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          detail: {
+            error: "rate_limited",
+            message: "Too many import requests -- please try again later",
+          },
+        },
+        429
+      )
+    );
+    await expect(
+      runImport(new File(["x"], "cards.csv"), "merge_add", "add_above", "dry_run")
+    ).rejects.toMatchObject({ name: "ImportApiError", code: "rate_limited", status: 429 });
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          detail: {
+            error: "rate_limited",
+            message: "Too many import requests -- please try again later",
+          },
+        },
+        429
+      )
+    );
+    await expect(
+      runImport(new File(["x"], "cards.csv"), "merge_add", "add_above", "dry_run")
+    ).rejects.toThrow(/import limit/i);
+  });
 });
 
 describe("exportInventory (BL-54 S3)", () => {

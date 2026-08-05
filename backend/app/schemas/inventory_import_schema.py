@@ -70,7 +70,14 @@ class ImportRowReport(BaseModel):
     reason: ReasonCode | None = None
     matched_by_fallback: bool | None = None
     uuid_triple_mismatch: bool | None = None
-    candidates: list[str] | None = None
+    # BL-200: widened from list[str] (bare swuapi UUIDs) to full card
+    # records -- the ambiguous-row report used to leak swuapi UUIDs
+    # verbatim to the screen; each candidate now carries everything
+    # ImportRowCard already carries for a resolved row (set/number/variant/
+    # name/subtitle), built from the same VariantMatch data every
+    # candidate-construction site already has in hand (BL-200 census,
+    # "Candidate display" section -- zero new DB queries).
+    candidates: list[ImportRowCard] | None = None
     card: ImportRowCard
     file_quantity: int | None = None
     current_quantity: int | None = None

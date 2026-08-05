@@ -761,7 +761,16 @@ class TestAmbiguousTriple:
         row = resp.json()["rows"][0]
         assert row["status"] == "ambiguous"
         assert row["reason"] == "ambiguous_triple"
-        assert sorted(row["candidates"]) == sorted(bl54s2_catalog["c_uuids"])
+        # BL-200 PORT: `candidates` widened from bare swuapi UUID strings to
+        # full ImportRowCard records (set/number/variant/name/subtitle) --
+        # the ambiguous-row report used to leak raw UUIDs to the screen.
+        candidate_uuids = [c["swuapi_uuid"] for c in row["candidates"]]
+        assert sorted(candidate_uuids) == sorted(bl54s2_catalog["c_uuids"])
+        for candidate in row["candidates"]:
+            assert candidate["set_code"] == "SOR"
+            assert candidate["card_number"] == "9713"
+            assert candidate["variant_type"] == "Serialized Prestige"
+            assert candidate["name"] == "BL54S2 Prestige Gamma"
         assert (
             "swuapi_uuid" not in row["card"] or row["card"].get("swuapi_uuid") is None
         )
@@ -1912,7 +1921,10 @@ class TestSwudbAmbiguous:
         row = resp.json()["rows"][0]
         assert row["status"] == "ambiguous"
         assert row["reason"] == "ambiguous_triple"
-        assert sorted(row["candidates"]) == sorted(bl185_catalog["sec_uuids"])
+        # BL-200 PORT: candidates now full ImportRowCard records, not bare
+        # swuapi UUID strings.
+        candidate_uuids = [c["swuapi_uuid"] for c in row["candidates"]]
+        assert sorted(candidate_uuids) == sorted(bl185_catalog["sec_uuids"])
 
 
 class TestSwudbRenames:
@@ -1997,6 +2009,47 @@ class TestSwudbUnmappedAndUnknown:
         row = resp.json()["rows"][0]
         assert row["status"] == "unresolved"
         assert row["reason"] == "unknown_set_and_number"
+
+    # BL-200 (CREATE, Coverage note 4): a valid Count but a BLANK Set or
+    # CardNumber used to fall into the same "unmapped_set" bucket as a
+    # genuinely-unmapped-but-present set code (the census's proposed B5
+    # copy, "a set we don't have", is dishonest for this sub-case -- there's
+    # no set at all to not-have). Re-routed to incomplete_identity, the same
+    # bucket the canonical/triple resolver already uses for its own
+    # partial-identity rows.
+    def test_blank_set_is_incomplete_identity_not_unmapped_set(self, bl54s2_tenant):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", [",2,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "incomplete_identity"
+
+    def test_blank_card_number_is_incomplete_identity_not_unmapped_set(
+        self, bl54s2_tenant
+    ):
+        client, _ = bl54s2_tenant
+        content = _swudb_csv("Set,CardNumber,Count,IsFoil,Stamp", ["SOR,,1,False,"])
+        resp = _post_import(
+            client,
+            content=content,
+            filename="collection.csv",
+            mode="merge_add",
+            cap_handling="add_above",
+            stage="dry_run",
+        )
+        assert resp.status_code == 200
+        row = resp.json()["rows"][0]
+        assert row["status"] == "unresolved"
+        assert row["reason"] == "incomplete_identity"
 
 
 class TestSwudbDirectParseRefusals:
@@ -2339,7 +2392,10 @@ class TestSwunlimiteddbSerializedAmbiguous:
         row = resp.json()["rows"][0]
         assert row["status"] == "ambiguous"
         assert row["reason"] == "ambiguous_triple"
-        assert sorted(row["candidates"]) == sorted(bl186_catalog["serialized_uuids"])
+        # BL-200 PORT: candidates now full ImportRowCard records, not bare
+        # swuapi UUID strings.
+        candidate_uuids = [c["swuapi_uuid"] for c in row["candidates"]]
+        assert sorted(candidate_uuids) == sorted(bl186_catalog["serialized_uuids"])
 
 
 class TestSwunlimiteddbUnmappedSet:

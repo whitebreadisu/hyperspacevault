@@ -49,6 +49,19 @@ import io
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # BL-200: type-only -- ParsedRow.preresolved_candidates needs to name
+    # VariantMatch's shape so both adapters (swudb_import.py/
+    # swunlimiteddb_import.py) can stash the full match tuple rather than a
+    # bare uuid string (candidates render as real cards now, not UUIDs --
+    # see inventory_import.py's report-building side). `from __future__
+    # import annotations` above makes every annotation in this module a
+    # lazy string, so this import never actually runs at module load time --
+    # this module's own scope line (module docstring: no DB access) stays
+    # true at runtime; only static type checkers ever resolve this name.
+    from app.repositories.inventory_import import VariantMatch
 
 FORMAT_VERSION = "swu-inv/1"
 META_LINE = "# swu-inv-export v1"
@@ -156,7 +169,15 @@ class ParsedRow:
     # their defaults) and falls through _resolve_row's normal uuid path
     # unchanged.
     preresolved_reason: str | None = None
-    preresolved_candidates: list[str] | None = None
+    # BL-200: widened from list[str] (bare swuapi UUIDs) to the full
+    # VariantMatch tuple -- both adapters already have the whole match in
+    # hand at parse time (a bulk-fetched CardVariant + name/subtitle/type),
+    # so carrying it through lets the report render "SET number · variant
+    # type · name" instead of an opaque UUID (§ "Candidate display" of the
+    # BL-200 census). Converted to ImportRowCard only at report-building
+    # time (inventory_import.py), same as every other resolved-variant
+    # rendering.
+    preresolved_candidates: list["VariantMatch"] | None = None
     preresolved_mismatch: bool = False
 
 

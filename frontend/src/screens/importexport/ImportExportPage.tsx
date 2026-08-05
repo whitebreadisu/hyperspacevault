@@ -104,7 +104,13 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
       r.card.variant_type ?? "",
       r.card.swuapi_uuid ?? "",
       r.file_quantity ?? "",
-      (r.candidates ?? []).join("|"),
+      // BL-200: `candidates` widened from bare uuid strings to full card
+      // records (ImportPreviewReport now renders them as real cards) --
+      // this CSV column stays UUIDs (the census's own suggested option:
+      // "keep UUIDs there since that file is for machine round-trips"),
+      // since it's a data file meant for re-import, not a screen read by a
+      // person.
+      (r.candidates ?? []).map((c) => c.swuapi_uuid ?? "").join("|"),
     ]
       .map(quote)
       .join(",")
@@ -490,6 +496,16 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
                   {removalCount === 1 ? "card" : "cards"} not in this file.
                 </span>
               </label>
+            )}
+
+            {/* BL-200 (census D4): Confirm used to just gray out with no
+             * explanation when nothing in the file resolved -- the user had
+             * to infer why from the totals row. */}
+            {report.totals.resolved === 0 && (
+              <p className="ie-note">
+                Nothing in this file could be matched to the catalog, so there&apos;s nothing to
+                import yet — fix the rows above and preview again.
+              </p>
             )}
 
             <div className="ie-actions">

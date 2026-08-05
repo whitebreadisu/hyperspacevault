@@ -197,7 +197,9 @@ class _Outcome:
     swuapi_uuid: str | None
     mismatch: bool
     reason: str | None
-    candidates: list[str]
+    # BL-200: full VariantMatch tuples, not bare swuapi_id strings -- see
+    # inventory_io.ParsedRow.preresolved_candidates' own doc comment.
+    candidates: list[VariantMatch]
 
 
 def _resolve_candidates(
@@ -256,8 +258,8 @@ def _resolve_candidates(
     # Step (d) / §7 locked decision (4): still ambiguous -- the EXISTING
     # ambiguous bucket, same reason code inventory_import.py's own triple
     # collisions use (no new UX).
-    ids = sorted(c[0].swuapi_id for c in candidates)
-    return _Outcome(None, False, "ambiguous_triple", ids)
+    sorted_candidates = sorted(candidates, key=lambda c: c[0].swuapi_id)
+    return _Outcome(None, False, "ambiguous_triple", sorted_candidates)
 
 
 @dataclass(frozen=True)
@@ -320,9 +322,22 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
     # unmapped set never reach the DB at all.
     pairs: set[tuple[str, str]] = set()
     mapped: dict[int, tuple[str, str] | None] = {}
+    # BL-200 (Coverage note 4): a row with a valid Count but a BLANK Set or
+    # CardNumber carries no usable identity at all -- that's not "we don't
+    # recognize this set" (unmapped_set), it's "this row doesn't say enough
+    # about which card it is", the same incomplete_identity bucket the
+    # canonical/triple resolver already uses for its own partial-identity
+    # rows. Tracked separately from a genuinely-unmapped-but-PRESENT set
+    # code below so the two get honest, distinct reason codes instead of
+    # both falling into unmapped_set's "a set we don't have" copy.
+    blank_identity_rows: set[int] = set()
     for raw in raw_rows:
-        if raw.malformed_quantity or raw.raw_set is None or raw.raw_number is None:
+        if raw.malformed_quantity:
             mapped[raw.row_number] = None
+            continue
+        if raw.raw_set is None or raw.raw_number is None:
+            mapped[raw.row_number] = None
+            blank_identity_rows.add(raw.row_number)
             continue
         set_code = SET_CODE_MAP.get(raw.raw_set)
         if set_code is None:
@@ -354,6 +369,23 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
 
         pair = mapped[raw.row_number]
         if pair is None:
+            if raw.row_number in blank_identity_rows:
+                # BL-200 (Coverage note 4): blank Set or CardNumber -- no
+                # identity to resolve at all, distinct from an unmapped-but-
+                # present set code below.
+                parsed_rows.append(
+                    ParsedRow(
+                        row_number=raw.row_number,
+                        swuapi_uuid=None,
+                        set_code=raw.raw_set,
+                        card_number=raw.raw_number,
+                        variant_type=None,
+                        quantity=raw.quantity,
+                        malformed_quantity=False,
+                        preresolved_reason="incomplete_identity",
+                    )
+                )
+                continue
             # §6 step 1: unmapped SWUDB set code -- never guessed. The raw
             # SWUDB set carried verbatim (there's no "our" set_code to
             # show -- ImportRowCard's contract is "only whatever raw

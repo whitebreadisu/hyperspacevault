@@ -14,12 +14,21 @@ export type ImportMode = "merge_add" | "replace" | "replace_all";
 export type CapHandling = "add_above" | "trim";
 export type ImportStage = "dry_run" | "commit";
 export type RowStatus = "resolved" | "unresolved" | "ambiguous";
+/** BL-200 (census Coverage note 1): was drifted -- only listed the five
+ * canonical codes, so every adapter-era code below arrived typed-as-
+ * impossible even though the backend has sent them since BL-185/BL-186.
+ * Now mirrors ReasonCode in backend/app/schemas/inventory_import_schema.py
+ * field-for-field. */
 export type ReasonCode =
   | "unknown_uuid_and_triple"
   | "unknown_triple"
   | "ambiguous_triple"
   | "incomplete_identity"
-  | "malformed_row";
+  | "malformed_row"
+  | "unmapped_set"
+  | "unknown_set_and_number"
+  | "unmapped_column"
+  | "unknown_variant_for_column";
 export type TrimReason = "keep_limit" | "ceiling";
 
 /** §7.3's `card` object -- for a resolved row this is the canonical catalog
@@ -46,7 +55,10 @@ export interface ImportRowReport {
   reason?: ReasonCode;
   matched_by_fallback?: boolean;
   uuid_triple_mismatch?: boolean;
-  candidates?: string[];
+  /** BL-200: widened from bare swuapi UUID strings to full card records --
+   * an ambiguous row's candidates now render as "SET number · variant type
+   * · name" instead of a UUID (see ImportPreviewReport's candidateLabel). */
+  candidates?: ImportRowCard[];
   card: ImportRowCard;
   file_quantity?: number;
   current_quantity?: number;
@@ -99,6 +111,12 @@ export type ImportErrorCode =
   | "unparseable_file"
   | "unsupported_format_version"
   | "email_not_verified"
+  // BL-200 (census A5): the backend's 429 detail is an OBJECT
+  // ({error: "rate_limited", message: "..."}), not a bare string like
+  // every other code here -- toImportApiError below recognizes its
+  // `.error` field specifically rather than the string-detail path the
+  // other FILE_ERROR_CODES share.
+  | "rate_limited"
   | "unknown";
 
 const FILE_ERROR_CODES: ReadonlySet<string> = new Set([
@@ -115,6 +133,8 @@ const CODE_MESSAGES: Record<ImportErrorCode, string> = {
     "Couldn't read that file — check that it's a valid .json, .csv, or .xlsx export.",
   unsupported_format_version: "That file's format version isn't supported by this app.",
   email_not_verified: "Verify your email to import or export your collection.",
+  rate_limited:
+    "You've hit the import limit for now (it resets within the hour). Take a short break and try again — your file is fine to re-use.",
   unknown: "Something went wrong. Please try again.",
 };
 
@@ -137,12 +157,21 @@ async function toImportApiError(res: Response): Promise<ImportApiError> {
   } catch {
     detail = undefined;
   }
+  // BL-200 (census A5): a 429's detail is an object ({error, message}), not
+  // a string -- recognized here BEFORE the string-detail checks below so
+  // the friendly backend message actually reaches the screen instead of
+  // falling through to "unknown" (the bug the census caught: the object
+  // shape never matched `typeof detail === "string"` at all).
   const code: ImportErrorCode =
     typeof detail === "string" && FILE_ERROR_CODES.has(detail)
       ? (detail as ImportErrorCode)
       : detail === "email_not_verified"
         ? "email_not_verified"
-        : "unknown";
+        : typeof detail === "object" &&
+            detail !== null &&
+            (detail as { error?: unknown }).error === "rate_limited"
+          ? "rate_limited"
+          : "unknown";
   return new ImportApiError(code, res.status);
 }
 

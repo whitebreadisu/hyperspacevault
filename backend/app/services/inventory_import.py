@@ -54,7 +54,11 @@ class _Resolution:
     reason: str | None
     matched_by_fallback: bool
     uuid_triple_mismatch: bool
-    candidates: list[str]
+    # BL-200: full VariantMatch tuples now, not bare swuapi_id strings --
+    # converted to ImportRowCard only when the report row is built below
+    # (_resolved_card), so an ambiguous row's candidates render as real
+    # cards ("SET number · variant type · name") instead of UUIDs.
+    candidates: list[VariantMatch]
     variant: VariantMatch | None
 
 
@@ -137,7 +141,7 @@ def _resolve_row(
                 row, "resolved", None, uuid_was_present, False, [], matches[0]
             )
         if len(matches) > 1:
-            candidates = sorted(m[0].swuapi_id for m in matches)
+            candidates = sorted(matches, key=lambda m: m[0].swuapi_id)
             return _Resolution(
                 row, "ambiguous", "ambiguous_triple", False, False, candidates, None
             )
@@ -358,7 +362,13 @@ def compute_import(
                     row_number=row.row_number,
                     status="ambiguous",
                     reason=res.reason,
-                    candidates=res.candidates,
+                    # BL-200: each candidate is now a full ImportRowCard
+                    # (set/number/variant/name/subtitle), built the exact
+                    # same way a resolved row's own `card` is -- see
+                    # _resolved_card. No new query: every candidate here is
+                    # already a VariantMatch fetched by the bulk triple/
+                    # set-and-number/base-card lookups above.
+                    candidates=[_resolved_card(m) for m in res.candidates],
                     card=ImportRowCard(
                         set_code=row.set_code,
                         card_number=row.card_number,
