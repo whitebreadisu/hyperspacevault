@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { ImportReport, ImportRowCard, ImportRowReport } from "../../api/inventoryImportExport";
+import { SWUButton } from "../../components/SWUButton";
 
 interface Props {
   report: ImportReport;
@@ -96,28 +98,57 @@ export function totalCardsFromReport(report: ImportReport): number {
   return report.rows.reduce((sum, r) => sum + (r.file_quantity ?? 0), 0);
 }
 
-/** §8.2c's ordering: problem rows first, then trimmed/clamped rows, then the
- * resolved remainder collapsed -- "the destructive half of the preview must
- * be as visible as the additive half" (§7.3) puts `removed` (replace_all's
- * itemized deletions) ahead of even the problem rows, since removals are
- * silent unless surfaced. */
+type ReportView = "problem" | "resolved";
+
+/** BL-202 (owner dev-review of BL-200): the stacked list sections became a
+ * two-view tab control -- Problem rows | Resolved rows -- each a table.
+ * Owner-decided layout rules (AskUserQuestion, 2026-08-05):
+ * - Trimmed/clamped rows FOLD INTO the Resolved table (they are resolved
+ *   rows; the Notes column carries their kept/not-added note) instead of
+ *   keeping their own section.
+ * - replace_all's "Will be removed" list stays an always-visible danger
+ *   section ABOVE the tab control -- §7.3's "the destructive half of the
+ *   preview must be as visible as the additive half" forbids putting the
+ *   deletion list behind a click.
+ * - The Download problem rows control is a real button (SWUButton, same as
+ *   every other action on this screen), OUTSIDE the tab panels so it's
+ *   visible in either view.
+ * - The totals header indicates alignment: the cells that make up the view
+ *   being looked at carry the amber "aligned" treatment (the same
+ *   visual language the Vault's scope affordances use for "this is
+ *   adjusted to what you picked") -- Problem view aligns Unresolved +
+ *   Ambiguous; Resolved view aligns Resolved + Trimmed + At ceiling. */
 export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
   const { totals, rows, removed, mode } = report;
   const problemRows = rows.filter((r) => r.status !== "resolved");
-  const trimmedRows = rows.filter((r) => r.status === "resolved" && r.trim_reason);
-  const resolvedRemainder = rows.filter((r) => r.status === "resolved" && !r.trim_reason);
+  const resolvedRows = rows.filter((r) => r.status === "resolved");
+
+  const [view, setView] = useState<ReportView>(problemRows.length > 0 ? "problem" : "resolved");
+  // A fresh report re-derives the default view (a new preview after fixing
+  // the file shouldn't inherit the previous file's tab selection).
+  useEffect(() => {
+    setView(problemRows.length > 0 ? "problem" : "resolved");
+    // Keyed by the report object identity alone: problemRows is derived
+    // from it fresh every render, so `report` IS the change signal -- and
+    // the reset must fire only for a NEW report, never because this
+    // report's derived array got a new reference.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report]);
+
   const totalCards = totalCardsFromReport(report);
+  const problemAligned = view === "problem";
+  const resolvedAligned = view === "resolved";
 
   return (
     <div className="ie-report">
       <dl className="ie-totals">
         <TotalCell label="Rows" value={totals.rows} />
         <TotalCell label="Cards" value={totalCards} />
-        <TotalCell label="Resolved" value={totals.resolved} />
-        <TotalCell label="Unresolved" value={totals.unresolved} />
-        <TotalCell label="Ambiguous" value={totals.ambiguous} />
-        <TotalCell label="Trimmed" value={totals.trimmed} />
-        <TotalCell label="At ceiling" value={totals.ceiling_clamped} />
+        <TotalCell label="Resolved" value={totals.resolved} aligned={resolvedAligned} />
+        <TotalCell label="Unresolved" value={totals.unresolved} aligned={problemAligned} />
+        <TotalCell label="Ambiguous" value={totals.ambiguous} aligned={problemAligned} />
+        <TotalCell label="Trimmed" value={totals.trimmed} aligned={resolvedAligned} />
+        <TotalCell label="At ceiling" value={totals.ceiling_clamped} aligned={resolvedAligned} />
         <TotalCell label="Duplicates merged" value={totals.duplicate_rows_merged} />
         {mode === "replace_all" && (
           <TotalCell label="Removed" value={totals.removed_by_replace_all} />
@@ -139,101 +170,175 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
           <h3 className="ie-report-section__title">
             Will be removed ({removed.length}) — not present in the file
           </h3>
-          <ul className="ie-row-list">
-            {removed.map((r, i) => (
-              <li key={i} className="ie-row ie-row--removed">
-                <span className="ie-row__card">{cardLabel(r.card)}</span>
-                <span className="ie-row__detail">{r.quantity} owned</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {problemRows.length > 0 && (
-        <section className="ie-report-section ie-report-section--danger" aria-label="Problem rows">
-          <div className="ie-report-section__head">
-            <h3 className="ie-report-section__title">Problem rows ({problemRows.length})</h3>
-            <button type="button" className="ie-link" onClick={onDownloadProblemRows}>
-              Download problem rows (CSV)
-            </button>
+          <div className="ie-table-wrap">
+            <table className="ie-table">
+              <thead>
+                <tr>
+                  <th scope="col">Card</th>
+                  <th scope="col" className="ie-table__th-num">
+                    Owned
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {removed.map((r, i) => (
+                  <tr key={i} className="ie-table__row--removed">
+                    <td>{cardLabel(r.card)}</td>
+                    <td className="ie-table__num">{r.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <ul className="ie-row-list">
-            {problemRows.map((r) => (
-              <ProblemRow key={r.row_number} row={r} />
-            ))}
-          </ul>
         </section>
       )}
 
-      {trimmedRows.length > 0 && (
-        <section
-          className="ie-report-section ie-report-section--warning"
-          aria-label="Trimmed or clamped rows"
-        >
-          <h3 className="ie-report-section__title">
-            Trimmed / clamped rows ({trimmedRows.length})
-          </h3>
-          <ul className="ie-row-list">
-            {trimmedRows.map((r) => (
-              <li key={r.row_number} className="ie-row ie-row--trimmed">
-                <span className="ie-row__card">{cardLabel(r.card)}</span>
-                <span className="ie-row__detail">
-                  kept {r.resulting_quantity}, {r.copies_not_added}{" "}
-                  {r.copies_not_added === 1 ? "copy" : "copies"} not added
-                  {r.trim_reason === "ceiling" ? " (999 ceiling)" : " (keep-limit)"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <div className="ie-view-bar">
+        <div className="ie-view-tabs" role="tablist" aria-label="Report rows">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "problem"}
+            className={`ie-view-tab${view === "problem" ? " ie-view-tab--active" : ""}`}
+            onClick={() => setView("problem")}
+          >
+            Problem rows ({problemRows.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "resolved"}
+            className={`ie-view-tab${view === "resolved" ? " ie-view-tab--active" : ""}`}
+            onClick={() => setView("resolved")}
+          >
+            Resolved rows ({resolvedRows.length})
+          </button>
+        </div>
+        <SWUButton size="sm" onClick={onDownloadProblemRows}>
+          Download problem rows (CSV)
+        </SWUButton>
+      </div>
 
-      {resolvedRemainder.length > 0 && (
-        <details className="ie-report-section">
-          <summary className="ie-report-section__title">
-            {resolvedRemainder.length} more resolved row
-            {resolvedRemainder.length === 1 ? "" : "s"}
-          </summary>
-          <ul className="ie-row-list">
-            {resolvedRemainder.map((r) => (
-              <li key={r.row_number} className="ie-row">
-                <span className="ie-row__card">{cardLabel(r.card)}</span>
-                <span className="ie-row__detail">
-                  {r.current_quantity ?? 0} → {r.resulting_quantity}
-                  {r.matched_by_fallback ? " · matched by fallback" : ""}
-                  {r.uuid_triple_mismatch ? ` · ${MISMATCH_TEXT}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
+      {view === "problem" ? (
+        <section role="tabpanel" aria-label="Problem rows">
+          {problemRows.length === 0 ? (
+            <p className="ie-note">No problem rows — every row in the file resolved.</p>
+          ) : (
+            <div className="ie-table-wrap">
+              <table className="ie-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="ie-table__th-num">
+                      Row
+                    </th>
+                    <th scope="col">Card</th>
+                    <th scope="col">What happened</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {problemRows.map((r) => (
+                    <ProblemTableRow key={r.row_number} row={r} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section role="tabpanel" aria-label="Resolved rows">
+          {resolvedRows.length === 0 ? (
+            <p className="ie-note">No rows resolved from this file.</p>
+          ) : (
+            <div className="ie-table-wrap">
+              <table className="ie-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Card</th>
+                    <th scope="col" className="ie-table__th-num">
+                      Copies
+                    </th>
+                    <th scope="col">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resolvedRows.map((r) => (
+                    <ResolvedTableRow key={r.row_number} row={r} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
 }
 
-function TotalCell({ label, value }: { label: string; value: number }) {
+function TotalCell({
+  label,
+  value,
+  aligned = false,
+}: {
+  label: string;
+  value: number;
+  /** BL-202: this total is part of what the active view is showing --
+   * carries the amber aligned treatment. */
+  aligned?: boolean;
+}) {
   return (
-    <div className="ie-totals__cell">
+    <div className={`ie-totals__cell${aligned ? " ie-totals__cell--aligned" : ""}`}>
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>
   );
 }
 
-function ProblemRow({ row }: { row: ImportRowReport }) {
+function ProblemTableRow({ row }: { row: ImportRowReport }) {
   return (
-    <li className="ie-row ie-row--problem">
-      <span className="ie-row__card">
-        Row {row.row_number}: {cardLabel(row.card)}
-      </span>
-      <span className="ie-row__detail">
+    <tr className="ie-table__row--problem">
+      <td className="ie-table__num">{row.row_number}</td>
+      <td className="ie-table__card">{cardLabel(row.card)}</td>
+      <td className="ie-table__detail">
         {row.reason ? (REASON_TEXT[row.reason] ?? GENERIC_REASON_TEXT) : row.status}
         {row.candidates && row.candidates.length > 0 && (
-          <> Possible printings: {row.candidates.map(candidateLabel).join("; ")}.</>
+          <div className="ie-table__candidates">
+            Possible printings: {row.candidates.map(candidateLabel).join("; ")}.
+          </div>
         )}
-      </span>
-    </li>
+      </td>
+    </tr>
+  );
+}
+
+/** BL-202 (owner-decided): trimmed/clamped rows render inside the Resolved
+ * table -- their kept/not-added note is a Notes entry (amber), not a
+ * separate section. */
+function ResolvedTableRow({ row }: { row: ImportRowReport }) {
+  const notes: { text: string; className?: string }[] = [];
+  if (row.trim_reason) {
+    notes.push({
+      text: `kept ${row.resulting_quantity}, ${row.copies_not_added} ${
+        row.copies_not_added === 1 ? "copy" : "copies"
+      } not added ${row.trim_reason === "ceiling" ? "(999 ceiling)" : "(keep-limit)"}`,
+      className: "ie-table__note--trimmed",
+    });
+  }
+  if (row.matched_by_fallback) notes.push({ text: "matched by fallback" });
+  if (row.uuid_triple_mismatch) notes.push({ text: MISMATCH_TEXT });
+
+  return (
+    <tr className={row.trim_reason ? "ie-table__row--trimmed" : undefined}>
+      <td className="ie-table__card">{cardLabel(row.card)}</td>
+      <td className="ie-table__num">
+        {row.current_quantity ?? 0} → {row.resulting_quantity}
+      </td>
+      <td className="ie-table__detail">
+        {notes.map((n, i) => (
+          <div key={i} className={n.className}>
+            {n.text}
+          </div>
+        ))}
+      </td>
+    </tr>
   );
 }

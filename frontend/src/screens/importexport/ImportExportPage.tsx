@@ -289,129 +289,137 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       {/* Owner dev-review 2026-07-23: no in-pane "Import / Export" heading
        * -- the Header's active tab already names the view. */}
 
-      <section className="ie-section" aria-labelledby="ie-export-title">
-        <div className="ie-section__head">
-          <h2 className="ie-section__title" id="ie-export-title">
-            Export
-          </h2>
-          <p className="ie-section__blurb">Download your Vault in the canonical format.</p>
-        </div>
-        {downloadError?.source === "export" && (
-          <p className="ie-error" role="alert">
-            {downloadError.message}
-          </p>
-        )}
-        <div className="ie-actions">
-          <SWUButton
-            size="sm"
-            active={!downloadingKinds.has("json")}
-            ariaDisabled={downloadingKinds.has("json")}
-            onClick={() => handleDownload("json")}
-          >
-            {downloadingKinds.has("json") ? "Preparing…" : "Download JSON"}
-          </SWUButton>
-          <SWUButton
-            size="sm"
-            active={!downloadingKinds.has("csv")}
-            ariaDisabled={downloadingKinds.has("csv")}
-            onClick={() => handleDownload("csv")}
-          >
-            {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
-          </SWUButton>
-        </div>
-      </section>
+      {/* BL-202 round 3 (owner): the Export section only renders on the
+       * configure step -- once the import flow starts (preview/confirm),
+       * the page is the import's alone. */}
+      {step === "configure" && (
+        <section className="ie-section" aria-labelledby="ie-export-title">
+          {/* BL-202 round 2 (owner, 2026-08-05): the catalog reference moved
+           * from the Import head's corner (its 2026-07-23 home) into Export --
+           * it IS a download, so it sits with the other downloads now. */}
+          <div className="ie-section__head ie-section__head--split">
+            <div className="ie-section__head-main">
+              <h2 className="ie-section__title" id="ie-export-title">
+                Export
+              </h2>
+              <p className="ie-section__blurb">Download your Vault in the canonical format.</p>
+              {downloadError?.source === "export" && (
+                <p className="ie-error" role="alert">
+                  {downloadError.message}
+                </p>
+              )}
+              <div className="ie-actions">
+                <SWUButton
+                  size="sm"
+                  active={!downloadingKinds.has("json")}
+                  ariaDisabled={downloadingKinds.has("json")}
+                  onClick={() => handleDownload("json")}
+                >
+                  {downloadingKinds.has("json") ? "Preparing…" : "Download JSON"}
+                </SWUButton>
+                <SWUButton
+                  size="sm"
+                  active={!downloadingKinds.has("csv")}
+                  ariaDisabled={downloadingKinds.has("csv")}
+                  onClick={() => handleDownload("csv")}
+                >
+                  {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
+                </SWUButton>
+              </div>
+            </div>
+            <aside className="ie-reference" aria-labelledby="ie-reference-title">
+              <div className="ie-reference__text">
+                <h3 className="ie-reference__title" id="ie-reference-title">
+                  Catalog reference
+                </h3>
+                <p className="ie-reference__blurb">
+                  Every card printing with its IDs and a quantity column, in the{" "}
+                  <strong>[HSV] format</strong> — fill in your quantities and import it directly.
+                </p>
+                {downloadError?.source === "reference" && (
+                  <p className="ie-error" role="alert">
+                    {downloadError.message}
+                  </p>
+                )}
+              </div>
+              <SWUButton
+                size="sm"
+                active={!downloadingKinds.has("reference")}
+                ariaDisabled={downloadingKinds.has("reference")}
+                onClick={() => handleDownload("reference")}
+              >
+                {downloadingKinds.has("reference") ? "Preparing…" : "Download catalog (CSV)"}
+              </SWUButton>
+            </aside>
+          </div>
+        </section>
+      )}
 
       <section className="ie-section" aria-labelledby="ie-import-title">
-        {/* Owner dev-review 2026-07-23: the catalog reference lost its own
-         * section -- it lives in the Import section's top-right corner now
-         * (it exists to help build an import file, so it belongs here). */}
-        <div className="ie-section__head ie-section__head--import">
-          <div className="ie-section__head-main">
-            <h2 className="ie-section__title" id="ie-import-title">
-              Import
-            </h2>
-            <p className="ie-section__blurb">
-              Preview changes before anything is written — nothing commits until you confirm.
-            </p>
-            {step === "configure" && (
-              // BL-173 review round 4 (owner): imports expect the
-              // HyperspaceVault format -- say so up front. BL-185/BL-186
-              // follow-up (owner, 2026-08-03): SWUDB + SW-Unlimited-DB
-              // exports now import natively, so the amber migration tip
-              // leads with upload-as-is and keeps the catalog-CSV + AI
-              // conversion as the everything-else path.
-              <div className="ie-format-notes">
-                <p className="ie-format-note">
-                  Imports use the <strong>[HSV] HyperspaceVault format</strong> — the files Export
-                  produces, or the catalog reference sheet with your quantities filled in. SWUDB and
-                  SW-Unlimited-DB exports are also accepted natively.
-                </p>
-                <p className="ie-format-note ie-format-note--amber">
-                  <strong>Coming from another tracker?</strong> If it&apos;s <strong>SWUDB</strong>{" "}
-                  or <strong>SW-Unlimited-DB</strong>, just upload your export file as-is —
-                  it&apos;s recognized automatically. From anywhere else, download the catalog CSV
-                  and ask your favorite AI tool to convert your existing inventory file into it.
-                </p>
-              </div>
-            )}
-            {step === "configure" && (
-              // Owner dev-review 2026-07-23: the native file input never
-              // matched the app chrome -- it's visually hidden (kept in the
-              // a11y tree, still label-associated) behind an SWUButton that
-              // forwards its click, with the chosen filename echoed beside
-              // it.
-              <div className="ie-file-field">
-                <label className="ie-field-label" htmlFor="ie-file-input">
-                  File (.json, .csv, or .xlsx)
-                </label>
-                {/* BL-186: accept widened to include .xlsx (sw-unlimited-db's
+        {/* BL-202 round 3: no head-main wrapper here -- its flex-basis is a
+         * WIDTH in Export's split row, but inside this column head it became
+         * a 320px HEIGHT basis, inflating empty space on the preview step. */}
+        <div className="ie-section__head">
+          <h2 className="ie-section__title" id="ie-import-title">
+            {step === "preview" ? "Import preview" : "Import"}
+          </h2>
+          <p className="ie-section__blurb">
+            Preview changes before anything is written — nothing commits until you confirm.
+          </p>
+          {step === "configure" && (
+            // BL-173 review round 4 (owner): imports expect the
+            // HyperspaceVault format -- say so up front. BL-185/BL-186
+            // follow-up (owner, 2026-08-03): SWUDB + SW-Unlimited-DB
+            // exports now import natively, so the amber migration tip
+            // leads with upload-as-is and keeps the catalog-CSV + AI
+            // conversion as the everything-else path.
+            <div className="ie-format-notes">
+              <p className="ie-format-note">
+                Imports use the <strong>[HSV] HyperspaceVault format</strong> — the files Export
+                produces, or the catalog reference sheet with your quantities filled in. SWUDB and
+                SW-Unlimited-DB exports are also accepted natively.
+              </p>
+              <p className="ie-format-note ie-format-note--amber">
+                <strong>Coming from another tracker?</strong> If it&apos;s <strong>SWUDB</strong> or{" "}
+                <strong>SW-Unlimited-DB</strong>, just upload your export file as-is — it&apos;s
+                recognized automatically. From anywhere else, download the catalog CSV and ask your
+                favorite AI tool to convert your existing inventory file into it.
+              </p>
+            </div>
+          )}
+          {step === "configure" && (
+            // Owner dev-review 2026-07-23: the native file input never
+            // matched the app chrome -- it's visually hidden (kept in the
+            // a11y tree, still label-associated) behind an SWUButton that
+            // forwards its click, with the chosen filename echoed beside
+            // it.
+            <div className="ie-file-field">
+              <label className="ie-field-label" htmlFor="ie-file-input">
+                File (.json, .csv, or .xlsx)
+              </label>
+              {/* BL-186: accept widened to include .xlsx (sw-unlimited-db's
                     collection-export format) alongside the existing canonical
                     .json/.csv and SWUDB's own .csv export -- the backend's
                     format-detection seam (routers/inventory.py's
                     _looks_like_xlsx) already routes any .xlsx upload to the
                     new adapter regardless of this attribute; this is
                     browser-side file-picker filtering only. */}
-                <input
-                  id="ie-file-input"
-                  ref={fileInputRef}
-                  className="ie-file-input"
-                  type="file"
-                  accept=".json,.csv,.xlsx"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                />
-                <div className="ie-file-row">
-                  <SWUButton size="sm" onClick={() => fileInputRef.current?.click()}>
-                    Choose file
-                  </SWUButton>
-                  <span className="ie-file-name">{file ? file.name : "No file chosen"}</span>
-                </div>
+              <input
+                id="ie-file-input"
+                ref={fileInputRef}
+                className="ie-file-input"
+                type="file"
+                accept=".json,.csv,.xlsx"
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+              />
+              <div className="ie-file-row">
+                <SWUButton size="sm" onClick={() => fileInputRef.current?.click()}>
+                  Choose import file
+                </SWUButton>
+                <span className="ie-file-name">{file ? file.name : "No file chosen"}</span>
               </div>
-            )}
-          </div>
-          <aside className="ie-reference" aria-labelledby="ie-reference-title">
-            <div className="ie-reference__text">
-              <h3 className="ie-reference__title" id="ie-reference-title">
-                Catalog reference
-              </h3>
-              <p className="ie-reference__blurb">
-                Every card printing with its IDs and a quantity column, in the{" "}
-                <strong>[HSV] format</strong> — fill in your quantities and import it directly.
-              </p>
-              {downloadError?.source === "reference" && (
-                <p className="ie-error" role="alert">
-                  {downloadError.message}
-                </p>
-              )}
             </div>
-            <SWUButton
-              size="sm"
-              active={!downloadingKinds.has("reference")}
-              ariaDisabled={downloadingKinds.has("reference")}
-              onClick={() => handleDownload("reference")}
-            >
-              {downloadingKinds.has("reference") ? "Preparing…" : "Download catalog (CSV)"}
-            </SWUButton>
-          </aside>
+          )}
         </div>
 
         {fileError && (
@@ -422,46 +430,53 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
 
         {step === "configure" && (
           <div className="ie-form">
-            <div className="ie-radio-group" role="radiogroup" aria-label="Merge mode">
-              <span className="ie-field-label">Merge mode</span>
-              {MODE_OPTIONS.map((opt) => (
-                <label key={opt.value} className="ie-radio-option">
-                  <input
-                    type="radio"
-                    name="ie-mode"
-                    value={opt.value}
-                    checked={mode === opt.value}
-                    onChange={() => setMode(opt.value)}
-                  />
-                  <span className="ie-radio-option__text">
-                    <span
-                      className={`ie-radio-option__title${opt.destructive ? " ie-radio-option__title--danger" : ""}`}
-                    >
-                      {opt.title}
-                      {opt.destructive ? " (destructive)" : ""}
+            {/* BL-202 round 3 (owner): Merge mode and Keep-limits sit
+             * side-by-side (wrapping back to a stack on narrow widths). */}
+            <div className="ie-radio-row">
+              <div className="ie-radio-group" role="radiogroup" aria-label="Merge mode">
+                <span className="ie-field-label">Merge mode</span>
+                {MODE_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`ie-radio-option${opt.destructive ? " ie-radio-option--danger" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="ie-mode"
+                      value={opt.value}
+                      checked={mode === opt.value}
+                      onChange={() => setMode(opt.value)}
+                    />
+                    <span className="ie-radio-option__text">
+                      <span
+                        className={`ie-radio-option__title${opt.destructive ? " ie-radio-option__title--danger" : ""}`}
+                      >
+                        {opt.title}
+                        {opt.destructive ? " (destructive)" : ""}
+                      </span>
+                      <span className="ie-radio-option__desc">{opt.description}</span>
                     </span>
-                    <span className="ie-radio-option__desc">{opt.description}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+                  </label>
+                ))}
+              </div>
 
-            <div className="ie-radio-group" role="radiogroup" aria-label="Cap handling">
-              <span className="ie-field-label">Keep-limits</span>
-              {CAP_OPTIONS.map((opt) => (
-                <label key={opt.value} className="ie-radio-option">
-                  <input
-                    type="radio"
-                    name="ie-cap"
-                    value={opt.value}
-                    checked={capHandling === opt.value}
-                    onChange={() => setCapHandling(opt.value)}
-                  />
-                  <span className="ie-radio-option__text">
-                    <span className="ie-radio-option__title">{opt.label}</span>
-                  </span>
-                </label>
-              ))}
+              <div className="ie-radio-group" role="radiogroup" aria-label="Cap handling">
+                <span className="ie-field-label">Keep-limits</span>
+                {CAP_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="ie-radio-option">
+                    <input
+                      type="radio"
+                      name="ie-cap"
+                      value={opt.value}
+                      checked={capHandling === opt.value}
+                      onChange={() => setCapHandling(opt.value)}
+                    />
+                    <span className="ie-radio-option__text">
+                      <span className="ie-radio-option__title">{opt.label}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="ie-actions">
@@ -509,9 +524,12 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             )}
 
             <div className="ie-actions">
-              <button type="button" className="ie-link" onClick={() => setStep("configure")}>
-                Edit options
-              </button>
+              {/* BL-202 round 2 (owner): was an "Edit options" text link --
+               * now a real button, same behavior (back to the configure
+               * step; the picked file and options survive untouched). */}
+              <SWUButton size="sm" onClick={() => setStep("configure")}>
+                Cancel
+              </SWUButton>
               <span className="ie-actions__spacer" />
               <SWUButton
                 size="sm"
