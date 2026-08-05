@@ -502,6 +502,9 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
 
     const confirmBtn = screen.getByRole("button", { name: /confirm import/i });
     expect(confirmBtn.getAttribute("aria-disabled")).toBe("true");
+    // BL-200 (census D4, PORT-extended): the disabled Confirm used to give
+    // no explanation at all -- now there's a line telling the user why.
+    expect(screen.getByText(/nothing in this file could be matched/i)).toBeInTheDocument();
 
     fireEvent.click(confirmBtn);
     expect(runImport).toHaveBeenCalledTimes(1); // only the dry_run call -- no commit fired
@@ -713,7 +716,22 @@ describe("ImportExportPage reject-CSV download (BL-54 S3, CREATE)", () => {
             row_number: 2,
             status: "ambiguous",
             reason: "ambiguous_triple",
-            candidates: ["uuid-a", "uuid-b"],
+            // BL-200 PORT: candidates widened from bare uuid strings to
+            // full ImportRowCard records (see inventoryImportExport.ts).
+            candidates: [
+              {
+                swuapi_uuid: "uuid-a",
+                set_code: "SEC",
+                card_number: "1127",
+                variant_type: "Serialized Prestige",
+              },
+              {
+                swuapi_uuid: "uuid-b",
+                set_code: "SEC",
+                card_number: "1127",
+                variant_type: "Serialized Prestige",
+              },
+            ],
             card: { set_code: "SEC", card_number: "1127", variant_type: "Serialized Prestige" },
             file_quantity: 1,
           },
@@ -750,5 +768,200 @@ describe("ImportExportPage reject-CSV download (BL-54 S3, CREATE)", () => {
     expect(csv).toContain("uuid-a|uuid-b");
     // Row 3 (the resolved row) never appears in the reject CSV.
     expect(csv).not.toContain('"3","resolved"');
+  });
+});
+
+// BL-200 (CREATE): full reason-code copy coverage -- every row-level reason
+// code the backend can send (5 canonical + 4 adapter-era, per the BL-200
+// census's §B table) must render plain-English copy on screen, never its
+// raw snake_case wire code. Before this change, only 5 of 9 were mapped and
+// the other 4 (all from BL-185/BL-186) leaked verbatim.
+describe("ImportExportPage reason-code copy (BL-200, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const ALL_REASON_CODES = [
+    "malformed_row",
+    "unknown_uuid_and_triple",
+    "unknown_triple",
+    "incomplete_identity",
+    "unmapped_set",
+    "unknown_set_and_number",
+    "unmapped_column",
+    "unknown_variant_for_column",
+    "ambiguous_triple",
+  ] as const;
+
+  it.each(ALL_REASON_CODES)(
+    "renders plain-English copy for reason code %s, not the raw code",
+    async (reason) => {
+      runImport.mockResolvedValue(
+        baseReport({
+          totals: {
+            rows: 1,
+            resolved: 0,
+            matched_by_fallback: 0,
+            unresolved: reason === "ambiguous_triple" ? 0 : 1,
+            ambiguous: reason === "ambiguous_triple" ? 1 : 0,
+            trimmed: 0,
+            ceiling_clamped: 0,
+            duplicate_rows_merged: 0,
+            unrecognized_columns: [],
+            removed_by_replace_all: 0,
+          },
+          rows: [
+            {
+              row_number: 1,
+              status: reason === "ambiguous_triple" ? "ambiguous" : "unresolved",
+              reason,
+              card: { set_code: "SOR", card_number: "1" },
+              file_quantity: 1,
+            },
+          ],
+        })
+      );
+      await renderPage();
+      await selectFile();
+      await selectModeAndCap();
+      await clickPreview();
+
+      const text = document.body.textContent ?? "";
+      // The raw snake_case code must never appear on screen.
+      expect(text).not.toContain(reason);
+      // Every drafted string is a real sentence -- confirm something readable
+      // rendered rather than an empty/fallback gap.
+      expect(text.length).toBeGreaterThan(0);
+    }
+  );
+
+  it("falls back to generic, non-raw copy for a reason code this build doesn't recognize", async () => {
+    runImport.mockResolvedValue(
+      baseReport({
+        totals: {
+          rows: 1,
+          resolved: 0,
+          matched_by_fallback: 0,
+          unresolved: 1,
+          ambiguous: 0,
+          trimmed: 0,
+          ceiling_clamped: 0,
+          duplicate_rows_merged: 0,
+          unrecognized_columns: [],
+          removed_by_replace_all: 0,
+        },
+        rows: [
+          {
+            row_number: 1,
+            status: "unresolved",
+            // A future/unrecognized code this build's REASON_TEXT map has
+            // no entry for -- cast through unknown since it's deliberately
+            // outside the ReasonCode union.
+            reason: "some_future_reason_code" as unknown as ImportReport["rows"][number]["reason"],
+            card: {},
+            file_quantity: 1,
+          },
+        ],
+      })
+    );
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    const text = document.body.textContent ?? "";
+    expect(text).not.toContain("some_future_reason_code");
+    expect(text).toContain("couldn't be imported");
+  });
+
+  it("renders ambiguous-row candidates as real card labels, not bare swuapi UUIDs", async () => {
+    runImport.mockResolvedValue(
+      baseReport({
+        totals: {
+          rows: 1,
+          resolved: 0,
+          matched_by_fallback: 0,
+          unresolved: 0,
+          ambiguous: 1,
+          trimmed: 0,
+          ceiling_clamped: 0,
+          duplicate_rows_merged: 0,
+          unrecognized_columns: [],
+          removed_by_replace_all: 0,
+        },
+        rows: [
+          {
+            row_number: 1,
+            status: "ambiguous",
+            reason: "ambiguous_triple",
+            candidates: [
+              {
+                swuapi_uuid: "6c5f42aa-0000-0000-0000-000000000001",
+                set_code: "SEC",
+                card_number: "1127",
+                variant_type: "Serialized Prestige",
+                name: "Boba Fett",
+              },
+              {
+                swuapi_uuid: "9d01b3c4-0000-0000-0000-000000000002",
+                set_code: "SEC",
+                card_number: "1127",
+                variant_type: "Serialized Prestige",
+                name: "Boba Fett",
+                subtitle: "The Deadliest Bounty Hunter",
+              },
+            ],
+            card: { set_code: "SEC", card_number: "1127", variant_type: "Serialized Prestige" },
+            file_quantity: 1,
+          },
+        ],
+      })
+    );
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    const text = document.body.textContent ?? "";
+    // No bare UUIDs on screen for the candidate list.
+    expect(text).not.toContain("6c5f42aa-0000-0000-0000-000000000001");
+    expect(text).not.toContain("9d01b3c4-0000-0000-0000-000000000002");
+    // Real card identity instead -- set/number/variant/name, subtitle when present.
+    expect(text).toContain("SEC 1127");
+    expect(text).toContain("Serialized Prestige");
+    expect(text).toContain("Boba Fett");
+    expect(text).toContain("The Deadliest Bounty Hunter");
+    // And no promise of a picker that doesn't exist.
+    expect(text).not.toMatch(/pick a candidate/i);
+  });
+
+  it("renders one honest mismatch flag for a resolved row, never the literal 'uuid/triple' vocabulary", async () => {
+    runImport.mockResolvedValue(
+      baseReport({
+        totals: { ...baseReport().totals, resolved: 1 },
+        rows: [
+          {
+            row_number: 1,
+            status: "resolved",
+            uuid_triple_mismatch: true,
+            card: { set_code: "SOR", card_number: "1", variant_type: "Standard", name: "Card One" },
+            file_quantity: 1,
+            current_quantity: 0,
+            resulting_quantity: 1,
+          },
+        ],
+      })
+    );
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+    // The row is in the collapsed "more resolved rows" details -- open it.
+    fireEvent.click(screen.getByText(/more resolved row/i));
+
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/uuid\/triple mismatch/i);
+    expect(text).toContain("heads-up");
+    expect(text).toContain("didn't fully agree");
   });
 });
