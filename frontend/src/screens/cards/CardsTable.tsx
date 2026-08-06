@@ -238,15 +238,22 @@ export function CardsTable({
               {/* BL-173 round 2 (owner, 2026-07-27): the amber bracket lives
                   INSIDE this header row now -- the original separate thead
                   <tr> read as table content, not header. It's an absolutely
-                  positioned overlay anchored on this th, spanning this
-                  column + Unit Value via their fixed COLUMN_WIDTHS
-                  (128+100px -- .vs-bracket--inhead's width mirrors that sum;
-                  retune it when either width changes). Still aria-hidden:
-                  the trigger's own "PIPS · <finish>" text carries the same
-                  information accessibly. */}
+                  positioned overlay anchored on this th. Owner dev-review
+                  2026-08-05: the bracket now reaches LEFT to encompass the
+                  # column too (its content is scope-driven, same as
+                  Pips/Value), so the span runs # through Unit Value --
+                  crossing Name/Variants on the way, which is why the label
+                  names the affected columns explicitly ("Card # + Pips +
+                  Value") instead of implying everything under the line is
+                  scoped. Geometry lives in .vs-bracket--inhead (cards.css),
+                  mirroring COLUMN_WIDTHS -- retune it when any of the five
+                  spanned widths change. Still aria-hidden: the trigger's
+                  own text carries the same information accessibly. */}
               {scope && (
                 <span className="vs-bracket vs-bracket--inhead" aria-hidden="true">
-                  <span className="vs-bracket__label">{scopeShortName(scope)} · PIPS + VALUE</span>
+                  <span className="vs-bracket__label">
+                    {scopeShortName(scope)} - CARD # + PIPS + VALUE
+                  </span>
                 </span>
               )}
               {/* Round 2: trigger stacked ABOVE the column label. */}
@@ -276,7 +283,11 @@ export function CardsTable({
                 <CardsValueDisplayToggle mode={valueDisplay} onChange={onValueDisplayChange} />
                 <span className="th-value-mode">
                   <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
-                  Value
+                  {/* Owner dev-review 2026-08-05: while scoped, the Value
+                      label carries the same amber chip the # glyph got
+                      (.th-value-chip, activated by this th's .th-scoped
+                      state class -- unscoped it's an unstyled span). */}
+                  <span className="th-value-chip">Value</span>
                 </span>
               </span>
             </th>

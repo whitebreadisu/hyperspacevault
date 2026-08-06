@@ -1102,7 +1102,11 @@ describe("CardsTable in-header bracket (BL-173, round 2)", () => {
     const bracket = container.querySelector("th.th-playset .vs-bracket--inhead")!;
     expect(bracket).not.toBeNull();
     expect(bracket).toHaveAttribute("aria-hidden", "true");
-    expect(bracket.querySelector(".vs-bracket__label")!.textContent).toBe("HS Foil · PIPS + VALUE");
+    // Owner dev-review 2026-08-05 (REPLACE): the bracket now encompasses
+    // the # column too, and its label names the affected columns.
+    expect(bracket.querySelector(".vs-bracket__label")!.textContent!.trim()).toBe(
+      "HS Foil - CARD # + PIPS + VALUE"
+    );
 
     // Round 2: the Value header carries NO finish tag anymore.
     expect(container.querySelector(".vs-tag")).toBeNull();

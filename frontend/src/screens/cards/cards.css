@@ -1422,10 +1422,19 @@
 .vs-bracket.vs-bracket--inhead {
   position: absolute;
   top: 6px;
-  left: 8px;
-  /* Round 4 tail: Playset+Value = 128+114 - 16px inset (Value 102 -> 114
-   * in the 2026-07-31 Unit/Collection switch round). */
-  width: 226px;
+  /* Owner dev-review 2026-08-05: the bracket reaches LEFT from its Playset
+   * anchor to encompass the # column (whose content is scope-driven too),
+   * crossing Name/Variants on the way -- the label names the affected
+   * columns explicitly. Geometry mirrors COLUMN_WIDTHS (CardsTable.tsx):
+   * left = 8px inset - (# 50 + Name 210 + Variants 86) = -338px;
+   * width = (# 50 + Name 210 + Variants 86 + Playset 128 + Value 114)
+   *       - 16px inset = 572px. Retune BOTH with any of those five widths.
+   * (Pre-2026-08-05: left 8px / width 226px -- Playset+Value only.) The
+   * left spill paints over the earlier-DOM sticky th's via the scoped
+   * Playset th's z-index 2 (below) vs their z-index 1 -- the same
+   * mechanism that already handled the right spill into Value. */
+  left: -338px;
+  width: 572px;
   margin: 0;
 }
 .data-table--cards thead th.th-playset.th-scoped {
@@ -1462,6 +1471,27 @@
   display: inline-block;
   padding: 2px 7px;
   margin: -3px 0 -3px -8px;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  border-radius: 3px;
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* Owner dev-review 2026-08-05 (same round as the bracket reach above): the
+ * Value label joins the # glyph's chip treatment while scoped -- same
+ * trigger--on amber tokens. Activated by the th's own .th-scoped state
+ * class (the Value th has no separate marker class the way # does);
+ * unscoped, the span is unstyled and the label renders as before. The
+ * vertical negative margins mirror the # chip's (absorb the chip's
+ * padding + border so the two-row header stack doesn't grow); no
+ * horizontal pull-back -- this label is centered in its stack, not
+ * flush-left like #. */
+.data-table--cards thead th.th-scoped .th-value-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  margin: -3px 0;
   border: 1px solid rgba(217, 154, 31, 0.4);
   border-radius: 3px;
   background: rgba(217, 154, 31, 0.16);
