@@ -16,27 +16,65 @@ interface Props {
  * verbatim. Every row-level reason code the backend can send is covered
  * here now (was 5 of 9 -- the four adapter-era codes from BL-185/BL-186
  * used to fall through to GENERIC_REASON_TEXT below and leak their raw
- * snake_case string). Each string is the census's "what happened" sentence
- * followed by its "what to do next" sentence. */
-const REASON_TEXT: Record<string, string> = {
-  malformed_row:
-    "This row's quantity isn't a number we can use. Fix it in the file to a whole number (0 or more) and re-import — everything else went through fine.",
-  unknown_uuid_and_triple:
-    "We couldn't find this card in the catalog — neither its ID nor its set/number/printing matched anything. Check the row against the catalog reference sheet, or it may be from a set we don't carry yet.",
-  unknown_triple:
-    "No card in the catalog matches that set, number, and printing. Double-check the row against the catalog reference sheet — it's usually a number or printing-type typo.",
-  incomplete_identity:
-    "This row doesn't say enough about which card it is. Fill in the card's ID, or all three of set, number, and printing type, and re-import.",
-  unmapped_set:
-    "This card is from a set (or promo series) we don't have in the catalog yet. Leave it out for now — you can add it by hand once the set lands in HyperspaceVault.",
-  unknown_set_and_number:
-    "We know that set, but there's no card at that number. Double-check the card number — and note that token cards can't be imported from SWUDB files.",
-  unmapped_column:
-    "This copy is logged under a promo column (like Judge or Event Exclusive) that we can't safely match to a specific printing. Add these few cards by hand in your Vault — everything in the regular columns imports normally.",
-  unknown_variant_for_column:
-    "We found the spot in the spreadsheet, but no printing of that card matches this column (and sometimes the card number itself is off). Check the card number and which column the quantity is in against the card's real printings.",
-  ambiguous_triple:
-    "This row matches more than one printing of the same card, and we don't guess. Let the rest import, then add this card by hand from your Vault — the possible printings are listed below.",
+ * snake_case string). Each entry is the census's "what happened" sentence
+ * (error) and its "what to do next" sentence (recommendation) -- owner
+ * dev-review 2026-08-05 split them into separate render lines (bold red
+ * error / "Recommendation:" line in body color) with the census wording
+ * itself unchanged. */
+interface ReasonCopy {
+  error: string;
+  recommendation: string;
+}
+
+const REASON_TEXT: Record<string, ReasonCopy> = {
+  malformed_row: {
+    error: "This row's quantity isn't a number we can use.",
+    recommendation:
+      "Fix it in the file to a whole number (0 or more) and re-import — everything else went through fine.",
+  },
+  unknown_uuid_and_triple: {
+    error:
+      "We couldn't find this card in the catalog — neither its ID nor its set/number/printing matched anything.",
+    recommendation:
+      "Check the row against the catalog reference sheet, or it may be from a set we don't carry yet.",
+  },
+  unknown_triple: {
+    error: "No card in the catalog matches that set, number, and printing.",
+    recommendation:
+      "Double-check the row against the catalog reference sheet — it's usually a number or printing-type typo.",
+  },
+  incomplete_identity: {
+    error: "This row doesn't say enough about which card it is.",
+    recommendation:
+      "Fill in the card's ID, or all three of set, number, and printing type, and re-import.",
+  },
+  unmapped_set: {
+    error: "This card is from a set (or promo series) we don't have in the catalog yet.",
+    recommendation:
+      "Leave it out for now — you can add it by hand once the set lands in HyperspaceVault.",
+  },
+  unknown_set_and_number: {
+    error: "We know that set, but there's no card at that number.",
+    recommendation:
+      "Double-check the card number — and note that token cards can't be imported from SWUDB files.",
+  },
+  unmapped_column: {
+    error:
+      "This copy is logged under a promo column (like Judge or Event Exclusive) that we can't safely match to a specific printing.",
+    recommendation:
+      "Add these few cards by hand in your Vault — everything in the regular columns imports normally.",
+  },
+  unknown_variant_for_column: {
+    error:
+      "We found the spot in the spreadsheet, but no printing of that card matches this column (and sometimes the card number itself is off).",
+    recommendation:
+      "Check the card number and which column the quantity is in against the card's real printings.",
+  },
+  ambiguous_triple: {
+    error: "This row matches more than one printing of the same card, and we don't guess.",
+    recommendation:
+      "Let the rest import, then add this card by hand from your Vault — the possible printings are listed below.",
+  },
 };
 
 /** BL-200: the `?? row.reason` fallback used to render a raw snake_case
@@ -46,8 +84,10 @@ const REASON_TEXT: Record<string, string> = {
  * still never show system vocabulary. Not itself drafted in the BL-200
  * census (every code it censused now has a real entry above); written to
  * match the census's stated voice (casual-but-competent, no raw codes). */
-const GENERIC_REASON_TEXT =
-  "This row couldn't be imported, and we don't have a more specific reason to show yet. It's safe to skip for now — everything else in the file still went through.";
+const GENERIC_REASON_TEXT: ReasonCopy = {
+  error: "This row couldn't be imported, and we don't have a more specific reason to show yet.",
+  recommendation: "It's safe to skip for now — everything else in the file still went through.",
+};
 
 /** BL-200 candidate display: "SET number · variant type · name", subtitle
  * appended when present -- the ambiguous-row candidates used to render as
@@ -117,7 +157,11 @@ type ReportView = "problem" | "resolved";
  *   being looked at carry the amber "aligned" treatment (the same
  *   visual language the Vault's scope affordances use for "this is
  *   adjusted to what you picked") -- Problem view aligns Unresolved +
- *   Ambiguous; Resolved view aligns Resolved + Trimmed + At ceiling. */
+ *   Ambiguous; Resolved view aligns Resolved + Trimmed. (An "At ceiling"
+ *   cell existed here until owner dev-review 2026-08-05 removed it: nobody
+ *   realistically imports past the 999 ceiling, and the box confused more
+ *   than it informed. The clamp itself still happens and still renders as
+ *   the row's "(999 ceiling)" note in the Resolved table.) */
 export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
   const { totals, rows, removed, mode } = report;
   const problemRows = rows.filter((r) => r.status !== "resolved");
@@ -148,7 +192,6 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
         <TotalCell label="Unresolved" value={totals.unresolved} aligned={problemAligned} />
         <TotalCell label="Ambiguous" value={totals.ambiguous} aligned={problemAligned} />
         <TotalCell label="Trimmed" value={totals.trimmed} aligned={resolvedAligned} />
-        <TotalCell label="At ceiling" value={totals.ceiling_clamped} aligned={resolvedAligned} />
         <TotalCell label="Duplicates merged" value={totals.duplicate_rows_merged} />
         {mode === "replace_all" && (
           <TotalCell label="Removed" value={totals.removed_by_replace_all} />
@@ -294,12 +337,23 @@ function TotalCell({
 }
 
 function ProblemTableRow({ row }: { row: ImportRowReport }) {
+  // Rows that arrive with no reason code at all (status only) have nothing
+  // to recommend -- they render just the error line.
+  const copy: ReasonCopy = row.reason
+    ? (REASON_TEXT[row.reason] ?? GENERIC_REASON_TEXT)
+    : { error: row.status, recommendation: "" };
   return (
     <tr className="ie-table__row--problem">
       <td className="ie-table__num">{row.row_number}</td>
       <td className="ie-table__card">{cardLabel(row.card)}</td>
       <td className="ie-table__detail">
-        {row.reason ? (REASON_TEXT[row.reason] ?? GENERIC_REASON_TEXT) : row.status}
+        <div className="ie-table__error">{copy.error}</div>
+        {copy.recommendation && (
+          <div className="ie-table__recommendation">
+            <span className="ie-table__recommendation-label">Recommendation:</span>{" "}
+            {copy.recommendation}
+          </div>
+        )}
         {row.candidates && row.candidates.length > 0 && (
           <div className="ie-table__candidates">
             Possible printings: {row.candidates.map(candidateLabel).join("; ")}.
