@@ -1033,9 +1033,11 @@ describe("ImportExportPage report views (BL-202, CREATE)", () => {
     // Problem view (default here): Unresolved + Ambiguous are the aligned cells.
     expect(alignedLabels()).toEqual(["Unresolved", "Ambiguous"]);
 
-    // Resolved view: Resolved + Trimmed + At ceiling take over.
+    // Resolved view: Resolved + Trimmed take over. (No "At ceiling" cell --
+    // owner dev-review 2026-08-05 removed it from the totals header; the
+    // clamp still surfaces as the row's "(999 ceiling)" note.)
     fireEvent.click(screen.getByRole("tab", { name: /resolved rows/i }));
-    expect(alignedLabels()).toEqual(["Resolved", "Trimmed", "At ceiling"]);
+    expect(alignedLabels()).toEqual(["Resolved", "Trimmed"]);
   });
 
   it("keeps the Download problem rows button visible in both views, as a real button", async () => {
@@ -1113,6 +1115,6 @@ describe("ImportExportPage report views (BL-202, CREATE)", () => {
 
     const resolvedTab = screen.getByRole("tab", { name: /resolved rows \(1\)/i });
     expect(resolvedTab.getAttribute("aria-selected")).toBe("true");
-    expect(alignedLabels()).toEqual(["Resolved", "Trimmed", "At ceiling"]);
+    expect(alignedLabels()).toEqual(["Resolved", "Trimmed"]);
   });
 });
