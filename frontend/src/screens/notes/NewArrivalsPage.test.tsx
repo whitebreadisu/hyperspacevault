@@ -68,14 +68,18 @@ describe("NewArrivalsPage (BL-184)", () => {
   });
 
   describe("quicklink scroll behavior", () => {
-    let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+    // BL-192's test/setup.ts installs a global no-op scrollIntoView stub
+    // (jsdom has none), so spying on the prototype is enough to observe
+    // calls -- the same idiom CardPopup.test.tsx's own scroll tests use.
+    // (Was a bare `vi.fn()` prototype assignment, which fails `tsc -b`'s
+    // stricter test-project type-check: Mock isn't assignable to the DOM
+    // method signature.)
+    let scrollIntoViewMock: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-      // jsdom doesn't implement scrollIntoView -- stub it so the click
-      // handler doesn't throw, and so we can assert it was invoked on the
-      // right target.
-      scrollIntoViewMock = vi.fn();
-      window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+      scrollIntoViewMock = vi
+        .spyOn(Element.prototype, "scrollIntoView")
+        .mockImplementation(() => {});
     });
 
     afterEach(() => {
