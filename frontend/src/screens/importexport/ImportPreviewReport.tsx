@@ -86,8 +86,7 @@ const REASON_TEXT: Record<string, ReasonCopy> = {
  * match the census's stated voice (casual-but-competent, no raw codes). */
 const GENERIC_REASON_TEXT: ReasonCopy = {
   error: "This row couldn't be imported, and we don't have a more specific reason to show yet.",
-  recommendation:
-    "It's safe to skip for now — everything else in the file still went through.",
+  recommendation: "It's safe to skip for now — everything else in the file still went through.",
 };
 
 /** BL-200 candidate display: "SET number · variant type · name", subtitle
