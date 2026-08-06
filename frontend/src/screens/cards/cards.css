@@ -1460,8 +1460,10 @@
  * FONT COLOR (#f2c14e -- var(--color-warning) family, no new ambers) is
  * the treatment, applied uniformly to every scope-driven label in the
  * bracket's span (this #, the Playset/Value labels, and both value-switch
- * in-track labels below). */
-.th-cardnum-scoped {
+ * in-track labels below). Full-chain selector: the base
+ * `.data-table thead th` color above is (0,1,2), so a bare class
+ * (0,1,0) loses the cascade -- (0,2,2) here wins. */
+.data-table--cards thead th.th-cardnum-scoped {
   color: #f2c14e;
 }
 
