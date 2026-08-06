@@ -52,8 +52,8 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         heading: "What's new — literally",
         items: [
           {
-            title: "New Arrivals & release notes",
-            body: "The app now tells you what's new. A New Arrivals tab appears up top when there's news and steps aside once you've read it — and the version number in the corner reopens these notes anytime.",
+            title: "[HSV] Updates & release notes",
+            body: "The app now tells you what's new. An [HSV] Updates tab appears up top when there's news and steps aside once you've read it — and the version number in the corner reopens these notes anytime.",
           },
         ],
       },
