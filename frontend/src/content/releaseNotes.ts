@@ -46,7 +46,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     key: "1.3",
     version: "1.3",
     date: "2026-08-02",
-    title: "You Asked, We Built",
+    title: "Imports and Reddit feedback",
     sections: [
       {
         heading: "What's new — literally",
