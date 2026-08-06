@@ -761,7 +761,7 @@ describe("Header Leave Feedback button (BL-126)", () => {
 
 // DISPOSITION (BL-184, CREATE): new coverage for the footer version label
 // (always rendered, anonymous + authenticated alike, mirroring the
-// brand-line About microcopy tests above) and the "[HSV] What's New?" nav tab
+// brand-line About microcopy tests above) and the "[HSV] Updates" nav tab
 // (conditionally rendered -- present only while hasUnread or already the
 // active view, leftmost of the peer nav tabs, carrying the shared amber cue
 // class while unread).
@@ -811,7 +811,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenFeedback={vi.fn()}
       />
     );
-    expect(screen.queryByText("[HSV] What's New?")).not.toBeInTheDocument();
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 
   it("renders the New Arrivals nav tab, leftmost of the peer tabs, when hasUnread is true", () => {
@@ -827,10 +827,8 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         hasUnread
       />
     );
-    const tabs = screen.getAllByRole("button", {
-      name: /^(\[HSV\] What's New\?|Vault|Deck Check)$/,
-    });
-    expect(tabs.map((t) => t.textContent)).toEqual(["[HSV] What's New?", "Vault", "Deck Check"]);
+    const tabs = screen.getAllByRole("button", { name: /^(\[HSV\] Updates|Vault|Deck Check)$/ });
+    expect(tabs.map((t) => t.textContent)).toEqual(["[HSV] Updates", "Vault", "Deck Check"]);
   });
 
   it("carries the cue class on both the nav tab and the version label while hasUnread is true", () => {
@@ -846,7 +844,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         hasUnread
       />
     );
-    expect(screen.getByRole("button", { name: "[HSV] What's New?" }).className).toContain(
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).toContain(
       "nav-tab--cue"
     );
     expect(screen.getByRole("button", { name: /^v1.3/ }).className).toContain(
@@ -867,7 +865,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         view="new-arrivals"
       />
     );
-    expect(screen.getByRole("button", { name: "[HSV] What's New?" }).className).not.toContain(
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
       "nav-tab--cue"
     );
     expect(screen.getByRole("button", { name: /^v1.3/ }).className).not.toContain(
@@ -888,7 +886,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         view="new-arrivals"
       />
     );
-    const tab = screen.getByRole("button", { name: "[HSV] What's New?" });
+    const tab = screen.getByRole("button", { name: "[HSV] Updates" });
     expect(tab.className).toContain("nav-tab--active");
   });
 
@@ -907,7 +905,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenNotes={onOpenNotes}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(onOpenNotes).toHaveBeenCalledTimes(1);
   });
 
@@ -925,6 +923,6 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         hasUnread
       />
     );
-    expect(screen.queryByText("[HSV] What's New?")).not.toBeInTheDocument();
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 });

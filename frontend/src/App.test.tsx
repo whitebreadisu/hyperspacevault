@@ -798,7 +798,7 @@ describe("App import-export pane (BL-54 S3)", () => {
   });
 });
 
-// DISPOSITION (BL-184, CREATE): net-new coverage for the "[HSV] What's New?"
+// DISPOSITION (BL-184, CREATE): net-new coverage for the "[HSV] Updates"
 // pane's App-level orchestration -- unread cue on mount, the
 // mark-seen-on-open handler shared by both entry points (Header's nav tab +
 // its version label), the pane's own always-mounted/display-toggled wiring,
@@ -817,7 +817,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    const tab = screen.getByRole("button", { name: "[HSV] What's New?" });
+    const tab = screen.getByRole("button", { name: "[HSV] Updates" });
     expect(tab.className).toContain("nav-tab--cue");
     expect(screen.getByRole("button", { name: /^v1.3/ }).className).toContain(
       "app-header__version--cue"
@@ -829,7 +829,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    expect(screen.queryByText("[HSV] What's New?")).not.toBeInTheDocument();
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 
   it("the version label is always present and always opens the notes view, unread or not", () => {
@@ -847,7 +847,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
 
     expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
@@ -856,7 +856,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     expect(screen.getByRole("button", { name: /^v1.3/ }).className).not.toContain(
       "app-header__version--cue"
     );
-    expect(screen.getByRole("button", { name: "[HSV] What's New?" }).className).not.toContain(
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
       "nav-tab--cue"
     );
   });
@@ -877,11 +877,11 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
-    expect(screen.getByRole("button", { name: "[HSV] What's New?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
-    expect(screen.queryByText("[HSV] What's New?")).not.toBeInTheDocument();
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 
   it("mounts the New Arrivals pane hidden until opened, and keeps it mounted (display-toggled) afterward", () => {
@@ -890,7 +890,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     render(<App />);
 
     expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Vault" }));
@@ -902,7 +902,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -912,7 +912,7 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] What's New?" }));
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
   });
 });

@@ -122,8 +122,8 @@ export function Header({
       <div className="app-header__brand">
         {/* Owner review 2026-08-03: [HSV] shorthand joins the brand system --
             bracketed prefix on the wordmark (now two words), mirrored by the
-            nav tab's "[HSV] WHAT'S NEW?" (owner copy pass 2026-08-05; was
-            "[HSV] UPDATES") and the version label's bracketed suffix. */}
+            nav tab's "[HSV] UPDATES" and the version label's bracketed
+            suffix. */}
         [HSV] Hyperspace Vault
         {/* BL-125: permanent, low-key non-affiliation entry point -- visible
          * regardless of auth state, unlike the UserMenu item below which
@@ -180,7 +180,7 @@ export function Header({
                 }`}
                 onClick={onOpenNotes}
               >
-                [HSV] What's New?
+                [HSV] Updates
               </button>
             )}
             <button
