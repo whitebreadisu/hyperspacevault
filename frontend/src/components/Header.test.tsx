@@ -758,3 +758,171 @@ describe("Header Leave Feedback button (BL-126)", () => {
     expect(onOpenFeedback).toHaveBeenCalledTimes(1);
   });
 });
+
+// DISPOSITION (BL-184, CREATE): new coverage for the footer version label
+// (always rendered, anonymous + authenticated alike, mirroring the
+// brand-line About microcopy tests above) and the "[HSV] Updates" nav tab
+// (conditionally rendered -- present only while hasUnread or already the
+// active view, leftmost of the peer nav tabs, carrying the shared amber cue
+// class while unread).
+describe("Header version label + New Arrivals nav (BL-184)", () => {
+  it("always shows the version label, even with no onOpenNotes/hasUnread wired", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("button", { name: /^v1.3/ })).toBeInTheDocument();
+  });
+
+  it("fires onOpenNotes when the version label is clicked", () => {
+    const onOpenNotes = vi.fn();
+    render(
+      <Header
+        userEmail="a@b.com"
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        onOpenNotes={onOpenNotes}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^v1.3/ }));
+    expect(onOpenNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the New Arrivals nav tab when hasUnread is false and it isn't the active view", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+      />
+    );
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+  });
+
+  it("renders the New Arrivals nav tab, leftmost of the peer tabs, when hasUnread is true", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        hasUnread
+      />
+    );
+    const tabs = screen.getAllByRole("button", { name: /^(\[HSV\] Updates|Vault|Deck Check)$/ });
+    expect(tabs.map((t) => t.textContent)).toEqual(["[HSV] Updates", "Vault", "Deck Check"]);
+  });
+
+  it("carries the cue class on both the nav tab and the version label while hasUnread is true", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        hasUnread
+      />
+    );
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).toContain(
+      "nav-tab--cue"
+    );
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).toContain(
+      "app-header__version--cue"
+    );
+  });
+
+  it("carries no cue class on either entry point once hasUnread is false", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        view="new-arrivals"
+      />
+    );
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
+      "nav-tab--cue"
+    );
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).not.toContain(
+      "app-header__version--cue"
+    );
+  });
+
+  it("keeps the New Arrivals nav tab visible while it's the active view even once hasUnread is false", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        view="new-arrivals"
+      />
+    );
+    const tab = screen.getByRole("button", { name: "[HSV] Updates" });
+    expect(tab.className).toContain("nav-tab--active");
+  });
+
+  it("fires onOpenNotes when the New Arrivals nav tab is clicked", () => {
+    const onOpenNotes = vi.fn();
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        hasUnread
+        onOpenNotes={onOpenNotes}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(onOpenNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the New Arrivals tab on the settings/import-export shape (same as Deck Check)", () => {
+    render(
+      <Header
+        userEmail="a@b.com"
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        view="settings"
+        hasUnread
+      />
+    );
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+  });
+});

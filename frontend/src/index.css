@@ -192,6 +192,83 @@ body {
   color: #fff;
 }
 
+/* BL-184: version label, a third item appended to the brand column below
+   .app-header__brand-tag -- same layout idiom (flex-column, 3px gap, set on
+   the shared .app-header__brand parent), same idle-color relationship
+   (--color-text-muted at rest, brightening on hover/focus) as the tag above,
+   just a size step down (this is metadata about the metadata). Opens the
+   "New Arrivals" release-notes view (App-owned view switch, see
+   App.tsx/screens/notes/NewArrivalsPage.tsx); visible for anonymous visitors
+   too, and the permanent re-entry point once the nav tab (below) is gone. */
+.app-header__version {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-ui);
+  /* Owner review round 1 (2026-08-02): 9px read as fine print -- one step
+     BELOW the brand tag was too far down the hierarchy for a click target. */
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  /* Owner review round 6: amber at rest, subdued (--color-warning-dim) --
+     the label lives in the amber family full-time now, not muted gray. */
+  color: var(--color-warning-dim);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    filter 0.15s;
+}
+
+/* Owner review round 6: hover wakes to the full amber + the SAME warm flare
+   the SWU buttons use (.swu-btn:hover's drop-shadow, verbatim value) -- the
+   label reads as the same interactive chrome family as the header buttons. */
+.app-header__version:hover,
+.app-header__version:focus-visible {
+  color: var(--color-warning);
+  filter: drop-shadow(0 0 9px rgba(235, 226, 198, 0.45));
+}
+
+/* Owner review round 5 (2026-08-02): "Release Notes" rides after the version
+   number inside the SAME button/link -- smaller, spaced off the number,
+   inheriting the button's color states (rest/hover/cue) so the pair reads
+   as one label. */
+.app-header__version-sub {
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* BL-184: subtle unread cue -- shared by the footer version label above and
+   the "New Arrivals" nav tab (.nav-tab--cue below), a gentle glow pulse
+   rather than a bouncing badge (owner's explicit "keep it SUBTLE" call).
+   Amber = var(--color-warning) (#d99a1f) -- the app's existing scoped/
+   highlighted affordance color (cards.css's .td-value--scoped family), not
+   var(--color-primary) (the app's BLUE accent, index.css :root -- the "warm
+   amber" association is actually --color-button-edge, the SWU button's
+   separate hover-glow variable). */
+@keyframes na-cue-pulse {
+  0%,
+  100% {
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.85),
+      0 0 0 rgba(217, 154, 31, 0);
+  }
+  50% {
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.85),
+      0 0 7px rgba(217, 154, 31, 0.9);
+  }
+}
+
+.app-header__version--cue {
+  color: var(--color-warning);
+  animation: na-cue-pulse 2.4s ease-in-out infinite;
+}
+
 .app-header__account {
   position: relative;
   display: flex;
@@ -395,6 +472,30 @@ body {
   right: 8px;
   height: 2px;
   background: var(--color-primary);
+}
+
+/* BL-184: the "New Arrivals" nav tab's unread cue -- same na-cue-pulse
+   keyframe/amber intent as .app-header__version--cue above (see that rule's
+   comment for the --color-warning-not-primary note), scaled to this tab's
+   larger 20px label. Layered with -- not replacing -- .nav-tab--active's own
+   white/underline styling, so an active-and-still-unread instant (the one
+   render tick before App's click handler clears the flag) reads correctly. */
+@keyframes na-cue-pulse-tab {
+  0%,
+  100% {
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.85),
+      0 0 0 rgba(217, 154, 31, 0);
+  }
+  50% {
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.85),
+      0 0 10px rgba(217, 154, 31, 0.9);
+  }
+}
+
+.nav-tab--cue {
+  animation: na-cue-pulse-tab 2.4s ease-in-out infinite;
 }
 
 .app-header__subnav {

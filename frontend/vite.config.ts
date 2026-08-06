@@ -1,14 +1,30 @@
-import { defineConfig, coverageConfigDefaults } from 'vitest/config'
-import react from '@vitejs/plugin-react'
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { defineConfig, coverageConfigDefaults } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+// BL-184: package.json's "version" is the single source of truth for the
+// app's displayed version (Header's footer label + the release-notes
+// content module's newest-entry version). Read via fs.readFileSync + JSON.parse
+// rather than a JSON import (avoids relying on Node's still-maturing
+// `with { type: "json" }` syntax support) and baked in at build time via a
+// Vite `define` -- no runtime fetch, no version drift between what's built
+// and what's displayed.
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf-8")
+) as { version: string };
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
-    host: '0.0.0.0',
+    host: "0.0.0.0",
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://backend:8000',
+      "/api": {
+        target: "http://backend:8000",
         changeOrigin: true,
       },
       // BL-76 Phase 3 (ADR-0012): same-origin card images, mirroring the
@@ -24,8 +40,8 @@ export default defineConfig({
       // blank set logos/background art. Prod is unaffected: Firebase
       // Hosting's static-file-wins-over-rewrite precedence already serves
       // those correctly regardless of this rule.
-      '/images/cards': {
-        target: 'http://backend:8000',
+      "/images/cards": {
+        target: "http://backend:8000",
         changeOrigin: true,
       },
     },
@@ -36,16 +52,16 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'text-summary'],
-      exclude: [...coverageConfigDefaults.exclude, 'src/main.tsx'],
+      provider: "v8",
+      reporter: ["text", "text-summary"],
+      exclude: [...coverageConfigDefaults.exclude, "src/main.tsx"],
       thresholds: {
         lines: 75,
         statements: 74,
       },
     },
   },
-})
+});

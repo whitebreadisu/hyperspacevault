@@ -1,12 +1,19 @@
 import { SWUButton } from "./SWUButton";
 import { UserMenu } from "./UserMenu";
+import { formatVersionLabel } from "../utils/version";
 
 // BL-54 S3 (§8.1): "import-export" is a transient view -- reachable only via
 // CardsPage's Import / Export button (verified users), never a permanent nav
 // tab like "deck-check". See the `view` prop's doc comment and the nav
 // render branch below for how it borrows the settings-view shape (way-back
 // Vault button + one active tab) rather than joining the two-tab bar.
-export type AppView = "cards" | "deck-check" | "settings" | "import-export";
+//
+// BL-184: "new-arrivals" is the release-notes view -- a real peer nav tab
+// like "deck-check" (not the settings/import-export transient shape), except
+// its tab is only ever RENDERED while unread content exists or it's the
+// active view (see the `hasUnread` prop and the nav render branch below) --
+// unlike Vault/Deck Check, which are always present.
+export type AppView = "cards" | "deck-check" | "settings" | "import-export" | "new-arrivals";
 
 interface Props {
   userEmail: string | null;
@@ -57,6 +64,22 @@ interface Props {
    * own doc comment. Optional, defaults through to UserMenu's own default of
    * `true`, so this stays a no-op for every pre-existing call site. */
   hasPasswordProvider?: boolean;
+  /** BL-184: opens the "New Arrivals" release-notes view -- the version
+   * label's onClick always, and the nav item's onClick whenever it's
+   * rendered (see `hasUnread` below). Optional, matching
+   * onNavigateDeckCheck's shape, so every pre-existing call site/test
+   * renders unchanged without wiring it. */
+  onOpenNotes?: () => void;
+  /** BL-184: drives BOTH the "New Arrivals" nav item's presence and the
+   * subtle amber cue on it + the footer version label
+   * (utils/releaseNotesSeen.ts's hasUnread()) -- App computes this once and
+   * passes it down, rather than Header reaching into localStorage itself.
+   * Defaults to false, so a pre-existing call site that doesn't wire it
+   * renders exactly as before (no nav item, no cue) -- see the nav render
+   * branch below for the `hasUnread || view === "new-arrivals"` visibility
+   * rule that keeps the active tab from vanishing the instant it's opened
+   * and the unread flag clears. */
+  hasUnread?: boolean;
 }
 
 /** BL-56 §5.5: the Catalog/Inventory tab toggle collapsed to a single label
@@ -86,16 +109,43 @@ export function Header({
   onNavigateCards,
   onNavigateDeckCheck,
   hasPasswordProvider,
+  onOpenNotes,
+  hasUnread = false,
 }: Props) {
+  // BL-184: the nav item stays visible while unread OR while it's the
+  // active view -- the latter half is what keeps it from vanishing the
+  // instant App clears the unread flag on open (see App.tsx's onOpenNotes).
+  const showNewArrivalsTab = hasUnread || view === "new-arrivals";
+
   return (
     <header className="app-header">
       <div className="app-header__brand">
-        HyperspaceVault
+        {/* Owner review 2026-08-03: [HSV] shorthand joins the brand system --
+            bracketed prefix on the wordmark (now two words), mirrored by the
+            nav tab's "[HSV] UPDATES" and the version label's bracketed
+            suffix. */}
+        [HSV] Hyperspace Vault
         {/* BL-125: permanent, low-key non-affiliation entry point -- visible
          * regardless of auth state, unlike the UserMenu item below which
          * only exists once signed in. */}
         <button type="button" className="app-header__brand-tag" onClick={onOpenAbout}>
           Unofficial Fan Project
+        </button>
+        {/* BL-184: version label, appended as a third item in the brand
+         * column below the disclaimer tag -- same flex-column/gap layout
+         * idiom, visible for anonymous visitors too. Permanent re-entry
+         * point to the notes view even after the nav item (below) is gone;
+         * carries the same unread cue class while hasUnread is true. */}
+        <button
+          type="button"
+          className={`app-header__version${hasUnread ? " app-header__version--cue" : ""}`}
+          onClick={onOpenNotes}
+        >
+          {formatVersionLabel(__APP_VERSION__)}
+          {/* Owner review round 5: the label says what the click does --
+              "Release Notes" rides after the number in smaller text, one
+              button, one link target. */}
+          <span className="app-header__version-sub">[Release Notes]</span>
         </button>
       </div>
 
@@ -108,7 +158,9 @@ export function Header({
             Settings tab), unchanged apart from the rename. BL-54 S3:
             import-export borrows that exact settings-view shape too (see
             the `view` prop's doc comment above) -- only the active tab's
-            label differs. */}
+            label differs. BL-184: "New Arrivals" joins this same two-tab
+            branch (not the settings-shape branch) as a third, leftmost,
+            CONDITIONALLY-rendered peer tab -- see showNewArrivalsTab above. */}
         {view === "settings" || view === "import-export" ? (
           <>
             <button type="button" className="nav-tab" onClick={onNavigateCards}>
@@ -120,6 +172,17 @@ export function Header({
           </>
         ) : (
           <>
+            {showNewArrivalsTab && (
+              <button
+                type="button"
+                className={`nav-tab${view === "new-arrivals" ? " nav-tab--active" : ""}${
+                  hasUnread ? " nav-tab--cue" : ""
+                }`}
+                onClick={onOpenNotes}
+              >
+                [HSV] Updates
+              </button>
+            )}
             <button
               type="button"
               className={`nav-tab${view === "cards" ? " nav-tab--active" : ""}`}

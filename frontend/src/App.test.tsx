@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
 
 const { mockUseAuth } = vi.hoisted(() => ({
@@ -153,6 +153,30 @@ vi.mock("./screens/deckcheck/DeckCheckPage", () => ({
   DeckCheckPage: ({ isAuthenticated }: { isAuthenticated: boolean }) => (
     <p>deck-check-page:{isAuthenticated ? "auth" : "anon"}</p>
   ),
+}));
+
+// BL-184: NewArrivalsPage has its own dedicated test file (entry rendering,
+// quicklink scroll) -- stubbed here so App.test.tsx stays focused on the
+// shell's pane-orchestration + unread-cue wiring, mirroring the DeckCheckPage
+// stub above.
+vi.mock("./screens/notes/NewArrivalsPage", () => ({
+  NewArrivalsPage: () => <p>new-arrivals-page-stub</p>,
+}));
+
+// BL-184: utils/releaseNotesSeen.ts has its own dedicated unit-test file
+// (storage available/denied/corrupt matrix) -- mocked here so App's own
+// tests can drive "unread"/"seen" deterministically without touching real
+// localStorage, the same reasoning api/settingsLimits is mocked above.
+const { mockHasUnread, mockLatestEntryKey, mockSaveLastSeenKey } = vi.hoisted(() => ({
+  mockHasUnread: vi.fn(),
+  mockLatestEntryKey: vi.fn(),
+  mockSaveLastSeenKey: vi.fn(),
+}));
+
+vi.mock("./utils/releaseNotesSeen", () => ({
+  hasUnread: mockHasUnread,
+  latestEntryKey: mockLatestEntryKey,
+  saveLastSeenKey: mockSaveLastSeenKey,
 }));
 
 // DISPOSITION (BL-56 Slice 2): this suite REPLACEs "App auth gate" (which
@@ -771,5 +795,124 @@ describe("App import-export pane (BL-54 S3)", () => {
 
     expect(screen.queryByText("import-export-page-stub")).not.toBeInTheDocument();
     expect(screen.getByText("cards-page:anon")).toBeVisible();
+  });
+});
+
+// DISPOSITION (BL-184, CREATE): net-new coverage for the "[HSV] Updates"
+// pane's App-level orchestration -- unread cue on mount, the
+// mark-seen-on-open handler shared by both entry points (Header's nav tab +
+// its version label), the pane's own always-mounted/display-toggled wiring,
+// and anonymous reachability (unlike Settings, this pane has no auth guard
+// at all).
+describe("App New Arrivals pane (BL-184)", () => {
+  beforeEach(() => {
+    mockHasUnread.mockReset();
+    mockLatestEntryKey.mockReset();
+    mockSaveLastSeenKey.mockReset();
+    mockLatestEntryKey.mockReturnValue("1.3");
+  });
+
+  it("shows the New Arrivals nav tab + cue class on both entry points when unread", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    const tab = screen.getByRole("button", { name: "[HSV] Updates" });
+    expect(tab.className).toContain("nav-tab--cue");
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).toContain(
+      "app-header__version--cue"
+    );
+  });
+
+  it("renders no New Arrivals nav tab when nothing is unread", () => {
+    mockHasUnread.mockReturnValue(false);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+  });
+
+  it("the version label is always present and always opens the notes view, unread or not", () => {
+    mockHasUnread.mockReturnValue(false);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /^v1.3/ }));
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+  });
+
+  it("marks the latest entry seen immediately when opened from the nav tab, clearing the cue everywhere", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+
+    expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+    // Cue is gone from the version label; the nav tab itself stays visible
+    // (it's now the active view) but carries no cue class anymore.
+    expect(screen.getByRole("button", { name: /^v1.3/ }).className).not.toContain(
+      "app-header__version--cue"
+    );
+    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
+      "nav-tab--cue"
+    );
+  });
+
+  it("marks seen and opens the view identically from the version label", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^v1.3/ }));
+
+    expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+  });
+
+  it("hides the New Arrivals nav tab again once the user navigates to another view", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
+    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+  });
+
+  it("mounts the New Arrivals pane hidden until opened, and keeps it mounted (display-toggled) afterward", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+    expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
+  });
+
+  it("is reachable while anonymous, with no sign-in gate of its own", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("is reachable identically for an authenticated user", () => {
+    mockHasUnread.mockReturnValue(true);
+    mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
   });
 });
