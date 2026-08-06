@@ -1452,52 +1452,35 @@
 }
 
 /* BL-194: the # column's scoped affordance -- its content is scope-driven
- * (scopedCardNumber, CardsTable.tsx), so while scoped it gets the exact
- * same active-state look as the scope control itself
- * (.vs-header-scope__trigger--on below: same amber border/text/background
- * tokens, copied verbatim -- var(--color-warning) family, no new ambers).
- * Owner dev-review 2026-08-05: the treatment moved off the th (the
- * full-cell wash + inset outline read wrong) onto a chip around the #
- * glyph itself -- `.th-cardnum-scoped` on the th is now only the state
- * marker; the visible styling lives on the inner `.th-cardnum-chip` span.
- * An inline chip can carry a REAL border safely: it never touches the
- * th's box model, so COLUMN_WIDTHS' SYNC RULE (CardsTable.tsx) is
- * unaffected. The negative margins absorb the chip's padding + border so
- * the # glyph stays optically where the unscoped # sits (flush after the
- * th's fixed left padding) instead of hopping right when a scope turns
- * on. Playset/Value headers are untouched -- they keep the fainter
- * `.th-scoped` wash above; this modifier only ever lands on the # th. */
-.th-cardnum-scoped .th-cardnum-chip {
-  display: inline-block;
-  padding: 2px 7px;
-  margin: -3px 0 -3px -8px;
-  border: 1px solid rgba(217, 154, 31, 0.4);
-  border-radius: 3px;
-  background: rgba(217, 154, 31, 0.16);
+ * (scopedCardNumber, CardsTable.tsx), so while scoped it shares the scope
+ * control's own active-state vocabulary. Owner dev-review 2026-08-05
+ * (three rounds, dialed live): full-cell wash + inset outline -> a
+ * bordered/filled chip around the # glyph -> finally amber TEXT only:
+ * under the extended bracket, the boxes read as noise; the trigger--on
+ * FONT COLOR (#f2c14e -- var(--color-warning) family, no new ambers) is
+ * the treatment, applied uniformly to every scope-driven label in the
+ * bracket's span (this #, the Playset/Value labels, and both value-switch
+ * in-track labels below). */
+.th-cardnum-scoped {
   color: #f2c14e;
-  font-weight: 700;
-  line-height: 1.5;
 }
 
-/* Owner dev-review 2026-08-05 (same round as the bracket reach above): the
- * Value label joins the # glyph's chip treatment while scoped -- same
- * trigger--on amber tokens. Activated by the th's own .th-scoped state
- * class (the Value th has no separate marker class the way # does);
- * unscoped, the span is unstyled and the label renders as before. The
- * vertical negative margins mirror the # chip's (absorb the chip's
- * padding + border so the two-row header stack doesn't grow); no
- * horizontal pull-back -- this label is centered in its stack, not
- * flush-left like #. */
-.data-table--cards thead th.th-scoped .th-value-chip {
-  display: inline-block;
-  padding: 2px 7px;
-  margin: -3px 0;
-  border: 1px solid rgba(217, 154, 31, 0.4);
-  border-radius: 3px;
-  background: rgba(217, 154, 31, 0.16);
+/* The Value label's scoped amber (same round). Activated by the th's own
+ * .th-scoped state class (the Value th has no separate marker class the
+ * way # does); unscoped, the span is unstyled and the label renders as
+ * before. */
+.data-table--cards thead th.th-scoped .th-value-label {
   color: #f2c14e;
-  font-weight: 700;
-  line-height: 1.5;
+}
+
+/* The Playset column label + both value-switch in-track labels (UNIT/
+ * COLLECTION, MARKET/LOW) join the same scoped amber. The switch-label
+ * selector's (0,3,2) specificity deliberately out-ranks the switch's own
+ * --on (0,2,0) and :hover (0,3,0) label colors, so scoped amber wins in
+ * every switch state. */
+.data-table--cards thead th.th-scoped .th-playset-label,
+.data-table--cards thead th.th-scoped .vs-value-switch__label {
+  color: #f2c14e;
 }
 
 /* (Round 2: the Value header's amber finish tag `.vs-tag` is retired --
@@ -1616,13 +1599,18 @@
  * toggle -- UNIT reads [● UNIT], TOTAL reads [TOTAL ●]. */
 /* Small size = the MKT/LOW row-mate; --lg below = UNIT/TOTAL. Both as
  * narrow as their longest label allows. */
+/* Owner dev-review 2026-08-05: pill track + circle thumb re-cut to match
+ * the app's squared control language -- track corners squared off, thumb
+ * a VERTICAL RECTANGLE (taller than wide, near-full track height). The
+ * on-state translateX keeps the original 2px/3px symmetric inset:
+ * left + tx + thumbWidth = trackWidth - inset. */
 .vs-value-switch__track {
   display: inline-flex;
   align-items: center;
   width: 54px;
   height: 14px;
   border: 1px solid var(--color-border);
-  border-radius: 7px;
+  border-radius: 0;
   background: rgba(9, 11, 20, 0.6);
   position: relative;
   flex: none;
@@ -1630,9 +1618,9 @@
 .vs-value-switch__thumb {
   position: absolute;
   left: 2px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  width: 5px;
+  height: 10px;
+  border-radius: 1px;
   background: var(--color-text-muted);
   transition: transform 120ms ease;
 }
@@ -1641,7 +1629,8 @@
   border-color: rgba(37, 99, 235, 0.55);
 }
 .vs-value-switch--on .vs-value-switch__thumb {
-  transform: translateX(41px);
+  /* 2 + 45 + 5 = 52 = 54 - 2 (mirrors the off-side inset). */
+  transform: translateX(45px);
   background: var(--color-text);
 }
 .vs-value-switch__label {
@@ -1670,15 +1659,16 @@
 .vs-value-switch--lg .vs-value-switch__track {
   width: 96px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: 0;
 }
 .vs-value-switch--lg .vs-value-switch__thumb {
-  width: 13px;
-  height: 13px;
+  width: 7px;
+  height: 16px;
   left: 3px;
 }
 .vs-value-switch--lg.vs-value-switch--on .vs-value-switch__thumb {
-  transform: translateX(77px);
+  /* 3 + 83 + 7 = 93 = 96 - 3 (mirrors the off-side inset). */
+  transform: translateX(83px);
 }
 .vs-value-switch--lg .vs-value-switch__label {
   font-size: 11px;

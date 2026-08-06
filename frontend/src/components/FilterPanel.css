@@ -1246,9 +1246,10 @@
 
 /* BL-195 (Issue #60): while a variant scope is active, the three collection
  * toggles (CardsPage.tsx) carry the SAME active-state treatment as the
- * scope control itself and BL-194's # header chip (screens/cards/cards.css's
- * .vs-header-scope__trigger--on / .th-cardnum-chip -- same amber tokens,
- * var(--color-warning) family, copied verbatim, no new ambers). Declared
+ * scope control itself and BL-194's scoped # header text
+ * (screens/cards/cards.css's .vs-header-scope__trigger--on /
+ * .th-cardnum-scoped -- same amber tokens, var(--color-warning) family,
+ * copied verbatim, no new ambers). Declared
  * after .pl-toggle--on/.pl-toggle--disabled above so it wins the cascade at
  * equal specificity regardless of which of those two also applies (a
  * scoped toggle reads amber whether it's individually on/off or the

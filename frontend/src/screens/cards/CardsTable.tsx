@@ -220,18 +220,14 @@ export function CardsTable({
                 upgraded it to the scope control's own strong active-state
                 treatment, since the # column's content is itself
                 scope-driven (scopedCardNumber below). Owner dev-review
-                2026-08-05: that treatment moved OFF the th -- no more
-                full-cell outline/wash -- onto a chip around the # glyph
-                itself: the inner `.th-cardnum-chip` span carries
-                `.vs-header-scope__trigger--on`'s exact amber
-                border/fill/text tokens while `.th-cardnum-scoped` on the
-                th is just the state marker that activates it (cards.css).
-                Playset/Value keep `.th-scoped` untouched -- this modifier
-                is # ONLY. The chip is an inline element inside the cell,
-                so the SYNC RULE column widths above are never affected. */}
-            <th className={scope ? "th-cardnum-scoped" : undefined}>
-              <span className="th-cardnum-chip">#</span>
-            </th>
+                2026-08-05 (two rounds): first the treatment moved off the
+                th onto a bordered/filled chip around the # glyph, then the
+                box came off too -- the scoped # is now amber TEXT only
+                (the trigger--on font color, no border/fill), styled
+                directly by `.th-cardnum-scoped` (cards.css), part of the
+                same round that ambers the Playset/Value labels and toggle
+                labels under the extended bracket. */}
+            <th className={scope ? "th-cardnum-scoped" : undefined}>#</th>
             <th>Name</th>
             <th>Variants</th>
             <th className={`th-playset${scope ? " th-scoped" : ""}`}>
@@ -284,10 +280,12 @@ export function CardsTable({
                 <span className="th-value-mode">
                   <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
                   {/* Owner dev-review 2026-08-05: while scoped, the Value
-                      label carries the same amber chip the # glyph got
-                      (.th-value-chip, activated by this th's .th-scoped
-                      state class -- unscoped it's an unstyled span). */}
-                  <span className="th-value-chip">Value</span>
+                      label renders in the trigger--on amber font color
+                      (.th-value-label, activated by this th's .th-scoped
+                      state class -- unscoped it's an unstyled span). The
+                      round's earlier bordered/filled chip treatment is
+                      retired; color only. */}
+                  <span className="th-value-label">Value</span>
                 </span>
               </span>
             </th>
