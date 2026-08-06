@@ -72,6 +72,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             title: "A preview that speaks collector",
             body: "When a row can't be matched, the preview now explains why in plain words and lists the actual printings it might be — set, number, and name, not machine IDs. Problem rows and resolved rows each get their own clean table with the totals bar highlighting whichever you're viewing, and cards that share a number with tokens or promo printings now resolve to the card you actually meant.",
           },
+          {
+            title: "Errors that read like advice",
+            body: "Problem rows in the import preview now separate what went wrong from what to do about it — the error up top in red, the recommendation on its own line below. We also retired a totals box that only mattered if you tried to import a thousand copies of one card. (You weren't going to.)",
+          },
         ],
       },
       {
@@ -84,6 +88,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           {
             title: "Chase one finish, everywhere",
             body: "Tracking playsets against a specific finish? Open the playset finish filter — the dropdown on the Playset column header — and pick your finish; the whole Vault then follows it: card numbers and sort order switch to that finish's own numbers (exactly like your binder), the card popup opens on that printing, the ownership filters answer for that finish alone — \"cards I don't own\" means that finish, not any copy — and the amber highlights show you exactly what's adjusted.",
+          },
+          {
+            title: "The finish filter shows its reach",
+            body: "With a finish selected, the amber bracket over the table header now stretches across everything it actually changes — Card # + Pips + Value — and every affected label goes amber to match, no boxes, just color. The value toggles got a sharper squared-off cut while we were in there, and the filter sidebar now just says Filters.",
           },
           {
             title: "Add Cards knows the probable printing",
