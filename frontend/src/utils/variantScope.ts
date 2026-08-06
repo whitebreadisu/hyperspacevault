@@ -394,8 +394,8 @@ export const SCOPE_EXPANDED_ROWS: ScopeMenuRow[] = [
 /* (Round 4 owner call: the menu's footer coverage line -- "Set C — 14
  * scopes / 99.0% of catalog" -- is retired; the constant went with it.) */
 
-/** Header-trigger / bracket-row / amber-tag short display name for a raw
- * scope value (e.g. "PIPS · HS Foil", "Hyperspace Foil · PIPS + VALUE"). */
+/** Header-trigger / bracket short display name for a raw scope value
+ * (e.g. "PIPS · HS Foil", "HS Foil - CARD # + PIPS + VALUE"). */
 export const SCOPE_SHORT_NAME: Record<string, string> = {
   Standard: "Standard",
   "Standard Foil": "Std Foil",

@@ -216,16 +216,17 @@ export function CardsTable({
         <thead>
           <tr>
             {/* BL-187 gave the # th the same faint `.th-scoped` wash the
-                Playset/Value headers carry while scoped. BL-194 (owner):
-                that faint wash under-sold it -- the # th now gets the SAME
-                strong treatment as the scope control's own active state
-                (amber outline/text/background, `.th-cardnum-scoped`,
-                cards.css -- copies `.vs-header-scope__trigger--on`'s exact
-                tokens) instead, since the # column's content is itself
-                scope-driven (scopedCardNumber below). Playset/Value keep
-                `.th-scoped` untouched -- this modifier is # ONLY. Uses
-                box-shadow (not a border-width change) so the SYNC RULE
-                column widths above are never affected. */}
+                Playset/Value headers carry while scoped; BL-194 (owner)
+                upgraded it to the scope control's own strong active-state
+                treatment, since the # column's content is itself
+                scope-driven (scopedCardNumber below). Owner dev-review
+                2026-08-05 (two rounds): first the treatment moved off the
+                th onto a bordered/filled chip around the # glyph, then the
+                box came off too -- the scoped # is now amber TEXT only
+                (the trigger--on font color, no border/fill), styled
+                directly by `.th-cardnum-scoped` (cards.css), part of the
+                same round that ambers the Playset/Value labels and toggle
+                labels under the extended bracket. */}
             <th className={scope ? "th-cardnum-scoped" : undefined}>#</th>
             <th>Name</th>
             <th>Variants</th>
@@ -233,15 +234,22 @@ export function CardsTable({
               {/* BL-173 round 2 (owner, 2026-07-27): the amber bracket lives
                   INSIDE this header row now -- the original separate thead
                   <tr> read as table content, not header. It's an absolutely
-                  positioned overlay anchored on this th, spanning this
-                  column + Unit Value via their fixed COLUMN_WIDTHS
-                  (128+100px -- .vs-bracket--inhead's width mirrors that sum;
-                  retune it when either width changes). Still aria-hidden:
-                  the trigger's own "PIPS · <finish>" text carries the same
-                  information accessibly. */}
+                  positioned overlay anchored on this th. Owner dev-review
+                  2026-08-05: the bracket now reaches LEFT to encompass the
+                  # column too (its content is scope-driven, same as
+                  Pips/Value), so the span runs # through Unit Value --
+                  crossing Name/Variants on the way, which is why the label
+                  names the affected columns explicitly ("Card # + Pips +
+                  Value") instead of implying everything under the line is
+                  scoped. Geometry lives in .vs-bracket--inhead (cards.css),
+                  mirroring COLUMN_WIDTHS -- retune it when any of the five
+                  spanned widths change. Still aria-hidden: the trigger's
+                  own text carries the same information accessibly. */}
               {scope && (
                 <span className="vs-bracket vs-bracket--inhead" aria-hidden="true">
-                  <span className="vs-bracket__label">{scopeShortName(scope)} · PIPS + VALUE</span>
+                  <span className="vs-bracket__label">
+                    {scopeShortName(scope)} - CARD # + PIPS + VALUE
+                  </span>
                 </span>
               )}
               {/* Round 2: trigger stacked ABOVE the column label. */}
@@ -271,7 +279,13 @@ export function CardsTable({
                 <CardsValueDisplayToggle mode={valueDisplay} onChange={onValueDisplayChange} />
                 <span className="th-value-mode">
                   <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
-                  Value
+                  {/* Owner dev-review 2026-08-05: while scoped, the Value
+                      label renders in the trigger--on amber font color
+                      (.th-value-label, activated by this th's .th-scoped
+                      state class -- unscoped it's an unstyled span). The
+                      round's earlier bordered/filled chip treatment is
+                      retired; color only. */}
+                  <span className="th-value-label">Value</span>
                 </span>
               </span>
             </th>

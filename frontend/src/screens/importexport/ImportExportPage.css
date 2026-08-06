@@ -558,8 +558,23 @@
   color: var(--color-text-muted);
 }
 
-.ie-table__row--problem .ie-table__detail {
+/* Owner dev-review 2026-08-05: the What happened cell separates the error
+ * from the recommendation -- bold red error line, then a body-color
+ * "Recommendation:" line (label bold italic) -- instead of one all-red
+ * run-on paragraph. */
+.ie-table__error {
   color: var(--color-danger);
+  font-weight: 700;
+}
+
+.ie-table__recommendation {
+  margin-top: 2px;
+  color: var(--color-text);
+}
+
+.ie-table__recommendation-label {
+  font-weight: 700;
+  font-style: italic;
 }
 
 .ie-table__row--removed td {

@@ -792,7 +792,7 @@ export function FilterPanel({
               />
             </svg>
             {activeCount > 0 && <span className="ifp-sidebar-tab__badge">{activeCount}</span>}
-            <span className="ifp-sidebar-tab__label">Catalog Filters</span>
+            <span className="ifp-sidebar-tab__label">Filters</span>
           </button>
         </div>
       )}
@@ -802,7 +802,7 @@ export function FilterPanel({
           <div className="ifp-sidebar__ring">
             <div className="ifp-sidebar__panel">
               <div className="ifp-sidebar__head">
-                <span className="ifp-sidebar__title">Catalog Filters</span>
+                <span className="ifp-sidebar__title">Filters</span>
                 <button
                   type="button"
                   className="ifp-sidebar__collapse"
