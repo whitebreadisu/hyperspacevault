@@ -41,11 +41,11 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     kind: "release",
     // Owner renumber 2026-08-02: the post-announcement shipments (user caps,
     // Weekly Play pricing) do NOT get their own version -- they roll into
-    // this release's notes instead. Date is a placeholder finalized at
-    // promote time (the release-notes promote ritual owns it).
+    // this release's notes instead. Date finalized 2026-08-07 at promote
+    // time per the release-notes ritual (was the 2026-08-02 placeholder).
     key: "1.3",
     version: "1.3",
-    date: "2026-08-02",
+    date: "2026-08-07",
     title: "Imports and Reddit feedback",
     sections: [
       {
