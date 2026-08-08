@@ -774,7 +774,7 @@ Code-complete on main 2026-07-23 (PRs #388 S1 / #390 S2 +fix round / #393 S3 / #
 
 **Format guidance notes (BL-173 review round 4, 2026-07-27):** the Import section's configure step opens with two stacked callouts — a blue-ruled note stating imports use the **HyperspaceVault format** (Export's files, or the catalog reference sheet with quantities filled in), and an amber-ruled **"Coming from another tracker?"** migration tip pointing at the catalog CSV + AI-assisted conversion (amber bold lead-in, muted body — owner-dialed through three styling iterations).
 
-### 17.5 Foreign-format adapters (BL-185 SWUDB · BL-186 sw-unlimited-db — merged to dev 2026-08-03; prod rides the v1.3 promote)
+### 17.5 Foreign-format adapters (BL-185 SWUDB · BL-186 sw-unlimited-db — merged to dev 2026-08-03; prod 2026-08-07, v1.3)
 
 Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md` and `analysis/BL186_SWUnlimitedDB_Import_Mapping_2026-08-02.md` (owner-captured matrix-driven test exports diffed against the `ImportExport_Test_Card_Matrix_2026-07-21.md` scenarios; definition decisions locked in each doc's closing section). As-built summary; don't re-derive.
 
