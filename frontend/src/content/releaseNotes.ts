@@ -39,6 +39,26 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-203 hotfix patch. Date finalized at promote time per the
+    // release-notes ritual.
+    key: "1.3.1",
+    version: "1.3.1",
+    date: "2026-08-11",
+    title: "Big collections welcome",
+    sections: [
+      {
+        heading: "Fixed",
+        items: [
+          {
+            title: "Large imports no longer fail",
+            body: "If you tried to import a collection with more than about 1,500 different cards, the import failed with an error — every time, every format, and retrying didn't help. That was our ceiling, not your file's. It's gone: imports of any size now go through, whether it's a HyperspaceVault export, a SWUDB export, or an SW-Unlimited-DB spreadsheet. If this bit you: sorry, and the exact same file will work now — no changes needed on your end.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // Owner renumber 2026-08-02: the post-announcement shipments (user caps,
     // Weekly Play pricing) do NOT get their own version -- they roll into
     // this release's notes instead. Date finalized 2026-08-07 at promote
