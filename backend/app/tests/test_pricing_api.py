@@ -18,7 +18,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 SET_CODE = "PA1"
-TODAY = date(2026, 7, 16)
+# Must be dynamic: the price-history range filter cuts off at the REAL
+# date.today() (repositories/pricing.py), so a frozen literal here is a
+# date bomb -- the original date(2026, 7, 16) aged out of the 30d window
+# on 2026-08-11 and failed every CI run from that day on (caught during
+# BL-203). Midnight-crossing runs could skew TODAY vs the endpoint's
+# today by one day; that flake window is seconds a day vs. permanent
+# breakage, so dynamic wins.
+TODAY = date.today()
 
 
 @pytest.fixture

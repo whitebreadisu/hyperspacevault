@@ -16,6 +16,26 @@ VariantMatch = tuple[
     CardVariant, str, str | None, str
 ]  # (variant, name, subtitle, base_card_type)
 
+# BL-203: Postgres parses each (a, b, c) row constructor of a composite IN
+# recursively, so one statement carrying ~1500+ of them exceeds the default
+# 2048kB max_stack_depth and the whole query is rejected
+# (psycopg2.errors.StatementTooComplex -- the 2026-08-11 prod incident: a
+# 1500+-card collection import 500'd on all ten attempts). Every tuple_()
+# lookup below therefore runs in chunks; scalar .in_() lists (uuids,
+# variant_ids) are flat and don't recurse, so they stay single-query.
+# Chunking bounds statement complexity permanently, unlike raising
+# max_stack_depth, which only moves the ceiling. The ceiling is
+# environment-dependent: prod (Cloud SQL) rejected a 1,500+-triple file,
+# while the dev-image Postgres survives 5,000 and rejects 10,000 -- so 500
+# sits ~3x below the smallest count known to crash anywhere and ~20x below
+# the locally measured threshold.
+_TUPLE_IN_CHUNK_SIZE = 500
+
+
+def _chunks(items: list, size: int = _TUPLE_IN_CHUNK_SIZE):
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
+
 
 def _current_tenant_id(db: Session) -> int:
     """Mirrors repositories/inventory.py's helper of the same name --
@@ -50,25 +70,27 @@ def get_variants_by_triples(
     """§4 step 2: bulk triple lookup (set_code, card_number, variant_type)
     -> every matching variant (usually exactly one; the Serialized Prestige
     trio is the known ambiguous shape, §10 case 3). Composite IN via
-    tuple_() -- one query for every distinct triple in the file."""
+    tuple_(), chunked (BL-203) -- one query per _TUPLE_IN_CHUNK_SIZE
+    distinct triples in the file."""
     if not triples:
         return {}
-    rows = (
-        db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
-        .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
-        .filter(
-            tuple_(
-                CardVariant.source_set_code,
-                CardVariant.card_number,
-                CardVariant.variant_type,
-            ).in_(triples)
-        )
-        .all()
-    )
     grouped: dict[tuple[str, str, str], list[VariantMatch]] = defaultdict(list)
-    for variant, name, subtitle, base_card_type in rows:
-        key = (variant.source_set_code, variant.card_number, variant.variant_type)
-        grouped[key].append((variant, name, subtitle, base_card_type))
+    for chunk in _chunks(triples):
+        rows = (
+            db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
+            .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
+            .filter(
+                tuple_(
+                    CardVariant.source_set_code,
+                    CardVariant.card_number,
+                    CardVariant.variant_type,
+                ).in_(chunk)
+            )
+            .all()
+        )
+        for variant, name, subtitle, base_card_type in rows:
+            key = (variant.source_set_code, variant.card_number, variant.variant_type)
+            grouped[key].append((variant, name, subtitle, base_card_type))
     return grouped
 
 
@@ -94,17 +116,20 @@ def get_variants_by_set_and_number(
     SWUDB import entirely, honestly on both sides."""
     if not pairs:
         return {}
-    rows = (
-        db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
-        .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
-        .filter(tuple_(CardVariant.source_set_code, CardVariant.card_number).in_(pairs))
-        .filter(BaseCard.is_token.is_(False))
-        .all()
-    )
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
-    for variant, name, subtitle, base_card_type in rows:
-        key = (variant.source_set_code, variant.card_number)
-        grouped[key].append((variant, name, subtitle, base_card_type))
+    for chunk in _chunks(pairs):
+        rows = (
+            db.query(CardVariant, BaseCard.name, BaseCard.subtitle, BaseCard.type)
+            .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
+            .filter(
+                tuple_(CardVariant.source_set_code, CardVariant.card_number).in_(chunk)
+            )
+            .filter(BaseCard.is_token.is_(False))
+            .all()
+        )
+        for variant, name, subtitle, base_card_type in rows:
+            key = (variant.source_set_code, variant.card_number)
+            grouped[key].append((variant, name, subtitle, base_card_type))
     return grouped
 
 
@@ -138,25 +163,26 @@ def get_base_card_variants_by_set_and_number(
     (T1 -> tokens=True, 1 -> tokens=False); the two calls never mix."""
     if not pairs:
         return {}
-    rows = (
-        db.query(
-            CardVariant,
-            BaseCard.name,
-            BaseCard.subtitle,
-            BaseCard.type,
-            CardSet.code,
-            BaseCard.base_card_number,
-        )
-        .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
-        .join(CardSet, BaseCard.set_id == CardSet.id)
-        .filter(tuple_(CardSet.code, BaseCard.base_card_number).in_(pairs))
-        .filter(BaseCard.is_token.is_(tokens))
-        .all()
-    )
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
-    for variant, name, subtitle, base_card_type, set_code, base_card_number in rows:
-        key = (set_code, base_card_number)
-        grouped[key].append((variant, name, subtitle, base_card_type))
+    for chunk in _chunks(pairs):
+        rows = (
+            db.query(
+                CardVariant,
+                BaseCard.name,
+                BaseCard.subtitle,
+                BaseCard.type,
+                CardSet.code,
+                BaseCard.base_card_number,
+            )
+            .join(BaseCard, CardVariant.base_card_id == BaseCard.id)
+            .join(CardSet, BaseCard.set_id == CardSet.id)
+            .filter(tuple_(CardSet.code, BaseCard.base_card_number).in_(chunk))
+            .filter(BaseCard.is_token.is_(tokens))
+            .all()
+        )
+        for variant, name, subtitle, base_card_type, set_code, base_card_number in rows:
+            key = (set_code, base_card_number)
+            grouped[key].append((variant, name, subtitle, base_card_type))
     return grouped
 
 
