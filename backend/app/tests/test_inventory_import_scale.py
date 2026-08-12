@@ -4,9 +4,13 @@ and one statement carrying ~1500+ of them blows the default 2048kB
 max_stack_depth (psycopg2.errors.StatementTooComplex) -- the 2026-08-11
 prod incident: a 1500+-card collection import 500'd on all ten attempts.
 
-Each test here drives a tuple_() repository lookup with 2,600 keys -- well
-past the observed blow-up point -- against the real Postgres CI runs on,
-so an unchunked regression fails loudly. The three seeded matches sit at
+The blow-up point is environment-dependent: prod (Cloud SQL) rejected a
+1,500+-triple file, while the dev-image Postgres survives 5,000 keys and
+rejects 10,000 (measured empirically during the BL-203 fix -- a first
+draft of this test used 2,600 keys and silently passed against the
+UNCHUNKED code). Each test therefore drives its lookup with 20,000 keys,
+comfortably past the local threshold, so an unchunked regression fails
+loudly on the real Postgres CI runs on. The three seeded matches sit at
 the head, middle, and tail of the key list, so they resolve in different
 chunks and prove the per-chunk results merge into one map.
 
@@ -30,7 +34,7 @@ pytestmark = pytest.mark.skipif(
 # fixtures (see test_inventory_import_api.py's collision note -- every test
 # module shares one DB in CI).
 _NUMBERS = ["9721", "9722", "9723"]
-_SCALE = 2_600
+_SCALE = 20_000
 
 
 @pytest.fixture(scope="module", autouse=True)

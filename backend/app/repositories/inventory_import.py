@@ -24,8 +24,11 @@ VariantMatch = tuple[
 # lookup below therefore runs in chunks; scalar .in_() lists (uuids,
 # variant_ids) are flat and don't recurse, so they stay single-query.
 # Chunking bounds statement complexity permanently, unlike raising
-# max_stack_depth, which only moves the ceiling. 500 keeps ~3x headroom
-# below the observed blow-up point.
+# max_stack_depth, which only moves the ceiling. The ceiling is
+# environment-dependent: prod (Cloud SQL) rejected a 1,500+-triple file,
+# while the dev-image Postgres survives 5,000 and rejects 10,000 -- so 500
+# sits ~3x below the smallest count known to crash anywhere and ~20x below
+# the locally measured threshold.
 _TUPLE_IN_CHUNK_SIZE = 500
 
 
