@@ -795,3 +795,50 @@ Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md`
 - **Architecture:** zero backend changes — a deck is a client-built `swu-inv/1` File driven through §17's import engine (`dry_run` → Verify-Cards-idiom confirmation with current→resulting and itemized trims → `commit`, one transaction). Deck data is static and checked in (`frontend/src/data/preconDecks.json`), every row resolved to `swuapi_id` at prep time; `backend/scripts/verify_precon_decks.py` re-proves catalog integrity on every refresh (runbook step). Data provenance: `analysis/Precon_Deck_Lists_Research_2026-07-15.md`, `analysis/IBH_Intro_Deck_Lists_Research_2026-07-24.md`, `analysis/TS26_Reprint_Resolution_2026-07-24.md` (incl. the TS26 reprint-numbering convention and the "C-3P0"/"Orellios" catalog-spelling gotchas). IBH quirk: collector numbers are per-copy print slots — 52 rows × qty 1 per deck, the 104-variant set partitioning exactly into the two decks.
 - **BL-152 (same session):** app-wide SWU button hover animation, owner-designed in Claude Design (option C deep-navy rest `#1e3a8a` + warm edge flare on hover) — CSS-only in `index.css`, `@property`-registered transitions scoped to `.swu-btn`, `aria-disabled` teasers excluded. Owner-validated on dev 2026-07-24.
 - **Status:** shipped to prod 2026-07-24 — built via parallel Sonnet agents (data prep + frontend) under orchestrator review, then revised through two owner dev-review rounds (S2b/S2c, above); PRs #406/#407/#408/#410/#411 + #404 (issue #402 closed).
+
+## 19. Collection Lists & Sharing (BL-204 design — 2026-08-11; sharing + wanted at full resolution, binders directional)
+
+Design converged with the owner across the 2026-08-10/11 feature-exploration and work-planning sessions (field log `Session_Notes_Feature_Exploration_2026-08-10.md`); supersedes BL-188's deferred surplus/needs concept. Execution: BL-205 (sharing, **v1.4**), BL-206 (wanted — deferred from 1.4, pull-forward candidate), BL-207/208/209 (binders core / lent+surplus / list-scope sharing). This section is build-authoritative for BL-205 and BL-206; §19.3 is directional and gets firmed to full resolution before BL-207 starts.
+
+### 19.1 Sharing model (BL-205 — full resolution)
+
+**Product decision (owner):** sharing a collection means handing someone a **secret link**; the viewer sees the owner's **live Vault at full fidelity** — the exact card list, quantities, prices, value, completion — inside the **viewer's own app chrome**. No viewer accounts, ever (1-user-per-tenant stays permanent). No share-time configuration: prices and collection value are always shown (owner ruling 2026-08-11: per-card prices are public catalog data; a total is just arithmetic — there is no value-hiding switch, and the earlier per-share display-toggles concept is **dead**).
+
+- **Share record:** `shares(id, tenant_id, token, scope, name, created_at, revoked_at)`. `token` ≥128-bit URL-safe random, unguessable, the sole credential. `scope` enum `inventory | wanted | list` **from day one** (BL-205 implements only `inventory`; the enum exists so the token table — public-facing — never needs a schema migration). `name` is owner-chosen at creation (≤30 chars, plain text, sanitized): it is the **viewer's header label**, and the only owner identity a viewer ever sees. **Drafter's call for owner review:** at most **one active share per scope target** (one inventory share per tenant; later, one per binder) — rename and token-rotation cover every use case a second concurrent share would; revoke-and-recreate is the rotation gesture. Multiple named links to identical content add management surface without adding capability.
+- **Owner-side management (authed API):** create (with name), rename, rotate token, revoke, list. UI lives in the Vault header area (share affordance) — final placement is a build-time HMR-round call, not a spec constraint.
+- **Viewer-mode principle — owner's data, viewer's chrome:** the shared view renders the Vault content pipeline (catalog + owner quantities + owner keep-limit-derived display math) with **mutation affordances removed** (Add Cards, import/export, card-detail quantity editing) and **owner chrome never in the payload** — the owner's account menu/email, Settings, Updates state, and feedback context are the viewer's own (or the anonymous experience). Anonymous viewers get the existing signup nudges in situ; signed-in viewers keep full use of their own app and flip between their Vault and the share.
+- **Header & session UX (owner-specified):** the share's name appears as a header item alongside `Vault` and `Deck Check` (e.g. `Bobs big vault`). It is **tab-session-scoped** (sessionStorage): it survives navigation, dies with the tab, and reappears whenever the link is opened. **Newest share replaces the previous** (no multi-share list), there is **no saved-shares list** (re-access = the link), **no view tracking** (owner ruling: the owner does not learn who viewed), and the viewer's own-Vault filter/scroll state is **independent** of the shared view's.
+- **Read surface (the security list — complete):** the catalog family (`/api/base-cards`, `/api/sets`, card detail, prices, images) is **already anonymous** (BL-56 / ADR-0008) and unchanged. The new public surface is exactly three token-scoped endpoints: **resolve** (`token → {name, scope, valid}`), **shared quantities** (the owner-tenant rows `/api/inventory/quantities` returns for the owner), and **shared limits** (the display-affecting subset of `/api/settings/limits` the Vault needs for playset/keep-limit rendering). Nothing else. Token-scoped reads resolve the share row, then run the existing repository paths **under the owner-tenant RLS context set explicitly after token validation** — same RLS rails, no bypass, FORCE RLS untouched.
+- **Security posture:** invalid and revoked tokens are indistinguishable (404); per-IP rate limiting on the token-scoped endpoints (reuse the BL-126 limiter pattern); short-lived private cache headers on shared reads (live data, no CDN persistence); revocation is immediate; no token appears in any log line. **This is the platform's first unauthenticated read of tenant data:** BL-205's definition of done includes the security review checkpoint (owner reads the token design before merge) and the CLAUDE.md enforcement-behavior **doc grep sweep** (every "requires auth"/"401"/"all /api" claim re-audited).
+- **Deliberately out (recorded):** QR delivery (owner 2026-08-11 — revisits with mobile, BL-190); view analytics; share persistence for viewers; viewer accounts; snapshot shares (shares are live views, not point-in-time exports).
+
+### 19.2 Wanted list (BL-206 — full resolution, deferred from v1.4)
+
+- **Entity:** `wanted_items(tenant_id, base_card_id, variant_id NULLABLE, quantity_wanted)`. Two first-class want shapes (owner 2026-08-11): **any printing** (`variant_id NULL` — "I need one more for the playset") and **specific variant** (`variant_id` set — "the Prestige one"). Not a state on inventory: wants reference cards the user does not own.
+- **UI:** owner CRUD from catalog/card-detail surfaces ("want this"), a wanted-list view using the shared list-rendering spine; exact affordances are build-time HMR-round territory.
+- **Sharing:** `scope = wanted` on the §19.1 platform — additive, no platform rework (this is why deferral from v1.4 costs nothing technically).
+
+### 19.3 Binders & allocations (BL-207/208/209 — directional; firm before BL-207)
+
+- **One allocation model, type-driven skins (owner):** quantity allocations split a variant's copies across storage and named lists — `N copies: 2 storage, 1 in "Sabine deck", 1 lent`. List types `binder | deck | lent | surplus` are **presentation skins over one schema**, not separate features. **"Binders"** is the product name (owner 2026-08-11).
+- **Deck = skin only in v1** (a named list; no leader/base/50-card rules awareness — future deck-check integration is explicitly out of v1 scope).
+- **Lent = per-loan lists** (counterparty/date, optional free-form note, return flow); track-by-friend accumulation deliberately unsettled.
+- **Surplus = single bucket per tenant** with a Settings **eligibility matrix** (rarity × standard/non-standard variant) governing auto-overflow marking — defaults (owner-confirmed): **Rare/Legendary ON, Common/Uncommon OFF, non-standard variants ON regardless of rarity**; manual add always allowed. Surplus copies are exempt from keep-limit warnings (surplus IS the sanctioned overflow home).
+- **Math rules (owner-ruled, test-bearing):** lent and deck-pulled copies **still count** in collection totals and Deck Check (they're owned); collection totals/value gain an **include/exclude-surplus toggle rendered only when surplus is non-empty**. Touches the 3-scope pricing math — BL-208 carries its own disposition-logged test pass.
+- **List-scope sharing (BL-209):** any binder (including surplus — the "trade binder at the table" payoff) shareable via `scope = list`; same viewer-mode principle, list-scoped instead of whole-vault.
+
+### 19.4 Decisions record
+
+| Decision | Ruling | Owner date |
+|---|---|---|
+| Product name for lists | **Binders** | 2026-08-11 |
+| Share access model | Secret link, no viewer accounts | 2026-08-10 |
+| Collection-share fidelity | Full Vault, viewer-mode; zero config; prices/value always shown | 2026-08-11 |
+| Share identity | Owner-named at creation; name IS the viewer's header label | 2026-08-11 |
+| Share session | Tab lifetime; newest replaces; no saved list; no view tracking | 2026-08-11 |
+| Wanted granularity | Any-printing OR specific-variant, both first-class | 2026-08-11 |
+| Surplus defaults | R/L auto-overflow ON, C/UC OFF, non-standard ON | 2026-08-11 |
+| Deck lists | Skin only in v1 | 2026-08-10 |
+| QR codes | Deferred to mobile scope (BL-190) | 2026-08-11 |
+| Pricing on shared views | No ToS gate — same public per-card prices anonymous users already see | 2026-08-10 |
+| Release framing | v1.4 = BL-205 alone; BL-206 opportunistic pull-forward | 2026-08-11 |
