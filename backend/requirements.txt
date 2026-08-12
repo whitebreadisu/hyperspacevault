@@ -21,7 +21,7 @@ firebase-admin==7.5.0
 # httpx above); adds ~15MB (Pillow) + ~5MB (google-cloud-storage + grpc/
 # protobuf deps) to the image.
 Pillow==12.3.0
-google-cloud-storage==3.13.0
+google-cloud-storage==3.13.1
 # BL-136 P3: tcgcsv's daily price-history archives are 7z containers using
 # the PPMd compression method (`prices-YYYY-MM-DD.ppmd.7z`) -- stdlib
 # `lzma`/`zipfile` cannot read the 7z container format at all, and PPMd
