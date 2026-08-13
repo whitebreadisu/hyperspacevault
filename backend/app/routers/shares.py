@@ -65,9 +65,7 @@ def _owned_active_share(db: Session, share_id: int) -> Share:
     query to the caller's tenant, so a foreign share_id and a nonexistent
     one are indistinguishable, matching the token route's posture."""
     share = (
-        db.query(Share)
-        .filter(Share.id == share_id, Share.revoked_at.is_(None))
-        .first()
+        db.query(Share).filter(Share.id == share_id, Share.revoked_at.is_(None)).first()
     )
     if share is None:
         raise HTTPException(status_code=404, detail="Share not found")
@@ -177,9 +175,7 @@ def resolve_share(
 
 
 @shared_router.get("/{token}/quantities", response_model=list[VariantQuantityResponse])
-def shared_quantities(
-    response: Response, db: Session = Depends(get_shared_db)
-):
+def shared_quantities(response: Response, db: Session = Depends(get_shared_db)):
     """The owner's sparse quantities list -- the same service read the
     owner's own Vault makes, under the share-scoped session."""
     _no_store(response)

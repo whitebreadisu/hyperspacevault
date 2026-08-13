@@ -14,11 +14,11 @@ from app.routers import base_cards as base_cards_router
 from app.routers import catalog as catalog_router
 from app.routers import deck_check as deck_check_router
 from app.routers import feedback as feedback_router
-from app.routers import shares as shares_router
 from app.routers import images as images_router
 from app.routers import inventory as inventory_router
 from app.routers import sets as sets_router
 from app.routers import settings as settings_router
+from app.routers import shares as shares_router
 
 configure_logging()
 

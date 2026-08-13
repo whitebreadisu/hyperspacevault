@@ -93,7 +93,9 @@ def test_list_shows_active_only(client):
 
 def test_rename_and_name_validation(client):
     share = _create_share(client)
-    renamed = client.patch(f"/api/shares/{share['id']}", json={"name": "Bobs big vault"})
+    renamed = client.patch(
+        f"/api/shares/{share['id']}", json={"name": "Bobs big vault"}
+    )
     assert renamed.status_code == 200
     assert renamed.json()["name"] == "Bobs big vault"
     assert renamed.json()["token"] == share["token"]  # rename never rotates
@@ -213,9 +215,7 @@ def test_account_deletion_with_active_share(db, make_client):
 
 def test_shared_reads_are_rate_limited_per_ip(client, anon, monkeypatch):
     share = _create_share(client)
-    monkeypatch.setattr(
-        rate_limit, "check_tenant_rate_limit", lambda *a, **k: 42
-    )
+    monkeypatch.setattr(rate_limit, "check_tenant_rate_limit", lambda *a, **k: 42)
     limited = anon.get(f"/api/shared/{share['token']}")
     assert limited.status_code == 429
     assert limited.headers["retry-after"] == "42"

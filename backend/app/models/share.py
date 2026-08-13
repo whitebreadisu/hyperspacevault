@@ -18,18 +18,14 @@ class Share(Base):
     partial unique index, not here."""
 
     __tablename__ = "shares"
-    __table_args__ = (
-        CheckConstraint("scope IN ('inventory', 'wanted', 'list')"),
-    )
+    __table_args__ = (CheckConstraint("scope IN ('inventory', 'wanted', 'list')"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tenant_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("tenants.id"), nullable=False
     )
     token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    scope: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="inventory"
-    )
+    scope: Mapped[str] = mapped_column(String(16), nullable=False, default="inventory")
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     name: Mapped[str] = mapped_column(String(30), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
