@@ -498,7 +498,7 @@ Derived from the `type` field containing **"Token"** — `Token Unit` (21), `Tok
 - `models/` — SQLAlchemy ORM (`base_card`, `card_variant`, `set_model`, `inventory`, `card_aspect`/`trait`/`keyword`, `tenant`, `user`).
 - `schemas/` — Pydantic request/response models (§12).
 - `ingestion/` — the swuapi pipeline + catalog bootstrap (§13; the inventory-snapshot apply path was retired 2026-07-25, replaced by §17 import/export — BL-93).
-- `auth.py` + `database.py` — `get_db()` wires Firebase token verification and the RLS tenant context onto every request (see `SWU_Platform_Spec.md` §1 — authoritative for auth/tenancy; not duplicated here). `middleware.py` — structured request logging. `main.py` — app entry, startup lifespan (catalog bootstrap only, §13 — the inventory-snapshot apply call was removed 2026-07-25, BL-93), router registration, prod `/docs` gating.
+- `auth.py` + `database.py` — `get_db()` wires Firebase token verification and the RLS tenant context onto every authenticated request (catalog reads run tenant-less via `get_catalog_db`/`get_optional_db`; BL-205 share-token reads scope via `get_shared_db`, §19.1) (see `SWU_Platform_Spec.md` §1 — authoritative for auth/tenancy; not duplicated here). `middleware.py` — structured request logging. `main.py` — app entry, startup lifespan (catalog bootstrap only, §13 — the inventory-snapshot apply call was removed 2026-07-25, BL-93), router registration, prod `/docs` gating.
 - `tests/` — pytest suite mirroring the structure.
 
 **Tech stack** (code-verified versions as of 2026-07-24; full table + local setup in `README.md`):

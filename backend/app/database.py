@@ -192,6 +192,72 @@ def get_catalog_db(request: Request):
         conn.close()
 
 
+def get_shared_db(token: str, request: Request):
+    """FastAPI dependency: a share-token-scoped session for the BL-205
+    viewer-mode reads (App Spec §19.1) -- GET /api/shared/{token}[/...].
+    No Authorization header is required, inspected, or verified: the
+    unguessable token IS the credential.
+
+    Resolution runs entirely on the RLS rails: the session starts
+    tenant-less (same GUC-clearing as _open_catalog_session), sets
+    app.share_token to the presented value, and SELECTs shares -- only the
+    shares_token_select policy (migration 0030) can make a row visible to
+    this session, and it matches nothing for an unknown or revoked token.
+    Invalid and revoked are deliberately indistinguishable (404, §19.1
+    security posture). Only after that lookup succeeds is
+    app.current_tenant_id set to the share's owner tenant, so every
+    downstream repository read (quantities, limits) is scoped exactly as
+    if the owner were reading -- and app.share_token is cleared again so
+    the share row itself stops being visible past resolution.
+
+    Per-IP rate limiting runs BEFORE any DB work (cheap-tier reuse of the
+    BL-53 sliding-window limiter; the key is the client IP, not a tenant
+    -- same per-instance caveats). request.client reflects
+    X-Forwarded-For via uvicorn's proxy-headers middleware, so this keys
+    on the real viewer behind the Firebase Hosting proxy.
+    """
+    from app.rate_limit import check_tenant_rate_limit
+
+    client_ip = request.client.host if request.client else "unknown"
+    retry_after = check_tenant_rate_limit(
+        "shared_read", client_ip, max_calls=300, window_seconds=3600
+    )
+    if retry_after is not None:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    db, conn = _open_catalog_session()
+    try:
+        db.execute(
+            text("SELECT set_config('app.share_token', :token, false)"),
+            {"token": token},
+        )
+        row = db.execute(
+            text("SELECT id, tenant_id, scope, name FROM shares WHERE token = :token"),
+            {"token": token},
+        ).first()
+        db.execute(text("SELECT set_config('app.share_token', '', false)"))
+        if row is None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="Not found")
+        db.execute(
+            text("SELECT set_config('app.current_tenant_id', :tenant_id, false)"),
+            {"tenant_id": str(row.tenant_id)},
+        )
+        request.state.tenant_id = None  # never log a share read as the owner
+        request.state.share = row
+        yield db
+    finally:
+        db.close()
+        conn.close()
+
+
 def get_optional_db(
     request: Request,
     identity: Optional[tuple[str, str, bool]] = Depends(get_optional_identity),

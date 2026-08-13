@@ -96,6 +96,13 @@ def delete_provisioned_identity(db, firebase_uid: str) -> None:
             text("DELETE FROM inventory WHERE tenant_id = :tenant_id"),
             {"tenant_id": tenant_id},
         )
+        # BL-205: shares carries the same no-cascade FK to tenants as
+        # inventory -- a test that created a share for a provisioned
+        # identity would otherwise FK-block the tenants delete below.
+        db.execute(
+            text("DELETE FROM shares WHERE tenant_id = :tenant_id"),
+            {"tenant_id": tenant_id},
+        )
         db.execute(
             text("DELETE FROM tenants WHERE id = :tenant_id"), {"tenant_id": tenant_id}
         )

@@ -71,6 +71,10 @@ def purge_tenant(db: Session) -> None:
         {"tenant_id": tenant_id},
     )
     db.execute(
+        text("DELETE FROM shares WHERE tenant_id = :tenant_id"),
+        {"tenant_id": tenant_id},
+    )
+    db.execute(
         text("DELETE FROM users WHERE tenant_id = :tenant_id"),
         {"tenant_id": tenant_id},
     )

@@ -18,6 +18,7 @@ from app.routers import images as images_router
 from app.routers import inventory as inventory_router
 from app.routers import sets as sets_router
 from app.routers import settings as settings_router
+from app.routers import shares as shares_router
 
 configure_logging()
 
@@ -135,6 +136,8 @@ app.include_router(account_router.router)
 app.include_router(settings_router.router)
 app.include_router(feedback_router.router)
 app.include_router(deck_check_router.router)
+app.include_router(shares_router.router)
+app.include_router(shares_router.shared_router)
 
 
 @app.get("/health")
