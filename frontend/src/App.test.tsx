@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
+import { loadShareSession, saveShareSession } from "./utils/shareSession";
 
 const { mockUseAuth } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
@@ -161,6 +162,27 @@ vi.mock("./screens/deckcheck/DeckCheckPage", () => ({
 // stub above.
 vi.mock("./screens/notes/NewArrivalsPage", () => ({
   NewArrivalsPage: () => <p>new-arrivals-page-stub</p>,
+}));
+
+// BL-205: SharedVaultPage has its own dedicated test file (loading/ready/
+// invalid/rate-limited states, the resolveShare wiring) -- stubbed here so
+// App.test.tsx stays focused on the shell's routing/session/header-tab
+// orchestration. The stub exposes a manual trigger for onResolved so tests
+// can control exactly when "resolution" completes, rather than depending on
+// SharedVaultPage's own async resolveShare timing.
+vi.mock("./screens/shared/SharedVaultPage", () => ({
+  SharedVaultPage: ({
+    token,
+    onResolved,
+  }: {
+    token: string;
+    onResolved: (token: string, name: string) => void;
+  }) => (
+    <div>
+      <p>shared-vault-page:{token}</p>
+      <button onClick={() => onResolved(token, `Name for ${token}`)}>trigger-share-resolved</button>
+    </div>
+  ),
 }));
 
 // BL-184: utils/releaseNotesSeen.ts has its own dedicated unit-test file
@@ -914,5 +936,113 @@ describe("App New Arrivals pane (BL-184)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
+  });
+});
+
+// DISPOSITION (BL-205, CREATE): net-new coverage for the shared-vault
+// pane's App-level orchestration -- URL-driven boot routing (window.location
+// pathname, read once at mount, VerifyEmailAction's own "router-less" idiom),
+// sessionStorage-backed session restore, the "newest replaces the previous"
+// rule, and the header tab's presence/wiring. SharedVaultPage itself is
+// stubbed (see the vi.mock above) -- its own resolve/loading/invalid states
+// have their dedicated test file (SharedVaultPage.test.tsx).
+describe("App shared-vault pane (BL-205)", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    window.history.pushState({}, "", "/");
+  });
+
+  it("renders no shared pane and no header tab when there's no route and no stored session", () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.queryByText(/shared-vault-page:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/trigger-share-resolved/)).not.toBeInTheDocument();
+  });
+
+  it("landing on /shared/{token} mounts the pane and switches to it immediately, before resolution completes", () => {
+    window.history.pushState({}, "", "/shared/tok-1");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("shared-vault-page:tok-1")).toBeVisible();
+    expect(screen.getByText("cards-page:anon")).not.toBeVisible();
+    // Not yet resolved -- no header tab (no name to label it with).
+    expect(screen.queryByRole("button", { name: /name for tok-1/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the header tab with the resolved name once SharedVaultPage reports resolution, and persists the session", () => {
+    window.history.pushState({}, "", "/shared/tok-1");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    fireEvent.click(screen.getByText("trigger-share-resolved"));
+
+    const tab = screen.getByRole("button", { name: "Name for tok-1" });
+    expect(tab).toBeInTheDocument();
+    expect(tab.className).toContain("nav-tab--active");
+    expect(loadShareSession()).toEqual({ token: "tok-1", name: "Name for tok-1" });
+  });
+
+  it("restores a share session from sessionStorage on a fresh mount, with no URL route involved", () => {
+    saveShareSession({ token: "tok-2", name: "Restored share" });
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    // Header tab appears immediately (name already known from storage) --
+    // no resolution needed for the tab itself.
+    expect(screen.getByRole("button", { name: "Restored share" })).toBeInTheDocument();
+    // But the view itself still defaults to Vault, not the shared pane.
+    expect(screen.getByText("cards-page:anon")).toBeVisible();
+  });
+
+  it("landing on a NEW /shared/{token2} URL replaces a previously stored session (newest wins)", () => {
+    saveShareSession({ token: "old-tok", name: "Old share" });
+    window.history.pushState({}, "", "/shared/new-tok");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    // The stale name from the old session is gone -- nothing labeled "Old
+    // share" survives the route-driven reset.
+    expect(screen.queryByRole("button", { name: "Old share" })).not.toBeInTheDocument();
+    expect(screen.getByText("shared-vault-page:new-tok")).toBeVisible();
+
+    fireEvent.click(screen.getByText("trigger-share-resolved"));
+
+    expect(screen.getByRole("button", { name: "Name for new-tok" })).toBeInTheDocument();
+    expect(loadShareSession()).toEqual({ token: "new-tok", name: "Name for new-tok" });
+  });
+
+  it("navigates to the shared pane via its header tab, and back to Vault, keeping the pane mounted (display-toggled)", () => {
+    saveShareSession({ token: "tok-2", name: "Restored share" });
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("cards-page:anon")).toBeVisible();
+    expect(screen.getByText("shared-vault-page:tok-2")).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restored share" }));
+    expect(screen.getByText("shared-vault-page:tok-2")).toBeVisible();
+    expect(screen.getByText("cards-page:anon")).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+    expect(screen.getByText("cards-page:anon")).toBeVisible();
+    // Still mounted, just hidden -- not unmounted (state-preservation, same
+    // shape as every other pane).
+    expect(screen.getByText("shared-vault-page:tok-2")).not.toBeVisible();
+  });
+
+  it("is reachable identically for a signed-in user", () => {
+    saveShareSession({ token: "tok-2", name: "Restored share" });
+    mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Restored share" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restored share" }));
+    expect(screen.getByText("shared-vault-page:tok-2")).toBeVisible();
+    expect(screen.getByText("cards-page:auth")).not.toBeVisible();
   });
 });

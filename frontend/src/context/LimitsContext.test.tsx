@@ -23,6 +23,12 @@ const { getLimits, putLimits } = vi.hoisted(() => ({
 }));
 vi.mock("../api/settingsLimits", () => ({ getLimits, putLimits }));
 
+// BL-205: getSharedLimits is the shareToken branch's fetch -- mocked
+// separately from getLimits above so tests can assert the two never get
+// crossed (shareToken wins outright, isAuthenticated is ignored while set).
+const { getSharedLimits } = vi.hoisted(() => ({ getSharedLimits: vi.fn() }));
+vi.mock("../api/sharedView", () => ({ getSharedLimits }));
+
 function makeCell(overrides: Partial<LimitCell>): LimitCell {
   return {
     type_category: "standard",
@@ -164,5 +170,77 @@ describe("LimitsContext", () => {
 
     expect(putLimits).toHaveBeenCalledWith([], "soft");
     expect(screen.getByText("cap mode: soft")).toBeInTheDocument();
+  });
+});
+
+// BL-205: shareToken serves the shared-vault (owner-tenant) limits instead
+// of the caller's own -- independent of isAuthenticated (see the prop's own
+// doc comment in LimitsContext.tsx).
+describe("LimitsContext shareToken (BL-205)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("fetches shared limits via getSharedLimits when shareToken is set, ignoring isAuthenticated=false", async () => {
+    getSharedLimits.mockResolvedValue(makeBody([makeCell({ max_quantity: 5, is_default: false })]));
+    await act(async () => {
+      render(
+        <LimitsProvider isAuthenticated={false} shareToken="tok-1">
+          <Consumer />
+        </LimitsProvider>
+      );
+    });
+    await waitFor(() => expect(screen.getByText("matrix fetched")).toBeInTheDocument());
+    expect(getSharedLimits).toHaveBeenCalledWith("tok-1");
+    expect(getLimits).not.toHaveBeenCalled();
+    expect(screen.getByText("standard/Standard: 5")).toBeInTheDocument();
+  });
+
+  it("shareToken wins even when isAuthenticated=true -- a signed-in viewer sees the OWNER's limits, not their own", async () => {
+    getSharedLimits.mockResolvedValue(makeBody([makeCell({ max_quantity: 5, is_default: false })]));
+    await act(async () => {
+      render(
+        <LimitsProvider isAuthenticated={true} shareToken="tok-1">
+          <Consumer />
+        </LimitsProvider>
+      );
+    });
+    await waitFor(() => expect(getSharedLimits).toHaveBeenCalledWith("tok-1"));
+    expect(getLimits).not.toHaveBeenCalled();
+  });
+
+  it("degrades to the null matrix and hard cap mode when the shared fetch fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    getSharedLimits.mockRejectedValue(new Error("boom"));
+    await act(async () => {
+      render(
+        <LimitsProvider isAuthenticated={false} shareToken="tok-1">
+          <Consumer />
+        </LimitsProvider>
+      );
+    });
+    expect(screen.getByText("no matrix")).toBeInTheDocument();
+    expect(screen.getByText("cap mode: hard")).toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+
+  it("save() is a no-op while shareToken is set -- viewer mode never mutates limits", async () => {
+    getSharedLimits.mockResolvedValue(makeBody([makeCell({ max_quantity: 5, is_default: false })]));
+    await act(async () => {
+      render(
+        <LimitsProvider isAuthenticated={false} shareToken="tok-1">
+          <Consumer />
+        </LimitsProvider>
+      );
+    });
+    await waitFor(() => expect(screen.getByText("standard/Standard: 5")).toBeInTheDocument());
+
+    await act(async () => {
+      screen.getByRole("button", { name: /save empty/i }).click();
+    });
+
+    expect(putLimits).not.toHaveBeenCalled();
+    // State is untouched -- still the shared-fetched value.
+    expect(screen.getByText("standard/Standard: 5")).toBeInTheDocument();
   });
 });

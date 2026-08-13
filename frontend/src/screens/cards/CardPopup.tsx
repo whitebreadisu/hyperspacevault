@@ -135,6 +135,12 @@ function orderAspects(aspects: string[]): string[] {
 interface Props {
   baseCardId: number;
   isAuthenticated: boolean;
+  /** BL-205: true for a shared-vault viewer -- see
+   * CardPopupInventory's InventoryPlate `readOnly` doc comment for what it
+   * changes (the stepper's -/+ buttons are removed, not disabled). Only
+   * meaningful together with `isAuthenticated=true` (CardsPage's
+   * `hasData`); defaults false so every existing caller renders unchanged. */
+  readOnly?: boolean;
   /** code -> full set name, built from getSets() -- already fetched by
    * CardsPage for VariantsTooltip, reused here rather than re-fetching. */
   setNameByCode: Record<string, string>;
@@ -159,6 +165,7 @@ interface Props {
 export function CardPopup({
   baseCardId,
   isAuthenticated,
+  readOnly = false,
   setNameByCode,
   onClose,
   onChanged,
@@ -636,6 +643,7 @@ export function CardPopup({
                     )}
                     <CardPopupInventoryControls
                       isAuthenticated={isAuthenticated}
+                      readOnly={readOnly}
                       variant={selectedVariant}
                       typeCategory={typeCategory}
                       limits={limits}

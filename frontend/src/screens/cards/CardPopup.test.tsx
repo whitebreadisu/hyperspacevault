@@ -162,6 +162,7 @@ async function renderPopup(
   detail: BaseCardDetail,
   opts: {
     isAuthenticated?: boolean;
+    readOnly?: boolean;
     onClose?: () => void;
     onChanged?: () => void;
     navigation?: CardPopupNavigation;
@@ -176,6 +177,7 @@ async function renderPopup(
       <CardPopup
         baseCardId={detail.id}
         isAuthenticated={opts.isAuthenticated ?? true}
+        readOnly={opts.readOnly}
         setNameByCode={SET_NAMES}
         onClose={onClose}
         onChanged={onChanged}
@@ -872,6 +874,48 @@ describe("CardPopup signed-out (BL-56/BL-111 F5)", () => {
       isAuthenticated: false,
     });
     expect(document.querySelector(".cp-rail__item-qty")).toBeNull();
+  });
+});
+
+// ─── Read-only shared-vault plate (BL-205, CREATE) ────────────────────────
+// A shared-vault viewer is ALWAYS isAuthenticated=true here (CardsPage's
+// `hasData` -- real owner data exists) but readOnly=true removes the
+// stepper's -/+ buttons entirely (not merely disabled) while still showing
+// the real quantity/limit readout -- distinct from BOTH the interactive
+// stepper above (isAuthenticated=true, readOnly=false) and the signed-out
+// nudge (isAuthenticated=false).
+describe("CardPopup read-only shared vault (BL-205, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows the real quantity with no Increment/Decrement buttons, and no signed-out nudge", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 3 })] }), {
+      isAuthenticated: true,
+      readOnly: true,
+    });
+
+    expect(screen.queryByRole("button", { name: /increment/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /decrement/i })).toBeNull();
+    expect(screen.queryByText("Sign in to manage inventory")).toBeNull();
+    expect(screen.getByText("3 / 3")).toBeTruthy();
+  });
+
+  it("still shows the limit fraction and progress bar readout (read-only, not stripped-down)", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 1 })] }), {
+      isAuthenticated: true,
+      readOnly: true,
+    });
+    expect(screen.getByText("1 / 3")).toBeTruthy();
+    expect(document.querySelector(".cp-plate__bar")).toBeTruthy();
+  });
+
+  it("defaults readOnly to false, rendering the interactive stepper unchanged (regression guard)", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 1 })] }), {
+      isAuthenticated: true,
+    });
+    expect(screen.getByRole("button", { name: /increment/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /decrement/i })).toBeTruthy();
   });
 });
 

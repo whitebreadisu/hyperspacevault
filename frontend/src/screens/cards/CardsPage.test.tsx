@@ -64,6 +64,27 @@ vi.mock("../../api/inventory", () => ({
   getQuantities: () => mockGetQuantities(),
 }));
 
+// BL-205: the shared-vault read-only seam -- CardsPage's `shareToken` prop
+// swaps the quantities fetch to this instead of getQuantities above. Kept
+// as its own mock (not folded into the inventory mock) since it's a
+// genuinely different module (api/sharedView.ts).
+const mockGetSharedQuantities = vi.fn();
+vi.mock("../../api/sharedView", () => ({
+  getSharedQuantities: (token: string) => mockGetSharedQuantities(token),
+}));
+
+// BL-205: the owner-side ShareManageModal (opened from the new "Share"
+// button below) calls listShares() on mount -- stubbed to an empty list by
+// default so the modal renders its create-form empty state without an
+// unmocked network call. ShareManageModal has its own dedicated test file
+// for its actual create/rename/rotate/revoke behavior; this file only
+// exercises the button's own routing (aria-disabled/requestSignIn/opens).
+const mockListShares = vi.fn();
+vi.mock("../../api/shares", () => ({
+  listShares: () => mockListShares(),
+}));
+mockListShares.mockResolvedValue([]);
+
 const mockGetBaseCardsList = vi.fn();
 const mockGetBaseCardDetail = vi.fn();
 // BL-140 design-conformance pass: CardPopup's compact history panel is now
@@ -236,6 +257,18 @@ async function renderPage(
         onOpenImportExport={extra.onOpenImportExport}
       />
     );
+  });
+  return utils;
+}
+
+// BL-205: renders CardsPage in read-only shared-vault mode -- isAuthenticated
+// defaults false (the common "anonymous viewer" case §19.1 calls out
+// explicitly), but is overridable for the "signed-in viewer browsing
+// someone else's share" case.
+async function renderShared(shareToken = "tok-1", isAuthenticated = false) {
+  let utils!: ReturnType<typeof render>;
+  await act(async () => {
+    utils = render(<CardsPage isAuthenticated={isAuthenticated} shareToken={shareToken} />);
   });
   return utils;
 }
@@ -1200,6 +1233,44 @@ describe("CardsPage Import / Export button (BL-54 S3, CREATE)", () => {
   });
 });
 
+// CREATE (BL-205): the "Share" button -- same inert-teaser routing as Add
+// Cards (anonymous -> requestSignIn, authenticated -> opens
+// ShareManageModal), rendered for every auth state (unlike Import/Export,
+// not gated on verified email -- see the button's own doc comment in
+// CardsPage.tsx).
+describe("CardsPage Share button (BL-205, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockListShares.mockResolvedValue([]);
+  });
+
+  it("renders aria-disabled for anonymous and routes its click to onRequestSignIn", async () => {
+    mockGetBaseCardsList.mockResolvedValue([]);
+    const onRequestSignIn = vi.fn();
+    await renderPage(false, onRequestSignIn);
+
+    const btn = screen.getByRole("button", { name: "Share" });
+    expect(btn.getAttribute("aria-disabled")).toBe("true");
+
+    fireEvent.click(btn);
+    expect(onRequestSignIn).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: /share your vault/i })).not.toBeInTheDocument();
+  });
+
+  it("is active for an authenticated user and opens the ShareManageModal", async () => {
+    mockGetBaseCardsList.mockResolvedValue([]);
+    await renderPage(true);
+
+    const btn = screen.getByRole("button", { name: "Share" });
+    expect(btn.getAttribute("aria-disabled")).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+    expect(await screen.findByRole("dialog", { name: /share your vault/i })).toBeInTheDocument();
+  });
+});
+
 // CREATE (BL-70): the critical dependency called out in the backlog entry --
 // FilterPanel's facets must be computed over the toggle-narrowed base set
 // (ownedOnly/incompleteOnly folded in), not the raw card list, or "show only
@@ -2015,5 +2086,110 @@ describe("CardsPage external filters feed the rail badge (BL-179 r11, CREATE)", 
     fireEvent.click(container.querySelector(".inv-summary__basesets-clear") as HTMLElement);
     fireEvent.click(screen.getByTitle("Collapse filters"));
     expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("2");
+  });
+});
+
+// CREATE (BL-205): the read-only shared-vault seam -- CardsPage's
+// `shareToken` prop. Covers the data-source swap (getSharedQuantities
+// instead of getQuantities), the `hasData` widening (real numbers + working
+// filters for an anonymous viewer, since the OWNER's data is real), and the
+// `readOnly` mutation-affordance removal (Add Cards/Import Export never
+// render; the popup's quantity stepper loses its -/+ buttons but keeps
+// showing the real quantity) -- independent of the viewer's OWN auth state.
+describe("CardsPage read-only shared vault (BL-205, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+    mockGetBaseCardDetail.mockResolvedValue(makeBaseCardDetail());
+    mockGetSharedQuantities.mockResolvedValue([
+      { variant_id: 1, quantity: 3 },
+      { variant_id: 3, quantity: 1 },
+    ]);
+  });
+
+  it("fetches quantities via getSharedQuantities(token), never getQuantities, for an anonymous viewer", async () => {
+    await renderShared("tok-1", false);
+
+    expect(mockGetSharedQuantities).toHaveBeenCalledWith("tok-1");
+    expect(mockGetQuantities).not.toHaveBeenCalled();
+  });
+
+  it("fetches via getSharedQuantities even when the viewer is themselves signed in -- shareToken wins", async () => {
+    await renderShared("tok-1", true);
+
+    expect(mockGetSharedQuantities).toHaveBeenCalledWith("tok-1");
+    expect(mockGetQuantities).not.toHaveBeenCalled();
+  });
+
+  it("renders the owner's real completion numbers for an anonymous viewer, not the anonymous zero-state", async () => {
+    const { container } = await renderShared("tok-1", false);
+    // Real percentages/counts, not the em-dash anonymous zero-state
+    // InventorySummary otherwise renders for isAuthenticated=false.
+    expect(summaryValues(container)).not.toContain("—");
+  });
+
+  it("does not render Add Cards, Import / Export, or Share at all (removed, not disabled)", async () => {
+    await renderShared("tok-1", false);
+    expect(screen.queryByRole("button", { name: "Add Cards" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Import / Export" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+  });
+
+  it("still does not render Add Cards / Import Export / Share even when the viewer is signed in", async () => {
+    await renderShared("tok-1", true);
+    expect(screen.queryByRole("button", { name: "Add Cards" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Import / Export" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+  });
+
+  it("enables the collection filter toggles for an anonymous viewer (real data exists to filter on)", async () => {
+    await renderShared("tok-1", false);
+
+    const toggle = screen.getByRole("button", { name: /show only cards i own/i });
+    // Raw aria-disabled attribute (not SWUButton's ariaDisabled prop) --
+    // React renders it as a literal "false" string rather than omitting it.
+    expect(toggle.getAttribute("aria-disabled")).toBe("false");
+    expect(toggle.className).not.toContain("pl-toggle--disabled");
+  });
+
+  it("clicking a filter toggle actually filters for an anonymous shared-vault viewer, not a sign-in nudge", async () => {
+    const onRequestSignIn = vi.fn();
+    await act(async () => {
+      render(
+        <CardsPage isAuthenticated={false} shareToken="tok-1" onRequestSignIn={onRequestSignIn} />
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+
+    expect(onRequestSignIn).not.toHaveBeenCalled();
+    // Narrows from 4 cards to the 2 owned (variant_id 1 and 3 above).
+    expect(screen.getByText("SOR Card One")).toBeInTheDocument();
+    expect(screen.queryByText("SOR Card Two")).not.toBeInTheDocument();
+  });
+
+  it("suppresses the anonymous 'Log in to track your collection' nudge for a shared-vault viewer", async () => {
+    await renderShared("tok-1", false);
+    expect(screen.queryByText(/log in to track your collection/i)).not.toBeInTheDocument();
+  });
+
+  it("opens the card popup with the real quantity but no Increment/Decrement stepper buttons", async () => {
+    mockGetBaseCardDetail.mockResolvedValue(
+      makeBaseCardDetail({ variants: [makeVariant({ variant_id: 1, quantity: 3 })] })
+    );
+    await renderShared("tok-1", false);
+
+    fireEvent.click(screen.getByRole("button", { name: "SOR Card One" }));
+    await act(async () => {});
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /increment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /decrement/i })).not.toBeInTheDocument();
+    // The real quantity is still shown, not a "sign in to manage inventory"
+    // nudge -- hasData is true for a shared-vault viewer. Scoped to the
+    // popup's own plate (the table's playset chip also reads "3").
+    expect(screen.queryByText(/sign in to manage inventory/i)).not.toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("3")).toBeInTheDocument();
   });
 });

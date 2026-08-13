@@ -34,6 +34,14 @@ interface InventoryPlateProps {
   pending: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
+  /** BL-205 (§19.1): true for a shared-vault viewer -- renders the same
+   * readout (qty, limit fraction, progress bar, over-limit tag) but with the
+   * -/+ stepper buttons REMOVED rather than merely disabled, matching the
+   * spec's "quantity editing removed" wording. Distinct from the
+   * signed-out nudge above: a read-only viewer sees the OWNER's real
+   * quantity, not a "sign in" prompt. Defaults false so every existing
+   * caller renders the interactive stepper unchanged. */
+  readOnly?: boolean;
 }
 
 /** The selected printing's owned-quantity stepper (design handoff §5's
@@ -63,6 +71,7 @@ function InventoryPlate({
   pending,
   onIncrement,
   onDecrement,
+  readOnly = false,
 }: InventoryPlateProps) {
   const bucket = limitBucketOf(variant.finish, variant.channel);
   const rawLimit = effectiveLimit(limits, typeCategory, bucket);
@@ -84,27 +93,36 @@ function InventoryPlate({
   return (
     <div className="cp-plate">
       <div className="cp-plate__inner">
-        <div className="cp-plate__stepper">
-          <button
-            type="button"
-            className="cp-plate__step cp-plate__step--dec"
-            aria-label={`Decrement ${variantLabel(variant)}`}
-            disabled={decDisabled}
-            onClick={onDecrement}
-          >
-            −
-          </button>
-          <span className="cp-plate__qty">{qty}</span>
-          <button
-            type="button"
-            className="cp-plate__step cp-plate__step--inc"
-            aria-label={`Increment ${variantLabel(variant)}`}
-            disabled={incDisabled}
-            onClick={onIncrement}
-          >
-            +
-          </button>
-        </div>
+        {/* BL-205: readOnly renders the qty by itself -- no -/+ buttons at
+            all (removed, not disabled -- §19.1's "card-detail quantity
+            editing" mutation affordance). */}
+        {readOnly ? (
+          <div className="cp-plate__stepper">
+            <span className="cp-plate__qty">{qty}</span>
+          </div>
+        ) : (
+          <div className="cp-plate__stepper">
+            <button
+              type="button"
+              className="cp-plate__step cp-plate__step--dec"
+              aria-label={`Decrement ${variantLabel(variant)}`}
+              disabled={decDisabled}
+              onClick={onDecrement}
+            >
+              −
+            </button>
+            <span className="cp-plate__qty">{qty}</span>
+            <button
+              type="button"
+              className="cp-plate__step cp-plate__step--inc"
+              aria-label={`Increment ${variantLabel(variant)}`}
+              disabled={incDisabled}
+              onClick={onIncrement}
+            >
+              +
+            </button>
+          </div>
+        )}
         <div className="cp-plate__readout">
           <div className="cp-plate__readout-row">
             <span className="cp-plate__owned-label">OWNED — {label}</span>
@@ -205,6 +223,7 @@ export function useInventoryMutation(
  * pattern), the plate itself being the nudge rather than a separate bounce. */
 export function CardPopupInventoryControls({
   isAuthenticated,
+  readOnly = false,
   variant,
   typeCategory,
   limits,
@@ -215,6 +234,12 @@ export function CardPopupInventoryControls({
   onRequestSignIn,
 }: {
   isAuthenticated: boolean;
+  /** BL-205: forwarded to InventoryPlate -- see its own doc comment. Only
+   * meaningful when `isAuthenticated` is true (a shared-vault viewer always
+   * has `isAuthenticated=true` here, see CardsPage's `hasData` -- readOnly
+   * is what then keeps the stepper from being interactive). Defaults false
+   * so every existing caller renders unchanged. */
+  readOnly?: boolean;
   variant: VariantDetail;
   typeCategory: TypeCategory;
   limits: LimitsMatrix | null;
@@ -250,6 +275,7 @@ export function CardPopupInventoryControls({
       pending={pending}
       onIncrement={onIncrement}
       onDecrement={onDecrement}
+      readOnly={readOnly}
     />
   );
 }

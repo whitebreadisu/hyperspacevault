@@ -13,7 +13,13 @@ import { formatVersionLabel } from "../utils/version";
 // its tab is only ever RENDERED while unread content exists or it's the
 // active view (see the `hasUnread` prop and the nav render branch below) --
 // unlike Vault/Deck Check, which are always present.
-export type AppView = "cards" | "deck-check" | "settings" | "import-export" | "new-arrivals";
+//
+// BL-205: "shared" is the viewer-mode Vault for a shared link -- a peer nav
+// tab like "new-arrivals", rendered only while a share session exists (see
+// the `shareName` prop below), never gated by auth state (§19.1: anonymous
+// viewers get the shared view too).
+export type AppView =
+  "cards" | "deck-check" | "settings" | "import-export" | "new-arrivals" | "shared";
 
 interface Props {
   userEmail: string | null;
@@ -80,6 +86,18 @@ interface Props {
    * rule that keeps the active tab from vanishing the instant it's opened
    * and the unread flag clears. */
   hasUnread?: boolean;
+  /** BL-205 (§19.1): the active share's owner-chosen name -- "the share's
+   * name appears as a header item alongside Vault and Deck Check." App
+   * derives this from sessionStorage (utils/shareSession.ts) rather than
+   * Header reaching into storage itself, the same App-owns-the-state
+   * pattern as `hasUnread` above. The nav item is rendered whenever this is
+   * non-null (mirrors "whenever sessionStorage holds a share" -- App only
+   * sets it once a resolve has actually succeeded, see App.tsx). Optional/
+   * null so every existing call site renders exactly as before (no item). */
+  shareName?: string | null;
+  /** BL-205: switches to the shared-vault pane. Optional, matching
+   * onNavigateDeckCheck's shape. */
+  onNavigateShared?: () => void;
 }
 
 /** BL-56 §5.5: the Catalog/Inventory tab toggle collapsed to a single label
@@ -111,11 +129,18 @@ export function Header({
   hasPasswordProvider,
   onOpenNotes,
   hasUnread = false,
+  shareName = null,
+  onNavigateShared,
 }: Props) {
   // BL-184: the nav item stays visible while unread OR while it's the
   // active view -- the latter half is what keeps it from vanishing the
   // instant App clears the unread flag on open (see App.tsx's onOpenNotes).
   const showNewArrivalsTab = hasUnread || view === "new-arrivals";
+  // BL-205: unlike showNewArrivalsTab above, presence alone (no `|| view
+  // === "shared"` fallback needed) already covers both "away" and "active"
+  // identically -- shareName only clears when the session itself is gone
+  // (App never clears it just because the view navigated elsewhere).
+  const showSharedTab = shareName != null;
 
   return (
     <header className="app-header">
@@ -197,6 +222,18 @@ export function Header({
             >
               Deck Check
             </button>
+            {/* BL-205 (§19.1): the share's OWNER-CHOSEN name IS the label --
+                no generic "Shared with me" text (see the `shareName` prop's
+                own doc comment). */}
+            {showSharedTab && (
+              <button
+                type="button"
+                className={`nav-tab${view === "shared" ? " nav-tab--active" : ""}`}
+                onClick={onNavigateShared}
+              >
+                {shareName}
+              </button>
+            )}
           </>
         )}
       </nav>
