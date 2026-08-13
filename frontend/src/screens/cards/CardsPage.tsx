@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { getBaseCardsList } from "../../api/baseCards";
 import { getQuantities } from "../../api/inventory";
+import { getSharedQuantities } from "../../api/sharedView";
 import { getSets } from "../../api/sets";
 import {
   toInventoryCards,
@@ -16,6 +17,7 @@ import { FilterPanel } from "../../components/FilterPanel";
 import { applyFilters, DEFAULT_FILTERS, isDefaultFilterState } from "../../utils/filters";
 import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
+import { ShareManageModal } from "../shares/ShareManageModal";
 import { deriveRenditions } from "../../utils/cardImages";
 import { orderSetCodes } from "../../utils/catalog";
 import {
@@ -71,6 +73,22 @@ interface Props {
    * nothing else reaches for it. Optional so CardsPage still renders
    * standalone (e.g. this file's own tests) without wiring it. */
   onQuantitiesRefreshReady?: (refresh: () => Promise<void>) => void;
+  /** BL-205 (§19.1): when set, this instance renders the READ-ONLY
+   * viewer-mode Vault for a shared link (SharedVaultPage) instead of the
+   * caller's own -- the seam is exactly the two per-tenant fetches below:
+   * quantities come from GET /api/shared/{token}/quantities (the share's
+   * OWNER-tenant rows) instead of GET /api/inventory/quantities, and every
+   * mutation affordance (Add Cards, Import/Export, the popup's quantity
+   * stepper) is hidden rather than merely disabled. The catalog fetch
+   * (getBaseCardsList/getSets, both already public) is completely
+   * unchanged -- this prop touches nothing upstream of `baseCards`.
+   *
+   * Independent of `isAuthenticated`: a signed-in viewer browsing someone
+   * else's share still can't edit it (see `readOnly`/`hasData` below), and
+   * an anonymous viewer sees the shared vault at full fidelity, not the
+   * empty anonymous zero-state (see `hasData`). Optional so every existing
+   * call site/test (the caller's own Vault) renders exactly as before. */
+  shareToken?: string;
 }
 
 /** Unified Cards view (BL-56 §5.5) -- one list for everyone, inventory data
@@ -95,7 +113,19 @@ export function CardsPage({
   isEmailVerified = true,
   onOpenImportExport,
   onQuantitiesRefreshReady,
+  shareToken,
 }: Props) {
+  // BL-205: `readOnly` gates the genuinely MUTATING affordances (Add Cards,
+  // Import/Export, the popup's quantity stepper) -- these key off
+  // `isAuthenticated && !readOnly`. `hasData` gates everything else that
+  // merely READS quantities (filter toggles, real numbers vs. em-dash,
+  // clickable-to-view cells) -- real per-tenant data exists whenever the
+  // caller is signed into their OWN Vault OR this is a shared read-only
+  // view, so those checks widen from the raw `isAuthenticated` to `hasData`
+  // instead. See the `shareToken` prop's own doc comment for the full
+  // rationale.
+  const readOnly = shareToken != null;
+  const hasData = isAuthenticated || readOnly;
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -115,6 +145,12 @@ export function CardsPage({
   // zero-owned card is trivially an incomplete playset too), just narrower.
   const [noInventoryOnly, setNoInventoryOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // BL-205 (§19.1): owner-side share management modal -- the Vault header's
+  // share affordance. Never rendered in read-only viewer mode (see the
+  // `!readOnly` guard alongside Add Cards/Import Export below); this is the
+  // OWNER's own tools for managing shares OF their Vault, not part of the
+  // viewer-mode Vault at all.
+  const [shareManageModalOpen, setShareManageModalOpen] = useState(false);
   // BL-73 Stage 1: Table <-> Gallery view toggle, owned here (not
   // FilterPanel) since it governs which component below renders `filtered`
   // -- FilterPanel only displays/controls the value (see its ViewMode prop).
@@ -240,6 +276,16 @@ export function CardsPage({
    * mutation (the AddCardsModal/CardInventoryPopup callbacks below) --
    * the split's replacement for the old full-list re-fetch. */
   const refreshQuantities = useCallback(async () => {
+    // BL-205: shareToken wins outright, checked before isAuthenticated --
+    // the shared endpoint returns the share's OWNER-tenant rows regardless
+    // of whether the viewer themselves is signed in.
+    if (readOnly) {
+      const rows = await getSharedQuantities(shareToken!);
+      const map: Record<number, number> = {};
+      for (const r of rows) map[r.variant_id] = r.quantity;
+      setQuantities(map);
+      return;
+    }
     if (!isAuthenticated) {
       setQuantities({});
       return;
@@ -248,7 +294,7 @@ export function CardsPage({
     const map: Record<number, number> = {};
     for (const r of rows) map[r.variant_id] = r.quantity;
     setQuantities(map);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, readOnly, shareToken]);
 
   useEffect(() => {
     // quantitiesLoading gates the initial signed-in render (below) so the
@@ -601,28 +647,32 @@ export function CardsPage({
                 <button
                   type="button"
                   className={`pl-toggle${incompleteOnly ? " pl-toggle--on" : ""}${
-                    isAuthenticated ? "" : " pl-toggle--disabled"
+                    hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
-                    if (isAuthenticated) setIncompleteOnly((v) => !v);
+                    if (hasData) setIncompleteOnly((v) => !v);
                     else requestSignIn();
                   }}
                   aria-pressed={incompleteOnly}
-                  aria-disabled={!isAuthenticated}
+                  aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only incomplete playsets</span>
                 </button>
                 {/* BL-60: my-collection filter, mirrors incompleteOnly above --
                     same pl-toggle markup and requestSignIn routing for
-                    anonymous users (BL-56's inert-teaser mechanism). */}
+                    anonymous users (BL-56's inert-teaser mechanism). BL-205:
+                    gated on `hasData` (not the raw isAuthenticated) so this
+                    toggle works for a read-only shared-vault viewer too --
+                    the owner's real quantities exist to filter on even when
+                    the VIEWER themselves is anonymous. */}
                 <button
                   type="button"
                   className={`pl-toggle${ownedOnly ? " pl-toggle--on" : ""}${
-                    isAuthenticated ? "" : " pl-toggle--disabled"
+                    hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
-                    if (!isAuthenticated) {
+                    if (!hasData) {
                       requestSignIn();
                       return;
                     }
@@ -635,7 +685,7 @@ export function CardsPage({
                     });
                   }}
                   aria-pressed={ownedOnly}
-                  aria-disabled={!isAuthenticated}
+                  aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only cards I own</span>
@@ -648,10 +698,10 @@ export function CardsPage({
                 <button
                   type="button"
                   className={`pl-toggle${noInventoryOnly ? " pl-toggle--on" : ""}${
-                    isAuthenticated ? "" : " pl-toggle--disabled"
+                    hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
-                    if (!isAuthenticated) {
+                    if (!hasData) {
                       requestSignIn();
                       return;
                     }
@@ -665,7 +715,7 @@ export function CardsPage({
                     });
                   }}
                   aria-pressed={noInventoryOnly}
-                  aria-disabled={!isAuthenticated}
+                  aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Only cards with no inventory</span>
@@ -673,10 +723,11 @@ export function CardsPage({
               </div>
               {/* BL-60/BL-56 §5.5: quiet persistent nudge near the toggles for
                   anonymous users -- the passive half of the layered nudge
-                  treatment (the click-to-prompt above is the active half). */}
-              {!isAuthenticated && (
-                <p className="ifp-toggle-nudge">Log in to track your collection</p>
-              )}
+                  treatment (the click-to-prompt above is the active half).
+                  Suppressed for a read-only shared-vault view (`hasData` is
+                  true there too) -- there's nothing to log in FOR on someone
+                  else's Vault. */}
+              {!hasData && <p className="ifp-toggle-nudge">Log in to track your collection</p>}
             </div>
           </FilterPanel>
           <div className="cards-content">
@@ -691,42 +742,67 @@ export function CardsPage({
               isNarrowed={isNarrowed}
               baseSetCodes={baseSetCodes}
               orderedBaseSets={orderedBaseSets}
-              isAuthenticated={isAuthenticated}
+              isAuthenticated={hasData}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             >
-              <SWUButton
-                size="sm"
-                active={isAuthenticated}
-                ariaDisabled={!isAuthenticated}
-                onClick={() => {
-                  if (isAuthenticated) setModalOpen(true);
-                  else requestSignIn();
-                }}
-              >
-                Add Cards
-              </SWUButton>
-              {/* BL-54 S3 (§8.1 P10): same standard SWUButton, immediately
-                  right of Add Cards, rendered for every auth state.
-                  Three-way click routing mirrors the toggles' two-way
-                  routing above, extended with the verified-email gate:
-                  anonymous -> requestSignIn (the AuthModal, same as Add
-                  Cards); signed-in unverified -> the local nudge below
-                  (import-export state stays App-owned and unreachable, see
-                  onOpenImportExport?: undefined-safe call); verified ->
-                  onOpenImportExport (App's activeView switch). */}
-              <SWUButton
-                size="sm"
-                active={isAuthenticated && isEmailVerified}
-                ariaDisabled={!(isAuthenticated && isEmailVerified)}
-                onClick={() => {
-                  if (isAuthenticated && isEmailVerified) onOpenImportExport?.();
-                  else if (!isAuthenticated) requestSignIn();
-                  else setImportExportNudge(true);
-                }}
-              >
-                Import / Export
-              </SWUButton>
+              {/* BL-205 (§19.1): mutation affordances are REMOVED (not just
+                  disabled) in read-only viewer mode -- Add Cards and
+                  Import/Export never render at all for a shared vault. */}
+              {!readOnly && (
+                <>
+                  <SWUButton
+                    size="sm"
+                    active={isAuthenticated}
+                    ariaDisabled={!isAuthenticated}
+                    onClick={() => {
+                      if (isAuthenticated) setModalOpen(true);
+                      else requestSignIn();
+                    }}
+                  >
+                    Add Cards
+                  </SWUButton>
+                  {/* BL-54 S3 (§8.1 P10): same standard SWUButton, immediately
+                      right of Add Cards, rendered for every auth state.
+                      Three-way click routing mirrors the toggles' two-way
+                      routing above, extended with the verified-email gate:
+                      anonymous -> requestSignIn (the AuthModal, same as Add
+                      Cards); signed-in unverified -> the local nudge below
+                      (import-export state stays App-owned and unreachable, see
+                      onOpenImportExport?: undefined-safe call); verified ->
+                      onOpenImportExport (App's activeView switch). */}
+                  <SWUButton
+                    size="sm"
+                    active={isAuthenticated && isEmailVerified}
+                    ariaDisabled={!(isAuthenticated && isEmailVerified)}
+                    onClick={() => {
+                      if (isAuthenticated && isEmailVerified) onOpenImportExport?.();
+                      else if (!isAuthenticated) requestSignIn();
+                      else setImportExportNudge(true);
+                    }}
+                  >
+                    Import / Export
+                  </SWUButton>
+                  {/* BL-205 (§19.1): the Vault header's share affordance --
+                      same inert-teaser routing as Add Cards above (anonymous
+                      -> requestSignIn; signed-in -> opens ShareManageModal).
+                      Unlike Import/Export, sharing isn't gated on verified
+                      email -- §19.1 doesn't call for that gate, and sharing
+                      a Vault carries none of import/export's data-integrity
+                      stakes. */}
+                  <SWUButton
+                    size="sm"
+                    active={isAuthenticated}
+                    ariaDisabled={!isAuthenticated}
+                    onClick={() => {
+                      if (isAuthenticated) setShareManageModalOpen(true);
+                      else requestSignIn();
+                    }}
+                  >
+                    Share
+                  </SWUButton>
+                </>
+              )}
             </InventorySummary>
             {/* BL-54 S3 (§8.1 P9): the "same visual pattern" verify-email
                 nudge -- a quiet inline message revealed by the click above,
@@ -735,12 +811,12 @@ export function CardsPage({
                 VerifyEmailBanner (App.tsx) rather than opening anything of
                 its own, since that banner is already the app's one
                 verify-email affordance. */}
-            {importExportNudge && isAuthenticated && !isEmailVerified && (
+            {!readOnly && importExportNudge && isAuthenticated && !isEmailVerified && (
               <p className="ie-entry-nudge">
                 Verify your email to import or export your collection — see the banner above.
               </p>
             )}
-            {modalOpen && (
+            {!readOnly && modalOpen && (
               <AddCardsModal
                 catalog={addCardsCatalog}
                 onClose={() => setModalOpen(false)}
@@ -754,11 +830,14 @@ export function CardsPage({
                 }}
               />
             )}
+            {!readOnly && shareManageModalOpen && (
+              <ShareManageModal onClose={() => setShareManageModalOpen(false)} />
+            )}
             {viewMode === "table" ? (
               <CardsTable
                 cards={tableCards}
                 setNameByCode={setNameByCode}
-                isAuthenticated={isAuthenticated}
+                isAuthenticated={hasData}
                 onSelectCard={openPopup}
                 onSelectInventory={openPopup}
                 scope={scope}
@@ -773,7 +852,7 @@ export function CardsPage({
                 cards={tableCards}
                 onSelectCard={openPopup}
                 activeFinishes={filters.finish}
-                isAuthenticated={isAuthenticated}
+                isAuthenticated={hasData}
               />
             )}
           </div>
@@ -782,7 +861,13 @@ export function CardsPage({
       {popupBaseCardId != null && (
         <CardPopup
           baseCardId={popupBaseCardId}
-          isAuthenticated={isAuthenticated}
+          isAuthenticated={hasData}
+          readOnly={readOnly}
+          // BL-205 (owner HMR round 1): the detail endpoint answers for the
+          // VIEWER's auth context, so in a shared vault the popup must
+          // display the share owner's quantities -- the same map the table
+          // renders from -- not the response's.
+          quantityOverrides={readOnly ? quantities : undefined}
           setNameByCode={setNameByCode}
           onClose={closePopup}
           onChanged={() => {

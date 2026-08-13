@@ -135,6 +135,22 @@ function orderAspects(aspects: string[]): string[] {
 interface Props {
   baseCardId: number;
   isAuthenticated: boolean;
+  /** BL-205: true for a shared-vault viewer -- see
+   * CardPopupInventory's InventoryPlate `readOnly` doc comment for what it
+   * changes (the stepper's -/+ buttons are removed, not disabled). Only
+   * meaningful together with `isAuthenticated=true` (CardsPage's
+   * `hasData`); defaults false so every existing caller renders unchanged. */
+  readOnly?: boolean;
+  /** BL-205 (owner HMR round 1): per-variant quantities to display INSTEAD
+   * of the detail response's. The detail endpoint (get_optional_db) embeds
+   * quantities for the CALLER's auth context, which in a shared vault is
+   * the wrong tenant twice over -- zeros for an anonymous viewer, and the
+   * viewer's OWN counts for a signed-in one. CardsPage already holds the
+   * share owner's full quantities map (the /api/shared/{token}/quantities
+   * rows the table renders from), so viewer-mode passes it down and the
+   * popup trusts it over the response. Undefined = normal owner/anonymous
+   * behavior, response quantities untouched. */
+  quantityOverrides?: Record<number, number>;
   /** code -> full set name, built from getSets() -- already fetched by
    * CardsPage for VariantsTooltip, reused here rather than re-fetching. */
   setNameByCode: Record<string, string>;
@@ -159,6 +175,8 @@ interface Props {
 export function CardPopup({
   baseCardId,
   isAuthenticated,
+  readOnly = false,
+  quantityOverrides,
   setNameByCode,
   onClose,
   onChanged,
@@ -220,9 +238,17 @@ export function CardPopup({
     getBaseCardDetail(baseCardId)
       .then((data) => {
         if (cancelled) return;
+        const displayVariants = quantityOverrides
+          ? data.variants.map((v) => ({
+              ...v,
+              quantity: quantityOverrides[v.variant_id] ?? 0,
+            }))
+          : data.variants;
         setDetail(data);
-        setVariants(data.variants);
-        setSelectedVariantId(pickInitialVariant(data.variants, initialFinish)?.variant_id ?? null);
+        setVariants(displayVariants);
+        setSelectedVariantId(
+          pickInitialVariant(displayVariants, initialFinish)?.variant_id ?? null
+        );
         setShowBack(false);
         setFlipPhase(null);
         // BL-132 J3: a different base card (and even a different printing of
@@ -249,8 +275,12 @@ export function CardPopup({
     // this never re-fires from a mid-session scope change on its own -- it
     // rides along with the SAME baseCardId-driven re-fetch that already runs
     // on prev/next navigation (BL-148), just resolving against whatever
-    // scope is current at that moment.
-  }, [baseCardId, initialFinish]);
+    // scope is current at that moment. quantityOverrides (BL-205) joins the
+    // deps for the same ride-along reason: a shared vault's quantities map
+    // is fetched once and stable, so this re-fires only if that one fetch
+    // resolves while the popup is already open -- exactly when the stale
+    // zeros SHOULD be replaced.
+  }, [baseCardId, initialFinish, quantityOverrides]);
 
   const close = useCallback(() => {
     if (changed) onChanged?.();
@@ -636,6 +666,7 @@ export function CardPopup({
                     )}
                     <CardPopupInventoryControls
                       isAuthenticated={isAuthenticated}
+                      readOnly={readOnly}
                       variant={selectedVariant}
                       typeCategory={typeCategory}
                       limits={limits}

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { getLimits, putLimits } from "../api/settingsLimits";
 import type { CapMode, LimitCell, LimitOverrideInput } from "../api/settingsLimits";
+import { getSharedLimits } from "../api/sharedView";
 import { toMatrix } from "../utils/limits";
 import type { LimitsMatrix } from "../utils/limits";
 
@@ -55,8 +56,23 @@ const LimitsContext = createContext<LimitsContextValue>(DEFAULT_VALUE);
 interface Props {
   /** Whether a user is signed in -- passed by App from useAuth() rather than
    * read here, keeping this provider mockable/composable the same way
-   * CardsPage receives isAuthenticated as a prop. */
+   * CardsPage receives isAuthenticated as a prop. Ignored when `shareToken`
+   * is set (see that prop's own doc comment). */
   isAuthenticated: boolean;
+  /** BL-205: when set, this provider serves the READ-ONLY shared-vault
+   * limits (GET /api/shared/{token}/limits, the share's OWNER-tenant
+   * matrix) instead of the caller's own tenant limits -- independent of
+   * `isAuthenticated`. A signed-in viewer browsing someone else's share
+   * still sees the OWNER's limits, not their own; an anonymous viewer sees
+   * the same real matrix a signed-in owner would (§19.1: "full fidelity").
+   * `save()` is a no-op while set (mutation is owner-only; SharedVaultPage
+   * never mounts a Settings pane that could call it, this is a defensive
+   * second gate). SharedVaultPage nests a SEPARATE LimitsProvider around
+   * just its own CardsPage subtree with this set -- React context lookup is
+   * nearest-provider-wins, so it shadows the app-wide provider (App.tsx's
+   * LimitsGate) for that subtree only, without either provider needing to
+   * know about the other. */
+  shareToken?: string;
   children: ReactNode;
 }
 
@@ -70,11 +86,25 @@ interface Props {
  * BL-35: the same GET/PUT round trip also carries cap_mode (hard/soft
  * enforcement), so this provider exposes it alongside the matrix rather
  * than needing a second fetch. */
-export function LimitsProvider({ isAuthenticated, children }: Props) {
+export function LimitsProvider({ isAuthenticated, shareToken, children }: Props) {
   const [cells, setCells] = useState<LimitCell[] | null>(null);
   const [capMode, setCapMode] = useState<CapMode>(DEFAULT_CAP_MODE);
 
   const refresh = useCallback(async () => {
+    // BL-205: shareToken wins outright, checked before isAuthenticated --
+    // see this prop's own doc comment for why the two are independent.
+    if (shareToken) {
+      try {
+        const body = await getSharedLimits(shareToken);
+        setCells(body.limits);
+        setCapMode(body.cap_mode);
+      } catch (err) {
+        console.error("Failed to fetch shared vault limits:", err);
+        setCells(null);
+        setCapMode(DEFAULT_CAP_MODE);
+      }
+      return;
+    }
     if (!isAuthenticated) {
       setCells(null);
       setCapMode(DEFAULT_CAP_MODE);
@@ -89,17 +119,25 @@ export function LimitsProvider({ isAuthenticated, children }: Props) {
       setCells(null);
       setCapMode(DEFAULT_CAP_MODE);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, shareToken]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const save = useCallback(async (overrides: LimitOverrideInput[], nextCapMode?: CapMode) => {
-    const body = await putLimits(overrides, nextCapMode);
-    setCells(body.limits);
-    setCapMode(body.cap_mode);
-  }, []);
+  // BL-205: a no-op while shareToken is set -- see this provider's
+  // `shareToken` doc comment for why (defensive second gate; nothing in
+  // viewer mode ever calls save() in practice since no Settings pane is
+  // mounted there).
+  const save = useCallback(
+    async (overrides: LimitOverrideInput[], nextCapMode?: CapMode) => {
+      if (shareToken) return;
+      const body = await putLimits(overrides, nextCapMode);
+      setCells(body.limits);
+      setCapMode(body.cap_mode);
+    },
+    [shareToken]
+  );
 
   const value = useMemo<LimitsContextValue>(
     () => ({

@@ -19,8 +19,11 @@ import { VerifyEmailAction } from "./screens/auth/VerifyEmailAction";
 import { AboutModal } from "./screens/about/AboutModal";
 import { FeedbackModal } from "./screens/feedback/FeedbackModal";
 import { NewArrivalsPage } from "./screens/notes/NewArrivalsPage";
+import { SharedVaultPage } from "./screens/shared/SharedVaultPage";
 import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
+import { loadShareSession, saveShareSession } from "./utils/shareSession";
+import { parseShareRouteToken } from "./utils/shareRoute";
 
 /** BL-56 §5.5: the app no longer gates on auth -- anonymous visitors get the
  * same shell (Header + unified Cards list) as signed-in users. Auth becomes a
@@ -73,6 +76,21 @@ function AppContent() {
   // it everywhere it's consumed (Header's nav-tab cue + version-label cue)
   // in the same render, rather than each consumer re-reading storage itself.
   const [notesUnread, setNotesUnread] = useState(() => hasUnread(RELEASE_NOTES));
+  // BL-205 (§19.1): the tab's current share session -- token + owner-chosen
+  // name, or null. Initialized from sessionStorage (utils/shareSession.ts)
+  // so a share opened earlier in this tab survives a full-app remount
+  // (e.g. a hard refresh while on some other view); the mount effect below
+  // (which reads the CURRENT URL, not this initial state) is what handles
+  // freshly opening a `/shared/{token}` link, including replacing whatever
+  // was already stored ("newest share replaces the previous"). shareName is
+  // split out as its own piece of state (rather than reading
+  // shareSession?.name inline everywhere) only because Header's `shareName`
+  // prop wants a plain string -- shareToken and shareName always change
+  // together, see setShareSession below.
+  const [shareToken, setShareToken] = useState<string | null>(
+    () => loadShareSession()?.token ?? null
+  );
+  const [shareName, setShareName] = useState<string | null>(() => loadShareSession()?.name ?? null);
   const [signupInFlight, setSignupInFlight] = useState(false);
   // BL-118: see AppContent's doc comment above.
   const [googleLinkedInFlight, setGoogleLinkedInFlight] = useState(false);
@@ -135,6 +153,47 @@ function AppContent() {
     if (!user) setActiveView("cards");
   }, [user]);
 
+  // BL-205 (§19.1): "opening a share link always (re)establishes it ...
+  // newest share replaces the previous." Mirrors VerifyEmailAction's
+  // "reads window.location once at boot" idiom (this app is deliberately
+  // router-less) -- UNLIKE that component, this reads a real, bookmarkable
+  // path (not a one-time action code), so the URL is intentionally left
+  // untouched afterward (no history.replaceState): a refresh on
+  // `/shared/{token}` is expected to land back on the shared vault, not
+  // silently strip the route. Declared AFTER the anon-guard effect above so
+  // its `setActiveView("shared")` is the one that wins when both fire in
+  // the same mount flush (the anon-guard's `!user` branch is a no-op for a
+  // resolved signed-in user, so there's no conflict on that path either --
+  // only an already-anonymous boot exercises the ordering at all, and
+  // "shared" is what should win there). Mount-only by design: a share
+  // opened via the header tab later in the session goes through
+  // handleShareResolved/setActiveView directly, not this route parse.
+  useEffect(() => {
+    const routeToken = parseShareRouteToken(window.location.pathname);
+    if (!routeToken) return;
+    setShareToken(routeToken);
+    // Unknown until SharedVaultPage's own resolve completes -- clears any
+    // stale name a PREVIOUS share session left behind, so the header tab
+    // doesn't flash the old name while the new token resolves.
+    setShareName(null);
+    setActiveView("shared");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** BL-205: reported by SharedVaultPage once GET /api/shared/{token}
+   * succeeds -- persists the session (sessionStorage) and hands the name to
+   * Header. Stable identity (empty deps) is required, not just tidy:
+   * SharedVaultPage's own resolve effect depends on this callback, and an
+   * identity that changed every App render would re-trigger that effect
+   * (and re-resolve) on every unrelated App re-render. Takes `token`
+   * explicitly rather than closing over `shareToken` state for the same
+   * reason -- closing over it would pull `shareToken` into this callback's
+   * deps and break the same stability guarantee. */
+  const handleShareResolved = useCallback((resolvedToken: string, name: string) => {
+    setShareName(name);
+    saveShareSession({ token: resolvedToken, name });
+  }, []);
+
   // Successful login updates `user` via onAuthStateChanged; close the modal
   // here rather than in the modal itself, so it closes regardless of *how*
   // auth resolved (this effect is the single source of truth) -- except
@@ -182,6 +241,8 @@ function AppContent() {
         hasPasswordProvider={hasPasswordProvider(user)}
         onOpenNotes={openNotes}
         hasUnread={notesUnread}
+        shareName={shareName}
+        onNavigateShared={() => setActiveView("shared")}
       />
       <VerifyEmailBanner />
       <SectionSeparator />
@@ -214,6 +275,20 @@ function AppContent() {
         <div style={{ display: view === "new-arrivals" ? "contents" : "none" }}>
           <NewArrivalsPage onOpenAbout={() => setAboutModalOpen(true)} />
         </div>
+        {/* BL-205: mounted only once there's a token to show (mirrors the
+            `{user && ...}` gating Settings/ImportExport use below for their
+            own "nothing to mount yet" case), then display-toggled like
+            every other pane above so its OWN filter/scroll state stays
+            independent of CardsPage's own-Vault instance (§19.1) once both
+            have been visited in the same tab. Never gated by `user &&` --
+            reachable anonymous, same as CardsPage/DeckCheckPage/
+            NewArrivalsPage above (§19.1: "anonymous viewers get ... the
+            shared view"). */}
+        {shareToken && (
+          <div style={{ display: view === "shared" ? "contents" : "none" }}>
+            <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
+          </div>
+        )}
         {user && (
           <div style={{ display: view === "settings" ? "contents" : "none" }}>
             {/* BL-129 R5: Delete Account's trigger moved from the avatar

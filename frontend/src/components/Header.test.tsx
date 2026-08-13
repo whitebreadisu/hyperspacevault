@@ -926,3 +926,115 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 });
+
+// DISPOSITION (BL-205, CREATE): net-new coverage for the shared-vault nav
+// tab -- rendered whenever a share session exists (shareName non-null),
+// labeled with the OWNER-CHOSEN name (not a generic label, §19.1), and
+// reachable regardless of auth state (anonymous or signed in).
+describe("Header shared-vault nav (BL-205)", () => {
+  it("does not render the shared tab when shareName is null (no share session)", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole("button", { name: "Bobs big vault" })).not.toBeInTheDocument();
+  });
+
+  it("renders the shared tab labeled with the share's owner-chosen name, alongside Vault/Deck Check", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        shareName="Bobs big vault"
+      />
+    );
+    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
+    expect(screen.getByText("Vault")).toBeInTheDocument();
+    expect(screen.getByText("Deck Check")).toBeInTheDocument();
+    // Never a generic label -- the owner-chosen name IS the label (§19.1).
+    expect(screen.queryByText(/shared with me/i)).not.toBeInTheDocument();
+  });
+
+  it("marks the shared tab active when view is 'shared'", () => {
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        shareName="Bobs big vault"
+        view="shared"
+      />
+    );
+    expect(screen.getByRole("button", { name: "Bobs big vault" }).className).toContain(
+      "nav-tab--active"
+    );
+  });
+
+  it("fires onNavigateShared when clicked", () => {
+    const onNavigateShared = vi.fn();
+    render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        shareName="Bobs big vault"
+        onNavigateShared={onNavigateShared}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Bobs big vault" }));
+    expect(onNavigateShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("is reachable identically for a signed-in user", () => {
+    render(
+      <Header
+        userEmail="a@b.com"
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        shareName="Bobs big vault"
+      />
+    );
+    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
+  });
+
+  it("does not render the shared tab on the settings/import-export shape (same as Deck Check)", () => {
+    render(
+      <Header
+        userEmail="a@b.com"
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        view="settings"
+        shareName="Bobs big vault"
+      />
+    );
+    expect(screen.queryByText("Bobs big vault")).not.toBeInTheDocument();
+  });
+});
