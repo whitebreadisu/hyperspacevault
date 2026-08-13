@@ -40,7 +40,7 @@ At a glance:
 | Frontend | React + Vite | Firebase Hosting (prod + dev); Vite dev server (local) |
 | Backend | FastAPI (Python) | Cloud Run (prod + dev); Docker (local) |
 | Database | PostgreSQL 16 | Cloud SQL (prod + dev); Docker (local) |
-| Auth | Firebase Authentication | Catalog reads are public; vault reads/writes require a Bearer token; every user gets an isolated tenant enforced by Postgres Row-Level Security — see `specification_documents/SWU_Platform_Spec.md` §1 |
+| Auth | Firebase Authentication | Catalog reads are public; vault reads/writes require a Bearer token (except view-only collection shares, which use owner-issued secret links — BL-205); every user gets an isolated tenant enforced by Postgres Row-Level Security — see `specification_documents/SWU_Platform_Spec.md` §1 |
 | Card images | GCS + same-origin serving | Mirrored from the official CDN into a per-env bucket (PNG + WebP renditions), served via `GET /images/cards/{file}` with immutable CDN caching; see `docs/decisions/0012-card-image-self-hosting.md` |
 | Pricing | tcgcsv.com (TCGplayer data) | Daily scheduled sync + multi-year price history; prices always attributed and dated |
 | Infrastructure | GCP + Terraform | One shared module per environment: Cloud Run, Cloud SQL, Artifact Registry, Secret Manager, Cloud DNS, monitoring |

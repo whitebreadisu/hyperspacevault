@@ -14,6 +14,7 @@ from app.routers import base_cards as base_cards_router
 from app.routers import catalog as catalog_router
 from app.routers import deck_check as deck_check_router
 from app.routers import feedback as feedback_router
+from app.routers import shares as shares_router
 from app.routers import images as images_router
 from app.routers import inventory as inventory_router
 from app.routers import sets as sets_router
@@ -135,6 +136,8 @@ app.include_router(account_router.router)
 app.include_router(settings_router.router)
 app.include_router(feedback_router.router)
 app.include_router(deck_check_router.router)
+app.include_router(shares_router.router)
+app.include_router(shares_router.shared_router)
 
 
 @app.get("/health")
