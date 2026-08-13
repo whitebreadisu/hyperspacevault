@@ -863,6 +863,11 @@ export function CardsPage({
           baseCardId={popupBaseCardId}
           isAuthenticated={hasData}
           readOnly={readOnly}
+          // BL-205 (owner HMR round 1): the detail endpoint answers for the
+          // VIEWER's auth context, so in a shared vault the popup must
+          // display the share owner's quantities -- the same map the table
+          // renders from -- not the response's.
+          quantityOverrides={readOnly ? quantities : undefined}
           setNameByCode={setNameByCode}
           onClose={closePopup}
           onChanged={() => {

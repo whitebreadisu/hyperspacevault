@@ -163,6 +163,7 @@ async function renderPopup(
   opts: {
     isAuthenticated?: boolean;
     readOnly?: boolean;
+    quantityOverrides?: Record<number, number>;
     onClose?: () => void;
     onChanged?: () => void;
     navigation?: CardPopupNavigation;
@@ -178,6 +179,7 @@ async function renderPopup(
         baseCardId={detail.id}
         isAuthenticated={opts.isAuthenticated ?? true}
         readOnly={opts.readOnly}
+        quantityOverrides={opts.quantityOverrides}
         setNameByCode={SET_NAMES}
         onClose={onClose}
         onChanged={onChanged}
@@ -916,6 +918,36 @@ describe("CardPopup read-only shared vault (BL-205, CREATE)", () => {
     });
     expect(screen.getByRole("button", { name: /increment/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /decrement/i })).toBeTruthy();
+  });
+
+  // Owner HMR round 1: the detail endpoint answers for the VIEWER's auth
+  // context (zeros for anonymous, the viewer's OWN counts if signed in), so
+  // viewer-mode passes the share owner's quantities map down and the popup
+  // must trust it over the response -- for every variant, including ones
+  // the response claims are owned.
+  it("quantityOverrides replaces the detail response's caller-context quantities", async () => {
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({ variant_id: 1, quantity: 0 }),
+          makeVariant({ variant_id: 2, variant_type: "Hyperspace", quantity: 5 }),
+        ],
+      }),
+      {
+        isAuthenticated: true,
+        readOnly: true,
+        quantityOverrides: { 1: 2 }, // variant 2 absent -> shows 0, not its response 5
+      }
+    );
+    expect(screen.getByText("2 / 3")).toBeTruthy();
+  });
+
+  it("without quantityOverrides the response quantities render unchanged (regression guard)", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 3 })] }), {
+      isAuthenticated: true,
+      readOnly: true,
+    });
+    expect(screen.getByText("3 / 3")).toBeTruthy();
   });
 });
 
