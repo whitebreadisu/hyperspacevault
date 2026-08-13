@@ -16,6 +16,10 @@
           "serviceId": "backend",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/shared/**",
+        "destination": "/index.html"
       }
     ]
   },
