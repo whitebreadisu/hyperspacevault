@@ -33,6 +33,17 @@ on:
           must have completed build-and-push (non-docs-only merge).
         required: true
         type: string
+      # BL-210: the notes gate's escape hatch. A rollback or re-promote of
+      # an already-shipped version carries its original (past) notes date,
+      # which the gate would otherwise reject. Version-match is still
+      # enforced even with this set — only the date check is waived.
+      allow_stale_notes:
+        description: >-
+          Skip the notes-date check (rollbacks / re-promotes of an
+          already-shipped version only).
+        required: false
+        type: boolean
+        default: false
 
 # Serialize promotes against each other. Deliberately NOT the main pipeline's
 # `main-deploy-*` group: joining it could cancel a *queued* main deploy run
@@ -89,6 +100,42 @@ jobs:
       - name: Check out the promoted commit
         run: git checkout --quiet "${{ steps.resolve.outputs.sha }}"
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # BL-210: the release-notes ritual ("every prod promote carries a
+      # finished notes entry, date finalized at promote time") as machinery
+      # instead of memory. Runs at the promoted SHA, so it judges the notes
+      # that would actually ship. Fails the promote BEFORE terraform runs.
+      - name: Release-notes gate (BL-210)
+        env:
+          ALLOW_STALE_NOTES: ${{ inputs.allow_stale_notes }}
+        run: node --experimental-strip-types .github/scripts/release_notes.mjs gate
+
       - uses: ./.github/actions/promote-prod
         with:
           image_tag: ${{ steps.resolve.outputs.sha }}
+
+      # BL-210: the public repo's changelog surface — tag + GitHub Release
+      # carrying the shipped entry rendered to markdown. Never fails the
+      # promote (prod is already live by this point); a failure here shows
+      # amber and gets fixed by re-running the mirror manually.
+      - name: Mirror release notes to a GitHub Release (BL-210)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTED_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          version=$(node -p "require('./frontend/package.json').version.replace(/\.0$/,'')")
+          tag="v${version}"
+          if ! git ls-remote --exit-code origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            git tag -a "${tag}" -m "${tag}" "${PROMOTED_SHA}"
+            git push origin "${tag}"
+          fi
+          node --experimental-strip-types .github/scripts/release_notes.mjs markdown "${version}" > /tmp/release_notes.md
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release edit "${tag}" --title "${tag}" --notes-file /tmp/release_notes.md
+          else
+            gh release create "${tag}" --title "${tag}" --notes-file /tmp/release_notes.md --verify-tag
+          fi
