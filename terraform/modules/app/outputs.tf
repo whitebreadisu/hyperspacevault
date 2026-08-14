@@ -17,8 +17,8 @@ output "firebase_web_app_api_key" {
 }
 
 output "firebase_web_app_auth_domain" {
-  description = "Firebase Web App auth domain, passed to the frontend build as VITE_FIREBASE_AUTH_DOMAIN."
-  value       = data.google_firebase_web_app_config.default.auth_domain
+  description = "Firebase Web App auth domain, passed to the frontend build as VITE_FIREBASE_AUTH_DOMAIN. BL-211: env configs override this to their own Hosting domain so the auth handler is same-origin (see var.auth_domain_override)."
+  value       = var.auth_domain_override != "" ? var.auth_domain_override : data.google_firebase_web_app_config.default.auth_domain
 }
 
 output "card_images_bucket_name" {

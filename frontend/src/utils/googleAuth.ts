@@ -20,10 +20,15 @@ const FRIENDLY_CODES: Record<string, string> = {
 export function describeGoogleAuthError(err: unknown): string | null {
   const code = err instanceof Error ? (err as { code?: string }).code : undefined;
   if (code && SILENT_CODES.has(code)) return null;
-  return (
-    (code && FRIENDLY_CODES[code]) ??
-    "Something went wrong signing in with Google. Please try again."
-  );
+  const friendly = code ? FRIENDLY_CODES[code] : undefined;
+  if (!friendly) {
+    // BL-211: the generic fallback hides which failure actually happened --
+    // during the Safari/ITP diagnosis the underlying code was invisible even
+    // with a live repro in hand. Keep a console record so the next report is
+    // debuggable from the reporter's own DevTools.
+    console.warn("[auth] Google sign-in failed with unmapped error:", code ?? "(no code)", err);
+  }
+  return friendly ?? "Something went wrong signing in with Google. Please try again.";
 }
 
 /** ADR-0016 §3: the recent-auth gate and the Change Password entry point
