@@ -6,7 +6,9 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 // `npm run build` / `vitest run` working in CI with no .env file present.
 // Real values for the deployed app are injected as VITE_FIREBASE_* env vars
 // by ci.yml's frontend-deploy job (P5 stage 4 prerequisite), sourced from
-// terraform/environments/prod's google_firebase_web_app_config.
+// terraform outputs. authDomain is each env's own Hosting domain, NOT the
+// default <project>.firebaseapp.com (BL-211: the auth handler must be
+// same-origin or Safari's storage partitioning breaks Google sign-in).
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-swu.firebaseapp.com",

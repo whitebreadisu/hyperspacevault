@@ -51,6 +51,23 @@ variable "environment_name" {
   default     = "production"
 }
 
+variable "auth_domain_override" {
+  description = <<-EOT
+    BL-211: when set, replaces the Firebase Web App config's default authDomain
+    (<project>.firebaseapp.com) in the firebase_web_app_auth_domain output with
+    the environment's own Firebase Hosting domain, making the /__/auth/* handler
+    same-origin with the served app. Safari's ITP partitions third-party iframe
+    storage per device, so a cross-origin auth handler breaks Google sign-in
+    gradually, device by device. Each env passes its canonical Hosting domain;
+    the domain's /__/auth/handler must be reachable (Hosting serves the reserved
+    /__/* namespace on every connected domain) and the OAuth web client must
+    list https://<domain>/__/auth/handler as an authorized redirect URI
+    (console-only edit — no public API).
+  EOT
+  type        = string
+  default     = ""
+}
+
 variable "notification_email" {
   description = "Email address for the Cloud Monitoring alert notification channel."
   type        = string

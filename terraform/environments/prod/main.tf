@@ -42,6 +42,10 @@ module "app" {
   notification_email                = var.notification_email
   notification_channel_display_name = "Jeremy (primary)"
   max_instance_count                = 3 # RR-2: bounds worst-case cost of anonymous-endpoint abuse
+  # BL-211: prod's canonical Hosting domain (BL-127) -- serves /__/auth/* same-
+  # origin so Safari's third-party-storage partitioning can't break Google
+  # sign-in. Takes effect at the next promote's frontend build, not on merge.
+  auth_domain_override = "www.hyperspacevault.com"
   # deletion_protection and environment_name use module defaults (true,
   # "production"), which match the prod configuration.
 

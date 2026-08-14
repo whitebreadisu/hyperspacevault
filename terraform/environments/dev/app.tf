@@ -15,6 +15,10 @@ module "app" {
   notification_email                = var.notification_email
   notification_channel_display_name = "Jeremy (dev)"
 
+  # BL-211: dev's canonical Hosting domain -- serves /__/auth/* same-origin so
+  # Safari's third-party-storage partitioning can't break Google sign-in.
+  auth_domain_override = "swu-dev-jbapps.web.app"
+
   # Module contains firebase.tf and identity_platform.tf resources that require
   # google-beta; pass both providers explicitly so Terraform can route correctly.
   providers = {
