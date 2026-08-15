@@ -92,3 +92,31 @@ export async function decrementCard(variantId: number): Promise<DecrementResult>
   await throwIfMutationFailed(res, "Decrement", variantId);
   return res.json();
 }
+
+// BL-219 (issue #127): the stepper's debounced-batch endpoint -- one call
+// per accumulated burst of clicks instead of one increment/decrement round
+// trip per click (see CardPopupInventory.tsx's useInventoryMutation).
+// increment/decrement above are unchanged, untouched contracts.
+export interface AdjustResult {
+  variant_id: number;
+  quantity: number;
+  // The delta actually committed -- may be smaller in magnitude than
+  // `requested` (same sign) when clamped by the effective limit (hard mode)
+  // or the 999 ceiling.
+  applied: number;
+  requested: number;
+  blocked: boolean;
+  reason: string | null;
+  over_limit: boolean;
+  playset_complete: boolean;
+}
+
+export async function adjustCard(variantId: number, delta: number): Promise<AdjustResult> {
+  const res = await authedFetch(`/api/inventory/${variantId}/adjust`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ delta }),
+  });
+  await throwIfMutationFailed(res, "Adjust", variantId);
+  return res.json();
+}

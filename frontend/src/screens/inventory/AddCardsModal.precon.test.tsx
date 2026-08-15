@@ -91,13 +91,15 @@ vi.mock("../../api/sets", () => ({
 // EmailNotVerifiedError is the manual flow's own error class -- AddCardsModal
 // still imports it even when these tests never exercise the manual commit
 // path, so it needs a real (non-throwing-on-import) mock alongside
-// incrementCard, mirroring AddCardsModal.test.tsx's own setup.
-const { mockIncrementCard, EmailNotVerifiedError } = vi.hoisted(() => {
+// adjustCard (BL-219: renamed from incrementCard -- AddCardsModal's manual
+// commit loop now calls the batched adjust endpoint instead), mirroring
+// AddCardsModal.test.tsx's own setup.
+const { mockAdjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
   class EmailNotVerifiedError extends Error {}
-  return { mockIncrementCard: vi.fn(), EmailNotVerifiedError };
+  return { mockAdjustCard: vi.fn(), EmailNotVerifiedError };
 });
 vi.mock("../../api/inventory", () => ({
-  incrementCard: mockIncrementCard,
+  adjustCard: mockAdjustCard,
   EmailNotVerifiedError,
 }));
 

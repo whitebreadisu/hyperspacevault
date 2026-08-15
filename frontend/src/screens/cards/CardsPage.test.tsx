@@ -55,13 +55,24 @@ vi.mock("../../api/sets", () => ({
   ]),
 }));
 
-const mockIncrementCard = vi.fn();
-const mockDecrementCard = vi.fn();
+// BL-219 (issue #127): incrementCard/decrementCard mocks REPLACED by
+// adjustCard -- CardPopupInventory's useInventoryMutation now drives the
+// batched adjust endpoint exclusively (see CardPopup.test.tsx's own BL-219
+// coverage for the debounce/accumulation mechanics themselves; this file's
+// popup-wiring test below only needs the flush-on-close/EmailNotVerifiedError
+// surface to exist on the mock so CardPopupInventory's module-level
+// references resolve). EmailNotVerifiedError is under vi.hoisted (not a
+// plain top-level class) since vi.mock factories are hoisted above regular
+// statements -- same idiom CardPopup.test.tsx/AddCardsModal.test.tsx use.
+const { mockAdjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
+  class EmailNotVerifiedError extends Error {}
+  return { mockAdjustCard: vi.fn(), EmailNotVerifiedError };
+});
 const mockGetQuantities = vi.fn();
 vi.mock("../../api/inventory", () => ({
-  incrementCard: (variantId: number) => mockIncrementCard(variantId),
-  decrementCard: (variantId: number) => mockDecrementCard(variantId),
+  adjustCard: (variantId: number, delta: number) => mockAdjustCard(variantId, delta),
   getQuantities: () => mockGetQuantities(),
+  EmailNotVerifiedError,
 }));
 
 // BL-205: the shared-vault read-only seam -- CardsPage's `shareToken` prop
@@ -940,12 +951,15 @@ describe("CardsPage popup wiring", () => {
         variants: [makeVariant({ variant_id: 1, quantity: 0 })],
       })
     );
-    mockIncrementCard.mockResolvedValue({
+    mockAdjustCard.mockResolvedValue({
       variant_id: 1,
       quantity: 1,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
+      over_limit: false,
     });
 
     await renderPage();
@@ -957,6 +971,11 @@ describe("CardsPage popup wiring", () => {
     await act(async () => {});
 
     // Simulate the popup incrementing a variant (changed=true), then closing.
+    // BL-219: the click itself is now only an optimistic local accumulation
+    // (no network call yet) -- closing the popup right after is what forces
+    // the pending delta to flush immediately (useInventoryMutation's
+    // flush-on-unmount), so `changed` still ends up true by the time
+    // CardsPage reacts to the close.
     const incButton = screen.getByRole("button", { name: /increment/i });
     fireEvent.click(incButton);
     await act(async () => {});
@@ -964,6 +983,7 @@ describe("CardsPage popup wiring", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await act(async () => {});
 
+    expect(mockAdjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
     expect(mockGetQuantities).toHaveBeenCalledTimes(2);
     expect(mockGetBaseCardsList).toHaveBeenCalledTimes(1);
   });

@@ -750,3 +750,343 @@ class TestSoftCapMode:
         assert body["reason"] == "trade_sell"
         assert body["over_limit"] is False
         assert body["quantity"] == 3
+
+
+class TestAdjustDelta:
+    """BL-219 (issue #127): POST /api/inventory/{id}/adjust -- the stepper's
+    debounced-batch endpoint. Reuses bl24_tenant's isolated tenant/catalog so
+    these scenarios can freely drive cap_mode and limit overrides without
+    disturbing test_inventory_api.py's shared-tenant assumptions, same
+    posture as the rest of this file. increment_card/decrement_card
+    themselves are untouched -- see test_inventory_api.py, still green."""
+
+    def test_hard_mode_partial_apply(self, db, bl24_tenant):
+        """standard/Standard default limit 3: starting at 1, requesting +5
+        only has room for 2 -- applied=2, quantity lands at the limit (3),
+        not blocked (something committed), reason still names the cause."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        client.post(f"/api/inventory/{variant_id}/increment")  # -> quantity 1
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 5})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["requested"] == 5
+        assert body["applied"] == 2
+        assert body["quantity"] == 3
+        assert body["blocked"] is False
+        assert body["reason"] == "trade_sell"
+        assert body["over_limit"] is False
+
+    def test_hard_mode_zero_apply_at_cap(self, db, bl24_tenant):
+        """Already sitting at the effective limit (3): a +N adjust applies
+        nothing, mirroring increment_card's existing at-limit block."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        for _ in range(3):
+            client.post(f"/api/inventory/{variant_id}/increment")
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 4})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["applied"] == 0
+        assert body["quantity"] == 3
+        assert body["blocked"] is True
+        assert body["reason"] == "trade_sell"
+        assert body["over_limit"] is False
+        assert body["playset_complete"] is False
+
+    def test_soft_mode_full_apply_and_over_limit_flag(self, db, bl24_tenant):
+        """Soft mode never clamps to the effective limit -- a +5 from
+        quantity 3 (== the limit) applies in full and flags over_limit."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0006")
+        client.put("/api/settings/limits", json={"limits": [], "cap_mode": "soft"})
+        for _ in range(3):
+            client.post(f"/api/inventory/{variant_id}/increment")
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 5})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["requested"] == 5
+        assert body["applied"] == 5
+        assert body["quantity"] == 8
+        assert body["blocked"] is False
+        assert body["reason"] is None
+        assert body["over_limit"] is True
+
+    def test_lowered_limit_stranding_hard_mode_blocks(self, db, bl24_tenant):
+        """Standard/Hyperspace raised to 5, quantity built up to 5, then the
+        override is lowered back to 3 -- hard mode: the strand is a full
+        block (applied=0), same as any other at/over-limit increment."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "bl24-v0001")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Hyperspace",
+                        "max_quantity": 5,
+                    }
+                ]
+            },
+        )
+        for _ in range(5):
+            client.post(f"/api/inventory/{variant_id}/increment")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Hyperspace",
+                        "max_quantity": 3,
+                    }
+                ]
+            },
+        )
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 1})
+        body = resp.json()
+        assert body["applied"] == 0
+        assert body["quantity"] == 5
+        assert body["blocked"] is True
+        assert body["reason"] == "trade_sell"
+
+    def test_lowered_limit_stranding_soft_mode_applies_and_flags(self, db, bl24_tenant):
+        """Same strand, but soft mode: the adjust still applies in full and
+        stays flagged over_limit far past the boundary, not just at it."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "bl24-v0001")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Hyperspace",
+                        "max_quantity": 5,
+                    }
+                ],
+                "cap_mode": "soft",
+            },
+        )
+        for _ in range(5):
+            client.post(f"/api/inventory/{variant_id}/increment")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Hyperspace",
+                        "max_quantity": 3,
+                    }
+                ],
+                "cap_mode": "soft",
+            },
+        )
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 2})
+        body = resp.json()
+        assert body["applied"] == 2
+        assert body["quantity"] == 7
+        assert body["blocked"] is False
+        assert body["over_limit"] is True
+
+    def test_ceiling_clamp_partial_apply(self, db, bl24_tenant):
+        """The 999 ceiling always wins, even against an explicit "no limit"
+        override -- a request that would cross it applies only up to 999,
+        not blocked (something committed), reason names the ceiling."""
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Standard",
+                        "max_quantity": None,
+                    }
+                ]
+            },
+        )
+        _set_quantity(db, tenant_id, variant_id, QUANTITY_CEILING - 2)
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 10})
+        body = resp.json()
+        assert body["applied"] == 2
+        assert body["quantity"] == QUANTITY_CEILING
+        assert body["blocked"] is False
+        assert body["reason"] == "ceiling"
+
+    def test_ceiling_full_block(self, db, bl24_tenant):
+        """Already AT the ceiling -- fully blocked, mirrors TestCeiling's
+        single-increment version exactly."""
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Standard",
+                        "max_quantity": None,
+                    }
+                ]
+            },
+        )
+        _set_quantity(db, tenant_id, variant_id, QUANTITY_CEILING)
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 3})
+        body = resp.json()
+        assert body["applied"] == 0
+        assert body["quantity"] == QUANTITY_CEILING
+        assert body["blocked"] is True
+        assert body["reason"] == "ceiling"
+
+    def test_floor_clamp_on_negative_delta(self, db, bl24_tenant):
+        """A negative delta always applies down to the floor (0), never
+        blocks -- requesting -5 from quantity 2 lands at 0, applied=-2."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        client.post(f"/api/inventory/{variant_id}/increment")
+        client.post(f"/api/inventory/{variant_id}/increment")
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": -5})
+        body = resp.json()
+        assert body["requested"] == -5
+        assert body["applied"] == -2
+        assert body["quantity"] == 0
+        assert body["blocked"] is False
+        assert body["reason"] is None
+
+    def test_no_limit_bucket_only_floor_and_ceiling_apply(self, db, bl24_tenant):
+        """standard/Retail overridden to null: a large positive delta
+        applies in full, never blocks, never flags over_limit -- there is
+        no boundary to be over."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0005")  # Foil -> bucket Retail
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Retail",
+                        "max_quantity": None,
+                    }
+                ]
+            },
+        )
+
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 20})
+        body = resp.json()
+        assert body["applied"] == 20
+        assert body["quantity"] == 20
+        assert body["blocked"] is False
+        assert body["reason"] is None
+        assert body["over_limit"] is False
+
+    def test_delta_zero_rejected_422(self, db, bl24_tenant):
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 0})
+        assert resp.status_code == 422
+
+    def test_delta_out_of_range_rejected_422(self, db, bl24_tenant):
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        resp = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 1000})
+        assert resp.status_code == 422
+        resp2 = client.post(
+            f"/api/inventory/{variant_id}/adjust", json={"delta": -1000}
+        )
+        assert resp2.status_code == 422
+
+    def test_playset_complete_crossing_at_three(self, db, bl24_tenant):
+        """+1 from quantity 2 (a solo variant, so its own quantity is the
+        base card's total) crosses to 3 and reports playset_complete;
+        neither the step before nor after does. Limit raised to 5 first so
+        the "past 3" step isn't itself blocked by the default hard cap of
+        3 -- this test is about the completion threshold, not the cap."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Standard",
+                        "max_quantity": 5,
+                    }
+                ]
+            },
+        )
+        client.post(f"/api/inventory/{variant_id}/increment")
+        client.post(f"/api/inventory/{variant_id}/increment")
+
+        at_two = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": -1})
+        assert at_two.json()["quantity"] == 1
+        assert at_two.json()["playset_complete"] is False
+
+        crossing = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 2})
+        assert crossing.json()["quantity"] == 3
+        assert crossing.json()["playset_complete"] is True
+
+        past = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 1})
+        assert past.json()["quantity"] == 4
+        assert past.json()["playset_complete"] is False
+
+    def test_singleton_playset_complete_on_first_copy_only(self, db, bl24_tenant):
+        """test-v0001 is a Leader (singleton, default cap 1) -- an adjust
+        from 0 reports playset_complete regardless of the delta's size (a
+        raised override lets it land above 1 in one call); a later adjust
+        that doesn't start from 0 never does."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0001")
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "singleton",
+                        "limit_bucket": "Standard",
+                        "max_quantity": 3,
+                    }
+                ]
+            },
+        )
+
+        first = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 2})
+        assert first.json()["quantity"] == 2
+        assert first.json()["applied"] == 2
+        assert first.json()["playset_complete"] is True
+
+        second = client.post(f"/api/inventory/{variant_id}/adjust", json={"delta": 1})
+        assert second.json()["quantity"] == 3
+        assert second.json()["playset_complete"] is False
+
+    def test_unknown_variant_returns_404(self, bl24_tenant):
+        client, _ = bl24_tenant
+        resp = client.post("/api/inventory/99999999/adjust", json={"delta": 1})
+        assert resp.status_code == 404
+
+    def test_requires_verified_email(self, db):
+        """Same gate as increment/decrement (require_verified_email) --
+        smoke-checked here via a plain unauthenticated client, mirroring
+        TestSettingsEndpoints.test_get_requires_auth's shape."""
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        variant_id = _variant_id(db, "test-v0003")
+        response = TestClient(app).post(
+            f"/api/inventory/{variant_id}/adjust", json={"delta": 1}
+        )
+        assert response.status_code == 401

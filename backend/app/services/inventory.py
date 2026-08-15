@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.ingestion.swuapi_classify import classify_variant, limit_bucket
 from app.repositories import inventory as inventory_repo
 from app.schemas.inventory_schema import (
+    AdjustResponse,
     DecrementResponse,
     IncrementResponse,
     VariantQuantityResponse,
@@ -181,3 +182,141 @@ def decrement_card(db: Session, variant_id: int) -> DecrementResponse | None:
 
     inv = inventory_repo.upsert_decrement(db, variant_id)
     return DecrementResponse(variant_id=variant_id, quantity=inv.quantity)
+
+
+def _resolve_adjust(
+    current_qty: int, delta: int, max_quantity: int | None, cap_mode: str
+) -> tuple[int, int, bool, str | None, bool]:
+    """BL-219: the pure decision core behind adjust_card -- given the
+    variant's pre-adjust quantity, the requested signed delta, its
+    effective limit (None = unlimited), and the tenant's cap_mode, returns
+    (new_quantity, applied, blocked, reason, over_limit). Generalizes
+    increment_card/decrement_card's existing per-call semantics from a
+    fixed +-1 to an arbitrary signed magnitude, resolving the limit/cap_mode
+    exactly ONCE per call (both callers below already fetched them once):
+
+      - negative delta: always applies down to the floor (0), never blocks
+        (same as decrement_card). over_limit is still reported (gated on
+        cap_mode == soft, matching over_limit's existing "only possible in
+        soft mode" invariant -- see IncrementResponse.over_limit) so a
+        decrement off a stranded/lowered-limit quantity reports the
+        resulting state the same way an increment would.
+      - positive delta: the 999 ceiling always wins first (BL-24 step 1,
+        unconditional in both cap modes -- QUANTITY_CEILING module
+        constant). Then, in hard mode with a real (non-None) limit, a
+        variant already at/over that limit is fully blocked (0 applied,
+        reason "trade_sell") exactly like increment_card's existing block.
+        Otherwise the delta is clamped to whichever cap actually binds (the
+        effective limit in hard mode, the 999 ceiling in soft/no-limit
+        mode) -- which can mean a PARTIAL apply (more was requested than
+        there was room for) rather than a full block. `reason` is populated
+        whenever the requested delta was truncated by either cause,
+        independent of whether that leaves `blocked` True -- `blocked`
+        itself stays reserved for the "nothing applied" case, unchanged
+        from its existing meaning.
+    """
+    if delta < 0:
+        new_qty = max(current_qty + delta, 0)
+        applied = new_qty - current_qty
+        over_limit = (
+            cap_mode == CAP_MODE_SOFT
+            and max_quantity is not None
+            and new_qty > max_quantity
+        )
+        return new_qty, applied, False, None, over_limit
+
+    # delta > 0 from here -- the 999 ceiling always wins first, in either
+    # cap_mode (BL-24 step 1, ported verbatim from increment_card).
+    if current_qty >= QUANTITY_CEILING:
+        return current_qty, 0, True, "ceiling", False
+
+    hard_capped = cap_mode != CAP_MODE_SOFT and max_quantity is not None
+    if hard_capped and current_qty >= max_quantity:
+        return current_qty, 0, True, "trade_sell", False
+
+    cap, cap_reason = (
+        (max_quantity, "trade_sell") if hard_capped else (QUANTITY_CEILING, "ceiling")
+    )
+    raw_target = current_qty + delta
+    new_qty = min(raw_target, cap)
+    applied = new_qty - current_qty
+    reason = cap_reason if new_qty < raw_target else None
+    over_limit = (
+        cap_mode == CAP_MODE_SOFT
+        and max_quantity is not None
+        and new_qty > max_quantity
+    )
+    return new_qty, applied, False, reason, over_limit
+
+
+def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | None:
+    """BL-219 (issue #127): the stepper's debounced-batch endpoint -- applies
+    one signed `delta` (the frontend's net of however many clicks landed
+    inside its 400ms debounce window) in place of `delta` separate
+    increment/decrement round trips. Resolves the effective limit/cap_mode
+    ONCE (mirrors increment_card's single extra query on the common path),
+    then delegates the clamping decision to _resolve_adjust above.
+    `playset_complete` is computed exactly as increment_card/decrement_card
+    already do -- singleton: "first copy acquired" (current_qty was 0);
+    standard: the base-card total (summed BEFORE this write, then offset by
+    `applied`) crossing to exactly COMPLETION_PLAYSET_SIZE."""
+    variant = inventory_repo.get_variant_with_inventory(db, variant_id)
+    if variant is None:
+        return None
+
+    current_qty = variant.inventory.quantity if variant.inventory else 0
+    category = type_category(variant.base_card.type)
+    bucket = limit_bucket(variant.variant_type, variant.source_set_code)
+    max_quantity = effective_limit(db, category, bucket)
+    cap_mode = effective_cap_mode(db)
+
+    new_qty, applied, blocked, reason, over_limit = _resolve_adjust(
+        current_qty, delta, max_quantity, cap_mode
+    )
+
+    # applied == 0 means nothing changes -- a blocked positive delta
+    # (mirrors increment_card's own early return with no DB write at all),
+    # or a negative delta that was already at the floor (a harmless no-op
+    # decrement_card itself still writes unconditionally, but skipping it
+    # here produces the identical stored quantity with one fewer statement).
+    # Nothing can have crossed COMPLETION_PLAYSET_SIZE with no quantity
+    # change, so playset_complete is unconditionally False here too --
+    # same as increment_card's blocked responses never setting it.
+    if applied == 0:
+        return AdjustResponse(
+            variant_id=variant_id,
+            quantity=current_qty,
+            applied=0,
+            requested=delta,
+            blocked=blocked,
+            reason=reason,
+            over_limit=over_limit,
+            playset_complete=False,
+        )
+
+    if category == TYPE_CATEGORY_SINGLETON:
+        # applied > 0 guaranteed here (the applied == 0 case already
+        # returned above), so this is exactly increment_card's "first copy
+        # acquired" check, generalized to whatever `applied` turned out to
+        # be for this call.
+        playset_complete = current_qty == 0
+        inv = inventory_repo.upsert_adjust(db, variant_id, applied)
+    else:
+        # BL-24 (ported): current_total is read BEFORE the write below, same
+        # ordering increment_card already relies on, so it reflects this
+        # variant's PRE-adjust contribution to the base card's total.
+        current_total = inventory_repo.get_base_card_total(db, variant.base_card_id)
+        inv = inventory_repo.upsert_adjust(db, variant_id, applied)
+        new_total = current_total + applied
+        playset_complete = new_total == COMPLETION_PLAYSET_SIZE
+
+    return AdjustResponse(
+        variant_id=variant_id,
+        quantity=inv.quantity,
+        applied=applied,
+        requested=delta,
+        blocked=blocked,
+        reason=reason,
+        over_limit=over_limit,
+        playset_complete=playset_complete,
+    )
