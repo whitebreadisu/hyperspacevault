@@ -14,6 +14,8 @@ import { CardsTable } from "./CardsTable";
 import { GalleryGrid } from "./GalleryGrid";
 import { CardPopup } from "./CardPopup";
 import { FilterPanel } from "../../components/FilterPanel";
+import { useLimits } from "../../context/LimitsContext";
+import { cardOverCap } from "../../utils/limits";
 import { applyFilters, DEFAULT_FILTERS, isDefaultFilterState } from "../../utils/filters";
 import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
@@ -126,6 +128,12 @@ export function CardsPage({
   // rationale.
   const readOnly = shareToken != null;
   const hasData = isAuthenticated || readOnly;
+  // BL-217: the tenant's (or, in read-only viewer mode, the share owner's --
+  // LimitsProvider's own shareToken seam) effective keep-limit matrix, same
+  // null-means-code-defaults fallback every other limits consumer treats it
+  // with (utils/limits.ts). Feeds overCapOnly's predicate below; nothing
+  // else in this file reads it.
+  const { limits } = useLimits();
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -144,6 +152,15 @@ export function CardsPage({
   // "no inventory" and "incomplete playset" aren't contradictory (a
   // zero-owned card is trivially an incomplete playset too), just narrower.
   const [noInventoryOnly, setNoInventoryOnly] = useState(false);
+  // BL-217: "over my keep limit" discovery filter -- same state/pl-toggle/
+  // requestSignIn shape as its three siblings above. Mutually exclusive with
+  // noInventoryOnly specifically (over-cap implies owned, so "over cap" and
+  // "no inventory" can never both hold -- see the two setters below, which
+  // each clear the other on the way to "on"), but left independent of
+  // ownedOnly/incompleteOnly the same way noInventoryOnly is independent of
+  // incompleteOnly: redundant combinations are allowed, only contradictory
+  // ones are blocked.
+  const [overCapOnly, setOverCapOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   // BL-205 (§19.1): owner-side share management modal -- the Vault header's
   // share affordance. Never rendered in read-only viewer mode (see the
@@ -463,8 +480,17 @@ export function CardsPage({
         scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
       );
     }
+    // BL-217: keep only cards with at least one variant owned past its
+    // effective keep limit. Deliberately NOT scope-aware (unlike the three
+    // toggles above) -- the locked spec's predicate is "ANY of its variants,"
+    // checked against every variant's own bucket regardless of the Playset
+    // header's scope control; a scoped finish narrows what the TABLE shows,
+    // not which cards this filter surfaces.
+    if (overCapOnly) {
+      result = result.filter((c) => cardOverCap(c.variants, c.type, limits));
+    }
     return result;
-  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, scope]);
+  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, overCapOnly, scope, limits]);
 
   const filtered = useMemo(
     () => applyFilters(toggleNarrowed as BaseCard[], filters) as InventoryCard[],
@@ -498,6 +524,7 @@ export function CardsPage({
     (incompleteOnly ? 1 : 0) +
     (ownedOnly ? 1 : 0) +
     (noInventoryOnly ? 1 : 0) +
+    (overCapOnly ? 1 : 0) +
     (homeSets.size > 0 ? 1 : 0);
 
   const resetExternalFilters = useCallback(() => {
@@ -505,6 +532,7 @@ export function CardsPage({
     setIncompleteOnly(false);
     setOwnedOnly(false);
     setNoInventoryOnly(false);
+    setOverCapOnly(false);
   }, []);
 
   // BL-179: what the table/gallery/popup-nav/headline metrics see --
@@ -535,6 +563,7 @@ export function CardsPage({
     incompleteOnly ||
     ownedOnly ||
     noInventoryOnly ||
+    overCapOnly ||
     // BL-179: a home-base-set selection narrows the visible list the same as
     // any facet -- it must count, or the scope toggle wouldn't render.
     homeSets.size > 0;
@@ -707,10 +736,14 @@ export function CardsPage({
                     }
                     // BL-115: turning noInventoryOnly on contradicts ownedOnly
                     // -- clear it on the way in (mirror of the setOwnedOnly
-                    // handler above).
+                    // handler above). BL-217: it also contradicts overCapOnly
+                    // (over-cap implies owned) -- clear that too.
                     setNoInventoryOnly((v) => {
                       const next = !v;
-                      if (next) setOwnedOnly(false);
+                      if (next) {
+                        setOwnedOnly(false);
+                        setOverCapOnly(false);
+                      }
                       return next;
                     });
                   }}
@@ -719,6 +752,42 @@ export function CardsPage({
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Only cards with no inventory</span>
+                </button>
+                {/* BL-217: "over my keep limit" discovery filter -- same
+                    pl-toggle markup and requestSignIn routing as its
+                    siblings. Dev copy ("Over keep limit") is intentionally
+                    short -- owner reviews copy in a later HMR round.
+                    Deliberately NEVER carries pl-toggle--scoped (unlike the
+                    three siblings): the predicate checks every variant's own
+                    bucket regardless of the Playset header's scope (see
+                    toggleNarrowed's overCapOnly branch above), so the amber
+                    "this filter now evaluates against the scoped finish"
+                    signal would be false for this toggle. */}
+                <button
+                  type="button"
+                  className={`pl-toggle${overCapOnly ? " pl-toggle--on" : ""}${
+                    hasData ? "" : " pl-toggle--disabled"
+                  }`}
+                  onClick={() => {
+                    if (!hasData) {
+                      requestSignIn();
+                      return;
+                    }
+                    // BL-217: turning overCapOnly on contradicts
+                    // noInventoryOnly (over-cap implies owned) -- clear it on
+                    // the way in, mirroring the ownedOnly/noInventoryOnly
+                    // exclusion above.
+                    setOverCapOnly((v) => {
+                      const next = !v;
+                      if (next) setNoInventoryOnly(false);
+                      return next;
+                    });
+                  }}
+                  aria-pressed={overCapOnly}
+                  aria-disabled={!hasData}
+                >
+                  <span className="pl-toggle__box" />
+                  <span className="pl-toggle__label">Over keep limit</span>
                 </button>
               </div>
               {/* BL-60/BL-56 §5.5: quiet persistent nudge near the toggles for
