@@ -111,3 +111,27 @@ export function enforcementCap(
 ): number {
   return effectiveLimit(limits, category, bucket) ?? QUANTITY_CEILING;
 }
+
+/** BL-217: the Vault's "over my keep limit" filter predicate -- a card
+ * qualifies when ANY of its variants owns more than its bucket's effective
+ * limit. Reuses the exact bucket/category resolution the popup steppers
+ * (CardPopupInventory's InventoryPlate) and addCardsResolver's maxCopies
+ * already use (limitBucketOf + typeCategoryOf + effectiveLimit) rather than
+ * re-deriving it. A bucket resolving to "No limit" (effectiveLimit === null)
+ * can never be over-cap -- the 999 QUANTITY_CEILING is a technical add-time
+ * stop, not a keep-limit, and is deliberately NOT consulted here (unlike
+ * enforcementCap above, which exists for exactly that different purpose).
+ * `type` is the base card's `type` (Leader/Base/...), the same field
+ * typeCategoryOf already classifies elsewhere -- one category applies to
+ * every variant of a card, only the per-variant bucket differs. */
+export function cardOverCap(
+  variants: readonly { finish: string | null; channel: string; quantity: number }[],
+  type: string,
+  limits: LimitsMatrix | null
+): boolean {
+  const category = typeCategoryOf(type);
+  return variants.some((v) => {
+    const limit = effectiveLimit(limits, category, limitBucketOf(v.finish, v.channel));
+    return limit !== null && v.quantity > limit;
+  });
+}

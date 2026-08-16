@@ -596,6 +596,258 @@ describe("CardsPage no-inventory filter mutual exclusion (BL-115, CREATE)", () =
   });
 });
 
+// CREATE (BL-217, Issue #126): "over my keep limit" -- the Vault filter
+// surfacing cards where ANY variant's owned quantity exceeds its effective
+// keep limit (utils/limits.ts's cardOverCap, unit-tested on its own in
+// limits.test.ts). This describe block covers the CardsPage-level wiring:
+// the toggle narrows the list the same way its siblings do, an explicit
+// override AND a lowered-limit-stranding-existing-quantity both trigger it,
+// a "No limit" bucket never qualifies, and its mutual exclusion with
+// noInventoryOnly holds in both directions (over-cap implies owned).
+describe("CardsPage over-cap filter (BL-217, CREATE)", () => {
+  const overCapFixture: BaseCardDetail[] = [
+    makeBaseCardDetail({
+      id: 1,
+      set_code: "SOR",
+      base_card_number: "1",
+      name: "Over Cap Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 1,
+          finish: "Standard",
+          channel: "Retail",
+          source_set_code: "SOR",
+          card_number: "1",
+          quantity: 3,
+        }),
+      ],
+    }),
+    makeBaseCardDetail({
+      id: 2,
+      set_code: "SOR",
+      base_card_number: "2",
+      name: "Within Cap Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 2,
+          finish: "Standard",
+          channel: "Retail",
+          source_set_code: "SOR",
+          card_number: "2",
+          quantity: 2,
+        }),
+      ],
+    }),
+    makeBaseCardDetail({
+      id: 3,
+      set_code: "SHD",
+      set_name: "Shadows of the Galaxy",
+      base_card_number: "1",
+      name: "No Inventory Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 3,
+          finish: "Standard",
+          channel: "Retail",
+          source_set_code: "SHD",
+          card_number: "1",
+          quantity: 0,
+        }),
+      ],
+    }),
+  ];
+
+  function overCapBtn(): HTMLElement {
+    return screen.getByRole("button", { name: /over keep limit/i });
+  }
+  function noInvBtn(): HTMLElement {
+    return screen.getByRole("button", { name: /only cards with no inventory/i });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+    mockGetBaseCardsList.mockResolvedValue(overCapFixture);
+  });
+  afterEach(() => {
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+  });
+
+  it("via an explicit override limit: narrows to only the card whose quantity exceeds the override", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 2,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+
+    fireEvent.click(overCapBtn());
+
+    // Owned 3 > override limit 2 -- qualifies.
+    expect(screen.getByText("Over Cap Card")).toBeInTheDocument();
+    // Owned 2, at (not over) the override limit -- does not qualify.
+    expect(screen.queryByText("Within Cap Card")).not.toBeInTheDocument();
+    // Owned 0 -- does not qualify.
+    expect(screen.queryByText("No Inventory Card")).not.toBeInTheDocument();
+  });
+
+  it("via a LOWERED limit stranding an existing quantity: a card fine under the code default becomes over-cap once the tenant dials the bucket down", async () => {
+    // Baseline: code default (standard = 3) -- 3 owned copies are exactly at
+    // the default, not over it, so the toggle finds nothing.
+    const baseline = await renderPage();
+    fireEvent.click(overCapBtn());
+    expect(screen.queryByText("Over Cap Card")).not.toBeInTheDocument();
+    // Unmount before re-rendering with a new limits matrix -- CardsPage
+    // itself never re-fetches limits mid-session, so a fresh render is this
+    // suite's stand-in for "the settings grid re-fetches after a save"
+    // (LimitsProvider's own refresh mechanics are covered elsewhere).
+    baseline.unmount();
+
+    // The tenant lowers the Standard bucket to 1 -- the SAME 3 (and 2) owned
+    // copies (nothing about the inventory changed) are now stranded over the
+    // new limit.
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 1,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /over keep limit/i }));
+    expect(screen.getByText("Over Cap Card")).toBeInTheDocument();
+    // Within Cap Card (qty 2) is now also over the lowered limit of 1.
+    expect(screen.getByText("Within Cap Card")).toBeInTheDocument();
+  });
+
+  it('a bucket set to "No limit" never qualifies, however large the owned quantity', async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: null,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+
+    fireEvent.click(overCapBtn());
+
+    expect(screen.queryByText("Over Cap Card")).not.toBeInTheDocument();
+    expect(screen.queryByText("Within Cap Card")).not.toBeInTheDocument();
+    expect(screen.queryByText("No Inventory Card")).not.toBeInTheDocument();
+  });
+
+  it("checking 'over keep limit' clears an active 'no inventory'", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 2,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+
+    fireEvent.click(noInvBtn());
+    expect(noInvBtn().getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(overCapBtn());
+    expect(overCapBtn().getAttribute("aria-pressed")).toBe("true");
+    expect(noInvBtn().getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("checking 'no inventory' clears an active 'over keep limit' (reverse direction)", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 2,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+
+    fireEvent.click(overCapBtn());
+    expect(overCapBtn().getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(noInvBtn());
+    expect(noInvBtn().getAttribute("aria-pressed")).toBe("true");
+    expect(overCapBtn().getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("leaves 'show only cards I own' and 'show only incomplete playsets' untouched -- independent, not contradictory", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 2,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+    const ownedBtn = screen.getByRole("button", { name: /show only cards i own/i });
+    const incompleteBtn = screen.getByRole("button", { name: /show only incomplete playsets/i });
+
+    fireEvent.click(ownedBtn);
+    fireEvent.click(incompleteBtn);
+    fireEvent.click(overCapBtn());
+
+    expect(ownedBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(incompleteBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(overCapBtn().getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("'over keep limit' alone activates Reset (external filters count), and Reset clears it", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 2,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    await renderPage();
+    const resetBtn = () => screen.getByRole("button", { name: /reset all filters/i });
+
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(overCapBtn());
+    expect(resetBtn().getAttribute("aria-disabled")).toBeNull();
+
+    fireEvent.click(resetBtn());
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
+    expect(overCapBtn().getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
 // CREATE (BL-111 F6): the sidebar floats over the table rather than
 // squeezing its layout width (design handoff §6 -- the wrapper is
 // `position:relative; height:0`, so CardsTable/GalleryGrid are always full
@@ -1156,6 +1408,58 @@ describe("CardsPage anonymous inert-teaser controls (BL-56 §5.5, Slice 4, CREAT
     await renderPage(true);
 
     expect(screen.queryByText("Log in to track your collection")).not.toBeInTheDocument();
+  });
+
+  // CREATE (BL-217, Issue #126): the over-cap toggle mirrors ownedOnly/
+  // noInventoryOnly above -- same inert-teaser treatment for anonymous
+  // users (spec point 4).
+  it("renders the over-cap toggle aria-disabled and greyed for anonymous", async () => {
+    mockGetBaseCardsList.mockResolvedValue([]);
+    await renderPage(false);
+
+    const toggle = screen.getByRole("button", { name: /over keep limit/i });
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+    expect(toggle.className).toContain("pl-toggle--disabled");
+  });
+
+  it("clicking the over-cap toggle calls onRequestSignIn instead of toggling, for anonymous", async () => {
+    mockGetBaseCardsList.mockResolvedValue([
+      makeBaseCardDetail({
+        id: 1,
+        name: "Anon Card",
+        variants: [makeVariant({ variant_id: 1, quantity: 0 })],
+      }),
+    ]);
+    const onRequestSignIn = vi.fn();
+    await renderPage(false, onRequestSignIn);
+
+    fireEvent.click(screen.getByRole("button", { name: /over keep limit/i }));
+
+    expect(onRequestSignIn).toHaveBeenCalledTimes(1);
+    // Still renders the (unfiltered) card -- confirms the toggle did not flip.
+    expect(screen.getByText("Anon Card")).toBeInTheDocument();
+  });
+
+  it("authenticated: the over-cap toggle still toggles filtering directly (regression guard)", async () => {
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        { type_category: "standard", limit_bucket: "Standard", max_quantity: 2, is_default: false },
+      ]),
+      capMode: "hard",
+    });
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+    const onRequestSignIn = vi.fn();
+    await renderPage(true, onRequestSignIn);
+
+    fireEvent.click(screen.getByRole("button", { name: /over keep limit/i }));
+
+    expect(onRequestSignIn).not.toHaveBeenCalled();
+    // Only base card 1 (qty 3, Standard limit dialed to 2) qualifies --
+    // 100% complete/owned across its 1 unique card, 3 copies total.
+    expect(screen.getByText("SOR Card One")).toBeInTheDocument();
+    expect(screen.queryByText("SHD Card One")).not.toBeInTheDocument();
+
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
   });
 });
 

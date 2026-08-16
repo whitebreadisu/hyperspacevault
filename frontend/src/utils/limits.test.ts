@@ -5,6 +5,7 @@ import {
   DEFAULT_LIMITS,
   FINISH_BUCKETS,
   QUANTITY_CEILING,
+  cardOverCap,
   effectiveLimit,
   enforcementCap,
   limitBucketOf,
@@ -108,6 +109,134 @@ describe("effectiveLimit / enforcementCap", () => {
     // Shouldn't happen (GET returns the full matrix) -- guard behavior.
     expect(effectiveLimit(matrix, "singleton", "Judge")).toBe(1);
     expect(enforcementCap(matrix, "standard", "Judge")).toBe(3);
+  });
+});
+
+// CREATE (BL-217, Issue #126): the Vault's "over my keep limit" filter
+// predicate -- pure unit coverage of cardOverCap, independent of the
+// CardsPage wiring tests (screens/cards/CardsPage.test.tsx).
+describe("cardOverCap", () => {
+  function variant(
+    overrides: Partial<{
+      finish: string | null;
+      channel: string;
+      quantity: number;
+    }> = {}
+  ) {
+    return { finish: "Standard", channel: "Retail", quantity: 0, ...overrides };
+  }
+
+  it("is false when no variant exceeds its (code-default) effective limit", () => {
+    const variants = [variant({ quantity: 3 })];
+    expect(cardOverCap(variants, "Unit", null)).toBe(false);
+  });
+
+  it("is true via an explicit override limit lower than the owned quantity", () => {
+    const limits = toMatrix([
+      cell({
+        type_category: "standard",
+        limit_bucket: "Standard",
+        max_quantity: 2,
+        is_default: false,
+      }),
+    ]);
+    const variants = [variant({ quantity: 3 })];
+    expect(cardOverCap(variants, "Unit", limits)).toBe(true);
+  });
+
+  it("is true when a previously-fine quantity is stranded by a LOWERED limit", () => {
+    // Owned 3 copies under the code default (standard = 3, not over-cap) --
+    // the tenant then dials the Standard bucket down to 1, stranding the
+    // existing 3 copies over the new limit without the quantity itself
+    // changing.
+    const before = toMatrix([]);
+    const variants = [variant({ quantity: 3 })];
+    expect(cardOverCap(variants, "Unit", before)).toBe(false);
+
+    const after = toMatrix([
+      cell({
+        type_category: "standard",
+        limit_bucket: "Standard",
+        max_quantity: 1,
+        is_default: false,
+      }),
+    ]);
+    expect(cardOverCap(variants, "Unit", after)).toBe(true);
+  });
+
+  it('a bucket set to "No limit" (null) is never over-cap, regardless of quantity', () => {
+    const limits = toMatrix([
+      cell({
+        type_category: "standard",
+        limit_bucket: "Standard",
+        max_quantity: null,
+        is_default: false,
+      }),
+    ]);
+    // Even a quantity well past the 999 technical ceiling would not qualify
+    // -- the ceiling is irrelevant to this predicate (spec point 2).
+    const variants = [variant({ quantity: 999 })];
+    expect(cardOverCap(variants, "Unit", limits)).toBe(false);
+  });
+
+  it("checks every variant, not just the first -- a later variant over cap still qualifies the card", () => {
+    const limits = toMatrix([
+      cell({ type_category: "standard", limit_bucket: "Foil", max_quantity: 1, is_default: false }),
+    ]);
+    const variants = [
+      variant({ finish: "Standard", quantity: 3 }), // at the code default, not over
+      variant({ finish: "Foil", quantity: 2 }), // over the overridden Foil limit
+    ];
+    expect(cardOverCap(variants, "Unit", limits)).toBe(true);
+  });
+
+  it("resolves the bucket to the channel when finish is null (non-finish variant)", () => {
+    const limits = toMatrix([
+      cell({
+        type_category: "standard",
+        limit_bucket: "Weekly Play",
+        max_quantity: 1,
+        is_default: false,
+      }),
+    ]);
+    const variants = [variant({ finish: null, channel: "Weekly Play", quantity: 2 })];
+    expect(cardOverCap(variants, "Unit", limits)).toBe(true);
+  });
+
+  it("uses the singleton category (Leader/Base) rather than standard", () => {
+    const limits = toMatrix([
+      cell({
+        type_category: "singleton",
+        limit_bucket: "Standard",
+        max_quantity: 1,
+        is_default: false,
+      }),
+      cell({
+        type_category: "standard",
+        limit_bucket: "Standard",
+        max_quantity: 3,
+        is_default: false,
+      }),
+    ]);
+    const variants = [variant({ quantity: 2 })];
+    // Standard category (limit 3) would not be over-cap at 2, but Leader is
+    // singleton (limit 1) -- proves the card's own type drives the category,
+    // not just the bucket.
+    expect(cardOverCap(variants, "Leader", limits)).toBe(true);
+    expect(cardOverCap(variants, "Unit", limits)).toBe(false);
+  });
+
+  it("quantity exactly at the limit is not over-cap (strict greater-than)", () => {
+    const limits = toMatrix([
+      cell({
+        type_category: "standard",
+        limit_bucket: "Standard",
+        max_quantity: 3,
+        is_default: false,
+      }),
+    ]);
+    const variants = [variant({ quantity: 3 })];
+    expect(cardOverCap(variants, "Unit", limits)).toBe(false);
   });
 });
 
