@@ -207,20 +207,27 @@ describe("InventorySummary view toggle (BL-111 F3, PORT)", () => {
   });
 });
 
-// CREATE (BL-163): the scope toggle only renders when the caller says the
-// list is narrowed, and only for authenticated callers.
-describe("InventorySummary scope toggle visibility (BL-163, CREATE)", () => {
+// DISPOSITION (PORT for BL-223): the three-button role=group ("Filtered" /
+// "All" / round-9's "Selected sets") became a single role=switch
+// (ValueSwitch) -- the underlying rule (renders only when narrowed AND
+// authenticated) is unchanged, just re-expressed against the switch's own
+// aria-checked + visible label instead of per-button aria-pressed.
+describe("InventorySummary Totals switch visibility (BL-163, PORT for BL-223)", () => {
   const card = makeCard({ base_card_id: 1 });
 
+  function totalsSwitch() {
+    return screen.queryByRole("switch", { name: /^totals:/i });
+  }
+
   it("is hidden when isNarrowed is omitted/false", () => {
-    const { container } = render(
+    render(
       <InventorySummary filteredCards={[card]} allCards={[card]} baseSetCodes={SOR_SHD_CODES} />
     );
-    expect(container.querySelector(".inv-summary__scope")).toBeNull();
+    expect(totalsSwitch()).toBeNull();
   });
 
   it("renders, defaulting to Filtered, when isNarrowed is true and authenticated", () => {
-    const { container } = render(
+    render(
       <InventorySummary
         filteredCards={[card]}
         allCards={[card]}
@@ -228,15 +235,14 @@ describe("InventorySummary scope toggle visibility (BL-163, CREATE)", () => {
         baseSetCodes={SOR_SHD_CODES}
       />
     );
-    expect(container.querySelector(".inv-summary__scope")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Filtered" }).getAttribute("aria-pressed")).toBe(
-      "true"
-    );
-    expect(screen.getByRole("button", { name: "All" }).getAttribute("aria-pressed")).toBe("false");
+    const sw = totalsSwitch();
+    expect(sw).toBeTruthy();
+    expect(sw!.textContent).toBe("FILTERED");
+    expect(sw!.getAttribute("aria-checked")).toBe("false");
   });
 
   it("stays hidden when isNarrowed is true but the caller is anonymous (signed-out rule)", () => {
-    const { container } = render(
+    render(
       <InventorySummary
         filteredCards={[card]}
         allCards={[card]}
@@ -245,14 +251,15 @@ describe("InventorySummary scope toggle visibility (BL-163, CREATE)", () => {
         isAuthenticated={false}
       />
     );
-    expect(container.querySelector(".inv-summary__scope")).toBeNull();
+    expect(totalsSwitch()).toBeNull();
   });
 });
 
-// CREATE (BL-163): switching Filtered/All actually swaps which card list the
-// four metrics compute over.
-describe("InventorySummary scope toggle switches the computed scope (BL-163, CREATE)", () => {
-  it("computes over allCards once 'All' is clicked, and back over filteredCards on 'Filtered'", () => {
+// DISPOSITION (PORT for BL-223): same underlying binary-scope computation
+// BL-163 proved, re-expressed as a click on the switch instead of a click on
+// the "All"/"Filtered" buttons.
+describe("InventorySummary Totals switch switches the computed scope (BL-163, PORT for BL-223)", () => {
+  it("computes over allCards once toggled to All, and back over filteredCards on Filtered", () => {
     const owned = makeCard({
       base_card_id: 1,
       variants: [makeVariant({ variant_id: 1, quantity: 3 })],
@@ -272,16 +279,19 @@ describe("InventorySummary scope toggle switches the computed scope (BL-163, CRE
         baseSetCodes={SOR_SHD_CODES}
       />
     );
+    const sw = () => screen.getByRole("switch", { name: /^totals:/i });
 
     // Filtered (default): just the one owned card -> 100%/100%.
     expect(summaryValues(container)).toEqual(["100%", "100%", "3", "$0.00"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(sw());
     // All: 2 cards, 1 complete -> 50%/50%, but the same 3 owned copies.
     expect(summaryValues(container)).toEqual(["50%", "50%", "3", "$0.00"]);
+    expect(sw().textContent).toBe("ALL");
 
-    fireEvent.click(screen.getByRole("button", { name: "Filtered" }));
+    fireEvent.click(sw());
     expect(summaryValues(container)).toEqual(["100%", "100%", "3", "$0.00"]);
+    expect(sw().textContent).toBe("FILTERED");
   });
 });
 
@@ -547,11 +557,24 @@ describe("InventorySummary signed-out disables popovers (BL-163, CREATE)", () =>
   });
 });
 
-// CREATE (BL-179): the popover set rows double as a global home-base-set
-// filter control, the strip grows an amber base-set readout row, and the
-// scope toggle becomes three-way while selections exist ("Selected sets" =
-// filteredCards, "Filtered" = breakdownCards, "All" = allCards).
-describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
+// DISPOSITION (RETIRE, BL-224): round 9's three-way scope ("Selected sets"),
+// its auto-follow effect (selection -> scope jump), the amber "Base sets: …"
+// strip-row readout + its clear ✕, and the standalone home-base-set
+// selection dimension are all designed away by BL-224 -- the popover rows
+// now read/write the SAME sidebar Set facet a FilterPanel click would, so
+// there is no second dimension left to auto-follow, no separate readout
+// needed (the Set facet's own field already shows/clears the selection),
+// and no third scope value for the switch to hold. The row-selectable /
+// row-inert / stranded-selection PREDICATE survives in new form (same
+// behavior, new prop names selectedSetCodes/onToggleSetCode) -- see the
+// PORT/CREATE tests below, not retired. The "Sets selected:" filterSetCodes
+// popover readout is retired outright too (rows no longer carry a separate
+// readout of the set facet at all).
+//
+// CREATE (BL-224): the popover set rows now read/write the sidebar's own
+// Set facet directly, and their universe (breakdownCards) always excepts
+// that facet, independent of the Filtered/All switch.
+describe("InventorySummary set-facet unification (BL-224, CREATE)", () => {
   const THREE_BASE_SETS: SetMeta[] = [
     { code: "SOR", name: "Spark of Rebellion" },
     { code: "SHD", name: "Shadows of the Galaxy" },
@@ -577,14 +600,15 @@ describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
     variants: [makeVariant({ variant_id: 3, quantity: 5 })],
     inventory: { 3: 5 },
   });
-  // filteredCards ⊂ breakdownCards ⊂ allCards -- the three scope universes.
+  // filteredCards (SOR facet already applied) ⊂ breakdownCards (every
+  // filter EXCEPT the set facet) ⊂ allCards -- same three-universe shape
+  // BL-179's fixture used, now driving the unified facet instead.
   const FILTERED = [sorCard];
   const BREAKDOWN = [sorCard, shdCard];
   const ALL = [sorCard, shdCard, sorCardB];
 
   function renderControl(overrides: Record<string, unknown> = {}) {
-    const onToggleHomeSet = vi.fn();
-    const onClearHomeSets = vi.fn();
+    const onToggleSetCode = vi.fn();
     const utils = render(
       <InventorySummary
         filteredCards={FILTERED}
@@ -593,21 +617,20 @@ describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
         isNarrowed
         baseSetCodes={THREE_CODES}
         orderedBaseSets={THREE_BASE_SETS}
-        selectedHomeSets={new Set(["SOR"])}
-        onToggleHomeSet={onToggleHomeSet}
-        onClearHomeSets={onClearHomeSets}
+        selectedSetCodes={new Set(["SOR"])}
+        onToggleSetCode={onToggleSetCode}
         {...overrides}
       />
     );
-    return { ...utils, onToggleHomeSet, onClearHomeSets };
+    return { ...utils, onToggleSetCode };
   }
 
   function rows(container: HTMLElement): HTMLElement[] {
     return Array.from(container.querySelectorAll(".inv-summary__popover-row"));
   }
 
-  it("popover rows are selectable and toggle the home-set selection by code", () => {
-    const { container, onToggleHomeSet } = renderControl();
+  it("popover rows are selectable and toggle the set facet by code", () => {
+    const { container, onToggleSetCode } = renderControl();
     fireEvent.click(block(container, "cards"));
     const [sor, shd] = rows(container);
     expect(sor.className).toContain("--selectable");
@@ -615,19 +638,19 @@ describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
     expect(shd.className).toContain("--selectable");
     expect(shd.className).not.toContain("--selected");
     fireEvent.click(shd);
-    expect(onToggleHomeSet).toHaveBeenCalledWith("SHD");
+    expect(onToggleSetCode).toHaveBeenCalledWith("SHD");
   });
 
   it("a zero-universe row is inert (no toggle call), but stays clickable while selected", () => {
-    const { container, onToggleHomeSet } = renderControl();
+    const { container, onToggleSetCode } = renderControl();
     fireEvent.click(block(container, "cards"));
     const twi = rows(container)[2];
     expect(twi.className).toContain("--inert");
     fireEvent.click(twi);
-    expect(onToggleHomeSet).not.toHaveBeenCalled();
+    expect(onToggleSetCode).not.toHaveBeenCalled();
 
-    // Selected-but-empty: TWI has no cards in scope yet is selected -- the
-    // deselect path must stay open or the selection would be stranded.
+    // Selected-but-empty: TWI is in the facet yet has no cards in scope --
+    // the deselect path must stay open or the selection would be stranded.
     const strandedToggle = vi.fn();
     const { container: c2 } = render(
       <InventorySummary
@@ -637,8 +660,8 @@ describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
         isNarrowed
         baseSetCodes={THREE_CODES}
         orderedBaseSets={THREE_BASE_SETS}
-        selectedHomeSets={new Set(["TWI"])}
-        onToggleHomeSet={strandedToggle}
+        selectedSetCodes={new Set(["TWI"])}
+        onToggleSetCode={strandedToggle}
       />
     );
     fireEvent.click(block(c2, "cards"));
@@ -646,67 +669,74 @@ describe("InventorySummary base-set selection control (BL-179, CREATE)", () => {
     expect(strandedToggle).toHaveBeenCalledWith("TWI");
   });
 
-  it("three-way scope: Selected sets / Filtered / All map to the three universes", () => {
+  it("rows' universe (breakdownCards) ignores the set facet, unaffected by the Filtered/All switch", () => {
     const { container } = renderControl();
-    // Mounted WITH a selection already present: no transition has occurred,
-    // so scope sits at its "filtered" default = breakdownCards (2+3 copies).
-    expect(summaryValues(container)[2]).toBe("5");
-
-    fireEvent.click(screen.getByRole("button", { name: "Selected sets" }));
+    // Filtered (default): headline reads off filteredCards (SOR's 2 copies
+    // only -- the facet-narrowed list the table itself shows).
     expect(summaryValues(container)[2]).toBe("2");
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    // Rows reflect breakdownCards (SOR + SHD) regardless -- the SHD row is
+    // populated even though SHD isn't in the facet at all.
+    fireEvent.click(block(container, "cards"));
+    expect(rows(container)[1].querySelector(".inv-summary__popover-count")?.textContent).toBe("3");
+
+    // Switching to All changes the HEADLINE (whole catalog, 10 copies) but
+    // not the rows -- they never depended on the switch to begin with.
+    fireEvent.click(screen.getByRole("switch", { name: /^totals:/i }));
     expect(summaryValues(container)[2]).toBe("10");
+    expect(rows(container)[1].querySelector(".inv-summary__popover-count")?.textContent).toBe("3");
+  });
+});
 
-    // Popover rows ignore the base-set dimension under Selected sets (SHD
-    // row still populated from breakdownCards), whole catalog under All.
-    fireEvent.click(screen.getByRole("button", { name: "Selected sets" }));
-    fireEvent.click(block(container, "cards"));
-    const shdRow = rows(container)[1];
-    expect(shdRow.querySelector(".inv-summary__popover-count")?.textContent).toBe("3");
+// CREATE (BL-223, re-locked): the completion panel's Filtered/All ValueSwitch
+// carries an amber "narrowed state" modifier -- on the switch itself and on
+// all four blocks -- exactly while it reads FILTERED; fully neutral on All
+// or when hidden.
+describe("InventorySummary Totals switch amber narrowed state (BL-223, CREATE)", () => {
+  const card = makeCard({ base_card_id: 1 });
+  const other = makeCard({ base_card_id: 2 });
+
+  function totalsSwitch() {
+    return screen.getByRole("switch", { name: /^totals:/i });
+  }
+
+  function amberWraps(container: HTMLElement): number {
+    return container.querySelectorAll(".inv-summary__block-wrap--amber").length;
+  }
+
+  it("applies the amber modifier to the switch and all four blocks while FILTERED", () => {
+    const { container } = render(
+      <InventorySummary
+        filteredCards={[card]}
+        allCards={[card, other]}
+        isNarrowed
+        baseSetCodes={SOR_SHD_CODES}
+      />
+    );
+    expect(totalsSwitch().className).toContain("vs-value-switch--amber");
+    expect(container.querySelectorAll(".inv-summary__block-wrap").length).toBe(4);
+    expect(amberWraps(container)).toBe(4);
   });
 
-  it("selecting the first base set auto-jumps scope to Selected sets; clearing falls back to Filtered", () => {
-    const props = {
-      filteredCards: FILTERED,
-      breakdownCards: BREAKDOWN,
-      allCards: ALL,
-      isNarrowed: true,
-      baseSetCodes: THREE_CODES,
-      orderedBaseSets: THREE_BASE_SETS,
-      onToggleHomeSet: vi.fn(),
-    };
-    const { container, rerender } = render(
-      <InventorySummary {...props} selectedHomeSets={new Set<string>()} />
+  it("renders fully neutral once switched to All", () => {
+    const { container } = render(
+      <InventorySummary
+        filteredCards={[card]}
+        allCards={[card, other]}
+        isNarrowed
+        baseSetCodes={SOR_SHD_CODES}
+      />
     );
-    // No selection: two-way toggle, no amber readout.
-    expect(screen.queryByRole("button", { name: "Selected sets" })).toBeNull();
-    expect(container.querySelector(".inv-summary__basesets")).toBeNull();
-
-    rerender(<InventorySummary {...props} selectedHomeSets={new Set(["SOR", "SHD"])} />);
-    const selectedBtn = screen.getByRole("button", { name: "Selected sets" });
-    expect(selectedBtn.className).toContain("--active");
-    expect(container.querySelector(".inv-summary__basesets-label")?.textContent).toBe(
-      "Base sets: SOR · SHD"
-    );
-
-    rerender(<InventorySummary {...props} selectedHomeSets={new Set<string>()} />);
-    expect(screen.queryByRole("button", { name: "Selected sets" })).toBeNull();
-    expect(container.querySelector(".inv-summary__basesets")).toBeNull();
-    expect(screen.getByRole("button", { name: "Filtered" }).className).toContain("--active");
+    fireEvent.click(totalsSwitch());
+    expect(totalsSwitch().className).not.toContain("vs-value-switch--amber");
+    expect(amberWraps(container)).toBe(0);
   });
 
-  it("the amber row's ✕ calls onClearHomeSets", () => {
-    const { container, onClearHomeSets } = renderControl();
-    fireEvent.click(container.querySelector(".inv-summary__basesets-clear") as HTMLElement);
-    expect(onClearHomeSets).toHaveBeenCalledTimes(1);
-  });
-
-  it("popovers show the FilterPanel facet readout when filterSetCodes is set", () => {
-    const { container } = renderControl({ filterSetCodes: ["SORP", "JTL"] });
-    fireEvent.click(block(container, "cards"));
-    expect(container.querySelector(".inv-summary__popover-filtersets")?.textContent).toBe(
-      "Sets selected: SORP, JTL"
+  it("stays fully neutral when the switch is hidden (unnarrowed) -- reads as Filtered with no amber", () => {
+    const { container } = render(
+      <InventorySummary filteredCards={[card]} baseSetCodes={SOR_SHD_CODES} />
     );
+    expect(screen.queryByRole("switch", { name: /^totals:/i })).toBeNull();
+    expect(amberWraps(container)).toBe(0);
   });
 });

@@ -303,6 +303,7 @@ export function ValueSwitch({
   ariaLabel,
   title,
   large,
+  accent,
   onToggle,
 }: {
   checked: boolean;
@@ -310,6 +311,13 @@ export function ValueSwitch({
   ariaLabel: string;
   title: string;
   large?: boolean;
+  /** BL-223 (completion panel's Totals switch): an optional token-family
+   * modifier the caller drives independently of `checked` -- e.g. "amber"
+   * while the panel reads FILTERED (rgba(217,154,31,*), the same
+   * `.pl-toggle--scoped` family). Minimal extension point rather than a
+   * forked component: every other ValueSwitch call site omits it and keeps
+   * today's plain on/off look. */
+  accent?: "amber";
   onToggle: () => void;
 }) {
   return (
@@ -321,7 +329,7 @@ export function ValueSwitch({
       title={title}
       className={`vs-value-switch${checked ? " vs-value-switch--on" : ""}${
         large ? " vs-value-switch--lg" : ""
-      }`}
+      }${accent ? ` vs-value-switch--${accent}` : ""}`}
       onClick={onToggle}
     >
       <span className="vs-value-switch__track">
@@ -359,16 +367,20 @@ export function CardsValueDisplayToggle({ mode, onChange }: CardsValueDisplayTog
 interface CardsValueKindToggleProps {
   kind: PriceMode;
   onChange: (kind: PriceMode) => void;
+  /** BL-225: the gallery header renders this switch at the large size to
+   * match its neighboring UNIT/COLLECTION control; the table keeps small. */
+  large?: boolean;
 }
 
 /** The Value header's Market/Low control (Definition §1/§2; owner-dialed
  * 2026-07-31: same single-label SWITCH idiom as UNIT/TOTAL, at the small
  * size, sitting RIGHT of the "Value" label). MKT is the unchecked side. */
-export function CardsValueKindToggle({ kind, onChange }: CardsValueKindToggleProps) {
+export function CardsValueKindToggle({ kind, onChange, large }: CardsValueKindToggleProps) {
   const isLow = kind === "low";
   return (
     <ValueSwitch
       checked={isLow}
+      large={large}
       label={isLow ? "LOW" : "MARKET"}
       ariaLabel={
         isLow ? "Showing low price — switch to market" : "Showing market price — switch to low"

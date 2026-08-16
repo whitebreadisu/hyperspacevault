@@ -86,17 +86,22 @@
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8.5px), calc(100% - 8.5px) 100%, 0 100%);
 }
 
+/* Owner round 4 (2026-08-16): blue pill -> the `.pl-toggle--scoped` amber
+ * family (outline + faded fill + amber count), matching the new expanded-
+ * head badge below. */
 .ifp-sidebar-tab__badge {
   display: inline-grid;
   place-items: center;
   min-width: 17px;
   height: 17px;
   padding: 0 3px;
-  background: var(--color-primary);
   border-radius: 9px;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 700;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
 }
 
 .ifp-sidebar-tab__label {
@@ -1108,41 +1113,11 @@
   gap: 8px;
 }
 
-/* BL-179: visibility + clear affordance for the completion popovers'
- * home-base-set selection (it lives outside FilterState, so the panel's
- * facets can't show it) -- a quiet primary-tinted chip in the children
- * slot, matching the popover rows' selected-band treatment. */
-.ifp-baseset-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  font-family: var(--font-ui);
-  font-size: 12px;
-  color: var(--color-text);
-}
-.ifp-baseset-chip__label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ifp-baseset-chip__clear {
-  flex: none;
-  background: none;
-  border: none;
-  padding: 2px 4px;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-.ifp-baseset-chip__clear:hover {
-  color: var(--color-text);
-}
+/* (BL-179's .ifp-baseset-chip -- the home-base-set selection's visibility +
+ * clear affordance in this children slot -- is RETIRED by BL-224: that
+ * selection now IS the Set facet above, already visible/clearable through
+ * the Set field's own chip/dropdown, so there's nothing left to bridge
+ * here.) */
 
 .ifp-toggle-row__buttons {
   display: flex;
@@ -1256,6 +1231,32 @@
  * anonymous inert-teaser state) -- signals "this filter now evaluates
  * against the scoped finish," independent of the toggle's own pressed
  * state. */
+/* BL-223 rider, owner round 4 (2026-08-16 -- supersedes rounds 2-3's
+ * icon/label and outline treatments, both reverted): the active-filter
+ * signal is the COUNT BADGE alone, restyled from its old blue pill into
+ * the `.pl-toggle--scoped` amber family, and now also shown beside the
+ * expanded panel's title (it only renders while the count > 0, so amber
+ * badge visible == a filter is active). Rings/icon/label/title default. */
+.ifp-sidebar__title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ifp-sidebar__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border-radius: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+}
+
 .pl-toggle--scoped {
   border-color: rgba(217, 154, 31, 0.4);
   background: rgba(217, 154, 31, 0.16);
