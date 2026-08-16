@@ -96,6 +96,12 @@ interface Props {
   shareToken?: string;
 }
 
+// BL-224: a stable empty Set identity for building the popovers'
+// "every filter except the set facet" breakdownCards below -- spreading
+// `{ ...filters, set: new Set() }` inline would hand useMemo a fresh Set
+// every render even when nothing else changed.
+const EMPTY_SET_CODES: Set<string> = new Set();
+
 /** Unified Cards view (BL-56 §5.5) -- one list for everyone, inventory data
  * layered on by auth state rather than a second view.
  *
@@ -406,7 +412,7 @@ export function CardsPage({
   // variant's own card_number when a scope is active, and is a no-op re-sort
   // (defers straight to sortBaseCards) when it isn't. `scope` joins the dep
   // list so re-engaging/clearing it recomputes this memo -- everything
-  // downstream (toggleNarrowed -> filtered -> tableCards, plus the popup's
+  // downstream (toggleNarrowed -> filtered -> sortedCards, plus the popup's
   // openPopup snapshot) reads off this array, so the # column, table order,
   // and popup prev/next nav all follow the same order for free.
   const cards = useMemo<InventoryCard[]>(
@@ -514,103 +520,92 @@ export function CardsPage({
     [toggleNarrowed, filters]
   );
 
-  // BL-179: the completion popovers' "home base set" selection -- a second,
-  // independent set dimension ANDed with every filter above. Distinct from
-  // filters.set on purpose: the facet matches home-OR-printing set (a
-  // non-base selection reaches cards via source_set_code), while this
-  // matches card.set_code (home set) only -- the same grouping the popover
-  // rows themselves use.
-  const [homeSets, setHomeSets] = useState<Set<string>>(new Set());
+  // BL-224 (unifies BL-179's parallel "home base set" dimension into the
+  // sidebar's own Set facet): the completion popovers' rows are that
+  // facet's OWN selection menu, so their universe is every filter applied
+  // EXCEPT the set facet itself (BL-173's scope-control lesson, extended
+  // from "except the home selection" to the whole set dimension) -- a menu
+  // never filters itself, or a set the collector already picked would erase
+  // its own row out from under them.
+  const breakdownCards = useMemo(
+    () =>
+      applyFilters(toggleNarrowed as BaseCard[], {
+        ...filters,
+        set: EMPTY_SET_CODES,
+      }) as InventoryCard[],
+    [toggleNarrowed, filters]
+  );
 
-  const toggleHomeSet = useCallback((code: string) => {
-    setHomeSets((prev) => {
-      const next = new Set(prev);
+  // BL-224: popover row-clicks read/write the SAME sidebar set facet a
+  // FilterPanel click would -- there is no separate "home set" dimension
+  // left to keep in sync. Routed through handleFilterPanelChange (not a raw
+  // setFilters) so a row-click carries the exact same side effects as any
+  // other FilterPanel edit.
+  const toggleFilterSet = useCallback(
+    (code: string) => {
+      const next = new Set(filters.set);
       if (next.has(code)) next.delete(code);
       else next.add(code);
-      return next;
-    });
-  }, []);
+      handleFilterPanelChange({ ...filters, set: next });
+    },
+    [filters, handleFilterPanelChange]
+  );
 
-  const clearHomeSets = useCallback(() => setHomeSets(new Set<string>()), []);
-
-  // BL-179 round 11 (owner): the Collection checkboxes and the base-set
-  // selection are real applied filters living outside FilterState -- they
-  // feed the rail badge and keep Reset All Filters active (which clears
-  // them all alongside the FilterState reset).
+  // BL-179 round 11 (owner): the Collection checkboxes are real applied
+  // filters living outside FilterState -- they feed the rail badge and keep
+  // Reset All Filters active (which clears them alongside the FilterState
+  // reset). BL-224: the base-set-selection term is RETIRED here -- a set
+  // facet selection, however it was made (sidebar or popover row), now
+  // lives IN FilterState and is already counted once by FilterPanel's own
+  // countActiveFilters, so counting it again here would double-count it.
   const externalActiveCount =
     (incompleteOnly ? 1 : 0) +
     (ownedOnly ? 1 : 0) +
     (noInventoryOnly ? 1 : 0) +
-    (overCapOnly ? 1 : 0) +
-    (homeSets.size > 0 ? 1 : 0);
+    (overCapOnly ? 1 : 0);
 
   const resetExternalFilters = useCallback(() => {
-    setHomeSets(new Set<string>());
     setIncompleteOnly(false);
     setOwnedOnly(false);
     setNoInventoryOnly(false);
     setOverCapOnly(false);
   }, []);
 
-  // BL-179: what the table/gallery/popup-nav/headline metrics see --
-  // `filtered` further narrowed by the home-base-set selection. `filtered`
-  // itself stays the popover rows' universe (every filter EXCEPT this
-  // dimension): the rows are the selection menu, and the menu never filters
-  // itself (BL-173's scope-control lesson; same ignore-own-dimension shape
-  // as filters.ts's facetValidValues).
-  const tableCards = useMemo(
-    () => (homeSets.size ? filtered.filter((c) => homeSets.has(c.set_code)) : filtered),
-    [filtered, homeSets]
-  );
-
   // BL-213: base_card_id -> position in TODAY's default order (canonical set
   // order, numbers ascending) -- built off `cards` (the full scope-ordered
-  // list BEFORE any filter/toggle narrows it), not `tableCards`, so the
-  // index a row carries never changes as filters/toggles/home-set selection
-  // come and go, only which rows are visible. Every column's comparator
-  // falls back to this on a tie (utils/cardSort.ts), and it's the literal
-  // definition of `#`/`Set` ascending.
+  // list BEFORE any filter/toggle narrows it), not `filtered`, so the index
+  // a row carries never changes as filters/toggles come and go, only which
+  // rows are visible. Every column's comparator falls back to this on a tie
+  // (utils/cardSort.ts), and it's the literal definition of `#`/`Set`
+  // ascending.
   const defaultIndex = useMemo(() => new Map(cards.map((c, i) => [c.base_card_id, i])), [cards]);
 
-  // BL-213: the row order the page actually renders -- `tableCards` (every
-  // filter/toggle/home-set narrowing already applied) reordered by the
-  // active single-column sort. Feeds CardsTable AND GalleryGrid from one
-  // call, so the Gallery view inherits the same ordering (owner spec) for
-  // free, and the popup's prev/next snapshot below follows the same order
-  // the collector is actually looking at.
+  // BL-213: the row order the page actually renders -- `filtered` (every
+  // filter/toggle narrowing already applied, set facet included) reordered
+  // by the active single-column sort. Feeds CardsTable AND GalleryGrid from
+  // one call, so the Gallery view inherits the same ordering (owner spec)
+  // for free, and the popup's prev/next snapshot below follows the same
+  // order the collector is actually looking at.
   const sortedCards = useMemo(
     () =>
-      sortCards(tableCards, sortState, {
+      sortCards(filtered, sortState, {
         scope,
         valueMode: priceKind,
         unitMode: valueDisplay,
         setOrder,
         defaultIndex,
       }),
-    [tableCards, sortState, scope, priceKind, valueDisplay, setOrder, defaultIndex]
-  );
-
-  // BL-179: the popovers' top-right "Sets selected:" readout -- the set
-  // FACET's selections (release-ordered codes), shown so the rows' universe
-  // is legible when a FilterPanel set choice is shaping it.
-  const filterSetCodes = useMemo(
-    () => orderSetCodes(Array.from(filters.set), setOrder),
-    [filters.set, setOrder]
+    [filtered, sortState, scope, priceKind, valueDisplay, setOrder, defaultIndex]
   );
 
   // BL-163 (Definition §3): "any mechanism" that narrows the visible list --
-  // a FilterPanel facet/search, or any of the three toggles above -- makes
-  // `filtered` a genuine subset of `cards`, which is what governs whether
-  // InventorySummary's Filtered/All scope toggle renders at all.
+  // a FilterPanel facet/search (the set facet included), or any of the four
+  // toggles above -- makes `filtered` a genuine subset of `cards`, which is
+  // what governs whether InventorySummary's Filtered/All scope toggle
+  // renders at all. BL-224: no separate home-base-set term -- a set facet
+  // selection is already covered by `isDefaultFilterState(filters)`.
   const isNarrowed =
-    !isDefaultFilterState(filters) ||
-    incompleteOnly ||
-    ownedOnly ||
-    noInventoryOnly ||
-    overCapOnly ||
-    // BL-179: a home-base-set selection narrows the visible list the same as
-    // any facet -- it must count, or the scope toggle wouldn't render.
-    homeSets.size > 0;
+    !isDefaultFilterState(filters) || incompleteOnly || ownedOnly || noInventoryOnly || overCapOnly;
 
   /** BL-148: opens the unified popup AND snapshots `filtered`'s current
    * base_card_id order for prev/next nav -- the single entry point both the
@@ -624,7 +619,7 @@ export function CardsPage({
       // preselect below). Table opens and unfiltered gallery opens pass
       // nothing and keep the existing rules.
       setGalleryDisplayedFinish(displayedFinish);
-      // BL-213: snapshot the SORTED order (not the pre-sort `tableCards`) --
+      // BL-213: snapshot the SORTED order (not the pre-sort `filtered`) --
       // prev/next now browses in the same order the collector clicked from,
       // table or Gallery alike.
       setPopupCardIds(sortedCards.map((c) => c.base_card_id));
@@ -690,26 +685,12 @@ export function CardsPage({
             onResetAll={resetExternalFilters}
             externalActiveCount={externalActiveCount}
           >
-            {/* BL-179: the home-base-set narrowing lives outside FilterState
-                (it's the completion popovers' own dimension), so the panel
-                gets a visibility + clear affordance for it here -- without
-                this, a selection made in a popover would invisibly shape the
-                table from the filter side. */}
-            {homeSets.size > 0 && (
-              <div className="ifp-baseset-chip">
-                <span className="ifp-baseset-chip__label">
-                  Base sets: {orderSetCodes(Array.from(homeSets), setOrder).join(", ")}
-                </span>
-                <button
-                  type="button"
-                  className="ifp-baseset-chip__clear"
-                  onClick={clearHomeSets}
-                  aria-label="Clear base set selection"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+            {/* BL-224: the completion popovers' set selection now IS the
+                sidebar's own Set facet (no second dimension to surface here
+                anymore) -- a popover row-click shows up in the Set field's
+                own chip/dropdown exactly like a sidebar click would, so the
+                separate BL-179 "Base sets: …" chip that used to bridge the
+                two is retired outright, not ported. */}
             <div className="ifp-toggle-row">
               {/* BL-195 (Issue #60): while `scope` is active, each pl-toggle
                   below also carries `pl-toggle--scoped` -- the same amber
@@ -848,13 +829,11 @@ export function CardsPage({
           </FilterPanel>
           <div className="cards-content">
             <InventorySummary
-              filteredCards={tableCards}
+              filteredCards={filtered}
               allCards={cards}
-              breakdownCards={filtered}
-              selectedHomeSets={homeSets}
-              onToggleHomeSet={toggleHomeSet}
-              onClearHomeSets={clearHomeSets}
-              filterSetCodes={filterSetCodes}
+              breakdownCards={breakdownCards}
+              selectedSetCodes={filters.set}
+              onToggleSetCode={toggleFilterSet}
               isNarrowed={isNarrowed}
               baseSetCodes={baseSetCodes}
               orderedBaseSets={orderedBaseSets}

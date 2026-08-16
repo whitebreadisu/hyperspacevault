@@ -2568,25 +2568,44 @@ describe("CardsPage Value price-kind persistence (BL-173, CREATE)", () => {
   });
 });
 
-// CREATE (BL-179 round 11, owner follow-up): the rail badge's external
-// count through the REAL CardsPage wiring -- checkboxes one each, the
-// whole base-set selection one unit -- not just FilterPanel's injected
-// number.
-describe("CardsPage external filters feed the rail badge (BL-179 r11, CREATE)", () => {
+// DISPOSITION (RETIRE the base-set half, PORT the checkbox half; BL-224):
+// BL-179 r11 counted the completion popovers' home-base-set selection as
+// its own "external" unit (one bump in CardsPage's externalActiveCount,
+// alongside the Collection checkboxes) because that selection lived OUTSIDE
+// FilterState entirely. BL-224 unifies it INTO FilterState (it's just
+// `filters.set` now, written by a popover row-click exactly like a sidebar
+// click), so it's already counted once by FilterPanel's own
+// countActiveFilters -- counting it again via externalActiveCount would
+// double-count it, and there's no more "amber row's clear ✕" to click
+// either (that readout is retired, BL-224 §2). The checkbox-only half of
+// this test's original coverage is unaffected by any of that and survives
+// unchanged below.
+describe("CardsPage external filters feed the rail badge (BL-179 r11, PORT for BL-224)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
   });
 
-  it("counts checkboxes individually and the base-set selection as one unit", async () => {
-    const { container } = await renderPage();
+  it("counts checkboxes individually", async () => {
+    await renderPage();
 
     // Two compatible checkboxes (ownedOnly excludes noInventoryOnly, so use
     // incompleteOnly + ownedOnly).
     fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
     fireEvent.click(screen.getByRole("button", { name: /incomplete playsets/i }));
 
-    // One base set selected via a completion popover row.
+    fireEvent.click(screen.getByTitle("Collapse filters"));
+    expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("2");
+  });
+
+  // CREATE (BL-224): a popover row-click narrows the badge count through the
+  // SAME path a sidebar Set-facet click would -- one bump, not counted
+  // twice, and it stacks with the checkboxes above like any other facet.
+  it("counts a popover row-click's set-facet selection the same as a sidebar Set pick", async () => {
+    const { container } = await renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+
     fireEvent.click(
       container.querySelector('[data-testid="inv-summary-block-cards"]') as HTMLElement
     );
@@ -2594,14 +2613,9 @@ describe("CardsPage external filters feed the rail badge (BL-179 r11, CREATE)", 
       container.querySelector(".inv-summary__popover-row--selectable") as HTMLElement
     );
 
-    // Collapse the panel: badge = 2 checkboxes + 1 base-set unit.
     fireEvent.click(screen.getByTitle("Collapse filters"));
-    expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("3");
-
-    // Clearing the base-set selection from the amber row drops it to 2.
-    fireEvent.click(screen.getByTitle("Expand filters"));
-    fireEvent.click(container.querySelector(".inv-summary__basesets-clear") as HTMLElement);
-    fireEvent.click(screen.getByTitle("Collapse filters"));
+    // 1 checkbox + 1 Set-facet selection (via FilterPanel's own
+    // countActiveFilters, not a second externalActiveCount bump).
     expect(document.querySelector(".ifp-sidebar-tab__badge")?.textContent).toBe("2");
   });
 });

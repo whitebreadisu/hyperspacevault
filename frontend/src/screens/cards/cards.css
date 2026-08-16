@@ -196,68 +196,20 @@
   color: var(--color-warning);
 }
 
-/* Scope toggle (Filtered/All) -- sits LEFT of the blocks with a bracket
- * divider, only rendered while the visible list is narrowed (Definition
- * §3; InventorySummary.tsx's `showScopeToggle`). */
-/* BL-179 round 2 (owner): moved to the right of the blocks; round 9: moved
- * again, into the full-width `.inv-summary__scoperow` under the blocks --
- * the stretch/divider treatment from its edge-of-strip life is retired. */
-.inv-summary__scope {
+/* BL-223 (re-locked, replaces BL-179 round 9's three-way strip-row toggle):
+ * the Filtered/All switch sits immediately RIGHT of the fourth block,
+ * inside the block row -- before the actions slot -- only rendered while
+ * the visible list is narrowed (Definition §3; InventorySummary.tsx's
+ * `showScopeToggle`). The old full-width `.inv-summary__scoperow` (and the
+ * amber base-set readout that used to share it, BL-224) is retired outright
+ * -- nothing else lived in that row once both were gone. */
+.inv-summary__totals {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
 
-/* BL-179 round 9 (owner): full-width second strip row -- the amber
- * base-set readout + clear, and the (now three-way) scope toggle. width:
- * 100% forces the wrap onto its own line inside the strip's flex-wrap;
- * the 20px inset matches the strip's own block inset. */
-.inv-summary__scoperow {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-left: 20px;
-}
-
-/* The amber readout borrows `.vs-bracket__label`'s exact type treatment
- * (the table header's scope/Unit-Value bracket family) per owner request --
- * same font, size, tracking, and #f2c14e amber. */
-.inv-summary__basesets {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.inv-summary__basesets-label {
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #f2c14e;
-  white-space: nowrap;
-}
-.inv-summary__basesets-clear {
-  background: none;
-  border: 1px solid rgba(242, 193, 78, 0.45);
-  border-radius: 3px;
-  padding: 0 5px;
-  font-size: 10px;
-  line-height: 15px;
-  color: #f2c14e;
-  cursor: pointer;
-}
-.inv-summary__basesets-clear:hover {
-  border-color: #f2c14e;
-  background: rgba(242, 193, 78, 0.12);
-}
-
-.inv-summary__scope-toggle {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.inv-summary__scope-toggle-label {
+.inv-summary__totals-label {
   font-family: var(--font-ui);
   font-size: 10.5px;
   font-weight: 600;
@@ -266,27 +218,13 @@
   color: var(--color-text-muted);
 }
 
-.inv-summary__scope-group {
-  display: inline-flex;
-  border: 1px solid var(--color-border);
-}
-
-.inv-summary__scope-btn {
-  padding: 4px 10px;
-  border: none;
-  cursor: pointer;
-  background: transparent;
-  font-family: var(--font-ui);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.inv-summary__scope-btn--active {
-  background: var(--color-primary);
-  color: #ffffff;
+/* BL-223 §3 (owner-locked): while the switch reads FILTERED, its caption
+ * joins the amber narrowed-state signal alongside the switch itself (the
+ * switch's own amber comes from ValueSwitch's `accent="amber"`, styled
+ * below next to its plain --on treatment). Same #f2c14e/rgba(217,154,31,*)
+ * token family as `.pl-toggle--scoped` and the Value header's scoped text. */
+.inv-summary__totals--amber .inv-summary__totals-label {
+  color: #f2c14e;
 }
 
 /* One block: 1px ring (border-color var, or the blue viz color while its
@@ -330,6 +268,19 @@
 
 .inv-summary__block-inner[role="button"] {
   cursor: pointer;
+}
+
+/* BL-223 §3 (owner-locked): all four blocks take the same amber ring +
+ * interior wash while the Totals switch reads FILTERED -- same token
+ * family as the switch/caption above. Declared AFTER `.inv-summary__block`/
+ * `.inv-summary__block--open`/the hover rule/`.inv-summary__block-inner`
+ * above so it wins the cascade over both the plain border-color ring and
+ * the blue open/hover ring at equal specificity (one class each). */
+.inv-summary__block-wrap--amber .inv-summary__block {
+  background: rgba(217, 154, 31, 0.4);
+}
+.inv-summary__block-wrap--amber .inv-summary__block-inner {
+  background: rgba(217, 154, 31, 0.16);
 }
 
 .inv-summary__label-row {
@@ -489,13 +440,14 @@
   padding-top: 10px;
 }
 
-/* BL-179: popover rows double as a home-base-set filter control when the
- * toggle is wired (CardsPage). Every row in a wired popover carries exactly
- * one modifier (--selectable or --inert), and both share the same bleed
- * (negative margin + matching padding) so the selected/hover tint reads as
- * a full-width band while the logo/ticks columns stay aligned with the
- * title. Selected = a quiet primary-tinted band + inset accent edge (blue
- * stays the panel's working color; green remains reserved for 100%). */
+/* BL-224 (was BL-179's parallel home-base-set dimension, now the same set
+ * facet): popover rows double as a filter control when the toggle is wired
+ * (CardsPage). Every row in a wired popover carries exactly one modifier
+ * (--selectable or --inert), and both share the same bleed (negative margin
+ * + matching padding) so the selected/hover tint reads as a full-width band
+ * while the logo/ticks columns stay aligned with the title. Selected = a
+ * quiet primary-tinted band + inset accent edge (blue stays the panel's
+ * working color; green remains reserved for 100%). */
 .inv-summary__popover-row--selectable,
 .inv-summary__popover-row--inert {
   margin: 0 -10px;
@@ -517,25 +469,6 @@
  * selecting one could only produce an empty table. */
 .inv-summary__popover-row--inert {
   opacity: 0.4;
-}
-
-/* BL-179: the set FACET's selections, top-right of the title row. */
-.inv-summary__popover-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-}
-.inv-summary__popover-filtersets {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: none;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 240px;
 }
 
 /* Owner dev review 2026-07-26 (round 3): the 190px width cap removed --
@@ -1785,6 +1718,25 @@
 }
 .vs-value-switch:hover .vs-value-switch__label {
   color: var(--color-text);
+}
+/* BL-223 §3 (owner-locked): the completion panel's Totals switch (the only
+ * ValueSwitch call site that passes `accent="amber"`, VariantScopeControls.tsx)
+ * -- while it reads FILTERED, the switch takes the light amber
+ * `.pl-toggle--scoped` family (FilterPanel.css: rgba(217,154,31,0.16) fill,
+ * rgba(217,154,31,0.4) border) in place of this component's own blue --on
+ * treatment. The caller only ever passes `accent` on the unchecked side, so
+ * --amber and --on never actually co-occur, but each selector below matches
+ * --on's own specificity so the swap would still win cleanly either way. */
+.vs-value-switch--amber .vs-value-switch__track {
+  background: rgba(217, 154, 31, 0.16);
+  border-color: rgba(217, 154, 31, 0.4);
+}
+.vs-value-switch--amber .vs-value-switch__thumb {
+  background: #f2c14e;
+}
+.vs-value-switch--amber .vs-value-switch__label,
+.vs-value-switch--amber:hover .vs-value-switch__label {
+  color: #f2c14e;
 }
 /* Large size (UNIT/TOTAL): in-track label matches the th's own 11px/700
  * uppercase type, track heightened to hold it. */
