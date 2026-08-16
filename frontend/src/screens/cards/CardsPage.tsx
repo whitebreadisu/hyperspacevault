@@ -32,6 +32,8 @@ import {
   scopedOwnedCount,
   scopedPlaysetComplete,
 } from "../../utils/variantScope";
+import { sortCards, nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
+import type { SortState, SortColumn } from "../../utils/cardSort";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
@@ -225,6 +227,12 @@ export function CardsPage({
   // BL-173: Market/Low kind for the Value column -- Market default,
   // persisted across visits (localStorage, headerStarfield's pattern).
   const [priceKind, setPriceKind] = useState<PriceMode>(() => loadPriceKind());
+  // BL-213 (Issue #122): the Vault table's user-controlled column sort --
+  // SESSION-ONLY (plain React state, deliberately never localStorage; owner
+  // spec) and single-column. Defaults to `#` ascending, which IS today's
+  // default row order (utils/cardSort.ts's DEFAULT_SORT_STATE) -- there is
+  // no separate "unsorted" state.
+  const [sortState, setSortState] = useState<SortState>(DEFAULT_SORT_STATE);
 
   /** BL-56 §5.5 Slice 4: the single handler every inert anonymous control
    * routes through -- opens the shell's AuthModal via the App-owned callback.
@@ -247,6 +255,13 @@ export function CardsPage({
   const handlePriceKindChange = useCallback((kind: PriceMode) => {
     setPriceKind(kind);
     savePriceKind(kind);
+  }, []);
+
+  // BL-213: 2-state header click cycling (utils/cardSort.ts's
+  // nextSortState) -- a different column lands on ascending, the
+  // already-active column toggles asc<->desc.
+  const handleSortChange = useCallback((column: SortColumn) => {
+    setSortState((prev) => nextSortState(prev, column));
   }, []);
 
   // Owner request 2026-07-31: Unit/Collection display for the Value column
@@ -546,6 +561,33 @@ export function CardsPage({
     [filtered, homeSets]
   );
 
+  // BL-213: base_card_id -> position in TODAY's default order (canonical set
+  // order, numbers ascending) -- built off `cards` (the full scope-ordered
+  // list BEFORE any filter/toggle narrows it), not `tableCards`, so the
+  // index a row carries never changes as filters/toggles/home-set selection
+  // come and go, only which rows are visible. Every column's comparator
+  // falls back to this on a tie (utils/cardSort.ts), and it's the literal
+  // definition of `#`/`Set` ascending.
+  const defaultIndex = useMemo(() => new Map(cards.map((c, i) => [c.base_card_id, i])), [cards]);
+
+  // BL-213: the row order the page actually renders -- `tableCards` (every
+  // filter/toggle/home-set narrowing already applied) reordered by the
+  // active single-column sort. Feeds CardsTable AND GalleryGrid from one
+  // call, so the Gallery view inherits the same ordering (owner spec) for
+  // free, and the popup's prev/next snapshot below follows the same order
+  // the collector is actually looking at.
+  const sortedCards = useMemo(
+    () =>
+      sortCards(tableCards, sortState, {
+        scope,
+        valueMode: priceKind,
+        unitMode: valueDisplay,
+        setOrder,
+        defaultIndex,
+      }),
+    [tableCards, sortState, scope, priceKind, valueDisplay, setOrder, defaultIndex]
+  );
+
   // BL-179: the popovers' top-right "Sets selected:" readout -- the set
   // FACET's selections (release-ordered codes), shown so the rows' universe
   // is legible when a FilterPanel set choice is shaping it.
@@ -580,10 +622,13 @@ export function CardsPage({
       // preselect below). Table opens and unfiltered gallery opens pass
       // nothing and keep the existing rules.
       setGalleryDisplayedFinish(displayedFinish);
-      setPopupCardIds(tableCards.map((c) => c.base_card_id));
+      // BL-213: snapshot the SORTED order (not the pre-sort `tableCards`) --
+      // prev/next now browses in the same order the collector clicked from,
+      // table or Gallery alike.
+      setPopupCardIds(sortedCards.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
     },
-    [tableCards]
+    [sortedCards]
   );
 
   const closePopup = useCallback(() => {
@@ -904,7 +949,7 @@ export function CardsPage({
             )}
             {viewMode === "table" ? (
               <CardsTable
-                cards={tableCards}
+                cards={sortedCards}
                 setNameByCode={setNameByCode}
                 isAuthenticated={hasData}
                 onSelectCard={openPopup}
@@ -915,10 +960,15 @@ export function CardsPage({
                 onPriceKindChange={handlePriceKindChange}
                 valueDisplay={valueDisplay}
                 onValueDisplayChange={handleValueDisplayChange}
+                sortState={sortState}
+                onSortChange={handleSortChange}
               />
             ) : (
+              // BL-213: the Gallery view inherits the same ordering as the
+              // table (owner spec) -- no sort affordances of its own, it
+              // just renders whatever order it's handed.
               <GalleryGrid
-                cards={tableCards}
+                cards={sortedCards}
                 onSelectCard={openPopup}
                 activeFinishes={filters.finish}
                 isAuthenticated={hasData}

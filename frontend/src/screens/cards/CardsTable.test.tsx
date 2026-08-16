@@ -2,6 +2,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { CardsTable } from "./CardsTable";
 import type { InventoryCard } from "../../utils/inventory";
+import type { SortState } from "../../utils/cardSort";
 
 // DISPOSITION (PORT, BL-56 Slice 3): ported from the retired
 // screens/inventory/InventoryTable.test.tsx onto the unified CardsTable.
@@ -1502,5 +1503,151 @@ describe("CardsTable Playset/Value -- anonymous with a scope active (BL-173, CRE
     expect(cell.querySelectorAll(".playset__pip--filled")).toHaveLength(0);
     expect(cell.querySelector(".playset__pips--scoped")).toBeNull();
     expect(cell.querySelector(".playset-chip")!.textContent).toBe("—");
+  });
+});
+
+// CREATE (BL-213, Issue #122): the sortable header affordances -- clicking a
+// sortable header's label reports the column up via onSortChange,
+// aria-sort reflects the active column/direction (and "none" for an
+// inactive sortable one), and the five non-sortable columns (Aspect, Type,
+// Trait, Keyword, Arena) carry no sort affordance at all. The comparator
+// RULES themselves are covered exhaustively in utils/cardSort.test.ts --
+// this file only proves CardsTable wires that module's SortState/
+// onSortChange contract into the header DOM correctly, since sorting the
+// actual row order is CardsPage's job (it calls sortCards before handing
+// `cards` to this component), not CardsTable's.
+describe("CardsTable sortable headers (BL-213, CREATE)", () => {
+  // Exact string match (Testing Library's default for a plain-string `name`)
+  // -- deliberately NOT a substring/regex match: the Playset header's
+  // accessible name ("ALL FINISHESPlayset" unscoped) contains the substring
+  // "set", which would ambiguously match a loose "Set" query too.
+  function headerCell(name: string): HTMLElement {
+    return screen.getByRole("columnheader", { name });
+  }
+
+  it("defaults to # ascending when no sortState prop is passed -- matches CardsPage's own default", () => {
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerCell("#")).toHaveAttribute("aria-sort", "ascending");
+    expect(screen.getByRole("button", { name: "#" }).className).toContain("th-sort-btn--asc");
+  });
+
+  it("every OTHER sortable header reads aria-sort='none' while # is active", () => {
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    for (const name of ["Name", "Variants", "Rarity", "Cost", "Power", "HP", "Set"]) {
+      expect(headerCell(name)).toHaveAttribute("aria-sort", "none");
+    }
+    // Playset/Value are compound headers (their own scope-trigger/toggle
+    // buttons live alongside the sort button) -- queried directly by class
+    // rather than by accessible name.
+    expect(document.querySelector("th.th-playset")).toHaveAttribute("aria-sort", "none");
+    expect(document.querySelector("th.th-value")).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("the five non-sortable columns (Aspect, Type, Trait, Keyword, Arena) carry no aria-sort attribute and no button", () => {
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    for (const name of ["Aspect", "Type", "Trait", "Keyword", "Arena"]) {
+      const header = screen.getByRole("columnheader", { name });
+      expect(header).not.toHaveAttribute("aria-sort");
+      expect(within(header).queryByRole("button")).toBeNull();
+    }
+  });
+
+  it("clicking a simple sortable header's label calls onSortChange with that column", () => {
+    const onSortChange = vi.fn();
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        onSortChange={onSortChange}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Rarity" }));
+    expect(onSortChange).toHaveBeenCalledWith("rarity");
+    fireEvent.click(screen.getByRole("button", { name: "Cost" }));
+    expect(onSortChange).toHaveBeenCalledWith("cost");
+  });
+
+  it("reflects an active descending sort on the right header, and 'none' elsewhere", () => {
+    const sortState: SortState = { column: "value", direction: "desc" };
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        sortState={sortState}
+      />
+    );
+    expect(container.querySelector("th.th-value")).toHaveAttribute("aria-sort", "descending");
+    expect(headerCell("#")).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("clicking the Playset label's own sort button reports 'playset' without triggering the scope trigger's own click handler", () => {
+    const onSortChange = vi.fn();
+    const onScopeChange = vi.fn();
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        onSortChange={onSortChange}
+        onScopeChange={onScopeChange}
+      />
+    );
+    fireEvent.click(container.querySelector(".th-playset-label")!);
+    expect(onSortChange).toHaveBeenCalledWith("playset");
+    expect(onScopeChange).not.toHaveBeenCalled();
+  });
+
+  it("clicking the Value label's own sort button reports 'value' without triggering the MKT/LOW or UNIT/COLLECTION switches", () => {
+    const onSortChange = vi.fn();
+    const onPriceKindChange = vi.fn();
+    const onValueDisplayChange = vi.fn();
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        onSortChange={onSortChange}
+        onPriceKindChange={onPriceKindChange}
+        onValueDisplayChange={onValueDisplayChange}
+      />
+    );
+    fireEvent.click(container.querySelector(".th-value-label")!);
+    expect(onSortChange).toHaveBeenCalledWith("value");
+    expect(onPriceKindChange).not.toHaveBeenCalled();
+    expect(onValueDisplayChange).not.toHaveBeenCalled();
   });
 });

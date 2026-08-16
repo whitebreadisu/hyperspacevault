@@ -20,6 +20,8 @@ import {
 } from "../../utils/variantScope";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
+import { DEFAULT_SORT_STATE, ariaSortValue } from "../../utils/cardSort";
+import type { SortColumn, SortState } from "../../utils/cardSort";
 
 const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Villainy"] as const;
 
@@ -146,6 +148,17 @@ interface Props {
    * as priceKind above. */
   valueDisplay?: ValueDisplayMode;
   onValueDisplayChange?: (mode: ValueDisplayMode) => void;
+  /** BL-213 (Issue #122): the active single-column sort -- owned/persisted
+   * (session-only, never localStorage) by CardsPage, applied to the row list
+   * before it ever reaches this component (utils/cardSort.ts's sortCards).
+   * CardsTable only renders the resulting header affordances (aria-sort +
+   * the direction indicator) and reports clicks back up; it holds no sort
+   * state of its own. Optional/defaulted to the same "# ascending is the
+   * default order" state CardsPage itself initializes, same idiom every
+   * other optional prop here uses so pre-existing call sites/tests keep
+   * rendering unaffected. */
+  sortState?: SortState;
+  onSortChange?: (column: SortColumn) => void;
 }
 
 /** Unified Cards table (BL-56 §5.5) -- merges the old CatalogPage table and
@@ -173,8 +186,17 @@ export function CardsTable({
   onPriceKindChange = () => {},
   valueDisplay = "unit",
   onValueDisplayChange = () => {},
+  sortState = DEFAULT_SORT_STATE,
+  onSortChange = () => {},
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  /** BL-213: className for one sortable header's inner button -- the
+   * direction indicator (a CSS `::after` triangle, cards.css) is driven by
+   * this modifier class so it never leaks into the header's textContent/
+   * accessible name. */
+  const sortBtnClass = (column: SortColumn) =>
+    `th-sort-btn${sortState.column === column ? ` th-sort-btn--${sortState.direction}` : ""}`;
 
   const rowVirtualizer = useVirtualizer({
     count: cards.length,
@@ -227,10 +249,45 @@ export function CardsTable({
                 directly by `.th-cardnum-scoped` (cards.css), part of the
                 same round that ambers the Playset/Value labels and toggle
                 labels under the extended bracket. */}
-            <th className={scope ? "th-cardnum-scoped" : undefined}>#</th>
-            <th>Name</th>
-            <th>Variants</th>
-            <th className={`th-playset${scope ? " th-scoped" : ""}`}>
+            {/* BL-213: `aria-sort` lives on the <th> (ARIA's own home for
+                it); the click affordance + direction indicator live on the
+                inner button so wrapping never changes a header's
+                textContent (every pre-existing header-text assertion stays
+                valid unchanged). */}
+            <th
+              className={scope ? "th-cardnum-scoped" : undefined}
+              aria-sort={ariaSortValue(sortState, "number")}
+            >
+              <button
+                type="button"
+                className={sortBtnClass("number")}
+                onClick={() => onSortChange("number")}
+              >
+                #
+              </button>
+            </th>
+            <th aria-sort={ariaSortValue(sortState, "name")}>
+              <button
+                type="button"
+                className={sortBtnClass("name")}
+                onClick={() => onSortChange("name")}
+              >
+                Name
+              </button>
+            </th>
+            <th aria-sort={ariaSortValue(sortState, "variants")}>
+              <button
+                type="button"
+                className={sortBtnClass("variants")}
+                onClick={() => onSortChange("variants")}
+              >
+                Variants
+              </button>
+            </th>
+            <th
+              className={`th-playset${scope ? " th-scoped" : ""}`}
+              aria-sort={ariaSortValue(sortState, "playset")}
+            >
               {/* BL-173 round 2 (owner, 2026-07-27): the amber bracket lives
                   INSIDE this header row now -- the original separate thead
                   <tr> read as table content, not header. It's an absolutely
@@ -257,11 +314,23 @@ export function CardsTable({
                 <CardsScopeTrigger scope={scope} onScopeChange={onScopeChange} />
                 {/* Owner-dialed 2026-07-31: label (and the cells below, via
                     .td-playset padding) shift 15px right; the scope trigger
-                    deliberately does NOT. */}
-                <span className="th-playset-label">Playset</span>
+                    deliberately does NOT. BL-213: the label doubles as the
+                    Playset column's sort button -- CardsScopeTrigger above
+                    stays its own separate button, not nested inside this
+                    one. */}
+                <button
+                  type="button"
+                  className={`th-playset-label ${sortBtnClass("playset")}`}
+                  onClick={() => onSortChange("playset")}
+                >
+                  Playset
+                </button>
               </span>
             </th>
-            <th className={`th-value${scope ? " th-scoped" : ""}`}>
+            <th
+              className={`th-value${scope ? " th-scoped" : ""}`}
+              aria-sort={ariaSortValue(sortState, "value")}
+            >
               {/* Round 2: MKT/LOW stacked ABOVE the label; the scoped finish
                   tag is REMOVED from this header (owner call -- the bracket
                   + trigger already name the finish). Round 4: .th-value
@@ -285,22 +354,73 @@ export function CardsTable({
                       state class -- unscoped it's an unstyled span). The
                       round's earlier bordered/filled chip treatment is
                       retired; color only. */}
-                  <span className="th-value-label">Value</span>
+                  {/* BL-213: the Value label doubles as this column's sort
+                      button -- the MKT/LOW and UNIT/COLLECTION switches
+                      above stay their own separate buttons. */}
+                  <button
+                    type="button"
+                    className={`th-value-label ${sortBtnClass("value")}`}
+                    onClick={() => onSortChange("value")}
+                  >
+                    Value
+                  </button>
                 </span>
               </span>
             </th>
-            <th>Rarity</th>
+            <th aria-sort={ariaSortValue(sortState, "rarity")}>
+              <button
+                type="button"
+                className={sortBtnClass("rarity")}
+                onClick={() => onSortChange("rarity")}
+              >
+                Rarity
+              </button>
+            </th>
             <th>Aspect</th>
             <th>Type</th>
             {/* BL-173 review round 1: header text centers over the centered
-                StatBadges (.th-stat/.td-stat pair, cards.css). */}
-            <th className="th-stat">Cost</th>
-            <th className="th-stat">Power</th>
-            <th className="th-stat">HP</th>
+                StatBadges (.th-stat/.td-stat pair, cards.css). BL-213: Cost/
+                Power/HP are sortable -- the button is an inline-block by
+                default, so .th-stat's text-align: center still centers it. */}
+            <th className="th-stat" aria-sort={ariaSortValue(sortState, "cost")}>
+              <button
+                type="button"
+                className={sortBtnClass("cost")}
+                onClick={() => onSortChange("cost")}
+              >
+                Cost
+              </button>
+            </th>
+            <th className="th-stat" aria-sort={ariaSortValue(sortState, "power")}>
+              <button
+                type="button"
+                className={sortBtnClass("power")}
+                onClick={() => onSortChange("power")}
+              >
+                Power
+              </button>
+            </th>
+            <th className="th-stat" aria-sort={ariaSortValue(sortState, "hp")}>
+              <button
+                type="button"
+                className={sortBtnClass("hp")}
+                onClick={() => onSortChange("hp")}
+              >
+                HP
+              </button>
+            </th>
             <th>Trait</th>
             <th>Keyword</th>
             <th>Arena</th>
-            <th>Set</th>
+            <th aria-sort={ariaSortValue(sortState, "set")}>
+              <button
+                type="button"
+                className={sortBtnClass("set")}
+                onClick={() => onSortChange("set")}
+              >
+                Set
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
