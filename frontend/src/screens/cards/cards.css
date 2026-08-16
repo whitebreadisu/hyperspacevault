@@ -208,8 +208,16 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
   gap: 3px;
+  /* Owner round (2026-08-16): near-top alignment with the four blocks --
+   * the row centers its items, so the switch self-aligns to the top and
+   * takes the block-inner's own 8px top padding, putting the TOTALS
+   * caption's top on the same line as the four block labels (which sit
+   * 8px under their box border, not flush with it). */
+  align-self: flex-start;
+  /* Round 2: 8px (the blocks' own top padding) read a hair high against
+   * the block labels -- +2px optical correction. */
+  padding-top: 10px;
 }
 
 .inv-summary__totals-label {
