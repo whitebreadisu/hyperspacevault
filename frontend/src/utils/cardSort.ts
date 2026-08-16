@@ -148,19 +148,6 @@ function compareNumeric(a: number, b: number): number {
   return a - b;
 }
 
-/** Numeric compare treating `null` as BELOW zero -- Value/Cost/Power/HP's
- * shared rule. Ascending order is `[null, ...values ascending]`; negating
- * this whole result (as `sortCards` does for every "desc" direction) yields
- * `[...values descending, null]` for free -- nulls land last -- which is
- * exactly the owner spec's "below 0 both directions" rule without a separate
- * descending branch. */
-function compareNullableBelowZero(a: number | null, b: number | null): number {
-  if (a == null && b == null) return 0;
-  if (a == null) return -1;
-  if (b == null) return 1;
-  return a - b;
-}
-
 /** Name column: case-insensitive alphanumeric on `name`, then subtitle.
  * JUDGMENT CALL: "subtitle" is read via parseCardDisplay (the SAME value the
  * Name cell itself renders) rather than the raw `card.subtitle` field, so a
@@ -239,8 +226,13 @@ function rarityRankFor(card: InventoryCard): number {
  * their "desc" behavior is asymmetric enough (the set GROUP order doesn't
  * simply reverse) that `sortCards` special-cases it instead of calling this
  * function at all for those two directions -- see its own comment. */
+/** The nullable-numeric columns (Value + the three stats) get their own
+ * branch in `sortCards` (nulls pinned last in both directions, owner
+ * revision 2026-08-16), so this builder never sees them. */
+type NullableNumericColumn = "cost" | "power" | "hp" | "value";
+
 function ascendingCompareFor(
-  column: SortColumn,
+  column: Exclude<SortColumn, NullableNumericColumn>,
   context: SortContext
 ): (a: InventoryCard, b: InventoryCard) => number {
   switch (column) {
@@ -253,16 +245,8 @@ function ascendingCompareFor(
       return (a, b) => compareNumeric(a.variants.length, b.variants.length);
     case "playset":
       return (a, b) => -comparePlaysetDescending(a, b, context);
-    case "value":
-      return (a, b) => compareNullableBelowZero(valueFor(a, context), valueFor(b, context));
     case "rarity":
       return (a, b) => compareNumeric(rarityRankFor(a), rarityRankFor(b));
-    case "cost":
-      return (a, b) => compareNullableBelowZero(a.cost, b.cost);
-    case "power":
-      return (a, b) => compareNullableBelowZero(a.power, b.power);
-    case "hp":
-      return (a, b) => compareNullableBelowZero(a.hp, b.hp);
   }
 }
 
@@ -278,13 +262,37 @@ export function sortCards(
 
   let primary: (a: InventoryCard, b: InventoryCard) => number;
 
-  if (column === "number" && direction === "desc") {
+  if (column === "cost" || column === "power" || column === "hp" || column === "value") {
+    // Owner revision (2026-08-16 review round, supersedes the original
+    // "below 0" rule for stats AND Value's em-dash): a null pins to the END
+    // in BOTH directions -- an ascending Power/Value sort is a ranking of
+    // cards that HAVE the number, so leading with a wall of blanks helps
+    // nobody. Two nulls compare equal here, so the universal defaultIndex
+    // tiebreak below (which is never direction-flipped) orders the trailing
+    // null block in default order, exactly as specified.
+    const numericOf =
+      column === "value"
+        ? (card: InventoryCard) => valueFor(card, context)
+        : (card: InventoryCard) => card[column];
+    primary = (a, b) => {
+      const aNum = numericOf(a);
+      const bNum = numericOf(b);
+      if (aNum == null || bNum == null) {
+        if (aNum == null && bNum == null) return 0;
+        return aNum == null ? 1 : -1;
+      }
+      return direction === "asc" ? aNum - bNum : bNum - aNum;
+    };
+  } else if (column === "number" && direction === "desc") {
     // "Within each set group, numbers descending; the SET GROUP ORDER STAYS
     // the canonical ascending order -- sets never interleave and never
     // reverse here" (owner spec). Group by canonical set order ascending,
-    // then the row's own displayed number (BL-187 scope-aware) descending.
+    // then tokens pinned last (owner revision 2026-08-16 -- ascending
+    // already pins them via the default order's own tokens-last rule), then
+    // the row's own displayed number (BL-187 scope-aware) descending.
     primary = (a, b) =>
       compareSetGroup(a, b, context) ||
+      (a.is_token ? 1 : 0) - (b.is_token ? 1 : 0) ||
       -cardNumberFor(a, context).localeCompare(cardNumberFor(b, context), undefined, {
         numeric: true,
       });

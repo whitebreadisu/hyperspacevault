@@ -105,6 +105,23 @@ describe("# column", () => {
     expect(ids(result)).toEqual([2, 1, 4, 3]);
   });
 
+  it("descending pins tokens LAST within their set group (owner revision 2026-08-16 -- ascending already pins them via default order)", () => {
+    const sor1 = makeCard({ base_card_id: 1, set_code: "SOR", base_card_number: "001" });
+    const sor2 = makeCard({ base_card_id: 2, set_code: "SOR", base_card_number: "002" });
+    const token = makeCard({
+      base_card_id: 3,
+      set_code: "SOR",
+      base_card_number: "T01",
+      is_token: true,
+    });
+    // Default order: non-tokens ascending, token last (sortBaseCards' rule).
+    const context = contextFor([sor1, sor2, token]);
+    const result = sortCards([sor1, sor2, token], state("number", "desc"), context);
+    // Numbers descend among non-tokens; the token stays pinned at the end
+    // instead of leading on its high number.
+    expect(ids(result)).toEqual([2, 1, 3]);
+  });
+
   it("uses the scoped card_number (BL-187) when a scope is active, mirroring the # column's own display rule", () => {
     const withScope = makeCard({
       base_card_id: 1,
@@ -326,16 +343,20 @@ describe("Value column", () => {
   });
   const cards = [priced10, priced5, unpriced];
 
-  it("em-dash (null/unpriced) sorts BELOW 0: first ascending, last descending", () => {
+  // REPLACES the original "below 0" assertion -- owner revision 2026-08-16
+  // (BL-213 review round): em-dash rows pin to the END in both directions,
+  // same rule as the stat columns.
+  it("em-dash (null/unpriced) pins to the END in BOTH directions", () => {
     const context = contextFor(cards);
-    expect(ids(sortCards(cards, state("value", "asc"), context))).toEqual([3, 2, 1]);
+    expect(ids(sortCards(cards, state("value", "asc"), context))).toEqual([2, 1, 3]);
     expect(ids(sortCards(cards, state("value", "desc"), context))).toEqual([1, 2, 3]);
   });
 
   it("follows the Market/Low toggle (valueMode)", () => {
-    // Low prices invert the $10/$5 relationship (10 -> low 2, 5 -> low 8).
+    // Low prices invert the $10/$5 relationship (10 -> low 2, 5 -> low 8);
+    // the unpriced card trails.
     const context = contextFor(cards, { valueMode: "low" });
-    expect(ids(sortCards(cards, state("value", "asc"), context))).toEqual([3, 1, 2]);
+    expect(ids(sortCards(cards, state("value", "asc"), context))).toEqual([1, 2, 3]);
   });
 
   it("follows the Unit/Collection toggle (unitMode) -- collection value depends on owned quantity", () => {
@@ -365,9 +386,9 @@ describe("Value column", () => {
     });
     const collectionCtx = contextFor([ownedCard, unownedCard], { unitMode: "collection" });
     // Collection value: ownedCard = 2 x $3 = $6; unownedCard = owns none ->
-    // null (em-dash) regardless of its catalog price -- sorts below 0.
+    // null (em-dash) regardless of its catalog price -- pins to the end.
     expect(ids(sortCards([ownedCard, unownedCard], state("value", "asc"), collectionCtx))).toEqual([
-      11, 10,
+      10, 11,
     ]);
   });
 });
@@ -400,14 +421,32 @@ describe.each([
   ["power", "power"],
   ["hp", "hp"],
 ] as const)("%s column", (_label, field) => {
-  it("a null stat sorts BELOW 0: first ascending, last descending", () => {
+  // REPLACES the original "null sorts below 0" assertion -- owner revision
+  // 2026-08-16 (BL-213 review round): a null stat pins to the END in BOTH
+  // directions; an ascending Power sort is a ranking of cards that HAVE
+  // power.
+  it("a null stat pins to the END in BOTH directions", () => {
     const withNull = makeCard({ base_card_id: 1, [field]: null });
     const withZero = makeCard({ base_card_id: 2, [field]: 0 });
     const withFive = makeCard({ base_card_id: 3, [field]: 5 });
     const cards = [withFive, withZero, withNull];
     const context = contextFor(cards);
-    expect(ids(sortCards(cards, state(field, "asc"), context))).toEqual([1, 2, 3]);
+    expect(ids(sortCards(cards, state(field, "asc"), context))).toEqual([2, 3, 1]);
     expect(ids(sortCards(cards, state(field, "desc"), context))).toEqual([3, 2, 1]);
+  });
+
+  it("the trailing null block keeps DEFAULT order in both directions (never reversed)", () => {
+    const nullA = makeCard({ base_card_id: 1, [field]: null });
+    const nullB = makeCard({ base_card_id: 2, [field]: null });
+    const withOne = makeCard({ base_card_id: 3, [field]: 1 });
+    // defaultIndex: 1 < 2 < 3; hand the array in scrambled.
+    const context = contextFor([nullA, nullB, withOne]);
+    expect(ids(sortCards([withOne, nullB, nullA], state(field, "asc"), context))).toEqual([
+      3, 1, 2,
+    ]);
+    expect(ids(sortCards([withOne, nullB, nullA], state(field, "desc"), context))).toEqual([
+      3, 1, 2,
+    ]);
   });
 });
 
