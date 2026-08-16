@@ -12,6 +12,7 @@ import {
 import { InventorySummary } from "../inventory/InventorySummary";
 import { CardsTable } from "./CardsTable";
 import { GalleryGrid } from "./GalleryGrid";
+import { GallerySortHeader } from "./GallerySortHeader";
 import { CardPopup } from "./CardPopup";
 import { FilterPanel } from "../../components/FilterPanel";
 import { useLimits } from "../../context/LimitsContext";
@@ -495,14 +496,15 @@ export function CardsPage({
         scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
       );
     }
-    // BL-217: keep only cards with at least one variant owned past its
-    // effective keep limit. Deliberately NOT scope-aware (unlike the three
-    // toggles above) -- the locked spec's predicate is "ANY of its variants,"
-    // checked against every variant's own bucket regardless of the Playset
-    // header's scope control; a scoped finish narrows what the TABLE shows,
-    // not which cards this filter surfaces.
+    // BL-222 (revises BL-217, Issue #134): "over my keep limit" now follows
+    // the SAME BL-195 scope-aware pattern as the three toggles above --
+    // while a scope is active, only the scoped finish's own variant(s) are
+    // checked against their limit (cardOverCap's new `scope` parameter,
+    // utils/limits.ts); unscoped behavior (ANY variant over its own cap) is
+    // unchanged. Owner revision of BL-217's original "deliberately NOT
+    // scope-aware" call.
     if (overCapOnly) {
-      result = result.filter((c) => cardOverCap(c.variants, c.type, limits));
+      result = result.filter((c) => cardOverCap(c.variants, c.type, limits, scope));
     }
     return result;
   }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, overCapOnly, scope, limits]);
@@ -802,17 +804,17 @@ export function CardsPage({
                     pl-toggle markup and requestSignIn routing as its
                     siblings. Dev copy ("Over keep limit") is intentionally
                     short -- owner reviews copy in a later HMR round.
-                    Deliberately NEVER carries pl-toggle--scoped (unlike the
-                    three siblings): the predicate checks every variant's own
-                    bucket regardless of the Playset header's scope (see
+                    BL-222: now carries pl-toggle--scoped like its three
+                    siblings -- the predicate itself became scope-aware (see
                     toggleNarrowed's overCapOnly branch above), so the amber
                     "this filter now evaluates against the scoped finish"
-                    signal would be false for this toggle. */}
+                    signal is accurate here too (owner revision of BL-217's
+                    original "deliberately never" call). */}
                 <button
                   type="button"
                   className={`pl-toggle${overCapOnly ? " pl-toggle--on" : ""}${
                     hasData ? "" : " pl-toggle--disabled"
-                  }`}
+                  }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
                     if (!hasData) {
                       requestSignIn();
@@ -965,14 +967,28 @@ export function CardsPage({
               />
             ) : (
               // BL-213: the Gallery view inherits the same ordering as the
-              // table (owner spec) -- no sort affordances of its own, it
-              // just renders whatever order it's handed.
-              <GalleryGrid
-                cards={sortedCards}
-                onSelectCard={openPopup}
-                activeFinishes={filters.finish}
-                isAuthenticated={hasData}
-              />
+              // table (owner spec) -- GalleryGrid itself still has no sort
+              // affordance of its own, it just renders whatever order it's
+              // handed. BL-222 (Issue #134): the sort/scope AFFORDANCE now
+              // lives one level up, in GallerySortHeader -- the same
+              // sortState/scope owned here, so a sort or scope change made
+              // from the gallery header is visible in the table too the next
+              // time the view is switched (no separate gallery-local state).
+              <>
+                <GallerySortHeader
+                  sortState={sortState}
+                  onSortChange={handleSortChange}
+                  scope={scope}
+                  onScopeChange={handleScopeChange}
+                />
+                <GalleryGrid
+                  cards={sortedCards}
+                  onSelectCard={openPopup}
+                  activeFinishes={filters.finish}
+                  isAuthenticated={hasData}
+                  scope={scope}
+                />
+              </>
             )}
           </div>
         </div>

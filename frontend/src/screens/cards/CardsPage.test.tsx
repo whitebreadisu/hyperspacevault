@@ -1756,6 +1756,86 @@ describe("CardsPage view mode (BL-73 Stage 1, CREATE)", () => {
   });
 });
 
+// CREATE (BL-222, Issue #134): the Gallery view's own header bar
+// (GallerySortHeader.tsx) -- this block is the CardsPage-level shared-state
+// PROOF that a sort/scope change made from the gallery header is the SAME
+// sortState/scope the table reads, not a separate gallery-local copy (owner
+// spec: "switching views preserves the sort"). Component-level coverage of
+// the header's own rendering/click wiring lives in
+// GallerySortHeader.test.tsx; this file only proves the CardsPage-owned
+// state the two views actually share.
+describe("CardsPage gallery sort header (BL-222, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+
+  function toggleToGallery() {
+    fireEvent.click(screen.getAllByRole("button", { name: "Gallery" })[0]);
+  }
+  function toggleToTable() {
+    fireEvent.click(screen.getAllByRole("button", { name: "Table" })[0]);
+  }
+
+  it("renders only while Gallery is the active view", async () => {
+    const { container } = await renderPage();
+    expect(container.querySelector(".gallery-sort-header")).toBeNull();
+
+    toggleToGallery();
+    expect(container.querySelector(".gallery-sort-header")).toBeTruthy();
+
+    toggleToTable();
+    expect(container.querySelector(".gallery-sort-header")).toBeNull();
+  });
+
+  it("renders for anonymous users too -- sorting is an anonymous-capable interaction, same as the table's headers", async () => {
+    const { container } = await renderPage(false);
+    toggleToGallery();
+    expect(container.querySelector(".gallery-sort-header")).toBeTruthy();
+  });
+
+  it("a sort set from the gallery header is the SAME sort the table shows after switching back", async () => {
+    const { container } = await renderPage();
+    toggleToGallery();
+
+    const header = container.querySelector(".gallery-sort-header") as HTMLElement;
+    fireEvent.click(within(header).getByRole("button", { name: "Name" }));
+
+    toggleToTable();
+    const nameHeader = screen.getByRole("columnheader", { name: "Name" });
+    expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+    expect(screen.getByRole("button", { name: "Name" }).className).toContain("th-sort-btn--asc");
+  });
+
+  it("a sort set from the TABLE is reflected in the gallery header after switching to it", async () => {
+    const { container } = await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Rarity" }));
+
+    toggleToGallery();
+    const header = container.querySelector(".gallery-sort-header") as HTMLElement;
+    const rarityBtn = within(header).getByRole("button", { name: "Rarity" });
+    expect(rarityBtn.className).toContain("th-sort-btn--asc");
+  });
+
+  it("a scope picked from the gallery header's trigger is the SAME scope the table's own trigger shows after switching back", async () => {
+    const { container } = await renderPage();
+    toggleToGallery();
+
+    const header = container.querySelector(".gallery-sort-header") as HTMLElement;
+    fireEvent.click(within(header).getByTitle("Scope pips + Value to a single variant"));
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const standardRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Standard"
+    )!;
+    fireEvent.click(within(standardRow as HTMLElement).getByText("Non-foil"));
+
+    toggleToTable();
+    expect(screen.getByTitle("Scope pips + Value to a single variant").textContent).toContain(
+      "Standard"
+    );
+  });
+});
+
 // CREATE (BL-129 R2, docked filter sidebar): structural proof only -- the
 // docked-vs-overlay choice itself is a pure CSS media query (FilterPanel.css)
 // keyed on viewport width, which jsdom doesn't lay out, so there is no
@@ -2241,6 +2321,119 @@ describe("CardsPage scoped collection filters (BL-195, CREATE)", () => {
     expect(incompleteBtn.className).toContain("pl-toggle--scoped");
     expect(ownedBtn.className).toContain("pl-toggle--scoped");
     expect(noInvBtn.className).toContain("pl-toggle--scoped");
+  });
+});
+
+// CREATE (BL-222, Issue #134): revises BL-217's "over my keep limit" toggle
+// to follow the SAME BL-195 scope-aware pattern its three siblings above
+// use -- while a scope is active, only the scoped finish's own variant is
+// checked against its own limit (utils/limits.ts's cardOverCap `scope`
+// parameter, unit-tested on its own in limits.test.ts). This block covers
+// the CardsPage-level wiring: a different finish's over-cap variant does NOT
+// qualify the card while scoped to another finish, unscoped behavior (ANY
+// variant) is unchanged, and the toggle picks up pl-toggle--scoped like its
+// three siblings.
+describe("CardsPage over-cap scope alignment (BL-222, CREATE)", () => {
+  const overCapScopeFixture: BaseCardDetail[] = [
+    makeBaseCardDetail({
+      id: 90,
+      set_code: "SOR",
+      base_card_number: "90",
+      name: "Dual Finish Card",
+      type: "Unit",
+      variants: [
+        makeVariant({
+          variant_id: 901,
+          variant_type: "Standard",
+          finish: "Standard",
+          source_set_code: "SOR",
+          card_number: "90",
+          quantity: 3, // at the code default (3) -- not over on its own
+        }),
+        makeVariant({
+          variant_id: 902,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          source_set_code: "SOR",
+          card_number: "590",
+          quantity: 2, // over the overridden Hyperspace limit of 1
+        }),
+      ],
+    }),
+  ];
+
+  function scopeTriggerBtn(): HTMLElement {
+    return screen.getByTitle("Scope pips + Value to a single variant");
+  }
+
+  function pickHyperspaceNonFoil(): void {
+    fireEvent.click(scopeTriggerBtn());
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const hyperspaceRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Hyperspace"
+    )!;
+    fireEvent.click(within(hyperspaceRow as HTMLElement).getByText("Non-foil"));
+  }
+
+  function pickStandardNonFoil(): void {
+    fireEvent.click(scopeTriggerBtn());
+    const pairRows = document.querySelectorAll(".vs-scope-menu__row--chips");
+    const standardRow = Array.from(pairRows).find(
+      (r) => r.querySelector(".vs-scope-menu__row-label")?.textContent === "Standard"
+    )!;
+    fireEvent.click(within(standardRow as HTMLElement).getByText("Non-foil"));
+  }
+
+  function overCapBtn(): HTMLElement {
+    return screen.getByRole("button", { name: /over keep limit/i });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useLimitsMock.mockReturnValue({
+      limits: toMatrix([
+        {
+          type_category: "standard",
+          limit_bucket: "Hyperspace",
+          max_quantity: 1,
+          is_default: false,
+        } satisfies LimitCell,
+      ]),
+      capMode: "hard",
+    });
+    mockGetBaseCardsList.mockResolvedValue(overCapScopeFixture);
+  });
+  afterEach(() => {
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+  });
+
+  it("unscoped: the over-cap Hyperspace variant still qualifies the card (ANY variant, unchanged BL-217 behavior)", async () => {
+    await renderPage();
+    fireEvent.click(overCapBtn());
+    expect(screen.getByText("Dual Finish Card")).toBeInTheDocument();
+  });
+
+  it("scoped to Standard: the card does NOT qualify -- its over-cap variant is a DIFFERENT finish", async () => {
+    await renderPage();
+    pickStandardNonFoil();
+    fireEvent.click(overCapBtn());
+    expect(screen.queryByText("Dual Finish Card")).toBeNull();
+  });
+
+  it("scoped to Hyperspace (the actually over-cap finish): the card qualifies", async () => {
+    await renderPage();
+    pickHyperspaceNonFoil();
+    fireEvent.click(overCapBtn());
+    expect(screen.getByText("Dual Finish Card")).toBeInTheDocument();
+  });
+
+  it("the over-cap toggle carries pl-toggle--scoped like its three siblings while a scope is active", async () => {
+    await renderPage();
+    expect(overCapBtn().className).not.toContain("pl-toggle--scoped");
+
+    pickHyperspaceNonFoil();
+
+    expect(overCapBtn().className).toContain("pl-toggle--scoped");
   });
 });
 

@@ -1038,6 +1038,52 @@
   z-index: 30;
 }
 
+/* ── Gallery sort header (BL-222, Issue #134) ──────────────────────────────
+ * The table-styled header bar GallerySortHeader.tsx renders above the grid
+ * while Gallery is the active view -- reuses the table thead's own console
+ * idiom (`.th-sort-btn` above: same button markup/cycling/direction
+ * triangles) rather than forking it, just laid out as a flex-wrap bar
+ * instead of table cells since there is no table here for it to be a thead
+ * OF. The container carries the SAME uppercase/tracking/muted-color type
+ * treatment `.data-table thead th` does, inherited down into each
+ * `.th-sort-btn` via that rule's own `font: inherit`/`color: inherit`/
+ * `text-transform: inherit`/`letter-spacing: inherit` -- so a gallery entry
+ * and its table counterpart read as the same control family. flex-wrap is
+ * this bar's answer to the table's `table-layout: fixed` column-width
+ * squeeze: entries wrap onto additional lines at narrow widths instead of
+ * forcing a horizontal scrollbar (owner spec). */
+.gallery-sort-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.gallery-sort-header__entry {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The Playset entry additionally hosts CardsScopeTrigger (BL-173/BL-222) --
+ * stacked control-above-label, the same shape as the table's own
+ * `.th-playset-inner`. */
+.gallery-sort-header__entry--playset {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 /* ── Gallery grid (BL-73 Stage 1) ────────────────────────────────────────
  * Same scroll-wrapper chrome as .data-table-wrapper (flex/overflow/border),
  * but the virtualized content is a stack of absolutely-positioned rows
@@ -1167,6 +1213,12 @@
   background: rgba(211, 211, 212, 0.35);
 }
 
+/* BL-222 (Issue #134): this ring color is unchanged, but WHICH state drives
+ * the class is not -- GalleryGrid.tsx now applies it off `pipsComplete`
+ * (scoped completion while a scope is active, overall completion
+ * otherwise), not unconditionally off overall completion. The inner tile's
+ * fill also now changes at this state -- see the BL-222 rule further down
+ * (`.gallery-plate--complete .gallery-plate__inner`, BL-173 scope section). */
 .gallery-plate--complete {
   background: rgba(31, 163, 71, 0.55);
 }
@@ -1373,6 +1425,38 @@
  * Unit Value cells carry while scoped (.td-value--scoped). */
 .td-playset--scoped {
   background: rgba(217, 154, 31, 0.05);
+}
+
+/* BL-222 (Issue #134): the gallery plate's own scoped-pip treatment --
+ * mirrors PlaysetCell's table pips above, but keyed to the plate's own
+ * classes (.gallery-plate__pip*) instead of .playset__pip*. Same amber
+ * token (var(--color-warning)). Specificity does the same job the table's
+ * explicit `.playset--complete ....playset__pip--scoped` combinator does
+ * above: `.gallery-plate--complete .gallery-plate__pip--filled` (0,2,0,
+ * cards.css, gallery-plate section) already out-ranks this plain (0,1,0)
+ * rule, so a scoped+filled pip automatically renders green once the PLATE
+ * carries `--complete` (which BL-222 now keys off the pips-state, not
+ * unconditionally off overall completion -- see GalleryGrid.tsx's
+ * `pipsComplete`) -- no separate green-override selector needed here the
+ * way the table's file predates this rule and had to add one explicitly. */
+.gallery-plate__pip--scoped {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+
+/* BL-222: at the pips-state's COMPLETE (scoped completion while scoped,
+ * overall completion otherwise -- GalleryGrid.tsx's `pipsComplete`), the
+ * plate's inner tile fill switches from its default near-black wash to the
+ * SAME transparent amber the table's scoped-complete pips container uses
+ * (.playset__pips--scoped-complete above, rgba(217, 154, 31, 0.08)) -- the
+ * circuit-tile texture (.gallery-plate__inner's background-image) is
+ * unaffected, since background-color only shows through the pattern's own
+ * transparent regions exactly as the default #0b0e18 already did. The ring
+ * itself (`.gallery-plate--complete`'s own background, gallery-plate
+ * section above) stays the SAME green it always was -- only this inner fill
+ * is new. */
+.gallery-plate--complete .gallery-plate__inner {
+  background-color: rgba(217, 154, 31, 0.08);
 }
 
 /* Hover dossier: the scoped finish's row is amber-highlighted with a
