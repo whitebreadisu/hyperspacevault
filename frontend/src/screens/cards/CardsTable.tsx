@@ -6,6 +6,7 @@ import { StatBadge } from "../../components/StatBadge";
 import { RarityBadge } from "../../components/RarityBadge";
 import { VariantsTooltip } from "../../components/VariantsTooltip";
 import { PlaysetCell } from "./PlaysetCell";
+import { SortHeaderButton } from "./SortHeaderButton";
 import {
   CardsScopeTrigger,
   CardsValueDisplayToggle,
@@ -191,13 +192,6 @@ export function CardsTable({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  /** BL-213: className for one sortable header's inner button -- the
-   * direction indicator (a CSS `::after` triangle, cards.css) is driven by
-   * this modifier class so it never leaks into the header's textContent/
-   * accessible name. */
-  const sortBtnClass = (column: SortColumn) =>
-    `th-sort-btn${sortState.column === column ? ` th-sort-btn--${sortState.direction}` : ""}`;
-
   const rowVirtualizer = useVirtualizer({
     count: cards.length,
     getScrollElement: () => scrollRef.current,
@@ -258,31 +252,19 @@ export function CardsTable({
               className={scope ? "th-cardnum-scoped" : undefined}
               aria-sort={ariaSortValue(sortState, "number")}
             >
-              <button
-                type="button"
-                className={sortBtnClass("number")}
-                onClick={() => onSortChange("number")}
-              >
+              <SortHeaderButton column="number" sortState={sortState} onSortChange={onSortChange}>
                 #
-              </button>
+              </SortHeaderButton>
             </th>
             <th aria-sort={ariaSortValue(sortState, "name")}>
-              <button
-                type="button"
-                className={sortBtnClass("name")}
-                onClick={() => onSortChange("name")}
-              >
+              <SortHeaderButton column="name" sortState={sortState} onSortChange={onSortChange}>
                 Name
-              </button>
+              </SortHeaderButton>
             </th>
             <th aria-sort={ariaSortValue(sortState, "variants")}>
-              <button
-                type="button"
-                className={sortBtnClass("variants")}
-                onClick={() => onSortChange("variants")}
-              >
+              <SortHeaderButton column="variants" sortState={sortState} onSortChange={onSortChange}>
                 Variants
-              </button>
+              </SortHeaderButton>
             </th>
             <th
               className={`th-playset${scope ? " th-scoped" : ""}`}
@@ -318,13 +300,14 @@ export function CardsTable({
                     Playset column's sort button -- CardsScopeTrigger above
                     stays its own separate button, not nested inside this
                     one. */}
-                <button
-                  type="button"
-                  className={`th-playset-label ${sortBtnClass("playset")}`}
-                  onClick={() => onSortChange("playset")}
+                <SortHeaderButton
+                  column="playset"
+                  sortState={sortState}
+                  onSortChange={onSortChange}
+                  className="th-playset-label"
                 >
                   Playset
-                </button>
+                </SortHeaderButton>
               </span>
             </th>
             <th
@@ -357,24 +340,21 @@ export function CardsTable({
                   {/* BL-213: the Value label doubles as this column's sort
                       button -- the MKT/LOW and UNIT/COLLECTION switches
                       above stay their own separate buttons. */}
-                  <button
-                    type="button"
-                    className={`th-value-label ${sortBtnClass("value")}`}
-                    onClick={() => onSortChange("value")}
+                  <SortHeaderButton
+                    column="value"
+                    sortState={sortState}
+                    onSortChange={onSortChange}
+                    className="th-value-label"
                   >
                     Value
-                  </button>
+                  </SortHeaderButton>
                 </span>
               </span>
             </th>
             <th aria-sort={ariaSortValue(sortState, "rarity")}>
-              <button
-                type="button"
-                className={sortBtnClass("rarity")}
-                onClick={() => onSortChange("rarity")}
-              >
+              <SortHeaderButton column="rarity" sortState={sortState} onSortChange={onSortChange}>
                 Rarity
-              </button>
+              </SortHeaderButton>
             </th>
             <th>Aspect</th>
             <th>Type</th>
@@ -383,43 +363,27 @@ export function CardsTable({
                 Power/HP are sortable -- the button is an inline-block by
                 default, so .th-stat's text-align: center still centers it. */}
             <th className="th-stat" aria-sort={ariaSortValue(sortState, "cost")}>
-              <button
-                type="button"
-                className={sortBtnClass("cost")}
-                onClick={() => onSortChange("cost")}
-              >
+              <SortHeaderButton column="cost" sortState={sortState} onSortChange={onSortChange}>
                 Cost
-              </button>
+              </SortHeaderButton>
             </th>
             <th className="th-stat" aria-sort={ariaSortValue(sortState, "power")}>
-              <button
-                type="button"
-                className={sortBtnClass("power")}
-                onClick={() => onSortChange("power")}
-              >
+              <SortHeaderButton column="power" sortState={sortState} onSortChange={onSortChange}>
                 Power
-              </button>
+              </SortHeaderButton>
             </th>
             <th className="th-stat" aria-sort={ariaSortValue(sortState, "hp")}>
-              <button
-                type="button"
-                className={sortBtnClass("hp")}
-                onClick={() => onSortChange("hp")}
-              >
+              <SortHeaderButton column="hp" sortState={sortState} onSortChange={onSortChange}>
                 HP
-              </button>
+              </SortHeaderButton>
             </th>
             <th>Trait</th>
             <th>Keyword</th>
             <th>Arena</th>
             <th aria-sort={ariaSortValue(sortState, "set")}>
-              <button
-                type="button"
-                className={sortBtnClass("set")}
-                onClick={() => onSortChange("set")}
-              >
+              <SortHeaderButton column="set" sortState={sortState} onSortChange={onSortChange}>
                 Set
-              </button>
+              </SortHeaderButton>
             </th>
           </tr>
         </thead>

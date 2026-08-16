@@ -123,14 +123,37 @@ export function enforcementCap(
  * enforcementCap above, which exists for exactly that different purpose).
  * `type` is the base card's `type` (Leader/Base/...), the same field
  * typeCategoryOf already classifies elsewhere -- one category applies to
- * every variant of a card, only the per-variant bucket differs. */
+ * every variant of a card, only the per-variant bucket differs.
+ *
+ * BL-222 (revises BL-217, Issue #134): `scope` makes this scope-aware,
+ * matching the BL-195 sibling pattern the three collection toggles already
+ * follow (utils/variantScope.ts's scopedOwnedCount/scopedPlaysetComplete) --
+ * while a scope is active, only the variant(s) matching that raw finish
+ * (`v.finish ?? v.variant_type`, the same universe variantScope.ts's own
+ * scoped helpers match against) are checked; a DIFFERENT finish sitting over
+ * ITS OWN cap must not qualify the card while scoped to another finish.
+ * `scope` omitted or null keeps the original BL-217 behavior (ANY variant,
+ * unchanged) -- every pre-BL-222 call site/test keeps compiling and
+ * evaluating exactly as before. `variant_type` is optional on the element
+ * type (not needed for the unscoped path, which never reads it) so
+ * pre-existing fixtures that only ever built `{ finish, channel, quantity }`
+ * still satisfy the signature unchanged. */
 export function cardOverCap(
-  variants: readonly { finish: string | null; channel: string; quantity: number }[],
+  variants: readonly {
+    finish: string | null;
+    channel: string;
+    quantity: number;
+    variant_type?: string;
+  }[],
   type: string,
-  limits: LimitsMatrix | null
+  limits: LimitsMatrix | null,
+  scope?: string | null
 ): boolean {
   const category = typeCategoryOf(type);
-  return variants.some((v) => {
+  const relevant = scope
+    ? variants.filter((v) => (v.finish ?? v.variant_type) === scope)
+    : variants;
+  return relevant.some((v) => {
     const limit = effectiveLimit(limits, category, limitBucketOf(v.finish, v.channel));
     return limit !== null && v.quantity > limit;
   });

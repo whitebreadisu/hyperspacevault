@@ -238,6 +238,114 @@ describe("cardOverCap", () => {
     const variants = [variant({ quantity: 3 })];
     expect(cardOverCap(variants, "Unit", limits)).toBe(false);
   });
+
+  // CREATE (BL-222, Issue #134): the `scope` parameter -- revises BL-217's
+  // original "checked against every variant regardless of scope" call. Same
+  // raw-finish matching universe BL-195's scopedOwnedCount/
+  // scopedPlaysetComplete use (`v.finish ?? v.variant_type`), so a
+  // scope-aware caller can't disagree with the pips about which variant is
+  // "the scoped one".
+  describe("scope parameter (BL-222)", () => {
+    function scopedVariant(
+      overrides: Partial<{
+        finish: string | null;
+        variant_type: string;
+        channel: string;
+        quantity: number;
+      }> = {}
+    ) {
+      return {
+        finish: "Standard",
+        variant_type: "Standard",
+        channel: "Retail",
+        quantity: 0,
+        ...overrides,
+      };
+    }
+
+    it("a scoped variant over its own cap qualifies", () => {
+      const limits = toMatrix([
+        cell({
+          type_category: "standard",
+          limit_bucket: "Hyperspace",
+          max_quantity: 1,
+          is_default: false,
+        }),
+      ]);
+      const variants = [scopedVariant({ finish: "Hyperspace", quantity: 2 })];
+      expect(cardOverCap(variants, "Unit", limits, "Hyperspace")).toBe(true);
+    });
+
+    it("a DIFFERENT finish's over-cap variant does NOT qualify while scoped to another finish", () => {
+      const limits = toMatrix([
+        cell({
+          type_category: "standard",
+          limit_bucket: "Hyperspace",
+          max_quantity: 1,
+          is_default: false,
+        }),
+      ]);
+      const variants = [
+        scopedVariant({ finish: "Standard", quantity: 3 }), // at the code default, not over
+        scopedVariant({ finish: "Hyperspace", quantity: 2 }), // over its own cap, but a DIFFERENT finish
+      ];
+      // Scoped to Standard: the over-cap Hyperspace variant is invisible to
+      // this predicate.
+      expect(cardOverCap(variants, "Unit", limits, "Standard")).toBe(false);
+      // Scoped to Hyperspace (the actually-over-cap finish): qualifies.
+      expect(cardOverCap(variants, "Unit", limits, "Hyperspace")).toBe(true);
+    });
+
+    it("matches on variant_type when finish is null (same fallback scopedOwnedCount uses)", () => {
+      const limits = toMatrix([
+        cell({
+          type_category: "standard",
+          limit_bucket: "Weekly Play",
+          max_quantity: 1,
+          is_default: false,
+        }),
+      ]);
+      const variants = [
+        scopedVariant({
+          finish: null,
+          variant_type: "Weekly Play",
+          channel: "Weekly Play",
+          quantity: 2,
+        }),
+      ];
+      expect(cardOverCap(variants, "Unit", limits, "Weekly Play")).toBe(true);
+    });
+
+    it("scope omitted or null preserves the original ANY-variant BL-217 behavior", () => {
+      const limits = toMatrix([
+        cell({
+          type_category: "standard",
+          limit_bucket: "Hyperspace",
+          max_quantity: 1,
+          is_default: false,
+        }),
+      ]);
+      const variants = [
+        scopedVariant({ finish: "Standard", quantity: 3 }),
+        scopedVariant({ finish: "Hyperspace", quantity: 2 }),
+      ];
+      expect(cardOverCap(variants, "Unit", limits)).toBe(true);
+      expect(cardOverCap(variants, "Unit", limits, null)).toBe(true);
+    });
+
+    it("a card with no printing of the scoped finish never qualifies while scoped, however over-cap its other variants are", () => {
+      const limits = toMatrix([
+        cell({
+          type_category: "standard",
+          limit_bucket: "Standard",
+          max_quantity: 1,
+          is_default: false,
+        }),
+      ]);
+      const variants = [scopedVariant({ finish: "Standard", quantity: 5 })];
+      expect(cardOverCap(variants, "Unit", limits, "Hyperspace")).toBe(false);
+    });
+  });
 });
 
 describe("toMatrix / matrixKey", () => {

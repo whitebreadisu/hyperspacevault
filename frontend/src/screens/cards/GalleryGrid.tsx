@@ -4,6 +4,7 @@ import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps } from "../../utils/cardImages";
+import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
 
 /** BL-73 Stage 1: uniform portrait cell, matching the 2.5:3.5 card ratio used
  * by the BL-62 Add Cards preview frame (AddCardsModal.css's
@@ -47,6 +48,15 @@ interface Props {
    * and gates the hover dossier (anonymous users get no dossier -- there is
    * nothing tenant-specific to show). */
   isAuthenticated: boolean;
+  /** BL-222 (Issue #134): the SAME finish scope CardsTable's Playset header
+   * drives (CardsPage's `scope`) -- when set, the plate's pips fill from the
+   * scoped owned count instead of the total (scopedOwnedCount, the same
+   * BL-195 utility PlaysetCell's table pips use), and the plate's
+   * complete/incomplete visual keys off scoped completion instead of
+   * overall completion. Optional/defaulted to null (today's unscoped
+   * behavior) so every pre-existing call site/test not concerned with scope
+   * renders unaffected. */
+  scope?: string | null;
 }
 
 /** Representative variant for the gallery cell's image.
@@ -180,19 +190,20 @@ export function ownedFinishBreakdown(card: InventoryCard): FinishBreakdownEntry[
 /** Shared owned/limit readout (plate + dossier header) -- Russo One, green
  * when the playset is complete, muted when nothing is owned yet, otherwise
  * the neutral text color. Raw `owned` is shown even past `size` (overflow) --
- * deliberately not clamped, matching the design prototype's `Total`. */
-function PlateTotal({ owned, size, complete }: { owned: number; size: number; complete: boolean }) {
+ * deliberately not clamped, matching the design prototype's `Total`. `owned`/
+ * `complete` are always the OVERALL (all-variant) values, independent of any
+ * active scope -- unaffected by BL-222, which only touches the pips.
+ *
+ * BL-222 (owner rationale): the "/N" denominator (playset size) is dropped
+ * here -- "what constitutes a full playset is a given; no reminder needed".
+ * Color behavior (green/muted/neutral) is untouched. */
+function PlateTotal({ owned, complete }: { owned: number; complete: boolean }) {
   const stateClass = complete
     ? " gallery-plate__total--complete"
     : owned === 0
       ? " gallery-plate__total--empty"
       : "";
-  return (
-    <span className={`gallery-plate__total${stateClass}`}>
-      {owned}
-      <span className="gallery-plate__total-limit">/{size}</span>
-    </span>
-  );
+  return <span className={`gallery-plate__total${stateClass}`}>{owned}</span>;
 }
 
 interface GalleryCellProps {
@@ -201,6 +212,8 @@ interface GalleryCellProps {
   rotated: boolean;
   isAuthenticated: boolean;
   onSelect: () => void;
+  /** BL-222: see GalleryGrid's own `scope` prop doc comment. */
+  scope: string | null;
 }
 
 /** BL-111 F4 (design handoff §4, Option D "Plate + hover dossier" -- final):
@@ -213,14 +226,38 @@ interface GalleryCellProps {
  * mouseenter/mouseleave, so the dossier simply never appears there -- the
  * cell's own click/tap still opens the detail popup (design handoff's
  * "mobile note": no extra work needed). */
-function GalleryCell({ card, images, rotated, isAuthenticated, onSelect }: GalleryCellProps) {
+function GalleryCell({
+  card,
+  images,
+  rotated,
+  isAuthenticated,
+  onSelect,
+  scope,
+}: GalleryCellProps) {
   const [hovered, setHovered] = useState(false);
   const size = getPlaysetSize(card.type);
+  // `owned`/`complete` stay the OVERALL (all-variant) values -- PlateTotal
+  // (the plate's right-side number AND the dossier's OWNED row) is
+  // deliberately unaffected by scope (BL-222 point 5).
   const owned = cardOwnedTotal(card.inventory);
   const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
   const showDossier = isAuthenticated && hovered;
   const breakdown = showDossier ? ownedFinishBreakdown(card) : [];
-  const filledPips = Math.min(size, owned);
+  // BL-222 (Issue #134): while a scope is active, the PIPS fill from the
+  // scoped owned count (the same BL-195 utility PlaysetCell's table pips
+  // use) instead of the total -- mirrors PlaysetCell.tsx's own
+  // isScoped/scopedOwned/scopedComplete trio verbatim so the table and
+  // gallery pips can never disagree.
+  const isScoped = isAuthenticated && scope != null;
+  const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
+  const filledPips = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
+  const scopedComplete =
+    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
+  // The plate's outline/fill ("pips-state complete") keys off SCOPED
+  // completion while scoped, else overall completion -- NOT off `complete`
+  // unconditionally (BL-222 point 4; PlateTotal above keeps using `complete`
+  // regardless, per point 5).
+  const pipsComplete = isScoped ? scopedComplete : complete;
 
   return (
     <button
@@ -246,7 +283,7 @@ function GalleryCell({ card, images, rotated, isAuthenticated, onSelect }: Galle
           is the inventory PLATE only, not the whole tile -- same
           hover-the-count scoping the table's Playset chip got in round 2. */}
       <div
-        className={`gallery-plate${complete ? " gallery-plate--complete" : ""}`}
+        className={`gallery-plate${pipsComplete ? " gallery-plate--complete" : ""}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -258,16 +295,19 @@ function GalleryCell({ card, images, rotated, isAuthenticated, onSelect }: Galle
           {isAuthenticated ? (
             <>
               <span className="gallery-plate__pips">
-                {Array.from({ length: size }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={`gallery-plate__pip${
-                      i < filledPips ? " gallery-plate__pip--filled" : ""
-                    }`}
-                  />
-                ))}
+                {Array.from({ length: size }).map((_, i) => {
+                  const isFilled = i < filledPips;
+                  return (
+                    <span
+                      key={i}
+                      className={`gallery-plate__pip${isFilled ? " gallery-plate__pip--filled" : ""}${
+                        isScoped && isFilled ? " gallery-plate__pip--scoped" : ""
+                      }`}
+                    />
+                  );
+                })}
               </span>
-              <PlateTotal owned={owned} size={size} complete={complete} />
+              <PlateTotal owned={owned} complete={complete} />
             </>
           ) : (
             <span className="gallery-plate__sign-in">SIGN IN TO TRACK</span>
@@ -283,7 +323,7 @@ function GalleryCell({ card, images, rotated, isAuthenticated, onSelect }: Galle
               }`}
             >
               <span className="gallery-dossier__label">OWNED</span>
-              <PlateTotal owned={owned} size={size} complete={complete} />
+              <PlateTotal owned={owned} complete={complete} />
             </div>
             {breakdown.length === 0 ? (
               <div className="gallery-dossier__empty">NO COPIES OWNED</div>
@@ -315,8 +355,21 @@ function GalleryCell({ card, images, rotated, isAuthenticated, onSelect }: Galle
  * defaulting to DEFAULT_CONTAINER_WIDTH before the first measurement/in
  * jsdom), and that same `columns` value drives both the row-grouping math
  * below and the CSS grid-template-columns of each rendered row, so the two
- * can never disagree about how many cards are in a row. */
-export function GalleryGrid({ cards, onSelectCard, activeFinishes, isAuthenticated }: Props) {
+ * can never disagree about how many cards are in a row.
+ *
+ * BL-222 (Issue #134): CardsPage now renders GallerySortHeader.tsx directly
+ * above this component (a sibling, not a wrapper) whenever Gallery is the
+ * active view -- that header shares CardsPage's `sortState`/`scope` with
+ * this component and CardsTable alike, so this file itself never grew a
+ * sort affordance of its own; only the `scope` prop's downstream effect on
+ * the plate pips (see GalleryCell) is new here. */
+export function GalleryGrid({
+  cards,
+  onSelectCard,
+  activeFinishes,
+  isAuthenticated,
+  scope = null,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(DEFAULT_CONTAINER_WIDTH);
 
@@ -389,6 +442,7 @@ export function GalleryGrid({ cards, onSelectCard, activeFinishes, isAuthenticat
                     rotated={rotated}
                     isAuthenticated={isAuthenticated}
                     onSelect={() => onSelectCard(card.base_card_id, displayedFinish)}
+                    scope={scope}
                   />
                 );
               })}

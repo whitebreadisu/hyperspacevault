@@ -774,7 +774,9 @@ describe("GalleryGrid console plate -- signed-in states", () => {
     expect(container.querySelectorAll(".gallery-plate__pip--filled")).toHaveLength(0);
     const total = container.querySelector(".gallery-plate__total");
     expect(total?.className).toContain("gallery-plate__total--empty");
-    expect(total?.textContent).toBe("0/3");
+    // REPLACE (BL-222 point 5): the "/N" denominator is dropped -- the plate
+    // now shows the raw owned count alone.
+    expect(total?.textContent).toBe("0");
   });
 
   it("partial (owned < playset size): some pips filled, total present, not complete", () => {
@@ -794,7 +796,8 @@ describe("GalleryGrid console plate -- signed-in states", () => {
     const total = container.querySelector(".gallery-plate__total");
     expect(total?.className).not.toContain("gallery-plate__total--empty");
     expect(total?.className).not.toContain("gallery-plate__total--complete");
-    expect(total?.textContent).toBe("2/3");
+    // REPLACE (BL-222 point 5): denominator dropped.
+    expect(total?.textContent).toBe("2");
   });
 
   it("complete (owned >= playset size): all pips filled green, plate + total marked complete", () => {
@@ -813,7 +816,8 @@ describe("GalleryGrid console plate -- signed-in states", () => {
     expect(container.querySelectorAll(".gallery-plate__pip--filled")).toHaveLength(3);
     const total = container.querySelector(".gallery-plate__total");
     expect(total?.className).toContain("gallery-plate__total--complete");
-    expect(total?.textContent).toBe("3/3");
+    // REPLACE (BL-222 point 5): denominator dropped.
+    expect(total?.textContent).toBe("3");
   });
 
   it("overflow (owned > playset size): pips cap at the playset size, total still shows the raw count", () => {
@@ -828,7 +832,8 @@ describe("GalleryGrid console plate -- signed-in states", () => {
     expect(container.querySelectorAll(".gallery-plate__pip")).toHaveLength(3);
     expect(container.querySelectorAll(".gallery-plate__pip--filled")).toHaveLength(3);
     const total = container.querySelector(".gallery-plate__total");
-    expect(total?.textContent).toBe("4/3");
+    // REPLACE (BL-222 point 5): denominator dropped -- raw count only.
+    expect(total?.textContent).toBe("4");
   });
 
   it("singleton type (Leader/Base): exactly one pip, complete at 1 owned", () => {
@@ -844,7 +849,8 @@ describe("GalleryGrid console plate -- signed-in states", () => {
     expect(container.querySelectorAll(".gallery-plate__pip")).toHaveLength(1);
     expect(container.querySelector(".gallery-plate--complete")).not.toBeNull();
     const total = container.querySelector(".gallery-plate__total");
-    expect(total?.textContent).toBe("1/1");
+    // REPLACE (BL-222 point 5): denominator dropped.
+    expect(total?.textContent).toBe("1");
   });
 });
 
@@ -857,7 +863,7 @@ describe("GalleryGrid console plate -- signed-out state", () => {
     render(<GalleryGrid cards={[card]} onSelectCard={vi.fn()} isAuthenticated={false} />);
 
     expect(screen.getByText("SIGN IN TO TRACK")).toBeTruthy();
-    expect(screen.queryByText("0/3")).toBeNull();
+    expect(document.querySelector(".gallery-plate__total")).toBeNull();
     expect(document.querySelector(".gallery-plate__pips")).toBeNull();
 
     // PORT (round 3): hover the plate itself -- the true negative test for
@@ -906,7 +912,9 @@ describe("GalleryGrid hover dossier -- signed-in", () => {
 
     const tooltip = screen.getByRole("tooltip");
     expect(tooltip.textContent).toContain("OWNED");
-    expect(tooltip.textContent).toContain("0/3");
+    // REPLACE (BL-222 point 5): denominator dropped from the dossier's OWNED
+    // row too -- "0", not "0/3".
+    expect(tooltip.querySelector(".gallery-plate__total")?.textContent).toBe("0");
     expect(screen.getByText("NO COPIES OWNED")).toBeTruthy();
     expect(tooltip.querySelectorAll(".gallery-dossier__row")).toHaveLength(0);
   });
@@ -954,5 +962,134 @@ describe("GalleryGrid hover dossier -- signed-in", () => {
 
     const tooltip = screen.getByRole("tooltip");
     expect(tooltip.textContent).toContain("Foil");
+  });
+});
+
+// CREATE (BL-222, Issue #134): the plate pips become scope-aware (the same
+// BL-195 scopedOwnedCount/scopedPlaysetComplete utilities PlaysetCell's
+// table pips use), and the plate's complete/incomplete visual keys off
+// PIPS-STATE (scoped completion while scoped, overall completion otherwise)
+// -- NOT off overall completion unconditionally. PlateTotal (the right-side
+// number) is proven to stay on the OVERALL value regardless of scope, per
+// BL-222 point 5.
+describe("GalleryGrid scoped pips (BL-222, CREATE)", () => {
+  it("fill from the scoped owned count, not the total", () => {
+    const card = makeCard({
+      variants: [
+        variant({ variant_id: 101, finish: "Standard", quantity: 2 }),
+        variant({ variant_id: 102, finish: "Hyperspace", quantity: 1 }),
+      ],
+      inventory: { 101: 2, 102: 1 },
+    });
+    const { container } = render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={vi.fn()}
+        isAuthenticated={true}
+        scope="Hyperspace"
+      />
+    );
+
+    // Scoped owned count (Hyperspace only) is 1, not the total of 3.
+    expect(container.querySelectorAll(".gallery-plate__pip--filled")).toHaveLength(1);
+  });
+
+  it("filled scoped pips carry the amber --scoped modifier while incomplete", () => {
+    const card = makeCard({
+      variants: [
+        variant({ variant_id: 101, finish: "Standard", quantity: 2 }),
+        variant({ variant_id: 102, finish: "Hyperspace", quantity: 1 }),
+      ],
+      inventory: { 101: 2, 102: 1 },
+    });
+    const { container } = render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={vi.fn()}
+        isAuthenticated={true}
+        scope="Hyperspace"
+      />
+    );
+
+    expect(
+      container.querySelectorAll(".gallery-plate__pip--filled.gallery-plate__pip--scoped")
+    ).toHaveLength(1);
+  });
+
+  it("unscoped rendering never carries the --scoped pip modifier (regression guard)", () => {
+    const card = makeCard({
+      variants: [variant({ variant_id: 101, finish: "Standard", quantity: 2 })],
+      inventory: { 101: 2 },
+    });
+    const { container } = render(
+      <GalleryGrid cards={[card]} onSelectCard={vi.fn()} isAuthenticated={true} />
+    );
+
+    expect(container.querySelector(".gallery-plate__pip--scoped")).toBeNull();
+  });
+});
+
+describe("GalleryGrid plate complete-visual keys off pips-state (BL-222, CREATE)", () => {
+  it("scoped: the ring is NOT marked complete for an overall-complete card scoped to an unowned finish, but PlateTotal still reads complete-colored (overall, unaffected by scope)", () => {
+    const card = makeCard({
+      type: "Unit",
+      variants: [
+        // Overall-complete via Standard alone (3/3).
+        variant({ variant_id: 101, finish: "Standard", quantity: 3 }),
+        // The scoped-to finish -- zero owned, scoped-incomplete.
+        variant({ variant_id: 102, finish: "Hyperspace", quantity: 0 }),
+      ],
+      inventory: { 101: 3, 102: 0 },
+    });
+    const { container } = render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={vi.fn()}
+        isAuthenticated={true}
+        scope="Hyperspace"
+      />
+    );
+
+    // Pips-state (scoped) is incomplete -- no green ring/amber fill.
+    expect(container.querySelector(".gallery-plate--complete")).toBeNull();
+    // PlateTotal is the OVERALL value -- still complete-colored, and still
+    // just the raw count (no denominator, BL-222 point 5).
+    const total = container.querySelector(".gallery-plate__total");
+    expect(total?.className).toContain("gallery-plate__total--complete");
+    expect(total?.textContent).toBe("3");
+  });
+
+  it("scoped: the ring IS marked complete once the scoped finish alone reaches the playset size", () => {
+    const card = makeCard({
+      type: "Unit",
+      variants: [
+        variant({ variant_id: 101, finish: "Standard", quantity: 0 }),
+        variant({ variant_id: 102, finish: "Hyperspace", quantity: 3 }),
+      ],
+      inventory: { 101: 0, 102: 3 },
+    });
+    const { container } = render(
+      <GalleryGrid
+        cards={[card]}
+        onSelectCard={vi.fn()}
+        isAuthenticated={true}
+        scope="Hyperspace"
+      />
+    );
+
+    expect(container.querySelector(".gallery-plate--complete")).not.toBeNull();
+  });
+
+  it("unscoped: the ring keys off overall completion exactly as before (regression guard)", () => {
+    const card = makeCard({
+      type: "Unit",
+      variants: [variant({ variant_id: 101, finish: "Standard", quantity: 3 })],
+      inventory: { 101: 3 },
+    });
+    const { container } = render(
+      <GalleryGrid cards={[card]} onSelectCard={vi.fn()} isAuthenticated={true} />
+    );
+
+    expect(container.querySelector(".gallery-plate--complete")).not.toBeNull();
   });
 });
