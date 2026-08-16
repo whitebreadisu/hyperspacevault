@@ -2,8 +2,8 @@
 
 > **Status:** Authoritative — current as-built reference for the application domain (catalog, variants, inventory, and their UX).
 > **Supersedes:** `SWU_ClaudeCode_Spec.md` (frozen — original V1 design) for **all application domains** — data model, UX, API, ingestion, architecture, and environment.
-> **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24.
-> **Last updated:** 2026-07-24 (BL-150 W1 doc reconciliation, on top of PR #409's 2026-07-23/24 §17/§18 additions).
+> **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24; foreign-format imports + release-notes system shipped in v1.3 (2026-08-07); **sharing + the v1.4 Vault batch shipped in v1.4 (2026-08-16, §19–§21)**.
+> **Last updated:** 2026-08-16 (v1.4 as-builts: §19 sharing shipped-status, §20 release-notes system, §21 v1.4 Vault batch, §12 adjust + shares endpoints). Still-owed as-built pass: the v1.3 scoped-affordance cluster (BL-187/191–196).
 > **Consumer-facing name:** renamed to **HyperspaceVault** 2026-07-20 (BL-138). This document, the repo, and other `SWU_*` artifacts keep the historical internal naming.
 
 **Scope & authority.** The authoritative as-built reference for the **application**: the catalog/variant/inventory **data model** (§4, §10), the **UX / interaction model** (§5), **completion, limits, and currency** (§6, §7), the **backend architecture & tech stack** (§11), the **API surface** (§12), the **ingestion pipeline** (§13), and the **environment** (§14). For the variant *mechanism* (`variant_of_uuid`) see `SWU_Standard_Variant_Mapping_Spec.md`; for **platform / auth / CI / infra** see `SWU_Platform_Spec.md`; for **local setup & the full env-var table** see `README.md`. The original V1 design lives in the frozen `SWU_ClaudeCode_Spec.md` (historical only).
@@ -549,6 +549,7 @@ The **detail** endpoint serves the unified card popup's read-and-edit view (§5.
 | GET | `/api/inventory/quantities` | `list[VariantQuantityResponse]` — BL-101, sparse `{ variant_id, quantity }` rows for the caller's tenant |
 | POST | `/api/inventory/{variant_id}/increment` | `IncrementResponse` (404) |
 | POST | `/api/inventory/{variant_id}/decrement` | `DecrementResponse` (404) |
+| POST | `/api/inventory/{variant_id}/adjust` | `AdjustResponse` (404) — body `{ delta: int }` (BL-219, v1.4) |
 | GET | `/api/inventory/export?format=json\|csv` | File download (`swu-inv/1`, §17) — verified-email-gated |
 | POST | `/api/inventory/import` | `ImportReport` (§17) — multipart, verified-email-gated, dry_run/commit |
 
@@ -557,6 +558,8 @@ The **detail** endpoint serves the unified card popup's read-and-edit view (§5.
 `GET /api/catalog/reference.csv` (BL-54, §17) is the one route under `/api/catalog`: the public, tenant-less resolution-key download (same exposure class as `/api/sets`).
 
 `IncrementResponse`: `{ variant_id, quantity, playset_complete, blocked, reason?, over_limit }` where `reason ∈ {"trade_sell", "ceiling"}`. `DecrementResponse`: `{ variant_id, quantity }` (floor 0).
+
+**`adjust` (BL-219, v1.4):** the card popup's rapid-click `+`/`−` stepper batches clicks client-side (debounced delta) and commits them in ONE call instead of N serialized `increment` round trips. `AdjustResponse`: `{ variant_id, quantity, applied, requested, blocked, reason?, over_limit, playset_complete }` (body validates `delta != 0`) — `applied` is the delta actually committed: same sign as `requested`, clamped by the effective keep-limit (hard mode), the 999 ceiling, or the 0 floor; `reason` populates on any truncation, while `blocked` is reserved for the zero-applied case (same meaning as on `increment`). A partially-honored batch is reported honestly, never errored.
 
 **Increment caps** (BL-24/BL-35 behavior, 2026-07-12/13):
 1. **Ceiling first** — at quantity ≥ 999 (`QUANTITY_CEILING`), returns `{ blocked: true, reason: "ceiling" }` regardless of any setting, including "no limit" and soft mode.
@@ -570,6 +573,21 @@ The **detail** endpoint serves the unified card popup's read-and-edit view (§5.
 | PUT | `/api/settings/limits` | Same shape; body = the tenant's complete override set (full replacement; empty list = reset all to defaults). 422 on unknown bucket/category, out-of-range (`0–999`/null), or duplicate cells |
 
 Both auth-gated + tenant-scoped via `get_db`, `tenant_no_store`. PUT deliberately not gated on verified email (BL-16 gates inventory mutations only — §4.5).
+
+### Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4
+
+| Method | Path | Response |
+|---|---|---|
+| POST | `/api/shares` | `ShareResponse` (201) — body `{ name }`; enforces one active share per scope target (§19.1) |
+| GET | `/api/shares` | `list[ShareResponse]` |
+| PATCH | `/api/shares/{share_id}` | `ShareResponse` — rename |
+| POST | `/api/shares/{share_id}/rotate` | `ShareResponse` — new token, old dies instantly |
+| DELETE | `/api/shares/{share_id}` | `204` — revoke |
+| GET | `/api/shared/{token}` | `SharedResolveResponse` — `{ name, scope, valid }` |
+| GET | `/api/shared/{token}/quantities` | `list[VariantQuantityResponse]` — the owner-tenant rows |
+| GET | `/api/shared/{token}/limits` | `LimitsResponse` — display-affecting subset |
+
+The `/api/shares` family is auth-gated via `get_db` like every mutation. The three `/api/shared/{token}` routes are the platform's first unauthenticated tenant-data reads — token-validated, then run under the **owner-tenant RLS context** (`get_shared_db`) on the existing repository paths (no RLS bypass; FORCE RLS untouched); `no-store` response headers; invalid and revoked tokens are indistinguishable 404s. Design authority: §19.1 (the read-surface list there is exactly this table's public half).
 
 **Retired vs. the frozen spec:** `PUT /api/inventory/{id}`, `GET /api/inventory/missing`, and `GET /api/cards/lookup` (frozen §6.4) are **not implemented** — playset gaps and card-number resolution are computed client-side against the already-loaded base-cards data (BL-102 also retired the once-implemented `GET /api/inventory` and `GET /api/cards*`, § above).
 
@@ -796,11 +814,11 @@ Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md`
 - **BL-152 (same session):** app-wide SWU button hover animation, owner-designed in Claude Design (option C deep-navy rest `#1e3a8a` + warm edge flare on hover) — CSS-only in `index.css`, `@property`-registered transitions scoped to `.swu-btn`, `aria-disabled` teasers excluded. Owner-validated on dev 2026-07-24.
 - **Status:** shipped to prod 2026-07-24 — built via parallel Sonnet agents (data prep + frontend) under orchestrator review, then revised through two owner dev-review rounds (S2b/S2c, above); PRs #406/#407/#408/#410/#411 + #404 (issue #402 closed).
 
-## 19. Collection Lists & Sharing (BL-204 design — 2026-08-11; sharing + wanted at full resolution, binders directional)
+## 19. Collection Lists & Sharing (BL-204 design — 2026-08-11; **§19.1 sharing SHIPPED in v1.4, 2026-08-16**)
 
-Design converged with the owner across the 2026-08-10/11 feature-exploration and work-planning sessions (field log `Session_Notes_Feature_Exploration_2026-08-10.md`); supersedes BL-188's deferred surplus/needs concept. Execution: BL-205 (sharing, **v1.4**), BL-206 (wanted — deferred from 1.4, pull-forward candidate), BL-207/208/209 (binders core / lent+surplus / list-scope sharing). This section is build-authoritative for BL-205 and BL-206; §19.3 is directional and gets firmed to full resolution before BL-207 starts.
+Design converged with the owner across the 2026-08-10/11 feature-exploration and work-planning sessions (field log `Session_Notes_Feature_Exploration_2026-08-10.md`); supersedes BL-188's deferred surplus/needs concept. Execution: **BL-205 (sharing) shipped to prod in v1.4 (2026-08-16)** — §19.1 is now as-built (endpoint reference: §12 "Shares"); BL-206 (wanted — deferred from 1.4, pull-forward candidate) and BL-207/208/209 (binders core / lent+surplus / list-scope sharing) remain design-stage. This section stays build-authoritative for BL-206; §19.3 is directional and gets firmed to full resolution before BL-207 starts.
 
-### 19.1 Sharing model (BL-205 — full resolution)
+### 19.1 Sharing model (BL-205 — as-built, v1.4)
 
 **Product decision (owner):** sharing a collection means handing someone a **secret link**; the viewer sees the owner's **live Vault at full fidelity** — the exact card list, quantities, prices, value, completion — inside the **viewer's own app chrome**. No viewer accounts, ever (1-user-per-tenant stays permanent). No share-time configuration: prices and collection value are always shown (owner ruling 2026-08-11: per-card prices are public catalog data; a total is just arithmetic — there is no value-hiding switch, and the earlier per-share display-toggles concept is **dead**).
 
@@ -843,3 +861,26 @@ Design converged with the owner across the 2026-08-10/11 feature-exploration and
 | Pricing on shared views | No ToS gate — same public per-card prices anonymous users already see | 2026-08-10 |
 | Share cardinality | One active share per scope target; rename/rotate, no concurrent duplicates | 2026-08-11 |
 | Release framing | v1.4 = BL-205 alone; BL-206 opportunistic pull-forward | 2026-08-11 |
+
+## 20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)
+
+As-built summary; content lives in code, process detail in the Platform Spec.
+
+- **Content module:** `frontend/src/content/releaseNotes.ts` — pure data, newest-first `RELEASE_NOTES: ReleaseNotesEntry[]`; `release` entries `{ key = version, version, date, title, sections[{heading?, emoji?, items[{title, body}]}] }` plus a reserved `announcement` variant (dated, unversioned — none exist yet). `key` is the identity `utils/releaseNotesSeen.ts` tracks unread state against.
+- **Surface:** an `[HSV] Updates` nav tab appears while the newest entry is unseen (amber cue) and steps aside once read; the header's version label (rendered from `frontend/package.json` via `utils/version.ts`'s `formatVersionLabel` — `1.4.0` → `v1.4`) reopens the notes anytime. Rendering: `screens/notes/NewArrivalsPage.tsx`.
+- **Promote gate (BL-210, first enforced pass = the v1.4 promote):** `promote-prod.yml` runs `.github/scripts/release_notes.mjs gate` — the promote fails unless the newest entry matches `package.json`'s version AND carries the promote-day America/Chicago date (`allow_stale_notes` dispatch input = the rollback/re-promote escape hatch, date check only). The ritual: entry lands by PR with the intended date; date finalized at promote.
+- **Releases mirror (BL-210):** after a successful promote, the same script's `markdown` mode renders the entry and the workflow creates/updates the annotated tag + GitHub Release (`continue-on-error` — a mirror failure never fails a shipped promote; its first live run did fail silently on runner git-identity, fixed in PR #149 after the v1.4 tag/Release were created manually).
+
+## 21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")
+
+As-built summaries; each item's build-authoritative detail lives in its PR + the 2026-08-15/16 field logs. All are feedback-sourced (📣 backlog convention) unless noted.
+
+- **BL-213 — column sorting (PR #133):** every Vault table header sorts (value follows the live MARKET/LOW + UNIT/COLLECTION switches; name, rarity, cost, power, HP, playset progress, …). Sets never interleave — `#`/Set sorts keep sets grouped (binder order); `#` restores the classic order. Gallery reuses the same comparators via §5's shared sort spine.
+- **BL-217 — over-keep-limit filter (PR #131):** a Vault filter surfacing every card held past the tenant's effective cap ("trade pile"); follows the playset finish scope like the other ownership filters.
+- **BL-219 — stepper responsiveness (PR #132):** popup `+`/`−` decoupled from server round trips via the debounced-delta `adjust` endpoint (§12); Add Cards batch commits ride the same path.
+- **BL-222/BL-225 — gallery header parity (PRs #137, rode #139):** the gallery gained the table's full sort header, playset finish filter, value switches, and scoped-amber treatment; card plates' pips follow the finish scope, completed plates light their outline, count chip dropped the "/3".
+- **BL-223 — Totals switch (PR #139):** the completion panel's scope control is a FILTERED/ALL `ValueSwitch` beside the fourth block; narrowed-FILTERED carries the amber signal on the switch and all four blocks. (Post-merge polish: the switch top-aligns with the block labels — PR #147.)
+- **BL-224 — set-dimension unification (PR #139):** the completion-panel popover set rows and the sidebar set facet are ONE selection (`filters.set` is the single source of truth); BL-179's parallel "home base set" third scope is retired outright.
+- **BL-226 — table width tiers (PR #146):** Compact/Standard/Full column sets with live auto-selection (column-at-a-time ladder, Name as slack absorber); override lives inside the Table button as a hover flyout (plain click = Auto). Supersedes BL-214 (customizable views declined).
+- **BL-227 — header polish (PR #142):** header version/fan-project links white at rest with the buttons' blue hover glow; nav-tab hover unified. (Related rider, PR #148: `.inv-summary__actions` wraps at narrow widths like the summary blocks.)
+- **Catalog:** the P26 2026 tournament-promo wave (+134 variants across 82 base cards) ingested to all envs the same day per `SWU_SWUAPI_Content_Runbook.md` — zero new base cards, zero mapping exceptions.
