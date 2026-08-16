@@ -69,7 +69,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           },
           {
             title: "Find your tradeables",
-            body: "A new \"Over keep limit\" filter shows every card you hold past your cap — your trade pile, one click. Chasing a specific finish? It follows the playset finish filter like its siblings.",
+            body: 'A new "Over keep limit" filter shows every card you hold past your cap — your trade pile, one click. Chasing a specific finish? It follows the playset finish filter like its siblings.',
           },
           {
             title: "The + button keeps up",
@@ -90,7 +90,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
           },
           {
             title: "Smarter card plates",
-            body: "The pips under each card follow your finish filter (amber building, green complete), a completed plate lights its outline, and the copy count dropped the \"/3\" — you know what a playset is.",
+            body: 'The pips under each card follow your finish filter (amber building, green complete), a completed plate lights its outline, and the copy count dropped the "/3" — you know what a playset is.',
           },
         ],
       },
@@ -106,7 +106,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             body: "The completion boxes' scope control is now a proper switch (FILTERED / ALL) beside Collection value; when it reads FILTERED, it and the four boxes carry the amber narrowed signal.",
           },
           {
-            title: "Amber means \"narrowed,\" everywhere",
+            title: 'Amber means "narrowed," everywhere',
             body: "The filter count badge went amber to match, and the header's version and fan-project links now share the buttons' blue hover glow.",
           },
         ],
