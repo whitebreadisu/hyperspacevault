@@ -209,12 +209,19 @@ describe("GallerySortHeader scope trigger (BL-222, CREATE)", () => {
 // CardsPage level.
 describe("GallerySortHeader has no local sort/scope state of its own (BL-222, CREATE)", () => {
   it("re-rendering with a new sortState prop immediately reflects it (no internal state to go stale)", () => {
+    const valueProps = {
+      valueDisplay: "unit" as const,
+      onValueDisplayChange: vi.fn(),
+      priceKind: "market" as const,
+      onPriceKindChange: vi.fn(),
+    };
     const { rerender } = render(
       <GallerySortHeader
         sortState={DEFAULT_SORT_STATE}
         onSortChange={vi.fn()}
         scope={null}
         onScopeChange={vi.fn()}
+        {...valueProps}
       />
     );
     expect(screen.getByRole("button", { name: "#" }).className).toContain("th-sort-btn--asc");
@@ -225,6 +232,7 @@ describe("GallerySortHeader has no local sort/scope state of its own (BL-222, CR
         onSortChange={vi.fn()}
         scope={null}
         onScopeChange={vi.fn()}
+        {...valueProps}
       />
     );
     expect(screen.getByRole("button", { name: "#" }).className).not.toContain("th-sort-btn--asc");

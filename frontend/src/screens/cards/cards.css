@@ -1062,9 +1062,7 @@
 .gallery-sort-header__entry--value .vs-value-switch:last-child .vs-value-switch__track {
   width: 62px;
 }
-.gallery-sort-header__entry--value
-  .vs-value-switch--on:last-child
-  .vs-value-switch__thumb {
+.gallery-sort-header__entry--value .vs-value-switch--on:last-child .vs-value-switch__thumb {
   /* 3 + 49 + 7 = 59 = 62 - 3 (mirrors the off-side inset). */
   transform: translateX(49px);
 }
