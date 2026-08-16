@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VariantDetail } from "../../api/baseCards";
-import { incrementCard, decrementCard, EmailNotVerifiedError } from "../../api/inventory";
+import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
 import type { LimitsMatrix } from "../../utils/limits";
 import type { CapMode, TypeCategory } from "../../api/settingsLimits";
 import {
@@ -15,7 +15,13 @@ import { variantLabel } from "./cardPopupShared";
  * verbatim -- the selected printing's owned-quantity stepper (InventoryPlate,
  * with its limits/cap_mode math), the signed-out "Sign in" nudge that stands
  * in for it, and the increment/decrement mutation logic (useInventoryMutation)
- * that drives both. */
+ * that drives both.
+ *
+ * BL-219 (issue #127): useInventoryMutation reworked from "one round trip
+ * per click, buttons disabled while it's in flight" to accumulate-and-
+ * debounce -- see its own doc comment below for the full design. The
+ * increment/decrement API contracts themselves are untouched; this hook now
+ * drives the new POST .../adjust endpoint exclusively. */
 
 const VERIFY_EMAIL_MESSAGE = "Verify your email to manage inventory -- see the banner above.";
 
@@ -78,8 +84,15 @@ function InventoryPlate({
   const cap = enforcementCap(limits, typeCategory, bucket);
   const qty = variant.quantity;
 
-  const incDisabled = pending || (capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap);
-  const decDisabled = pending || qty <= 0;
+  // BL-219: no longer gated on `pending` -- the debounced stepper never
+  // blocks the buttons while a flush is in flight (accumulating clicks is
+  // the whole point). `qty` here is already the DISPLAYED quantity
+  // (serverQuantity + the accumulated-but-not-yet-flushed delta,
+  // useInventoryMutation's optimistic update), so the same boundary
+  // semantics that used to gate against the server-confirmed quantity now
+  // gate against that live, locally-accumulated value instead.
+  const incDisabled = capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap;
+  const decDisabled = qty <= 0;
 
   const atOrOverLimit = rawLimit !== null && qty >= rawLimit;
   const softOverLimit = capMode === "soft" && rawLimit !== null && qty > rawLimit;
@@ -91,7 +104,13 @@ function InventoryPlate({
   const label = ownedLabel(variant);
 
   return (
-    <div className="cp-plate">
+    // BL-219: `pending` is now purely informational (a flush is somewhere
+    // in flight for this popup) -- the buttons themselves are never gated
+    // on it (see incDisabled/decDisabled above); this class is an
+    // unstyled-today hook for a future subtle "saving" affordance, kept
+    // deliberately inert rather than reaching for CSS this task didn't
+    // ask for.
+    <div className={`cp-plate${pending ? " cp-plate--pending" : ""}`}>
       <div className="cp-plate__inner">
         {/* BL-205: readOnly renders the qty by itself -- no -/+ buttons at
             all (removed, not disabled -- §19.1's "card-detail quantity
@@ -153,13 +172,60 @@ function InventoryPlate({
   );
 }
 
-/** BL-155 decomposition: handleIncrement/handleDecrement pulled out of
- * CardPopup.tsx verbatim, as a hook -- `setVariants`/`setChanged` are the
- * shell's own useState setters (stable across renders), passed down rather
- * than owned here, since the shell's data-loading effect and the rest of the
- * popup still need `variants`/`changed` directly. `pending`/`mutationError`
- * ARE owned here -- nothing outside this hook reads/writes them except via
- * its return value. */
+/** BL-219 (issue #127): per-variant debounce/accumulation bookkeeping --
+ * lives in a ref (not state) since updating it must never itself trigger a
+ * render; the DISPLAYED quantity is what's rendered, driven by ordinary
+ * setVariants calls at the points below that actually change it.
+ *   - serverQty: the last quantity this hook knows the SERVER actually
+ *     holds -- seeded from the variant's own quantity the first time a
+ *     click touches it (at that instant nothing is pending yet, so the
+ *     variant's current quantity IS server truth), then kept in sync by
+ *     every flush response. Never reset once seeded -- see bump() below.
+ *   - unflushed: the net signed delta accumulated since the last flush was
+ *     carved out (by a debounce firing OR a forced flush) -- what the next
+ *     network call, if any, will send.
+ *   - timer: the pending 400ms debounce handle, or null if no flush is
+ *     currently scheduled (either none was ever needed, or one just fired/
+ *     was forced and hasn't been rescheduled by a newer click yet). */
+interface AdjustBookkeeping {
+  serverQty: number;
+  unflushed: number;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+// BL-219: debounce window -- one network call per burst of clicks landing
+// within 400ms of each other, not one call per click.
+const ADJUST_DEBOUNCE_MS = 400;
+
+/** BL-155 decomposition (BL-219 rework, issue #127): handleIncrement/
+ * handleDecrement pulled out of CardPopup.tsx verbatim as a hook originally;
+ * now accumulate-and-debounce instead of one increment/decrement round trip
+ * per click. `setVariants`/`setChanged` are the shell's own useState
+ * setters (stable across renders), passed down rather than owned here,
+ * since the shell's data-loading effect and the rest of the popup still
+ * need `variants`/`changed` directly. `pending`/`mutationError` ARE owned
+ * here -- nothing outside this hook reads/writes them except via its
+ * return value.
+ *
+ * Design (BL-219 locked spec): a click mutates a local, per-variant signed
+ * delta immediately (both +/- accumulate into the SAME delta, so
+ * interleaving nets out) and updates the DISPLAYED quantity optimistically
+ * (serverQty + unflushed) -- no network call yet. 400ms after the last
+ * click on that variant, exactly one POST .../adjust call fires with the
+ * net delta (skipped entirely if it netted to 0); while that call is in
+ * flight, further clicks keep accumulating into a NEW delta and reschedule
+ * their own 400ms flush rather than blocking on the one already in flight
+ * (see InventoryPlate's incDisabled/decDisabled -- never gated on
+ * `pending`). The reconciliation on a response replaces serverQty with the
+ * response's authoritative quantity and re-derives the display from
+ * whatever accumulated in the meantime (bump() during that flight already
+ * moved it into `unflushed` again); an error instead leaves serverQty
+ * untouched and re-derives from that same untouched value -- "dropping"
+ * only the failed flush's own delta while preserving anything accumulated
+ * after it. bookkeepingRef is keyed by variant_id (not just "the current
+ * selection") since a forced flush on variant-switch can still be in
+ * flight for a variant that is no longer selected -- its eventual response
+ * must still land on the right row in `variants`. */
 export function useInventoryMutation(
   selectedVariant: VariantDetail | null | undefined,
   setVariants: React.Dispatch<React.SetStateAction<VariantDetail[]>>,
@@ -167,53 +233,139 @@ export function useInventoryMutation(
 ) {
   const [pending, setPending] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const bookkeepingRef = useRef<Map<number, AdjustBookkeeping>>(new Map());
+  // How many flushes are currently in flight, across every variant this
+  // popup instance has touched -- `pending` is true whenever this is > 0.
+  const inFlightCountRef = useRef(0);
 
-  const handleIncrement = useCallback(async () => {
-    if (!selectedVariant) return;
-    const variantId = selectedVariant.variant_id;
-    setPending(true);
-    setMutationError(null);
-    try {
-      const result = await incrementCard(variantId);
-      if (!result.blocked) {
-        // BL-35 (ported): result.over_limit is informational only -- not
-        // stored as state. The over-limit indicator is derived fresh on
-        // every render from the resolved quantity vs. the effective limit
-        // (see InventoryPlate), so it stays correct even if the tenant's
-        // limits/cap_mode change later in the same session.
-        setVariants((prev) =>
-          prev.map((v) => (v.variant_id === variantId ? { ...v, quantity: result.quantity } : v))
+  const setDisplayedQuantity = useCallback(
+    (variantId: number, quantity: number) => {
+      setVariants((prev) => prev.map((v) => (v.variant_id === variantId ? { ...v, quantity } : v)));
+    },
+    [setVariants]
+  );
+
+  // The actual network call for whatever's currently in `unflushed` -- only
+  // ever invoked by flushNow below (either the debounce timer firing, or a
+  // forced immediate flush), never called directly by a click.
+  const flush = useCallback(
+    async (variantId: number) => {
+      const entry = bookkeepingRef.current.get(variantId);
+      if (!entry || entry.unflushed === 0) return;
+      const delta = entry.unflushed;
+      // Reset immediately, BEFORE the await -- clicks that land while this
+      // call is in flight accumulate into a fresh delta rather than being
+      // folded into the one already on the wire.
+      entry.unflushed = 0;
+
+      inFlightCountRef.current += 1;
+      setPending(true);
+      setMutationError(null);
+      try {
+        const result = await adjustCard(variantId, delta);
+        // BL-35 (ported): result.over_limit/blocked are informational only
+        // for the *response itself* -- the over-limit indicator is derived
+        // fresh on every render from the resolved quantity vs. the
+        // effective limit (see InventoryPlate), so it stays correct even if
+        // the tenant's limits/cap_mode change later in the same session.
+        // `applied` is deliberately NOT used here -- `quantity` is the
+        // authoritative post-adjust value regardless of how much of the
+        // request was actually applied (partial, zero/blocked, or full).
+        entry.serverQty = result.quantity;
+        setDisplayedQuantity(variantId, entry.serverQty + entry.unflushed);
+      } catch (err) {
+        // Drop the flushed delta -- serverQty is untouched (last known
+        // server truth), so the display snaps back to it plus whatever's
+        // accumulated since this failed flush was carved out.
+        setDisplayedQuantity(variantId, entry.serverQty + entry.unflushed);
+        setMutationError(
+          err instanceof EmailNotVerifiedError ? VERIFY_EMAIL_MESSAGE : "Something went wrong."
         );
-        setChanged(true);
+      } finally {
+        inFlightCountRef.current -= 1;
+        if (inFlightCountRef.current === 0) setPending(false);
       }
-    } catch (err) {
-      setMutationError(
-        err instanceof EmailNotVerifiedError ? VERIFY_EMAIL_MESSAGE : "Something went wrong."
-      );
-    } finally {
-      setPending(false);
-    }
-  }, [selectedVariant, setVariants, setChanged]);
+    },
+    [setDisplayedQuantity]
+  );
 
-  const handleDecrement = useCallback(async () => {
-    if (!selectedVariant) return;
-    const variantId = selectedVariant.variant_id;
-    setPending(true);
-    setMutationError(null);
-    try {
-      const result = await decrementCard(variantId);
-      setVariants((prev) =>
-        prev.map((v) => (v.variant_id === variantId ? { ...v, quantity: result.quantity } : v))
-      );
+  // Cancels any pending debounce timer for `variantId` and flushes RIGHT
+  // NOW instead -- the "MUST flush immediately" paths (unmount, variant
+  // switch, before another mutation) all funnel through this.
+  const flushNow = useCallback(
+    (variantId: number) => {
+      const entry = bookkeepingRef.current.get(variantId);
+      if (!entry) return;
+      if (entry.timer !== null) {
+        clearTimeout(entry.timer);
+        entry.timer = null;
+      }
+      void flush(variantId);
+    },
+    [flush]
+  );
+
+  // A click: accumulate the +-1 into the variant's pending delta, update
+  // the display optimistically, and (re)start its 400ms debounce window.
+  // setChanged(true) fires HERE (synchronously, at click time) rather than
+  // waiting on the flush's response -- CardPopup.tsx's close() reads
+  // `changed` synchronously the instant Close is clicked, which can easily
+  // land before an in-flight or still-debouncing flush has resolved (the
+  // popup's OWN unmount is one of the "MUST flush immediately" triggers, so
+  // a flush is often only just STARTING as the popup goes away); if
+  // `changed` waited on that response, a close that races the flush would
+  // silently skip the parent's refreshQuantities. Optimistic and harmless
+  // either way (a no-op refresh costs a cheap idempotent GET, same trade-off
+  // decrement_card's response already made by never distinguishing "really
+  // changed" from "no-op at the floor" pre-BL-219).
+  const bump = useCallback(
+    (variantId: number, delta: 1 | -1, currentDisplayed: number) => {
+      let entry = bookkeepingRef.current.get(variantId);
+      if (!entry) {
+        // First-ever touch of this variant in this hook instance: nothing
+        // is pending yet, so its current displayed quantity IS server
+        // truth -- see AdjustBookkeeping's doc comment above.
+        entry = { serverQty: currentDisplayed, unflushed: 0, timer: null };
+        bookkeepingRef.current.set(variantId, entry);
+      }
+      entry.unflushed += delta;
+      setDisplayedQuantity(variantId, entry.serverQty + entry.unflushed);
       setChanged(true);
-    } catch (err) {
-      setMutationError(
-        err instanceof EmailNotVerifiedError ? VERIFY_EMAIL_MESSAGE : "Something went wrong."
-      );
-    } finally {
-      setPending(false);
-    }
-  }, [selectedVariant, setVariants, setChanged]);
+
+      if (entry.timer !== null) clearTimeout(entry.timer);
+      entry.timer = setTimeout(() => {
+        entry!.timer = null;
+        void flush(variantId);
+      }, ADJUST_DEBOUNCE_MS);
+    },
+    [setDisplayedQuantity, setChanged, flush]
+  );
+
+  const handleIncrement = useCallback(() => {
+    if (!selectedVariant) return;
+    bump(selectedVariant.variant_id, 1, selectedVariant.quantity);
+  }, [selectedVariant, bump]);
+
+  const handleDecrement = useCallback(() => {
+    if (!selectedVariant) return;
+    bump(selectedVariant.variant_id, -1, selectedVariant.quantity);
+  }, [selectedVariant, bump]);
+
+  // BL-219: flush-on-variant-switch and flush-on-unmount, both from ONE
+  // effect keyed on the selected variant_id -- its cleanup fires exactly
+  // when that id is about to change (a rail click, prev/next card nav, or
+  // any other path that moves the selection) AND on unmount (popup close),
+  // which is exactly the "MUST flush immediately" trigger set the locked
+  // spec calls out. "Before any other inventory mutation from the same
+  // popup" is covered for free: this popup only ever mutates the currently
+  // SELECTED variant, so any other mutation necessarily follows a
+  // selection change this same cleanup already intercepts.
+  const selectedVariantId = selectedVariant?.variant_id;
+  useEffect(() => {
+    return () => {
+      if (selectedVariantId != null) flushNow(selectedVariantId);
+    };
+  }, [selectedVariantId, flushNow]);
 
   return { pending, mutationError, handleIncrement, handleDecrement };
 }

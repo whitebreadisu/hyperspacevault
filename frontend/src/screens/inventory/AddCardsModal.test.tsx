@@ -74,21 +74,28 @@ vi.mock("../../api/sets", () => ({
 // BL-16: EmailNotVerifiedError is a real class (not a vi.fn()) -- declared
 // under vi.hoisted so the same reference is thrown by tests and checked via
 // `instanceof` in AddCardsModal's catch block.
-const { mockIncrementCard, EmailNotVerifiedError } = vi.hoisted(() => {
+// BL-219 (issue #127): mockIncrementCard -> mockAdjustCard -- the manual
+// commit loop now groups willAdd rows by variant_id and sends one
+// adjustCard(variantId, delta) call per distinct variant instead of one
+// incrementCard call per row (see AddCardsModal.tsx's handleCommit).
+const { mockAdjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
   class EmailNotVerifiedError extends Error {}
   return {
-    mockIncrementCard: vi.fn().mockResolvedValue({
+    mockAdjustCard: vi.fn().mockResolvedValue({
       variant_id: 1,
       quantity: 1,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
+      over_limit: false,
     }),
     EmailNotVerifiedError,
   };
 });
 vi.mock("../../api/inventory", () => ({
-  incrementCard: mockIncrementCard,
+  adjustCard: mockAdjustCard,
   EmailNotVerifiedError,
 }));
 
@@ -483,12 +490,15 @@ describe("AddCardsModal", () => {
 describe("AddCardsModal commit gate (BL-16)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIncrementCard.mockResolvedValue({
+    mockAdjustCard.mockResolvedValue({
       variant_id: 1,
       quantity: 1,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
+      over_limit: false,
     });
   });
 
@@ -520,7 +530,7 @@ describe("AddCardsModal commit gate (BL-16)", () => {
   // handleCommit is an async click handler that fireEvent.click doesn't
   // await directly (DOM events can't be awaited), so a single
   // act(async () => fireEvent.click(...)) can return before the
-  // incrementCard promise chain (and the state updates/onClose that follow
+  // adjustCard promise chain (and the state updates/onClose that follow
   // it) has actually settled. waitFor retries the assertion as those
   // microtasks flush, rather than asserting immediately after the click.
   function clickCommit() {
@@ -530,7 +540,7 @@ describe("AddCardsModal commit gate (BL-16)", () => {
   }
 
   it("shows a banner-pointing message and keeps the modal open when the commit is rejected as unverified", async () => {
-    mockIncrementCard.mockRejectedValue(new EmailNotVerifiedError());
+    mockAdjustCard.mockRejectedValue(new EmailNotVerifiedError());
     const { onClose, onCommitted } = await buildOneRowBatchAndReachVerification();
 
     await act(async () => {
@@ -556,18 +566,56 @@ describe("AddCardsModal commit gate (BL-16)", () => {
       clickCommit();
     });
 
-    await waitFor(() => expect(mockIncrementCard).toHaveBeenCalled());
+    await waitFor(() => expect(mockAdjustCard).toHaveBeenCalled());
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onCommitted).toHaveBeenCalled();
     // BL-111 F7: a close that follows a successful commit skips the close
     // guard entirely -- the confirm never appears on this path.
     expect(screen.queryByText(/discard this batch/i)).toBeNull();
   });
+
+  // BL-219 (issue #127): the Add Cards adoption -- willAdd rows are grouped
+  // by variant_id before committing, so a batch with two copies of the SAME
+  // printing sends ONE adjustCard(variantId, 2) call, not two
+  // adjustCard(variantId, 1) calls.
+  it("groups two rows resolving to the same variant into a single adjustCard call with delta=2", async () => {
+    const onClose = vi.fn();
+    const onCommitted = vi.fn();
+    await renderModal(onClose, onCommitted);
+    await chooseSet(/^SOR —/);
+
+    for (let i = 0; i < 2; i++) {
+      await act(async () => {
+        fireEvent.change(screen.getByPlaceholderText("000"), { target: { value: "12" } });
+      });
+      const finishSelect = screen.getByLabelText("Finish");
+      await act(async () => {
+        fireEvent.change(finishSelect, { target: { value: "Standard Foil" } });
+      });
+      await act(async () => {
+        fireEvent.keyDown(finishSelect, { key: "Enter" });
+      });
+    }
+
+    const footerBtns = screen.getAllByRole("button");
+    const submitBtn = footerBtns.find((b) => b.textContent?.includes("Add Cards to Inventory"));
+    await act(async () => {
+      fireEvent.click(submitBtn!);
+    });
+    expect(screen.getByRole("heading", { name: /verify cards/i })).toBeTruthy();
+
+    await act(async () => {
+      clickCommit();
+    });
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mockAdjustCard).toHaveBeenCalledExactlyOnceWith(2, 2);
+  });
 });
 
 /** BL-196: a controllable promise -- same technique
  * ImportExportPage.test.tsx's own deferred() uses -- for observing the busy
- * overlay WHILE incrementCard/onCommitted are still pending, rather than
+ * overlay WHILE adjustCard/onCommitted are still pending, rather than
  * mocking values that resolve before the assertion runs. */
 function deferred<T>(): {
   promise: Promise<T>;
@@ -582,8 +630,8 @@ function deferred<T>(): {
 
 // DISPOSITION (BL-196, CREATE): net-new coverage -- the manual commit path's
 // busy overlay (handleCommit) stages "Applying N cards…" through the
-// incrementCard loop, then "Refreshing your Vault…" through onCommitted,
-// dismissing only once both settle.
+// adjustCard loop (BL-219: was incrementCard), then "Refreshing your
+// Vault…" through onCommitted, dismissing only once both settle.
 describe("AddCardsModal busy overlay (BL-196)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -619,14 +667,17 @@ describe("AddCardsModal busy overlay (BL-196)", () => {
   }
 
   it("stages 'Applying 1 card…' then 'Refreshing your Vault…', holding until onCommitted settles", async () => {
-    const { promise: incrementPromise, resolve: resolveIncrement } = deferred<{
+    const { promise: adjustPromise, resolve: resolveAdjust } = deferred<{
       variant_id: number;
       quantity: number;
+      applied: number;
+      requested: number;
       playset_complete: boolean;
       blocked: boolean;
       reason: null;
+      over_limit: boolean;
     }>();
-    mockIncrementCard.mockReturnValue(incrementPromise);
+    mockAdjustCard.mockReturnValue(adjustPromise);
     const { promise: committedPromise, resolve: resolveCommitted } = deferred<void>();
     const onCommitted = vi.fn(() => committedPromise);
     await buildOneRowBatchAndReachVerification(onCommitted);
@@ -636,12 +687,15 @@ describe("AddCardsModal busy overlay (BL-196)", () => {
     await waitFor(() => expect(screen.getByText(/applying 1 card…/i)).toBeInTheDocument());
 
     await act(async () =>
-      resolveIncrement({
+      resolveAdjust({
         variant_id: 1,
         quantity: 1,
+        applied: 1,
+        requested: 1,
         playset_complete: false,
         blocked: false,
         reason: null,
+        over_limit: false,
       })
     );
 
@@ -658,8 +712,8 @@ describe("AddCardsModal busy overlay (BL-196)", () => {
   });
 
   it("ignores Escape while the busy overlay is up (no close-guard confirm, no requestClose)", async () => {
-    const { promise: incrementPromise } = deferred<unknown>();
-    mockIncrementCard.mockReturnValue(incrementPromise);
+    const { promise: adjustPromise } = deferred<unknown>();
+    mockAdjustCard.mockReturnValue(adjustPromise);
     const { onClose } = await buildOneRowBatchAndReachVerification();
 
     clickCommit();

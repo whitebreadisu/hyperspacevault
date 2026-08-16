@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 # BL-102: CardWithInventoryResponse (CardResponse + quantity, the heavy
 # GET /api/inventory row shape) retired with its endpoint -- superseded by
@@ -39,3 +39,44 @@ class IncrementResponse(BaseModel):
 class DecrementResponse(BaseModel):
     variant_id: int
     quantity: int
+
+
+# BL-219 (issue #127): request/response for POST /api/inventory/{id}/adjust
+# -- the debounced stepper's batched-delta endpoint. The frontend accumulates
+# rapid +/- clicks into a single signed delta and flushes ONE call instead of
+# one round trip per click (see CardPopupInventory.tsx's useInventoryMutation);
+# the increment/decrement routes/contracts above are untouched.
+class AdjustDeltaRequest(BaseModel):
+    """`delta` must be nonzero (a zero-delta flush is skipped client-side
+    entirely -- see useInventoryMutation) and within the same [-999, 999]
+    range as QUANTITY_CEILING, the absolute technical ceiling any single
+    call could ever need to cross in one hop."""
+
+    delta: int = Field(ge=-999, le=999)
+
+    @field_validator("delta")
+    @classmethod
+    def _nonzero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("delta must not be 0")
+        return value
+
+
+class AdjustResponse(BaseModel):
+    variant_id: int
+    quantity: int
+    # The delta actually committed -- may be less than `requested` (same
+    # sign, smaller magnitude) when a positive delta was clamped by the
+    # effective limit (hard mode) or the 999 ceiling; always equal to
+    # `requested` for a negative delta unless the floor (0) was reached.
+    applied: int
+    requested: int
+    blocked: bool = False
+    # See IncrementResponse.reason above for the two values' meaning.
+    # Populated whenever the requested delta was truncated by the effective
+    # limit or the ceiling, whether or not that leaves `blocked` True (a
+    # partial apply truncates without blocking; blocked is reserved for the
+    # zero-applied case, same meaning it has on increment).
+    reason: Literal["trade_sell", "ceiling"] | None = None
+    over_limit: bool = False
+    playset_complete: bool = False

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { getSets } from "../../api/sets";
-import { incrementCard, EmailNotVerifiedError } from "../../api/inventory";
+import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
 import { runImport, ImportApiError } from "../../api/inventoryImportExport";
 import { SWUButton } from "../../components/SWUButton";
 import { SectionSeparator } from "../../components/SectionSeparator";
@@ -369,8 +369,24 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
         {
           task: async () => {
+            // BL-219 (issue #127): grouped by variant_id, one adjustCard
+            // call per DISTINCT variant instead of one incrementCard call
+            // per row -- a batch with several copies of the same printing
+            // (e.g. three rows all resolving to the same variant) now sends
+            // one delta=3 call instead of three delta=1 calls. Purely
+            // mechanical: this loop never inspected incrementCard's
+            // response (blocked/applied) before either -- willAdd's own
+            // pre-check (splitForVerification) already decided what belongs
+            // in this batch, and that contract is unchanged here.
+            const deltaByVariant = new Map<number, number>();
             for (const { resolved } of willAdd) {
-              await incrementCard(resolved.variantId);
+              deltaByVariant.set(
+                resolved.variantId,
+                (deltaByVariant.get(resolved.variantId) ?? 0) + 1
+              );
+            }
+            for (const [variantId, delta] of deltaByVariant) {
+              await adjustCard(variantId, delta);
             }
           },
           settleStage: { message: "Refreshing your Vault…" },

@@ -84,6 +84,48 @@ def upsert_increment(db: Session, variant_id: int) -> Inventory:
     return Inventory(**row._mapping)
 
 
+def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
+    """BL-219: atomically insert-or-adjust the (tenant_id, variant_id) row
+    by an arbitrary signed `delta` in a single statement -- extends
+    upsert_increment/upsert_decrement's ON CONFLICT pattern (still one
+    atomic write, no lost updates under concurrent adjusts) to a caller-
+    resolved delta instead of a fixed +-1, floor/ceiling clamped in the same
+    SQL expression via GREATEST/LEAST (mirrors upsert_decrement's floor
+    clamp, extended with a ceiling too).
+
+    `delta` here is the SERVICE layer's already-resolved `applied` amount
+    (services/inventory.py's adjust_card/_resolve_adjust already clamped it
+    against the effective limit/999 ceiling using a quantity read moments
+    earlier) -- this statement's own [0, 999] clamp is a defensive re-clamp
+    against the *actual* stored value at write time, not a re-decision: if a
+    concurrent write raced the earlier read, the write below still can never
+    push the stored quantity out of bounds, but the limit/ceiling *decision*
+    that produced `delta` can be marginally stale under that race -- the
+    same tolerated posture increment_card's existing pre-read-then-atomic-
+    write already has today (BL-219's spec explicitly notes this: the ON
+    CONFLICT write is already atomic, so cross-call serialization isn't
+    needed for correctness)."""
+    tenant_id = _current_tenant_id(db)
+    table = Inventory.__table__
+    stmt = (
+        pg_insert(table)
+        .values(
+            tenant_id=tenant_id, variant_id=variant_id, quantity=max(min(delta, 999), 0)
+        )
+        .on_conflict_do_update(
+            index_elements=["tenant_id", "variant_id"],
+            set_={
+                "quantity": func.least(func.greatest(table.c.quantity + delta, 0), 999),
+                "updated_at": func.now(),
+            },
+        )
+        .returning(table)
+    )
+    row = db.execute(stmt).one()
+    db.commit()
+    return Inventory(**row._mapping)
+
+
 def get_export_rows(db: Session):
     """BL-54 S1 (§7.1): every inventory row with quantity >= 1, joined to
     its variant + base card. The ORDER BY here is only a stable base; the

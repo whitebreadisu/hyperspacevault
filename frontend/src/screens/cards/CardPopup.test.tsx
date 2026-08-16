@@ -93,15 +93,39 @@ const { getLimits, putLimits } = vi.hoisted(() => ({
 }));
 vi.mock("../../api/settingsLimits", () => ({ getLimits, putLimits }));
 
-const { incrementCard, decrementCard, EmailNotVerifiedError } = vi.hoisted(() => {
+// BL-219 (issue #127): incrementCard/decrementCard mocks REPLACED by
+// adjustCard -- useInventoryMutation now drives the debounced batch
+// endpoint exclusively (see CardPopupInventory.tsx). Tests below that used
+// to assert `incrementCard`/`decrementCard` calls now assert `adjustCard`
+// calls with a signed delta, advancing past its 400ms debounce window with
+// fake timers (ADJUST_DEBOUNCE_MS below mirrors the hook's own constant).
+const { adjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
   class EmailNotVerifiedError extends Error {}
   return {
-    incrementCard: vi.fn(),
-    decrementCard: vi.fn(),
+    adjustCard: vi.fn(),
     EmailNotVerifiedError,
   };
 });
-vi.mock("../../api/inventory", () => ({ incrementCard, decrementCard, EmailNotVerifiedError }));
+vi.mock("../../api/inventory", () => ({ adjustCard, EmailNotVerifiedError }));
+
+// BL-219: the hook's own debounce window (CardPopupInventory.tsx's
+// ADJUST_DEBOUNCE_MS) -- kept in sync here by literal value rather than an
+// import, since the hook doesn't export it.
+const ADJUST_DEBOUNCE_MS = 400;
+
+/** BL-219: click, then advance fake timers past the debounce window and let
+ * the flush's promise chain settle -- the shared shape every stepper test
+ * below needs. Callers are responsible for calling `vi.useFakeTimers()`
+ * before and `vi.useRealTimers()` after (scoped tightly around the
+ * click+flush, not the whole test, so renderPopup's own initial
+ * data-fetch/dialog-wait -- which uses real-timer-friendly `waitFor` --
+ * is never running under faked timers). */
+async function clickAndFlush(button: HTMLElement) {
+  fireEvent.click(button);
+  await act(async () => {
+    vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+  });
+}
 
 const SET_NAMES: Record<string, string> = {
   SOR: "Spark of Rebellion",
@@ -957,36 +981,133 @@ describe("CardPopup signed-in stepper (PORT)", () => {
     vi.clearAllMocks();
   });
 
-  it("+ calls incrementCard for the selected variant_id and reflects the new quantity", async () => {
-    incrementCard.mockResolvedValue({
+  it("+ accumulates optimistically then flushes exactly one adjustCard(variantId, +1) after the debounce", async () => {
+    adjustCard.mockResolvedValue({
       variant_id: 1,
       quantity: 1,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
+      over_limit: false,
     });
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
 
     const incBtn = screen.getByRole("button", { name: /increment/i });
-    await act(async () => {
+    vi.useFakeTimers();
+    try {
+      // BL-219: the click itself updates the display optimistically, before
+      // any network call -- no adjustCard call yet.
       fireEvent.click(incBtn);
-    });
+      expect(screen.getByText("1 / 3")).toBeTruthy();
+      expect(adjustCard).not.toHaveBeenCalled();
 
-    expect(incrementCard).toHaveBeenCalledWith(1);
-    await waitFor(() => expect(screen.getByText("1 / 3")).toBeTruthy());
+      await act(async () => {
+        vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+      });
+      expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
+      expect(screen.getByText("1 / 3")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("− calls decrementCard for the selected variant_id and reflects the new quantity", async () => {
-    decrementCard.mockResolvedValue({ variant_id: 1, quantity: 1 });
+  it("− accumulates optimistically then flushes exactly one adjustCard(variantId, -1) after the debounce", async () => {
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: -1,
+      requested: -1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 2 })] }));
 
     const decBtn = screen.getByRole("button", { name: /decrement/i });
-    await act(async () => {
-      fireEvent.click(decBtn);
-    });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(decBtn);
+      expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, -1);
+      expect(screen.getByText("1 / 3")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    expect(decrementCard).toHaveBeenCalledWith(1);
-    await waitFor(() => expect(screen.getByText("1 / 3")).toBeTruthy());
+  it("a 5-click burst on + sends exactly one adjustCard call with the net delta", async () => {
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 5,
+      applied: 5,
+      requested: 5,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
+    // Limit raised to 10 (well above 5) so all 5 clicks stay enabled --
+    // this test is about the debounce batching, not the cap.
+    await renderPopupWithLimits(
+      makeDetail({
+        type: "Unit",
+        variants: [makeVariant({ variant_id: 1, quantity: 0, card_number: "12" })],
+      }),
+      [makeLimitCell({ max_quantity: 10, is_default: false })]
+    );
+
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < 5; i++) fireEvent.click(incBtn);
+      expect(screen.getByText("5 / 10")).toBeTruthy();
+      expect(adjustCard).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+      });
+      expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("interleaved +/- clicks net out into a single adjustCard call", async () => {
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: 1,
+      requested: 1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
+
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    const decBtn = screen.getByRole("button", { name: /decrement/i });
+    vi.useFakeTimers();
+    try {
+      // +1 +1 +1 -1 -1 -1 +1 = net +1, all within one debounce window.
+      fireEvent.click(incBtn);
+      fireEvent.click(incBtn);
+      fireEvent.click(incBtn);
+      fireEvent.click(decBtn);
+      fireEvent.click(decBtn);
+      fireEvent.click(decBtn);
+      fireEvent.click(incBtn);
+      expect(screen.getByText("1 / 3")).toBeTruthy();
+
+      await act(async () => {
+        vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+      });
+      expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("− is disabled at quantity 0", async () => {
@@ -1038,13 +1159,19 @@ describe("CardPopup signed-in stepper (PORT)", () => {
     expect(incBtn.disabled).toBe(true);
   });
 
-  it("+ does not apply the increment when the response is blocked", async () => {
-    incrementCard.mockResolvedValue({
+  // BL-219 (issue #127): "blocked" reconciliation -- the click still shows
+  // the optimistic bump immediately, but the flush's response (applied: 0,
+  // quantity unchanged) snaps the display back once it lands.
+  it("+ does not apply the increment when the response is blocked (reconciles back on flush)", async () => {
+    adjustCard.mockResolvedValue({
       variant_id: 1,
       quantity: 2,
+      applied: 0,
+      requested: 1,
       playset_complete: false,
       blocked: true,
       reason: "trade_sell",
+      over_limit: false,
     });
     await renderPopup(
       makeDetail({
@@ -1052,14 +1179,32 @@ describe("CardPopup signed-in stepper (PORT)", () => {
         variants: [makeVariant({ variant_id: 1, quantity: 2, card_number: "12" })],
       })
     );
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /increment/i }));
-    });
-    expect(screen.getByText("2 / 3")).toBeTruthy();
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(incBtn);
+      expect(screen.getByText("3 / 3")).toBeTruthy(); // optimistic, pre-flush
+
+      await act(async () => {
+        vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+      });
+      expect(screen.getByText("2 / 3")).toBeTruthy(); // snapped back
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("calls onChanged on close only if a change was made", async () => {
-    decrementCard.mockResolvedValue({ variant_id: 1, quantity: 1 });
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: -1,
+      requested: -1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
     const { onClose, onChanged } = await renderPopup(
       makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 2 })] })
     );
@@ -1070,75 +1215,101 @@ describe("CardPopup signed-in stepper (PORT)", () => {
   });
 
   it("calls onChanged on close after a change was made", async () => {
-    decrementCard.mockResolvedValue({ variant_id: 1, quantity: 1 });
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: -1,
+      requested: -1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
     const { onChanged } = await renderPopup(
       makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 2 })] })
     );
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /decrement/i }));
-    });
-    await waitFor(() => expect(screen.getByText("1 / 3")).toBeTruthy());
+    const decBtn = screen.getByRole("button", { name: /decrement/i });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(decBtn);
+      expect(screen.getByText("1 / 3")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
 
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
     expect(onChanged).toHaveBeenCalledOnce();
   });
 
-  it("+ maps an EmailNotVerifiedError to a banner-pointing message instead of applying the mutation", async () => {
-    incrementCard.mockRejectedValue(new EmailNotVerifiedError());
+  it("+ maps an EmailNotVerifiedError to a banner-pointing message and snaps the display back", async () => {
+    adjustCard.mockRejectedValue(new EmailNotVerifiedError());
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /increment/i }));
-    });
-
-    expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
-    expect(screen.getByText("0 / 3")).toBeTruthy();
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(incBtn);
+      expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
+      expect(screen.getByText("0 / 3")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("− maps an EmailNotVerifiedError to a banner-pointing message", async () => {
-    decrementCard.mockRejectedValue(new EmailNotVerifiedError());
+    adjustCard.mockRejectedValue(new EmailNotVerifiedError());
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 2 })] }));
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /decrement/i }));
-    });
-
-    expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
+    const decBtn = screen.getByRole("button", { name: /decrement/i });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(decBtn);
+      expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("+ shows a generic message for a non-verification error", async () => {
-    incrementCard.mockRejectedValue(new Error("network error"));
+  it("+ shows a generic message for a non-verification error (network/other failure)", async () => {
+    adjustCard.mockRejectedValue(new Error("network error"));
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /increment/i }));
-    });
-
-    expect(screen.getByText("Something went wrong.")).toBeInTheDocument();
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(incBtn);
+      expect(screen.getByText("Something went wrong.")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("clears a prior mutation error on the next successful mutation", async () => {
-    incrementCard.mockRejectedValueOnce(new EmailNotVerifiedError());
-    incrementCard.mockResolvedValueOnce({
+  it("clears a prior mutation error on the next successful flush", async () => {
+    adjustCard.mockRejectedValueOnce(new EmailNotVerifiedError());
+    adjustCard.mockResolvedValueOnce({
       variant_id: 1,
       quantity: 1,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
+      over_limit: false,
     });
     await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
 
     const incBtn = screen.getByRole("button", { name: /increment/i });
-    await act(async () => {
-      fireEvent.click(incBtn);
-    });
-    expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(incBtn);
+      expect(screen.getByText(/verify your email to manage inventory/i)).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(incBtn);
-    });
-    expect(screen.queryByText(/verify your email to manage inventory/i)).not.toBeInTheDocument();
+      await clickAndFlush(incBtn);
+      expect(screen.queryByText(/verify your email to manage inventory/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders the "OWNED — <printing> <cardnum>" label (design handoff §5)', async () => {
@@ -1167,6 +1338,134 @@ describe("CardPopup signed-in stepper (PORT)", () => {
       .querySelector(".cp-rail__item-qty");
     expect(owned?.className).toContain("cp-rail__item-qty--owned");
     expect(unowned?.className).not.toContain("cp-rail__item-qty--owned");
+  });
+});
+
+// ─── Forced flush triggers (BL-219, CREATE) ───────────────────────────────
+// The locked spec's "MUST flush immediately, no debounce wait" trigger set:
+// popup close/unmount, variant switch (rail click or prev/next card nav).
+// None of these tests advance fake timers at all -- the whole point is that
+// the flush fires WITHOUT waiting for the 400ms debounce.
+describe("CardPopup stepper forced flush (BL-219, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getPriceHistory.mockResolvedValue({ variant_id: 1, range: "90d", series: [] });
+  });
+
+  function adjustResult(quantity: number, applied: number) {
+    return {
+      variant_id: 1,
+      quantity,
+      applied,
+      requested: applied,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    };
+  }
+
+  it("flushes a pending delta immediately on unmount, with no debounce wait", async () => {
+    adjustCard.mockResolvedValue(adjustResult(1, 1));
+    getBaseCardDetail.mockResolvedValue(
+      makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] })
+    );
+    let unmount: (() => void) | undefined;
+    await act(async () => {
+      const result = render(
+        <CardPopup
+          baseCardId={1}
+          isAuthenticated={true}
+          setNameByCode={SET_NAMES}
+          onClose={vi.fn()}
+        />
+      );
+      unmount = result.unmount;
+    });
+    await waitFor(() => screen.getByRole("dialog"));
+
+    fireEvent.click(screen.getByRole("button", { name: /increment/i }));
+    expect(adjustCard).not.toHaveBeenCalled();
+
+    await act(async () => {
+      unmount!();
+    });
+    expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
+  });
+
+  it("flushes a pending delta immediately when switching to a different printing (variant rail)", async () => {
+    adjustCard.mockResolvedValue(adjustResult(1, 1));
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({ variant_id: 1, finish: "Standard", card_number: "12", quantity: 0 }),
+          makeVariant({
+            variant_id: 2,
+            finish: "Standard Foil",
+            card_number: "13",
+            quantity: 0,
+          }),
+        ],
+      })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /increment/i }));
+    expect(adjustCard).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("Standard Foil – #13 – SOR"));
+    });
+
+    expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
+  });
+
+  it("flushes a pending delta immediately when navigating to a different card (prev/next)", async () => {
+    adjustCard.mockResolvedValue(adjustResult(1, 1));
+    const cardA = makeDetail({
+      id: 1,
+      variants: [makeVariant({ variant_id: 1, quantity: 0 })],
+    });
+    const cardB = makeDetail({
+      id: 2,
+      name: "Different Card",
+      variants: [makeVariant({ variant_id: 3, quantity: 0 })],
+    });
+    getBaseCardDetail.mockImplementation((id: number) => Promise.resolve(id === 1 ? cardA : cardB));
+    const nav = { canPrev: true, canNext: true, onPrev: vi.fn(), onNext: vi.fn() };
+
+    const { rerender } = render(
+      <CardPopup
+        baseCardId={1}
+        isAuthenticated={true}
+        setNameByCode={SET_NAMES}
+        onClose={vi.fn()}
+        navigation={nav}
+      />
+    );
+    await waitFor(() => screen.getByRole("dialog"));
+
+    fireEvent.click(screen.getByRole("button", { name: /increment/i }));
+    expect(adjustCard).not.toHaveBeenCalled();
+
+    // Simulate CardsPage's onNext handler swapping the popup to card B --
+    // the popup itself doesn't call navigation.onNext here (that's the
+    // parent's affordance); what's under test is that the resulting
+    // baseCardId change (and the selection swap it eventually produces)
+    // flushes variant 1's pending delta rather than dropping it.
+    await act(async () => {
+      rerender(
+        <CardPopup
+          baseCardId={2}
+          isAuthenticated={true}
+          setNameByCode={SET_NAMES}
+          onClose={vi.fn()}
+          navigation={nav}
+        />
+      );
+    });
+    await waitFor(() => expect(screen.getByText("Different Card")).toBeTruthy());
+
+    expect(adjustCard).toHaveBeenCalledExactlyOnceWith(1, 1);
   });
 });
 
@@ -1394,9 +1693,11 @@ describe("CardPopup cap_mode (PORT, BL-35)", () => {
   });
 
   it("soft mode: incrementing past the limit commits and keeps the readout over-limit-flagged", async () => {
-    incrementCard.mockResolvedValue({
+    adjustCard.mockResolvedValue({
       variant_id: 1,
       quantity: 4,
+      applied: 1,
+      requested: 1,
       playset_complete: false,
       blocked: false,
       reason: null,
@@ -1411,12 +1712,15 @@ describe("CardPopup cap_mode (PORT, BL-35)", () => {
       "soft"
     );
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /increment/i }));
-    });
-
-    await waitFor(() => expect(screen.getByText("4 / 3")).toBeInTheDocument());
-    expect(screen.getByText("Over limit")).toBeInTheDocument();
+    const incBtn = screen.getByRole("button", { name: /increment/i });
+    vi.useFakeTimers();
+    try {
+      await clickAndFlush(incBtn);
+      expect(screen.getByText("4 / 3")).toBeInTheDocument();
+      expect(screen.getByText("Over limit")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

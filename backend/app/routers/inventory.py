@@ -19,6 +19,8 @@ from app.http_cache import TENANT_CACHE_CONTROL, tenant_no_store
 from app.rate_limit import check_tenant_rate_limit
 from app.schemas.inventory_import_schema import ImportReport
 from app.schemas.inventory_schema import (
+    AdjustDeltaRequest,
+    AdjustResponse,
     DecrementResponse,
     IncrementResponse,
     VariantQuantityResponse,
@@ -95,6 +97,24 @@ def increment_card(variant_id: int, db: Session = Depends(get_db)):
 )
 def decrement_card(variant_id: int, db: Session = Depends(get_db)):
     result = inventory_service.decrement_card(db, variant_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Card {variant_id} not found")
+    return result
+
+
+# BL-219 (issue #127): the stepper's debounced-batch endpoint -- one call per
+# 400ms burst of clicks instead of one increment/decrement round trip per
+# click (see CardPopupInventory.tsx's useInventoryMutation). Additive: the
+# two routes above are untouched, same contracts, same behavior.
+@router.post(
+    "/{variant_id}/adjust",
+    response_model=AdjustResponse,
+    dependencies=[Depends(require_verified_email)],
+)
+def adjust_card(
+    variant_id: int, body: AdjustDeltaRequest, db: Session = Depends(get_db)
+):
+    result = inventory_service.adjust_card(db, variant_id, body.delta)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Card {variant_id} not found")
     return result
