@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { parseCardDisplay } from "../../utils/catalog";
 import { AspectIcon } from "../../components/AspectIcon";
@@ -23,6 +23,8 @@ import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 import { DEFAULT_SORT_STATE, ariaSortValue } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
+import { selectAutoTier } from "../../utils/tableWidthTier";
+import type { ResolvedWidthTier, WidthTier } from "../../utils/tableWidthTier";
 
 const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Villainy"] as const;
 
@@ -105,9 +107,97 @@ const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Vi
  * .data-table-wrapper max-width) -- retune all three whenever this array
  * changes, or the wrapper cap either stretches columns or grows a
  * horizontal scrollbar (which is exactly what happened when BL-173's +92px
- * landed without retuning). */
+ * landed without retuning).
+ * BL-226 (Issue #140, owner-locked design): three FIXED hide-only width
+ * tiers (Compact/Standard/Full, TIER_COLUMN_KEYS below) join the always-
+ * full-15 table this array has driven since BL-56 -- Full IS this array
+ * unchanged, Compact/Standard are subsets of it (never new widths of their
+ * own; a hidden column's width simply isn't summed for that tier). The SYNC
+ * RULE above stays keyed to the FULL sum (1538) alone -- a CONSERVATIVE
+ * judgment call, not an oversight: reworking the wrapper/content/summary cap
+ * trio and the FilterPanel docking breakpoint (both below) to vary per-tier
+ * would cascade through cards.css's layout math for a cosmetic gain (a
+ * narrower tier's columns proportionally stretch to fill up to the
+ * FULL-sized cap on a wide-enough viewport, same `table-layout: fixed`
+ * stretch behavior the Full tier already exhibits above its own natural
+ * width -- not a new failure mode, just a wider range it now applies over).
+ * No functional cost: the cap only ever bounds width, so a narrower tier
+ * never scrolls or overflows because of it. See NATURAL_WIDTHS below for
+ * the per-tier sums this DOES drive (the AUTO-selection fit test). */
 const COLUMN_WIDTHS = [50, 210, 86, 128, 114, 128, 108, 90, 52, 52, 52, 144, 180, 74, 70];
-const COLUMN_COUNT = COLUMN_WIDTHS.length;
+
+/** BL-226 (Issue #140, owner-locked design): the fifteen columns in the same
+ * left-to-right order as COLUMN_WIDTHS above -- the two arrays are index-
+ * paired, never maintained independently. This is the "same source of
+ * truth" the width tiers below are required to derive from, not a second
+ * list of magic numbers. */
+const COLUMN_KEYS = [
+  "number",
+  "name",
+  "variants",
+  "playset",
+  "value",
+  "rarity",
+  "aspect",
+  "type",
+  "cost",
+  "power",
+  "hp",
+  "trait",
+  "keyword",
+  "arena",
+  "set",
+] as const;
+type ColumnKey = (typeof COLUMN_KEYS)[number];
+
+const WIDTH_BY_KEY: Record<ColumnKey, number> = Object.fromEntries(
+  COLUMN_KEYS.map((key, i) => [key, COLUMN_WIDTHS[i]])
+) as Record<ColumnKey, number>;
+
+/** BL-226: the three LOCKED hide-only tiers -- the single source of truth
+ * for "which columns does tier X show." Both the header row and the body
+ * row below map over the SAME `visible` Set built from this record (never
+ * two independently-maintained column lists), so header and cell rendering
+ * can never drift apart. Column ORDER within each tier is always the
+ * canonical left-to-right order above -- a tier only ever hides columns, it
+ * never reorders them.
+ *   Compact:  #, Name, Playset, Value, Rarity, Set.
+ *   Standard: Compact + Variants, Aspect, Cost, Power, HP.
+ *   Full:     Standard + Type, Trait, Keyword, Arena (today's table,
+ *             unchanged -- COLUMN_KEYS in full). */
+const TIER_COLUMN_KEYS: Record<ResolvedWidthTier, readonly ColumnKey[]> = {
+  compact: ["number", "name", "playset", "value", "rarity", "set"],
+  standard: [
+    "number",
+    "name",
+    "variants",
+    "playset",
+    "value",
+    "rarity",
+    "aspect",
+    "cost",
+    "power",
+    "hp",
+    "set",
+  ],
+  full: COLUMN_KEYS,
+};
+
+function tierNaturalWidth(tier: ResolvedWidthTier): number {
+  return TIER_COLUMN_KEYS[tier].reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0);
+}
+
+/** BL-226: each tier's natural (unstretched) column-width sum, derived
+ * purely from COLUMN_WIDTHS/TIER_COLUMN_KEYS above -- Compact 700, Standard
+ * 1050, Full 1538 (Full's sum is the same long-standing 1538 the cards.css
+ * SYNC RULE comment already tracks; see COLUMN_WIDTHS' own doc comment for
+ * that arithmetic). Fed to selectAutoTier (utils/tableWidthTier.ts) as the
+ * AUTO mode's fit test against the measured wrapper width below. */
+const NATURAL_WIDTHS: Record<ResolvedWidthTier, number> = {
+  compact: tierNaturalWidth("compact"),
+  standard: tierNaturalWidth("standard"),
+  full: tierNaturalWidth("full"),
+};
 
 /** Estimated row height in px, used only to seed the virtualizer's scroll
  * math (total scroll height + which rows are "in view"). It is an estimate,
@@ -160,6 +250,15 @@ interface Props {
    * rendering unaffected. */
   sortState?: SortState;
   onSortChange?: (column: SortColumn) => void;
+  /** BL-226 (Issue #140): the user's width-tier preference -- "auto" (the
+   * default) resolves via measured available width below; a manual pick
+   * (compact/standard/full) wins outright and is never re-derived from
+   * measurement. Owned/persisted by CardsPage (utils/tableWidthTier.ts's
+   * load/saveWidthTier), same optional/defaulted idiom as every other prop
+   * here so every pre-existing call site/test keeps rendering the Full tier
+   * unaffected (see NATURAL_WIDTHS/measuredWidth below for why the default
+   * pre-measurement state also resolves to Full). */
+  widthTier?: WidthTier;
 }
 
 /** Unified Cards table (BL-56 §5.5) -- merges the old CatalogPage table and
@@ -189,8 +288,63 @@ export function CardsTable({
   onValueDisplayChange = () => {},
   sortState = DEFAULT_SORT_STATE,
   onSortChange = () => {},
+  widthTier = "auto",
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // BL-226: AUTO mode's own measurement -- the table wrapper's (this same
+  // scrollRef element's) content-box width, tracked live via ResizeObserver
+  // so the tier re-picks itself whenever the AVAILABLE width changes for any
+  // reason, not just a window resize -- the filter sidebar docking/floating
+  // (cards.css's `.cards-layout` media query) changes what's actually
+  // available to this wrapper without the viewport itself changing size,
+  // which is exactly the case a window-resize listener (GalleryGrid.tsx's
+  // own container-width idiom) would miss. `null` until the first
+  // observation lands; resolvedTier below treats that pre-measurement
+  // instant as "assume Full fits" (NATURAL_WIDTHS.full), the same "default =
+  // today's unaffected behavior" fallback idiom this file already uses for
+  // every other optional prop -- a real browser delivers that first
+  // observation before paint, so the assumption is corrected before a user
+  // ever sees it; src/test/setup.ts's ResizeObserver mock delivers it
+  // synchronously so tests never observe the pre-measurement instant at all.
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setMeasuredWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const resolvedTier: ResolvedWidthTier =
+    widthTier === "auto"
+      ? selectAutoTier(measuredWidth ?? NATURAL_WIDTHS.full, NATURAL_WIDTHS)
+      : widthTier;
+  const visibleKeys = TIER_COLUMN_KEYS[resolvedTier];
+  const visible = new Set<ColumnKey>(visibleKeys);
+  const columnCount = visibleKeys.length;
+
+  // BL-226: the scoped amber bracket (`.vs-bracket--inhead`, cards.css)
+  // spans # through Value -- its geometry mirrors whichever columns actually
+  // sit between them in the ACTIVE tier (Compact excludes Variants, so its
+  // span is narrower than Standard/Full, which are identical to each other).
+  // Anchored on the Playset th (position: relative via thead's own sticky
+  // containing-block trick, see cards.css), so `left` is relative to
+  // Playset's OWN left edge: 8px inset minus the columns before Playset that
+  // are visible in this tier; `width` is those same columns plus Playset and
+  // Value, minus the 16px inset both sides carry. Computed here (not a
+  // second hardcoded CSS value per tier) so the two can never drift --
+  // cards.css keeps the position/top/margin rule, this only overrides
+  // left/width via inline style.
+  const beforePlaysetWidth = visibleKeys
+    .slice(0, visibleKeys.indexOf("playset"))
+    .reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0);
+  const bracketLeft = 8 - beforePlaysetWidth;
+  const bracketWidth = beforePlaysetWidth + WIDTH_BY_KEY.playset + WIDTH_BY_KEY.value - 16;
 
   const rowVirtualizer = useVirtualizer({
     count: cards.length,
@@ -225,8 +379,8 @@ export function CardsTable({
     <div className="data-table-wrapper" ref={scrollRef}>
       <table className="data-table data-table--cards">
         <colgroup>
-          {COLUMN_WIDTHS.map((width, i) => (
-            <col key={i} style={{ width }} />
+          {visibleKeys.map((key) => (
+            <col key={key} style={{ width: WIDTH_BY_KEY[key] }} />
           ))}
         </colgroup>
         <thead>
@@ -248,24 +402,38 @@ export function CardsTable({
                 inner button so wrapping never changes a header's
                 textContent (every pre-existing header-text assertion stays
                 valid unchanged). */}
-            <th
-              className={scope ? "th-cardnum-scoped" : undefined}
-              aria-sort={ariaSortValue(sortState, "number")}
-            >
-              <SortHeaderButton column="number" sortState={sortState} onSortChange={onSortChange}>
-                #
-              </SortHeaderButton>
-            </th>
-            <th aria-sort={ariaSortValue(sortState, "name")}>
-              <SortHeaderButton column="name" sortState={sortState} onSortChange={onSortChange}>
-                Name
-              </SortHeaderButton>
-            </th>
-            <th aria-sort={ariaSortValue(sortState, "variants")}>
-              <SortHeaderButton column="variants" sortState={sortState} onSortChange={onSortChange}>
-                Variants
-              </SortHeaderButton>
-            </th>
+            {/* BL-226: every header cell below is gated on `visible.has(key)`
+                -- the SAME TIER_COLUMN_KEYS-derived Set the tbody row maps
+                over further down, so header and cell visibility can never
+                drift apart. */}
+            {visible.has("number") && (
+              <th
+                className={scope ? "th-cardnum-scoped" : undefined}
+                aria-sort={ariaSortValue(sortState, "number")}
+              >
+                <SortHeaderButton column="number" sortState={sortState} onSortChange={onSortChange}>
+                  #
+                </SortHeaderButton>
+              </th>
+            )}
+            {visible.has("name") && (
+              <th aria-sort={ariaSortValue(sortState, "name")}>
+                <SortHeaderButton column="name" sortState={sortState} onSortChange={onSortChange}>
+                  Name
+                </SortHeaderButton>
+              </th>
+            )}
+            {visible.has("variants") && (
+              <th aria-sort={ariaSortValue(sortState, "variants")}>
+                <SortHeaderButton
+                  column="variants"
+                  sortState={sortState}
+                  onSortChange={onSortChange}
+                >
+                  Variants
+                </SortHeaderButton>
+              </th>
+            )}
             <th
               className={`th-playset${scope ? " th-scoped" : ""}`}
               aria-sort={ariaSortValue(sortState, "playset")}
@@ -280,12 +448,26 @@ export function CardsTable({
                   crossing Name/Variants on the way, which is why the label
                   names the affected columns explicitly ("Card # + Pips +
                   Value") instead of implying everything under the line is
-                  scoped. Geometry lives in .vs-bracket--inhead (cards.css),
-                  mirroring COLUMN_WIDTHS -- retune it when any of the five
-                  spanned widths change. Still aria-hidden: the trigger's
-                  own text carries the same information accessibly. */}
+                  scoped. Geometry lived as static values in
+                  .vs-bracket--inhead (cards.css) through BL-173; BL-226
+                  (Issue #140) made the spanned column SET itself vary by
+                  width tier (Compact excludes Variants), so left/width are
+                  now computed just below from WIDTH_BY_KEY/visibleKeys --
+                  the CSS rule keeps position/top/margin only, see that
+                  block's own updated comment. Still aria-hidden: the
+                  trigger's own text carries the same information
+                  accessibly. */}
               {scope && (
-                <span className="vs-bracket vs-bracket--inhead" aria-hidden="true">
+                <span
+                  className="vs-bracket vs-bracket--inhead"
+                  aria-hidden="true"
+                  // BL-226: left/width computed above from the ACTIVE
+                  // tier's visible columns (Compact excludes Variants, so
+                  // its span is narrower) -- overrides the CSS class's
+                  // Full/Standard-shaped default via inline style, same
+                  // formula the retained comment above documents.
+                  style={{ left: bracketLeft, width: bracketWidth }}
+                >
                   <span className="vs-bracket__label">
                     {scopeShortName(scope)} - CARD # + PIPS + VALUE
                   </span>
@@ -356,30 +538,37 @@ export function CardsTable({
                 Rarity
               </SortHeaderButton>
             </th>
-            <th>Aspect</th>
-            <th>Type</th>
+            {visible.has("aspect") && <th>Aspect</th>}
+            {visible.has("type") && <th>Type</th>}
             {/* BL-173 review round 1: header text centers over the centered
                 StatBadges (.th-stat/.td-stat pair, cards.css). BL-213: Cost/
                 Power/HP are sortable -- the button is an inline-block by
-                default, so .th-stat's text-align: center still centers it. */}
-            <th className="th-stat" aria-sort={ariaSortValue(sortState, "cost")}>
-              <SortHeaderButton column="cost" sortState={sortState} onSortChange={onSortChange}>
-                Cost
-              </SortHeaderButton>
-            </th>
-            <th className="th-stat" aria-sort={ariaSortValue(sortState, "power")}>
-              <SortHeaderButton column="power" sortState={sortState} onSortChange={onSortChange}>
-                Power
-              </SortHeaderButton>
-            </th>
-            <th className="th-stat" aria-sort={ariaSortValue(sortState, "hp")}>
-              <SortHeaderButton column="hp" sortState={sortState} onSortChange={onSortChange}>
-                HP
-              </SortHeaderButton>
-            </th>
-            <th>Trait</th>
-            <th>Keyword</th>
-            <th>Arena</th>
+                default, so .th-stat's text-align: center still centers it.
+                BL-226: Cost/Power/HP are Standard+ only -- gated together. */}
+            {visible.has("cost") && (
+              <th className="th-stat" aria-sort={ariaSortValue(sortState, "cost")}>
+                <SortHeaderButton column="cost" sortState={sortState} onSortChange={onSortChange}>
+                  Cost
+                </SortHeaderButton>
+              </th>
+            )}
+            {visible.has("power") && (
+              <th className="th-stat" aria-sort={ariaSortValue(sortState, "power")}>
+                <SortHeaderButton column="power" sortState={sortState} onSortChange={onSortChange}>
+                  Power
+                </SortHeaderButton>
+              </th>
+            )}
+            {visible.has("hp") && (
+              <th className="th-stat" aria-sort={ariaSortValue(sortState, "hp")}>
+                <SortHeaderButton column="hp" sortState={sortState} onSortChange={onSortChange}>
+                  HP
+                </SortHeaderButton>
+              </th>
+            )}
+            {visible.has("trait") && <th>Trait</th>}
+            {visible.has("keyword") && <th>Keyword</th>}
+            {visible.has("arena") && <th>Arena</th>}
             <th aria-sort={ariaSortValue(sortState, "set")}>
               <SortHeaderButton column="set" sortState={sortState} onSortChange={onSortChange}>
                 Set
@@ -390,7 +579,7 @@ export function CardsTable({
         <tbody>
           {paddingTop > 0 && (
             <tr aria-hidden="true">
-              <td colSpan={COLUMN_COUNT} style={{ height: paddingTop, padding: 0, border: 0 }} />
+              <td colSpan={columnCount} style={{ height: paddingTop, padding: 0, border: 0 }} />
             </tr>
           )}
           {virtualRows.map((virtualRow) => {
@@ -418,13 +607,19 @@ export function CardsTable({
                 data-index={virtualRow.index}
                 className={virtualRow.index % 2 === 1 ? "row-alt" : undefined}
               >
-                <td
-                  className={`cell-muted td-cardnum${
-                    scopedNumber != null ? " td-cardnum--scoped" : ""
-                  }`}
-                >
-                  {cardNumber}
-                </td>
+                {/* BL-226: every cell below is gated on the SAME
+                    `visible.has(key)` check the thead row above uses --
+                    single source of truth, no separate cell-visibility
+                    list. */}
+                {visible.has("number") && (
+                  <td
+                    className={`cell-muted td-cardnum${
+                      scopedNumber != null ? " td-cardnum--scoped" : ""
+                    }`}
+                  >
+                    {cardNumber}
+                  </td>
+                )}
                 {/* BL-132 J1: the ENTIRE Name cell is the click target (and
                     hover highlight), matching the Playset cell's
                     click-to-edit pattern below (PlaysetCell.tsx). The inner
@@ -432,26 +627,30 @@ export function CardsTable({
                     path; its stopPropagation keeps a button click from also
                     bubbling into the cell handler (one click, one
                     onSelectCard call either way). */}
-                <td
-                  className="td-name td-name--clickable"
-                  onClick={() => onSelectCard(card.base_card_id)}
-                  title="View card"
-                >
-                  <button
-                    type="button"
-                    className="card-name-link"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCard(card.base_card_id);
-                    }}
+                {visible.has("name") && (
+                  <td
+                    className="td-name td-name--clickable"
+                    onClick={() => onSelectCard(card.base_card_id)}
+                    title="View card"
                   >
-                    {displayName}
-                  </button>
-                  {subtitle && <span className="card-subtitle">{subtitle}</span>}
-                </td>
-                <td>
-                  <VariantsTooltip card={card} setNameByCode={setNameByCode} />
-                </td>
+                    <button
+                      type="button"
+                      className="card-name-link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCard(card.base_card_id);
+                      }}
+                    >
+                      {displayName}
+                    </button>
+                    {subtitle && <span className="card-subtitle">{subtitle}</span>}
+                  </td>
+                )}
+                {visible.has("variants") && (
+                  <td>
+                    <VariantsTooltip card={card} setNameByCode={setNameByCode} />
+                  </td>
+                )}
                 <PlaysetCell
                   card={card}
                   isAuthenticated={isAuthenticated}
@@ -478,22 +677,24 @@ export function CardsTable({
                     `.td-icon-pad` tightens the cell's vertical padding to
                     compensate, so the larger icon doesn't grow the row
                     height. */}
-                <td className="td-icon-pad">
-                  <span className="aspect-cell">
-                    {card.aspects
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          ASPECTS.indexOf(a as (typeof ASPECTS)[number]) -
-                          ASPECTS.indexOf(b as (typeof ASPECTS)[number])
-                      )
-                      .map((a) => (
-                        <AspectIcon key={a} aspect={a} size={24} tooltip />
-                      ))}
-                    {card.aspects.length === 0 && <span className="cell-muted">—</span>}
-                  </span>
-                </td>
-                <td className="td-ellipsis">{card.type}</td>
+                {visible.has("aspect") && (
+                  <td className="td-icon-pad">
+                    <span className="aspect-cell">
+                      {card.aspects
+                        .slice()
+                        .sort(
+                          (a, b) =>
+                            ASPECTS.indexOf(a as (typeof ASPECTS)[number]) -
+                            ASPECTS.indexOf(b as (typeof ASPECTS)[number])
+                        )
+                        .map((a) => (
+                          <AspectIcon key={a} aspect={a} size={24} tooltip />
+                        ))}
+                      {card.aspects.length === 0 && <span className="cell-muted">—</span>}
+                    </span>
+                  </td>
+                )}
+                {visible.has("type") && <td className="td-ellipsis">{card.type}</td>}
                 {/* BL-111 F3: Cost/Power/HP render through StatBadge (BL-111
                     F1) instead of plain numerals, sized 22px to match the
                     aspect icons. `.td-stat` tightens padding the same way
@@ -503,33 +704,47 @@ export function CardsTable({
                     old dash-numeral badge shape. Zero is a real stat value
                     (0-cost cards exist) and still gets its badge; only
                     null/absent suppresses. */}
-                <td className="td-stat">
-                  {card.cost != null && <StatBadge type="cost" value={card.cost} size={22} />}
-                </td>
-                <td className="td-stat">
-                  {card.power != null && <StatBadge type="power" value={card.power} size={22} />}
-                </td>
-                <td className="td-stat">
-                  {card.hp != null && <StatBadge type="hp" value={card.hp} size={22} />}
-                </td>
-                <td
-                  className={`td-ellipsis${isBase || card.traits.length === 0 ? " cell-muted" : ""}`}
-                >
-                  {isBase ? (card.traits[0] ?? "—") : card.traits.join(", ") || "—"}
-                </td>
-                <td className={`td-ellipsis${card.keywords.length === 0 ? " cell-muted" : ""}`}>
-                  {card.keywords.join(", ") || "—"}
-                </td>
-                <td className={`td-ellipsis${card.arena == null ? " cell-muted" : ""}`}>
-                  {card.arena ?? "—"}
-                </td>
+                {visible.has("cost") && (
+                  <td className="td-stat">
+                    {card.cost != null && <StatBadge type="cost" value={card.cost} size={22} />}
+                  </td>
+                )}
+                {visible.has("power") && (
+                  <td className="td-stat">
+                    {card.power != null && <StatBadge type="power" value={card.power} size={22} />}
+                  </td>
+                )}
+                {visible.has("hp") && (
+                  <td className="td-stat">
+                    {card.hp != null && <StatBadge type="hp" value={card.hp} size={22} />}
+                  </td>
+                )}
+                {visible.has("trait") && (
+                  <td
+                    className={`td-ellipsis${
+                      isBase || card.traits.length === 0 ? " cell-muted" : ""
+                    }`}
+                  >
+                    {isBase ? (card.traits[0] ?? "—") : card.traits.join(", ") || "—"}
+                  </td>
+                )}
+                {visible.has("keyword") && (
+                  <td className={`td-ellipsis${card.keywords.length === 0 ? " cell-muted" : ""}`}>
+                    {card.keywords.join(", ") || "—"}
+                  </td>
+                )}
+                {visible.has("arena") && (
+                  <td className={`td-ellipsis${card.arena == null ? " cell-muted" : ""}`}>
+                    {card.arena ?? "—"}
+                  </td>
+                )}
                 <td className="cell-muted td-ellipsis">{card.set_code}</td>
               </tr>
             );
           })}
           {paddingBottom > 0 && (
             <tr aria-hidden="true">
-              <td colSpan={COLUMN_COUNT} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+              <td colSpan={columnCount} style={{ height: paddingBottom, padding: 0, border: 0 }} />
             </tr>
           )}
         </tbody>

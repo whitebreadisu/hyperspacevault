@@ -583,6 +583,38 @@
   color: #fff;
 }
 
+/* BL-226 (Issue #140, owner-locked design): the AUTO/COMPACT/STANDARD/FULL
+ * width-tier override -- rendered beside `.inv-summary__view-toggle` above,
+ * ONLY while table view is active (InventorySummary.tsx gates it on
+ * viewMode === "table"). Deliberately matches that toggle's visual idiom
+ * class-for-class (bordered group, same active-fill treatment) -- the two
+ * differences (padding/font-size a touch tighter here) are a judgment call:
+ * four longer labels (vs. Table/Gallery's two short ones) would otherwise
+ * crowd the Add Cards/Import Export/Share buttons immediately to its right. */
+.inv-summary__width-tier-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  margin-right: 14px;
+}
+
+.inv-summary__width-tier-toggle-btn {
+  padding: 7px 10px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.inv-summary__width-tier-toggle-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 /* Data table (shared chrome for the unified Cards table) */
 .data-table-wrapper {
   flex: 1;
@@ -1549,14 +1581,24 @@
   /* Owner dev-review 2026-08-05: the bracket reaches LEFT from its Playset
    * anchor to encompass the # column (whose content is scope-driven too),
    * crossing Name/Variants on the way -- the label names the affected
-   * columns explicitly. Geometry mirrors COLUMN_WIDTHS (CardsTable.tsx):
+   * columns explicitly. Geometry mirrored COLUMN_WIDTHS (CardsTable.tsx):
    * left = 8px inset - (# 50 + Name 210 + Variants 86) = -338px;
    * width = (# 50 + Name 210 + Variants 86 + Playset 128 + Value 114)
-   *       - 16px inset = 572px. Retune BOTH with any of those five widths.
-   * (Pre-2026-08-05: left 8px / width 226px -- Playset+Value only.) The
-   * left spill paints over the earlier-DOM sticky th's via the scoped
-   * Playset th's z-index 2 (below) vs their z-index 1 -- the same
-   * mechanism that already handled the right spill into Value. */
+   *       - 16px inset = 572px. (Pre-2026-08-05: left 8px / width 226px --
+   * Playset+Value only.) The left spill paints over the earlier-DOM sticky
+   * th's via the scoped Playset th's z-index 2 (below) vs their z-index 1 --
+   * the same mechanism that already handled the right spill into Value.
+   *
+   * BL-226 (Issue #140): the spanned column SET now varies by width tier
+   * (Compact excludes Variants, narrowing the span), so left/width are no
+   * longer a single static pair -- CardsTable.tsx computes them per-render
+   * from WIDTH_BY_KEY/visibleKeys (that file's own comment on the bracket
+   * span has the live formula) and sets them via inline `style`, which wins
+   * over the fallback values below by CSS precedence (inline always beats a
+   * class selector, `!important` aside -- none is used here). The two
+   * values below are kept as the Standard/Full-tier fallback (identical to
+   * each other, since both include Variants) in case a render path is ever
+   * missed, not as the values retuning now happens against. */
   left: -338px;
   width: 572px;
   margin: 0;

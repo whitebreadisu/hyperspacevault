@@ -5,6 +5,7 @@ import { buildSetBreakdown, computePanelMetrics, formatMoney } from "../../utils
 import type { PriceMode, SetBreakdownRow, SetMeta } from "../../utils/completion";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { ValueSwitch } from "../cards/VariantScopeControls";
+import type { WidthTier } from "../../utils/tableWidthTier";
 
 /** BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
  * panel revamp -- four clipped-corner "blocks" (Playset complete %, Set
@@ -64,6 +65,16 @@ interface Props {
    * wiring a view mode. */
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  /** BL-226 (Issue #140): the Vault table's width-tier override -- AUTO /
+   * COMPACT / STANDARD / FULL, rendered beside the Table/Gallery toggle
+   * above, ONLY while `viewMode === "table"` (it has no meaning in
+   * Gallery). Owned/persisted by CardsPage (utils/tableWidthTier.ts's
+   * load/saveWidthTier), same optional-pair idiom as viewMode/
+   * onViewModeChange above -- omitted entirely, the control simply doesn't
+   * render, same as every other older/standalone InventorySummary call
+   * site. */
+  widthTier?: WidthTier;
+  onWidthTierChange?: (tier: WidthTier) => void;
   /** BL-224 (unifies BL-179's parallel "home base set" dimension into the
    * sidebar's own Set facet): the popover rows' own universe -- every filter
    * applied EXCEPT the set facet itself (the rows are that facet's own
@@ -122,6 +133,45 @@ function ViewToggle({
     <span role="group" aria-label="View" className="inv-summary__view-toggle">
       {btn("table", "Table")}
       {btn("gallery", "Gallery")}
+    </span>
+  );
+}
+
+// BL-226 (Issue #140, owner-locked design): AUTO/COMPACT/STANDARD/FULL --
+// same bordered-button-group visual idiom as ViewToggle above (matched
+// class-for-class; only the padding/font-size are tuned slightly tighter, a
+// judgment call to keep four longer labels from crowding the Add Cards/
+// Import Export/Share buttons beside it -- see cards.css's
+// .inv-summary__width-tier-toggle-btn comment).
+const WIDTH_TIERS: { value: WidthTier; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "compact", label: "Compact" },
+  { value: "standard", label: "Standard" },
+  { value: "full", label: "Full" },
+];
+
+function WidthTierToggle({
+  tier,
+  onTierChange,
+}: {
+  tier: WidthTier;
+  onTierChange: (tier: WidthTier) => void;
+}) {
+  return (
+    <span role="group" aria-label="Table width" className="inv-summary__width-tier-toggle">
+      {WIDTH_TIERS.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          className={`inv-summary__width-tier-toggle-btn${
+            tier === value ? " inv-summary__width-tier-toggle-btn--active" : ""
+          }`}
+          onClick={() => onTierChange(value)}
+          aria-pressed={tier === value}
+        >
+          {label}
+        </button>
+      ))}
     </span>
   );
 }
@@ -229,6 +279,8 @@ export function InventorySummary({
   isAuthenticated = true,
   viewMode,
   onViewModeChange,
+  widthTier,
+  onWidthTierChange,
   breakdownCards,
   selectedSetCodes,
   onToggleSetCode,
@@ -517,6 +569,11 @@ export function InventorySummary({
         <span className="inv-summary__actions">
           {viewMode != null && onViewModeChange && (
             <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+          )}
+          {/* BL-226: visible ONLY while table view is active -- the tiers
+              have no meaning in Gallery, which has no columns to hide. */}
+          {viewMode === "table" && widthTier != null && onWidthTierChange && (
+            <WidthTierToggle tier={widthTier} onTierChange={onWidthTierChange} />
           )}
           {children}
         </span>

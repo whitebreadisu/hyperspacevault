@@ -35,6 +35,8 @@ import {
 } from "../../utils/variantScope";
 import { sortCards, nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
 import type { SortState, SortColumn } from "../../utils/cardSort";
+import { loadWidthTier, saveWidthTier } from "../../utils/tableWidthTier";
+import type { WidthTier } from "../../utils/tableWidthTier";
 import type { InventoryCard } from "../../utils/inventory";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
@@ -240,6 +242,13 @@ export function CardsPage({
   // default row order (utils/cardSort.ts's DEFAULT_SORT_STATE) -- there is
   // no separate "unsorted" state.
   const [sortState, setSortState] = useState<SortState>(DEFAULT_SORT_STATE);
+  // BL-226 (Issue #140, owner-locked design): the Vault table's width-tier
+  // override -- AUTO default, persisted like priceKind/valueDisplay above
+  // (localStorage, utils/tableWidthTier.ts's load/saveWidthTier). Rendered
+  // for both the caller's own Vault AND a read-only shared-Vault view (this
+  // component makes no isAuthenticated distinction for it below) -- it's
+  // pure presentation, same reasoning as viewMode itself.
+  const [widthTier, setWidthTier] = useState<WidthTier>(() => loadWidthTier());
 
   /** BL-56 §5.5 Slice 4: the single handler every inert anonymous control
    * routes through -- opens the shell's AuthModal via the App-owned callback.
@@ -262,6 +271,12 @@ export function CardsPage({
   const handlePriceKindChange = useCallback((kind: PriceMode) => {
     setPriceKind(kind);
     savePriceKind(kind);
+  }, []);
+
+  // BL-226: mirrors handlePriceKindChange's persist-on-change idiom exactly.
+  const handleWidthTierChange = useCallback((tier: WidthTier) => {
+    setWidthTier(tier);
+    saveWidthTier(tier);
   }, []);
 
   // BL-213: 2-state header click cycling (utils/cardSort.ts's
@@ -840,6 +855,8 @@ export function CardsPage({
               isAuthenticated={hasData}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              widthTier={widthTier}
+              onWidthTierChange={handleWidthTierChange}
             >
               {/* BL-205 (§19.1): mutation affordances are REMOVED (not just
                   disabled) in read-only viewer mode -- Add Cards and
@@ -943,6 +960,7 @@ export function CardsPage({
                 onValueDisplayChange={handleValueDisplayChange}
                 sortState={sortState}
                 onSortChange={handleSortChange}
+                widthTier={widthTier}
               />
             ) : (
               // BL-213: the Gallery view inherits the same ordering as the

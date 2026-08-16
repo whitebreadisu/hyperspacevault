@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { CardsTable } from "./CardsTable";
 import type { InventoryCard } from "../../utils/inventory";
 import type { SortState } from "../../utils/cardSort";
+import { mockResizeObserverWidth } from "../../test/setup";
 
 // DISPOSITION (PORT, BL-56 Slice 3): ported from the retired
 // screens/inventory/InventoryTable.test.tsx onto the unified CardsTable.
@@ -1649,5 +1650,277 @@ describe("CardsTable sortable headers (BL-213, CREATE)", () => {
     expect(onSortChange).toHaveBeenCalledWith("value");
     expect(onPriceKindChange).not.toHaveBeenCalled();
     expect(onValueDisplayChange).not.toHaveBeenCalled();
+  });
+});
+
+// CREATE (BL-226, Issue #140, owner-locked design): the three FIXED
+// hide-only width tiers (Compact/Standard/Full) plus AUTO's measured-width
+// selection. Every other describe block in this file renders CardsTable with
+// no `widthTier` prop at all -- default AUTO resolves to Full because
+// src/test/setup.ts's ResizeObserver mock defaults `mockResizeObserverWidth`
+// comfortably above Full's own natural width (see that file's own comment
+// for why it's deliberately NOT derived from the pre-existing offsetWidth
+// stub), so none of those pre-existing tests needed porting: the full
+// 15-column table they assert against is still exactly what renders.
+describe("CardsTable width tiers (BL-226, CREATE)", () => {
+  afterEach(() => {
+    mockResizeObserverWidth.current = 1600;
+  });
+
+  function headerNames(): string[] {
+    return screen.getAllByRole("columnheader").map((h) => h.textContent);
+  }
+
+  it("Compact (explicit override): exactly #, Name, Playset, Value, Rarity, Set -- headers and cells", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="compact"
+      />
+    );
+    expect(headerNames()).toEqual([
+      "#",
+      "Name",
+      "ALL FINISHESPlayset",
+      "UNITMARKETValue",
+      "Rarity",
+      "Set",
+    ]);
+    expect(container.querySelectorAll("colgroup col")).toHaveLength(6);
+    const row = container.querySelector("tbody tr[data-index]")!;
+    expect(row.querySelectorAll("td")).toHaveLength(6);
+    // The hidden columns' own cell markup must be genuinely absent, not
+    // just visually collapsed -- these classes/testids only ever appear on
+    // Standard/Full-only cells.
+    expect(container.querySelector("td.td-stat")).toBeNull();
+    expect(container.querySelector(".aspect-cell")).toBeNull();
+    expect(container.querySelector('[data-testid="stat-badge-cost"]')).toBeNull();
+  });
+
+  it("Standard (explicit override): Compact + Variants, Aspect, Cost, Power, HP -- Type/Trait/Keyword/Arena stay hidden", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="standard"
+      />
+    );
+    expect(headerNames()).toEqual([
+      "#",
+      "Name",
+      "Variants",
+      "ALL FINISHESPlayset",
+      "UNITMARKETValue",
+      "Rarity",
+      "Aspect",
+      "Cost",
+      "Power",
+      "HP",
+      "Set",
+    ]);
+    expect(container.querySelectorAll("colgroup col")).toHaveLength(11);
+    const row = container.querySelector("tbody tr[data-index]")!;
+    expect(row.querySelectorAll("td")).toHaveLength(11);
+    expect(container.querySelector('[data-testid="stat-badge-cost"]')).not.toBeNull();
+    expect(container.querySelector(".aspect-cell")).not.toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Type" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Trait" })).toBeNull();
+  });
+
+  it("Full (explicit override): all fifteen columns, unchanged from today's table", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="full"
+      />
+    );
+    expect(headerNames()).toEqual([
+      "#",
+      "Name",
+      "Variants",
+      "ALL FINISHESPlayset",
+      "UNITMARKETValue",
+      "Rarity",
+      "Aspect",
+      "Type",
+      "Cost",
+      "Power",
+      "HP",
+      "Trait",
+      "Keyword",
+      "Arena",
+      "Set",
+    ]);
+    expect(container.querySelectorAll("colgroup col")).toHaveLength(15);
+  });
+
+  it("AUTO picks Compact when the measured wrapper width is below Standard's natural width (1050)", () => {
+    mockResizeObserverWidth.current = 900;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerNames()).toHaveLength(6);
+    expect(screen.queryByRole("columnheader", { name: "Aspect" })).toBeNull();
+  });
+
+  it("AUTO picks Standard at its own exact boundary (1050, >= comparison)", () => {
+    mockResizeObserverWidth.current = 1050;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerNames()).toHaveLength(11);
+    expect(screen.getByRole("columnheader", { name: "Aspect" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Type" })).toBeNull();
+  });
+
+  it("AUTO picks Full once the measured width reaches Full's own boundary (1538)", () => {
+    mockResizeObserverWidth.current = 1538;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerNames()).toHaveLength(15);
+  });
+
+  it("just below Full's boundary (1537), AUTO falls back to Standard", () => {
+    mockResizeObserverWidth.current = 1537;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerNames()).toHaveLength(11);
+  });
+
+  it("a manual override wins outright over AUTO, even when the measured width would fit Full", () => {
+    mockResizeObserverWidth.current = 1600;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="compact"
+      />
+    );
+    expect(headerNames()).toHaveLength(6);
+  });
+
+  // BL-226 §4: hiding a column never touches sort state or row order --
+  // sorting the actual row order is CardsPage's job (utils/cardSort.ts's
+  // sortCards, applied before `cards` ever reaches this component). Cost is
+  // hidden in Compact; the fixture cards are handed in DESCENDING cost order
+  // (the opposite of what an ascending cost sort would produce) specifically
+  // so a silent reorder would be visible.
+  it("sorting on a column hidden by the active tier leaves row order untouched", () => {
+    const highCost: InventoryCard = { ...mockCard, base_card_id: 50, name: "High Cost", cost: 9 };
+    const lowCost: InventoryCard = { ...mockCard, base_card_id: 51, name: "Low Cost", cost: 1 };
+    const sortState: SortState = { column: "cost", direction: "asc" };
+    render(
+      <CardsTable
+        cards={[highCost, lowCost]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="compact"
+        sortState={sortState}
+      />
+    );
+    expect(screen.queryByRole("columnheader", { name: "Cost" })).toBeNull();
+    const names = screen
+      .getAllByRole("button", { name: /High Cost|Low Cost/ })
+      .map((b) => b.textContent);
+    expect(names).toEqual(["High Cost", "Low Cost"]);
+  });
+
+  // BL-226 §5: the scoped bracket's geometry must stay correct in every
+  // tier -- Compact excludes Variants, so its span (# + Name + Playset +
+  // Value) is narrower than Standard/Full's (# + Name + Variants + Playset +
+  // Value). Values per CardsTable.tsx's WIDTH_BY_KEY: left = 8 - (50+210) =
+  // -252; width = (50+210) + 128 + 114 - 16 = 486.
+  it("the in-header bracket narrows correctly in Compact (fewer columns between # and Value)", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="compact"
+        scope="Hyperspace Foil"
+      />
+    );
+    const bracket = container.querySelector(".vs-bracket--inhead") as HTMLElement;
+    expect(bracket).not.toBeNull();
+    expect(bracket.style.left).toBe("-252px");
+    expect(bracket.style.width).toBe("486px");
+  });
+
+  it("Standard/Full share the same (Variants-inclusive) bracket geometry as pre-BL-226: left -338px, width 572px", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="standard"
+        scope="Hyperspace Foil"
+      />
+    );
+    const bracket = container.querySelector(".vs-bracket--inhead") as HTMLElement;
+    expect(bracket.style.left).toBe("-338px");
+    expect(bracket.style.width).toBe("572px");
+  });
+
+  it("anonymous rendering is unaffected by widthTier -- Compact still renders with the signed-out Playset contract", () => {
+    const { container } = render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={false}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+        widthTier="compact"
+      />
+    );
+    expect(headerNames()).toHaveLength(6);
+    const chip = container.querySelector(".playset-chip")!;
+    expect(chip.textContent).toBe("—");
+    expect(chip.className).toContain("playset-chip--signed-out");
   });
 });

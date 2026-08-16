@@ -207,6 +207,91 @@ describe("InventorySummary view toggle (BL-111 F3, PORT)", () => {
   });
 });
 
+// CREATE (BL-226, Issue #140, owner-locked design): the AUTO/COMPACT/
+// STANDARD/FULL width-tier override, beside the Table/Gallery toggle above,
+// visible ONLY while table view is active.
+describe("InventorySummary width-tier toggle (BL-226, CREATE)", () => {
+  const card = makeCard({ base_card_id: 1 });
+
+  function widthTierGroup() {
+    return screen.queryByRole("group", { name: "Table width" });
+  }
+
+  it("does not render when widthTier/onWidthTierChange are omitted", () => {
+    render(<InventorySummary filteredCards={[card]} viewMode="table" onViewModeChange={vi.fn()} />);
+    expect(widthTierGroup()).toBeNull();
+  });
+
+  it("renders all four segments, ahead of children, when table view is active", () => {
+    render(
+      <InventorySummary
+        filteredCards={[card]}
+        viewMode="table"
+        onViewModeChange={vi.fn()}
+        widthTier="auto"
+        onWidthTierChange={vi.fn()}
+      >
+        <button type="button">Add Cards</button>
+      </InventorySummary>
+    );
+    const actions = document.querySelector(".inv-summary__actions")!;
+    const buttons = Array.from(actions.querySelectorAll("button")).map((b) => b.textContent);
+    expect(buttons).toEqual([
+      "Table",
+      "Gallery",
+      "Auto",
+      "Compact",
+      "Standard",
+      "Full",
+      "Add Cards",
+    ]);
+  });
+
+  it("hides in Gallery view even when widthTier/onWidthTierChange are wired -- it has no meaning there", () => {
+    render(
+      <InventorySummary
+        filteredCards={[card]}
+        viewMode="gallery"
+        onViewModeChange={vi.fn()}
+        widthTier="auto"
+        onWidthTierChange={vi.fn()}
+      />
+    );
+    expect(widthTierGroup()).toBeNull();
+  });
+
+  it("marks the active segment via aria-pressed, matching the widthTier prop", () => {
+    render(
+      <InventorySummary
+        filteredCards={[card]}
+        viewMode="table"
+        onViewModeChange={vi.fn()}
+        widthTier="standard"
+        onWidthTierChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Auto" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Standard" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+  });
+
+  it("clicking a segment calls onWidthTierChange with that tier", () => {
+    const onWidthTierChange = vi.fn();
+    render(
+      <InventorySummary
+        filteredCards={[card]}
+        viewMode="table"
+        onViewModeChange={vi.fn()}
+        widthTier="auto"
+        onWidthTierChange={onWidthTierChange}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+    expect(onWidthTierChange).toHaveBeenCalledWith("compact");
+  });
+});
+
 // DISPOSITION (PORT for BL-223): the three-button role=group ("Filtered" /
 // "All" / round-9's "Selected sets") became a single role=switch
 // (ValueSwitch) -- the underlying rule (renders only when narrowed AND
