@@ -39,6 +39,100 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // v1.4: sharing + the feedback batch. Date finalized at promote time
+    // per the release-notes ritual (owner-approved copy 2026-08-16; NO
+    // Safari sign-in item by owner decision — BL-212 unresolved/deferred).
+    key: "1.4",
+    version: "1.4",
+    date: "2026-08-16",
+    title: "Your Vault, shareable",
+    sections: [
+      {
+        heading: "Show it off",
+        items: [
+          {
+            title: "Share your Vault with a link",
+            body: "The new Share control mints a private link to your collection. Anyone who has it sees the real thing — the full Vault, filters, sorting, gallery, prices, completion — look, don't touch, no account needed on their end. Rename the link, rotate it, or revoke it anytime; a rotated or revoked link dies instantly.",
+          },
+          {
+            title: "What viewers see",
+            body: "Your cards and your numbers, none of your account. Viewers can't change anything, and your email and settings never leave home.",
+          },
+        ],
+      },
+      {
+        heading: "Straight from your feedback",
+        items: [
+          {
+            title: "Sort by what matters",
+            body: "Click a column header to sort: value (following your MARKET/LOW and UNIT/COLLECTION choices live), name, rarity, cost, power, HP, playset progress, and more. Sets never interleave — # and Set sorts keep each set together, the way your binder does. Click # to get the classic order back.",
+          },
+          {
+            title: "Find your tradeables",
+            body: 'A new "Over keep limit" filter shows every card you hold past your cap — your trade pile, one click. Chasing a specific finish? It follows the playset finish filter like its siblings.',
+          },
+          {
+            title: "The + button keeps up",
+            body: "Click as fast as you like; the count keeps pace and the server catches up behind you. Big Add Cards batches commit in a fraction of the time, too.",
+          },
+          {
+            title: "The table fits your screen",
+            body: "Three table widths — Compact, Standard, Full — and the Vault picks the widest one that fits your window, live. A new control next to Table/Gallery lets you override it. Narrow screens: no more sideways scrolling.",
+          },
+        ],
+      },
+      {
+        heading: "The gallery grew up",
+        items: [
+          {
+            title: "A real header",
+            body: "The gallery now has the table's header: every sortable column, the playset finish filter, and (while sorting by value) the MARKET/LOW and UNIT/COLLECTION switches — with the same amber bracket when a finish is engaged.",
+          },
+          {
+            title: "Smarter card plates",
+            body: 'The pips under each card follow your finish filter (amber building, green complete), a completed plate lights its outline, and the copy count dropped the "/3" — you know what a playset is.',
+          },
+        ],
+      },
+      {
+        heading: "One set selection, one language",
+        items: [
+          {
+            title: "Set picks, unified",
+            body: "Clicking a set in the completion panel's breakdowns and picking a set in the sidebar filter are now the same selection — no more two lists that could disagree.",
+          },
+          {
+            title: "The Totals switch",
+            body: "The completion boxes' scope control is now a proper switch (FILTERED / ALL) beside Collection value; when it reads FILTERED, it and the four boxes carry the amber narrowed signal.",
+          },
+          {
+            title: 'Amber means "narrowed," everywhere',
+            body: "The filter count badge went amber to match, and the header's version and fan-project links now share the buttons' blue hover glow.",
+          },
+        ],
+      },
+      {
+        heading: "The catalog keeps up",
+        items: [
+          {
+            title: "The 2026 promo wave is in",
+            body: "134 new tournament promo printings across 82 cards: Galactic Championship, Sector and Planetary Qualifiers, Store Showdown — participation promos, prize walls, top-cut stamps, judge promos. If you earned it at an event this year, you can log it now.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "The release pipeline now mechanically refuses to ship without an entry on this very page (you'll never wonder what changed), and releases mirror to GitHub for the changelog-inclined.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-203 hotfix patch. Date finalized at promote time per the
     // release-notes ritual.
     key: "1.3.1",
