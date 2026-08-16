@@ -823,6 +823,52 @@
   text-align: center;
 }
 
+/* ── Sortable column headers (BL-213, Issue #122) ──────────────────────────
+ * Every sortable header's label text is wrapped in this reset button (not
+ * the whole <th> -- Playset/Value already host their own separate buttons,
+ * e.g. CardsScopeTrigger, and nesting interactive elements is invalid).
+ * Button reset mirrors .card-name-link's: transparent/borderless, font
+ * inherited from the th so it stays visually identical to a plain label.
+ * The direction indicator is CSS generated content (::after), not DOM text,
+ * so it never changes a header's textContent/accessible name -- kept subtle
+ * per the owner's "no new design language" call, a small solid triangle in
+ * the header's own muted color, only drawn (opacity 1) on the active
+ * column. */
+.th-sort-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.th-sort-btn:hover,
+.th-sort-btn:focus-visible {
+  color: var(--color-text);
+}
+.th-sort-btn::after {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  opacity: 0;
+}
+.th-sort-btn--asc::after {
+  border-bottom: 4px solid currentColor;
+  opacity: 1;
+}
+.th-sort-btn--desc::after {
+  border-top: 4px solid currentColor;
+  opacity: 1;
+}
+
 /* ── Card name link (opens the unified CardPopup, BL-111 F5) ────────────── */
 
 .card-name-link {
