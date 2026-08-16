@@ -163,33 +163,49 @@ body {
   gap: 3px;
 }
 
-/* BL-125: permanent low-key non-affiliation entry point, appended below the
- * brand line -- steel-blue at rest (same --color-text-muted the rest of the
- * header chrome uses for its dim state) and brightening to --color-text on
- * hover/focus, matching .nav-tab's own idle/hover pair above rather than
- * inventing a new color relationship. Opens the About modal (App-owned
- * state, see App.tsx/AboutModal.tsx); a second, authenticated-only entry
- * point lives in UserMenu's "About & Legal" item. */
-.app-header__brand-tag {
+/* BL-227 round 2 (owner, 2026-08-16): the wordmark + BL-125's "Unofficial
+ * Fan Project" line are ONE About button now, hover animating together.
+ * The button inherits the brand's own type (set on .app-header__brand) and
+ * reproduces its two-line column layout internally. Hover = the header
+ * links' shared language: a brightened take on the SWU button's wake blue
+ * (#3b82f6 vs .swu-btn's #2563eb) with a brighter, more pronounced glow --
+ * owner-dialed past the button's own 9px/0.45 flare. */
+.app-header__brand-link {
   background: transparent;
   border: none;
   padding: 0;
   margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  transition:
+    color 0.15s,
+    filter 0.3s ease;
+}
+.app-header__brand-link:hover,
+.app-header__brand-link:focus-visible {
+  color: #3b82f6;
+  filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
+}
+
+/* BL-125's disclaimer line, now a span INSIDE the About button above --
+ * keeps its own smaller type, follows the button's color states. */
+.app-header__brand-tag {
   font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  /* Owner dev review 2026-07-26: white over the rotating starfield. */
-  color: #fff;
+  color: inherit;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.app-header__brand-tag:hover,
-.app-header__brand-tag:focus-visible {
-  color: #fff;
 }
 
 /* BL-184: version label, a third item appended to the brand column below
@@ -211,23 +227,25 @@ body {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  /* Owner review round 6: amber at rest, subdued (--color-warning-dim) --
-     the label lives in the amber family full-time now, not muted gray. */
-  color: var(--color-warning-dim);
+  /* Owner round 2026-08-16 (supersedes round 6's amber-at-rest): white like
+     the rest of the header text; the unread --cue state below stays the
+     amber pulse (it's the notification signal, not the label's identity). */
+  color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   cursor: pointer;
   transition:
     color 0.15s,
-    filter 0.15s;
+    filter 0.3s ease;
 }
 
-/* Owner review round 6: hover wakes to the full amber + the SAME warm flare
-   the SWU buttons use (.swu-btn:hover's drop-shadow, verbatim value) -- the
-   label reads as the same interactive chrome family as the header buttons. */
+/* Owner round 2026-08-16: hover wakes to the SWU button's own app blue
+   (#2563eb, .swu-btn:hover) + its exact drop-shadow glow -- same treatment
+   as .app-header__brand-tag above; the two header links share one hover
+   language. */
 .app-header__version:hover,
 .app-header__version:focus-visible {
-  color: var(--color-warning);
-  filter: drop-shadow(0 0 9px rgba(235, 226, 198, 0.45));
+  color: #3b82f6;
+  filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
 }
 
 /* Owner review round 5 (2026-08-02): "Release Notes" rides after the version
@@ -242,30 +260,28 @@ body {
   text-transform: uppercase;
 }
 
-/* BL-184: subtle unread cue -- shared by the footer version label above and
-   the "New Arrivals" nav tab (.nav-tab--cue below), a gentle glow pulse
-   rather than a bouncing badge (owner's explicit "keep it SUBTLE" call).
-   Amber = var(--color-warning) (#d99a1f) -- the app's existing scoped/
-   highlighted affordance color (cards.css's .td-value--scoped family), not
-   var(--color-primary) (the app's BLUE accent, index.css :root -- the "warm
-   amber" association is actually --color-button-edge, the SWU button's
-   separate hover-glow variable). */
+/* BL-184: subtle unread cue -- a gentle glow pulse rather than a bouncing
+   badge (owner's explicit "keep it SUBTLE" call). BL-227 round 2 (owner,
+   2026-08-16): the version label's cue drops the amber entirely -- white
+   text with a warm-cream pulse (the SWU button-flare tone) so the label
+   never reads amber in any state; the "[HSV] UPDATES" nav tab's own cue
+   (.nav-tab--cue / na-cue-pulse-tab below) KEEPS its amber, unchanged. */
 @keyframes na-cue-pulse {
   0%,
   100% {
     text-shadow:
       0 1px 3px rgba(0, 0, 0, 0.85),
-      0 0 0 rgba(217, 154, 31, 0);
+      0 0 0 rgba(235, 226, 198, 0);
   }
   50% {
     text-shadow:
       0 1px 3px rgba(0, 0, 0, 0.85),
-      0 0 7px rgba(217, 154, 31, 0.9);
+      0 0 7px rgba(235, 226, 198, 0.9);
   }
 }
 
 .app-header__version--cue {
-  color: var(--color-warning);
+  color: #fff;
   animation: na-cue-pulse 2.4s ease-in-out infinite;
 }
 
@@ -453,11 +469,20 @@ body {
    * now (brand + brand-tag below likewise). */
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  transition: color 0.15s;
+  transition:
+    color 0.15s,
+    filter 0.3s ease;
 }
 
-.nav-tab:hover {
-  color: #fff;
+/* BL-227 round 3 (owner, 2026-08-16): the selectable nav tabs (Vault, Deck
+ * Check, Shared, [HSV] Updates, Settings way-back -- every BUTTON tab) join
+ * the header links' shared hover language: brightened wake blue + the
+ * pronounced glow. Element-qualified so the ACTIVE tab (a non-interactive
+ * span) never takes hover styling. */
+button.nav-tab:hover,
+button.nav-tab:focus-visible {
+  color: #3b82f6;
+  filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
 }
 
 .nav-tab--active {
