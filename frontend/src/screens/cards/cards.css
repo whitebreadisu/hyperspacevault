@@ -181,6 +181,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Owner round (2026-08-16, window-resize experiment): at narrow widths
+   * the outer .inv-summary wraps whole ITEMS, but this group stayed one
+   * unwrappable row and ran past the window's right edge. Wrapping
+   * internally lets the group shrink to the line and flow its buttons
+   * (view toggle / Add Cards / Import-Export / Share) onto further lines,
+   * matching how the four summary blocks behave. */
+  flex-wrap: wrap;
 }
 
 /* BL-54 S3 (§8.1 P9): the Import / Export button's signed-in-unverified
