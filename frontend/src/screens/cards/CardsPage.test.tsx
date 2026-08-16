@@ -2568,6 +2568,78 @@ describe("CardsPage Value price-kind persistence (BL-173, CREATE)", () => {
   });
 });
 
+// CREATE (BL-226, Issue #140): width-tier persistence (localStorage,
+// priceKind's own pattern) -- AUTO default, a manual pick survives a
+// remount, and the picked tier actually drives which columns CardsTable
+// renders (proving the wiring, not just the storage round-trip).
+describe("CardsPage width-tier persistence and wiring (BL-226, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  function widthTierGroup() {
+    return screen.getByRole("group", { name: "Table width" });
+  }
+
+  it("defaults to Auto and persists a manual pick across a remount", async () => {
+    const { unmount } = await renderPage();
+    expect(within(widthTierGroup()).getByRole("button", { name: "Auto" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    fireEvent.click(within(widthTierGroup()).getByRole("button", { name: "Compact" }));
+    expect(window.localStorage.getItem("swu.cardsTable.widthTier")).toBe("compact");
+    unmount();
+
+    await renderPage();
+    expect(within(widthTierGroup()).getByRole("button", { name: "Compact" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  it("degrades to Auto for a corrupt stored value", async () => {
+    window.localStorage.setItem("swu.cardsTable.widthTier", "bogus");
+    await renderPage();
+    expect(within(widthTierGroup()).getByRole("button", { name: "Auto" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  it("picking Compact actually hides the Standard/Full-only columns in the rendered table", async () => {
+    await renderPage();
+    expect(screen.getByRole("columnheader", { name: "Aspect" })).toBeTruthy();
+    fireEvent.click(within(widthTierGroup()).getByRole("button", { name: "Compact" }));
+    expect(screen.queryByRole("columnheader", { name: "Aspect" })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Rarity" })).toBeTruthy();
+  });
+
+  // REPLACES the gallery-hidden assertion (round 4, owner's hybrid): the
+  // width flyout lives on the Table button and renders in BOTH views --
+  // picking a width from Gallery switches view and width in one move.
+  it("keeps the width flyout on the Table button in Gallery view; picking a width returns to table", async () => {
+    await renderPage();
+    expect(screen.queryByRole("group", { name: "Table width" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
+    expect(screen.queryByRole("group", { name: "Table width" })).not.toBeNull();
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Table width" })).getByRole("button", {
+        name: "Compact",
+      })
+    );
+    // Back in table view, in the Compact prefix (Aspect hidden, Rarity shown).
+    expect(screen.getByRole("columnheader", { name: "Rarity" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Aspect" })).toBeNull();
+  });
+});
+
 // DISPOSITION (RETIRE the base-set half, PORT the checkbox half; BL-224):
 // BL-179 r11 counted the completion popovers' home-base-set selection as
 // its own "external" unit (one bump in CardsPage's externalActiveCount,

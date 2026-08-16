@@ -583,6 +583,83 @@
   color: #fff;
 }
 
+/* BL-226 (Issue #140, owner-locked design): the AUTO/COMPACT/STANDARD/FULL
+ * width-tier override -- rendered beside `.inv-summary__view-toggle` above,
+ * ONLY while table view is active (InventorySummary.tsx gates it on
+ * viewMode === "table"). Deliberately matches that toggle's visual idiom
+ * class-for-class (bordered group, same active-fill treatment) -- the two
+ * differences (padding/font-size a touch tighter here) are a judgment call:
+ * four longer labels (vs. Table/Gallery's two short ones) would otherwise
+ * crowd the Add Cards/Import Export/Share buttons immediately to its right. */
+/* Round 4 (owner's hybrid, 2026-08-16 -- supersedes rounds 2-3's
+ * standalone control entirely): the width choice lives INSIDE the Table
+ * button. Hover/focus on the Table segment drops a flyout of the four
+ * options directly beneath it, wearing the view-toggle's own treatment at
+ * a smaller scale; a plain Table click means AUTO. Hidden until hover --
+ * zero resting footprint. */
+.inv-summary__table-split {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Round 5 (owner): the flyout expands OVER the table header and was
+ * melting into it (same surface color) -- elevated-menu treatment instead:
+ * darker panel, steel-ring border (the console menu family), and a real
+ * drop shadow so it reads as floating chrome, not table rows. */
+.inv-summary__table-flyout {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  z-index: 40;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: calc(100% + 2px);
+  border: 1px solid rgba(211, 211, 212, 0.45);
+  background: var(--bg-surface-alt);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.65);
+}
+
+.inv-summary__table-split:hover .inv-summary__table-flyout,
+.inv-summary__table-split:focus-within .inv-summary__table-flyout {
+  display: inline-flex;
+}
+
+/* Round 5 fix 2: click-to-close override. The reveal selectors above are
+ * (0,3,0) -- two classes + a pseudo-class -- so the suppress rules must
+ * match that shape (same pseudo-classes on the suppressed split) and sit
+ * AFTER them: equal specificity then resolves by order. A bare
+ * `--suppressed .flyout` (0,2,0) loses to :hover outright, which was
+ * exactly the didn't-close bug. mouseleave clears the state, re-arming
+ * the hover. */
+.inv-summary__table-split--suppressed:hover .inv-summary__table-flyout,
+.inv-summary__table-split--suppressed:focus-within .inv-summary__table-flyout {
+  display: none;
+}
+
+.inv-summary__table-flyout-btn {
+  padding: 4px 10px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+.inv-summary__table-flyout-btn:hover {
+  color: var(--color-text);
+}
+
+.inv-summary__table-flyout-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 /* Data table (shared chrome for the unified Cards table) */
 .data-table-wrapper {
   flex: 1;
@@ -1549,14 +1626,24 @@
   /* Owner dev-review 2026-08-05: the bracket reaches LEFT from its Playset
    * anchor to encompass the # column (whose content is scope-driven too),
    * crossing Name/Variants on the way -- the label names the affected
-   * columns explicitly. Geometry mirrors COLUMN_WIDTHS (CardsTable.tsx):
+   * columns explicitly. Geometry mirrored COLUMN_WIDTHS (CardsTable.tsx):
    * left = 8px inset - (# 50 + Name 210 + Variants 86) = -338px;
    * width = (# 50 + Name 210 + Variants 86 + Playset 128 + Value 114)
-   *       - 16px inset = 572px. Retune BOTH with any of those five widths.
-   * (Pre-2026-08-05: left 8px / width 226px -- Playset+Value only.) The
-   * left spill paints over the earlier-DOM sticky th's via the scoped
-   * Playset th's z-index 2 (below) vs their z-index 1 -- the same
-   * mechanism that already handled the right spill into Value. */
+   *       - 16px inset = 572px. (Pre-2026-08-05: left 8px / width 226px --
+   * Playset+Value only.) The left spill paints over the earlier-DOM sticky
+   * th's via the scoped Playset th's z-index 2 (below) vs their z-index 1 --
+   * the same mechanism that already handled the right spill into Value.
+   *
+   * BL-226 (Issue #140): the spanned column SET now varies by width tier
+   * (Compact excludes Variants, narrowing the span), so left/width are no
+   * longer a single static pair -- CardsTable.tsx computes them per-render
+   * from WIDTH_BY_KEY/visibleKeys (that file's own comment on the bracket
+   * span has the live formula) and sets them via inline `style`, which wins
+   * over the fallback values below by CSS precedence (inline always beats a
+   * class selector, `!important` aside -- none is used here). The two
+   * values below are kept as the Standard/Full-tier fallback (identical to
+   * each other, since both include Variants) in case a render path is ever
+   * missed, not as the values retuning now happens against. */
   left: -338px;
   width: 572px;
   margin: 0;

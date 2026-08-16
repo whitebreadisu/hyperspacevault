@@ -5,6 +5,7 @@ import { buildSetBreakdown, computePanelMetrics, formatMoney } from "../../utils
 import type { PriceMode, SetBreakdownRow, SetMeta } from "../../utils/completion";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { ValueSwitch } from "../cards/VariantScopeControls";
+import type { WidthTier } from "../../utils/tableWidthTier";
 
 /** BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
  * panel revamp -- four clipped-corner "blocks" (Playset complete %, Set
@@ -64,6 +65,16 @@ interface Props {
    * wiring a view mode. */
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  /** BL-226 (Issue #140): the Vault table's width-tier override -- AUTO /
+   * COMPACT / STANDARD / FULL, rendered beside the Table/Gallery toggle
+   * above, ONLY while `viewMode === "table"` (it has no meaning in
+   * Gallery). Owned/persisted by CardsPage (utils/tableWidthTier.ts's
+   * load/saveWidthTier), same optional-pair idiom as viewMode/
+   * onViewModeChange above -- omitted entirely, the control simply doesn't
+   * render, same as every other older/standalone InventorySummary call
+   * site. */
+  widthTier?: WidthTier;
+  onWidthTierChange?: (tier: WidthTier) => void;
   /** BL-224 (unifies BL-179's parallel "home base set" dimension into the
    * sidebar's own Set facet): the popover rows' own universe -- every filter
    * applied EXCEPT the set facet itself (the rows are that facet's own
@@ -102,29 +113,105 @@ const EMPTY_ORDERED_BASE_SETS: SetMeta[] = [];
 function ViewToggle({
   viewMode,
   onViewModeChange,
+  widthTier,
+  onWidthTierChange,
 }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  widthTier?: WidthTier;
+  onWidthTierChange?: (tier: WidthTier) => void;
 }) {
-  const btn = (mode: ViewMode, label: string) => (
+  const btn = (mode: ViewMode, label: string, onClick?: () => void) => (
     <button
       type="button"
       className={`inv-summary__view-toggle-btn${
         viewMode === mode ? " inv-summary__view-toggle-btn--active" : ""
       }`}
-      onClick={() => onViewModeChange(mode)}
+      onClick={onClick ?? (() => onViewModeChange(mode))}
       aria-pressed={viewMode === mode}
     >
       {label}
     </button>
   );
+  // BL-226 round 4 (owner's hybrid): the Table button ITSELF hosts the
+  // width choice -- hovering (or keyboard-focusing) it reveals a flyout of
+  // the four options; a plain Table click means AUTO. Only wired when the
+  // caller passes the tier pair (older call sites/tests render the plain
+  // two-button toggle unchanged).
+  //
+  // Round 5 (owner): the flyout closes the moment ANY selection is made --
+  // CSS :hover alone can't do that (the cursor is still over the split), so
+  // a `suppressed` state overrides the hover rule until the cursor leaves
+  // and re-enters (mouseleave re-arms it).
+  const [flyoutSuppressed, setFlyoutSuppressed] = useState(false);
+  const wired = widthTier != null && onWidthTierChange != null;
+  const closeFlyout = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setFlyoutSuppressed(true);
+    e.currentTarget.blur();
+  };
   return (
     <span role="group" aria-label="View" className="inv-summary__view-toggle">
-      {btn("table", "Table")}
+      {wired ? (
+        <span
+          className={`inv-summary__table-split${
+            flyoutSuppressed ? " inv-summary__table-split--suppressed" : ""
+          }`}
+          onMouseLeave={() => setFlyoutSuppressed(false)}
+        >
+          <button
+            type="button"
+            className={`inv-summary__view-toggle-btn${
+              viewMode === "table" ? " inv-summary__view-toggle-btn--active" : ""
+            }`}
+            onClick={(e) => {
+              onViewModeChange("table");
+              onWidthTierChange("auto");
+              closeFlyout(e);
+            }}
+            aria-pressed={viewMode === "table"}
+          >
+            Table
+          </button>
+          <span role="group" aria-label="Table width" className="inv-summary__table-flyout">
+            {WIDTH_TIERS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                className={`inv-summary__table-flyout-btn${
+                  widthTier === value ? " inv-summary__table-flyout-btn--active" : ""
+                }`}
+                onClick={(e) => {
+                  onViewModeChange("table");
+                  onWidthTierChange(value);
+                  closeFlyout(e);
+                }}
+                aria-pressed={widthTier === value}
+              >
+                {label}
+              </button>
+            ))}
+          </span>
+        </span>
+      ) : (
+        btn("table", "Table")
+      )}
       {btn("gallery", "Gallery")}
     </span>
   );
 }
+
+// BL-226 (Issue #140, owner-locked design): AUTO/COMPACT/STANDARD/FULL --
+// same bordered-button-group visual idiom as ViewToggle above (matched
+// class-for-class; only the padding/font-size are tuned slightly tighter, a
+// judgment call to keep four longer labels from crowding the Add Cards/
+// Import Export/Share buttons beside it -- see cards.css's
+// .inv-summary__width-tier-toggle-btn comment).
+const WIDTH_TIERS: { value: WidthTier; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "compact", label: "Compact" },
+  { value: "standard", label: "Standard" },
+  { value: "full", label: "Full" },
+];
 
 /** progressViz=ticks, progressColor=blue (Definition §0): 10 skewed tick
  * marks, `Math.round(pct / 10)` of them filled. `authed=false` always
@@ -229,6 +316,8 @@ export function InventorySummary({
   isAuthenticated = true,
   viewMode,
   onViewModeChange,
+  widthTier,
+  onWidthTierChange,
   breakdownCards,
   selectedSetCodes,
   onToggleSetCode,
@@ -515,8 +604,16 @@ export function InventorySummary({
 
       {(viewMode != null || children) && (
         <span className="inv-summary__actions">
+          {/* BL-226 round 4 (owner's hybrid -- supersedes the standalone
+              stacked control): the width choice lives INSIDE the Table
+              button (hover flyout; plain click = AUTO). */}
           {viewMode != null && onViewModeChange && (
-            <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            <ViewToggle
+              viewMode={viewMode}
+              onViewModeChange={onViewModeChange}
+              widthTier={widthTier}
+              onWidthTierChange={onWidthTierChange}
+            />
           )}
           {children}
         </span>

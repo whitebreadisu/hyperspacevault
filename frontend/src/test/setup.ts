@@ -71,6 +71,52 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
 
+// BL-226 (Issue #140): CardsTable's width-tier AUTO selection
+// (utils/tableWidthTier.ts) measures its own wrapper (`.data-table-wrapper`)
+// via ResizeObserver, which jsdom implements not at all (unlike
+// offsetHeight/offsetWidth above, which jsdom DOES stub, just always at 0) --
+// without a mock, mounting CardsTable/CardsPage would throw "ResizeObserver
+// is not defined" in every test. Deliberately NOT derived from the
+// offsetWidth stub above (1200px, chosen for the virtualizer's unrelated
+// sizing needs): 1200px sits BELOW the Full tier's natural width (1538px,
+// CardsTable.tsx's NATURAL_WIDTHS), so wiring this mock to read offsetWidth
+// would silently auto-resolve every pre-existing CardsTable/CardsPage test
+// (none of which know or care about width tiers) down to the Standard tier,
+// breaking header/cell assertions written against the full 15-column table.
+// `mockResizeObserverWidth` is its own independent default instead, set
+// comfortably ABOVE Full's natural width so every pre-existing test keeps
+// rendering Full unchanged; BL-226's own tests import and reassign it (see
+// CardsTable.test.tsx's width-tier describe block) to exercise the narrower
+// tiers deliberately -- the same override-then-reset pattern
+// FilterPanel.test.tsx's setInnerWidth establishes for window.innerWidth.
+// Real browsers deliver a ResizeObserver's first observation
+// asynchronously; this mock delivers it SYNCHRONOUSLY from `observe()`
+// instead (no test in this suite depends on the async timing -- see the rAF
+// override below for the same simplification), so a component's very first
+// render already reflects the configured width with no extra `act()` flush.
+export const mockResizeObserverWidth = { current: 1600 };
+
+class MockResizeObserver {
+  private callback: ResizeObserverCallback;
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+  observe(target: Element) {
+    const entry = { target, contentRect: { width: mockResizeObserverWidth.current } };
+    this.callback([entry as ResizeObserverEntry], this as unknown as ResizeObserver);
+  }
+  unobserve() {
+    /* no-op -- this mock only ever tracks the single most-recent target */
+  }
+  disconnect() {
+    /* no-op */
+  }
+}
+
+if (typeof window !== "undefined" && typeof window.ResizeObserver === "undefined") {
+  window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+}
+
 // BL-196: BusyOverlay's dismiss path double-requestAnimationFrames before
 // hiding (hooks/useBusyOverlay.ts's doubleRaf) so it outlives the paint of
 // whatever re-render it was covering for. jsdom DOES implement rAF (unlike
