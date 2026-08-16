@@ -67,10 +67,10 @@ export function GallerySortHeader({ sortState, onSortChange, scope, onScopeChang
         className="gallery-sort-header__entry gallery-sort-header__entry--playset"
         aria-sort={ariaSortValue(sortState, "playset")}
       >
-        <CardsScopeTrigger scope={scope} onScopeChange={onScopeChange} />
         <SortHeaderButton column="playset" sortState={sortState} onSortChange={onSortChange}>
           Playset
         </SortHeaderButton>
+        <CardsScopeTrigger scope={scope} onScopeChange={onScopeChange} />
       </div>
       <Entry column="value" label="Value" sortState={sortState} onSortChange={onSortChange} />
       <Entry column="rarity" label="Rarity" sortState={sortState} onSortChange={onSortChange} />

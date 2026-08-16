@@ -1075,13 +1075,13 @@
   align-items: center;
 }
 
-/* The Playset entry additionally hosts CardsScopeTrigger (BL-173/BL-222) --
- * stacked control-above-label, the same shape as the table's own
- * `.th-playset-inner`. */
+/* The Playset entry additionally hosts CardsScopeTrigger (BL-173/BL-222).
+ * Owner review round 2026-08-16: inline, trigger to the RIGHT of the sort
+ * button -- the stacked control-above-label arrangement (the table's
+ * `.th-playset-inner` shape) center-aligned oddly against the bar's other
+ * single-line entries. */
 .gallery-sort-header__entry--playset {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  gap: 10px;
 }
 
 /* ── Gallery grid (BL-73 Stage 1) ────────────────────────────────────────
