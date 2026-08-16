@@ -148,13 +148,12 @@ export function Header({
         {/* Owner review 2026-08-03: [HSV] shorthand joins the brand system --
             bracketed prefix on the wordmark (now two words), mirrored by the
             nav tab's "[HSV] UPDATES" and the version label's bracketed
-            suffix. */}
-        [HSV] Hyperspace Vault
-        {/* BL-125: permanent, low-key non-affiliation entry point -- visible
-         * regardless of auth state, unlike the UserMenu item below which
-         * only exists once signed in. */}
-        <button type="button" className="app-header__brand-tag" onClick={onOpenAbout}>
-          Unofficial Fan Project
+            suffix. Owner round 2026-08-16 (BL-227 round 2): the wordmark
+            JOINS the About link -- one button with the BL-125 disclaimer
+            line inside it, hover animating both lines together. */}
+        <button type="button" className="app-header__brand-link" onClick={onOpenAbout}>
+          [HSV] Hyperspace Vault
+          <span className="app-header__brand-tag">Unofficial Fan Project</span>
         </button>
         {/* BL-184: version label, appended as a third item in the brand
          * column below the disclaimer tag -- same flex-column/gap layout
