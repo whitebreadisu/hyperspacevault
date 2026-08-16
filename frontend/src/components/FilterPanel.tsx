@@ -802,7 +802,13 @@ export function FilterPanel({
           <div className="ifp-sidebar__ring">
             <div className="ifp-sidebar__panel">
               <div className="ifp-sidebar__head">
-                <span className="ifp-sidebar__title">Filters</span>
+                {/* Owner round 4 (2026-08-16): the amber count badge joins
+                    the expanded head, right of the title -- same signal as
+                    the collapsed rail's badge. */}
+                <span className="ifp-sidebar__title-wrap">
+                  <span className="ifp-sidebar__title">Filters</span>
+                  {activeCount > 0 && <span className="ifp-sidebar__badge">{activeCount}</span>}
+                </span>
                 <button
                   type="button"
                   className="ifp-sidebar__collapse"

@@ -959,6 +959,10 @@ export function CardsPage({
                   onSortChange={handleSortChange}
                   scope={scope}
                   onScopeChange={handleScopeChange}
+                  valueDisplay={valueDisplay}
+                  onValueDisplayChange={handleValueDisplayChange}
+                  priceKind={priceKind}
+                  onPriceKindChange={handlePriceKindChange}
                 />
                 <GalleryGrid
                   cards={sortedCards}

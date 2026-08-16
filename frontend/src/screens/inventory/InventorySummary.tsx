@@ -490,6 +490,10 @@ export function InventorySummary({
         <span
           className={`inv-summary__totals${narrowedFiltered ? " inv-summary__totals--amber" : ""}`}
         >
+          {/* Owner review rounds 2-3 (2026-08-16): caption stacked ABOVE
+              the switch; round 3 reverted the size back to the small
+              MKT/LOW height. */}
+          <span className="inv-summary__totals-label">Totals</span>
           <ValueSwitch
             checked={effectiveScope === "all"}
             label={effectiveScope === "all" ? "ALL" : "FILTERED"}
@@ -506,7 +510,6 @@ export function InventorySummary({
             accent={narrowedFiltered ? "amber" : undefined}
             onToggle={() => setScope((cur) => (cur === "all" ? "filtered" : "all"))}
           />
-          <span className="inv-summary__totals-label">Totals</span>
         </span>
       )}
 

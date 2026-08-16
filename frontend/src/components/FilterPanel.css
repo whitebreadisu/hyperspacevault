@@ -86,17 +86,22 @@
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8.5px), calc(100% - 8.5px) 100%, 0 100%);
 }
 
+/* Owner round 4 (2026-08-16): blue pill -> the `.pl-toggle--scoped` amber
+ * family (outline + faded fill + amber count), matching the new expanded-
+ * head badge below. */
 .ifp-sidebar-tab__badge {
   display: inline-grid;
   place-items: center;
   min-width: 17px;
   height: 17px;
   padding: 0 3px;
-  background: var(--color-primary);
   border-radius: 9px;
   font-family: var(--font-ui);
   font-size: 11px;
   font-weight: 700;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
 }
 
 .ifp-sidebar-tab__label {
@@ -1226,6 +1231,32 @@
  * anonymous inert-teaser state) -- signals "this filter now evaluates
  * against the scoped finish," independent of the toggle's own pressed
  * state. */
+/* BL-223 rider, owner round 4 (2026-08-16 -- supersedes rounds 2-3's
+ * icon/label and outline treatments, both reverted): the active-filter
+ * signal is the COUNT BADGE alone, restyled from its old blue pill into
+ * the `.pl-toggle--scoped` amber family, and now also shown beside the
+ * expanded panel's title (it only renders while the count > 0, so amber
+ * badge visible == a filter is active). Rings/icon/label/title default. */
+.ifp-sidebar__title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ifp-sidebar__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border-radius: 9px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+}
+
 .pl-toggle--scoped {
   border-color: rgba(217, 154, 31, 0.4);
   background: rgba(217, 154, 31, 0.16);

@@ -203,10 +203,13 @@
  * `showScopeToggle`). The old full-width `.inv-summary__scoperow` (and the
  * amber base-set readout that used to share it, BL-224) is retired outright
  * -- nothing else lived in that row once both were gone. */
+/* Owner review round 2 (2026-08-16): caption stacked above the switch. */
 .inv-summary__totals {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
 }
 
 .inv-summary__totals-label {
@@ -218,14 +221,9 @@
   color: var(--color-text-muted);
 }
 
-/* BL-223 §3 (owner-locked): while the switch reads FILTERED, its caption
- * joins the amber narrowed-state signal alongside the switch itself (the
- * switch's own amber comes from ValueSwitch's `accent="amber"`, styled
- * below next to its plain --on treatment). Same #f2c14e/rgba(217,154,31,*)
- * token family as `.pl-toggle--scoped` and the Value header's scoped text. */
-.inv-summary__totals--amber .inv-summary__totals-label {
-  color: #f2c14e;
-}
+/* Owner round 3 (2026-08-16): the "Totals" caption stays its default color
+ * in every state -- the amber narrowed signal lives on the switch itself
+ * (track fill + in-track label) and the blocks' ring only. */
 
 /* One block: 1px ring (border-color var, or the blue viz color while its
  * popover is open) around a clipped-corner inner panel. */
@@ -276,11 +274,12 @@
  * `.inv-summary__block--open`/the hover rule/`.inv-summary__block-inner`
  * above so it wins the cascade over both the plain border-color ring and
  * the blue open/hover ring at equal specificity (one class each). */
+/* Owner rounds 2-3 (2026-08-16): the narrowed-FILTERED state is the amber
+ * ring ONLY -- interior backgrounds and block labels stay default in every
+ * state. Ring token = the finish-scope trigger's own outline amber
+ * (.vs-header-scope__trigger--on's rgba(217,154,31,0.4)). */
 .inv-summary__block-wrap--amber .inv-summary__block {
   background: rgba(217, 154, 31, 0.4);
-}
-.inv-summary__block-wrap--amber .inv-summary__block-inner {
-  background: rgba(217, 154, 31, 0.16);
 }
 
 .inv-summary__label-row {
@@ -989,6 +988,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  /* Owner round 6 (2026-08-16, trial -- "I may revert this"): the header
+   * set centers in the bar. */
+  justify-content: center;
   gap: 6px 22px;
   padding: 10px 14px;
   margin-bottom: 10px;
@@ -1015,6 +1017,67 @@
  * single-line entries. */
 .gallery-sort-header__entry--playset {
   gap: 10px;
+}
+
+/* BL-225: the Value entry hosts the UNIT/COLLECTION + MKT/LOW switches
+ * inline right of the label (single-line bar vs the th's two-row stack). */
+.gallery-sort-header__entry--value {
+  gap: 10px;
+}
+
+/* BL-225 round 2 (owner): the scope-driven span (# through Value) is one
+ * group so the scoped amber bracket overlays it with zero measurement --
+ * same gap grid as the bar itself; the whole span wraps as a unit. */
+.gallery-sort-header__group {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+}
+/* Owner round 5 (2026-08-16): the scoped top-room lives on the BAR, not the
+ * group -- group-level padding pushed only the bracketed entries down,
+ * breaking the single-line alignment with Rarity..Set. With the whole bar
+ * padded, every entry shares one row and the bracket floats up into the
+ * reserved space (negative top, relative to the group). */
+.gallery-sort-header--scoped {
+  padding-top: 32px;
+}
+/* Compound selector: must OUT-RANK `.vs-bracket`'s own `position: relative`
+ * (defined LATER in this file -- equal specificity would lose on source
+ * order, which was the round-4 bug: the bracket rendered in-flow, label
+ * inline with the header entries and no line drawn). */
+.vs-bracket.gallery-sort-header__bracket {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  right: 0;
+  margin: 0;
+}
+
+/* Owner round 5: the gallery's MKT/LOW switch narrows independently --
+ * MARKET is 4 chars shorter than COLLECTION, so the shared --lg width left
+ * it with outsized slack; 62px gives MARKET the same breathing room
+ * COLLECTION gets in its 86px track. (It's the entry's last button.) */
+.gallery-sort-header__entry--value .vs-value-switch:last-child .vs-value-switch__track {
+  width: 62px;
+}
+.gallery-sort-header__entry--value
+  .vs-value-switch--on:last-child
+  .vs-value-switch__thumb {
+  /* 3 + 49 + 7 = 59 = 62 - 3 (mirrors the off-side inset). */
+  transform: translateX(49px);
+}
+
+/* BL-225: scope-driven entries (#, Value + both switch in-track labels)
+ * take the table header's scoped amber -- the same text-only #f2c14e the
+ * th rules apply (.th-cardnum-scoped, .th-scoped .th-value-label,
+ * .th-scoped .vs-value-switch__label). The switch-label selector's
+ * specificity out-ranks --on/:hover label colors, same as the table's. */
+.gallery-sort-header__entry--scoped .th-sort-btn,
+.gallery-sort-header__entry--scoped .vs-value-switch .vs-value-switch__label,
+.gallery-sort-header__entry--scoped .vs-value-switch:hover .vs-value-switch__label {
+  color: #f2c14e;
 }
 
 /* ── Gallery grid (BL-73 Stage 1) ────────────────────────────────────────
@@ -1672,7 +1735,9 @@
 .vs-value-switch__track {
   display: inline-flex;
   align-items: center;
-  width: 54px;
+  /* Owner round 2026-08-16 ("narrow the switches"): 54 -> 50; the thumb
+   * mirror math below moves with it. */
+  width: 50px;
   height: 14px;
   border: 1px solid var(--color-border);
   border-radius: 0;
@@ -1694,8 +1759,8 @@
   border-color: rgba(37, 99, 235, 0.55);
 }
 .vs-value-switch--on .vs-value-switch__thumb {
-  /* 2 + 45 + 5 = 52 = 54 - 2 (mirrors the off-side inset). */
-  transform: translateX(45px);
+  /* 2 + 41 + 5 = 48 = 50 - 2 (mirrors the off-side inset). */
+  transform: translateX(41px);
   background: var(--color-text);
 }
 .vs-value-switch__label {
@@ -1708,13 +1773,13 @@
   letter-spacing: 0.08em;
   line-height: 1;
   /* off: thumb sits left -- shift the text right of it; on: mirrored. */
-  padding-left: 11px;
+  padding-left: 9px;
   transition: padding 120ms ease;
 }
 .vs-value-switch--on .vs-value-switch__label {
   color: var(--color-text);
   padding-left: 0;
-  padding-right: 11px;
+  padding-right: 9px;
 }
 .vs-value-switch:hover .vs-value-switch__label {
   color: var(--color-text);
@@ -1731,9 +1796,8 @@
   background: rgba(217, 154, 31, 0.16);
   border-color: rgba(217, 154, 31, 0.4);
 }
-.vs-value-switch--amber .vs-value-switch__thumb {
-  background: #f2c14e;
-}
+/* Owner round 3 (2026-08-16): the thumb stays its default white/muted in
+ * the amber state -- the amber signal is the track fill + label only. */
 .vs-value-switch--amber .vs-value-switch__label,
 .vs-value-switch--amber:hover .vs-value-switch__label {
   color: #f2c14e;
@@ -1741,7 +1805,9 @@
 /* Large size (UNIT/TOTAL): in-track label matches the th's own 11px/700
  * uppercase type, track heightened to hold it. */
 .vs-value-switch--lg .vs-value-switch__track {
-  width: 96px;
+  /* Owner round 2026-08-16 ("narrow the switches" -- COLLECTION had ample
+   * slack): 96 -> 86; thumb mirror math below moves with it. */
+  width: 86px;
   height: 20px;
   border-radius: 0;
 }
@@ -1751,19 +1817,19 @@
   left: 3px;
 }
 .vs-value-switch--lg.vs-value-switch--on .vs-value-switch__thumb {
-  /* 3 + 83 + 7 = 93 = 96 - 3 (mirrors the off-side inset). */
-  transform: translateX(83px);
+  /* 3 + 73 + 7 = 83 = 86 - 3 (mirrors the off-side inset). */
+  transform: translateX(73px);
 }
 .vs-value-switch--lg .vs-value-switch__label {
   font-size: 11px;
   font-weight: 700;
   /* 0.08em (vs the th's 0.1em) buys COLLECTION the narrower track. */
   letter-spacing: 0.08em;
-  padding-left: 13px;
+  padding-left: 11px;
 }
 .vs-value-switch--lg.vs-value-switch--on .vs-value-switch__label {
   padding-left: 0;
-  padding-right: 13px;
+  padding-right: 11px;
 }
 /* Row 2 of the Value header: Value [mkt/low switch] -- inherits the th's
  * own uppercase/spacing type for the label text. */

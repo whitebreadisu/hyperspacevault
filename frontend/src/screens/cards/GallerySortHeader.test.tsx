@@ -31,20 +31,79 @@ function renderHeader(
     onSortChange: (column: string) => void;
     scope: string | null;
     onScopeChange: (raw: string | null) => void;
+    valueDisplay: "unit" | "collection";
+    priceKind: "market" | "low";
   }> = {}
 ) {
   const onSortChange = overrides.onSortChange ?? vi.fn();
   const onScopeChange = overrides.onScopeChange ?? vi.fn();
+  const onValueDisplayChange = vi.fn();
+  const onPriceKindChange = vi.fn();
   const utils = render(
     <GallerySortHeader
       sortState={overrides.sortState ?? DEFAULT_SORT_STATE}
       onSortChange={onSortChange}
       scope={overrides.scope ?? null}
       onScopeChange={onScopeChange}
+      valueDisplay={overrides.valueDisplay ?? "unit"}
+      onValueDisplayChange={onValueDisplayChange}
+      priceKind={overrides.priceKind ?? "market"}
+      onPriceKindChange={onPriceKindChange}
     />
   );
-  return { ...utils, onSortChange, onScopeChange };
+  return { ...utils, onSortChange, onScopeChange, onValueDisplayChange, onPriceKindChange };
 }
+
+// CREATE (BL-225): full table-header parity -- the Value entry hosts the
+// same UNIT/COLLECTION + MKT/LOW switches as the table's Value column, and
+// scope-driven entries take the table's scoped amber vocabulary.
+describe("GallerySortHeader table parity (BL-225, CREATE)", () => {
+  // Round 6 (owner): the gallery has no price surface, so the switches
+  // render ONLY while Value is the active sort (their sole in-gallery
+  // effect is the Value ordering).
+  it("renders the UNIT/COLLECTION and MKT/LOW switches while sorted by Value, and reports toggles", () => {
+    const { container, onValueDisplayChange, onPriceKindChange } = renderHeader({
+      sortState: { column: "value", direction: "asc" },
+    });
+    const valueEntry = container.querySelector(".gallery-sort-header__entry--value")!;
+    const switches = within(valueEntry as HTMLElement).getAllByRole("switch");
+    expect(switches).toHaveLength(2);
+    fireEvent.click(switches[0]); // UNIT/COLLECTION (large, first per table order)
+    expect(onValueDisplayChange).toHaveBeenCalledWith("collection");
+    fireEvent.click(switches[1]); // MKT/LOW
+    expect(onPriceKindChange).toHaveBeenCalledWith("low");
+  });
+
+  it("renders NO switches while the sort is anything other than Value", () => {
+    const { container } = renderHeader(); // default: # ascending
+    const valueEntry = container.querySelector(".gallery-sort-header__entry--value")!;
+    expect(within(valueEntry as HTMLElement).queryAllByRole("switch")).toHaveLength(0);
+  });
+
+  // Round 3 (owner): Playset joins #/Value in the scoped amber vocabulary.
+  it("marks the #, Playset, and Value entries scoped (amber vocabulary) while a scope is active", () => {
+    const { container } = renderHeader({ scope: "Standard Foil" });
+    const scoped = container.querySelectorAll(".gallery-sort-header__entry--scoped");
+    expect(scoped).toHaveLength(3);
+  });
+
+  it("renders no scoped modifier without a scope", () => {
+    const { container } = renderHeader();
+    expect(container.querySelector(".gallery-sort-header__entry--scoped")).toBeNull();
+  });
+
+  // Round 3 (owner): the table's amber bracket, mirrored -- overlays the
+  // #-through-Value group while a scope is active, naming the scope and the
+  // affected content exactly like .vs-bracket--inhead does.
+  it("renders the amber bracket with the scope's short name while scoped, and not otherwise", () => {
+    const { container } = renderHeader({ scope: "Standard Foil" });
+    const bracket = container.querySelector(".gallery-sort-header__bracket");
+    expect(bracket).toBeTruthy();
+    expect(bracket!.textContent).toContain("CARD # + PIPS + VALUE");
+    const { container: unscoped } = renderHeader();
+    expect(unscoped.querySelector(".gallery-sort-header__bracket")).toBeNull();
+  });
+});
 
 describe("GallerySortHeader entries (BL-222, CREATE)", () => {
   it("renders all ten sortable entries, each as a button with its label", () => {
@@ -122,10 +181,10 @@ describe("GallerySortHeader scope trigger (BL-222, CREATE)", () => {
     expect(trigger.className).toContain("vs-header-scope__trigger--on");
   });
 
-  it("never renders a bracket overlay -- there is nothing to span in the gallery", () => {
-    const { container } = renderHeader({ scope: "Hyperspace" });
-    expect(container.querySelector(".vs-bracket")).toBeNull();
-  });
+  // RETIRED (owner round 3, 2026-08-16): the original "never renders a
+  // bracket -- nothing to span" decision was reversed by BL-225's
+  // full-table-parity direction; the #-through-Value group now IS the span.
+  // The bracket's positive behavior is covered in the BL-225 describe above.
 
   it("clicking a scope option in the trigger's menu reports it via onScopeChange", () => {
     const { onScopeChange, container } = renderHeader({ scope: null });

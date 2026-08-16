@@ -367,16 +367,20 @@ export function CardsValueDisplayToggle({ mode, onChange }: CardsValueDisplayTog
 interface CardsValueKindToggleProps {
   kind: PriceMode;
   onChange: (kind: PriceMode) => void;
+  /** BL-225: the gallery header renders this switch at the large size to
+   * match its neighboring UNIT/COLLECTION control; the table keeps small. */
+  large?: boolean;
 }
 
 /** The Value header's Market/Low control (Definition §1/§2; owner-dialed
  * 2026-07-31: same single-label SWITCH idiom as UNIT/TOTAL, at the small
  * size, sitting RIGHT of the "Value" label). MKT is the unchecked side. */
-export function CardsValueKindToggle({ kind, onChange }: CardsValueKindToggleProps) {
+export function CardsValueKindToggle({ kind, onChange, large }: CardsValueKindToggleProps) {
   const isLow = kind === "low";
   return (
     <ValueSwitch
       checked={isLow}
+      large={large}
       label={isLow ? "LOW" : "MARKET"}
       ariaLabel={
         isLow ? "Showing low price — switch to market" : "Showing market price — switch to low"
