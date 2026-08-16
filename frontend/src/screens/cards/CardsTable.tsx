@@ -414,9 +414,7 @@ export function CardsTable({
             <col
               key={key}
               style={
-                widthTier === "auto" && key === "name"
-                  ? undefined
-                  : { width: WIDTH_BY_KEY[key] }
+                widthTier === "auto" && key === "name" ? undefined : { width: WIDTH_BY_KEY[key] }
               }
             />
           ))}
@@ -531,11 +529,11 @@ export function CardsTable({
               </span>
             </th>
             {visible.has("value") && (
-            <th
-              className={`th-value${scope ? " th-scoped" : ""}`}
-              aria-sort={ariaSortValue(sortState, "value")}
-            >
-              {/* Round 2: MKT/LOW stacked ABOVE the label; the scoped finish
+              <th
+                className={`th-value${scope ? " th-scoped" : ""}`}
+                aria-sort={ariaSortValue(sortState, "value")}
+              >
+                {/* Round 2: MKT/LOW stacked ABOVE the label; the scoped finish
                   tag is REMOVED from this header (owner call -- the bracket
                   + trigger already name the finish). Round 4: .th-value
                   carries the tightened side padding that lets the column sit
@@ -543,43 +541,39 @@ export function CardsTable({
                   joins the stack and the label follows the active mode --
                   "Unit Value" (one copy's price) vs "Collection" (your owned
                   copies' worth, cardCollectionValue). */}
-              {/* Owner-dialed (2026-07-31 round): TWO rows, no duplicate
+                {/* Owner-dialed (2026-07-31 round): TWO rows, no duplicate
                   text -- the UNIT/TOTAL switch ABOVE (large size, its
                   in-track label matching the th's own type), then the
                   static "Value" label with the small MKT/LOW switch to its
                   RIGHT. Reads top-to-bottom as "UNIT / VALUE·MKT". */}
-              <span className="th-value-inner">
-                <CardsValueDisplayToggle mode={valueDisplay} onChange={onValueDisplayChange} />
-                <span className="th-value-mode">
-                  <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
-                  {/* Owner dev-review 2026-08-05: while scoped, the Value
+                <span className="th-value-inner">
+                  <CardsValueDisplayToggle mode={valueDisplay} onChange={onValueDisplayChange} />
+                  <span className="th-value-mode">
+                    <CardsValueKindToggle kind={priceKind} onChange={onPriceKindChange} />
+                    {/* Owner dev-review 2026-08-05: while scoped, the Value
                       label renders in the trigger--on amber font color
                       (.th-value-label, activated by this th's .th-scoped
                       state class -- unscoped it's an unstyled span). The
                       round's earlier bordered/filled chip treatment is
                       retired; color only. */}
-                  {/* BL-213: the Value label doubles as this column's sort
+                    {/* BL-213: the Value label doubles as this column's sort
                       button -- the MKT/LOW and UNIT/COLLECTION switches
                       above stay their own separate buttons. */}
-                  <SortHeaderButton
-                    column="value"
-                    sortState={sortState}
-                    onSortChange={onSortChange}
-                    className="th-value-label"
-                  >
-                    Value
-                  </SortHeaderButton>
+                    <SortHeaderButton
+                      column="value"
+                      sortState={sortState}
+                      onSortChange={onSortChange}
+                      className="th-value-label"
+                    >
+                      Value
+                    </SortHeaderButton>
+                  </span>
                 </span>
-              </span>
-            </th>
+              </th>
             )}
             {visible.has("rarity") && (
               <th aria-sort={ariaSortValue(sortState, "rarity")}>
-                <SortHeaderButton
-                  column="rarity"
-                  sortState={sortState}
-                  onSortChange={onSortChange}
-                >
+                <SortHeaderButton column="rarity" sortState={sortState} onSortChange={onSortChange}>
                   Rarity
                 </SortHeaderButton>
               </th>
@@ -790,9 +784,7 @@ export function CardsTable({
                     {card.arena ?? "—"}
                   </td>
                 )}
-                {visible.has("set") && (
-                  <td className="cell-muted td-ellipsis">{card.set_code}</td>
-                )}
+                {visible.has("set") && <td className="cell-muted td-ellipsis">{card.set_code}</td>}
               </tr>
             );
           })}
