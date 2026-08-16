@@ -412,13 +412,19 @@ export function FilterPanel({
   // pure avail -> tier decision (utils/filterPanelTiers.ts), unit-tested
   // independently of this component. No CSS media queries -- this is the
   // one source of truth for the thresholds.
-  const [innerHeight, setInnerHeight] = useState(() => window.innerHeight);
+  // BL-226 round 3 (owner: right-aligned controls "shake" during resize):
+  // state holds the RESOLVED tier, not raw window.innerHeight -- the raw
+  // value changes every frame of a drag, re-rendering this (heavy) panel
+  // per-pixel and starving the frame budget; resolving inside the listener
+  // means setState almost always receives the same value (React bails out),
+  // so the panel re-renders only at genuine tier crossings. Same pattern as
+  // CardsTable's own step-count observer.
+  const [tier, setTier] = useState(() => tierForViewportHeight(window.innerHeight));
   useEffect(() => {
-    const onResize = () => setInnerHeight(window.innerHeight);
+    const onResize = () => setTier(tierForViewportHeight(window.innerHeight));
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const tier = tierForViewportHeight(innerHeight);
   const twoCol = tier === "two-col" || tier === "fallback";
 
   // ── BL-147 fix 5 (dev-review, BL-144-family finding): click-outside
@@ -429,17 +435,20 @@ export function FilterPanel({
   // this effect needs to know the CURRENT presentation, not just the one at
   // mount, to attach/detach correctly as the window resizes across the
   // breakpoint.
-  const [innerWidth, setInnerWidth] = useState(() => window.innerWidth);
-  useEffect(() => {
-    const onResize = () => setInnerWidth(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
   // BL-179 round 7 (owner): docked = the ONE-COLUMN sidebar and the
   // full-width table genuinely coexist -- width (the docking pair arithmetic)
   // AND height (tier still full/compact; a two-col/fallback tier's 452px
   // sidebar never docks). Mirrors the CSS docking media query exactly.
-  const docked = fitsDockedViewport(innerWidth, innerHeight);
+  // BL-226 round 3: same resolved-not-raw pattern as `tier` above -- the
+  // boolean flips only at the breakpoint, so per-pixel resize events bail.
+  const [docked, setDocked] = useState(() =>
+    fitsDockedViewport(window.innerWidth, window.innerHeight)
+  );
+  useEffect(() => {
+    const onResize = () => setDocked(fitsDockedViewport(window.innerWidth, window.innerHeight));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // BL-179 round 7 (owner): the docked state asserts itself on transitions.

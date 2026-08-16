@@ -591,26 +591,71 @@
  * differences (padding/font-size a touch tighter here) are a judgment call:
  * four longer labels (vs. Table/Gallery's two short ones) would otherwise
  * crowd the Add Cards/Import Export/Share buttons immediately to its right. */
-.inv-summary__width-tier-toggle {
+/* Round 4 (owner's hybrid, 2026-08-16 -- supersedes rounds 2-3's
+ * standalone control entirely): the width choice lives INSIDE the Table
+ * button. Hover/focus on the Table segment drops a flyout of the four
+ * options directly beneath it, wearing the view-toggle's own treatment at
+ * a smaller scale; a plain Table click means AUTO. Hidden until hover --
+ * zero resting footprint. */
+.inv-summary__table-split {
+  position: relative;
   display: inline-flex;
-  border: 1px solid var(--color-border);
-  margin-right: 14px;
 }
 
-.inv-summary__width-tier-toggle-btn {
-  padding: 7px 10px;
+/* Round 5 (owner): the flyout expands OVER the table header and was
+ * melting into it (same surface color) -- elevated-menu treatment instead:
+ * darker panel, steel-ring border (the console menu family), and a real
+ * drop shadow so it reads as floating chrome, not table rows. */
+.inv-summary__table-flyout {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  z-index: 40;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: calc(100% + 2px);
+  border: 1px solid rgba(211, 211, 212, 0.45);
+  background: var(--bg-surface-alt);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.65);
+}
+
+.inv-summary__table-split:hover .inv-summary__table-flyout,
+.inv-summary__table-split:focus-within .inv-summary__table-flyout {
+  display: inline-flex;
+}
+
+/* Round 5 fix 2: click-to-close override. The reveal selectors above are
+ * (0,3,0) -- two classes + a pseudo-class -- so the suppress rules must
+ * match that shape (same pseudo-classes on the suppressed split) and sit
+ * AFTER them: equal specificity then resolves by order. A bare
+ * `--suppressed .flyout` (0,2,0) loses to :hover outright, which was
+ * exactly the didn't-close bug. mouseleave clears the state, re-arming
+ * the hover. */
+.inv-summary__table-split--suppressed:hover .inv-summary__table-flyout,
+.inv-summary__table-split--suppressed:focus-within .inv-summary__table-flyout {
+  display: none;
+}
+
+.inv-summary__table-flyout-btn {
+  padding: 4px 10px;
   border: none;
   cursor: pointer;
   background: transparent;
   font-family: var(--font-ui);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  text-align: left;
 }
 
-.inv-summary__width-tier-toggle-btn--active {
+.inv-summary__table-flyout-btn:hover {
+  color: var(--color-text);
+}
+
+.inv-summary__table-flyout-btn--active {
   background: var(--color-primary);
   color: #fff;
 }

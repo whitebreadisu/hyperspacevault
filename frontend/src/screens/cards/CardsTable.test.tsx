@@ -1765,7 +1765,11 @@ describe("CardsTable width tiers (BL-226, CREATE)", () => {
     expect(container.querySelectorAll("colgroup col")).toHaveLength(15);
   });
 
-  it("AUTO picks Compact when the measured wrapper width is below Standard's natural width (1050)", () => {
+  // REPLACES the tier-at-a-time boundary assertion -- owner round 2
+  // (2026-08-16): AUTO walks the column ladder one step at a time, so 900px
+  // holds compact + aspect + variants (894 fits, the 1050 stat trio does
+  // not) rather than snapping down to bare Compact.
+  it("AUTO walks the ladder column-at-a-time: 900px = compact + Aspect + Variants (8 columns)", () => {
     mockResizeObserverWidth.current = 900;
     render(
       <CardsTable
@@ -1776,8 +1780,27 @@ describe("CardsTable width tiers (BL-226, CREATE)", () => {
         onSelectInventory={vi.fn()}
       />
     );
-    expect(headerNames()).toHaveLength(6);
-    expect(screen.queryByRole("columnheader", { name: "Aspect" })).toBeNull();
+    expect(headerNames()).toHaveLength(8);
+    expect(screen.getByRole("columnheader", { name: "Aspect" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Cost" })).toBeNull();
+  });
+
+  it("AUTO walks below Compact: 550px = bare minimum + Rarity (value and set dropped first)", () => {
+    mockResizeObserverWidth.current = 550;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    // 516 (base+rarity) fits; 586 (+set) doesn't. Base #/Name/Playset + Rarity = 4.
+    expect(headerNames()).toHaveLength(4);
+    expect(screen.getByRole("columnheader", { name: "Rarity" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Set" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Value" })).toBeNull();
   });
 
   it("AUTO picks Standard at its own exact boundary (1050, >= comparison)", () => {
@@ -1810,7 +1833,10 @@ describe("CardsTable width tiers (BL-226, CREATE)", () => {
     expect(headerNames()).toHaveLength(15);
   });
 
-  it("just below Full's boundary (1537), AUTO falls back to Standard", () => {
+  // REPLACES the tier-at-a-time fallback assertion (owner round 2): just
+  // below Full's boundary only the LAST ladder step (Trait/Keyword, an
+  // atomic pair) drops -- Arena and Type stay.
+  it("just below Full's boundary (1537), AUTO drops only Trait/Keyword (13 columns)", () => {
     mockResizeObserverWidth.current = 1537;
     render(
       <CardsTable
@@ -1821,7 +1847,10 @@ describe("CardsTable width tiers (BL-226, CREATE)", () => {
         onSelectInventory={vi.fn()}
       />
     );
-    expect(headerNames()).toHaveLength(11);
+    expect(headerNames()).toHaveLength(13);
+    expect(screen.getByRole("columnheader", { name: "Arena" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Trait" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Keyword" })).toBeNull();
   });
 
   it("a manual override wins outright over AUTO, even when the measured width would fit Full", () => {

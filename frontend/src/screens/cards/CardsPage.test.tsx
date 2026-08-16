@@ -2621,11 +2621,22 @@ describe("CardsPage width-tier persistence and wiring (BL-226, CREATE)", () => {
     expect(screen.getByRole("columnheader", { name: "Rarity" })).toBeTruthy();
   });
 
-  it("hides the width-tier control in Gallery view", async () => {
+  // REPLACES the gallery-hidden assertion (round 4, owner's hybrid): the
+  // width flyout lives on the Table button and renders in BOTH views --
+  // picking a width from Gallery switches view and width in one move.
+  it("keeps the width flyout on the Table button in Gallery view; picking a width returns to table", async () => {
     await renderPage();
     expect(screen.queryByRole("group", { name: "Table width" })).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
-    expect(screen.queryByRole("group", { name: "Table width" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Table width" })).not.toBeNull();
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Table width" })).getByRole("button", {
+        name: "Compact",
+      })
+    );
+    // Back in table view, in the Compact prefix (Aspect hidden, Rarity shown).
+    expect(screen.getByRole("columnheader", { name: "Rarity" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Aspect" })).toBeNull();
   });
 });
 

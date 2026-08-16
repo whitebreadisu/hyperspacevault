@@ -23,8 +23,8 @@ import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import type { InventoryCard } from "../../utils/inventory";
 import { DEFAULT_SORT_STATE, ariaSortValue } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
-import { selectAutoTier } from "../../utils/tableWidthTier";
-import type { ResolvedWidthTier, WidthTier } from "../../utils/tableWidthTier";
+import { selectAutoStepCount } from "../../utils/tableWidthTier";
+import type { WidthTier } from "../../utils/tableWidthTier";
 
 const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Villainy"] as const;
 
@@ -122,8 +122,8 @@ const ASPECTS = ["Vigilance", "Command", "Aggression", "Cunning", "Heroism", "Vi
  * stretch behavior the Full tier already exhibits above its own natural
  * width -- not a new failure mode, just a wider range it now applies over).
  * No functional cost: the cap only ever bounds width, so a narrower tier
- * never scrolls or overflows because of it. See NATURAL_WIDTHS below for
- * the per-tier sums this DOES drive (the AUTO-selection fit test). */
+ * never scrolls or overflows because of it. See WIDTH_BY_STEP_COUNT below
+ * for the per-step sums this DOES drive (the AUTO-selection fit test). */
 const COLUMN_WIDTHS = [50, 210, 86, 128, 114, 128, 108, 90, 52, 52, 52, 144, 180, 74, 70];
 
 /** BL-226 (Issue #140, owner-locked design): the fifteen columns in the same
@@ -154,50 +154,49 @@ const WIDTH_BY_KEY: Record<ColumnKey, number> = Object.fromEntries(
   COLUMN_KEYS.map((key, i) => [key, COLUMN_WIDTHS[i]])
 ) as Record<ColumnKey, number>;
 
-/** BL-226: the three LOCKED hide-only tiers -- the single source of truth
- * for "which columns does tier X show." Both the header row and the body
- * row below map over the SAME `visible` Set built from this record (never
- * two independently-maintained column lists), so header and cell rendering
- * can never drift apart. Column ORDER within each tier is always the
- * canonical left-to-right order above -- a tier only ever hides columns, it
- * never reorders them.
- *   Compact:  #, Name, Playset, Value, Rarity, Set.
- *   Standard: Compact + Variants, Aspect, Cost, Power, HP.
- *   Full:     Standard + Type, Trait, Keyword, Arena (today's table,
- *             unchanged -- COLUMN_KEYS in full). */
-const TIER_COLUMN_KEYS: Record<ResolvedWidthTier, readonly ColumnKey[]> = {
-  compact: ["number", "name", "playset", "value", "rarity", "set"],
-  standard: [
-    "number",
-    "name",
-    "variants",
-    "playset",
-    "value",
-    "rarity",
-    "aspect",
-    "cost",
-    "power",
-    "hp",
-    "set",
-  ],
-  full: COLUMN_KEYS,
+/** BL-226 round 2 (owner, 2026-08-16 -- supersedes the original three fixed
+ * tiers for AUTO): column-AT-A-TIME escalation. The bare minimum is
+ * #/Name/Playset; each ladder step adds columns in the OWNER's priority
+ * order whenever the measured width permits (reducing runs the same ladder
+ * backwards -- his framing: "reducing from compact: value, set, rarity").
+ * Cost/Power/HP and Trait/Keyword move as atomic sets (owner spec -- no
+ * partial-stats states). Column ORDER on screen is always the canonical
+ * COLUMN_KEYS order above; the ladder only decides VISIBILITY, never order.
+ * The manual Compact/Standard/Full presets are fixed PREFIXES of this same
+ * ladder (TIER_STEP_COUNT below) -- one source of truth for both modes, and
+ * both the header row and body row map over the SAME `visible` Set derived
+ * from it, so header and cell rendering can never drift apart. */
+const BASE_COLUMN_KEYS: readonly ColumnKey[] = ["number", "name", "playset"];
+const PRIORITY_LADDER: readonly (readonly ColumnKey[])[] = [
+  ["rarity"],
+  ["set"],
+  ["value"], // ← 3 steps in = the Compact preset
+  ["aspect"],
+  ["variants"],
+  ["cost", "power", "hp"], // ← 6 steps in = the Standard preset
+  ["type"],
+  ["arena"],
+  ["trait", "keyword"], // ← all 9 = the Full preset (today's table)
+];
+
+const TIER_STEP_COUNT: Record<Exclude<WidthTier, "auto">, number> = {
+  compact: 3,
+  standard: 6,
+  full: PRIORITY_LADDER.length,
 };
 
-function tierNaturalWidth(tier: ResolvedWidthTier): number {
-  return TIER_COLUMN_KEYS[tier].reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0);
-}
-
-/** BL-226: each tier's natural (unstretched) column-width sum, derived
- * purely from COLUMN_WIDTHS/TIER_COLUMN_KEYS above -- Compact 700, Standard
- * 1050, Full 1538 (Full's sum is the same long-standing 1538 the cards.css
- * SYNC RULE comment already tracks; see COLUMN_WIDTHS' own doc comment for
- * that arithmetic). Fed to selectAutoTier (utils/tableWidthTier.ts) as the
- * AUTO mode's fit test against the measured wrapper width below. */
-const NATURAL_WIDTHS: Record<ResolvedWidthTier, number> = {
-  compact: tierNaturalWidth("compact"),
-  standard: tierNaturalWidth("standard"),
-  full: tierNaturalWidth("full"),
-};
+/** BL-226 round 2: cumulative natural width at each ladder step count --
+ * index 0 = the bare minimum alone (388), last = Full's long-standing 1538
+ * (the same sum the cards.css SYNC RULE tracks). Derived purely from
+ * COLUMN_WIDTHS above; fed to selectAutoStepCount (utils/tableWidthTier.ts)
+ * as AUTO's fit test against the measured wrapper width below. */
+const WIDTH_BY_STEP_COUNT: readonly number[] = (() => {
+  const widths: number[] = [BASE_COLUMN_KEYS.reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0)];
+  for (const step of PRIORITY_LADDER) {
+    widths.push(widths[widths.length - 1] + step.reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0));
+  }
+  return widths;
+})();
 
 /** Estimated row height in px, used only to seed the virtualizer's scroll
  * math (total scroll height + which rows are "in view"). It is an estimate,
@@ -256,8 +255,8 @@ interface Props {
    * measurement. Owned/persisted by CardsPage (utils/tableWidthTier.ts's
    * load/saveWidthTier), same optional/defaulted idiom as every other prop
    * here so every pre-existing call site/test keeps rendering the Full tier
-   * unaffected (see NATURAL_WIDTHS/measuredWidth below for why the default
-   * pre-measurement state also resolves to Full). */
+   * unaffected (see WIDTH_BY_STEP_COUNT/measuredWidth below for why the
+   * default pre-measurement state also resolves to Full). */
   widthTier?: WidthTier;
 }
 
@@ -307,25 +306,41 @@ export function CardsTable({
   // observation before paint, so the assumption is corrected before a user
   // ever sees it; src/test/setup.ts's ResizeObserver mock delivers it
   // synchronously so tests never observe the pre-measurement instant at all.
-  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  // Round 3 (owner: resizing "shakes"): state holds the RESOLVED step
+  // count, not the raw measured width -- the observer fires per animation
+  // frame during a drag, and storing raw pixels re-rendered the whole
+  // virtualized table every frame (the visible churn). Resolving inside the
+  // callback means setState almost always receives the SAME value (React
+  // bails out without re-rendering), so the table repaints only at genuine
+  // ladder-boundary crossings.
+  const [autoStepCount, setAutoStepCount] = useState<number | null>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) setMeasuredWidth(entry.contentRect.width);
+      if (entry) {
+        setAutoStepCount(selectAutoStepCount(entry.contentRect.width, WIDTH_BY_STEP_COUNT));
+      }
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  const resolvedTier: ResolvedWidthTier =
-    widthTier === "auto"
-      ? selectAutoTier(measuredWidth ?? NATURAL_WIDTHS.full, NATURAL_WIDTHS)
-      : widthTier;
-  const visibleKeys = TIER_COLUMN_KEYS[resolvedTier];
-  const visible = new Set<ColumnKey>(visibleKeys);
+  // BL-226 round 2: AUTO resolves to a ladder STEP COUNT (column-at-a-time);
+  // a manual preset maps to its fixed prefix of the same ladder. The
+  // pre-measurement instant assumes everything fits (every ladder step),
+  // the same "default = today's unaffected behavior" idiom.
+  const stepCount =
+    widthTier === "auto" ? (autoStepCount ?? PRIORITY_LADDER.length) : TIER_STEP_COUNT[widthTier];
+  const visible = new Set<ColumnKey>([
+    ...BASE_COLUMN_KEYS,
+    ...PRIORITY_LADDER.slice(0, stepCount).flat(),
+  ]);
+  // On-screen order is ALWAYS the canonical COLUMN_KEYS order -- the ladder
+  // decides visibility, never position.
+  const visibleKeys = COLUMN_KEYS.filter((key) => visible.has(key));
   const columnCount = visibleKeys.length;
 
   // BL-226: the scoped amber bracket (`.vs-bracket--inhead`, cards.css)
@@ -344,7 +359,13 @@ export function CardsTable({
     .slice(0, visibleKeys.indexOf("playset"))
     .reduce((sum, key) => sum + WIDTH_BY_KEY[key], 0);
   const bracketLeft = 8 - beforePlaysetWidth;
-  const bracketWidth = beforePlaysetWidth + WIDTH_BY_KEY.playset + WIDTH_BY_KEY.value - 16;
+  // Round 2: below-Compact states can hide the Value column -- the bracket
+  // then ends at Playset (and the label drops its VALUE mention below).
+  const bracketWidth =
+    beforePlaysetWidth +
+    WIDTH_BY_KEY.playset +
+    (visible.has("value") ? WIDTH_BY_KEY.value : 0) -
+    16;
 
   const rowVirtualizer = useVirtualizer({
     count: cards.length,
@@ -379,8 +400,25 @@ export function CardsTable({
     <div className="data-table-wrapper" ref={scrollRef}>
       <table className="data-table data-table--cards">
         <colgroup>
+          {/* BL-226 round 4 (owner: resize "pulses"): in AUTO, the Name
+              column carries NO width -- table-layout:fixed hands it all the
+              slack, so every column right of Name keeps a CONSTANT distance
+              from the window edge during a drag (only Name breathes,
+              smoothly) instead of the all-columns proportional stretch
+              re-dividing at every ladder boundary (the sawtooth the owner
+              described). AUTO guarantees the specified sum fits, so Name
+              always gets >= its natural 210. Manual overrides keep every
+              width fixed -- a forced-wide tier on a narrow window must
+              overflow into the h-scroll, not silently crush Name. */}
           {visibleKeys.map((key) => (
-            <col key={key} style={{ width: WIDTH_BY_KEY[key] }} />
+            <col
+              key={key}
+              style={
+                widthTier === "auto" && key === "name"
+                  ? undefined
+                  : { width: WIDTH_BY_KEY[key] }
+              }
+            />
           ))}
         </colgroup>
         <thead>
@@ -469,7 +507,7 @@ export function CardsTable({
                   style={{ left: bracketLeft, width: bracketWidth }}
                 >
                   <span className="vs-bracket__label">
-                    {scopeShortName(scope)} - CARD # + PIPS + VALUE
+                    {scopeShortName(scope)} - CARD # + PIPS{visible.has("value") ? " + VALUE" : ""}
                   </span>
                 </span>
               )}
@@ -492,6 +530,7 @@ export function CardsTable({
                 </SortHeaderButton>
               </span>
             </th>
+            {visible.has("value") && (
             <th
               className={`th-value${scope ? " th-scoped" : ""}`}
               aria-sort={ariaSortValue(sortState, "value")}
@@ -533,11 +572,18 @@ export function CardsTable({
                 </span>
               </span>
             </th>
-            <th aria-sort={ariaSortValue(sortState, "rarity")}>
-              <SortHeaderButton column="rarity" sortState={sortState} onSortChange={onSortChange}>
-                Rarity
-              </SortHeaderButton>
-            </th>
+            )}
+            {visible.has("rarity") && (
+              <th aria-sort={ariaSortValue(sortState, "rarity")}>
+                <SortHeaderButton
+                  column="rarity"
+                  sortState={sortState}
+                  onSortChange={onSortChange}
+                >
+                  Rarity
+                </SortHeaderButton>
+              </th>
+            )}
             {visible.has("aspect") && <th>Aspect</th>}
             {visible.has("type") && <th>Type</th>}
             {/* BL-173 review round 1: header text centers over the centered
@@ -569,11 +615,13 @@ export function CardsTable({
             {visible.has("trait") && <th>Trait</th>}
             {visible.has("keyword") && <th>Keyword</th>}
             {visible.has("arena") && <th>Arena</th>}
-            <th aria-sort={ariaSortValue(sortState, "set")}>
-              <SortHeaderButton column="set" sortState={sortState} onSortChange={onSortChange}>
-                Set
-              </SortHeaderButton>
-            </th>
+            {visible.has("set") && (
+              <th aria-sort={ariaSortValue(sortState, "set")}>
+                <SortHeaderButton column="set" sortState={sortState} onSortChange={onSortChange}>
+                  Set
+                </SortHeaderButton>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -660,16 +708,20 @@ export function CardsTable({
                 {/* BL-173: unit price, right-aligned mono, em-dash when
                     unpriced (same quiet state as the popup rail) -- fixed
                     column width via COLUMN_WIDTHS above, no stretch. */}
-                <td
-                  className={`td-value${scope ? " td-value--scoped" : ""}${
-                    cardValue == null ? " cell-muted" : ""
-                  }`}
-                >
-                  {formatCardValue(cardValue)}
-                </td>
-                <td className="td-ellipsis td-rarity">
-                  <RarityBadge rarity={card.rarity} />
-                </td>
+                {visible.has("value") && (
+                  <td
+                    className={`td-value${scope ? " td-value--scoped" : ""}${
+                      cardValue == null ? " cell-muted" : ""
+                    }`}
+                  >
+                    {formatCardValue(cardValue)}
+                  </td>
+                )}
+                {visible.has("rarity") && (
+                  <td className="td-ellipsis td-rarity">
+                    <RarityBadge rarity={card.rarity} />
+                  </td>
+                )}
                 {/* BL-111 F3 (design handoff §3) grew aspect icons 16 -> 22px;
                     owner dev review 2026-07-26 bumps them to 24px -- the stat
                     badges' RENDERED height at size 22 is 23-24px (width x1.05
@@ -738,7 +790,9 @@ export function CardsTable({
                     {card.arena ?? "—"}
                   </td>
                 )}
-                <td className="cell-muted td-ellipsis">{card.set_code}</td>
+                {visible.has("set") && (
+                  <td className="cell-muted td-ellipsis">{card.set_code}</td>
+                )}
               </tr>
             );
           })}

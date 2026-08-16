@@ -222,7 +222,11 @@ describe("InventorySummary width-tier toggle (BL-226, CREATE)", () => {
     expect(widthTierGroup()).toBeNull();
   });
 
-  it("renders all four segments, ahead of children, when table view is active", () => {
+  // REPLACES the standalone-control order assertion -- round 4 (owner's
+  // hybrid): the four options live in a flyout INSIDE the Table button
+  // (hover-revealed via CSS; always in the DOM), so they render between
+  // Table and Gallery.
+  it("renders the four flyout options inside the Table split, when table view is active", () => {
     render(
       <InventorySummary
         filteredCards={[card]}
@@ -238,26 +242,54 @@ describe("InventorySummary width-tier toggle (BL-226, CREATE)", () => {
     const buttons = Array.from(actions.querySelectorAll("button")).map((b) => b.textContent);
     expect(buttons).toEqual([
       "Table",
-      "Gallery",
       "Auto",
       "Compact",
       "Standard",
       "Full",
+      "Gallery",
       "Add Cards",
     ]);
+    expect(
+      document.querySelector(".inv-summary__table-split .inv-summary__table-flyout")
+    ).toBeTruthy();
   });
 
-  it("hides in Gallery view even when widthTier/onWidthTierChange are wired -- it has no meaning there", () => {
+  // REPLACES the gallery-hidden assertion -- round 4: the flyout lives on
+  // the Table button, which renders in BOTH views (hovering Table from
+  // Gallery is exactly how you switch view and width in one move).
+  it("renders on the Table button in Gallery view too -- picking a width switches both", () => {
+    const onViewModeChange = vi.fn();
+    const onWidthTierChange = vi.fn();
     render(
       <InventorySummary
         filteredCards={[card]}
         viewMode="gallery"
-        onViewModeChange={vi.fn()}
+        onViewModeChange={onViewModeChange}
         widthTier="auto"
-        onWidthTierChange={vi.fn()}
+        onWidthTierChange={onWidthTierChange}
       />
     );
-    expect(widthTierGroup()).toBeNull();
+    expect(widthTierGroup()).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+    expect(onViewModeChange).toHaveBeenCalledWith("table");
+    expect(onWidthTierChange).toHaveBeenCalledWith("compact");
+  });
+
+  it("a plain Table click resets the tier to AUTO (owner: auto is the default)", () => {
+    const onViewModeChange = vi.fn();
+    const onWidthTierChange = vi.fn();
+    render(
+      <InventorySummary
+        filteredCards={[card]}
+        viewMode="gallery"
+        onViewModeChange={onViewModeChange}
+        widthTier="compact"
+        onWidthTierChange={onWidthTierChange}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Table" }));
+    expect(onViewModeChange).toHaveBeenCalledWith("table");
+    expect(onWidthTierChange).toHaveBeenCalledWith("auto");
   });
 
   it("marks the active segment via aria-pressed, matching the widthTier prop", () => {

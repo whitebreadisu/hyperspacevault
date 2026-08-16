@@ -13,9 +13,9 @@
  * re-derives a manual choice from measured width). */
 export type WidthTier = "auto" | "compact" | "standard" | "full";
 
-/** What a WidthTier always resolves to once AUTO itself has been resolved --
- * the three tiers that actually decide which columns render. */
-export type ResolvedWidthTier = "compact" | "standard" | "full";
+// (The original ResolvedWidthTier type retired with the round-2 ladder
+// rework -- resolution now lands on a step COUNT, not a tier name; the
+// manual presets are ladder prefixes defined in CardsTable.tsx.)
 
 // ── Width-tier persistence ───────────────────────────────────────────────
 // AUTO is the default; a manual pick persists across visits via
@@ -45,28 +45,30 @@ export function saveWidthTier(tier: WidthTier): void {
   }
 }
 
-/** AUTO's own selection rule: the widest tier whose natural column-width sum
- * (CardsTable.tsx's NATURAL_WIDTHS, derived from COLUMN_WIDTHS -- never a
- * fresh magic number here) fits inside `availableWidth` (the table wrapper's
- * OWN measured content-box width, via ResizeObserver -- CardsTable.tsx;
- * deliberately NOT window.innerWidth, see that component's own comment for
- * why the sidebar's dock/float state makes the two diverge).
+/** AUTO's selection rule -- owner revision (round 2, 2026-08-16): column-AT-
+ * A-TIME, not tier-at-a-time. CardsTable.tsx defines a PRIORITY_LADDER of
+ * escalation steps over a bare minimum (#/Name/Playset); `widthByStepCount`
+ * is the cumulative natural width at each step count (index 0 = the bare
+ * minimum alone, derived from COLUMN_WIDTHS -- never fresh magic numbers).
+ * This returns the LARGEST step count whose width fits `availableWidth`
+ * (the table wrapper's OWN measured content-box width via ResizeObserver --
+ * deliberately NOT window.innerWidth; the sidebar's dock/float state makes
+ * the two diverge).
  *
- * Exact-fit comparison (>=), no hysteresis band: Compact/Standard/Full's
- * natural widths are 700/1050/1538px -- 350px+ apart -- so a boundary
- * flicker between adjacent tiers is not a realistic concern at any window
- * size a user would actually rest on (a resize that crosses a tier boundary
- * has to cross hundreds of px, nowhere near the few-px jitter hysteresis
- * exists to damp). Falls through to Compact (the narrowest tier) when even
- * Compact's own sum doesn't fit -- there is no narrower tier to fall back
- * to, so a very narrow wrapper still scrolls horizontally in Compact, same
- * as the pre-BL-226 Full-only table already did below its own natural
- * width. */
-export function selectAutoTier(
+ * Exact-fit comparison (>=), no hysteresis: the narrowest single step is
+ * the Set column's 70px, comfortably above resize jitter. Returns 0 (bare
+ * minimum) when
+ * even that doesn't fit -- a very narrow wrapper scrolls horizontally in
+ * the bare minimum, same as the pre-BL-226 Full-only table did below its
+ * own natural width. The manual Compact/Standard/Full presets are fixed
+ * prefixes of the same ladder (CardsTable.tsx's TIER_STEP_COUNT) -- one
+ * source of truth for both modes. */
+export function selectAutoStepCount(
   availableWidth: number,
-  naturalWidths: Record<ResolvedWidthTier, number>
-): ResolvedWidthTier {
-  if (availableWidth >= naturalWidths.full) return "full";
-  if (availableWidth >= naturalWidths.standard) return "standard";
-  return "compact";
+  widthByStepCount: readonly number[]
+): number {
+  for (let steps = widthByStepCount.length - 1; steps >= 1; steps--) {
+    if (availableWidth >= widthByStepCount[steps]) return steps;
+  }
+  return 0;
 }
