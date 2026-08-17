@@ -43,9 +43,10 @@ resource "google_secret_manager_secret_iam_member" "backend_runtime_database_url
 }
 
 # P4 Stage 2: password for the swu_app role created by migration 0019.
-# alembic upgrade head (run on every Cloud Run start) reads this so it can
-# CREATE ROLE swu_app. Also used below (Stage 3) to build APP_DATABASE_URL,
-# the request-serving connection string.
+# alembic upgrade head (run by the discrete migrate Cloud Run Job before
+# each deploy takes traffic -- ADR-0011; NOT on container start) reads this
+# so it can CREATE ROLE swu_app. Also used below (Stage 3) to build
+# APP_DATABASE_URL, the request-serving connection string.
 resource "random_password" "app_db_password" {
   length  = 32
   special = false

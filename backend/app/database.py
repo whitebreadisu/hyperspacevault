@@ -175,9 +175,10 @@ def get_db(
 
 def get_catalog_db(request: Request):
     """FastAPI dependency: a tenant-less swu_app session for the fully
-    public catalog reads (BL-56 / ADR-0008) -- GET /api/cards,
-    /api/cards/{id}, /api/sets, /api/sets/{code}. No Authorization header is
-    required, inspected, or verified. RLS is the fail-safe: the
+    public catalog reads (BL-56 / ADR-0008) -- GET /api/sets,
+    /api/sets/{code}, and the catalog reference endpoints (the original
+    GET /api/cards* routes were retired in BL-102). No Authorization header
+    is required, inspected, or verified. RLS is the fail-safe: the
     tenant_isolation / user_self_access policies (migration 0023) return
     zero inventory/users rows for a session with no tenant/identity GUC
     set, so even if a future change accidentally joined inventory onto
