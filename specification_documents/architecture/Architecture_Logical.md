@@ -4,7 +4,7 @@
 
 A React single-page app talks to one FastAPI service over REST; PostgreSQL holds both the shared catalog and per-tenant vaults, with tenant isolation enforced by the database itself. Around that core sit the ingestion pipelines that keep catalog, images, and prices current.
 
-*Prepared 2026-07-28 · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
+*Prepared 2026-07-28 · Updated 2026-08-16 (v1.4: collection sharing) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
 
 ## Component layering
 
@@ -24,7 +24,7 @@ flowchart TB
 
   subgraph backend["FastAPI service — Python 3.12, REST/JSON"]
     mw["Middleware: gzip · CORS (dev only) · structured JSON logging<br/>· security headers · proxy headers"]
-    routers["Routers (no logic):<br/>sets · base-cards · catalog · images · inventory<br/>· settings · deck-check · feedback · account"]
+    routers["Routers (no logic):<br/>sets · base-cards · catalog · images · inventory<br/>· settings · deck-check · feedback · account<br/>· shares (owner) · shared (anonymous viewer)"]
     services["Services (domain logic:<br/>resolution, limits, pricing modes, import/export)"]
     repos["Repositories (SQL) → SQLAlchemy models"]
     mw --> routers --> services --> repos
@@ -59,8 +59,10 @@ flowchart TB
 | `/api/settings/limits` | Keep-limit matrix, hard/soft cap mode | `AUTH` |
 | `/api/feedback` | Feedback → GitHub issue (best-effort) | `OPTIONAL AUTH · RATE-LIMITED` |
 | `/api/account` | Idempotent full-tenant delete | `AUTH + 5-MIN RECENT RE-AUTH` |
+| `/api/shares` | Create / rename / rotate / revoke view-only collection shares | `AUTH` |
+| `/api/shared/{token}` | Anonymous read-only vault view — the token *is* the credential | `PUBLIC · TOKEN-SCOPED · RATE-LIMITED · NEVER LOGGED` |
 
-Auth requirements are expressed as a ladder of FastAPI dependencies — each endpoint declares exactly the trust level it needs: tenant-less catalog access, optional auth, required auth (which auto-provisions the user and tenant on first contact), verified email, and finally recent re-authentication for account deletion.
+Auth requirements are expressed as a ladder of FastAPI dependencies — each endpoint declares exactly the trust level it needs: tenant-less catalog access, token-scoped anonymous share reads (a 256-bit secret link resolves, via RLS itself, to one tenant's read-only view), optional auth, required auth (which auto-provisions the user and tenant on first contact), verified email, and finally recent re-authentication for account deletion.
 
 ## Identity and tenant isolation
 
@@ -90,6 +92,7 @@ sequenceDiagram
 - **Two database roles by design:** a privileged role (may bypass RLS) used only by migrations and ingestion pipelines; an application role (cannot bypass RLS) used by every request. The session is pinned to one pooled connection for the request's life so the identity variables can't leak across requests.
 - **Fail-closed policies:** the tenant-matching expression was hardened so a missing or cleared tenant matches *no* rows — there is no default-tenant fallback.
 - **One user = one tenant**, auto-provisioned; the tenants table itself is scoped by server-derived filters (deletes only), everything tenant-owned is under forced RLS.
+- **Sharing rides the same rails (v1.4):** a share link's secret token resolves — through an RLS policy, not application code — to its owner's tenant, and the anonymous viewer then reads *identical rows through identical queries* as the owner would; there is no share-specific read path to audit. No write endpoint exists on the viewer surface, revocation is immediate, and invalid and revoked tokens are deliberately indistinguishable (both 404).
 
 ## Data model
 
@@ -123,16 +126,18 @@ flowchart LR
     inventory["inventory<br/>(tenant, variant) → quantity"]
     limits["tenant_card_limits · tenant_settings"]
     feedback["feedback (tenant optional)"]
+    shares["shares<br/>secret view-only links<br/>one active per scope · soft revoke"]
     tenants --> inventory
     tenants --> limits
     users --- tenants
     tenants -.-> feedback
+    tenants --> shares
   end
 
   inventory -->|"variant_id"| card_variants
 
   classDef rls fill:#F3E9D4,stroke:#8A6116,stroke-width:2px;
-  class users,inventory,limits,feedback rls;
+  class users,inventory,limits,feedback,shares rls;
 ```
 
 - **History vs. hot path:** daily prices append to a history table (866 days of depth for charts); a separate latest-price snapshot keeps list-view reads flat regardless of history size.
@@ -172,4 +177,4 @@ flowchart LR
 
 ---
 
-*Prepared 2026-07-28 from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*
+*Prepared 2026-07-28, updated 2026-08-16 from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*

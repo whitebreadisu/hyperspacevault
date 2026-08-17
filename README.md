@@ -24,6 +24,10 @@ implementation; [HISTORY.md](HISTORY.md) chronicles the arc.*
 - **Deck check** — price any decklist against the market and against what you already own
 - **Collection value** — market/low valuation with per-finish and unit-value breakdowns
 - **Import/export** — full-collection portability in and out
+- **Collection sharing** — a secret view-only link to your vault: rename, rotate, or revoke
+  it at will; viewers need no account and can change nothing
+- **A Vault built for volume** — batch quantity entry, selectable table width tiers,
+  over-limit discovery filters, and an in-app release-notes feed (`[HSV] Updates`)
 
 ## Architecture
 

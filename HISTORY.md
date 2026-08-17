@@ -23,6 +23,10 @@ BL-ids.
 | 2026-07-25 | Inventory import/export shipped (canonical format, cross-tenant round-trip proven) |
 | 2026-07-27 | Price coverage 92.9% — Prestige/Showcase/Weekly Play finishes mapped |
 | 2026-07-29 | FFG card-data offload: exports moved out of git to private storage |
+| 2026-07-29 | Repository flipped public — github.com/whitebreadisu/hyperspacevault (fresh squashed history, WIF re-keyed, branch protection + secret scanning) |
+| 2026-08-07 | **v1.3 shipped** — in-app release notes (`[HSV] Updates`), SWUDB + sw-unlimited-db collection import presets, playset-scoped finish filter |
+| 2026-08-11 | v1.3.1 hotfix — large-collection imports (1,500+ cards) fixed within hours of a prod incident |
+| 2026-08-16 | **v1.4 shipped + public announcement** — collection sharing links, column sorting, table width tiers; Reddit launch draws 134 users / ~193k cards tracked day one |
 
 ## Resolution ledger
 
@@ -57,7 +61,7 @@ BL-ids.
 - `2026-06-28` **BL-71** — Per-filter AND/OR toggle for multi-select filters (keywords, traits)
 - `2026-06-28` **BL-72** — Filter layout — stop unnecessary elongation; wrap only when content won't fit
 
-### July 2026 — 73 items resolved
+### July 2026 — 86 items resolved
 
 - `2026-07-05` **BL-56** — Unify Catalog & Inventory into one list (supersedes BL-17)
 - `2026-07-10` **BL-100** — `/api/base-cards` response-generation latency (~3.2 s TTFB)
@@ -128,13 +132,62 @@ BL-ids.
 - `2026-07-26` **BL-166** — TS26 set logo missing (broken image in both Add Cards pickers)
 - `2026-07-26` **BL-167** — CI docs-only trigger gate
 - `2026-07-26` **BL-169** — Go-public analysis & plan
-- `2026-07-27` **BL-172** — The flip + post-flip hardening & validation
+- `2026-07-29` **BL-172** — The flip + post-flip hardening & validation — repo public at github.com/whitebreadisu/hyperspacevault
 - `2026-07-27` **BL-173** — Cards-table variant scope + Unit Value column
 - `2026-07-27` **BL-174** — Price mapping for Prestige / Showcase / Weekly Play finishes
 - `2026-07-29` **BL-170** — FFG asset & dataset offload to private storage
+- `2026-07-29` **BL-168** — Self-hosted Actions runner — closed, not built (unsafe on a public repo; public runner minutes free)
+- `2026-07-29` **BL-171** — History & hygiene pass — gitleaks clean over 820 commits; fresh squashed public history
+- `2026-07-29` **BL-177** — Public-tree curation — layered docs split (private companion repo)
+- `2026-07-30` **BL-89** — Multi-user tenant deletion semantics — designed away (one user per tenant, permanent)
+- `2026-07-30` **BL-127** — Stand-alone domain migration completed — hyperspacevault.com is the sole serving identity
+- `2026-07-30` **BL-134** — Set logos & starfields (FFG marketing assets) — accepted-risk decision recorded
+- `2026-07-30` **BL-146** — List-endpoint sparse split + latest-price snapshot — prod verified
+- `2026-07-30` **BL-176** — Stale `db-password` secret reconciled with the live credential
+- `2026-07-30` **BL-178** — Branch protection restored on the public repo (`ci-ok` required check)
+- `2026-07-30` **BL-179** — Completion-panel set selection + filter-panel UX overhaul
+- `2026-07-30` **BL-180** — Add Cards locked header — base-set logo(s) for non-base selections
+- `2026-07-31` **BL-128** — Feedback notification email — bot-collaborator author
+- `2026-07-31` **BL-181** — Unit/Collection value toggle + app-wide Market/Low switches
+
+### August 2026 — 33 items resolved
+
+- `2026-08-01` **BL-21** — Disaster recovery — automated DB backup (prod restore drill executed)
+- `2026-08-01` **BL-182** — User-defined inventory caps — category-level keep-limit steppers in Settings
+- `2026-08-01` **BL-183** — Early-era Weekly Play pricing — root-coded WP variants join the mapping
+- `2026-08-07` **BL-184** — Notification system — `[HSV] Updates` + release notes surface
+- `2026-08-07` **BL-185** — Import preset — SWUDB collection export
+- `2026-08-07` **BL-186** — Import preset — sw-unlimited-db collection export
+- `2026-08-07` **BL-187** — Variant-number sort — playset filter drives the # column + list order
+- `2026-08-07` **BL-191** — Add Cards — default finish for shared-number early-set cards + verify cue
+- `2026-08-07` **BL-192** — Card popup — up/down arrows cycle the variant selector (wrap-around)
+- `2026-08-07` **BL-193** — Card popup preselects the scoped variant when the variant scope is active
+- `2026-08-07` **BL-194** — `#` header gets the scope control's full visual treatment while scoped
+- `2026-08-07` **BL-195** — Collection filters evaluate against the scoped variant while the scope is active
+- `2026-08-07` **BL-196** — Busy overlay for large inventory applies — staged status + aspect-glyph animation
+- `2026-08-07` **BL-199** — Foreign-import resolution — token/promo-run (set, number) collisions produce false ambiguity
+- `2026-08-07` **BL-200** — Import failure-state language — full census + plain-language rewrite
+- `2026-08-07` **BL-201** — Gallery view — the displayed variant is the popup's initial selection
+- `2026-08-07` **BL-202** — Import preview report — tabular problem/resolved views with aligned totals header
+- `2026-08-11` **BL-188** — Surplus / needs tracking concept — superseded by the lists & sharing family
+- `2026-08-11` **BL-203** — Import 500s on large files — composite-IN parser stack overflow (v1.3.1 hotfix)
+- `2026-08-11` **BL-204** — Spec — collection lists & sharing
+- `2026-08-16` **BL-205** — Inventory sharing v1 — secret view-only links
+- `2026-08-16` **BL-210** — Promote-time release-notes gate + GitHub Releases mirror
+- `2026-08-16` **BL-211** — Safari Google sign-in — same-origin auth handler
+- `2026-08-16` **BL-213** — Vault table — user-controlled column sorting
+- `2026-08-16` **BL-217** — Vault filter — "over my keep limit" (over-cap discovery)
+- `2026-08-16` **BL-219** — Card popup stepper — rapid-increment responsiveness (batched deltas)
+- `2026-08-16` **BL-214** — Vault table column visibility + saved views — superseded by BL-226's width tiers
+- `2026-08-16` **BL-222** — Gallery sort header + scoped plate alignment
+- `2026-08-16` **BL-223** — Completion-panel Totals switch
+- `2026-08-16` **BL-224** — Set-dimension unification — base-set selection is the set filter
+- `2026-08-16` **BL-225** — Gallery header — full table-header parity
+- `2026-08-16` **BL-226** — Table width tiers — Compact / Standard / Full with auto-selection
+- `2026-08-16` **BL-227** — Header links — white at rest, button-blue hover with glow
 
 
 ---
 
-*100 resolved items as of 2026-07-29. Generated from the backlog ledger;
+*146 resolved items as of 2026-08-16. Generated from the backlog ledger;
 regenerated at each release-notes cycle.*
