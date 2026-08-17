@@ -4,7 +4,7 @@
 
 HyperspaceVault is a multi-tenant web application for Star Wars: Unlimited collectors. It carries the complete card catalog with daily market prices, and gives each signed-in collector a private, isolated vault to track what they own, what a deck would cost them, and what they're missing.
 
-*Prepared 2026-07-28 · Companion views: [Logical](Architecture_Logical.md) (components & data) · [Physical](Architecture_Physical.md) (deployment & delivery)*
+*Prepared 2026-07-28 · Updated 2026-08-16 (v1.4: collection sharing — the Viewer actor) · Companion views: [Logical](Architecture_Logical.md) (components & data) · [Physical](Architecture_Physical.md) (deployment & delivery)*
 
 ## System context
 
@@ -17,6 +17,7 @@ flowchart LR
   subgraph people["People"]
     guest["Guest<br/>browses with no account"]
     collector["Collector<br/>signed in, owns a vault"]
+    viewer["Viewer<br/>holds a collector's share link,<br/>sees that vault read-only"]
     operator["Operator<br/>curates content, gates production"]
   end
 
@@ -36,7 +37,8 @@ flowchart LR
   end
 
   guest -->|"browse catalog & prices"| hv
-  collector -->|"track inventory, check decks"| hv
+  collector -->|"track inventory, check decks,<br/>share the vault"| hv
+  viewer -->|"view a shared vault<br/>(secret link, no account)"| hv
   operator -.->|"content runbooks, prod promotes"| hv
 
   swuapi -.->|"catalog refresh (operator-run)"| hv
@@ -112,10 +114,12 @@ The catalog is an open storefront window — browsing requires nothing. Progress
 | Capability | Requires | Notes |
 |---|---|---|
 | Browse catalog, prices, images | `GUEST` | Public and CDN-cached; the growth funnel |
+| View a shared vault | `SHARE LINK` | Secret link is the whole credential — read-only, revocable, rate-limited (v1.4) |
 | Send feedback | `GUEST` | Rate-limited; lands as a GitHub issue |
 | See own quantities on cards, deck check | `SIGNED IN` | First sign-in auto-provisions the vault |
 | Add / remove cards, import / export | `SIGNED IN + VERIFIED EMAIL` | All vault mutations sit behind verification |
 | Keep-limit settings | `SIGNED IN` | Per-tenant policy, hard or soft mode |
+| Share the vault (view-only link) | `SIGNED IN` | One active link; rename, rotate, or revoke at will |
 | Delete account | `SIGNED IN + RECENT RE-AUTH` | 5-minute freshness window; full tenant purge |
 | Catalog refresh, image mirror, prod release | `OPERATOR` | Runbook-driven; production is always a human gate unless a release is explicitly low-risk |
 
@@ -131,4 +135,4 @@ The catalog is an open storefront window — browsing requires nothing. Progress
 
 ---
 
-*Prepared 2026-07-28 from the as-built system; companion views: [Logical](Architecture_Logical.md) · [Physical](Architecture_Physical.md)*
+*Prepared 2026-07-28, updated 2026-08-16 from the as-built system; companion views: [Logical](Architecture_Logical.md) · [Physical](Architecture_Physical.md)*

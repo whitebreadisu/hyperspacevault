@@ -97,6 +97,13 @@ rather than relying on "a fresh connection never sets them."
   only on `inventory`, so a mutation accidentally hung off either read dependency fails
   on privileges anyway, and RLS still blocks cross-tenant reads regardless of which
   dependency a route uses.
+  > **As-built update (2026-08-16, BL-205):** the count is now **four** — v1.4 added
+  > `get_shared_db`, the token-scoped dependency behind the anonymous share-viewer
+  > routes (`/api/shared/{token}*`). It resolves a secret share token to its owner's
+  > tenant via an RLS policy on the `shares` table, then scopes the session exactly as
+  > `get_db` would — the same "RLS is the enforcer" posture this ADR established,
+  > extended to a credential that isn't a Firebase identity. The picking rule gains one
+  > clause: `get_shared_db` is only ever used by the shared-viewer router.
 - **−** The migration 0018 `COALESCE(…, 1)` fallback **must change**, with a regression test
   proving a tenant-less session sees **zero** `inventory`/`users` rows, including on a
   pooled connection previously scoped to a real tenant. This touches the RLS policy that
