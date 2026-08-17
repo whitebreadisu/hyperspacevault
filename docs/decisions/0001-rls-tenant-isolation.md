@@ -20,3 +20,36 @@ Use Postgres RLS. The application connects as a non-superuser role (`swu_app`, c
 - **−** Every connection **must** set tenant context or tenant-scoped queries return nothing; this wiring in `get_db()` is load-bearing and easy to overlook when adding new entry points.
 - **−** Debugging is harder: an empty result can mean "no data" *or* "tenant context wasn't set."
 - **−** `WITH CHECK` is required, not optional — without it a tenant can *write* rows attributed to another tenant even when reads are constrained. We hit and fixed exactly this bug during P5; it's why both clauses are mandatory on every policy.
+
+## Amendment — enforcement mechanics worth their own record (2026-08-17, BL-233 rationale extraction from Platform Spec §1.7.1/§1.7.2)
+
+Two implementation decisions inside this boundary carry non-obvious rationale:
+
+- **The `swu_app` role exists because the bootstrap role cannot be
+  RLS-constrained.** P4 Stage 2 discovered that `swu_user` (`POSTGRES_USER`,
+  Cloud SQL's bootstrap role) has `BYPASSRLS`, attribute removal is refused
+  outright for the bootstrap role, and `FORCE ROW LEVEL SECURITY` alone is
+  insufficient because table *owners* bypass RLS regardless of `FORCE`.
+  There is no way to make `swu_user` RLS-constrained — so migration 0019
+  creates `swu_app` as the only role the policies are ever evaluated
+  against, and `swu_user` remains the migration-running admin.
+- **The tenant GUC is session-scoped `set_config(..., false)`, not
+  `SET LOCAL`.** Requests are not one transaction: `upsert_increment` /
+  `upsert_decrement` commit then `refresh()` — two transactions.
+  `SET LOCAL` reverts at the first `COMMIT`, so the refresh would run with
+  the variable unset. Session scope is safe only because each request's
+  Session is **bound to one dedicated pooled `Connection` for the request's
+  whole life** — a claim that was originally false in practice: an
+  engine-bound Session releases its connection at every `commit()`, and
+  under concurrent traffic the pool interleaved, producing a live dev 500
+  (corrected 2026-07-13; regression coverage in
+  `test_session_connection_pinning.py`). Migration 0023's `NULLIF` policy
+  form is what made that failure loud instead of a silent cross-tenant read
+  — reinforcing this ADR's "empty result vs. missing context" consequence.
+
+The schema-per-tenant alternative this ADR rejects as (b) was also argued
+independently in Platform Spec §3.13.2 (now archived): per-tenant schema
+overhead would grow linearly with auto-provisioned signups (ADR-0026) for no
+isolation benefit RLS doesn't already provide, and RLS runs identically on
+local Postgres, CI, and Cloud SQL. Original prose: Platform Spec archive
+(§1.7.1/§1.7.2/§3.13.2, extracted 2026-08-17).
