@@ -39,6 +39,35 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-232 hardening patch (security review of the v1.4 surfaces). Date
+    // finalized at promote time per the release-notes ritual.
+    key: "1.4.1",
+    version: "1.4.1",
+    date: "2026-08-17",
+    title: "Share links, extra private",
+    sections: [
+      {
+        heading: "Privacy hardening",
+        items: [
+          {
+            title: "Your share links stay yours",
+            body: "We ran a full security review of the new sharing feature. Verdict: solid — no way in, no way to guess a link, viewers see exactly what we said they would. We tightened the edges anyway: share links are now invisible to search engines, and a link's secret no longer appears anywhere in our server logs. Rotate or revoke still kills a link instantly.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Tighter permissions in the build pipeline and a new guard rail that keeps future code honest about how it puts text on your screen.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // v1.4: sharing + the feedback batch. Date finalized at promote time
     // per the release-notes ritual (owner-approved copy 2026-08-16; NO
     // Safari sign-in item by owner decision — BL-212 unresolved/deferred).
