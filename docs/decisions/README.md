@@ -8,7 +8,7 @@ This folder holds **Architecture Decision Records** — short, numbered, append-
 - Use [`0000-template.md`](0000-template.md) as the starting point.
 
 ## When to write one
-A decision earns an ADR when it is *most* of: structural / cross-cutting · expensive to reverse · had real alternatives · would make a future reader ask "why is it this way?". Routine, easily-reversible choices do **not** get an ADR. A healthy project has ~a dozen, not a hundred.
+A decision earns an ADR when it is *most* of: structural / cross-cutting · expensive to reverse · had real alternatives · would make a future reader ask "why is it this way?". Routine, easily-reversible choices do **not** get an ADR. A healthy project has ~a dozen, not a hundred — though under the three-tier documentation regime ([ADR-0020](0020-three-tier-documentation-regime.md)) this series is also the destination for decision rationale extracted from the current-state specs, so the count runs somewhat above pure greenfield volume by design.
 
 ## Index
 | ADR | Title | Status |
@@ -31,3 +31,11 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0016](0016-auth-provider-collision-auto-link.md) | Social-provider collisions resolve by native auto-link — one account per email | Accepted |
 | [0017](0017-risk-tiered-autonomy-rubric.md) | Risk-tiered autonomy rubric — explicit levels, fail-closed defaults, one machine-consumed label | Accepted |
 | [0018](0018-category-level-cap-precision-restore.md) | Restore numeric keep-limit precision at category granularity | Accepted |
+| [0019](0019-sharing-secret-link-trust-model.md) | Collection sharing via secret-link capability tokens over the existing RLS rails | Accepted |
+| [0020](0020-three-tier-documentation-regime.md) | Three-tier documentation regime — current-state / rationale / history | Accepted |
+| [0021](0021-hybrid-environment-model.md) | Hybrid environment model — persistent minimal `swu-prod`, ephemeral `swu-sandbox` | Accepted |
+| [0022](0022-wif-keyless-ci-auth.md) | CI authenticates to GCP via Workload Identity Federation, never SA keys | Accepted |
+| [0023](0023-public-ingress-app-layer-auth.md) | Public Cloud Run ingress with auth enforced at the application layer | Accepted |
+| [0024](0024-firebase-auth-provider-selection.md) | Firebase Authentication over Auth0 / Clerk / Supabase Auth | Accepted |
+| [0025](0025-cloud-error-reporting-over-sentry.md) | Cloud Error Reporting over Sentry | Accepted |
+| [0026](0026-one-user-one-tenant-permanent.md) | One user, one tenant — auto-provisioned, and permanent | Accepted |

@@ -10,6 +10,8 @@
 
 This document is its platform-side peer. It describes **how the deployed system actually works today** — authentication and multi-tenancy, the CI/CD pipeline, the Terraform-managed GCP infrastructure, observability, and the current security posture — with file/line references precise enough that a reviewer (human or AI) can verify each claim against the code without re-deriving it.
 
+Under the three-tier documentation regime ([ADR-0020](../docs/decisions/0020-three-tier-documentation-regime.md)) this is a **Tier-1 current-state** document: decision rationale lives in `docs/decisions/` (ADRs), and superseded text moves verbatim — with a dated tombstone here — to `SWU_Platform_Spec_Archive.md`.
+
 **Relationship to other documents:**
 
 | Document | Role |
@@ -91,7 +93,7 @@ Confirmed by grep, refreshed 2026-08-16 (BL-231 sweep; earlier snapshots: 2026-0
 
 1. FastAPI resolves `identity = get_current_identity(...)` → `(firebase_uid, email, email_verified)`. If this raises `401`, `get_db`'s body never runs. (`get_db` itself never inspects `email_verified` — a route that needs the stronger check adds `Depends(require_verified_email)` alongside it, per the BL-16 as-built note above.)
 2. Opens a session on `AppSessionLocal` (bound to `APP_DATABASE_URL`, the `swu_app` role — see 1.6).
-3. `SELECT set_config('app.current_firebase_uid', :uid, false)` — session-scoped (third argument `false`; see Design Rationale 1.7.1).
+3. `SELECT set_config('app.current_firebase_uid', :uid, false)` — session-scoped (third argument `false`; rationale: [ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md) amendment 2026-08-17).
 4. `SELECT tenant_id FROM users WHERE firebase_uid = :uid` — the `users.user_self_access` RLS policy (migration 0021) means this query can only ever see the caller's own row, or zero rows.
 5. **If no row** (first-ever request from this `firebase_uid`) — auto-provisioning:
    - `INSERT INTO tenants (name) VALUES (:email's Tenant) RETURNING id` → `new_tenant_id`
@@ -99,7 +101,7 @@ Confirmed by grep, refreshed 2026-08-16 (BL-231 sweep; earlier snapshots: 2026-0
    - If that insert returned a row, use its `tenant_id`. If not (lost a race with a concurrent first request for the same `firebase_uid`), `new_tenant_id` is now an orphaned `tenants` row, and the code re-selects the winning request's `tenant_id` from `users`.
    - `db.commit()`.
 6. **If a row exists** — `tenant_id = row.tenant_id`.
-7. `SELECT set_config('app.current_tenant_id', :tenant_id, false)` — session-scoped (Design Rationale 1.7.1).
+7. `SELECT set_config('app.current_tenant_id', :tenant_id, false)` — session-scoped ([ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md) amendment 2026-08-17).
 8. `request.state.tenant_id = tenant_id` — read by the P6 logging middleware (`app/middleware.py`, Section 4.1) so every structured log line for this request carries the tenant.
 9. `yield db` — the router's body runs here with a `swu_app` session that already has both session variables set. `finally: db.close()`.
 
@@ -127,48 +129,16 @@ Net effect: `swu_app` can read the full `inventory`/`users`/`tenants`/catalog ta
 | Used by | Alembic (`alembic upgrade head`), ingestion scripts (`bootstrap_catalog` only — `apply_seed` was retired, see `SWU_Application_Spec.md` §13/ADR-0004; `apply_inventory_snapshot` was retired 2026-07-25, BL-93, replaced by §17 import/export) | `get_db()` — every request-serving connection |
 | RLS applies? | No (bypassed) | Yes |
 
-The migration-running role needs unrestricted write access to set up the schema and grants in the first place; the request-serving role is the one RLS policies actually constrain. Section 1.7.2 explains why this split exists at all.
+The migration-running role needs unrestricted write access to set up the schema and grants in the first place; the request-serving role is the one RLS policies actually constrain. [ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md)'s 2026-08-17 amendment explains why this split exists at all.
 
-### 1.7 Design Rationale
+### 1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)
 
-#### 1.7.1 Session-scoped `set_config` (third argument `false`), not `SET LOCAL`
+Rationale formerly here moved under the three-tier doc regime ([ADR-0020](../docs/decisions/0020-three-tier-documentation-regime.md)); original prose verbatim in `SWU_Platform_Spec_Archive.md`:
 
-**Selected:** `set_config('app.current_tenant_id', tenant_id, false)` — session-scoped, persists until the connection is returned to the pool.
-
-P4 Stage 3's original framing assumed one transaction per request, with `SET LOCAL` (equivalent to `set_config(..., true)`, transaction-scoped) resetting the variable automatically at the end of each request. But `upsert_increment`/`upsert_decrement` call `db.commit()` then `db.refresh(inv)` — **two transactions per request**. `SET LOCAL` reverts at the first `COMMIT`, so the `refresh()` transaction would see `app.current_tenant_id` unset and silently fall back to tenant #1 via migration 0018's `COALESCE` bridge — the wrong tenant's data, with no error.
-
-Session-scoped `set_config` is set once per `get_db()` call (step 7 above) and remains in effect for every transaction of the request, because each request's SQLAlchemy Session is **bound to one dedicated pooled `Connection` for the request's whole life** (`_open_authenticated_session` / `_open_catalog_session` return the pair; the dependency closes both).
-
-**Corrected 2026-07-13.** This paragraph originally claimed the dependency `yield` alone kept one connection checked out per request — false: an engine-bound Session releases its connection to the pool at every `commit()` and lazily checks out another (possibly different) one for the next statement. Under concurrent traffic the pool interleaves, and a mid-request commit (e.g. `PUT /api/settings/limits`' `replace_overrides`) could be followed by a connection last used by a tenant-less catalog session — GUC `''` — producing a live 500 in dev (`invalid input syntax for type integer: ""`); serial traffic had passed for weeks by pool luck. The explicit connection binding above is the fix; regression coverage in `test_session_connection_pinning.py` deterministically reproduces the interleave. (Migration 0023's NULLIF policies meant the failure was a loud cast error rather than silent tenant-#1 fallback — the 0018-era `COALESCE` bridge would have made this a silent cross-tenant read.)
-
-#### 1.7.2 `swu_app` role split from `swu_user`
-
-**Selected:** a new, separate least-privilege role (`swu_app`, migration 0019) that RLS policies actually apply to; `swu_user` remains the migration-running admin.
-
-P4 Stage 2 discovered that `swu_user` (`POSTGRES_USER` / Cloud SQL's bootstrap role) has `BYPASSRLS`, and `ALTER ROLE swu_user NOSUPERUSER`-equivalent attribute removal is refused outright for the bootstrap role — `FORCE ROW LEVEL SECURITY` alone is not sufficient, because table *owners* bypass RLS by default regardless of `FORCE`. There is no way to make `swu_user` RLS-constrained. `swu_app` is the only role the `tenant_isolation` and `user_self_access` policies are ever evaluated against.
-
-This required adding `APP_DB_PASSWORD` as a Cloud Run env var (Section 3.7) so migration 0019's `CREATE ROLE swu_app WITH LOGIN PASSWORD '...'` has a password to use. **As of BL-8/RR-10 (§5.4 #2, PR #433, dev-live 2026-07-25)** this migration runs once per deploy in the discrete `migrate` Cloud Run Job, not on every container start.
-
-#### 1.7.3 Tenant auto-provisioning — "one user, one tenant" (permanent)
-
-**Selected:** the first time a `firebase_uid` is seen, create a brand-new `tenants` row *and* a `users` row pointing at it, in the same request. Every user is the sole member of their own tenant.
-
-This is the smallest model that satisfies P5's milestone literally — "two people, two inventories." The alternative (inviting a user to join an *existing* tenant — a household/team scenario) is a real possible future feature, but `users.tenant_id` is just a foreign key: "invite a teammate" becomes a change to provisioning *logic* (point a new user row at an existing tenant instead of creating one), not a schema migration. The current schema doesn't foreclose it.
-
-**Decision upgrade (2026-07-30, public-release review — this section was originally titled "(for now)"):** one user per tenant is now **permanent** by owner decision ("I do not ever see a need to have multiple users per tenant"; App Spec §2, BL-89 retired). The paragraph above stays as the historical record of why the schema was left flexible; the flexibility is now deliberately unused — no uniqueness constraint is being added, since a migration would buy nothing. Consequence: `DELETE /api/account`'s whole-tenant purge (§1.1, BL-87/BL-88) needs no shared-tenant deletion semantics, ever.
-
-#### 1.7.4 Auth provider selection — Firebase Authentication vs. Auth0 / Clerk / Supabase Auth
-
-**Selected: Firebase Authentication** (the free tier of GCP Identity Platform), enabled via `google_identity_platform_config` (Section 3.9). **Originally Email/Password sign-in only; Google sign-in (BL-118) and password reset (BL-116) shipped 2026-07-20** — see the as-built addition in Section 1.1. This subsection's comparison table and rationale describe the *original* provider-selection decision (Firebase Auth vs. Auth0/Clerk/Supabase Auth as a platform, not a specific-provider choice) and remain accurate as a decision record; they were never a claim that only one sign-in method would ever be enabled within Firebase Auth.
-
-| | **Firebase Auth (selected)** | Auth0 | Clerk | Supabase Auth |
-|---|---|---|---|---|
-| Cost at hobby scale | Free, no practical cap for email/password | Free to ~7,500 MAU, then per-MAU | Free to ~10,000 MAU, then per-MAU | Generous free tier, scoped to a Supabase project |
-| GCP-native integration | Same Firebase project already used for Hosting (P2); Cloud Run verifies tokens via ADC, no new secret | None — separate vendor/dashboard/credentials | None | None — second database-adjacent vendor alongside Cloud SQL |
-| Frontend DX (React) | Solid official SDK; build-your-own forms | Excellent docs, hosted login page | Best-in-class prebuilt `<SignIn>`/`<SignUp>` | Solid SDK, less-polished prebuilt UI |
-| Portability off GCP | Lower — coupled to Firebase/GCP | High | High | Medium — coupled to Supabase |
-
-**What tipped it:** zero new vendor/dashboard, reuse of the existing Firebase project, consistency with the GCP-first reasoning from P1. **Revisit if:** enterprise SSO (SAML/OIDC) is ever needed (Identity Platform's paid tier covers it without switching providers), or portability off GCP becomes a priority (Auth0/Clerk's "works anywhere" trait, with Clerk's prebuilt components cutting frontend rework).
+- **1.7.1** Session-scoped `set_config`, not `SET LOCAL` (incl. the 2026-07-13 connection-pinning correction) → [ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md) amendment 2026-08-17
+- **1.7.2** `swu_app` role split from `swu_user` (bootstrap role cannot be RLS-constrained) → [ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md) amendment 2026-08-17
+- **1.7.3** Tenant auto-provisioning — one user, one tenant, permanent → [ADR-0026](../docs/decisions/0026-one-user-one-tenant-permanent.md)
+- **1.7.4** Auth provider selection — Firebase Authentication → [ADR-0024](../docs/decisions/0024-firebase-auth-provider-selection.md)
 
 ---
 
@@ -198,7 +168,7 @@ Prod promotion beyond the `risk:low` fast path is **not** a ci.yml job — it's 
 - **Triggers (RR-6/F27):** `push` is restricted to `main`; PRs run once via `pull_request`. A branch push without an open PR gets no CI.
 - **Concurrency (RR-6/F28, supersedes BL-79's mechanism):** one group per ref; `cancel-in-progress` only for non-main refs. PR runs cancel superseded predecessors; **main runs queue and are never cancelled** — a cancel could kill `terraform apply` mid-change. GitHub holds at most one queued main run (older queued entries are cancelled, running ones never), so deploy chains serialize and at most one prod gate pends at a time. Verified live 2026-07-08 with a deliberate stacked-merge test (evidence on issue #131).
 - **Branch protection (BL-178, 2026-07-30 — supersedes the P3 Stage 4 configuration).** The original P3 Stage 4 protection (required checks `backend`/`frontend`/`terraform-fmt`) was **silently lost on 2026-07-14** when the repo went private (same failure mode as the BL-131 environment gate — the feature needs Pro/public) and every merge from then until 2026-07-30 was protected by convention only. Re-established on the public repo with a design that coexists with the docs-only flow: `main` requires a PR before merging (0 approvals — single-writer repo, an author can't approve their own PR), requires the single status check **`ci-ok`**, and blocks force-pushes and deletions. `enforce_admins` stays `false` — the owner's documented escape hatch, unchanged from the accepted A08 trade-off (§5).
-- **`classify-pr` + `ci-ok` (BL-178).** `classify-pr` classifies the PR's effective change set (`git diff HEAD^1 HEAD` on the PR merge commit — exactly what merging would change) with the same case-arm as `detect-changes`; `backend`/`frontend`/`terraform-fmt` skip when it reports docs-only. On **push** events it degenerates to a ~3s no-checkout `code_changed=true` constant — it cannot be PR-only, because GitHub's implicit `success()` condition evaluates the **transitive** needs chain: a skipped `classify-pr` would silently skip `detect-changes` → `build-and-push` → `deploy-dev` on every main code push even with the heavy jobs green (observed live on the first BL-178 merge, run 30570639783, fixed same session). `ci-ok` is PR-only. `ci-ok` (`if: always()`) is the one required check: it fails unless `classify-pr` succeeded and the three heavy jobs are all green (code PR) or all skipped (docs-only PR) — so a docs-only PR merges cleanly on a ~seconds-long trivial run while a code PR is machine-gated on the full suite, and the check can never hang as "Expected — waiting". Fork PRs run `pull_request` CI and report `ci-ok` like any other PR (with zero repo secrets and WIF rejecting fork OIDC tokens, §2.7.1).
+- **`classify-pr` + `ci-ok` (BL-178).** `classify-pr` classifies the PR's effective change set (`git diff HEAD^1 HEAD` on the PR merge commit — exactly what merging would change) with the same case-arm as `detect-changes`; `backend`/`frontend`/`terraform-fmt` skip when it reports docs-only. On **push** events it degenerates to a ~3s no-checkout `code_changed=true` constant — it cannot be PR-only, because GitHub's implicit `success()` condition evaluates the **transitive** needs chain: a skipped `classify-pr` would silently skip `detect-changes` → `build-and-push` → `deploy-dev` on every main code push even with the heavy jobs green (observed live on the first BL-178 merge, run 30570639783, fixed same session). `ci-ok` is PR-only. `ci-ok` (`if: always()`) is the one required check: it fails unless `classify-pr` succeeded and the three heavy jobs are all green (code PR) or all skipped (docs-only PR) — so a docs-only PR merges cleanly on a ~seconds-long trivial run while a code PR is machine-gated on the full suite, and the check can never hang as "Expected — waiting". Fork PRs run `pull_request` CI and report `ci-ok` like any other PR (with zero repo secrets and WIF rejecting fork OIDC tokens, [ADR-0022](../docs/decisions/0022-wif-keyless-ci-auth.md)).
 - **`detect-changes` (BL-78, PR #201).** Runs on every main push, needs `[backend, frontend]`. Diffs `HEAD^..HEAD`; if every changed file is under `specification_documents/`, `docs/`, `learning_guide/`, `claude_design/`, or is a root `*.md`/`LICENSE`, it sets `docs_only=true`. `build-and-push` (and everything that transitively needs it — `check-risk-level`, `deploy-dev`, `promote-prod-fast`) adds `needs.detect-changes.outputs.docs_only != 'true'` to its `if`, so a docs-only push to main skips the image build and both deploys entirely — the tests and `terraform-fmt` still run.
 - **Docs-only trigger gate (BL-167, 2026-07-26; narrowed to push-only by BL-178, 2026-07-30).** The `push` trigger carries a `paths-ignore` list mirroring detect-changes' classification exactly — a docs-only **push to main** triggers **no workflow run at all** (a cost measure from the repo's private era, 2026-07-14→2026-07-29, when every job billed a rounded-up minute; retained as hygiene now that public-repo standard-runner minutes are free — BL-172). The `pull_request` trigger's `paths-ignore` was **removed** by BL-178: a required check must be able to report on every PR, so docs-only PRs now get one trivial `classify-pr` + `ci-ok` run (~seconds, free) instead of zero — the zero-run property applies to main pushes only. Mixed pushes still run the full pipeline. detect-changes is deliberately retained as belt-and-braces for deploy-skipping; the classification lists must be kept in sync across the push `paths-ignore`, `classify-pr`, and `detect-changes` (cross-referencing comments sit on all three).
 
@@ -235,11 +205,9 @@ Prod promotion beyond the `risk:low` fast path is **not** a ci.yml job — it's 
 
 ### 2.7 Design Rationale
 
-#### 2.7.1 Workload Identity Federation (OIDC), not service account keys
+#### 2.7.1 Workload Identity Federation (OIDC), not service account keys — extracted (2026-08-17, BL-233)
 
-**Selected (P1):** GitHub Actions authenticates to GCP via WIF — short-lived OIDC tokens, no long-lived JSON key files anywhere (not in git, not in GitHub secrets).
-
-`terraform/environments/prod/wif.tf` creates pool `github-actions` / provider `github`, with `attribute_condition = "assertion.repository == 'whitebreadisu/hyperspacevault'"` — belt-and-suspenders with the `principalSet://...attribute.repository/whitebreadisu/hyperspacevault` binding on `terraform-ci` itself (Section 3.4). Only `terraform-ci` is WIF-bound; `backend-runtime` is only ever assumed by Cloud Run at runtime via Application Default Credentials, never by CI.
+Decision record: [ADR-0022](../docs/decisions/0022-wif-keyless-ci-auth.md). Original prose verbatim: `SWU_Platform_Spec_Archive.md` (2026-08-17 batch). As-built WIF wiring stays in Section 3.4.
 
 #### 2.7.2 CI coverage gate at 75%, not ratcheted toward 100%
 
@@ -426,25 +394,13 @@ Firebase Hosting transparently proxies `/api/**` requests to the Cloud Run `back
 | `project_id` | `frontend-deploy` job → `VITE_FIREBASE_PROJECT_ID`, `firebase deploy --project` |
 | `backend_url`, `cloud_sql_connection_name`, `custom_domain_*`, `terraform_ci_service_account`, `backend_repository_url`, `enabled_apis` | Informational / not directly consumed by CI |
 
-### 3.13 Design Rationale
+### 3.13 Design Rationale — extracted to ADRs (2026-08-17, BL-233)
 
-#### 3.13.1 Hybrid environment model: persistent minimal `swu-prod` + ephemeral `swu-sandbox`
+Rationale formerly here moved under the three-tier doc regime ([ADR-0020](../docs/decisions/0020-three-tier-documentation-regime.md)); original prose verbatim in `SWU_Platform_Spec_Archive.md`:
 
-**Selected (P1, foundational):** one always-on, deliberately minimal production project, plus a separate project for exploring infrastructure patterns (VPCs, load balancers, multi-zone) that would be expensive or noisy to keep running permanently.
-
-This gives a real, low-cost production app (the thing actually serving `www.hyperspacevault.com`) while still allowing hands-on access to patterns that don't belong in — and would inflate the cost/complexity of — the production environment. `swu-sandbox` deliberately has not tracked `swu-prod`'s P2-P7 additions; it remains at its P1-bootstrap state by design.
-
-#### 3.13.2 Multi-tenancy: shared schema + Postgres RLS, not schema-per-tenant
-
-**Selected (P1/P4, foundational):** one schema, shared tables, `tenant_id` columns + RLS policies (Section 1.5) — "real SaaS-grade isolation" enforced by the database itself, beneath the application layer.
-
-Schema-per-tenant (or database-per-tenant) avoids needing RLS at all, but multiplies migration/connection-management operational overhead per tenant — and at this project's scale (auto-provisioned, one-tenant-per-user, Section 1.7.3), that overhead would grow linearly with signups for no isolation benefit RLS doesn't already provide. RLS works identically on local Postgres and Cloud SQL, so the same policies are exercised in CI (Section 2.2) as in production.
-
-#### 3.13.3 Public Cloud Run ingress (`allUsers`) + app-layer auth
-
-**Selected (P2, revisited at P7 Stage 4; access model updated by BL-56):** `ingress = INGRESS_TRAFFIC_ALL` with `roles/run.invoker = allUsers` — the backend URL is reachable by anyone, with access control enforced entirely at the application layer (Section 1: `get_db` for tenant-scoped/mutating routes, `get_catalog_db`/`get_optional_db` for the public catalog reads, all three backstopped by RLS).
-
-This was originally adopted at P2 ("It's alive") before auth existed at all, and was *re-verified rather than removed* once P5 added Firebase Auth: P7 Stage 4 live-curl-confirmed `401` on every `/api/*` route without a valid token — true at the time, and still true for `/api/inventory` and every mutation today, but no longer true uniformly since BL-56 made the catalog reads anonymous (Section 1.1, [ADR-0008](../docs/decisions/0008-anonymous-catalog-reads.md)). This is a common, accepted pattern for services that perform their own authentication — an IAM-level restriction (e.g., requiring a Google-signed `Authorization` header at the Cloud Run layer) would be redundant with, not additive to, the app-layer check, and would complicate the Firebase-Hosting-rewrite path (3.11), which does not send Cloud-Run-IAM-compatible credentials.
+- **3.13.1** Hybrid environment model (persistent minimal `swu-prod` + ephemeral `swu-sandbox`) → [ADR-0021](../docs/decisions/0021-hybrid-environment-model.md)
+- **3.13.2** Shared schema + Postgres RLS, not schema-per-tenant → [ADR-0001](../docs/decisions/0001-rls-tenant-isolation.md) (alternative (b) + 2026-08-17 amendment)
+- **3.13.3** Public Cloud Run ingress + app-layer auth → [ADR-0023](../docs/decisions/0023-public-ingress-app-layer-auth.md)
 
 ### 3.14 CDN caching of public catalog reads (RR-3)
 
@@ -527,19 +483,9 @@ Cloud Run forwards all stdout/stderr to Cloud Logging automatically. The `severi
 
 ### 4.5 Design Rationale
 
-#### 4.5.1 Cloud Error Reporting vs. Sentry
+#### 4.5.1 Cloud Error Reporting vs. Sentry — extracted (2026-08-17, BL-233)
 
-**Selected: Cloud Error Reporting.**
-
-| | **Cloud Error Reporting (selected)** | Sentry |
-|---|---|---|
-| Cost at hobby scale | Free, included with Cloud Logging/Cloud Run | Free to ~5K events/month, then per-event |
-| Setup effort | Zero new accounts — reads existing structured logs (4.1) | New account, new SDK dependency, new DSN secret, separate dashboard |
-| Error grouping / DX | Groups by exception type + top frame; links back to Cloud Logging. Functional, basic | Industry-leading grouping, release tracking, breadcrumbs, source context |
-| Alerting | Same Cloud Monitoring alert policies as 4.3 — one system | Sentry's own separate alerting system |
-| Portability off GCP | Low | High |
-
-**What tipped it:** zero new account/SDK/secret, composes directly with 4.1's logging and 4.3's alerting — one "pane of glass." **Revisit if:** error volume/team size grows enough that *triage quality* ("which of these 200 similar errors is new") becomes the bottleneck — Sentry's SDK can run *alongside* continued Cloud Logging as a pure addition, not a migration.
+Decision record: [ADR-0025](../docs/decisions/0025-cloud-error-reporting-over-sentry.md). Original prose verbatim: `SWU_Platform_Spec_Archive.md` (2026-08-17 batch).
 
 #### 4.5.2 Alert threshold: "any 5xx for 60s," not a percentage
 
@@ -585,7 +531,7 @@ Full walkthrough: `SWU_Platform_Security_Review.md` (P7 Stage 4, dated 2026-06-1
 | A05 Security Misconfiguration | Addressed — `/docs`/`/redoc`/`/openapi.json` disabled in production via `_api_docs_enabled()` (`ENVIRONMENT != "production"`, `app/main.py`) + `ENVIRONMENT=production` on Cloud Run (3.5); dev-only CORS config is not exercised in prod (3.11). **As-built (BL-157, shipped 2026-07-24):** app-layer security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Strict-Transport-Security`) now set on every `/api/**` and `/images/**` response — see the As-built note below the table. |
 | A06 Vulnerable/Outdated Components | Addressed (Dependabot scanning live); **18-PR triage deferred** — `SWU_Backlog.md` BL-9. **RR-11 (2026-07-08):** Artifact Registry vulnerability scanning enabled (`containerscanning.googleapis.com`) — every pushed backend image is scanned on push + continuously re-checked; results in the AR console per digest; triage folds into the Dependabot cadence. The shipped image also runs as a non-root user and installs runtime deps only (test/lint tooling split to `requirements-dev.txt`, present only in CI and the compose `dev` image stage) |
 | A07 Auth Failures | Addressed — Firebase Authentication owns credentials entirely; short-lived signed ID tokens, verified server-side |
-| A08 Software/Data Integrity | Addressed — WIF/keyless CI auth (2.7.1), CI gates before deploy; **`enforce_admins: false`** on branch protection is an accepted single-developer trade-off |
+| A08 Software/Data Integrity | Addressed — WIF/keyless CI auth (ADR-0022), CI gates before deploy; **`enforce_admins: false`** on branch protection is an accepted single-developer trade-off |
 | A09 Logging/Monitoring | Addressed — Section 4 (structured logging, dashboard, alerting, Error Reporting) |
 | A10 SSRF | **Applicable, mitigated** — `POST /api/deck-check` (BL-137, merged 2026-07-16; prod 2026-07-22) server-fetches a client-supplied deck URL. `app/services/deck_fetch.py` enforces: a strict host allowlist (`swubase.com`/`www.swubase.com`, `sw-unlimited-db.com`/`www.sw-unlimited-db.com` — any other host raises before a network call is made); the fetch URL is always **rebuilt** from the allowlisted host + an id extracted from the pasted URL, never the pasted URL passed through verbatim; `httpx.Client(follow_redirects=False)` so a 3xx response is never chased on or off the allowlist; a 10s timeout and a streamed ~1MB response-size cap. `SWU_Application_Spec.md` §12/§5.11 documents the allowlist as the deliberate mitigation. |
 
@@ -604,7 +550,7 @@ See Section 3.7 for the full table. The four database secrets are `random_passwo
 
 ### 5.3 Network posture
 
-- **Cloud Run:** public ingress + app-layer auth — by design, see 3.13.3.
+- **Cloud Run:** public ingress + app-layer auth — by design, see [ADR-0023](../docs/decisions/0023-public-ingress-app-layer-auth.md).
 - **Cloud SQL:** public IP (`ipv4_enabled = true`) but empty `authorized_networks` — unused attack surface, not an active exposure. Cloud Run connects via the IAM-authenticated Cloud SQL connector over a Unix socket, not the public IP path. `deletion_protection = true`, automated backups, `ZONAL` (no HA — acceptable at current scale; revisit `availability_type = "REGIONAL"` if uptime requirements grow).
 - **Keyless auth throughout:** neither `terraform-ci` (WIF) nor `backend-runtime` (Cloud Run ADC) has a long-lived JSON key.
 
