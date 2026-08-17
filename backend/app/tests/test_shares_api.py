@@ -12,6 +12,7 @@ Run inside the backend container:
     docker compose exec backend pytest app/tests/test_shares_api.py -v
 """
 
+import logging
 import os
 
 import pytest
@@ -149,6 +150,32 @@ def test_viewer_resolves_and_reads_owner_data(client, db, anon):
         assert shared_l.json() == owner_limits
     finally:
         client.post(f"/api/inventory/{variant_id}/decrement")
+
+
+def test_share_token_never_appears_in_request_logs(client, anon, caplog):
+    """BL-232 SEC-1: the token is the share's sole credential and log
+    retention outlives rotation, so the /api/shared/{token} path family is
+    redacted before the request log line is emitted -- live tokens and
+    garbage probes alike."""
+    share = _create_share(client)
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        assert anon.get(f"/api/shared/{share['token']}").status_code == 200
+        assert (
+            anon.get(f"/api/shared/{share['token']}/quantities").status_code == 200
+        )
+        assert anon.get("/api/shared/garbage-probe/limits").status_code == 404
+    logged = [
+        r.httpRequest["requestUrl"]
+        for r in caplog.records
+        if getattr(r, "httpRequest", None)
+        and r.httpRequest["requestUrl"].startswith("/api/shared/")
+    ]
+    assert sorted(logged) == [
+        "/api/shared/[token]",
+        "/api/shared/[token]/limits",
+        "/api/shared/[token]/quantities",
+    ]
+    assert all(share["token"] not in url for url in logged)
 
 
 def test_invalid_and_revoked_tokens_are_indistinguishable(client, anon):

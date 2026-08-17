@@ -6,6 +6,25 @@ from fastapi import Request
 logger = logging.getLogger("app.request")
 
 
+def loggable_path(path: str) -> str:
+    """The request path as it is safe to write to logs.
+
+    /api/shared/{token}[/...] (BL-205) carries the share's sole credential
+    in the path itself; logging it verbatim would persist a live secret in
+    log storage whose retention outlives token rotation. get_shared_db
+    already keeps tenant_id off these log lines -- this keeps the token
+    out of the URL field for the same reason (BL-232 SEC-1). Redaction is
+    unconditional for the whole /api/shared/ family, valid token or not,
+    so probing garbage never gets logged verbatim either.
+    """
+    if path.startswith("/api/shared/"):
+        parts = path.split("/")
+        # ['', 'api', 'shared', '<token>', ...suffix]
+        parts[3] = "[token]"
+        return "/".join(parts)
+    return path
+
+
 async def log_requests(request: Request, call_next):
     """Emit one structured log line per request.
 
@@ -26,7 +45,7 @@ async def log_requests(request: Request, call_next):
             extra={
                 "httpRequest": {
                     "requestMethod": request.method,
-                    "requestUrl": request.url.path,
+                    "requestUrl": loggable_path(request.url.path),
                     "status": 500,
                     "latency": f"{duration_ms / 1000:.3f}s",
                 },
@@ -39,7 +58,7 @@ async def log_requests(request: Request, call_next):
     extra = {
         "httpRequest": {
             "requestMethod": request.method,
-            "requestUrl": request.url.path,
+            "requestUrl": loggable_path(request.url.path),
             "status": response.status_code,
             "latency": f"{duration_ms / 1000:.3f}s",
         },

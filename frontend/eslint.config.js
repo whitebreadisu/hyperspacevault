@@ -21,6 +21,12 @@ export default tseslint.config(
       // Flags async data fetching and intentional derived-state resets as
       // violations; all current instances are legitimate patterns.
       "react-hooks/set-state-in-effect": "off",
+      // BL-232 SEC-5: owner-typed free text (Share.name) reaches anonymous
+      // viewers' DOMs and the write path deliberately allows HTML-special
+      // characters -- safety rests entirely on React text-node escaping.
+      // This pins that invariant: no dangerouslySetInnerHTML, ever, without
+      // an explicit reviewed exception here.
+      "react/no-danger": "error",
     },
   },
   // BL-154: frontend/src/api's single error convention (see

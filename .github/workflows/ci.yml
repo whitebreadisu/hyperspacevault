@@ -74,6 +74,15 @@ concurrency:
   group: main-deploy-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+# BL-232 SEC-4: explicit default token permissions so the lightweight jobs
+# (classify-pr / backend / frontend / terraform-fmt / detect-changes / ci-ok)
+# no longer inherit whatever the repo-level default happens to be. The
+# privileged jobs each declare their own job-level permissions block, which
+# REPLACES this default entirely for that job (build-and-push, deploy-dev,
+# check-risk-level, promote-prod-fast) -- nothing widens implicitly.
+permissions:
+  contents: read
+
 jobs:
   # ── BL-178: docs-only classification (all events) ───────────────────────
   # PR-side twin of detect-changes below, feeding the ci-ok gate: required
