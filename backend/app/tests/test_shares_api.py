@@ -160,9 +160,7 @@ def test_share_token_never_appears_in_request_logs(client, anon, caplog):
     share = _create_share(client)
     with caplog.at_level(logging.INFO, logger="app.request"):
         assert anon.get(f"/api/shared/{share['token']}").status_code == 200
-        assert (
-            anon.get(f"/api/shared/{share['token']}/quantities").status_code == 200
-        )
+        assert anon.get(f"/api/shared/{share['token']}/quantities").status_code == 200
         assert anon.get("/api/shared/garbage-probe/limits").status_code == 404
     logged = [
         r.httpRequest["requestUrl"]
