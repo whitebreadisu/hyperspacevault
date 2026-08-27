@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { submitFeedback } from "../../api/feedback";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { capture } from "../../analytics/analytics";
 import "./FeedbackModal.css";
 
 interface Props {
@@ -78,6 +79,7 @@ export function FeedbackModal({ onClose }: Props) {
         website,
       });
       setSucceeded(true);
+      capture("feedback_submitted", {}); // BL-235
     } catch {
       setError("Something went wrong sending your feedback. Please try again.");
     } finally {

@@ -249,7 +249,7 @@ Visually a compact ~520px console panel following the `CardPopup` steel-ring idi
 
 Three sections, copy owner-approved verbatim:
 - **Disclaimer** — non-affiliation with Disney, Lucasfilm Ltd., Fantasy Flight Games, or the Asmodee Group.
-- **Privacy** — the four BL-104/RR-12 points (what's stored: account email + card collection; where it lives: GCP `us-central1`; leaving: self-service via Delete Account; tracking: none), plus a fifth point BL-126 added the same session: feedback messages are stored, and email only when contact is opted in.
+- **Privacy** — the four BL-104/RR-12 points (what's stored: account email + card collection; where it lives: GCP `us-central1`; leaving: self-service via Delete Account; tracking — originally "none", superseded 2026-08-26 by BL-235's usage-analytics disclosure bullet: anonymous, inputs masked, opt-out in Settings, processed by PostHog, see §22), plus a fifth point BL-126 added the same session: feedback messages are stored, and email only when contact is opted in.
 - **Attribution** — swuapi.com sourcing of catalog data and images.
 
 This is the shipped resolution of **RR-13** (IP/affiliation disclaimer) and completes the privacy floor **RR-12/BL-104** first argued for — both close out via this one modal (`SWU_Backlog.md`/archive has the full BL-104/BL-125 disposition).
@@ -884,3 +884,37 @@ As-built summaries; each item's build-authoritative detail lives in its PR + the
 - **BL-226 — table width tiers (PR #146):** Compact/Standard/Full column sets with live auto-selection (column-at-a-time ladder, Name as slack absorber); override lives inside the Table button as a hover flyout (plain click = Auto). Supersedes BL-214 (customizable views declined).
 - **BL-227 — header polish (PR #142):** header version/fan-project links white at rest with the buttons' blue hover glow; nav-tab hover unified. (Related rider, PR #148: `.inv-summary__actions` wraps at narrow widths like the summary blocks.)
 - **Catalog:** the P26 2026 tournament-promo wave (+134 variants across 82 base cards) ingested to all envs the same day per `SWU_SWUAPI_Content_Runbook.md` — zero new base cards, zero mapping exceptions.
+
+## 22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)
+
+Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: internal repo (learning guide "Product Track addendum: BL-235"; `planning/Definition_Analytics_Taxonomy_2026-08-26.md`). This section is the **registry of record for the live event taxonomy** — a new/changed event lands here in the same PR as the code emitting it.
+
+**Mechanism.** `posthog-js` initializes in `frontend/src/analytics/analytics.ts` — the single seam; components call its typed `capture()` and never import the SDK. Init is hostname-gated to `hyperspacevault.com`/`www.hyperspacevault.com` (dev/CI/preview emit nothing). Events flow same-origin through `/api/relay/*` (`backend/app/routers/relay.py`) to PostHog Cloud US (`static/*` → assets host, everything else → ingest host); the relay is unauthenticated (anonymous visitors are in-scope), forwards only content-type/user-agent/client-IP, and converts upstream failures to quiet 502s — analytics can never break the app. Riders: replay with **all inputs masked**; **anonymous** (`person_profiles: "identified_only"`, `identify()` never called); localStorage persistence (no cookies); autocapture on; `$pageview` off (`screen_viewed` is the SPA navigation signal); super property `app_version`; **opt-out toggle** in Settings (browser-local, immediate).
+
+**Taxonomy rules.** `object_action` snake_case; variation in properties, never names; enums/counts only — no raw user-typed text, no PII (set codes OK, card names not needed); events are deprecated, never renamed.
+
+**Event registry (v1):**
+
+| Event | Properties |
+|---|---|
+| `screen_viewed` | `screen: vault \| deck_check \| import_export \| settings \| new_arrivals \| shared_view` |
+| `signup_completed` / `login_completed` | `provider: password \| google` |
+| `feedback_submitted` | — |
+| `view_mode_changed` | `mode: table \| gallery` |
+| `filter_applied` | `field`, `active_filter_count`, `results_count` |
+| `filters_cleared` | — |
+| `finish_scope_changed` | `finish` |
+| `search_performed` | `query_length`, `results_count` (never the query text) |
+| `sort_changed` | `column`, `direction` |
+| `card_popup_opened` | `source: table \| gallery \| deck_check \| new_arrivals`, `set_code` |
+| `price_history_opened` | — |
+| `popup_card_navigated` | `method: prev_next \| rail_cycle` |
+| `quantity_changed` | `direction`, `surface: popup` |
+| `add_cards_committed` | `method: keypad \| precon`, `cards_added`, `distinct_cards` |
+| `add_cards_abandoned` | `pending_entries` |
+| `import_dry_run` | `format`, `rows`, `error_rows` |
+| `import_committed` | `mode`, `rows_applied` |
+| `export_performed` | `format` |
+| `deck_check_run` | `missing_count` |
+| `share_created` | — |
+| `share_link_viewed` | — |

@@ -10,6 +10,7 @@ import {
 } from "../../api/shares";
 import type { ShareRecord } from "../../api/shares";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { capture } from "../../analytics/analytics";
 import "../auth/AuthModal.css";
 import "./ShareManageModal.css";
 
@@ -81,6 +82,7 @@ export function ShareManageModal({ onClose }: Props) {
       const created = await createShare(trimmed);
       setShare(created);
       setName(created.name);
+      capture("share_created", {}); // BL-235
     } catch (err) {
       setActionError(
         err instanceof ShareApiError

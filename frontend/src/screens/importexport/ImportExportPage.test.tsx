@@ -22,6 +22,14 @@ vi.mock("../../api/inventoryImportExport", async (importOriginal) => {
   return { ...actual, runImport, exportInventory, downloadCatalogReference, downloadBlob };
 });
 
+// BL-235: capture() mock -- asserted by the "ImportExportPage analytics"
+// describe block below (import_dry_run/import_committed); every other test
+// in this file only needs it to be a safe no-op.
+const mockCapture = vi.fn();
+vi.mock("../../analytics/analytics", () => ({
+  capture: (...args: unknown[]) => mockCapture(...args),
+}));
+
 function makeFile(name = "cards.csv"): File {
   return new File(["swuapi_uuid,set_code,card_number,variant_type,quantity\n"], name, {
     type: "text/csv",
@@ -1116,5 +1124,65 @@ describe("ImportExportPage report views (BL-202, CREATE)", () => {
     const resolvedTab = screen.getByRole("tab", { name: /resolved rows \(1\)/i });
     expect(resolvedTab.getAttribute("aria-selected")).toBe("true");
     expect(alignedLabels()).toEqual(["Resolved", "Trimmed"]);
+  });
+});
+
+// CREATE (BL-235): import_dry_run/import_committed -- fired off the same
+// two runImport responses these tests already drive, with `format` read
+// from the uploaded file's extension (makeFile()'s default "cards.csv" ->
+// "csv") and the row/error/applied counts read straight off each report's
+// totals.
+describe("ImportExportPage analytics (BL-235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("fires import_dry_run with format/rows/error_rows after a preview", async () => {
+    runImport.mockResolvedValue(
+      baseReport({
+        totals: {
+          rows: 3,
+          resolved: 2,
+          matched_by_fallback: 0,
+          unresolved: 1,
+          ambiguous: 0,
+          trimmed: 0,
+          ceiling_clamped: 0,
+          duplicate_rows_merged: 0,
+          unrecognized_columns: [],
+          removed_by_replace_all: 0,
+        },
+      })
+    );
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    expect(mockCapture).toHaveBeenCalledWith("import_dry_run", {
+      format: "csv",
+      rows: 3,
+      error_rows: 1,
+    });
+  });
+
+  it("fires import_committed with mode/rows_applied after a successful commit", async () => {
+    const dryRun = baseReport();
+    const committed = baseReport({ stage: "commit", committed: true });
+    runImport.mockResolvedValueOnce(dryRun).mockResolvedValueOnce(committed);
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap(/merge \(add\)/i);
+    await clickPreview();
+    mockCapture.mockClear();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith("import_committed", {
+      mode: "merge_add",
+      rows_applied: 1,
+    });
   });
 });

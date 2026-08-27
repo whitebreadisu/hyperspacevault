@@ -6,6 +6,7 @@ import type { PriceMode, SetBreakdownRow, SetMeta } from "../../utils/completion
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { ValueSwitch } from "../cards/VariantScopeControls";
 import type { WidthTier } from "../../utils/tableWidthTier";
+import { capture } from "../../analytics/analytics";
 
 /** BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
  * panel revamp -- four clipped-corner "blocks" (Playset complete %, Set
@@ -121,13 +122,19 @@ function ViewToggle({
   widthTier?: WidthTier;
   onWidthTierChange?: (tier: WidthTier) => void;
 }) {
+  // BL-235: view_mode_changed -- fired only on a genuine mode switch (not
+  // e.g. a width-tier pick made while already on Table).
+  const changeViewMode = (mode: ViewMode) => {
+    if (viewMode !== mode) capture("view_mode_changed", { mode });
+    onViewModeChange(mode);
+  };
   const btn = (mode: ViewMode, label: string, onClick?: () => void) => (
     <button
       type="button"
       className={`inv-summary__view-toggle-btn${
         viewMode === mode ? " inv-summary__view-toggle-btn--active" : ""
       }`}
-      onClick={onClick ?? (() => onViewModeChange(mode))}
+      onClick={onClick ?? (() => changeViewMode(mode))}
       aria-pressed={viewMode === mode}
     >
       {label}
@@ -164,7 +171,7 @@ function ViewToggle({
               viewMode === "table" ? " inv-summary__view-toggle-btn--active" : ""
             }`}
             onClick={(e) => {
-              onViewModeChange("table");
+              changeViewMode("table");
               onWidthTierChange("auto");
               closeFlyout(e);
             }}
@@ -181,7 +188,7 @@ function ViewToggle({
                   widthTier === value ? " inv-summary__table-flyout-btn--active" : ""
                 }`}
                 onClick={(e) => {
-                  onViewModeChange("table");
+                  changeViewMode("table");
                   onWidthTierChange(value);
                   closeFlyout(e);
                 }}

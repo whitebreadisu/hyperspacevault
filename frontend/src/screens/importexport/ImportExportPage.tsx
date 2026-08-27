@@ -16,6 +16,7 @@ import { SWUButton } from "../../components/SWUButton";
 import { BusyOverlay } from "../../components/BusyOverlay";
 import { useBusyOverlay } from "../../hooks/useBusyOverlay";
 import { ImportPreviewReport, totalCardsFromReport } from "./ImportPreviewReport";
+import { capture } from "../../analytics/analytics";
 import "./ImportExportPage.css";
 
 interface Props {
@@ -45,6 +46,13 @@ interface Props {
 type DownloadKind = "json" | "csv" | "reference";
 
 type Step = "configure" | "preview" | "success";
+
+/** BL-235: import_dry_run/import_committed's `format` -- the uploaded
+ * file's extension, distinct from `mode` (merge_add/replace/replace_all,
+ * import_committed's own property). */
+function fileFormat(file: File): string {
+  return file.name.split(".").pop()?.toLowerCase() || "unknown";
+}
 
 const MODE_OPTIONS: {
   value: ImportMode;
@@ -172,6 +180,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       const { blob, filename } =
         kind === "reference" ? await downloadCatalogReference() : await exportInventory(kind);
       downloadBlob(blob, filename);
+      // BL-235: only the two real inventory exports count -- the catalog
+      // reference download isn't the user's own data.
+      if (kind !== "reference") capture("export_performed", { format: kind });
     } catch (err) {
       setDownloadError({
         source: kind === "reference" ? "reference" : "export",
@@ -205,6 +216,11 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       setReport(result);
       setReplaceAllConfirmed(false);
       setStep("preview");
+      capture("import_dry_run", {
+        format: fileFormat(file),
+        rows: result.totals.rows,
+        error_rows: result.totals.rows - result.totals.resolved,
+      }); // BL-235
     } catch (err) {
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong reading that file."
@@ -247,6 +263,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       );
       setSuccessReport(result);
       setStep("success");
+      capture("import_committed", { mode, rows_applied: result.totals.resolved }); // BL-235
     } catch (err) {
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."

@@ -267,3 +267,31 @@
   border-color: var(--color-danger-dim);
   color: var(--color-danger);
 }
+
+/* -- Usage analytics (BL-235) ------------------------------------------------
+ * Single immediate-effect checkbox row -- outside the page's Save model (the
+ * opt-out is browser-local posthog-js state, see SettingsPage.tsx). */
+.settings-analytics__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.settings-analytics__toggle input {
+  accent-color: var(--color-primary);
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+}
+
+.settings-analytics__toggle input:disabled {
+  cursor: default;
+}
+
+.settings-analytics__inactive {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

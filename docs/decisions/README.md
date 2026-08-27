@@ -39,3 +39,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0024](0024-firebase-auth-provider-selection.md) | Firebase Authentication over Auth0 / Clerk / Supabase Auth | Accepted |
 | [0025](0025-cloud-error-reporting-over-sentry.md) | Cloud Error Reporting over Sentry | Accepted |
 | [0026](0026-one-user-one-tenant-permanent.md) | One user, one tenant — auto-provisioned, and permanent | Accepted |
+| [0027](0027-posthog-analytics-first-party-proxy.md) | Product analytics — PostHog Cloud behind a first-party proxy | Accepted |

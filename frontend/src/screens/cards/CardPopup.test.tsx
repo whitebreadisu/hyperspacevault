@@ -108,6 +108,14 @@ const { adjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
 });
 vi.mock("../../api/inventory", () => ({ adjustCard, EmailNotVerifiedError }));
 
+// BL-235: capture() mock -- asserted by the "CardPopup analytics" describe
+// block below (quantity_changed); every other test in this file only needs
+// it to be a safe no-op.
+const mockCapture = vi.fn();
+vi.mock("../../analytics/analytics", () => ({
+  capture: (...args: unknown[]) => mockCapture(...args),
+}));
+
 // BL-219: the hook's own debounce window (CardPopupInventory.tsx's
 // ADJUST_DEBOUNCE_MS) -- kept in sync here by literal value rather than an
 // import, since the hook doesn't export it.
@@ -2259,5 +2267,47 @@ describe("CardPopup up/down variant-rail cycling (BL-192, CREATE)", () => {
     expect(activeRailTitle()).toBe("Standard Foil – #13 – SOR");
     // Variant-cycle keys don't touch card navigation.
     expect(nav.onNext).not.toHaveBeenCalled();
+  });
+});
+
+// CREATE (BL-235): quantity_changed -- fired at CLICK time (the user's
+// commit gesture), not at the debounced network flush -- so no fake-timer
+// advance is needed to observe it, unlike the adjustCard assertions in the
+// "signed-in stepper" block above.
+describe("CardPopup analytics (BL-235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: 1,
+      requested: 1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
+  });
+
+  it("fires quantity_changed(direction: increment, surface: popup) on +", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 0 })] }));
+
+    fireEvent.click(screen.getByRole("button", { name: /increment/i }));
+
+    expect(mockCapture).toHaveBeenCalledWith("quantity_changed", {
+      direction: "increment",
+      surface: "popup",
+    });
+  });
+
+  it("fires quantity_changed(direction: decrement, surface: popup) on −", async () => {
+    await renderPopup(makeDetail({ variants: [makeVariant({ variant_id: 1, quantity: 2 })] }));
+
+    fireEvent.click(screen.getByRole("button", { name: /decrement/i }));
+
+    expect(mockCapture).toHaveBeenCalledWith("quantity_changed", {
+      direction: "decrement",
+      surface: "popup",
+    });
   });
 });

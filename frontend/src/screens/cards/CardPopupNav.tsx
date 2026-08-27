@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { capture } from "../../analytics/analytics";
 
 /** BL-155 decomposition: prev/next browsing, pulled out of CardPopup.tsx
  * verbatim -- the CardPopupNavigation contract, the ArrowLeft/ArrowRight
@@ -41,8 +42,14 @@ export function useArrowKeyNavigation(navigation?: CardPopupNavigation) {
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       if (isTypingTarget) return;
 
-      if (e.key === "ArrowLeft" && navigation.canPrev) navigation.onPrev();
-      if (e.key === "ArrowRight" && navigation.canNext) navigation.onNext();
+      if (e.key === "ArrowLeft" && navigation.canPrev) {
+        capture("popup_card_navigated", { method: "prev_next" }); // BL-235
+        navigation.onPrev();
+      }
+      if (e.key === "ArrowRight" && navigation.canNext) {
+        capture("popup_card_navigated", { method: "prev_next" }); // BL-235
+        navigation.onNext();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -109,6 +116,7 @@ export function useVariantCycleKeys(context?: VariantCycleContext) {
         (currentIndex + delta + orderedVariantIds.length) % orderedVariantIds.length;
 
       e.preventDefault();
+      capture("popup_card_navigated", { method: "rail_cycle" }); // BL-235
       onSelect(orderedVariantIds[nextIndex]);
     };
     document.addEventListener("keydown", onKey);
@@ -134,7 +142,10 @@ export function CardPopupNavButtons({ navigation }: { navigation: CardPopupNavig
         className="cp-nav-btn cp-nav-btn--prev"
         aria-label="Previous card"
         disabled={!navigation.canPrev}
-        onClick={navigation.onPrev}
+        onClick={() => {
+          capture("popup_card_navigated", { method: "prev_next" }); // BL-235
+          navigation.onPrev();
+        }}
       >
         ‹
       </button>
@@ -143,7 +154,10 @@ export function CardPopupNavButtons({ navigation }: { navigation: CardPopupNavig
         className="cp-nav-btn cp-nav-btn--next"
         aria-label="Next card"
         disabled={!navigation.canNext}
-        onClick={navigation.onNext}
+        onClick={() => {
+          capture("popup_card_navigated", { method: "prev_next" }); // BL-235
+          navigation.onNext();
+        }}
       >
         ›
       </button>

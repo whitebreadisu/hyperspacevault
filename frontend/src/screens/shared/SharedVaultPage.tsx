@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { resolveShare, ShareResolveError } from "../../api/sharedView";
 import { CardsPage } from "../cards/CardsPage";
 import { LimitsProvider } from "../../context/LimitsContext";
+import { capture } from "../../analytics/analytics";
 
 type Status = "loading" | "ready" | "invalid" | "rate-limited";
 
@@ -47,6 +48,7 @@ export function SharedVaultPage({ token, onResolved }: Props) {
         if (cancelled) return;
         onResolved(token, data.name);
         setStatus("ready");
+        capture("share_link_viewed", {}); // BL-235
       })
       .catch((err) => {
         if (cancelled) return;
