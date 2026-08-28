@@ -121,7 +121,11 @@ class TestFailurePosture:
 
     @pytest.mark.parametrize(
         "error",
-        [httpx.ConnectError("boom"), httpx.ReadTimeout("slow"), httpx.ProtocolError("bad")],
+        [
+            httpx.ConnectError("boom"),
+            httpx.ReadTimeout("slow"),
+            httpx.ProtocolError("bad"),
+        ],
     )
     def test_upstream_errors_become_502(self, monkeypatch, error):
         monkeypatch.setattr(relay, "_client", RecordingClient(error=error))
