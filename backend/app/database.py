@@ -21,14 +21,23 @@ APP_DATABASE_URL = os.environ["APP_DATABASE_URL"]
 # module in their own container (up to 8 more during the nightly sync
 # window) -- acceptable overlap, revisit only if the tier decision changes.
 
+# pool_pre_ping (BL-236): idle pooled connections get dropped upstream of
+# Postgres on the Cloud Run -> Cloud SQL path (the DB itself stays healthy),
+# and without a checkout-time liveness check each corpse surfaces as exactly
+# one user-facing 500 ("server closed the connection unexpectedly") -- three
+# prod incidents 2026-08-21/25/28. The per-checkout SELECT 1 turns a stale
+# checkout into a transparent reconnect instead.
+
 # Migration-running admin connection (swu_user). Used by ingestion scripts
 # (bootstrap/catalog ingestion) which need write access to the catalog
 # tables that swu_app can only read. Not on the request path: minimal pool.
-engine = create_engine(DATABASE_URL, pool_size=1, max_overflow=1)
+engine = create_engine(DATABASE_URL, pool_size=1, max_overflow=1, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Request-serving connection (swu_app) -- the RLS-aware role from P4 stage 2.
-app_engine = create_engine(APP_DATABASE_URL, pool_size=3, max_overflow=3)
+app_engine = create_engine(
+    APP_DATABASE_URL, pool_size=3, max_overflow=3, pool_pre_ping=True
+)
 AppSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=app_engine)
 
 
