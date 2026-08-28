@@ -377,9 +377,9 @@ export function SettingsPage({ onDeleteAccount }: Props) {
             Usage Analytics
           </h2>
           <p className="settings-section__blurb">
-            Anonymous usage data — which features get used, with everything you type masked out —
-            helps guide improvements. It is never linked to your account. See About &amp; Legal for
-            details.
+            To guide improvements, we collect anonymous usage data — which features get used, with
+            everything you type masked out. It is never linked to your account. See About &amp;
+            Legal for details.
           </p>
         </div>
 

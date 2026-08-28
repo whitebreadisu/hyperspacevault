@@ -65,8 +65,8 @@ export function AboutModal({ onClose }: Props) {
                   removes your account and all your data.
                 </li>
                 <li>
-                  Usage analytics: we collect anonymous usage data — which features get used, plus
-                  session replays with everything you type masked out — to guide improvements. It
+                  Usage analytics: to guide improvements, we collect anonymous usage data — which
+                  features get used, plus session replays with everything you type masked out. It
                   is never linked to your account, and you can turn it off any time in Settings
                   under Usage Analytics. Processed by PostHog (USA). No ads, no advertising
                   trackers, and your data is never sold.
