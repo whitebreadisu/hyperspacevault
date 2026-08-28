@@ -23,6 +23,7 @@ import type { CardSet } from "../../api/sets";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { useBusyOverlay } from "../../hooks/useBusyOverlay";
 import { BusyOverlay } from "../../components/BusyOverlay";
+import { capture } from "../../analytics/analytics";
 import "./AddCardsModal.css";
 
 type Phase = "editing" | "verification";
@@ -126,6 +127,13 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   // is currently locked/displayed.
   const [confirming, setConfirming] = useState(false);
   const hasBatch = state.rows.some((r) => r.cardNumber) || state.precon.selection !== null;
+  // BL-235: add_cards_abandoned's pending_entries -- committed keypad rows
+  // plus 1 for a selected-but-uncommitted precon deck. Only ever read from
+  // the Discard & Close confirm button below, which is only reachable when
+  // hasBatch is true (requestClose), so this is always > 0 there -- matches
+  // the taxonomy's "count > 0 only" rule without a separate guard.
+  const pendingEntries =
+    state.rows.filter((r) => r.cardNumber).length + (state.precon.selection !== null ? 1 : 0);
   const requestClose = useCallback(() => {
     if (hasBatch) setConfirming(true);
     else onClose();
@@ -302,6 +310,25 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       return;
     }
     setPreconCommitting(false);
+    // BL-235: add_cards_committed for the precon route -- cards_added sums
+    // ACTUAL applied copies per resolved row (resulting_quantity minus
+    // current_quantity, floored at 0 -- a trimmed row applies fewer than the
+    // deck's own quantity), distinct_cards is the resolved row count (each
+    // report row is already one distinct printing). state.precon.report is
+    // still the same report handlePreconPreview set -- untouched through the
+    // commit above.
+    if (state.precon.report) {
+      const resolvedRows = state.precon.report.rows.filter((r) => r.status === "resolved");
+      const cardsAdded = resolvedRows.reduce(
+        (sum, r) => sum + Math.max(0, (r.resulting_quantity ?? 0) - (r.current_quantity ?? 0)),
+        0
+      );
+      capture("add_cards_committed", {
+        method: "precon",
+        cards_added: cardsAdded,
+        distinct_cards: resolvedRows.length,
+      });
+    }
     onClose();
   }
 
@@ -364,6 +391,11 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     // exact set of rows about to be incremented) -- the same figure the
     // verification footer's "N of M cards will be added" hint uses.
     const count = willAdd.length;
+    // BL-235: add_cards_committed's distinct_cards -- each willAdd row is
+    // one physical copy (a keypad entry is always a single card), so
+    // multiple rows resolving to the same printing collapse to one variant
+    // id here, same grouping the network loop below performs independently.
+    const distinctCount = new Set(willAdd.map((w) => w.resolved.variantId)).size;
     try {
       await overlay.run(
         { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
@@ -416,6 +448,11 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       return;
     }
     setCommitting(false);
+    capture("add_cards_committed", {
+      method: "keypad",
+      cards_added: count,
+      distinct_cards: distinctCount,
+    }); // BL-235
     onClose();
   }
 
@@ -721,6 +758,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
                   size="sm"
                   active
                   onClick={() => {
+                    capture("add_cards_abandoned", { pending_entries: pendingEntries }); // BL-235
                     setConfirming(false);
                     onClose();
                   }}

@@ -96,6 +96,15 @@ vi.mock("../../api/shares", () => ({
 }));
 mockListShares.mockResolvedValue([]);
 
+// BL-235: capture() mock -- asserted directly by the "CardsPage analytics"
+// describe block below; every other test in this file only needs it to be
+// a safe no-op (capture() self-no-ops in real prod code too, this mock just
+// makes that observable).
+const mockCapture = vi.fn();
+vi.mock("../../analytics/analytics", () => ({
+  capture: (...args: unknown[]) => mockCapture(...args),
+}));
+
 const mockGetBaseCardsList = vi.fn();
 const mockGetBaseCardDetail = vi.fn();
 // BL-140 design-conformance pass: CardPopup's compact history panel is now
@@ -2794,5 +2803,104 @@ describe("CardsPage read-only shared vault (BL-205, CREATE)", () => {
     expect(screen.queryByText(/sign in to manage inventory/i)).not.toBeInTheDocument();
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("3")).toBeInTheDocument();
+  });
+});
+
+// CREATE (BL-235): filter_applied/filters_cleared/search_performed --
+// proves the field-attribution plumbing (FilterPanel's onFieldChanged +
+// CardsPage's pendingFilterFieldRef effect) fires the right event with the
+// right properties, exactly once per user action, and that the search
+// path never leaks raw query text.
+describe("CardsPage analytics (BL-235, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+
+  it("fires filter_applied with field/active_filter_count/results_count when the Set facet changes", async () => {
+    await renderPage();
+    mockCapture.mockClear();
+
+    const setButton = screen.getByRole("button", { name: "Set — All sets" });
+    fireEvent.click(setButton);
+    fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
+
+    // Set=SOR matches base cards 1 and 2 (both SOR) out of the 4-card
+    // fixture -- results_count is the row count, not the copy count.
+    await waitFor(() => {
+      expect(mockCapture).toHaveBeenCalledWith("filter_applied", {
+        field: "set",
+        active_filter_count: 1,
+        results_count: 2,
+      });
+    });
+  });
+
+  it("fires filter_applied field='completion' for the incomplete-playsets toggle and field='owned' for the owned-only toggle", async () => {
+    await renderPage();
+    mockCapture.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /show only incomplete playsets/i }));
+    await waitFor(() =>
+      expect(mockCapture).toHaveBeenCalledWith(
+        "filter_applied",
+        expect.objectContaining({ field: "completion" })
+      )
+    );
+
+    mockCapture.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
+    await waitFor(() =>
+      expect(mockCapture).toHaveBeenCalledWith(
+        "filter_applied",
+        expect.objectContaining({ field: "owned" })
+      )
+    );
+  });
+
+  it("Reset All Filters fires filters_cleared, never filter_applied", async () => {
+    await renderPage();
+    const setButton = screen.getByRole("button", { name: "Set — All sets" });
+    fireEvent.click(setButton);
+    fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
+    await act(async () => {});
+    mockCapture.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /reset all filters/i }));
+
+    expect(mockCapture).toHaveBeenCalledWith("filters_cleared", {});
+    expect(mockCapture).not.toHaveBeenCalledWith("filter_applied", expect.anything());
+  });
+
+  it("search_performed debounces 400ms after typing stops, carries only query_length/results_count, and never the raw query text", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderPage();
+      mockCapture.mockClear();
+      const searchInput = screen.getByPlaceholderText("Search cards…");
+
+      fireEvent.change(searchInput, { target: { value: "S" } });
+      fireEvent.change(searchInput, { target: { value: "SO" } });
+      fireEvent.change(searchInput, { target: { value: "SOR" } });
+
+      // Still inside the debounce window -- no event yet (never per keystroke).
+      expect(mockCapture).not.toHaveBeenCalledWith("search_performed", expect.anything());
+
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(mockCapture).toHaveBeenCalledTimes(1);
+      expect(mockCapture).toHaveBeenCalledWith("search_performed", {
+        query_length: 3,
+        results_count: expect.any(Number),
+      });
+      // Owner decision (2026-08-26): raw search text is NEVER sent -- assert
+      // the actual captured properties never carry the typed string anywhere.
+      const [, props] = mockCapture.mock.calls[0];
+      expect(JSON.stringify(props)).not.toContain("SOR");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

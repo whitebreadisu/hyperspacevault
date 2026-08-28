@@ -20,6 +20,7 @@ import {
 import { CardPopupInventoryControls, useInventoryMutation } from "./CardPopupInventory";
 import type { CardPopupNavigation } from "./CardPopupNav";
 import { orderVariants } from "./cardPopupShared";
+import { capture } from "../../analytics/analytics";
 import "./CardPopup.css";
 
 export type { CardPopupNavigation };
@@ -170,6 +171,11 @@ interface Props {
    * -- see pickInitialVariant above. Optional/undefined behaves exactly like
    * null (no scope) so every existing caller/test keeps working unchanged. */
   initialFinish?: string | null;
+  /** BL-235: card_popup_opened's `source` -- which surface opened this
+   * popup instance. Optional/defaulted to "table" so every pre-existing
+   * caller/test that doesn't wire it keeps working unchanged; CardsPage
+   * (the only production caller) always passes it explicitly. */
+  source?: "table" | "gallery" | "deck_check" | "new_arrivals";
 }
 
 export function CardPopup({
@@ -183,6 +189,7 @@ export function CardPopup({
   onRequestSignIn,
   navigation,
   initialFinish,
+  source = "table",
 }: Props) {
   const { limits, capMode } = useLimits();
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
@@ -244,6 +251,7 @@ export function CardPopup({
               quantity: quantityOverrides[v.variant_id] ?? 0,
             }))
           : data.variants;
+        capture("card_popup_opened", { source, set_code: data.set_code }); // BL-235
         setDetail(data);
         setVariants(displayVariants);
         setSelectedVariantId(
@@ -279,8 +287,11 @@ export function CardPopup({
     // deps for the same ride-along reason: a shared vault's quantities map
     // is fetched once and stable, so this re-fires only if that one fetch
     // resolves while the popup is already open -- exactly when the stale
-    // zeros SHOULD be replaced.
-  }, [baseCardId, initialFinish, quantityOverrides]);
+    // zeros SHOULD be replaced. `source` (BL-235) joins the deps too --
+    // CardsPage always sets it in the same call as baseCardId (see
+    // openPopup), so in practice it never changes independently, but the
+    // capture() call above does read it.
+  }, [baseCardId, initialFinish, quantityOverrides, source]);
 
   const close = useCallback(() => {
     if (changed) onChanged?.();

@@ -14,6 +14,7 @@ import {
   QUANTITY_CEILING,
 } from "../../utils/limits";
 import { CapStepper } from "./CapStepper";
+import { analyticsActive, hasOptedOut, setOptedOut } from "../../analytics/analytics";
 import "./SettingsPage.css";
 
 /** BL-25/BL-35/ADR-0013: dedicated full-page settings surface (not a modal),
@@ -193,6 +194,9 @@ export function SettingsPage({ onDeleteAccount }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // BL-235: mirrors posthog-js's persisted opt-out state (see the analytics
+  // section below for why this sits outside the page's Save model).
+  const [analyticsShared, setAnalyticsShared] = useState(() => !hasOptedOut());
 
   // Rebuild the draft whenever the server truth changes -- initial fetch and
   // every successful save (the PUT response's new effective body).
@@ -359,6 +363,43 @@ export function SettingsPage({ onDeleteAccount }: Props) {
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
+      </section>
+
+      {/* BL-235: usage-analytics opt-out. Deliberately OUTSIDE the page's
+          Save/Discard batch model -- the choice is browser-local (posthog-js
+          persists it in localStorage; analytics identity is per-browser, so
+          the opt-out is too) and takes effect immediately on toggle. Inert
+          outside the production hostnames, where analytics never initializes
+          (see analytics.ts's gate). */}
+      <section className="settings-section" aria-labelledby="settings-analytics-title">
+        <div className="settings-section__head">
+          <h2 className="settings-section__title" id="settings-analytics-title">
+            Usage Analytics
+          </h2>
+          <p className="settings-section__blurb">
+            To guide improvements, we collect anonymous usage data — which features get used, with
+            everything you type masked out. It is never linked to your account. See About &amp;
+            Legal for details.
+          </p>
+        </div>
+
+        <label className="settings-analytics__toggle">
+          <input
+            type="checkbox"
+            checked={analyticsShared}
+            disabled={!analyticsActive()}
+            onChange={(e) => {
+              setAnalyticsShared(e.target.checked);
+              setOptedOut(!e.target.checked);
+            }}
+          />
+          <span>
+            Share anonymous usage analytics
+            {!analyticsActive() && (
+              <span className="settings-analytics__inactive"> (active on the live site only)</span>
+            )}
+          </span>
+        </label>
       </section>
 
       {/* BL-129 R5: danger zone -- visually separated (own section, danger

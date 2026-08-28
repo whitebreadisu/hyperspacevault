@@ -24,6 +24,7 @@ import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
+import { capture } from "./analytics/analytics";
 
 /** BL-56 §5.5: the app no longer gates on auth -- anonymous visitors get the
  * same shell (Header + unified Cards list) as signed-in users. Auth becomes a
@@ -203,10 +204,6 @@ function AppContent() {
     if (user && !signupInFlight && !googleLinkedInFlight) setAuthModalOpen(false);
   }, [user, signupInFlight, googleLinkedInFlight]);
 
-  if (loading) {
-    return <p className="loading-text">Loading…</p>;
-  }
-
   // BL-142: only the settings view is forced back to "cards" for an
   // anonymous visitor -- it has no anonymous-reachable entry point at all
   // (avatar-menu-only), so defensively guarding it here matches that. The
@@ -224,6 +221,31 @@ function AppContent() {
       : user && !emailVerified && activeView === "import-export"
         ? "cards"
         : activeView;
+
+  // BL-235 screen_viewed: tracks the EFFECTIVE pane (post-forcing `view`,
+  // not raw activeView -- a forced-back-to-cards visitor viewed cards).
+  // Taxonomy names, not AppView ids: the analytics contract survives any
+  // future AppView renames. `shared` maps to shared_view's dedicated event
+  // elsewhere (share_link_viewed carries it); it still emits screen_viewed
+  // here so the screen denominator stays complete. Sits above the loading
+  // early-return (rules-of-hooks); the in-effect loading guard keeps the
+  // first emit on the first *rendered* pane, not the loading splash.
+  useEffect(() => {
+    if (loading) return;
+    const screenByView: Record<AppView, string> = {
+      cards: "vault",
+      "deck-check": "deck_check",
+      "new-arrivals": "new_arrivals",
+      shared: "shared_view",
+      settings: "settings",
+      "import-export": "import_export",
+    };
+    capture("screen_viewed", { screen: screenByView[view] });
+  }, [view, loading]);
+
+  if (loading) {
+    return <p className="loading-text">Loading…</p>;
+  }
 
   return (
     <div className="app-layout">

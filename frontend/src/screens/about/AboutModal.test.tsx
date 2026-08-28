@@ -31,7 +31,13 @@ describe("AboutModal (BL-125)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/us-central1 \(iowa, usa\)/i)).toBeInTheDocument();
     expect(screen.getByText(/delete account in the account menu/i)).toBeInTheDocument();
-    expect(screen.getByText(/no analytics, no ads, no third-party trackers/i)).toBeInTheDocument();
+    // DISPOSITION (BL-235, REPLACE): "no analytics, no ads, no third-party
+    // trackers" is superseded by the usage-analytics disclosure bullet --
+    // the assertion now pins the new copy's load-bearing claims (anonymous,
+    // opt-out in Settings, no ads/selling).
+    expect(screen.getByText(/anonymous usage data/i)).toBeInTheDocument();
+    expect(screen.getByText(/turn it off any time in settings/i)).toBeInTheDocument();
+    expect(screen.getByText(/never sold/i)).toBeInTheDocument();
   });
 
   // DISPOSITION (BL-126, CREATE): new coverage for the fifth privacy bullet

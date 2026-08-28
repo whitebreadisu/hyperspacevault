@@ -8,6 +8,7 @@ import { isInsideFilterMenuPortal } from "./FilterMenuPortal";
 import type { BaseCard } from "../utils/catalog";
 import { getSets } from "../api/sets";
 import type { CardSet } from "../api/sets";
+import { capture } from "../analytics/analytics";
 import { tierForViewportHeight, fitsDockedViewport } from "../utils/filterPanelTiers";
 import { allSetsGroups, isBaseSetCode } from "../utils/setGrouping";
 import {
@@ -193,14 +194,24 @@ interface FilterPanelProps {
    * badge (they ARE applied filters) and keeps Reset active whenever > 0 so
    * it can clear them. Supersedes round 9's boolean `resetAlsoClears`. */
   externalActiveCount?: number;
+  /** BL-235: fired synchronously, once per individual field a control here
+   * actually changes (search excluded -- CardsPage instruments that
+   * separately as search_performed) -- CardsPage stashes the field name in a
+   * ref and reads the post-change results_count/active_filter_count off its
+   * own next render, since this component has no visibility into the
+   * filtered row count. Optional so every pre-existing call site/test
+   * renders unaffected. */
+  onFieldChanged?: (field: string) => void;
 }
 
 /** BL-111 F6: active-filter count for the collapsed rail's badge -- every
  * facet Set with a selection, a non-empty search, and every range narrowed
  * off its full [0, max] span counts once. Mirrors `isDefaultFilterState`'s
  * field list but returns a count instead of a boolean (the rail wants "how
- * many", the Reset button wants "any"). */
-function countActiveFilters(filters: FilterState): number {
+ * many", the Reset button wants "any"). Exported (BL-235) so CardsPage can
+ * compute the SAME total for filter_applied's active_filter_count rather
+ * than re-deriving it. */
+export function countActiveFilters(filters: FilterState): number {
   let n = 0;
   if (filters.search) n++;
   // BL-130: the mode change alone (no selection) has no filtering effect
@@ -230,6 +241,7 @@ export function FilterPanel({
   children,
   onResetAll,
   externalActiveCount = 0,
+  onFieldChanged,
 }: FilterPanelProps) {
   // BL-111 F6 (superseded by BL-144, then BL-179 round 7): used to start
   // OPEN unconditionally, then BL-144 keyed the initial state to the docked
@@ -271,11 +283,13 @@ export function FilterPanel({
   // -- and stays active when only those exist.
   const resetInert = isDefault && externalActiveCount === 0;
   const resetFilters = () => {
+    capture("filters_cleared", {}); // BL-235
     setFilters(DEFAULT_FILTERS);
     onResetAll?.();
   };
 
   const toggleAspect = (value: string) => {
+    onFieldChanged?.("aspect"); // BL-235
     setFilters((prev) => {
       // BL-90: no snap-back -- deselecting the last active value is now a
       // stable "unfiltered" state (size 0), not forced back to all-selected.
@@ -572,7 +586,10 @@ export function FilterPanel({
   const aspectModeEl = (
     <AspectModeControl
       mode={filters.aspectMode}
-      onChange={(aspectMode) => update({ aspectMode })}
+      onChange={(aspectMode) => {
+        onFieldChanged?.("aspect_mode"); // BL-235
+        update({ aspectMode });
+      }}
     />
   );
 
@@ -588,7 +605,10 @@ export function FilterPanel({
       <MultiSelect
         label="Set"
         values={filters.set}
-        onChange={(v) => update({ set: v })}
+        onChange={(v) => {
+          onFieldChanged?.("set"); // BL-235
+          update({ set: v });
+        }}
         options={facetedSetOptions}
         placeholder="All sets"
         showAllButton={false}
@@ -612,14 +632,20 @@ export function FilterPanel({
       <MultiSelect
         label="Rarity"
         values={filters.rarity}
-        onChange={(v) => update({ rarity: v })}
+        onChange={(v) => {
+          onFieldChanged?.("rarity"); // BL-235
+          update({ rarity: v });
+        }}
         options={facetedRarityOptions}
         placeholder="All rarities"
       />
       <FinishFilter
         label="Finish"
         values={filters.finish}
-        onChange={(v) => update({ finish: v })}
+        onChange={(v) => {
+          onFieldChanged?.("finish"); // BL-235
+          update({ finish: v });
+        }}
         tree={finishTree}
         valid={finishValid}
         showAllValues={showInvalidValues}
@@ -634,21 +660,30 @@ export function FilterPanel({
       <MultiSelect
         label="Type"
         values={filters.type}
-        onChange={(v) => update({ type: v })}
+        onChange={(v) => {
+          onFieldChanged?.("type"); // BL-235
+          update({ type: v });
+        }}
         options={facetedTypeOptions}
         placeholder="All types"
       />
       <MultiSelect
         label="Arenas"
         values={filters.arena}
-        onChange={(v) => update({ arena: v })}
+        onChange={(v) => {
+          onFieldChanged?.("arena"); // BL-235
+          update({ arena: v });
+        }}
         options={facetedArenaOptions}
         placeholder="All arenas"
       />
       <MultiSelect
         label="Keywords"
         values={filters.keyword}
-        onChange={(v) => update({ keyword: v })}
+        onChange={(v) => {
+          onFieldChanged?.("keyword"); // BL-235
+          update({ keyword: v });
+        }}
         options={facetedKeywordOptions}
         placeholder="All keywords"
         searchable
@@ -656,7 +691,10 @@ export function FilterPanel({
       <MultiSelect
         label="Traits"
         values={filters.trait}
-        onChange={(v) => update({ trait: v })}
+        onChange={(v) => {
+          onFieldChanged?.("trait"); // BL-235
+          update({ trait: v });
+        }}
         options={facetedTraitOptions}
         placeholder="All traits"
         searchable
@@ -665,19 +703,28 @@ export function FilterPanel({
         label="Cost"
         max={COST_MAX}
         value={filters.costRange}
-        onChange={(v) => update({ costRange: v })}
+        onChange={(v) => {
+          onFieldChanged?.("cost"); // BL-235
+          update({ costRange: v });
+        }}
       />
       <RangeSlider
         label="Power"
         max={POWER_MAX}
         value={filters.powerRange}
-        onChange={(v) => update({ powerRange: v })}
+        onChange={(v) => {
+          onFieldChanged?.("power"); // BL-235
+          update({ powerRange: v });
+        }}
       />
       <RangeSlider
         label="HP"
         max={HP_MAX}
         value={filters.hpRange}
-        onChange={(v) => update({ hpRange: v })}
+        onChange={(v) => {
+          onFieldChanged?.("hp"); // BL-235
+          update({ hpRange: v });
+        }}
       />
     </div>
   );

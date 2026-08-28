@@ -99,6 +99,14 @@ vi.mock("../../api/inventory", () => ({
   EmailNotVerifiedError,
 }));
 
+// BL-235: capture() mock -- asserted by the "AddCardsModal analytics"
+// describe block below (add_cards_committed/add_cards_abandoned); every
+// other test in this file only needs it to be a safe no-op.
+const mockCapture = vi.fn();
+vi.mock("../../analytics/analytics", () => ({
+  capture: (...args: unknown[]) => mockCapture(...args),
+}));
+
 function makeCard(overrides: Partial<CardWithQty>): CardWithQty {
   return {
     id: 1,
@@ -832,6 +840,88 @@ describe("AddCardsModal close guard (BL-111 F7)", () => {
 
     expect(screen.queryByText(/discard this batch/i)).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+// CREATE (BL-235): add_cards_committed/add_cards_abandoned -- the keypad
+// commit path and the close-guard's "Discard & Close" action.
+describe("AddCardsModal analytics (BL-235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAdjustCard.mockResolvedValue({
+      variant_id: 1,
+      quantity: 1,
+      applied: 1,
+      requested: 1,
+      playset_complete: false,
+      blocked: false,
+      reason: null,
+      over_limit: false,
+    });
+  });
+
+  async function buildOneRowBatch() {
+    const onClose = vi.fn();
+    const onCommitted = vi.fn();
+    await renderModal(onClose, onCommitted);
+    await chooseSet(/^SOR —/);
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("000"), { target: { value: "12" } });
+    });
+    const finishSelect = screen.getByLabelText("Finish");
+    await act(async () => {
+      fireEvent.change(finishSelect, { target: { value: "Standard Foil" } });
+    });
+    await act(async () => {
+      fireEvent.keyDown(finishSelect, { key: "Enter" });
+    });
+    return { onClose, onCommitted };
+  }
+
+  it("fires add_cards_committed(method: keypad, cards_added: 1, distinct_cards: 1) on a successful commit", async () => {
+    await buildOneRowBatch();
+
+    const footerBtns = screen.getAllByRole("button");
+    const submitBtn = footerBtns.find((b) => b.textContent?.includes("Add Cards to Inventory"));
+    await act(async () => {
+      fireEvent.click(submitBtn!);
+    });
+    expect(screen.getByRole("heading", { name: /verify cards/i })).toBeTruthy();
+
+    await act(async () => {
+      const commitBtn = screen
+        .getAllByRole("button")
+        .find((b) => b.textContent?.includes("Add Cards to Inventory"));
+      fireEvent.click(commitBtn!);
+    });
+
+    await waitFor(() =>
+      expect(mockCapture).toHaveBeenCalledWith("add_cards_committed", {
+        method: "keypad",
+        cards_added: 1,
+        distinct_cards: 1,
+      })
+    );
+  });
+
+  it("fires add_cards_abandoned(pending_entries: 1) when Discard & Close is chosen on a non-empty batch", async () => {
+    await buildOneRowBatch();
+
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    expect(screen.getByText(/discard this batch/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /discard.*close/i }));
+
+    expect(mockCapture).toHaveBeenCalledWith("add_cards_abandoned", { pending_entries: 1 });
+  });
+
+  it("does NOT fire add_cards_abandoned when the modal closes on an empty batch (no confirm shown)", async () => {
+    await renderModal();
+    mockCapture.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+
+    expect(mockCapture).not.toHaveBeenCalledWith("add_cards_abandoned", expect.anything());
   });
 });
 

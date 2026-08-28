@@ -2,6 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
+import { initAnalytics } from "./analytics/analytics";
+
+// BL-235: no-ops everywhere except the real production hostnames (see
+// analytics.ts for the gate) -- dev tabs above stay out of the dataset.
+initAnalytics();
 
 // Prefix the browser-tab title with (DEV) on every non-production build so a
 // dev tab is distinguishable from a prod tab at a glance. Prod is identified

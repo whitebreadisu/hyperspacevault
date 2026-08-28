@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { getBaseCardsList } from "../../api/baseCards";
 import { getQuantities } from "../../api/inventory";
 import { getSharedQuantities } from "../../api/sharedView";
@@ -14,7 +14,8 @@ import { CardsTable } from "./CardsTable";
 import { GalleryGrid } from "./GalleryGrid";
 import { GallerySortHeader } from "./GallerySortHeader";
 import { CardPopup } from "./CardPopup";
-import { FilterPanel } from "../../components/FilterPanel";
+import { FilterPanel, countActiveFilters } from "../../components/FilterPanel";
+import { capture } from "../../analytics/analytics";
 import { useLimits } from "../../context/LimitsContext";
 import { cardOverCap } from "../../utils/limits";
 import { applyFilters, DEFAULT_FILTERS, isDefaultFilterState } from "../../utils/filters";
@@ -209,6 +210,12 @@ export function CardsPage({
   // when the Finish filter drove that display) -- wins over `scope` as the
   // popup's initialFinish for that popup session; cleared on close.
   const [galleryDisplayedFinish, setGalleryDisplayedFinish] = useState<string | null>(null);
+  // BL-235: which surface opened the currently-open popup -- card_popup_
+  // opened's `source` property. Only "table"/"gallery" are ever produced
+  // today (see openPopupFromTable/openPopupFromGallery below); "deck_check"/
+  // "new_arrivals" are in the taxonomy's enum but have no popup-opening seam
+  // in this codebase yet (neither screen renders CardPopup).
+  const [popupSource, setPopupSource] = useState<"table" | "gallery">("table");
   const [setOrder, setSetOrder] = useState<SetOrderMap>({});
   const [setNameByCode, setSetNameByCode] = useState<Record<string, string>>({});
   // BL-163: the raw getSets() rows, kept alongside the two derived maps
@@ -264,6 +271,9 @@ export function CardsPage({
   // handleFilterPanelChange's disengage check below (scope driving filter is
   // the expected direction; only the reverse needs guarding against).
   const handleScopeChange = useCallback((raw: string | null) => {
+    // BL-235: "all" represents the cleared/"All variants" selection --
+    // capture()'s properties can't carry null.
+    capture("finish_scope_changed", { finish: raw ?? "all" });
     setScope(raw);
     setFilters((prev) => ({ ...prev, finish: raw ? new Set([raw]) : new Set<string>() }));
   }, []);
@@ -283,7 +293,11 @@ export function CardsPage({
   // nextSortState) -- a different column lands on ascending, the
   // already-active column toggles asc<->desc.
   const handleSortChange = useCallback((column: SortColumn) => {
-    setSortState((prev) => nextSortState(prev, column));
+    setSortState((prev) => {
+      const next = nextSortState(prev, column);
+      capture("sort_changed", { column, direction: next.direction }); // BL-235
+      return next;
+    });
   }, []);
 
   // Owner request 2026-07-31: Unit/Collection display for the Value column
@@ -579,6 +593,23 @@ export function CardsPage({
     (noInventoryOnly ? 1 : 0) +
     (overCapOnly ? 1 : 0);
 
+  // BL-235: the SAME total FilterPanel's own collapsed-rail badge shows
+  // (its countActiveFilters, exported for this) plus the toggles above --
+  // filter_applied's active_filter_count property.
+  const activeFilterCount = countActiveFilters(filters) + externalActiveCount;
+
+  // BL-235: which filter field a click/change just touched, stashed
+  // synchronously (FilterPanel's onFieldChanged prop, or the four Collection
+  // toggle onClicks below) so the effect further down can read the
+  // POST-change results_count/active_filter_count off this component's own
+  // next render before firing filter_applied. Cleared once consumed so an
+  // unrelated `filtered`/`activeFilterCount` change (e.g. a quantities
+  // refresh) never fires a spurious event.
+  const pendingFilterFieldRef = useRef<string | null>(null);
+  const handleFieldChanged = useCallback((field: string) => {
+    pendingFilterFieldRef.current = field;
+  }, []);
+
   const resetExternalFilters = useCallback(() => {
     setIncompleteOnly(false);
     setOwnedOnly(false);
@@ -622,12 +653,50 @@ export function CardsPage({
   const isNarrowed =
     !isDefaultFilterState(filters) || incompleteOnly || ownedOnly || noInventoryOnly || overCapOnly;
 
+  // BL-235: fires filter_applied once per user-driven field change, reading
+  // the POST-change results_count/active_filter_count off THIS render --
+  // pendingFilterFieldRef is set synchronously in the same click/change
+  // event that produced the `filters`/toggle state this render reflects, so
+  // by the time this effect runs the values below are already current.
+  useEffect(() => {
+    const field = pendingFilterFieldRef.current;
+    if (field == null) return;
+    pendingFilterFieldRef.current = null;
+    capture("filter_applied", {
+      field,
+      active_filter_count: activeFilterCount,
+      results_count: filtered.length,
+    });
+  }, [filtered, activeFilterCount]);
+
+  // BL-235: search_performed -- debounce-follows the search box (never per
+  // keystroke) and skips an emptied/never-typed box entirely (nothing to
+  // report). Reads `filtered.length` from this render's closure rather than
+  // listing it as a dep -- see the disable comment below; a `filtered`
+  // change from something OTHER than this search text (e.g. a quantities
+  // refresh) would otherwise restart the debounce for no reason.
+  useEffect(() => {
+    if (filters.search.length === 0) return undefined;
+    const timeout = setTimeout(() => {
+      capture("search_performed", {
+        query_length: filters.search.length,
+        results_count: filtered.length,
+      });
+    }, 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.search]);
+
   /** BL-148: opens the unified popup AND snapshots `filtered`'s current
    * base_card_id order for prev/next nav -- the single entry point both the
    * table (name cell + inventory cell) and the gallery route through, so
    * every opener gets identical nav behavior for free. */
   const openPopup = useCallback(
-    (baseCardId: number, displayedFinish: string | null = null) => {
+    (
+      baseCardId: number,
+      displayedFinish: string | null = null,
+      source: "table" | "gallery" = "table"
+    ) => {
       // BL-201: non-null only from a gallery cell whose image the Finish
       // filter picked -- that popup session opens on the finish the
       // collector was looking at (precedence over the BL-193 scope
@@ -639,8 +708,24 @@ export function CardsPage({
       // table or Gallery alike.
       setPopupCardIds(sortedCards.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
+      setPopupSource(source); // BL-235
     },
     [sortedCards]
+  );
+
+  // BL-235: card_popup_opened's `source` -- CardsTable's onSelectCard/
+  // onSelectInventory take a single (baseCardId) argument, GalleryGrid's
+  // onSelectCard takes (baseCardId, displayedFinish); neither knows about
+  // `source` itself, so these thin wrappers are the minimal plumbing that
+  // tags each opener without changing either component's own contract.
+  const openPopupFromTable = useCallback(
+    (baseCardId: number) => openPopup(baseCardId, null, "table"),
+    [openPopup]
+  );
+  const openPopupFromGallery = useCallback(
+    (baseCardId: number, displayedFinish?: string | null) =>
+      openPopup(baseCardId, displayedFinish ?? null, "gallery"),
+    [openPopup]
   );
 
   const closePopup = useCallback(() => {
@@ -699,6 +784,7 @@ export function CardsPage({
             cards={toggleNarrowed as BaseCard[]}
             onResetAll={resetExternalFilters}
             externalActiveCount={externalActiveCount}
+            onFieldChanged={handleFieldChanged}
           >
             {/* BL-224: the completion popovers' set selection now IS the
                 sidebar's own Set facet (no second dimension to surface here
@@ -722,8 +808,10 @@ export function CardsPage({
                     hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
-                    if (hasData) setIncompleteOnly((v) => !v);
-                    else requestSignIn();
+                    if (hasData) {
+                      handleFieldChanged("completion"); // BL-235
+                      setIncompleteOnly((v) => !v);
+                    } else requestSignIn();
                   }}
                   aria-pressed={incompleteOnly}
                   aria-disabled={!hasData}
@@ -748,6 +836,7 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
+                    handleFieldChanged("owned"); // BL-235
                     // BL-115: turning ownedOnly on contradicts noInventoryOnly
                     // (owned total > 0 vs. === 0) -- clear it on the way in.
                     setOwnedOnly((v) => {
@@ -777,6 +866,7 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
+                    handleFieldChanged("no_inventory"); // BL-235
                     // BL-115: turning noInventoryOnly on contradicts ownedOnly
                     // -- clear it on the way in (mirror of the setOwnedOnly
                     // handler above). BL-217: it also contradicts overCapOnly
@@ -816,6 +906,7 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
+                    handleFieldChanged("over_cap"); // BL-235
                     // BL-217: turning overCapOnly on contradicts
                     // noInventoryOnly (over-cap implies owned) -- clear it on
                     // the way in, mirroring the ownedOnly/noInventoryOnly
@@ -950,8 +1041,8 @@ export function CardsPage({
                 cards={sortedCards}
                 setNameByCode={setNameByCode}
                 isAuthenticated={hasData}
-                onSelectCard={openPopup}
-                onSelectInventory={openPopup}
+                onSelectCard={openPopupFromTable}
+                onSelectInventory={openPopupFromTable}
                 scope={scope}
                 onScopeChange={handleScopeChange}
                 priceKind={priceKind}
@@ -984,7 +1075,7 @@ export function CardsPage({
                 />
                 <GalleryGrid
                   cards={sortedCards}
-                  onSelectCard={openPopup}
+                  onSelectCard={openPopupFromGallery}
                   activeFinishes={filters.finish}
                   isAuthenticated={hasData}
                   scope={scope}
@@ -1011,6 +1102,7 @@ export function CardsPage({
           }}
           onRequestSignIn={requestSignIn}
           navigation={popupNavigation}
+          source={popupSource}
           // BL-193: keeps the popup's initial/per-card selection in the same
           // finish the collector is scoped to (BL-173) -- companion to
           // BL-187's scoped number/sort and BL-192's rail cycling.

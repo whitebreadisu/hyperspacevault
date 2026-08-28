@@ -6,7 +6,9 @@ interface Props {
 }
 
 /** BL-125: the About & Legal surface -- non-affiliation disclosure, the
- * BL-104 privacy note (BL-126 adds a fifth bullet for feedback storage), and
+ * BL-104 privacy note (BL-126 adds a fifth bullet for feedback storage;
+ * BL-235 replaces the "Tracking: none" bullet with the usage-analytics
+ * disclosure -- anonymous, masked, opt-out in Settings), and
  * an attribution line, in one modal reachable from
  * both the header's "Unofficial Fan Project" brand-line microcopy
  * (anonymous + signed-in) and the UserMenu's "About & Legal" item
@@ -62,7 +64,13 @@ export function AboutModal({ onClose }: Props) {
                   Leaving: deletion is self-service — Delete Account in the account menu permanently
                   removes your account and all your data.
                 </li>
-                <li>Tracking: none. No analytics, no ads, no third-party trackers.</li>
+                <li>
+                  Usage analytics: to guide improvements, we collect anonymous usage data — which
+                  features get used, plus session replays with everything you type masked out. It is
+                  never linked to your account, and you can turn it off any time in Settings under
+                  Usage Analytics. Processed by PostHog (USA). No ads, no advertising trackers, and
+                  your data is never sold.
+                </li>
                 <li>
                   Feedback: if you send feedback, we store your message (and your email only if you
                   opt in to contact).

@@ -10,6 +10,7 @@ import {
   QUANTITY_CEILING,
 } from "../../utils/limits";
 import { variantLabel } from "./cardPopupShared";
+import { capture } from "../../analytics/analytics";
 
 /** BL-155 decomposition: inventory controls, pulled out of CardPopup.tsx
  * verbatim -- the selected printing's owned-quantity stepper (InventoryPlate,
@@ -343,11 +344,13 @@ export function useInventoryMutation(
 
   const handleIncrement = useCallback(() => {
     if (!selectedVariant) return;
+    capture("quantity_changed", { direction: "increment", surface: "popup" }); // BL-235
     bump(selectedVariant.variant_id, 1, selectedVariant.quantity);
   }, [selectedVariant, bump]);
 
   const handleDecrement = useCallback(() => {
     if (!selectedVariant) return;
+    capture("quantity_changed", { direction: "decrement", surface: "popup" }); // BL-235
     bump(selectedVariant.variant_id, -1, selectedVariant.quantity);
   }, [selectedVariant, bump]);
 

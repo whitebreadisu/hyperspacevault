@@ -37,6 +37,14 @@ vi.mock("firebase/auth", () => ({
   getAdditionalUserInfo: mockGetAdditionalUserInfo,
 }));
 
+// BL-235: capture() mock -- asserted by the "AuthModal analytics" describe
+// block below (signup_completed/login_completed); every other test in this
+// file only needs it to be a safe no-op.
+const mockCapture = vi.fn();
+vi.mock("../../analytics/analytics", () => ({
+  capture: (...args: unknown[]) => mockCapture(...args),
+}));
+
 // DISPOSITION (BL-56 Slice 2, PORT from screens/auth/AuthScreen.test.tsx):
 // the credential/validation/error-message behavior is unchanged -- only the
 // full-screen AuthScreen component became the AuthModal component. These
@@ -541,5 +549,92 @@ describe("AuthModal Google sign-in (BL-118 / ADR-0016)", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+// CREATE (BL-235): signup_completed/login_completed -- fired once per
+// successful USER-taken action (password submit, Google popup), never on
+// session-restore rehydration (which this component has no path to at all
+// -- that's AuthContext's onAuthStateChanged listener, untouched here).
+describe("AuthModal analytics (BL-235)", () => {
+  beforeEach(() => {
+    mockSignIn.mockReset();
+    mockSignUp.mockReset();
+    mockSendEmailVerification.mockReset();
+    mockSignInWithPopup.mockReset();
+    mockGetAdditionalUserInfo.mockReset();
+    mockCapture.mockClear();
+  });
+
+  it("fires login_completed(provider: password) on a successful password log in", async () => {
+    mockSignIn.mockResolvedValue(undefined);
+    render(<AuthModal onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "secret1" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^log in$/i }));
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith("login_completed", { provider: "password" });
+    expect(mockCapture).not.toHaveBeenCalledWith("signup_completed", expect.anything());
+  });
+
+  it("fires signup_completed(provider: password) on a successful password sign up", async () => {
+    mockSignUp.mockResolvedValue({ user: { email: "new@b.com" } });
+    mockSendEmailVerification.mockResolvedValue(undefined);
+    render(<AuthModal onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /need an account/i }));
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "new@b.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "secret1" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith("signup_completed", { provider: "password" });
+    expect(mockCapture).not.toHaveBeenCalledWith("login_completed", expect.anything());
+  });
+
+  it("fires signup_completed(provider: google) for a brand-new Google account (isNewUser: true)", async () => {
+    mockGetAdditionalUserInfo.mockReturnValue({ isNewUser: true });
+    mockSignInWithPopup.mockResolvedValue({
+      user: { providerData: [{ providerId: "google.com" }] },
+    });
+    render(<AuthModal onClose={vi.fn()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith("signup_completed", { provider: "google" });
+  });
+
+  it("fires login_completed(provider: google) for an existing Google account (isNewUser: false), including the auto-link case", async () => {
+    mockGetAdditionalUserInfo.mockReturnValue({ isNewUser: false });
+    mockSignInWithPopup.mockResolvedValue({
+      user: {
+        providerData: [{ providerId: "password" }, { providerId: "google.com" }],
+      },
+    });
+    render(<AuthModal onClose={vi.fn()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith("login_completed", { provider: "google" });
+    expect(mockCapture).not.toHaveBeenCalledWith("signup_completed", expect.anything());
+  });
+
+  it("does not fire either event on a rejected login attempt", async () => {
+    mockSignIn.mockRejectedValue(Object.assign(new Error("bad"), { code: "auth/wrong-password" }));
+    render(<AuthModal onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpass" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^log in$/i }));
+    });
+
+    expect(mockCapture).not.toHaveBeenCalledWith("login_completed", expect.anything());
+    expect(mockCapture).not.toHaveBeenCalledWith("signup_completed", expect.anything());
   });
 });

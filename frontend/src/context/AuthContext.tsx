@@ -1,8 +1,15 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { onAuthStateChanged, signOut, getRedirectResult, type User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signOut,
+  getRedirectResult,
+  getAdditionalUserInfo,
+  type User,
+} from "firebase/auth";
 import { auth } from "../firebase";
 import { createAuthChannel, TAB_ID, type AuthChannelMessage } from "../utils/authChannel";
+import { capture } from "../analytics/analytics";
 
 interface AuthContextValue {
   user: User | null;
@@ -67,7 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // redirect completion -- the error is swallowed rather than surfaced,
   // since there's nowhere in this component to put it.
   useEffect(() => {
-    getRedirectResult(auth).catch(() => {});
+    // BL-235: signup_completed/login_completed for the signInWithRedirect
+    // fallback -- the ONE real Google-sign-in completion this effect ever
+    // observes (per Firebase's own contract, `result` is non-null only
+    // immediately after a redirect returns; every other load, including
+    // ordinary session-restore rehydration, resolves null here and this
+    // never fires). Mirrors AuthModal's popup-path isNewUser check.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (!result) return;
+        const info = getAdditionalUserInfo(result);
+        capture(info?.isNewUser ? "signup_completed" : "login_completed", { provider: "google" });
+      })
+      .catch(() => {});
   }, []);
 
   // BL-95: cross-tab sync. The verification email link opens a *new* tab

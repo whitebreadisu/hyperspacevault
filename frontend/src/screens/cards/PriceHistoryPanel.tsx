@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getPriceHistory } from "../../api/baseCards";
 import type { PriceHistoryPoint, PriceHistoryRange, VariantDetail } from "../../api/baseCards";
+import { capture } from "../../analytics/analytics";
 import "./PriceHistoryPanel.css";
 
 /** BL-140 design-conformance pass (2026-07-21): aligns the history panel
@@ -288,7 +289,10 @@ export function PriceHistoryPanel({ baseCardId, variant, compact, onExpand, onCl
             className="php-expand"
             title="Expand price history"
             aria-label="Expand price history"
-            onClick={onExpand}
+            onClick={() => {
+              capture("price_history_opened", {}); // BL-235
+              onExpand();
+            }}
           >
             ⤢
           </button>

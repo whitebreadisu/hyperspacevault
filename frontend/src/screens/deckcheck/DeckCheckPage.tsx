@@ -4,6 +4,7 @@ import type { DeckCheckRequestBody, DeckCheckResponse } from "../../api/deckChec
 import { DeckCheckEntry } from "./DeckCheckEntry";
 import type { DeckCheckEntryError } from "./DeckCheckEntry";
 import { DeckCheckResult } from "./DeckCheckResult";
+import { capture } from "../../analytics/analytics";
 import "./deckcheck.css";
 
 interface Props {
@@ -40,6 +41,14 @@ export function DeckCheckPage({ isAuthenticated, onRequestSignIn }: Props) {
     try {
       const response = await checkDeck(body);
       setResult(response);
+      // BL-235: missing_count -- total missing COPIES across the "together"
+      // scope, the same figure DeckCheckResult's own missingCopies helper
+      // computes for its scope tiles.
+      const missingCount = response.scopes.together.missing.reduce(
+        (sum, m) => sum + Math.max(0, m.need - m.have),
+        0
+      );
+      capture("deck_check_run", { missing_count: missingCount });
     } catch (err) {
       if (err instanceof DeckCheckApiError) {
         setError({ code: err.code, message: err.message });

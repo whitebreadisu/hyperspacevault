@@ -14,6 +14,7 @@ import { auth } from "../../firebase";
 import { GoogleAuthButton } from "../../components/GoogleAuthButton";
 import { describeGoogleAuthError } from "../../utils/googleAuth";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { capture } from "../../analytics/analytics";
 import "./AuthModal.css";
 
 type Mode = "login" | "signup";
@@ -123,9 +124,11 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     try {
       if (mode === "login") {
         await signInWithEmailAndPassword(auth, email, password);
+        capture("login_completed", { provider: "password" }); // BL-235
       } else {
         onSignedUp?.();
         const credential = await createUserWithEmailAndPassword(auth, email, password);
+        capture("signup_completed", { provider: "password" }); // BL-235
         try {
           // BL-95: the action link still goes through Firebase's hosted
           // __/auth/action page (customizing the action URL itself is
@@ -194,6 +197,11 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
       }
 
       const info = getAdditionalUserInfo(result);
+      // BL-235: isNewUser is true only for a genuinely fresh account --
+      // reliably distinguishes signup from login for the Google popup path
+      // (the "linked to an existing account" auto-link case below is itself
+      // a login: the account already existed).
+      capture(info?.isNewUser ? "signup_completed" : "login_completed", { provider: "google" });
       const linkedToExisting =
         !!info &&
         !info.isNewUser &&
