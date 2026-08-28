@@ -17,13 +17,7 @@ vi.mock("posthog-js", () => ({
 }));
 
 import posthog from "posthog-js";
-import {
-  analyticsActive,
-  capture,
-  hasOptedOut,
-  initAnalytics,
-  setOptedOut,
-} from "./analytics";
+import { analyticsActive, capture, hasOptedOut, initAnalytics, setOptedOut } from "./analytics";
 
 describe("analytics gating (non-production environment)", () => {
   it("initAnalytics is a no-op outside prod builds", () => {

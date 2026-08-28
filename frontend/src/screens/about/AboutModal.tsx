@@ -66,10 +66,10 @@ export function AboutModal({ onClose }: Props) {
                 </li>
                 <li>
                   Usage analytics: to guide improvements, we collect anonymous usage data — which
-                  features get used, plus session replays with everything you type masked out. It
-                  is never linked to your account, and you can turn it off any time in Settings
-                  under Usage Analytics. Processed by PostHog (USA). No ads, no advertising
-                  trackers, and your data is never sold.
+                  features get used, plus session replays with everything you type masked out. It is
+                  never linked to your account, and you can turn it off any time in Settings under
+                  Usage Analytics. Processed by PostHog (USA). No ads, no advertising trackers, and
+                  your data is never sold.
                 </li>
                 <li>
                   Feedback: if you send feedback, we store your message (and your email only if you

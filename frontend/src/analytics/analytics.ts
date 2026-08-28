@@ -92,10 +92,7 @@ export function analyticsActive(): boolean {
   return initialized;
 }
 
-export function capture(
-  event: AnalyticsEvent,
-  properties?: AnalyticsProperties,
-): void {
+export function capture(event: AnalyticsEvent, properties?: AnalyticsProperties): void {
   if (!initialized) return;
   posthog.capture(event, properties);
 }
