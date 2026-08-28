@@ -39,6 +39,36 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-235 analytics patch (owner-approved copy 2026-08-27, "to guide
+    // improvements" lead per owner direction). Date finalized at promote
+    // time per the release-notes ritual.
+    key: "1.4.2",
+    version: "1.4.2",
+    date: "2026-08-27",
+    title: "Guided by real use",
+    sections: [
+      {
+        heading: "Improving with you",
+        items: [
+          {
+            title: "Anonymous usage analytics — with an off switch",
+            body: "To guide improvements, the app now collects anonymous usage data — which features get used, and where people get stuck. It's never linked to your account, everything you type is masked out, and you can turn it off any time in Settings under Usage Analytics. Full details in About & Legal. No ads, no advertising trackers, and nothing is ever sold.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "The usage data travels through our own servers — no third-party scripts loading from tracker domains — and the privacy write-up was updated to match.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-232 hardening patch (security review of the v1.4 surfaces). Date
     // finalized at promote time per the release-notes ritual.
     key: "1.4.1",
