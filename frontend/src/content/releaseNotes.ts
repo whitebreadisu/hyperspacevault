@@ -39,6 +39,25 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-236 pool_pre_ping hotfix (owner-approved copy 2026-09-03).
+    key: "1.4.3",
+    version: "1.4.3",
+    date: "2026-09-03",
+    title: "Steadier sessions",
+    sections: [
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Fixed a rare glitch where an action could briefly fail with an error during a long session. The app now checks its database connections before using them, so those hiccups quietly heal themselves instead of interrupting you.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-235 analytics patch (owner-approved copy 2026-08-27, "to guide
     // improvements" lead per owner direction). Date finalized at promote
     // time per the release-notes ritual.
