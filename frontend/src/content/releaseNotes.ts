@@ -59,6 +59,10 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
             body: "Homeworlds Weekly Play is in (20 cards, regular and foil), along with the first Homeworlds tournament promos: Store Showdown and Planetary Qualifier printings of Mace Windu, Emperor Palpatine, Fett's Firespray and Qui-Gon Jinn — participation through Champion.",
           },
           {
+            title: "Spotlight Decks, one pick",
+            body: "Both Homeworlds Spotlight Decks — Chewbacca and Grand Moff Tarkin — are in Add Cards' Precon Deck picker. Choose one and the whole 52-card deck drops into your Vault, reprints from earlier sets included.",
+          },
+          {
             title: "The Costco exclusives",
             body: "The two Costco Exclusive printings — Leia Organa and Han Solo — now have a home under Other promos.",
           },
