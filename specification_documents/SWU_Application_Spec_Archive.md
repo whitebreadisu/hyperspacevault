@@ -70,3 +70,49 @@ extraction batch. Section numbers refer to the spec as of the extraction date.
 > | Pricing on shared views | No ToS gate — same public per-card prices anonymous users already see | 2026-08-10 |
 > | Share cardinality | One active share per scope target; rename/rotate, no concurrent duplicates | 2026-08-11 |
 > | Release framing | v1.4 = BL-205 alone; BL-206 opportunistic pull-forward | 2026-08-11 |
+
+---
+
+## Extraction batch 2026-10-02 (BL-239 Homeworlds onboarding — standing exception resolved upstream)
+
+The variant-mapping spec and the exceptions report have no archive file of their own; their superseded text is kept here, labelled by source document.
+
+### App Spec §3.3 — sole-exception claim (sentence)
+
+**Disposition:** → archive; upstream populated `C26_3.variant_of_uuid` (→ `HMW_134`) in the 2026-10-02 export, so the catalog has zero standard-anchor exceptions.
+
+> leaving **Zam Wesell as the sole genuine exception** (§10.6).
+
+### App Spec §10.6 — Zam bullet
+
+**Disposition:** → archive; the sole exception resolved upstream 2026-10-02. Rationale for the manual orphan cleanup → ADR-0004 amendment.
+
+> - **Zam Wesell (C26_3)** is the sole genuine no-anchor exception (0 matches). The exceptions file regenerates to just Zam.
+
+### Mapping Spec §6 — sole-exception sentence
+
+**Disposition:** → archive; resolved upstream 2026-10-02.
+
+> Only **Zam Wesell** has no match and remains the sole confirmed true exception.
+
+### Mapping Spec §6 — philosophy example sentence
+
+**Disposition:** → archive; the examples it names (C26 unreleased, ASH unreleased) are no longer current.
+
+> The C26 set itself (6 total cards, no release date, last-scraped today) and ASH (not yet released) are both examples of "in-development" containers; a card like this previewing unreleased content is expected behavior of a live, evolving data source, not a data-quality problem.
+
+### Mapping Spec §8 item 3 — exception-count clause
+
+**Disposition:** → archive; the count is fixture-relative now that the live catalog has zero.
+
+> (§6 — **currently 1 entry**, Zam Wesell `C26_3` — the sole root the fallback cannot resolve).
+
+### Exceptions report — current-exceptions table (whole section)
+
+**Disposition:** → archive; `C26_3` resolved upstream 2026-10-02, the report now lists zero.
+
+> ## Current exceptions (1)
+>
+> | Set | Card # | Name | Subtitle | Variant Type | Notes |
+> |-----|--------|------|----------|---------------|-------|
+> | C26 | 3 | Zam Wesell | Not What She Seems | Convention Exclusive | The sole true orphan — no Standard `(name, subtitle)` match anywhere in the corpus. C26 is an in-development preview set (no release date, 6 total cards); likely previews a printing not yet revealed. |
