@@ -63,6 +63,7 @@ const STARFIELD_SET_CODES = new Set([
   "SEC",
   "LAW",
   "ASH",
+  "HMW",
   "IBH",
 ]);
 

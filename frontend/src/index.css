@@ -122,7 +122,7 @@ body {
 /* Starfield center strip under a left-to-right dark gradient (design
  * handoff §3). BL-165: the art is randomly selected once per app open --
  * App sets `--header-starfield` on the document root at mount
- * (utils/headerStarfield.ts, no-repeat-of-last pool of the nine shipped
+ * (utils/headerStarfield.ts, no-repeat-of-last pool of the ten shipped
  * starfields); ASH stays the no-JS/no-var fallback via var()'s second
  * argument. A pseudo-element rather than an extra DOM node: it's
  * absolutely positioned (inset:0) with z-index:auto, which -- per CSS
