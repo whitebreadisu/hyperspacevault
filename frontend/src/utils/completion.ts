@@ -8,14 +8,14 @@
 // Universe rules (owner-locked 2026-07-26):
 //   - Tokens are excluded from every metric (pre-existing rule, kept).
 //   - The two completion PERCENTAGES are scoped to base cards whose home
-//     set (`card.set_code`) is one of the ten base sets (`baseSetCodes`,
+//     set (`card.set_code`) is one of the base sets (`baseSetCodes`,
 //     built from GET /api/sets' `is_base_set` flag). An "orphan" base card
 //     (its only printing lives in a non-base container set -- the known
 //     case is Zam's root in C26) is excluded from both percentages.
 //   - Cards and Collection value are NOT set-scoped -- every non-token card
 //     counts, orphans included. In practice this already covers nearly the
 //     whole catalog: only a handful of orphan base cards live outside the
-//     ten base sets at all (see BASE_SET_CODES's docstring,
+//     base sets at all (see BASE_SET_CODES's docstring,
 //     swuapi_transform.py) -- everything else's home set_code already IS a
 //     base set, TS26-deck reprints included (a reprint's home set is its
 //     ORIGINAL set, not TS26 -- it's a separate base_card row already

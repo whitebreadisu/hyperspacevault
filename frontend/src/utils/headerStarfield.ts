@@ -1,12 +1,12 @@
 /** BL-165: the app-header starfield is randomly selected once per app open
- * instead of hardcoding ASH. Pool = the nine shipped starfields (TS26 is a
+ * instead of hardcoding ASH. Pool = the ten shipped starfields (TS26 is a
  * base set but has NO starfield asset yet -- it joins the pool when one
  * exists; index.css's `var(--header-starfield, url(.../starfield_ASH.jpg))`
  * keeps ASH as the no-JS fallback either way).
  *
  * Random flavor (recorded build-time decision per the BL-165 entry):
  * no-repeat-of-last -- localStorage remembers the previous pick and the next
- * open draws from the other eight, because a repeat reads as "it didn't
+ * open draws from the other nine, because a repeat reads as "it didn't
  * change" rather than as randomness. */
 
 export const HEADER_STARFIELD_CODES = [
@@ -18,6 +18,7 @@ export const HEADER_STARFIELD_CODES = [
   "SEC",
   "LAW",
   "ASH",
+  "HMW",
   "IBH",
 ] as const;
 

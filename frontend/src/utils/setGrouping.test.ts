@@ -34,16 +34,16 @@ function makeSet(code: string, overrides: Partial<CardSet> = {}): CardSet {
 }
 
 describe("setGrouping constants", () => {
-  it("SET_CANONICAL is the 8-set release order SOR..ASH", () => {
-    expect(SET_CANONICAL).toEqual(["SOR", "SHD", "TWI", "JTL", "LOF", "SEC", "LAW", "ASH"]);
+  it("SET_CANONICAL is the 9-set release order SOR..HMW", () => {
+    expect(SET_CANONICAL).toEqual(["SOR", "SHD", "TWI", "JTL", "LOF", "SEC", "LAW", "ASH", "HMW"]);
   });
 
   it("SET_SECONDARY is IBH then TS26", () => {
     expect(SET_SECONDARY).toEqual(["IBH", "TS26"]);
   });
 
-  it("BASE_SET_ORDER concatenates canonical then secondary -- the ten base sets", () => {
-    expect(BASE_SET_ORDER).toHaveLength(10);
+  it("BASE_SET_ORDER concatenates canonical then secondary -- every base set", () => {
+    expect(BASE_SET_ORDER).toHaveLength(11);
     expect(BASE_SET_ORDER).toEqual([...SET_CANONICAL, ...SET_SECONDARY]);
   });
 
@@ -55,7 +55,7 @@ describe("setGrouping constants", () => {
       "Other promos",
     ]);
     expect(EXCLUSIVE_SUBGROUPS[0].codes).toEqual(["C24", "C25", "C26"]);
-    expect(EXCLUSIVE_SUBGROUPS[3].codes).toEqual(["G25", "MV26", "GG"]);
+    expect(EXCLUSIVE_SUBGROUPS[3].codes).toEqual(["G25", "MV26", "GG", "CST"]);
   });
 
   it("weeklyPlayCodeFor appends P to the base code", () => {

@@ -320,7 +320,7 @@ export function FilterPanel({
   // in their subgroup order (Convention → Judge → Promos → Other promos).
   // The whole base+WP block is `pinned`, so MultiSelect's existing divider
   // primitive draws the one boundary before the Exclusives. Base view
-  // (show-all off) stays the ten base sets only. Any future set code the
+  // (show-all off) stays the base sets only. Any future set code the
   // curated grouping doesn't know yet falls in at the end alphabetically
   // rather than silently vanishing (allSetsGroups only emits codes it
   // recognizes).

@@ -30,6 +30,7 @@ CURATED_EXPORT_SET_ORDER = [
     "SEC",
     "LAW",
     "ASH",
+    "HMW",
     "IBH",
     "TS26",
     # Weekly Play, in base-set order.
@@ -41,6 +42,7 @@ CURATED_EXPORT_SET_ORDER = [
     "SECP",
     "LAWP",
     "ASHP",
+    "HMWP",
     # Long-tail containers.
     "J24",
     "J25",
@@ -52,6 +54,7 @@ CURATED_EXPORT_SET_ORDER = [
     "G25",
     "GG",
     "MV26",
+    "CST",
 ]
 
 _SET_RANK = {code: i for i, code in enumerate(CURATED_EXPORT_SET_ORDER)}
