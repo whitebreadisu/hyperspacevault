@@ -1,9 +1,10 @@
 {
-  "generated": "2026-07-24",
+  "generated": "2026-10-02",
   "source": [
     "specification_documents/analysis/Precon_Deck_Lists_Research_2026-07-15.md",
     "specification_documents/analysis/IBH_Intro_Deck_Lists_Research_2026-07-24.md",
-    "specification_documents/analysis/TS26_Reprint_Resolution_2026-07-24.md"
+    "specification_documents/analysis/TS26_Reprint_Resolution_2026-07-24.md",
+    "specification_documents/analysis/HMW_Spotlight_Deck_Lists_Research_2026-10-02.md"
   ],
   "decks": [
     {
@@ -3682,6 +3683,480 @@
           "card_number": "139",
           "variant_type": "Standard",
           "name": "Hold Them Off",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "code": "HMW-CHEWBACCA",
+      "set_code": "HMW",
+      "product": "Spotlight Deck",
+      "name": "Chewbacca",
+      "aspects": "Command / Heroism",
+      "cards": [
+        {
+          "swuapi_uuid": "01a0ad23-f2fd-7b4a-9a77-0e0e0a2e6eda",
+          "set_code": "HMW",
+          "card_number": "9",
+          "variant_type": "Standard",
+          "name": "Chewbacca, Relentless Rebel",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad24-278c-714c-a337-e44a4dccaa29",
+          "set_code": "HMW",
+          "card_number": "29",
+          "variant_type": "Standard",
+          "name": "Dendroid Wilds",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019e8f15-e91e-759e-96f2-87bfc29523c4",
+          "set_code": "ASH",
+          "card_number": "34",
+          "variant_type": "Standard",
+          "name": "Wicket, Yub Nub!",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-918f-7b7b-8336-6c074c26c2d4",
+          "set_code": "HMW",
+          "card_number": "164",
+          "variant_type": "Standard",
+          "name": "Chief Chirpa, Defiant Elder",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d3177-2eee-75e2-9a3c-1936325f4fb5",
+          "set_code": "LAW",
+          "card_number": "56",
+          "variant_type": "Standard",
+          "name": "Cassian Andor, Everything For the Rebellion",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-9e05-7a82-9091-cf8849556d17",
+          "set_code": "HMW",
+          "card_number": "168",
+          "variant_type": "Standard",
+          "name": "Ezra Bridger, What Are You Afraid Of?",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d317c-3b53-71dc-ad6a-5944f1ffe1ad",
+          "set_code": "SEC",
+          "card_number": "103",
+          "variant_type": "Standard",
+          "name": "Mon Mothma, Clinging to Hope",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-0ee8-7c59-b2ef-4cea52d39b3b",
+          "set_code": "HMW",
+          "card_number": "115",
+          "variant_type": "Standard",
+          "name": "Leia Organa, These Are My Friends",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad25-8bff-7819-b780-f2c6c58443f0",
+          "set_code": "HMW",
+          "card_number": "162",
+          "variant_type": "Standard",
+          "name": "Teebo, Striped Hunter",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-b292-75fd-82ba-a4459b06b63b",
+          "set_code": "HMW",
+          "card_number": "176",
+          "variant_type": "Standard",
+          "name": "Village Troublemaker",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad25-b515-75fc-80f2-49e684eee2db",
+          "set_code": "HMW",
+          "card_number": "177",
+          "variant_type": "Standard",
+          "name": "Adamant Ewoks",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad26-8c8b-72c2-93e8-8824463bea78",
+          "set_code": "HMW",
+          "card_number": "255",
+          "variant_type": "Standard",
+          "name": "C-3PO, Captivating Storyteller",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "01a0ad25-8eec-7c83-b174-1f81d51e62b0",
+          "set_code": "HMW",
+          "card_number": "163",
+          "variant_type": "Standard",
+          "name": "Champions of Endor",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad25-1162-79f1-8c0a-db6f98cda3a6",
+          "set_code": "HMW",
+          "card_number": "116",
+          "variant_type": "Standard",
+          "name": "Ewok Brigade",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e6d32-e1f9-7171-823e-5e867463b757",
+          "set_code": "ASH",
+          "card_number": "166",
+          "variant_type": "Standard",
+          "name": "Ewok Warrior",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-536b-77b4-8d6e-944f950594d9",
+          "set_code": "HMW",
+          "card_number": "45",
+          "variant_type": "Standard",
+          "name": "Logray, Bright Tree Shaman",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-a5ba-710d-9aec-ccc074b9a00f",
+          "set_code": "HMW",
+          "card_number": "171",
+          "variant_type": "Standard",
+          "name": "Trap Field",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019d3179-d532-7028-ac30-13838f7ecbbb",
+          "set_code": "JTL",
+          "card_number": "95",
+          "variant_type": "Standard",
+          "name": "Phoenix Squadron A-Wing",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d3179-d56d-7558-b949-810268ef481e",
+          "set_code": "JTL",
+          "card_number": "96",
+          "variant_type": "Standard",
+          "name": "Blue Leader, Scarif Air Support",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e8f15-eeb0-7365-a369-668164f713f2",
+          "set_code": "ASH",
+          "card_number": "108",
+          "variant_type": "Standard",
+          "name": "Crix Madine, Strike Team Strategist",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad26-9191-74c9-8965-e91f6688596e",
+          "set_code": "HMW",
+          "card_number": "257",
+          "variant_type": "Standard",
+          "name": "Ewok Archers",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019d3179-fe6b-79cb-bdcb-1a519da8b444",
+          "set_code": "LAW",
+          "card_number": "146",
+          "variant_type": "Standard",
+          "name": "Massassi Group Marines",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d3179-e2c7-75e1-8bb7-d7608b360446",
+          "set_code": "JTL",
+          "card_number": "151",
+          "variant_type": "Standard",
+          "name": "Red Five, Running the Trench",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad25-2d6c-757c-bcfc-b6f35fbdcd08",
+          "set_code": "HMW",
+          "card_number": "127",
+          "variant_type": "Standard",
+          "name": "Chewbacca's Bowcaster, Handcrafted Tradition",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019d3179-e5b6-7a2a-a91b-fabafb0f0cee",
+          "set_code": "JTL",
+          "card_number": "164",
+          "variant_type": "Standard",
+          "name": "Cham Syndulla, Rallying Ryloth",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad25-a33a-7e54-b426-35bfc877b205",
+          "set_code": "HMW",
+          "card_number": "170",
+          "variant_type": "Standard",
+          "name": "Han Solo, My Team's Ready",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad25-1e26-7faa-930c-8759787fa74c",
+          "set_code": "HMW",
+          "card_number": "121",
+          "variant_type": "Standard",
+          "name": "Hijacked AT-ST",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019d3176-4dd5-7091-bc7e-b0cf66f1aded",
+          "set_code": "LAW",
+          "card_number": "62",
+          "variant_type": "Standard",
+          "name": "Defiant Hammerhead",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d3179-e6a2-7e01-b3a7-14c9792e5a67",
+          "set_code": "JTL",
+          "card_number": "168",
+          "variant_type": "Standard",
+          "name": "Insurgent Saboteurs",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "code": "HMW-TARKIN",
+      "set_code": "HMW",
+      "product": "Spotlight Deck",
+      "name": "Grand Moff Tarkin",
+      "aspects": "Vigilance / Villainy",
+      "cards": [
+        {
+          "swuapi_uuid": "01a0ad23-e653-7ccd-a849-3c7e24760b54",
+          "set_code": "HMW",
+          "card_number": "4",
+          "variant_type": "Standard",
+          "name": "Grand Moff Tarkin, Tyrant of the Outer Rim",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d317c-27da-7681-be21-96a051e3943e",
+          "set_code": "SEC",
+          "card_number": "22",
+          "variant_type": "Standard",
+          "name": "Senate Rotunda",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad24-3dc4-72a1-9b75-baa2ee10aa2c",
+          "set_code": "HMW",
+          "card_number": "37",
+          "variant_type": "Standard",
+          "name": "Bacta Tank",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad24-8b2d-7475-8562-c7744f580d45",
+          "set_code": "HMW",
+          "card_number": "66",
+          "variant_type": "Standard",
+          "name": "Carrion Spike, Harbinger of Tyranny",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d3176-55e5-703d-a9ab-e23e00b39835",
+          "set_code": "LAW",
+          "card_number": "103",
+          "variant_type": "Standard",
+          "name": "Display Piece",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d317a-f3d2-7ee9-950f-53754458afc5",
+          "set_code": "LOF",
+          "card_number": "91",
+          "variant_type": "Standard",
+          "name": "Craving Power",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "019d3179-c85f-7d64-bef9-f3a3eb64c28a",
+          "set_code": "JTL",
+          "card_number": "43",
+          "variant_type": "Standard",
+          "name": "No Glory, Only Results",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad24-db2a-7779-be3a-aa29fa77cdbc",
+          "set_code": "HMW",
+          "card_number": "95",
+          "variant_type": "Standard",
+          "name": "Carbonite Chamber",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad26-022e-7454-b256-99b0c57838b1",
+          "set_code": "HMW",
+          "card_number": "205",
+          "variant_type": "Standard",
+          "name": "Intelligence Agency",
+          "quantity": 1
+        },
+        {
+          "swuapi_uuid": "01a0ad26-04ac-7863-9f3d-bf28929202da",
+          "set_code": "HMW",
+          "card_number": "206",
+          "variant_type": "Standard",
+          "name": "The Tarkin Doctrine, Protect and Punish",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "01a0ad24-77bc-7235-a840-1eba940f7333",
+          "set_code": "HMW",
+          "card_number": "59",
+          "variant_type": "Standard",
+          "name": "Clone X Assassin",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e6d32-de03-7872-b4b3-aef689520cbe",
+          "set_code": "ASH",
+          "card_number": "72",
+          "variant_type": "Standard",
+          "name": "Doctor Pershing, Dedicated to Research",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d317c-35f5-7828-987e-169062281348",
+          "set_code": "SEC",
+          "card_number": "80",
+          "variant_type": "Standard",
+          "name": "Imperial Dark Trooper",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d3179-c5f3-728a-9406-56791894e4b1",
+          "set_code": "JTL",
+          "card_number": "33",
+          "variant_type": "Standard",
+          "name": "Onyx Squadron Brute",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-c00b-7cce-b150-20c6423768eb",
+          "set_code": "HMW",
+          "card_number": "85",
+          "variant_type": "Standard",
+          "name": "Remote Scout",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-7b35-7b6c-a9e1-1872bf5d9c7c",
+          "set_code": "HMW",
+          "card_number": "60",
+          "variant_type": "Standard",
+          "name": "Vice Admiral Rampart, A New Era of Safety",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "01a0ad25-09dd-785d-a31c-357d66cd0550",
+          "set_code": "HMW",
+          "card_number": "113",
+          "variant_type": "Standard",
+          "name": "Sinister War Memorial",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019e6d32-e10e-7092-84a3-de22ed4c4b5b",
+          "set_code": "ASH",
+          "card_number": "103",
+          "variant_type": "Standard",
+          "name": "Long Live the Empire",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-b47a-7190-9af9-f0c61a4c419b",
+          "set_code": "HMW",
+          "card_number": "81",
+          "variant_type": "Standard",
+          "name": "Alliance Shield Generator",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d317c-29d9-7002-8b8c-e099283a6cb4",
+          "set_code": "SEC",
+          "card_number": "30",
+          "variant_type": "Standard",
+          "name": "Death Trooper",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-7e17-70d8-baa4-30b4781b22e0",
+          "set_code": "HMW",
+          "card_number": "61",
+          "variant_type": "Standard",
+          "name": "Director Krennic, The Work Has Stalled",
+          "quantity": 3
+        },
+        {
+          "swuapi_uuid": "019e6d32-e0f1-707a-aa7f-b6f1e3c5da3a",
+          "set_code": "ASH",
+          "card_number": "97",
+          "variant_type": "Standard",
+          "name": "Moff Gideon, Remnant Commander",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "01a0ad24-8303-75da-bd4d-0b16968554c8",
+          "set_code": "HMW",
+          "card_number": "63",
+          "variant_type": "Standard",
+          "name": "Rho Medical Shuttle",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e8f15-ee0e-7a3c-8180-cdb36f6f37f7",
+          "set_code": "ASH",
+          "card_number": "98",
+          "variant_type": "Standard",
+          "name": "AT-ST Raider",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e8f15-ea47-748b-afaf-22890c2490ae",
+          "set_code": "ASH",
+          "card_number": "48",
+          "variant_type": "Standard",
+          "name": "Imperial Armored Commando",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e8f15-ea6f-7cd0-8970-ae02acde4a6b",
+          "set_code": "ASH",
+          "card_number": "50",
+          "variant_type": "Standard",
+          "name": "Morgan Elsbeth, Life Abandoned",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019d317a-5f57-7ea2-a734-aa5721e659eb",
+          "set_code": "LAW",
+          "card_number": "171",
+          "variant_type": "Standard",
+          "name": "Stockpile",
+          "quantity": 2
+        },
+        {
+          "swuapi_uuid": "019e8f15-f0c8-7402-a143-ef0598dc9779",
+          "set_code": "ASH",
+          "card_number": "133",
+          "variant_type": "Standard",
+          "name": "Trask Walker",
           "quantity": 2
         }
       ]
