@@ -27,6 +27,7 @@ BL-ids.
 | 2026-08-07 | **v1.3 shipped** — in-app release notes (`[HSV] Updates`), SWUDB + sw-unlimited-db collection import presets, playset-scoped finish filter |
 | 2026-08-11 | v1.3.1 hotfix — large-collection imports (1,500+ cards) fixed within hours of a prod incident |
 | 2026-08-16 | **v1.4 shipped + public announcement** — collection sharing links, column sorting, table width tiers; Reddit launch draws 134 users / ~193k cards tracked day one |
+| 2026-10-02 | **v1.5 shipped** — Homeworlds, the ninth set: 954 printings plus Weekly Play and promos ingested, key art and Spotlight Decks added, live for prerelease weekend |
 
 ## Resolution ledger
 

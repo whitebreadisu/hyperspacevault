@@ -3,7 +3,7 @@
 > **Status:** Authoritative — current as-built reference for the application domain (catalog, variants, inventory, and their UX).
 > **Supersedes:** `SWU_ClaudeCode_Spec.md` (frozen — original V1 design) for **all application domains** — data model, UX, API, ingestion, architecture, and environment.
 > **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24; foreign-format imports + release-notes system shipped in v1.3 (2026-08-07); **sharing + the v1.4 Vault batch shipped in v1.4 (2026-08-16, §19–§21)**.
-> **Last updated:** 2026-08-16 (v1.4 as-builts: §19 sharing shipped-status, §20 release-notes system, §21 v1.4 Vault batch, §12 adjust + shares endpoints; same-day follow-up: §5.16 v1.3 scoped-affordance cluster + §5.15 supersession note — no as-built passes outstanding).
+> **Last updated:** 2026-10-02 (v1.5 as-builts: §23 Homeworlds onboarding, §3.3/§10.6 exceptions now zero, §16 pricing scope; no as-built passes outstanding). Previously 2026-08-16 (v1.4 as-builts: §19 sharing shipped-status, §20 release-notes system, §21 v1.4 Vault batch, §12 adjust + shares endpoints; same-day follow-up: §5.16 v1.3 scoped-affordance cluster + §5.15 supersession note — no as-built passes outstanding).
 > **Consumer-facing name:** renamed to **HyperspaceVault** 2026-07-20 (BL-138). This document, the repo, and other `SWU_*` artifacts keep the historical internal naming.
 
 **Scope & authority.** The authoritative as-built reference for the **application**: the catalog/variant/inventory **data model** (§4, §10), the **UX / interaction model** (§5), **completion, limits, and currency** (§6, §7), the **backend architecture & tech stack** (§11), the **API surface** (§12), the **ingestion pipeline** (§13), and the **environment** (§14). For the variant *mechanism* (`variant_of_uuid`) see `SWU_Standard_Variant_Mapping_Spec.md`; for **platform / auth / CI / infra** see `SWU_Platform_Spec.md`; for **local setup & the full env-var table** see `README.md`. The original V1 design lives in the frozen `SWU_ClaudeCode_Spec.md` (historical only).
@@ -34,7 +34,7 @@ Decisions made this session, treated here as fixed requirements:
 
 - **Multi-user inventory tracker** — many isolated collectors over one shared catalog. No decks, trading/sharing, or valuation (explicitly scoped out). [Open Q E] **Superseded in part:** Pricing (§16) and Deck Check (§5.11) shipped 2026-07-22 — this framing records the session's original decisions, not a current scope boundary.
 - **Full long-tail variant tracking** — every variant swuapi exposes (~58 types), not just the original 8.
-- **Base-set anchoring** — the experience is organized around the ~10 base sets; long-tail provenance is a secondary, toggleable dimension.
+- **Base-set anchoring** — the experience is organized around the base sets (11 as of Homeworlds); long-tail provenance is a secondary, toggleable dimension.
 - **Completion is base-card-level and variant-agnostic** (playset / owned) — already built; unchanged. [§6]
 - **Per-variant, per-tenant configurable keep-limits** — advisory policy, never DB constraints. [BL-24, BL-35]
 - **Approximately-current catalog** — daily detection + operator-gated apply. [BL-33 step 7, BL-36, BL-37]
@@ -62,7 +62,7 @@ The original 8-variant model conflated two independent dimensions:
 
 ### 3.3 Standard anchor & exceptions
 
-Per the mapping spec: a **root** has `variant_of_uuid: null` and is the standard-bearing printing within its set. A **standard-anchor exception** is a root whose own `variant_type` is not `"Standard"`. The full census found **15** such roots, but BL-27 determined **14 are swuapi null-errors** that resolve to a base-set Standard via a case-insensitive `(name, subtitle)` fallback (tokens exempt) — leaving **Zam Wesell as the sole genuine exception** (§10.6). `base_cards.standard_variant_id` must be **nullable** regardless. Exceptions are flagged, never block catalog inclusion.
+Per the mapping spec: a **root** has `variant_of_uuid: null` and is the standard-bearing printing within its set. A **standard-anchor exception** is a root whose own `variant_type` is not `"Standard"`. The full census found **15** such roots, but BL-27 determined **14 are swuapi null-errors** that resolve to a base-set Standard via a case-insensitive `(name, subtitle)` fallback (tokens exempt) — leaving at most a handful of genuine exceptions — **currently none** (§10.6). *(Superseded text archived 2026-10-02 — BL-239; see `SWU_Application_Spec_Archive.md`.)* `base_cards.standard_variant_id` must be **nullable** regardless. Exceptions are flagged, never block catalog inclusion.
 
 ### 3.4 Tokens — duplicate-per-set
 
@@ -79,9 +79,9 @@ Table-level model below. Exact column types, constraints, and indexes are settle
 One row per swuapi set, **base and long-tail container alike**.
 
 - `code`, `name`, `release_date`, `total_cards`, `swuapi_updated_at`
-- **`is_base_set`** — *curated* boolean. `true` for the ~10 base sets (SOR, SHD, TWI, JTL, LOF, SEC, LAW, ASH, TS26, IBH); `false` for container sets (the 7 Weekly Play sets, Judge Program, Promo, Convention Exclusive, Gamegenic, Gift Box, Movie Promo).
+- **`is_base_set`** — *curated* boolean. `true` for the base sets (SOR, SHD, TWI, JTL, LOF, SEC, LAW, ASH, HMW, TS26, IBH); `false` for container sets (the 7 Weekly Play sets, Judge Program, Promo, Convention Exclusive, Gamegenic, Gift Box, Movie Promo).
 
-**Rationale:** container sets need real rows so `card_variants.source_set_code` can FK to a named set for the long-tail picker; the base/long-tail toggle is then just a filter on `is_base_set`. The flag is **curated**, not derived from "set contains ≥1 root," because the derived rule misfires on edge cases like C26 (mostly a container, but holds the single Zam Wesell orphan root). **Resolves mapping spec §4.**
+**Rationale:** container sets need real rows so `card_variants.source_set_code` can FK to a named set for the long-tail picker; the base/long-tail toggle is then just a filter on `is_base_set`. The flag is **curated**, not derived from "set contains ≥1 root," because the derived rule misfires on container sets that carry a stray root (C26 held one — the Zam Wesell orphan — until upstream re-anchored it on 2026-10-02). **Resolves mapping spec §4.**
 
 ### 4.2 `base_cards` — roots (one per printed card design per base set)
 
@@ -461,12 +461,12 @@ A `stamp_group` consolidates variants sharing the **same base art AND the same f
 - **Judge / Prerelease Judge / Prerelease Promo:** a varied lot (some stamped, some not) — **deferred to BL-39** (visual set-by-set analysis); **default ungrouped** for now.
 - **Group-by-art alternative:** the whole finish+stamp model is a deliberate *starting point*; a broader "group by base art regardless of finish" model (Standard+Foil, Hyperspace+HS Foil, all prestiges, …) is **deferred to BL-40**.
 
-### 10.6 Exceptions — structural 15 → fallback → Zam
+### 10.6 Exceptions — structural 15 → fallback → genuine exceptions
 
 - **15 roots** have a non-`"Standard"` `variant_type` (the structural definition). The earlier "1 (Zam)" was the old name-match result.
 - **14 are swuapi null-errors** (the `variant_of_uuid` should not have been null): each resolves to a unique base-set Standard via case-insensitive `(name, subtitle)` fallback — confirmed in the census (e.g. C25 BB-8 → JTL_145, J25 Luke → JTL_94, Grogu → ASH_18). Ingestion applies this fallback to re-anchor them.
 - **Tokens are exempt** from the fallback: `GG_5 Experience` matched **7** base-set Standards (duplicate-per-set tokens) — it stays its own `base_card` per §3.4, not force-matched. **If the fallback ever returns 0 or >1 non-token matches for a future card, stop and decide manually** (don't guess).
-- **Zam Wesell (C26_3)** is the sole genuine no-anchor exception (0 matches). The exceptions file regenerates to just Zam.
+- **Genuine no-anchor exceptions: none currently.** The exceptions file lists zero. A root the fallback cannot match (0 matches) is flagged there, never blocked. When upstream later re-anchors such a card, additive ingestion re-points its variant and strands the old root's `base_cards` row with zero variants — remove it with the content runbook's Deletions procedure ([ADR-0004](../docs/decisions/0004-catalog-bootstrap-from-swuapi-export.md), 2026-10-02 amendment). *(Superseded text archived 2026-10-02 — BL-239; see `SWU_Application_Spec_Archive.md`.)*
 
 ### 10.7 `is_token`
 
@@ -744,7 +744,7 @@ Unit: SET_NUM parse/resolve incl. exceptions + collision-adjacent fixtures (a to
 
 ### 16.3 Jobs
 
-- **Daily sync** (`app.jobs.price_sync`) — Cloud Run Job, Cloud Scheduler `30 20 * * *` UTC (after tcgcsv's ~20:00 build), terraformed in both envs. Writes today's row per mapped variant + the snapshot upsert. **Since BL-174 its fetch scope is `ALL_PRICED_GROUP_IDS`** (the 10 root sets + 8 Weekly Play groups — the same single map the mapping builder uses, so sync scope can never drift from what's mapped).
+- **Daily sync** (`app.jobs.price_sync`) — Cloud Run Job, Cloud Scheduler `30 20 * * *` UTC (after tcgcsv's ~20:00 build), terraformed in both envs. Writes today's row per mapped variant + the snapshot upsert. **Since BL-174 its fetch scope is `ALL_PRICED_GROUP_IDS`** (the 11 root sets + 9 Weekly Play groups, Homeworlds included since v1.5 — the same single map the mapping builder uses, so sync scope can never drift from what's mapped). The sync only writes rows it can join through `tcgplayer_products`; a newly onboarded set collects nothing until the mapping builder is run for it in each environment, and the builder must be re-run as tcgcsv publishes more of the set's price rows (§23).
 - **History backfill** (`app.jobs.price_backfill`) — one-time walk of tcgcsv's daily archives (2024-03-08 onward; 4Gi/2vCPU sizing, 6h timeout, watermark-resumable). Run to completion on **dev** (866 days, zero missing days). **Prod never ran it** — see §16.6. Deliberately NOT widened by BL-174 — history backfill for the newly mapped finishes is a recorded optional follow-on.
 
 ### 16.3b Mapping scope (BL-174, shipped prod 2026-07-27)
@@ -813,7 +813,7 @@ Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md`
 
 **Build-authoritative detail lives in `planning/Definition_BulkAddPrecons_2026-07-24.md`** (owner policy sheet P1–P5, data spec, UX spec, 10 acceptance cases). As-built summary; don't re-derive from code.
 
-- **What (revised S2b/S2c, owner dev-review 2026-07-24):** the Add Cards modal opens with **two labeled drop-downs side by side** — the set selector (individual cards, the pre-existing manual flow, unchanged) and "Add a premade deck" (`AddCardsPreconBar.tsx`) — no segmented mode switch. Picking a value in either **locks the modal to that route** (route locking, `AddCardsModal.tsx`'s `route` derivation) and hides the other drop-down until fully cleared. The premade-deck drop-down lists **22 preconstructed decks** (SOR/SHD/TWI two-player starters ×2, JTL/LOF/SEC/LAW/ASH Spotlight ×2, IBH Intro Battle ×2, four TS26 Twin Suns); choosing one bulk-adds its full contents (leaders + base + main deck; tokens excluded). Precon confirmation renders through the **same shared Verify Cards component** (`AddCardsVerification.tsx`) the manual flow uses, not a separate precon-only view.
+- **What (revised S2b/S2c, owner dev-review 2026-07-24):** the Add Cards modal opens with **two labeled drop-downs side by side** — the set selector (individual cards, the pre-existing manual flow, unchanged) and "Add a premade deck" (`AddCardsPreconBar.tsx`) — no segmented mode switch. Picking a value in either **locks the modal to that route** (route locking, `AddCardsModal.tsx`'s `route` derivation) and hides the other drop-down until fully cleared. The premade-deck drop-down lists **24 preconstructed decks** (SOR/SHD/TWI two-player starters ×2, JTL/LOF/SEC/LAW/ASH/HMW Spotlight ×2, IBH Intro Battle ×2, four TS26 Twin Suns); choosing one bulk-adds its full contents (leaders + base + main deck; tokens excluded). Precon confirmation renders through the **same shared Verify Cards component** (`AddCardsVerification.tsx`) the manual flow uses, not a separate precon-only view.
 - **Boxed products (owner policy, reverted S2b):** SOR/SHD/TWI starters are sold and picked as **individual decks** — the original Deck A / Deck B / Whole Box choice for these three sets was reverted 2026-07-24 per owner dev-review. **IBH is always the whole box** (one picker entry, no per-deck choice — its 104-variant set partitions exactly into the two decks' 52 rows each). Spotlight/TS26 decks are individually-sold single entries.
 - **Cap policy (owner P2):** `cap_mode = hard` users choose per import — "Don't add copies above my keep-limits" (default, → `trim`) vs "Add the full deck" (→ `add_above`); soft/no-limit users get no choice (`add_above`, over-limit indicators communicate after).
 - **Architecture:** zero backend changes — a deck is a client-built `swu-inv/1` File driven through §17's import engine (`dry_run` → Verify-Cards-idiom confirmation with current→resulting and itemized trims → `commit`, one transaction). Deck data is static and checked in (`frontend/src/data/preconDecks.json`), every row resolved to `swuapi_id` at prep time; `backend/scripts/verify_precon_decks.py` re-proves catalog integrity on every refresh (runbook step). Data provenance: `analysis/Precon_Deck_Lists_Research_2026-07-15.md`, `analysis/IBH_Intro_Deck_Lists_Research_2026-07-24.md`, `analysis/TS26_Reprint_Resolution_2026-07-24.md` (incl. the TS26 reprint-numbering convention and the "C-3P0"/"Orellios" catalog-spelling gotchas). IBH quirk: collector numbers are per-copy print slots — 52 rows × qty 1 per deck, the 104-variant set partitioning exactly into the two decks.
@@ -918,3 +918,18 @@ Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: in
 | `deck_check_run` | `missing_count` |
 | `share_created` | — |
 | `share_link_viewed` | — |
+
+---
+
+## 23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)
+
+The ninth main-line set, onboarded by the content runbook's new-base-set path. Catalog after the refresh: **31 sets / 2,582 base cards / 10,193 variants**, zero standard-anchor exceptions.
+
+- **Sets.** `HMW` Homeworlds is a canonical base set (`is_base_set = true`; set-grouping model: its own group before Intro Battle: Hoth, with `HMWP` Homeworlds Weekly Play nested under it). `CST` Costco Exclusive is a two-card container set in the "Other promos" Exclusives subgroup.
+- **Classification.** The `Costco Exclusive` variant type has no frozen finish and classifies to the **Retail** channel and limit bucket (owner decision 2026-10-02; pinned by `test_costco_exclusive_is_retail`).
+- **Key art.** `set_HMW.png` and `starfield_HMW.jpg` ship in `frontend/public/images/`; HMW is in the card popup's art roster and the header starfield pool (ten starfields).
+- **Precon bulk add (§18).** The two Homeworlds Spotlight Decks (Chewbacca, Grand Moff Tarkin) are in `preconDecks.json` — 24 decks in all. Reprint rows reference the original set's Standard printing.
+- **Pricing (§16).** tcgcsv groups `HMW` 24812 and `HMWP` 24897 are in the fetch scope. The product mapping is partial until tcgcsv publishes the set's price rows — 360 of 944 HMW variants at release, Weekly Play none — and is extended by re-running the mapping builder.
+- **Import adapters (§17).** Neither the SWUDB nor the sw-unlimited-db preset maps `HMW`; rows from either are refused as `unmapped_set`. Both set-code tables are evidence-gated, and the sw-unlimited-db sample on file numbers Homeworlds differently from swuapi.
+- **Not ingested.** swuapi now carries `upgrade_power` / `upgrade_hp`, `slug` and `art_metadata` on card records; none has a column.
+

@@ -42,3 +42,20 @@ environments; credentialed local dev fetches via
 with an **empty** catalog (warn-and-skip) — the accepted trade for keeping
 FFG card data out of the public repo. Resolution order and details:
 `bootstrap.py` docstring + `backend/app/ingestion/data/README.md`.
+
+**Amendment 2026-10-02 (BL-239, Homeworlds content refresh):** ingestion stays
+strictly additive, including when upstream *repairs* a card. The 2026-10-02
+export populated `variant_of_uuid` on `C26_3` (Zam Wesell, the catalog's one
+standing standard-anchor exception), pointing it at the new Homeworlds
+Standard printing. The upsert re-pointed the variant to the new base card and
+left the old root's `base_cards` row with zero variants — a row a fresh
+bootstrap never creates and that the catalog API would otherwise serve as an
+empty card. **Decision (owner, 2026-10-02):** such stranded rows are removed
+by the content runbook's manual Deletions procedure — exact identification,
+a guard that aborts unless the row has zero variants, one transaction per
+environment — rather than by teaching ingestion to delete. Why: a
+zero-variant base card carries no inventory (inventory hangs off variants),
+the case has occurred once since the catalog moved to swuapi, and an
+automatic delete inside the upsert path would trade a rare, visible,
+easily-checked cleanup for a standing risk in code every refresh runs. The
+post-ingestion check is one query: base cards with no variants must be zero.
