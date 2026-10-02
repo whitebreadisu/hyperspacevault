@@ -38,13 +38,13 @@ interface Props {
    * false (toggle hidden, panel always reads as "Filtered" -- equivalent to
    * "everything" when nothing is actually narrowed). */
   isNarrowed?: boolean;
-  /** set_code -> true for the ten base sets (GET /api/sets' `is_base_set`),
+  /** set_code -> true for the base sets (GET /api/sets' `is_base_set`),
    * used to scope the two completion percentages and exclude orphan base
    * cards (Definition §3). Defaults to empty (every card excluded from both
    * percentages -- a safe "not loaded yet" fallback that never shows a
    * fabricated 100%). */
   baseSetCodes?: Set<string>;
-  /** The ten base sets, release-ordered (utils/catalog.ts's orderSetCodes),
+  /** The base sets, release-ordered (utils/catalog.ts's orderSetCodes),
    * for the breakdown popovers' row order. Defaults to empty, which shows
    * each popover's "No base-set cards in scope" empty state. */
   orderedBaseSets?: SetMeta[];

@@ -54,7 +54,7 @@ export function parseCardDisplay(card: BaseCard): { displayName: string; subtitl
  * from `getSets()` so catalog.ts doesn't depend on the sets API directly. */
 export type SetOrderMap = Record<string, string | null>;
 
-/** Curated fallback release order for the 10 base sets, used when a set has
+/** Curated fallback release order for the base sets, used when a set has
  * no `release_date` in the data (swuapi doesn't currently supply dates, so
  * as of this writing this is the order that actually governs). Spark of the
  * Rebellion through 2026 Twin Suns. Sets absent from both `setOrder` and
@@ -68,6 +68,7 @@ export const CURATED_SET_ORDER = [
   "SEC",
   "LAW",
   "ASH",
+  "HMW",
   "IBH",
   "TS26",
 ];

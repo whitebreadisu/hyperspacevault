@@ -25,6 +25,7 @@ export const SET_CANONICAL: readonly string[] = [
   "SEC",
   "LAW",
   "ASH",
+  "HMW",
 ];
 
 /** Secondary base sets, release order -- UI-mechanically the same tier as
@@ -46,7 +47,7 @@ export const EXCLUSIVE_SUBGROUPS: readonly ExclusiveSubgroup[] = [
   { label: "Convention Exclusives", codes: ["C24", "C25", "C26"] },
   { label: "Judge Program", codes: ["J24", "J25"] },
   { label: "Promos", codes: ["P25", "P26"] },
-  { label: "Other promos", codes: ["G25", "MV26", "GG"] },
+  { label: "Other promos", codes: ["G25", "MV26", "GG", "CST"] },
 ];
 
 /** A base set's Weekly Play companion code -- the base code plus a trailing
@@ -64,8 +65,8 @@ export function isSecondaryBaseSet(code: string): boolean {
   return SET_SECONDARY.includes(code);
 }
 
-/** True for any of the ten base sets (canonical or secondary) -- the same
- * ten codes CLAUDE.md's Set Codes table and the backend's curated
+/** True for any base set (canonical or secondary) -- the same
+ * codes CLAUDE.md's Set Codes table and the backend's curated
  * BASE_SET_CODES enumerate. */
 export function isBaseSetCode(code: string): boolean {
   return isCanonicalSet(code) || isSecondaryBaseSet(code);

@@ -36,6 +36,7 @@ BASE_SET_CODES = {
     "SEC",
     "LAW",
     "ASH",
+    "HMW",
     "TS26",
     "IBH",
 }

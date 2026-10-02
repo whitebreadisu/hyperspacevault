@@ -30,7 +30,7 @@ describe("SetDropdown", () => {
     fireEvent.click(screen.getByRole("button", { name: "Set" }));
 
     const options = screen.getAllByRole("option");
-    // Every one of the ten base sets appears, canonical (SOR..ASH) then
+    // Every base set appears, canonical (SOR..HMW) then
     // secondary (IBH, TS26) -- the guaranteed order.
     expect(options.map((o) => o.getAttribute("aria-label")?.split(" — ")[0])).toEqual(
       BASE_SET_ORDER

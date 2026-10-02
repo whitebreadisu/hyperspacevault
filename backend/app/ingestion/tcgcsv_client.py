@@ -104,6 +104,7 @@ ROOT_SET_GROUP_IDS: dict[str, int] = {
     "SEC": 24387,
     "LAW": 24572,
     "ASH": 24660,
+    "HMW": 24812,
     "IBH": 24386,
     "TS26": 24622,
 }
@@ -130,6 +131,7 @@ WEEKLY_PLAY_GROUP_IDS: dict[str, int] = {
     "LOFP": 24535,
     "LAWP": 24659,
     "ASHP": 24765,
+    "HMWP": 24897,
 }
 
 # BL-174: the single fetch-scope source of truth shared by the mapping

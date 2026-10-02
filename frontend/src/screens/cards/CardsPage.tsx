@@ -420,7 +420,7 @@ export function CardsPage({
   }, []);
 
   // BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
-  // panel's universe -- the ten base sets, by `is_base_set` (already true
+  // panel's universe -- the base sets, by `is_base_set` (already true
   // for TS26 in prod, Definition §4) -- plus the same set list release-
   // ordered for the panel's "by set" breakdown popovers.
   const baseSetCodes = useMemo(
