@@ -64,6 +64,17 @@ def test_retail_channel_is_the_fallback():
     assert classify_variant("PQ Champion", "SOR").channel == CHANNEL_RETAIL
 
 
+def test_costco_exclusive_is_retail():
+    """Owner decision 2026-10-02 (BL-239): the CST container's "Costco
+    Exclusive" printings are a retail product -- no frozen finish, Retail
+    channel, unstamped."""
+    c = classify_variant("Costco Exclusive", "CST")
+    assert c.finish is None
+    assert c.channel == CHANNEL_RETAIL
+    assert c.stamped is False
+    assert c.stamp_family is None
+
+
 def test_prestige_foil_family_shares_stamp_family():
     foil = classify_variant("Foil Prestige", "SEC")
     serialized = classify_variant("Serialized Prestige", "SEC")
