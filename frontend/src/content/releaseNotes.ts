@@ -39,6 +39,44 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-239 Homeworlds set onboarding + 2026-10-02 catalog refresh
+    // (owner-approved copy 2026-10-02). Date finalized at promote time per
+    // the release-notes ritual.
+    key: "1.5",
+    version: "1.5",
+    date: "2026-10-02",
+    title: "Homeworlds",
+    sections: [
+      {
+        heading: "A new set lands",
+        items: [
+          {
+            title: "Homeworlds is in the Vault",
+            body: "Just in time for prerelease weekend: all 272 cards plus tokens, in every printing — Standard, Hyperspace, Hyperspace Foil, Showcase leaders, and the three Prestige finishes. 954 printings in all, with its own logo, starfield and spot in every set picker. Log your prerelease pulls the night you open them.",
+          },
+          {
+            title: "Weekly Play and the next promo wave",
+            body: "Homeworlds Weekly Play is in (20 cards, regular and foil), along with the first Homeworlds tournament promos: Store Showdown and Planetary Qualifier printings of Mace Windu, Emperor Palpatine, Fett's Firespray and Qui-Gon Jinn — participation through Champion.",
+          },
+          {
+            title: "The Costco exclusives",
+            body: "The two Costco Exclusive printings — Leia Organa and Han Solo — now have a home under Other promos.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Routine security updates to our build tooling, and one long-orphaned convention promo (Zam Wesell, you know who you are) finally joined its proper card.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-236 pool_pre_ping hotfix (owner-approved copy 2026-09-03).
     key: "1.4.3",
     version: "1.4.3",
