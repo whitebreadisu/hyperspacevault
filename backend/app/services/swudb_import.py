@@ -89,6 +89,26 @@ SET_CODE_MAP: dict[str, str] = {
     # Renames -- SWUDB uses a code different from our set_code.
     "CE25": "C25",
     "GGTS": "GG",
+    # BL-240 (2026-10-08): verified against a real HoloScan export
+    # (HoloScan writes SWUDB-format CSV; feedback #37, 1,724 rows). Every
+    # code below appeared verbatim as the printed set code, and all 335
+    # affected rows resolved 1:1 against the 2026-10-02 catalog export
+    # through _resolve_candidates (0 ambiguous, 0 foil mismatches). The
+    # Weekly Play codes make the printed-code pattern 5/5 across two
+    # tools (JTLP from SWUDB above, these four from HoloScan).
+    "HMW": "HMW",
+    "ASHP": "ASHP",
+    "LAWP": "LAWP",
+    "LOFP": "LOFP",
+    "SECP": "SECP",
+    "CST": "CST",
+    "G25": "G25",
+    # HMWP: not in the sampled file, but HoloScan 6.7.9 (2026-09-26)
+    # added Homeworlds Weekly Play to its swudb CSV export and every
+    # Weekly Play set seen so far exports its printed code unchanged.
+    # SORP/SHDP/TWIP (the Hyperspace-only promo sets of the first three
+    # base sets) stay OUT: never observed in any export from either tool.
+    "HMWP": "HMWP",
     # Synthetic container code: no real SORPR set exists in our model --
     # SOR_1's Prerelease Promo/Prerelease Judge rows live directly inside
     # the base SOR set (§3.3). Mapping SORPR -> SOR is what makes both

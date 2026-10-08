@@ -61,6 +61,24 @@ class TestSetCodeMap:
         table -- never guessed."""
         assert "GC23" not in swudb.SET_CODE_MAP
 
+    # BL-240 (2026-10-08): codes verified against a real HoloScan export
+    # (SWUDB-format CSV, feedback #37) -- every one appeared verbatim as
+    # the printed set code and resolved 1:1 against the catalog.
+    def test_holoscan_verified_codes_are_direct(self):
+        for code in ("HMW", "ASHP", "LAWP", "LOFP", "SECP", "CST", "G25"):
+            assert swudb.SET_CODE_MAP[code] == code
+
+    def test_hmwp_rides_the_printed_code_pattern(self):
+        """Not in the sampled file; mapped on HoloScan's 6.7.9 release note
+        plus the unbroken 5/5 Weekly Play printed-code pattern."""
+        assert swudb.SET_CODE_MAP["HMWP"] == "HMWP"
+
+    def test_hyperspace_era_promo_sets_still_unmapped(self):
+        """SORP/SHDP/TWIP have never appeared in an export from either
+        tool -- still refused, never guessed (same posture as GC23)."""
+        for code in ("SORP", "SHDP", "TWIP"):
+            assert code not in swudb.SET_CODE_MAP
+
 
 class TestNormalizeNumber:
     def test_strips_three_digit_padding(self):
