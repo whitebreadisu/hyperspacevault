@@ -39,6 +39,45 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-240 SWUDB/HoloScan import maps for HMW + Weekly Play (PR #192) and
+    // BL-242 Dependabot October batch (PR #194). Owner-approved copy
+    // 2026-10-08; date finalized at promote time per the release-notes
+    // ritual.
+    key: "1.5.1",
+    version: "1.5.1",
+    date: "2026-10-08",
+    title: "Bring your Homeworlds in",
+    sections: [
+      {
+        heading: "Imports catch up",
+        items: [
+          {
+            title: "Homeworlds imports from SWUDB and HoloScan",
+            body: "If you keep your collection in SWUDB, or scan with HoloScan and export its SWUDB-style file, Homeworlds now comes in with everything else. Every printing, every row. Until now those rows were bounced as a set we didn't recognize, which was our gap, not yours.",
+          },
+          {
+            title: "Weekly Play promos import too",
+            body: "Weekly Play cards from Legends of the Force, Secrets of Power, A Lawless Time, Ashes of the Empire and Homeworlds now import, foil or not, along with the Costco exclusives and the 2025 Gift Box pair.",
+          },
+          {
+            title: "Clearer problem rows",
+            body: "When a file carries a set code we don't know yet, the import report now says exactly that and asks you to tell us, instead of claiming the set isn't in the Vault.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Routine security updates across our build tooling and a couple of libraries the app itself uses. Nothing you'll notice, which is the point.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-239 Homeworlds set onboarding + 2026-10-02 catalog refresh
     // (owner-approved copy 2026-10-02). Date finalized at promote time per
     // the release-notes ritual.
