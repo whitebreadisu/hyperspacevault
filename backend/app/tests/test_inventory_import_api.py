@@ -2400,9 +2400,12 @@ class TestSwunlimiteddbSerializedAmbiguous:
 
 class TestSwunlimiteddbUnmappedSet:
     def test_hmw_is_unmapped_set(self, bl54s2_tenant):
-        """§3.3/§10 (owner-locked): HMW is genuinely unreleased/preview
-        content per the owner's read -- this catalog maps only
-        swuapi-sourced content, so HMW stays unmapped by design."""
+        """PORT (BL-241 / ADR-0028, 2026-10-08): HMW is in the catalog and
+        the SWUDB preset maps it; THIS preset holds it until
+        sw-unlimited-db's released numbering is spot-checked (its only
+        sample on file is pre-release preview numbering). Behavior under
+        the hold is unchanged: refused as unmapped_set, never guessed.
+        Becomes a resolution test when the row lands."""
         client, _ = bl54s2_tenant
         resp = _post_xlsx_import(
             client,

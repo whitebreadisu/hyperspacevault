@@ -116,3 +116,9 @@ The variant-mapping spec and the exceptions report have no archive file of their
 > | Set | Card # | Name | Subtitle | Variant Type | Notes |
 > |-----|--------|------|----------|---------------|-------|
 > | C26 | 3 | Zam Wesell | Not What She Seems | Convention Exclusive | The sole true orphan — no Standard `(name, subtitle)` match anywhere in the corpus. C26 is an in-development preview set (no release date, 6 total cards); likely previews a printing not yet revealed. |
+
+### App Spec §17.5 — refusal-posture bullet, admission sentence (archived 2026-10-08, BL-241)
+
+**Disposition:** → ADR-0028 (printed codes map direct at onboarding) + archive. The "never a guess" refusal stays in §17.5; only the admission rule changed.
+
+> - **The refusal posture (locked):** all mapping tables are **deliberately partial** — an unmapped set code (`unmapped_set`) or quantity column (`unmapped_column`) becomes an itemized problem row, **never a guess** (a wrong set/column guess silently attributes the wrong printing — the one failure mode worse than refusing). Owner's standing rule: the tables map only swuapi-sourced catalog content, and a code enters a table only once a real export from that tool has shown it (e.g. `HMW` stayed unmapped from its 2026-08 preview appearance until a real HoloScan/SWUDB-format export verified it on 2026-10-08).

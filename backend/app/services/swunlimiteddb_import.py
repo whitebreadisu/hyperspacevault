@@ -97,12 +97,16 @@ KNOWN_COLUMNS = set(IDENTITY_COLUMNS) | set(QUANTITY_COLUMNS)
 # export).
 REQUIRED_COLUMNS = {"Set", "Base card id"}
 
-# §3.1/§3.2/§10: the 10 base sets, case-fold (.upper()) before lookup --
-# owner's standing rule (2026-08-03): this catalog maps only swuapi-sourced
-# content, so ANYTHING else (incl. HMW, a genuinely unreleased/preview set
-# per the owner's read of its card names) stays unmapped by design, never
-# guessed. Extension policy mirrors swudb_import.SET_CODE_MAP: add a row
-# only once a set is actually ingested from swuapi.
+# §3.1/§3.2/§10: base sets only, case-fold (.upper()) before lookup -- this
+# tool has no set-level promo concept (Weekly Play lives in its quantity
+# columns). Extension policy (ADR-0028, 2026-10-08): a new base set's printed
+# code is added at onboarding behind a 2-3 card (code, number) spot-check
+# against the catalog; a tool still carrying pre-release numbering is HELD
+# until street date. HMW is held here on exactly that rule: the only
+# sw-unlimited-db sample on file (2026-08-03) numbers HMW #4 as Hijacked
+# AT-ST where the released set has Grand Moff Tarkin (#121 = Hijacked
+# AT-ST); the SWUDB preset maps HMW since PR #192. Anything else stays
+# unmapped, never guessed.
 SET_CODE_MAP: dict[str, str] = {
     "SOR": "SOR",
     "SHD": "SHD",

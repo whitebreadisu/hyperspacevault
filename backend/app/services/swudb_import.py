@@ -61,11 +61,12 @@ REQUIRED_COLUMNS = {"Set", "CardNumber", "Count", "IsFoil"}
 # unmapped code is refused (reason "unmapped_set" -- renamed from
 # "unmapped_swudb_set" under BL-186, generalized now that a second import
 # format shares the same reason code), NEVER guessed.
-# Extension policy: add a row only once verified against a real SWUDB
-# export cross-checked against the live catalog (the definition doc's §3.5
-# lists container/Weekly-Play/Judge/Convention codes outside SOR/JTL/P25/
-# J25/GG/C25/C26 that are still entirely unverified -- do not extrapolate
-# the direct-mapping pattern to them without evidence).
+# Extension policy (ADR-0028, 2026-10-08): a new set's PRINTED codes -- the
+# base code and its Weekly Play <CODE>P -- are added at onboarding behind a
+# 2-3 card (code, number) spot-check against the catalog (runbook Scenario
+# C step 12). Every other code (SWUDB's synthetic/renamed containers,
+# convention/judge/gift-box series) is still added only once a real SWUDB
+# export has shown it -- never extrapolated.
 SET_CODE_MAP: dict[str, str] = {
     # Direct (SWUDB's code already matches our set_code) -- confirmed
     # against the live catalog.
