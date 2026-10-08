@@ -49,9 +49,10 @@ const REASON_TEXT: Record<string, ReasonCopy> = {
       "Fill in the card's ID, or all three of set, number, and printing type, and re-import.",
   },
   unmapped_set: {
-    error: "This card is from a set (or promo series) we don't have in the catalog yet.",
+    error:
+      "We don't recognize this file's set code (or promo series) yet, so we can't tell which card it is.",
     recommendation:
-      "Leave it out for now — you can add it by hand once the set lands in HyperspaceVault.",
+      "Add these by hand in your Vault for now — and tell us the set code via Feedback so we can teach the importer.",
   },
   unknown_set_and_number: {
     error: "We know that set, but there's no card at that number.",
