@@ -73,10 +73,15 @@ class TestSetCodeMap:
             assert swi.SET_CODE_MAP[code] == code
 
     def test_hmw_absent(self):
-        """HMW (BL-186 definition doc §3.3/§10): a genuinely unreleased/
-        preview set per the owner's read -- deliberately NOT in the table,
-        the owner's standing rule being this catalog only maps
-        swuapi-sourced content. Never guessed."""
+        """HMW -- PORT (BL-241, 2026-10-08): the behavior (HMW refused by
+        THIS preset) still holds, but the reason changed. HMW is in the
+        catalog since v1.5 and the SWUDB preset maps it (PR #192); under
+        ADR-0028 it enters this table too once sw-unlimited-db's released
+        numbering is spot-checked against the catalog -- the only sample on
+        file (2026-08-03) is pre-release preview data with HMW #4 = Hijacked
+        AT-ST where the released set has #4 = Grand Moff Tarkin. Until that
+        check, the hold rule applies: refused, never guessed. Flip this to a
+        positive assertion when the row lands."""
         assert "HMW" not in swi.SET_CODE_MAP
 
 
