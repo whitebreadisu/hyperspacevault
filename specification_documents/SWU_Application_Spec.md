@@ -957,8 +957,9 @@ the same set + number the keypad resolver takes; finish stays a choice
   pauses and shows the card exactly as the keypad shows a resolved card
   (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
   AFTER ADD readout) with **Card details / Add / Wrong card**. Nothing is
-  counted until Add. Wrong card opens the keypad prefilled with the partial
-  read.
+  counted until Add. **Wrong card restarts the scan** (owner, 2026-10-10 —
+  the error rate is assumed very low); the Keypad stays one tap away via
+  the tool's mode toggle.
 - **Fast add** (opt-in toggle in the tool header, remembered): a successful
   read adds immediately (one copy), then the scanner **holds ~1.5 s** with
   the card shown before reading again — the guard against double adds.
