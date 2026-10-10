@@ -41,3 +41,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0026](0026-one-user-one-tenant-permanent.md) | One user, one tenant — auto-provisioned, and permanent | Accepted |
 | [0027](0027-posthog-analytics-first-party-proxy.md) | Product analytics — PostHog Cloud behind a first-party proxy | Accepted |
 | [0028](0028-import-set-codes-printed-codes-map-direct.md) | Import set-code tables — printed codes map direct at onboarding | Accepted |
+| [0029](0029-card-scanning-on-device-reader-recognise-then-prompt.md) | Card scanning — on-device reader, recognise-then-prompt, printed-code collisions as picks | Accepted |
