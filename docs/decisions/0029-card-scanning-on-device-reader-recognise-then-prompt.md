@@ -78,8 +78,9 @@ is shown and the user decides, with an opt-in fast path.
 3. **Recognise, then the user decides.** Default mode: on a successful read
    the scanner pauses and shows the card exactly as the keypad shows a
    resolved card (art, name, printing, ownership readout) with **Card
-   details / Add / Wrong card** (Wrong card → keypad prefilled). Nothing is
-   counted until Add. **Fast add** (opt-in, remembered): a successful read
+   details / Add / Wrong card** (Wrong card restarts the scan; the keypad
+   stays one tap away via the tool's mode toggle). Nothing is counted
+   until Add. **Fast add** (opt-in, remembered): a successful read
    adds immediately and the scanner holds ~1.5 s before reading again — the
    guard against double adds.
 4. **Acceptance needs three agreeing reads of the last four**, with a
