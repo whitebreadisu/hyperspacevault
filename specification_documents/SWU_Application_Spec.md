@@ -935,3 +935,107 @@ The ninth main-line set, onboarded by the content runbook's new-base-set path. C
 - **Import adapters (§17).** The SWUDB preset (also the path HoloScan's SWUDB-format CSV takes) maps `HMW`, `HMWP`, the Weekly Play codes `ASHP`/`LAWP`/`LOFP`/`SECP`, `CST` and `G25` since 2026-10-08 (BL-240), verified against a real HoloScan export in which every such row resolved 1:1. The sw-unlimited-db preset still does not map `HMW` (its only sample on file is pre-release and numbers Homeworlds differently from swuapi); `SORP`/`SHDP`/`TWIP` remain unmapped in both — never seen in an export from either tool.
 - **Not ingested.** swuapi now carries `upgrade_power` / `upgrade_hp`, `slug` and `art_metadata` on card records; none has a column.
 
+
+## 24. Card scanning (BL-238 spike — specified 2026-10-10; **NOT BUILT**)
+
+**Status.** Design decided from the BL-238 camera spike (ADR-0029); nothing
+ships yet. The mobile prototype (BL-190, Revision 1) carries the camera
+screen as a static mock of this section. Owed before a build commits:
+the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final
+rules, printed-code collision evidence from the community, a second phone.
+
+### 24.1 What it is
+Browser camera entry on the phone (no app, no install). The page reads the
+card's **bottom strip** — `SET • EN [icon] number[/denominator]` — with an
+on-device text reader and validates the triple against the catalogue. It
+never recognises artwork, and no frame leaves the phone. The reading fills
+the same set + number the keypad resolver takes; finish stays a choice
+(non-foil default rule, BL-191).
+
+### 24.2 Flow
+- **Default: recognise, then decide.** On a successful read the scanner
+  pauses and shows the card exactly as the keypad shows a resolved card
+  (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
+  AFTER ADD readout) with **Card details / Add / Wrong card**. Nothing is
+  counted until Add. Wrong card opens the keypad prefilled with the partial
+  read.
+- **Fast add** (opt-in toggle in the tool header, remembered): a successful
+  read adds immediately (one copy), then the scanner **holds ~1.5 s** with
+  the card shown before reading again — the guard against double adds.
+- **Ambiguous read** (a strip that maps to more than one printing — early
+  foils, `N/2` tournament promos, printed-code collisions): amber two-way
+  pick with the program names; never auto-resolved.
+- **No read**: Keypad is one tap away, prefilled where partly read.
+- **Cue:** a short beep plus a brief full-screen green flash. No haptics
+  on iPhone (no Vibration API; the switch-control trick is not felt).
+- **Guidance:** a live sharpness meter with one-word guidance ("Blurry —
+  move back / closer", "Too small — move closer"). **No automatic zoom**;
+  distance is the user's control. Optional explicit controls (zoom, focus
+  distance, torch, lens) may exist but default untouched.
+
+### 24.3 Guide geometry (measured on official card images; fractions of card width W / height H)
+| Feature | Portrait card (63 × 88 mm) | Landscape leader/base (88 × 63 mm) |
+|---|---|---|
+| `©LFL ©FFG` | 0.575–0.668 W | — |
+| `SET • EN` | starts 0.742 W (3-letter) / 0.728 W (4-letter); ends 0.808–0.815 W | 0.780–0.830 W |
+| Rarity / program icon | 0.825–0.854 W | 0.865–0.877 W |
+| Number with denominator | 0.868–0.941 W | 0.910–0.958 W |
+| Promo number (no denominator) | 0.916–0.930 W, right-aligned | — |
+| **Identification group** | **0.728–0.941 W** (13.4 mm) | 0.178 W wide (16.5 mm used) |
+| Right margin (group → card edge) | 0.059 W (3.7 mm) | 0.042 W (3.7 mm) |
+| Text height | 0.0244 W (1.54 mm); rows 0.950–0.9675 H | — |
+| Text centre above bottom edge | 0.041 H (3.6 mm); promos print higher (~4.2 mm) | 0.066 H (4.2 mm) |
+
+The guide draws the card's **bottom-right corner outline** (corner radius
+3 mm, assumed) with the group box centred horizontally in the preview,
+lower-middle, drawn 15% larger than the group on every side and dimming
+the surroundings ~35% for the user only. The OCR crop is the group plus
+3.15 mm of padding, starting 0.6 mm right of `©FFG` so that text is
+excluded. **Tuned offsets from the owner's live runs:** box and crop sit
+2.2 mm left and 2.1 mm above the nominal position relative to the outline
+(his promo card and his holding distance, ~1.15× the assumed 45 px text);
+two ±4 mm sliders exist for on-phone calibration. The owner expects to keep
+refining these values.
+
+### 24.4 Readers and acceptance
+- **PaddleOCR** (PP-OCR tiny det + rec on onnxruntime-web, wasm, four
+  threads under cross-origin isolation; ~7.6 MB over the wire, cached) is
+  the **primary** reader, fed the unprocessed colour crop scaled to ~40 px
+  text. **Tesseract.js** (best_int) is the fallback — only when Paddle
+  returns no code or number on a sharp frame — on the inverted, stretched
+  crop at ~36 px, PSM 6 then PSM 7, at most one run per two frames. No
+  cloud reader (ADR-0029).
+- Frames below a sharpness threshold (Laplacian variance of the text band)
+  are never read; a minimum glyph height blocks acceptance of too-small
+  text.
+- **Acceptance = 3 agreeing reads of the last 4**, with per-reader
+  confidence bars (Tesseract ≥ 30, Paddle ≥ 60, judged as the median of
+  each read's ratio to its own bar). Every valid key has a one-digit
+  neighbour, so no key is "strong"; cards printed without a denominator
+  are the most exposed (795 ↔ 785 observed).
+- **Parser rules:** code resolved from the token before `EN` (exact,
+  trailing bullet artefact, glued suffix, look-alike swap, one-edit unique
+  match); number only from after the code and `EN`; a denominator one digit
+  off a known set size is corrected and logged; a second valid number after
+  the code makes the read ambiguous; a digits-only second pass that sees a
+  longer run than the parsed number rejects the read.
+- **Denominator semantics:** `N/<set size>` = main set; `N/20` in
+  SOR/SHD/TWI = Weekly Play; `N/2` = tournament tiers (always a pick);
+  absent = non-main printings; later-set promo codes (ASHP, P26 …) ignore
+  the denominator.
+
+### 24.5 Printed-code collisions
+The physical Store Showdown Grogu "Yes. Yes. Yes." (catalogue P26 16)
+prints `ASHP • EN 16`, colliding with Weekly Play ASHP 16. The printed-code
+table maps `ASHP` → {ASHP, P26}; any read whose candidates span programs is
+a pick. Whether LAWP/SECP/LOFP-era Store Showdown cards also print the
+Weekly Play code is unknown — the mobile-release Reddit post will ask the
+community to check. This is also a hazard for direct printed-code import
+mapping (§17.5, ADR-0028).
+
+### 24.6 Evidence (2026-10-09/10, iPhone 16 Pro, owner's mixed cards)
+Six runs of the spike page: median first-text → recognition 10.3 s →
+0.8 s, p90 52 s → 2.3 s; 0 wrong cards offered under the final rules
+(48 prompts/picks); Safari grants a 4K stream, zoom 0.5–10, torch and
+focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
+(private layer).
