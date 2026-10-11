@@ -42,18 +42,29 @@ export default defineConfig({
     {
       name: "phone-390",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
       dependencies: ["setup"],
       use: phone(390, 844),
     },
     {
       name: "phone-430",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
       dependencies: ["setup"],
       use: phone(430, 932),
+    },
+    // BL-253 S7: the scanner specs run in their own project (stage 7c adds the
+    // fake-camera launch flags and the per-clip fixture here).
+    {
+      name: "scan",
+      testMatch: /s7-.*\.spec\.ts/,
+      dependencies: ["setup"],
+      use: phone(390, 844),
     },
     {
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
       use: { viewport: { width: 1440, height: 900 } },
     },
   ],

@@ -23,7 +23,9 @@ import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
 import { back, backOr, go, parseHash, useRoute } from "./router";
 import type { Route } from "./router";
+import { rehydrateBatch } from "./tool/batch";
 import { ToolLayer } from "./tool/ToolLayer";
+import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "./vault/useVaultData";
@@ -128,8 +130,24 @@ function useVisualViewport(): void {
   }, []);
 }
 
+/** BL-253 S7-08: a page restored from the back/forward cache is frozen memory --
+ * the other document (main / isolated /scan/) may have changed the batch in
+ * between, so re-read the sessionStorage mirror. */
+function useRehydrateOnPageShow(): void {
+  useEffect(() => {
+    const on = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      rehydrateBatch();
+      rehydrateTool();
+    };
+    window.addEventListener("pageshow", on);
+    return () => window.removeEventListener("pageshow", on);
+  }, []);
+}
+
 export function MobileApp() {
   const route = useRoute();
+  useRehydrateOnPageShow();
   const { user, logout, emailVerified, loading } = useAuth();
 
   // S1-09: the auth layer, closed by desktop's single-source-of-truth rule --

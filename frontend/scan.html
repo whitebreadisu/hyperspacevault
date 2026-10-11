@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <!-- BL-253 S7-01: the isolated scanner document (served at /scan/ with the
+         COOP / COEP / Permissions-Policy headers of S7-02). The same app
+         bundle family and the same Firebase auth persistence as the main
+         document -- only the document is separate, because an in-app layer
+         cannot be cross-origin isolated. Not a landing page: no link-preview
+         metadata, not indexed. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <title>HyperspaceVault</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/scan.tsx"></script>
+  </body>
+</html>

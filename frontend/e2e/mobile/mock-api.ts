@@ -126,7 +126,10 @@ export async function installApiMocks(
 
   page.on("pageerror", (e) => rec.pageErrors.push(String(e)));
   page.on("console", (m) => {
-    if (m.type() === "error") rec.consoleErrors.push(m.text());
+    // onnxruntime-web logs this CPU-detection line as console.error on every
+    // load; the BL-238 spike filtered it too (smoke_test.js). Not an app error.
+    if (m.type() === "error" && !/Unknown CPU vendor/.test(m.text()))
+      rec.consoleErrors.push(m.text());
   });
   page.on("requestfailed", (r) => {
     // S1-19: an image the virtualised list unmounts (or a navigation drops)
