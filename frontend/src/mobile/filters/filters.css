@@ -304,10 +304,15 @@
   padding-top: 0;
   gap: 0;
 }
-.m-app .m-fgame__soon {
-  margin: 0;
-  padding: 10px 0 12px;
+.m-app .m-fgame__body > .m-fgroup:first-child {
   border-top: 1px solid rgba(211, 211, 212, 0.12);
+  padding-top: 14px;
+}
+.m-app .m-fgame__body > .m-fsub {
+  padding-bottom: 12px;
+}
+.m-app .m-fgame__body > .m-range {
+  padding-top: 10px;
 }
 
 /* ── Footer: Reset (amber outline idiom, inert at default) + Show N
@@ -356,4 +361,400 @@
 }
 .m-app .m-resetbtn--inert:active {
   transform: none;
+}
+
+/* ══ Stage 2B-2: pickers + the Gameplay body ═════════════════════════════
+ * Values verbatim from rev4 m-layout.css:111-139 / 314-327 (segmented,
+ * chips, groups, check, aspect chits, picker rows), m-rev2.css:82-83,
+ * m-rev3.css:243-319 / 335-338 / 394-396 and m-rev4-b.css:78-88. The scope
+ * menu's shared rows (.m-flink, .m-ftree, .m-ffin*, .m-fnote, .m-fcheck)
+ * are S1's (vault.css) and are not repeated. */
+
+/* ── Picker frame: X top-right, scrolling facet, Done pinned in the foot.
+ * The shared Sheet has no footer slot, so the body splits as Filters does.
+ * Set / Finish / Keyword / Trait keep the full height (lists grow as
+ * groups open); Collection is four rows and sizes to its content. ────── */
+.m-app .m-sheet-layer--picker .m-sheet {
+  height: calc(100% - 8px - var(--sat));
+  max-height: none;
+}
+.m-app .m-sheet-layer--picker.m-sheet-layer--fpick-collection .m-sheet {
+  height: auto;
+  max-height: calc(100% - 8px - var(--sat));
+}
+.m-app .m-sheet-layer--picker .m-sheet__inner {
+  min-width: 0;
+}
+.m-app .m-sheet-layer--picker .m-sheet__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.m-app .m-fpick__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 22px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.m-app .m-fpick__foot {
+  flex: none;
+  padding: 12px 16px calc(12px + var(--sab));
+  border-top: 1px solid rgba(211, 211, 212, 0.16);
+  display: flex;
+  justify-content: center;
+}
+.m-app .m-fpick__scroll > .m-fgroup {
+  padding-top: 0;
+}
+.m-app .m-fpick__bar {
+  margin-bottom: 4px;
+}
+.m-app .m-fpick__bar .m-setfacet__all {
+  align-self: auto;
+}
+
+/* ── Groups inside pickers / Gameplay (m-layout.css:316, m-rev2.css:82,
+ * m-rev3.css:243) ───────────────────────────────────────────────────── */
+.m-app .m-fgroup--b1 {
+  gap: 10px;
+}
+.m-app .m-fgroup__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-fgroup__n {
+  margin-left: 10px;
+  color: #f2c14e;
+  letter-spacing: 0.1em;
+}
+
+/* ── Chips (m-layout.css:134-139, m-rev2.css:83) ─────────────────────── */
+.m-app .m-chipwrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.m-app .m-chip--set {
+  padding: 0 12px;
+  min-width: 64px;
+}
+.m-app .m-setfacet__chip {
+  min-width: 96px;
+}
+.m-app .m-chip__logo {
+  height: 22px;
+  width: auto;
+  max-width: 88px;
+  object-fit: contain;
+  display: block;
+}
+.m-app .m-chip__logo--LAW,
+.m-app .m-chip__logo--IBH {
+  height: 18px;
+}
+
+/* ── Check rows (m-rev3.css:246-254, 261-262, 394-396) ─────────────────── */
+.m-app .m-fcheck--inert,
+.m-app .m-faspect--inert {
+  opacity: 0.38;
+}
+.m-app .m-fcheck--inert.m-check--on,
+.m-app .m-faspect--inert.m-aspectchit--on {
+  opacity: 0.6;
+}
+.m-app .m-fcheck:disabled,
+.m-app .m-faspect:disabled {
+  cursor: default;
+}
+.m-app .m-fcheck__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--color-text);
+}
+.m-app .m-fcheck__sub {
+  flex: none;
+  margin-left: auto;
+}
+.m-app .m-fcheck__code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.m-app .m-ftail {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-ftail .m-fcheck + .m-fcheck {
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+}
+/* Collection toggles while scoped (desktop .pl-toggle--scoped family). */
+.m-app .m-fcheck--scoped .m-check__box {
+  border-color: rgba(217, 154, 31, 0.6);
+}
+.m-app .m-fcheck--scoped.m-check--on .m-check__box {
+  background: rgba(217, 154, 31, 0.16);
+  border-color: rgba(217, 154, 31, 0.6);
+  color: #f2c14e;
+}
+.m-app [data-facet="collection"]:has(.m-fcheck--scoped) .m-fnote {
+  color: #f2c14e;
+}
+
+/* ── Finish tree, the parts the scope menu does not use (m-rev3.css:
+ * 282-293) ──────────────────────────────────────────────────────────── */
+.m-app .m-ffin__kid .m-fcheck__text {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-ffin--inert .m-ffin__label {
+  opacity: 0.45;
+}
+.m-app .m-ffin__head--sel {
+  background: rgba(37, 99, 235, 0.12);
+}
+.m-app .m-ffin__badge {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+.m-app .m-ffin__kids {
+  padding-left: 26px;
+  animation: m-layer 0.15s ease-out;
+}
+.m-app .m-ffin__kid + .m-ffin__kid {
+  border-top: 1px solid rgba(211, 211, 212, 0.06);
+}
+
+/* ── Aspects: seven chits (six aspects + No Aspect), empty = all lit
+ * (m-layout.css:322-324, m-rev3.css:265-271) ───────────────────────── */
+.m-app .m-aspectpick {
+  display: flex;
+  justify-content: space-between;
+}
+.m-app .m-aspectpick--b1 {
+  gap: 2px;
+}
+.m-app .m-aspectchit {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(9, 11, 20, 0.5);
+  border: 2px solid transparent;
+  padding: 0;
+  transition:
+    border-color 0.12s ease,
+    opacity 0.12s ease;
+}
+.m-app .m-aspectchit--on {
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.2);
+}
+.m-app .m-faspect {
+  width: 46px;
+  height: 46px;
+  color: #cfd6e4;
+}
+.m-app .m-faspect--off {
+  opacity: 0.4;
+}
+.m-app .m-faspect--off.m-faspect--inert {
+  opacity: 0.22;
+}
+.m-app .m-faspect__none {
+  display: block;
+}
+.m-app .m-seg--wide {
+  display: flex;
+  width: 100%;
+}
+.m-app .m-seg--wide .m-seg__btn {
+  flex: 1;
+  font-size: 14px;
+}
+.m-app .m-fmode .m-seg__btn {
+  letter-spacing: 0.12em;
+}
+.m-app .m-fmeaning {
+  margin: -2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #9fb0cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Arena sub-group + Keyword / Trait rows (m-layout.css:325-327,
+ * m-rev3.css:301-304) ────────────────────────────────────────────────── */
+.m-app .m-fsub {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 2px;
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+}
+.m-app .m-fsub__label,
+.m-app .m-range__label {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-frow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+  padding: 0 2px;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+/* A clickable row is signalled by its wash (skill: never by blue text). */
+.m-app .m-frow:active {
+  background: rgba(37, 99, 235, 0.12);
+}
+.m-app .m-frow__k {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-frow__v {
+  margin-left: auto;
+  font-size: 14px;
+}
+.m-app .m-frow--b1 {
+  width: 100%;
+}
+.m-app .m-frow--on .m-frow__v {
+  color: #fff;
+}
+
+/* ── Range: one track, two 44 px thumbs, numeric readout (m-rev3.css:
+ * 306-319) ──────────────────────────────────────────────────────────── */
+.m-app .m-range {
+  padding: 4px 0 0;
+}
+.m-app .m-range__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.m-app .m-range__read {
+  font-family: "Russo One", sans-serif;
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
+.m-app .m-range__read--on {
+  color: #fff;
+}
+.m-app .m-range__track {
+  position: relative;
+  height: 44px;
+  margin: 0 22px;
+  touch-action: none;
+}
+.m-app .m-range__rail,
+.m-app .m-range__fill {
+  position: absolute;
+  top: 20px;
+  height: 4px;
+  border-radius: 2px;
+}
+.m-app .m-range__rail {
+  left: 0;
+  right: 0;
+  background: rgba(211, 211, 212, 0.18);
+}
+.m-app .m-range__fill {
+  background: var(--color-primary);
+}
+.m-app .m-range__thumb {
+  position: absolute;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  padding: 0;
+  background: none;
+  border: none;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+.m-app .m-range__knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e6e6e6;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.m-app .m-range__thumb:active .m-range__knob {
+  transform: scale(1.12);
+  transition: transform 0.12s ease;
+}
+.m-app .m-range__scale {
+  display: flex;
+  justify-content: space-between;
+  margin: -6px 12px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ── Keyword / Trait picker: search pinned at the top (m-rev3.css:
+ * 335-338; the empty line = m-layout.css .m-dossier__empty values) ───── */
+.m-app .m-picker {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-picker__search {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  padding: 4px 0 6px;
+  background: #0b0e18;
+}
+.m-app .m-picker__bar {
+  display: flex;
+  gap: 18px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(211, 211, 212, 0.12);
+}
+.m-app .m-picker__list .m-fcheck + .m-fcheck {
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+}
+.m-app .m-picker__empty {
+  padding: 14px 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }

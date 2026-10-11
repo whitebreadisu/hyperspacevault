@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLimits } from "../../context/LimitsContext";
 import { MSWUButton } from "../MSWUButton";
+import { capturePhone } from "../phoneAnalytics";
 import { Sheet, useSheetClose } from "../Sheet";
 import { useVaultData } from "../vault/useVaultData";
 import type { VaultView } from "../vault/useVaultView";
 import { FacetPicker } from "./FacetPicker";
+import type { PickerId } from "./FacetPicker";
 import { FacetRow, RarityRow } from "./FacetRows";
-import type { FacetId } from "./FacetRows";
 import {
   collectionChips,
   facetBase,
@@ -16,11 +17,12 @@ import {
   rarityOptions,
   setChips,
 } from "./filterModel";
-import { GameplaySection } from "./GameplaySection";
+import type { FilterField } from "./filterModel";
+import { GameplayBody, GameplaySection } from "./GameplaySection";
 import { useSheetGrow } from "./useSheetGrow";
 import "./filters.css";
 
-// BL-248 stage 2B-1 (S2-12 … S2-16): the Filters sheet (rev4 MFilters.jsx
+// BL-248 stages 2B-1 (S2-12 … S2-16) + 2B-2 (S2-17 … S2-20): the Filters sheet (rev4 MFilters.jsx
 // FilterSheet, R4-2 / R4-3 compact rows, R5 switches filters=compact +
 // sheetfit=content). Compact, content-fit (max 86 %), grows with a
 // transform-only move (useSheetGrow). Order: Set, Rarity, Collection,
@@ -39,21 +41,22 @@ interface Props {
 export function FiltersSheet({ vv, onClose, onRequestSignIn }: Props) {
   const { isAuthenticated, sets, setNameByCode } = useVaultData();
   const { limits } = useLimits();
-  const [picker, setPicker] = useState<FacetId | null>(null);
+  const [picker, setPicker] = useState<PickerId | null>(null);
   const [gameOpen, setGameOpen] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   useSheetGrow(anchor);
 
   const { state } = vv;
   const f = state.filters;
-  const act = filterActions(vv);
+  const n = vv.activeCount;
+  const onField = useFilterApplied(vv.list, n);
+  const act = filterActions(vv, onField);
   const baseCodes = useMemo(
     () => new Set(sets.filter((s) => s.is_base_set).map((s) => s.code)),
     [sets]
   );
   const facetCards = useMemo(() => facetBase(vv.all, state, limits), [vv.all, state, limits]);
   const rarities = useMemo(() => rarityOptions(facetCards, f), [facetCards, f]);
-  const n = vv.activeCount;
 
   return (
     <>
@@ -96,17 +99,55 @@ export function FiltersSheet({ vv, onClose, onRequestSignIn }: Props) {
               open={gameOpen}
               onToggle={() => setGameOpen((o) => !o)}
             >
-              <p className="m-sheet__soon m-fgame__soon">
-                Gameplay filters arrive with the next stage.
-              </p>
+              <GameplayBody f={f} facetCards={facetCards} act={act} onPick={setPicker} />
             </GameplaySection>
           </div>
           <FiltersFooter active={n > 0} count={vv.list.length} onReset={act.reset} />
         </div>
       </Sheet>
-      {picker ? <FacetPicker facet={picker} onClose={() => setPicker(null)} /> : null}
+      {picker ? (
+        <FacetPicker
+          id={picker}
+          f={f}
+          toggles={state.toggles}
+          scope={state.scope}
+          facetCards={facetCards}
+          all={vv.all}
+          sets={sets}
+          setNameByCode={setNameByCode}
+          act={act}
+          onClose={() => setPicker(null)}
+        />
+      ) : null}
     </>
   );
+}
+
+/** S2-20 (BL-244): desktop CardsPage's filter_applied -- once per user edit,
+ * after the render that applied it, with desktop's properties (`field`, the
+ * post-change `active_filter_count` and `results_count`) + layout: phone.
+ * The field is stashed synchronously by the action; the effect reads the
+ * new list and count, then clears it, so nothing else (a quantities
+ * refresh) fires a spurious event. Reset is desktop's filters_cleared
+ * (useVaultView.clearAll); a scope pick is finish_scope_changed (S1-16). */
+export function useFilterApplied(
+  list: readonly unknown[],
+  activeCount: number
+): (field: FilterField) => void {
+  const pending = useRef<FilterField | null>(null);
+  useEffect(() => {
+    const field = pending.current;
+    if (field == null) return;
+    pending.current = null;
+    capturePhone("filter_applied", {
+      field,
+      active_filter_count: activeCount,
+      results_count: list.length,
+    });
+  }, [list, activeCount]);
+  return useCallback((field: FilterField) => {
+    pending.current = field;
+  }, []);
 }
 
 function FiltersFooter({

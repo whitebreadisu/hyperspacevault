@@ -1,13 +1,20 @@
+import type { CardSet } from "../../api/sets";
 import {
+  ARENA_OPTIONS,
+  ASPECT_LIST,
   COST_MAX,
   DEFAULT_FILTERS,
+  distinctMulti,
   facetedOptions,
   facetValidValues,
   HP_MAX,
+  NO_ASPECT,
   POWER_MAX,
   RARITY_OPTIONS,
+  TYPE_OPTIONS,
 } from "../../utils/filters";
-import type { FacetField, FilterState, SelectOption } from "../../utils/filters";
+import type { AspectMatchMode, FacetField, FilterState, SelectOption } from "../../utils/filters";
+import { allSetsGroups, isBaseSetCode } from "../../utils/setGrouping";
 import type { InventoryCard } from "../../utils/inventory";
 import type { LimitsMatrix } from "../../utils/limits";
 import { scopeShortName } from "../../utils/variantScope";
@@ -152,6 +159,66 @@ export function finishChips(f: FilterState, scope: string | null): RowChip[] {
   }));
 }
 
+// ── Picker options (S2-17 / S2-18 / S2-19) ──────────────────────────────────
+// Every picker shows its whole universe with desktop facetedOptions
+// (showAllValues = true): a value with 0 matches under the other filters is
+// labelled "(0)", greyed and not addable; a selected one is never hidden.
+
+/** Desktop FilterPanel's Set facet grouping (allSetsGroups + isBaseSetCode):
+ * the base sets (logo chips), then the long tail -- each base set's Weekly
+ * Play container in base order, a divider, the Exclusives in subgroup order
+ * and any code the grouping does not know, alphabetically. */
+export function setPickerGroups(sets: readonly CardSet[]): {
+  base: string[];
+  weekly: string[];
+  exclusives: string[];
+} {
+  const { baseGroups, exclusiveGroups } = allSetsGroups(sets);
+  const block = baseGroups.flatMap((g) => g.memberCodes);
+  const ex = exclusiveGroups.flatMap((g) => g.memberCodes);
+  const known = new Set([...block, ...ex]);
+  const leftover = sets
+    .map((s) => s.code)
+    .filter((c) => !known.has(c))
+    .sort((a, b) => a.localeCompare(b));
+  return {
+    base: block.filter(isBaseSetCode),
+    weekly: block.filter((c) => !isBaseSetCode(c)),
+    exclusives: [...ex, ...leftover],
+  };
+}
+
+/** Faceted options for one field over a universe of raw values. */
+export function fieldOptions(
+  base: InventoryCard[],
+  filters: FilterState,
+  field: FacetField,
+  universe: (string | SelectOption)[],
+  selected: Set<string>
+): SelectOption[] {
+  return facetedOptions(universe, facetValid(base, filters, field), selected, true);
+}
+
+/** Desktop's aspect universe: the six aspects + "No Aspect" (BL-90). */
+export const ASPECT_UNIVERSE: SelectOption[] = [
+  ...ASPECT_LIST.map((a) => ({ value: a, label: a })),
+  { value: NO_ASPECT, label: "No Aspect" },
+];
+export const TYPE_UNIVERSE = TYPE_OPTIONS;
+export const ARENA_UNIVERSE = ARENA_OPTIONS;
+
+/** Keyword / Trait universes (desktop distinctMulti), alphabetical. */
+export function listUniverse(all: InventoryCard[], field: "keyword" | "trait"): string[] {
+  return distinctMulti(all, field === "keyword" ? "keywords" : "traits");
+}
+
+/** rev4 MODE_MEANING: the one-line meaning under Any / Within / Exact. */
+export const MODE_MEANING: Record<AspectMatchMode, string> = {
+  any: "Cards with any of the selected aspects.",
+  within: "Cards whose aspects all fit inside the selection.",
+  exact: "Cards whose aspects match the selection exactly.",
+};
+
 // ── Live edits (S2-14) ──────────────────────────────────────────────────────
 
 /** The slice of useVaultView the sheet writes through. */
@@ -162,20 +229,99 @@ export interface FilterWriter {
   clearAll: () => void;
 }
 
-/** Every edit the sheet makes, applied live to the Vault's state. Facet
- * writes go through setFilters, so the scope rule holds by construction
- * (vaultModel.withFilters): a Finish edit that is not exactly the scoped
- * value disengages the scope; every other facet keeps it. Reset = desktop
- * Reset (FilterState incl. the search back to default, the four toggles off;
- * the scope goes with it). */
-export function filterActions(w: FilterWriter) {
+/** S2-20: desktop's filter_applied `field` values (FilterPanel
+ * onFieldChanged + CardsPage's four Collection toggles). */
+export type FilterField =
+  | "set"
+  | "rarity"
+  | "finish"
+  | "type"
+  | "arena"
+  | "keyword"
+  | "trait"
+  | "cost"
+  | "power"
+  | "hp"
+  | "aspect"
+  | "aspect_mode"
+  | "completion"
+  | "owned"
+  | "no_inventory"
+  | "over_cap";
+
+export const TOGGLE_FIELD: Record<keyof CollectionToggles, FilterField> = {
+  incomplete: "completion",
+  owned: "owned",
+  unowned: "no_inventory",
+  overcap: "over_cap",
+};
+
+/** Desktop CardsPage's mutual exclusions, applied on the way in: Own clears
+ * Don't own; Don't own clears Own and Over limit; Over limit clears Don't
+ * own. Turning a toggle off clears nothing. */
+export function withToggle(t: CollectionToggles, key: keyof CollectionToggles): CollectionToggles {
+  const on = !t[key];
+  const next = { ...t, [key]: on };
+  if (on && key === "owned") next.unowned = false;
+  if (on && key === "unowned") {
+    next.owned = false;
+    next.overcap = false;
+  }
+  if (on && key === "overcap") next.unowned = false;
+  return next;
+}
+
+export type SetField = "type" | "arena" | "keyword" | "trait";
+export type RangeField = "cost" | "power" | "hp";
+const RANGE_KEY = { cost: "costRange", power: "powerRange", hp: "hpRange" } as const;
+export const RANGE_MAX: Record<RangeField, number> = {
+  cost: COST_MAX,
+  power: POWER_MAX,
+  hp: HP_MAX,
+};
+
+/** Every edit the sheet and its pickers make, applied live to the Vault's
+ * state. Facet writes go through setFilters, so the scope rule holds by
+ * construction (vaultModel.withFilters): a Finish edit that is not exactly
+ * the scoped value disengages the scope; every other facet keeps it. Reset =
+ * desktop Reset (FilterState incl. the search back to default, the four
+ * toggles off; the scope goes with it). `onField` hears the desktop field
+ * name of every user edit (S2-20 filter_applied; Reset is filters_cleared). */
+export function filterActions(w: FilterWriter, onField: (field: FilterField) => void = () => {}) {
   const f = w.state.filters;
+  const put = (field: FilterField, next: FilterState) => {
+    onField(field);
+    w.setFilters(next);
+  };
   return {
-    toggleRarity: (value: string) => w.setFilters({ ...f, rarity: toggleValue(f.rarity, value) }),
-    removeSet: (code: string) => w.setFilters({ ...f, set: toggleValue(f.set, code) }),
-    removeFinish: (raw: string) => w.setFilters({ ...f, finish: toggleValue(f.finish, raw) }),
-    removeToggle: (key: keyof CollectionToggles) =>
-      w.setToggles({ ...w.state.toggles, [key]: false }),
+    toggleRarity: (value: string) => put("rarity", { ...f, rarity: toggleValue(f.rarity, value) }),
+    toggleSet: (code: string) => put("set", { ...f, set: toggleValue(f.set, code) }),
+    removeSet: (code: string) => put("set", { ...f, set: toggleValue(f.set, code) }),
+    clearSets: () => put("set", { ...f, set: new Set() }),
+    toggleFinish: (raw: string) => put("finish", { ...f, finish: toggleValue(f.finish, raw) }),
+    removeFinish: (raw: string) => put("finish", { ...f, finish: toggleValue(f.finish, raw) }),
+    setFinishes: (next: Set<string>) => put("finish", { ...f, finish: next }),
+    toggleIn: (field: SetField, value: string) =>
+      put(field, { ...f, [field]: toggleValue(f[field], value) }),
+    setValues: (field: SetField, next: Set<string>) => put(field, { ...f, [field]: next }),
+    /** BL-90: empty = every chit lit; the first tap narrows to that value;
+     * removing the last one lands back on empty (no snap-back). */
+    tapAspect: (a: string) =>
+      put("aspect", {
+        ...f,
+        aspects: f.aspects.size === 0 ? new Set([a]) : toggleValue(f.aspects, a),
+      }),
+    setAspectMode: (aspectMode: AspectMatchMode) => put("aspect_mode", { ...f, aspectMode }),
+    setRange: (field: RangeField, r: [number, number]) =>
+      put(field, { ...f, [RANGE_KEY[field]]: r }),
+    toggleToggle: (key: keyof CollectionToggles) => {
+      onField(TOGGLE_FIELD[key]);
+      w.setToggles(withToggle(w.state.toggles, key));
+    },
+    removeToggle: (key: keyof CollectionToggles) => {
+      onField(TOGGLE_FIELD[key]);
+      w.setToggles({ ...w.state.toggles, [key]: false });
+    },
     reset: () => w.clearAll(),
   };
 }

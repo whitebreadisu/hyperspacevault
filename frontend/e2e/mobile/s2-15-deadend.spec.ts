@@ -3,7 +3,7 @@ import { CARDS, FSHEET, openFilters, tapIn } from "./filters-helpers";
 
 // S2-15: dead ends inert (rev4 b1-deadend-inert, b1-selected-never-hidden;
 // the IBH example). Rarity is the inline facet on the compact sheet; the
-// pickers' faceting arrives with them in stage 2B-2 (S2-17 / S2-18).
+// pickers' faceting is asserted in s2-18-inert-zero-in-pickers / s2-19-picker-inert.
 test.afterEach(measureEach);
 
 test.beforeEach(() => {

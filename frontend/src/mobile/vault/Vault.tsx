@@ -38,6 +38,10 @@ interface Props {
   onOpenFeedback: () => void;
   /** Search mode collapses the bottom bar too (MobileApp owns the bar). */
   onSearchMode: (on: boolean) => void;
+  // ── RUN 2B BEGIN (signin prop) ── MobileApp's openSignIn, threaded through
+  /** Signed out, the Filters sheet's Collection row routes to sign in. */
+  onRequestSignIn?: () => void;
+  // ── RUN 2B END (signin prop) ──
 }
 
 export function Vault({
@@ -47,6 +51,9 @@ export function Vault({
   onOpenChooser,
   onOpenFeedback,
   onSearchMode,
+  // ── RUN 2B BEGIN (signin destructure) ──
+  onRequestSignIn,
+  // ── RUN 2B END (signin destructure) ──
 }: Props) {
   const { isAuthenticated, loading, sets, setOrder, setNameByCode } = useVaultData();
   const vv = useVaultView(params);
@@ -185,19 +192,16 @@ export function Vault({
       ) : null}
       {
         // ── RUN 2B BEGIN ──
-        // BL-248 S2-12: the Filters sheet. Vault has no sign-in callback of
-        // its own (MobileApp owns the auth layer and does not thread one
-        // here), so a signed-out Collection tap closes Filters and presses
-        // the header's own Sign in control (AccountSlot -> MobileApp
-        // openSignIn). Orchestrator: thread `onRequestSignIn` from MobileApp
-        // into Vault and pass it straight through instead.
+        // BL-248 S2-12: the Filters sheet. Signed out, the Collection row
+        // closes Filters and opens MobileApp's sign-in (onRequestSignIn,
+        // threaded from MobileApp's RUN 2B (signin) block).
         sheet === "filters" ? (
           <FiltersSheet
             vv={vv}
             onClose={closeSheet}
             onRequestSignIn={() => {
               setSheet(null);
-              document.querySelector<HTMLButtonElement>(".m-app .m-acct__signin")?.click();
+              onRequestSignIn?.();
             }}
           />
         ) : null
