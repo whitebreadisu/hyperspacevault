@@ -4,6 +4,7 @@ import { go } from "../router";
 import { addCopy, resetBatchForTest } from "./batch";
 import type { NewBatchRow } from "./batch";
 import { clearPersisted, readPersisted, writeTool } from "./batchPersist";
+import { openCamera } from "./cameraHop";
 import { getScanSettings, resetScanSettingsForTest, setScanSettings } from "./scanSettings";
 
 // BL-249 S3-01: the tool layer's state (rev4 M.state().pad / padSet /
@@ -109,7 +110,9 @@ export function useToolState(): ToolState {
   return useSyncExternalStore(subscribe, getToolState, getToolState);
 }
 
-/** The route a tool mode lives at. */
+/** The route a tool mode lives at. BL-253 S7-09: `#/camera` is served by the
+ * isolated /scan/ document; on the main document that route hops there
+ * (cameraHop.ts, MobileApp). */
 export function toolRouteFor(mode: ToolMode): string {
   return mode === "camera" && MOBILE_CAMERA_ENABLED ? "#/camera" : "#/pad";
 }
@@ -122,9 +125,11 @@ export function setToolMode(mode: ToolMode): void {
   setScanSettings({ mode });
 }
 
-/** S3-01: the bar's centre button -- opens the mode used last. */
+/** S3-01: the bar's centre button -- opens the mode used last. BL-253 S7-09:
+ * the camera opens in place inside /scan/, else by the document hop. */
 export function openTool(): void {
-  go(toolRouteFor(state.mode));
+  if (toolRouteFor(state.mode) === "#/camera") openCamera();
+  else go("#/pad");
 }
 
 /** Keypad key handling (rev4 MPad onKey): digits append (max 4, leading

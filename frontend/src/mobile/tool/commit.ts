@@ -32,10 +32,18 @@ export interface PreconImportPlan {
   copies: number;
 }
 
+/** BL-253 S7-18: the entry methods of the keypad path, in report order. */
+export const ADJUST_METHODS = ["keypad", "camera", "camera_fast_add"] as const;
+export type AdjustMethod = (typeof ADJUST_METHODS)[number];
+
 export interface CommitPlan {
   /** Keypad printings -> folded delta (one adjustCard each). */
   adjust: Map<number, number>;
   keypadCopies: number;
+  /** BL-253 S7-18: the keypad-path copies by entry method (keypad, camera,
+   * camera_fast_add) -- copies and distinct printings, for one
+   * add_cards_committed per method. */
+  byMethod: Map<AdjustMethod, { copies: number; variants: Set<number> }>;
   imports: PreconImportPlan[];
   /** Every admitted copy (the "Add N cards to vault" N). */
   total: number;
@@ -46,6 +54,7 @@ export function commitPlan(batch: BatchRow[], view: BatchView, capMode: CapMode)
   const ok = new Set(view.added.map((v) => v.id));
   const adjust = new Map<number, number>();
   let keypadCopies = 0;
+  const byMethod = new Map<AdjustMethod, { copies: number; variants: Set<number> }>();
   const decks = new Map<CapHandling, Map<string, PreconDeckCard>>();
   const deckCopies = new Map<CapHandling, number>();
   for (const r of batch) {
@@ -61,6 +70,12 @@ export function commitPlan(batch: BatchRow[], view: BatchView, capMode: CapMode)
     } else {
       adjust.set(r.variantId, (adjust.get(r.variantId) ?? 0) + 1);
       keypadCopies++;
+      const method: AdjustMethod =
+        r.via === "camera" || r.via === "camera_fast_add" ? r.via : "keypad";
+      const m = byMethod.get(method) ?? { copies: 0, variants: new Set<number>() };
+      m.copies++;
+      m.variants.add(r.variantId);
+      byMethod.set(method, m);
     }
   }
   const imports: PreconImportPlan[] = [];
@@ -69,7 +84,7 @@ export function commitPlan(batch: BatchRow[], view: BatchView, capMode: CapMode)
     if (m && m.size)
       imports.push({ capHandling: cap, cards: [...m.values()], copies: deckCopies.get(cap) ?? 0 });
   }
-  return { adjust, keypadCopies, imports, total: ok.size };
+  return { adjust, keypadCopies, byMethod, imports, total: ok.size };
 }
 
 /** desktop AddCardsModal copy (both email-not-verified branches). */
@@ -110,7 +125,12 @@ export async function executeCommit(plan: CommitPlan): Promise<void> {
     const msg = err instanceof EmailNotVerifiedError ? EMAIL_NOT_VERIFIED_MSG : KEYPAD_FAILED_MSG;
     throw new CommitError(msg, doneVariants, doneImports);
   }
-  if (plan.keypadCopies) toolAddCardsCommitted("keypad", plan.keypadCopies, plan.adjust.size);
+  // S3-16 shape per method (BL-253 S7-18: camera / camera_fast_add join
+  // keypad; a keypad-only batch sends exactly what it always did).
+  for (const method of ADJUST_METHODS) {
+    const m = plan.byMethod.get(method);
+    if (m && m.copies) toolAddCardsCommitted(method, m.copies, m.variants.size);
+  }
 
   let applied = 0;
   let resolved = 0;

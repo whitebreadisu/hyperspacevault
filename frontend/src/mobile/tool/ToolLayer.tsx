@@ -3,13 +3,17 @@ import { SectionSeparator } from "../../components/SectionSeparator";
 import { publishNav } from "../card/navList";
 import { MOBILE_CAMERA_ENABLED } from "../flags";
 import { MIcon } from "../icons";
-import { back, go } from "../router";
+import { go } from "../router";
 import { discardBatch, getBatch, pendingEntries } from "./batch";
 import { DiscardConfirm } from "./DiscardConfirm";
+import { cameraKeypadRoute, closeTool, openCamera, renderCameraScreen } from "./cameraHop";
+import { audioUnlock } from "./cue";
 import { Pad } from "./Pad";
+import { setScanSettings, useScanSettings } from "./scanSettings";
 import { VerifySheet } from "./VerifySheet";
-import { chooseSet, getToolState, setToolMode, setToolState, useToolState } from "./toolStore";
+import { chooseSet, getToolState, setToolMode, setToolState } from "./toolStore";
 import { toolAddCardsAbandoned, toolScreenViewed } from "./toolAnalytics";
+import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import "./tool.css";
 
 // BL-249 S3-01: the tool layer at #/pad (rev4 MTool.jsx). A layer over the
@@ -23,21 +27,38 @@ import "./tool.css";
 // ignores the Vault's finish scope: nothing here reads it, and Card details
 // opens the S2 card layer on the resolved printing with no scope (S3-06).
 
+// BL-253 S7-09 / S7-10: the same layer hosts the camera (#/camera, served by
+// the isolated /scan/ document): title "Camera", the header's Fast add
+// toggle (S7-17, remembered in hsv.scan.v1), the mode toggle (keypad side =
+// in place, camera side = cameraHop.openCamera), the same X + close guard;
+// the body is the camera screen the scanner entry registered (cameraSlot) --
+// this file never imports mobile/camera/.
+
 export interface ToolLayerProps {
   params: Record<string, string>;
+  /** BL-253 S7-10: the camera mode (#/camera) rather than the keypad. */
+  camera?: boolean;
   /** The card layer is over the tool (S3-06): the tool stays mounted, inert. */
   covered: boolean;
   onRequestSignIn: () => void;
   onClose?: () => void;
 }
 
-export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLayerProps) {
-  const st = useToolState();
+export function ToolLayer({
+  params,
+  camera = false,
+  covered,
+  onRequestSignIn,
+  onClose,
+}: ToolLayerProps) {
+  const scan = useScanSettings();
 
-  // S3-07: screen_viewed {screen: "tool"} once per open.
+  // S3-07: screen_viewed {screen: "tool"} once per open. BL-253 S7-18: the
+  // camera mode reports "camera" itself (CameraScreen), so "tool" is sent
+  // when the keypad is what the open shows (and again on a switch back).
   useEffect(() => {
-    toolScreenViewed();
-  }, []);
+    if (!camera) toolScreenViewed();
+  }, [camera]);
 
   // Review deep link (as rev4's #/pad?set=&num=, kept like the Vault's and
   // the detail's review params): lock a set and type a number.
@@ -47,7 +68,7 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
   // and its return must not re-type a number the user has since changed.
   const applied = useRef<string | null>(null);
   useEffect(() => {
-    if (covered) return;
+    if (covered || camera) return;
     const sig = (pSet ?? "") + "|" + (pNum ?? "");
     if (applied.current === sig) return;
     applied.current = sig;
@@ -55,11 +76,11 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
     if (pSet && /^[A-Z0-9]{2,5}$/.test(pSet) && (t.setCode !== pSet || t.preconKey))
       chooseSet(pSet);
     if (pNum && /^\d{1,4}$/.test(pNum)) setToolState({ num: pNum.replace(/^0+(?=\d)/, "") });
-  }, [pSet, pNum, covered]);
+  }, [pSet, pNum, covered, camera]);
 
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [guard, setGuard] = useState(false);
-  const leave = onClose ?? back;
+  const leave = onClose ?? closeTool;
   // S3-14: the X asks first while copies wait in the batch.
   const close = () => {
     if (getBatch().length) setGuard(true);
@@ -91,37 +112,67 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  const openCard = (card: InventoryCard, variant: InventoryVariant) => {
+    // S3-06: no scope, a one-card list; the batch is untouched.
+    publishNav({ ids: [card.base_card_id], narrowed: false, scope: null });
+    go("#/card/" + card.base_card_id + "?v=" + variant.variant_id);
+  };
   return (
     <div
-      className="m-padlayer m-tool"
+      className={"m-padlayer m-tool" + (camera ? " m-tool--camera" : "")}
       role="dialog"
       aria-modal="true"
-      aria-label="Keypad"
+      aria-label={camera ? "Camera" : "Keypad"}
       inert={covered}
     >
       <header className="m-padlayer__head m-tool__head">
         <div className="m-tool__titles">
-          <h1 className="m-padlayer__title">Keypad</h1>
+          <h1 className="m-padlayer__title">{camera ? "Camera" : "Keypad"}</h1>
           <span className="m-padlayer__sub">Look up or add by number</span>
         </div>
+        {camera ? (
+          // S7-17 (rev4 MTool.jsx:25-29): Fast add, remembered in hsv.scan.v1.
+          <button
+            type="button"
+            className={"m-check m-tool__fast" + (scan.fastAdd ? " m-check--on" : "")}
+            role="switch"
+            aria-checked={scan.fastAdd}
+            onClick={() => {
+              audioUnlock();
+              setScanSettings({ fastAdd: !scan.fastAdd });
+            }}
+            aria-label="Fast add: add each read card without asking"
+          >
+            <span className="m-check__box">
+              {scan.fastAdd ? <MIcon name="check" size={16} /> : null}
+            </span>
+            <span className="m-tool__fastl">Fast add</span>
+          </button>
+        ) : null}
         {MOBILE_CAMERA_ENABLED ? (
           <span className="m-seg m-tool__mode" role="group" aria-label="Tool mode">
             <button
               type="button"
-              className={"m-seg__btn" + (st.mode === "keypad" ? " m-seg__btn--on" : "")}
-              aria-pressed={st.mode === "keypad"}
-              onClick={() => setToolMode("keypad")}
+              className={"m-seg__btn" + (!camera ? " m-seg__btn--on" : "")}
+              aria-pressed={!camera}
+              onClick={() => {
+                setToolMode("keypad");
+                // S7-16: leaving with a partial read prefills the keypad.
+                if (camera) go(cameraKeypadRoute(), true);
+              }}
               aria-label="Keypad mode"
             >
               <MIcon name="pad" size={20} />
             </button>
             <button
               type="button"
-              className={"m-seg__btn" + (st.mode === "camera" ? " m-seg__btn--on" : "")}
-              aria-pressed={st.mode === "camera"}
+              className={"m-seg__btn" + (camera ? " m-seg__btn--on" : "")}
+              aria-pressed={camera}
               onClick={() => {
+                if (camera) return;
+                audioUnlock(); // S7-17: the camera-mode tap is the user gesture
                 setToolMode("camera");
-                go("#/camera", true);
+                openCamera(true);
               }}
               aria-label="Camera mode"
             >
@@ -134,21 +185,27 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
           ref={closeRef}
           className="m-iconbtn m-tool__close"
           onClick={close}
-          aria-label="Close keypad"
+          aria-label={camera ? "Close camera" : "Close keypad"}
         >
           <MIcon name="close" />
         </button>
       </header>
       <SectionSeparator className="m-tool__sep" />
-      <Pad
-        onRequestSignIn={onRequestSignIn}
-        onOpenCard={(card, variant) => {
-          // S3-06: no scope, a one-card list; the batch is untouched.
-          publishNav({ ids: [card.base_card_id], narrowed: false, scope: null });
-          go("#/card/" + card.base_card_id + "?v=" + variant.variant_id);
-        }}
-        onOpenVerify={() => setVerifyOpen(true)}
-      />
+      {camera ? (
+        renderCameraScreen({
+          covered,
+          busy: verifyOpen || guard,
+          onRequestSignIn,
+          onOpenCard: openCard,
+          onOpenVerify: () => setVerifyOpen(true),
+        })
+      ) : (
+        <Pad
+          onRequestSignIn={onRequestSignIn}
+          onOpenCard={openCard}
+          onOpenVerify={() => setVerifyOpen(true)}
+        />
+      )}
       {verifyOpen ? <VerifySheet onClose={() => setVerifyOpen(false)} /> : null}
       {guard ? (
         <DiscardConfirm

@@ -119,7 +119,7 @@ function Pips({ card, signedIn }: { card: InventoryCard; signedIn: boolean }) {
   );
 }
 
-interface IdentProps {
+export interface IdentProps {
   name: string;
   subtitle: string | null;
   card: InventoryCard | null;
@@ -136,10 +136,15 @@ interface IdentProps {
   canAdd: boolean;
   onAdd: () => void;
   onDetails: (() => void) | null;
+  /** BL-253 S7-17: the camera's hold shows "In batch n" (copies of this
+   * printing waiting) and hides Add. */
+  inBatch?: number;
+  hideAdd?: boolean;
 }
 
-/** rev4 MIdentified (R4-6 compact variant), desktop's axes as chip groups. */
-function Identified(p: IdentProps) {
+/** rev4 MIdentified (R4-6 compact variant), desktop's axes as chip groups.
+ * BL-253 S7-14: exported -- the camera's prompt is this same panel. */
+export function Identified(p: IdentProps) {
   const img = p.card && p.variant ? cellImage(p.card, p.variant, "thumb", "200px") : null;
   return (
     <div
@@ -176,6 +181,7 @@ function Identified(p: IdentProps) {
         {p.justAdded ? (
           <div className="m-ident__added">
             <MIcon name="check" size={14} /> In batch
+            {p.inBatch != null ? " " + p.inBatch : null}
           </div>
         ) : null}
         <div className="m-ident__name">{p.name}</div>
@@ -257,15 +263,17 @@ function Identified(p: IdentProps) {
         >
           Card details <MIcon name="fwd" size={16} />
         </button>
-        <MSWUButton
-          size="md"
-          active={p.canAdd}
-          ariaDisabled={!p.canAdd}
-          onClick={p.onAdd}
-          className="m-ident__addbtn"
-        >
-          {p.addLabel}
-        </MSWUButton>
+        {p.hideAdd ? null : (
+          <MSWUButton
+            size="md"
+            active={p.canAdd}
+            ariaDisabled={!p.canAdd}
+            onClick={p.onAdd}
+            className="m-ident__addbtn"
+          >
+            {p.addLabel}
+          </MSWUButton>
+        )}
       </div>
     </div>
   );
@@ -275,7 +283,7 @@ function Identified(p: IdentProps) {
  * badge alone carries the amber ring while entries wait; dimmed and
  * aria-disabled while there are none, so the row never shifts. The Verify
  * cards sheet it opens is stage 3c (S3-12). */
-function VerifyButton({ n, onOpen }: { n: number; onOpen: () => void }) {
+export function VerifyButton({ n, onOpen }: { n: number; onOpen: () => void }) {
   return (
     <button
       type="button"

@@ -43,8 +43,13 @@ test("s3-01-opens-from-bar", async ({ page }) => {
   expect(m.xRight).toBeGreaterThan(m.iw - 20);
   expect(m.xTop).toBeLessThan(80);
   expect(Math.min(m.xW, m.xH)).toBeGreaterThanOrEqual(44);
-  // No camera mode toggle while the camera flag is off (plan A8).
-  await expect(page.locator(".m-tool__mode")).toHaveCount(0);
+  // BL-253 S7-24 REPLACE (flag on since S7-09): was "no camera mode toggle
+  // while the camera flag is off" -- the toggle is present, keypad side on.
+  await expect(page.locator(".m-tool__mode")).toHaveCount(1);
+  await expect(page.locator('.m-tool__mode [aria-label="Keypad mode"]')).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
 
   await page.locator(".m-tool__head [aria-label='Close keypad']").click();
   await expect(page).toHaveURL(/#\/vault\?q=vader$/);

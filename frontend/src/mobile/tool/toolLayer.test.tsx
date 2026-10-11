@@ -35,6 +35,7 @@ import { capture } from "../../analytics/analytics";
 import { resetMediaMatches, setMediaMatches } from "../../test/setup";
 import { resetRouterForTest } from "../router";
 import { PHONE_QUERY } from "../useIsPhone";
+import { setNavForTest } from "./cameraHop";
 import { toolAddCardsAbandoned, toolAddCardsCommitted } from "./toolAnalytics";
 import {
   getToolState,
@@ -69,20 +70,32 @@ describe("S3-01 tool layer route + mode memory", () => {
     expect(container.querySelector('.m-tool__head [aria-label="Close keypad"]')).not.toBeNull();
   });
 
-  it("with the camera flag off the camera mode is never remembered", () => {
+  // BL-253 S7-24 REPLACE (flag flipped in S7-09): was "with the camera flag
+  // off the camera mode is never remembered" -- now it is, and the bar opens
+  // it by the hop to the isolated /scan/ document.
+  it("the camera mode is remembered and the bar opens it by the /scan/ hop", () => {
+    const nav = { assign: vi.fn(), replace: vi.fn(), historyBack: vi.fn() };
+    setNavForTest(nav);
     expect(getToolState().mode).toBe("keypad");
     setToolMode("camera");
-    expect(getToolState().mode).toBe("keypad");
-    expect(toolRouteFor("camera")).toBe("#/pad");
+    expect(getToolState().mode).toBe("camera");
+    expect(toolRouteFor("camera")).toBe("#/camera");
     openTool();
-    expect(window.location.hash).toBe("#/pad");
+    expect(nav.assign).toHaveBeenCalledWith("/scan/#/camera");
+    setNavForTest(null);
   });
 
-  it("#/camera opens the keypad layer while the flag is off", async () => {
+  // BL-253 S7-24 REPLACE: was "#/camera opens the keypad layer while the flag
+  // is off" -- on the main document #/camera is the hop (no camera here).
+  it("#/camera on the main document hops to /scan/ (no keypad, no camera here)", async () => {
+    const nav = { assign: vi.fn(), replace: vi.fn(), historyBack: vi.fn() };
+    setNavForTest(nav);
     window.location.hash = "#/camera";
     const { container } = render(<App />);
     await act(async () => {});
-    expect(container.querySelector(".m-tool .m-pad")).not.toBeNull();
+    expect(nav.replace).toHaveBeenCalledWith("/scan/#/camera");
+    expect(container.querySelector(".m-tool .m-pad")).toBeNull();
+    setNavForTest(null);
   });
 
   it("the keypad state survives the layer closing", async () => {

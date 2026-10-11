@@ -48,7 +48,11 @@ import type { PadPicks } from "./toolStore";
 //     between the main document and the isolated /scan/ document; a new tab
 //     starts empty.
 
-export type BatchVia = "keypad" | "precon";
+/** BL-253 S7-14 / S7-17: camera rows (`camera` = Add in the prompt,
+ * `camera_fast_add` = the automatic add of Fast add) are keypad rows in every
+ * respect (set + number + picks, one adjust per printing at commit); the via
+ * only feeds add_cards_committed.method (S7-18). */
+export type BatchVia = "keypad" | "precon" | "camera" | "camera_fast_add";
 
 /** One copy waiting in the batch. */
 export interface BatchRow {
@@ -305,7 +309,7 @@ function verificationRowOf(
   inv: InventoryStatus,
   catalog: AddCardsCatalogEntry[]
 ): VerificationRow {
-  if (r.via === "keypad") {
+  if (r.via !== "precon") {
     const row = keypadRowOf(r);
     const resolved = resolveRow(row, catalog);
     if (resolved.status === "resolved") {

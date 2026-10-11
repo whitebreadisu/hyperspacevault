@@ -71,6 +71,9 @@ afterEach(() => {
   window.history.pushState({}, "", "/");
 });
 
+// BL-253 S7-24 PORT (flag flipped in S7-09): the centre button's accessible
+// name was "Keypad"; with the camera on it names both modes.
+const TOOL_BUTTON = "Keypad or camera: opens the mode you used last";
 describe("S6-01 share route renders the phone tree", () => {
   it("the gate no longer yields /shared/<token> to the desktop tree", async () => {
     const r = await bootShared();
@@ -85,7 +88,7 @@ describe("S6-01 share route renders the phone tree", () => {
     expect(screen.getByText("Rowan's collection")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Rowan: switch vault" })).toBeTruthy();
     // No keypad in a share; the bar is the switch + More.
-    expect(screen.queryByRole("button", { name: "Keypad" })).toBeNull();
+    expect(screen.queryByRole("button", { name: TOOL_BUTTON })).toBeNull();
     expect(document.querySelector(".m-nav--shared")).not.toBeNull();
     // The hash router works beneath the pathname.
     expect(window.location.pathname).toBe("/shared/tok-1");
@@ -100,7 +103,7 @@ describe("S6-01 share route renders the phone tree", () => {
     await bootShared("/");
     expect(document.querySelector(".m-nav--shared")).toBeNull();
     expect(screen.getByRole("button", { name: "Vault: switch vault" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Keypad" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: TOOL_BUTTON })).toBeTruthy();
   });
 });
 
@@ -140,12 +143,12 @@ describe("S6-04 the Vault switch", () => {
     fireEvent.click(own);
     await act(async () => {});
     expect(screen.queryByRole("group", { name: "Choose a vault" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Keypad" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: TOOL_BUTTON })).toBeTruthy();
     expect(document.querySelector('[data-pane="shared"]')?.className).toContain("--parked");
     fireEvent.click(screen.getByRole("button", { name: "Vault: switch vault" }));
     fireEvent.click(screen.getByRole("button", { name: "Rowan's vault" }));
     await act(async () => {});
-    expect(screen.queryByRole("button", { name: "Keypad" })).toBeNull();
+    expect(screen.queryByRole("button", { name: TOOL_BUTTON })).toBeNull();
     expect(document.querySelector('[data-pane="own"]')?.className).toContain("--parked");
     expect(document.querySelector('[data-pane="shared"]')?.className).not.toContain("--parked");
   });

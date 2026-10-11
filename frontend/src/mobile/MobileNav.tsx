@@ -7,12 +7,13 @@ import { MSWUButton } from "./MSWUButton";
 import { go } from "./router";
 import { switchFace, switchStep } from "./shared/vaultSwitch";
 import "./shared/shared.css";
-import { openTool } from "./tool/toolStore";
+import { openTool, useToolState } from "./tool/toolStore";
 import type { Route } from "./router";
 
 // BL-247 S1-04: the bottom bar (rev4 MApp.jsx:70-102, `bar=one`): Vault tab,
 // the centre SWUButton (keypad; the camera glyph and divider wait behind
-// MOBILE_CAMERA_ENABLED, plan A8), More tab. The circuit separator straddles
+// MOBILE_CAMERA_ENABLED, plan A8; on since BL-253 S7-09, the lit glyph =
+// the last-used mode the button opens), More tab. The circuit separator straddles
 // the bar's top edge. The More tab never carries the unread cue (R5-2).
 //
 // BL-252 S6-04 (R5-7): while a share is held (its name known) the Vault tab
@@ -175,6 +176,8 @@ function VaultSwitch({ share, on }: { share: NavShare; on: boolean }) {
 
 export function MobileNav({ route, share }: { route: Route; share?: NavShare | null }) {
   const a = route.segs[0];
+  // BL-253 S7-09: the lit glyph is the mode the button will open.
+  const cam = useToolState().mode === "camera";
   const inShare = !!share?.shown;
   const vaultOn = a === "vault";
   return (
@@ -194,11 +197,11 @@ export function MobileNav({ route, share }: { route: Route; share?: NavShare | n
                 onClick={openTool}
                 ariaLabel="Keypad or camera: opens the mode you used last"
               >
-                <span className="m-nav__tool m-nav__tool--on">
+                <span className={"m-nav__tool" + (cam ? "" : " m-nav__tool--on")}>
                   <MIcon name="pad" size={20} />
                 </span>
                 <span className="m-nav__tooldiv" aria-hidden="true" />
-                <span className="m-nav__tool">
+                <span className={"m-nav__tool" + (cam ? " m-nav__tool--on" : "")}>
                   <MIcon name="camera" size={22} />
                 </span>
               </MSWUButton>

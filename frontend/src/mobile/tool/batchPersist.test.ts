@@ -181,12 +181,13 @@ describe("S7-08 persisted camera settings (hsv.scan.v1)", () => {
     expect(getScanSettings().fastAdd).toBe(true); // kept in memory for the page
   });
 
-  it("the last tool mode is remembered, but the camera cannot be entered while the flag is off", () => {
-    // MOBILE_CAMERA_ENABLED is false until stage 7b: the camera mode is ignored.
+  // BL-253 S7-24 REPLACE (flag flipped in S7-09): was "... but the camera
+  // cannot be entered while the flag is off" (camera coerced to keypad).
+  it("the last tool mode is remembered, the camera included (flag on)", () => {
     localStorage.setItem(SCAN_KEY, JSON.stringify({ v: 1, mode: "camera" }));
     reloadScanSettingsForTest();
     rehydrateTool();
-    expect(getToolState().mode).toBe("keypad");
+    expect(getToolState().mode).toBe("camera");
   });
 });
 

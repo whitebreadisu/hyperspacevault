@@ -3,10 +3,12 @@ import type { IsolationReport } from "./isolationReport";
 import { createFallbackReader } from "./fallbackReader";
 import type { FallbackReader } from "./fallbackReader";
 import { createPaddleClient } from "./readerClient";
+import { registerCameraScreen } from "../tool/cameraHop";
+import { cueCounts } from "../tool/cue";
+import { bindCameraScreen } from "./CameraScreen";
 import type { ClientInit, PaddleClient } from "./readerClient";
 
-// BL-253 S7-03 / S7-05: what the scanner document does before the camera
-// screen exists (stage 7b mounts it). It reports its own isolation, and it
+// BL-253 S7-03 / S7-05 / S7-10: what the scanner document does at boot. It reports its own isolation, and it
 // starts the Paddle reader when the camera route is shown -- the stand-in for
 // "the camera screen mounted" -- so `/scan/#/camera` proves the worker end to
 // end and the main document (which never loads this file) requests nothing
@@ -21,6 +23,8 @@ export interface ScanDebug {
   readerInit: ClientInit | null;
   /** Start the Paddle reader (idempotent). */
   startReader(): Promise<ClientInit>;
+  /** S7-17: beep attempts (the e2e observes the cue without hearing it). */
+  cues: typeof cueCounts;
 }
 
 declare global {
@@ -36,23 +40,33 @@ export function bootScan(): ScanDebug {
   console.info("[scan] isolation " + JSON.stringify(isolation));
 
   const reader = createPaddleClient();
+  let initP: Promise<ClientInit> | null = null;
   const fallback = createFallbackReader();
   const dbg: ScanDebug = {
     isolation,
     reader,
     fallback,
     readerInit: null,
-    async startReader() {
-      const r = await reader.init();
-      dbg.readerInit = r;
-      console.info("[scan] paddle " + JSON.stringify(r));
-      return r;
+    cues: cueCounts,
+    startReader() {
+      // Memoised: the scan loop asks before every read; a failed init may retry.
+      if (initP) return initP;
+      initP = dbg.reader.init().then((r) => {
+        dbg.readerInit = r;
+        console.info("[scan] paddle " + JSON.stringify(r));
+        if (!r.ok) initP = null;
+        return r;
+      });
+      return initP;
     },
   };
   window.__scan = dbg;
+  // S7-10: the camera screen, bound to this document's readers, fills the
+  // tool layer's camera slot (the main document never registers one).
+  registerCameraScreen(bindCameraScreen(window.__scan ?? dbg));
 
   const maybeStart = () => {
-    if (onCameraRoute() && reader.state === "idle") void dbg.startReader();
+    if (onCameraRoute() && dbg.reader.state === "idle") void dbg.startReader();
   };
   maybeStart();
   window.addEventListener("hashchange", maybeStart);
