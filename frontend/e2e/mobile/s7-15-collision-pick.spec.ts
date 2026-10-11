@@ -1,5 +1,5 @@
 import { expect, measureEach, test } from "./helpers";
-import { installFakeScanner, openScanCamera, withPromoCollision } from "./scan-helpers";
+import { installFakeScanner, openScanCamera } from "./scan-helpers";
 
 // S7-15: a printed-code collision is an amber pick, never auto-resolved --
 // "ASHP 16" is printed on two promos (the spike catalogue: Grogu P26 16 "SS
@@ -7,10 +7,10 @@ import { installFakeScanner, openScanCamera, withPromoCollision } from "./scan-h
 // cards" + the key, the question, one row per card with its program name;
 // a pick resolves (the cue) and lands in the keypad's panel; Add -> a batch
 // row. Stage 7b: the scripted reader stands in for the fake_v2_promo clip.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 test("s7-15-collision-pick", async ({ page }) => {
-  await withPromoCollision(page);
   await installFakeScanner(page, { read: "ASHP • EN 16" });
   await openScanCamera(page);
   const cam = page.locator(".m-cam");

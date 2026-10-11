@@ -11,7 +11,7 @@ import { openTool, useToolState } from "./tool/toolStore";
 import type { Route } from "./router";
 
 // BL-247 S1-04: the bottom bar (rev4 MApp.jsx:70-102, `bar=one`): Vault tab,
-// the centre SWUButton (keypad; the camera glyph and divider wait behind
+// the centre SWUButton (keypad | camera glyphs and a divider, behind
 // MOBILE_CAMERA_ENABLED, plan A8; on since BL-253 S7-09, the lit glyph =
 // the last-used mode the button opens), More tab. The circuit separator straddles
 // the bar's top edge. The More tab never carries the unread cue (R5-2).

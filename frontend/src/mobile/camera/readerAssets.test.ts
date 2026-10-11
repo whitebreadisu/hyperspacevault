@@ -60,7 +60,15 @@ describe("S7-04 reader payload", () => {
       "LICENSE-tesseract.js.txt": 11357,
       "core/LICENSE-tesseract.js-core.txt": 11358,
     };
-    for (const [f, n] of Object.entries(sizes)) expect(statSync(join(ROOT, f)).size, f).toBe(n);
+    // The committed blobs are LF. A Windows checkout with core.autocrlf=true
+    // rewrites the text files with CRLF on disk, so text files are counted
+    // after folding CRLF back to LF (the .ort / .wasm / .gz binaries as is).
+    const committedSize = (f: string) => {
+      const b = readFileSync(join(ROOT, f));
+      if (/\.(ort|wasm|gz)$/.test(f)) return b.length;
+      return b.toString("latin1").split("\r\n").join("\n").length;
+    };
+    for (const [f, n] of Object.entries(sizes)) expect(committedSize(f), f).toBe(n);
   });
 
   it("THIRD_PARTY_NOTICES names every vendored package and licence file", () => {

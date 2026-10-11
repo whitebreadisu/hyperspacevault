@@ -6,6 +6,7 @@ import { installFakeScanner, openScanCamera } from "./scan-helpers";
 // two +/-4 mm sliders live in the "Guide alignment" sheet (X top-right),
 // re-lay the box out live, persist in hsv.scan.v1, reset to 0, and survive a
 // reload. The outline never moves; the box (and the OCR crop) do.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 async function geometry(page: import("@playwright/test").Page) {
@@ -56,7 +57,7 @@ test("s7-11-guide-and-sliders", async ({ page }) => {
   expect(near(g0.card, want.card)).toBe(true);
 
   // The Guide alignment sheet: two sliders, X top-right.
-  await page.locator(".m-cam__align[aria-label='Guide alignment']").click();
+  await page.locator(".m-cam__align").getByRole("button", { name: "Align guide" }).click();
   const sheet = page.locator(".m-sheet-layer");
   await expect(sheet).toContainText("Guide alignment");
   const x = await sheet.locator("[aria-label='Close']").first().boundingBox();
@@ -85,7 +86,7 @@ test("s7-11-guide-and-sliders", async ({ page }) => {
   expect(near((await geometry(page)).box, want1.box)).toBe(true);
 
   // Reset to 0.
-  await page.locator(".m-cam__align").click();
+  await page.locator(".m-cam__align").getByRole("button", { name: "Align guide" }).click();
   await page.locator(".m-sheet-layer .m-textbtn", { hasText: "Reset to 0" }).click();
   expect(near((await geometry(page)).box, want.box)).toBe(true);
   const reset = await page.evaluate(() => JSON.parse(localStorage.getItem("hsv.scan.v1") ?? "{}"));

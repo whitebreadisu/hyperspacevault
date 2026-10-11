@@ -7,6 +7,7 @@ import { installFakeScanner, openScanCamera } from "./scan-helpers";
 // that matches no printing prefills both (#/pad?set=SOR&num=229) and the
 // keypad resolves it. The header's keypad toggle takes the same route.
 // Stage 7b: the scripted reader stands in for the fake_v2_nocode clip.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 test("s7-16-no-read-keypad-prefill", async ({ page }) => {

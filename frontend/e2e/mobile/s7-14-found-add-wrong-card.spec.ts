@@ -8,6 +8,7 @@ import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 // -> Verify · 1 and the hold; Card details opens the card layer over the
 // paused camera and returns to the same prompt; Wrong card restarts the scan
 // with the batch unchanged and no keypad prefill.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 test("s7-14-found-add-wrong-card", async ({ page }) => {
@@ -18,7 +19,7 @@ test("s7-14-found-add-wrong-card", async ({ page }) => {
   const badge = page.locator(".m-cam__bar .m-logbtn");
   await expect(cam).toHaveAttribute("data-phase", "found");
   await expect(panel.locator(".m-cam__state")).toContainText("Read");
-  await expect(panel.locator(".m-cam__code")).toHaveText("SOR 229/9");
+  await expect(panel.locator(".m-cam__code")).toHaveText("SOR 229/252");
   await expect(panel.locator(".m-ident__name")).toHaveText("Cell Block Guard");
   await expect(panel.locator(".m-ident__meta")).toHaveText("SOR 229 · Standard");
   await expect(panel.locator(".m-readout")).toContainText("In vault");
@@ -46,10 +47,10 @@ test("s7-14-found-add-wrong-card", async ({ page }) => {
 
   // Another card -> Wrong card: the scan restarts; the batch is unchanged.
   await page.evaluate(() => {
-    window.__fakeRead = "SOR • EN C 87/9";
+    window.__fakeRead = "SOR • EN C 87/252";
   });
   await expect(cam).toHaveAttribute("data-phase", "found");
-  await expect(panel.locator(".m-cam__code")).toHaveText("SOR 87/9");
+  await expect(panel.locator(".m-cam__code")).toHaveText("SOR 87/252");
   await panel.locator(".m-cam__wrong").click();
   await expect(cam).toHaveAttribute("data-phase", "searching");
   await expect(page).toHaveURL(/\/scan\/#\/camera$/); // no keypad prefill

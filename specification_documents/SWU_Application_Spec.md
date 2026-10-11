@@ -899,7 +899,7 @@ Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: in
 
 | Event | Properties |
 |---|---|
-| `screen_viewed` | `screen: vault \| deck_check \| import_export \| settings \| new_arrivals \| shared_view \| password \| delete \| sharing` (the last three are phone-only layers, §25.5) |
+| `screen_viewed` | `screen: vault \| deck_check \| import_export \| settings \| new_arrivals \| shared_view \| password \| delete \| sharing \| camera` (`password`, `delete`, `sharing` are phone-only layers, §25.5; `camera` is the scanner, once per mount, §25.7) |
 | `signup_completed` / `login_completed` | `provider: password \| google` |
 | `feedback_submitted` | — |
 | `view_mode_changed` | `mode: table \| gallery` |
@@ -912,7 +912,7 @@ Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: in
 | `price_history_opened` | — |
 | `popup_card_navigated` | `method: prev_next \| rail_cycle` |
 | `quantity_changed` | `direction`, `surface: popup` |
-| `add_cards_committed` | `method: keypad \| precon`, `cards_added`, `distinct_cards` |
+| `add_cards_committed` | `method: keypad \| precon \| camera \| camera_fast_add`, `cards_added`, `distinct_cards`; camera methods also carry `fast_add` (boolean) |
 | `add_cards_abandoned` | `pending_entries` |
 | `import_dry_run` | `format`, `rows`, `error_rows` |
 | `import_committed` | `mode`, `rows_applied` |
@@ -920,6 +920,10 @@ Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: in
 | `deck_check_run` | `missing_count` |
 | `share_created` | — |
 | `share_link_viewed` | — |
+| `scan_recognised` | `reader: paddle \| tesseract`, `key_strength: weak \| strong`, `time_bucket: <1s \| 1-2s \| 2-5s \| 5-10s \| >10s` (first text to prompt) |
+| `scan_decision` | `decision: add \| details \| wrong_card \| pick` |
+| `scan_pick_shown` | `reason: printed_code_collision \| small_series_N_of_2 \| several_cards \| number_conflict \| reading_conflict` |
+| `scan_fallback_keypad` | `had_partial: boolean` |
 
 ---
 
@@ -936,13 +940,9 @@ The ninth main-line set, onboarded by the content runbook's new-base-set path. C
 - **Not ingested.** swuapi now carries `upgrade_power` / `upgrade_hp`, `slug` and `art_metadata` on card records; none has a column.
 
 
-## 24. Card scanning (BL-238 spike — specified 2026-10-10; **NOT BUILT**)
+## 24. Card scanning (BL-238 spike — specified 2026-10-10; **built in BL-253, 2026-10-11** — as-built facts in §25.7)
 
-**Status.** Design decided from the BL-238 camera spike (ADR-0029); nothing
-ships yet. The mobile prototype (BL-190, Revision 1) carries the camera
-screen as a static mock of this section. Owed before a build commits:
-the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final
-rules, printed-code collision evidence from the community, a second phone.
+**Status.** Built on the phone behind the centre button's camera mode (ADR-0029, amended 2026-10-11): the isolated `/scan/` document (§25.7) reads the card's strip on-device and feeds the keypad's resolved-card panel. Not build gates, collected on the real app in the owner's LAN rounds: the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final rules, printed-code collision evidence from the community, a second phone. *2026-10-11: the spike-era heading ("NOT BUILT") and Status paragraph (including the "static mock" sentence) are superseded — verbatim in SWU_Application_Spec_Archive.md.*
 
 ### 24.1 What it is
 Browser camera entry on the phone (no app, no install). The page reads the
@@ -971,8 +971,9 @@ the same set + number the keypad resolver takes; finish stays a choice
   on iPhone (no Vibration API; the switch-control trick is not felt).
 - **Guidance:** a live sharpness meter with one-word guidance ("Blurry —
   move back / closer", "Too small — move closer"). **No automatic zoom**;
-  distance is the user's control. Optional explicit controls (zoom, focus
-  distance, torch, lens) may exist but default untouched.
+  distance is the user's control. The optional explicit controls (zoom, focus
+  distance, torch, lens) are **not built** in v1; the stream is requested at
+  zoom 1.0 and left there. *(2026-10-11: "may exist but default untouched" superseded — archive.)*
 
 ### 24.3 Guide geometry (measured on official card images; fractions of card width W / height H)
 | Feature | Portrait card (63 × 88 mm) | Landscape leader/base (88 × 63 mm) |
@@ -991,11 +992,11 @@ The guide draws the card's **bottom-right corner outline** (corner radius
 3 mm, assumed) with the group box centred horizontally in the preview,
 lower-middle, drawn 15% larger than the group on every side and dimming
 the surroundings ~35% for the user only. The OCR crop is the group plus
-3.15 mm of padding, starting 0.6 mm right of `©FFG` so that text is
-excluded. **Tuned offsets from the owner's live runs:** box and crop sit
+3.15 mm of padding on every side (as built; no start offset at `©FFG`).
+*(2026-10-11: the "starting 0.6 mm right of `©FFG`" clause is superseded by the shipped code — archive.)* **Tuned offsets from the owner's live runs:** box and crop sit
 2.2 mm left and 2.1 mm above the nominal position relative to the outline
 (his promo card and his holding distance, ~1.15× the assumed 45 px text);
-two ±4 mm sliders exist for on-phone calibration. The owner expects to keep
+two ±4 mm sliders (step 0.1) sit behind the camera screen's "Align guide" button for on-phone calibration and persist on release (§25.7). The owner expects to keep
 refining these values.
 
 ### 24.4 Readers and acceptance
@@ -1047,8 +1048,8 @@ focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
 
 - **Gate.** `useIsPhone()` = `matchMedia("(max-width: 767px)")`, live; when it matches, `App.tsx` renders `frontend/src/mobile/MobileApp` inside the same providers, otherwise the desktop tree. Tablets (>= 768 px) get desktop. Phone CSS is scoped under `.m-app`.
 - **Share links.** `/shared/{token}` renders the phone tree at phone width; the shared vault is a second pane beside the own Vault, switched from the bar's Vault button (§25.6 arrives with the closing sweep). *2026-10-11: slice-1 interim sentence superseded by slice 6 — verbatim in SWU_Application_Spec_Archive.md.*
-- **Routes (hash).** `#/vault` (params `set`, `finish`, `q`, `view`, `size`, `gsize`, `sheet=scope|sort|filters|sets`, `collapsed=1`), `#/more/feedback`; `#/card/<id>` (§25.2) and `#/pad` (§25.3) are built; `#/more`, `#/about`, `#/more/{about,updates,importexport}` are built (§25.4); `#/more/{settings,password,delete,sharing}` are built (§25.5). Unknown or empty hash → `#/vault`; back = history back, else `#/vault`.
-- **Shell.** Three-item bottom bar (Vault, centre keypad SWUButton — camera behind `MOBILE_CAMERA_ENABLED = false` — More). Header: `[HSV] Hyperspace Vault` over `Unofficial Fan Project [v#.#.#]`, text Feedback button, account slot (Sign in / avatar menu: Settings, Change Password with a password provider only, About & Legal, Log Out). Title / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the title (badge when collapsed), never on More.
+- **Routes (hash).** `#/vault` (params `set`, `finish`, `q`, `view`, `size`, `gsize`, `sheet=scope|sort|filters|sets`, `collapsed=1`), `#/more/feedback`; `#/card/<id>` (§25.2), `#/pad` (§25.3) and `#/camera` (§25.7: on `/` it hops to the isolated `/scan/` document, which shows the camera) are built; `#/more`, `#/about`, `#/more/{about,updates,importexport}` are built (§25.4); `#/more/{settings,password,delete,sharing}` are built (§25.5). Unknown or empty hash → `#/vault`; back = history back, else `#/vault`.
+- **Shell.** Three-item bottom bar (Vault, centre SWUButton showing a keypad and a camera glyph, lit for the mode used last, More). *2026-10-11: the "camera behind `MOBILE_CAMERA_ENABLED = false`" clause is superseded (the flag is on) — archive.* Header: `[HSV] Hyperspace Vault` over `Unofficial Fan Project [v#.#.#]`, text Feedback button, account slot (Sign in / avatar menu: Settings, Change Password with a password provider only, About & Legal, Log Out). Title / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the title (badge when collapsed), never on More.
 - **Collapse.** The header collapses as the list scrolls; back at the top it stays collapsed; a tap on the strip or a deliberate pull from the top expands. Motion is transform + opacity only; the starfield is clipped, never moved. Strip: badge, amber funnel while the totals are filtered, %, ten ticks, "n cards", value without cents.
 - **Completion panel.** Desktop `computePanelMetrics` over the narrowed list (or every card under Totals = All). Totals Filtered / All shows only while narrowed and signed in; Filtered draws the amber ring. Market / Low = desktop's persisted price kind (shared with the rows). Signed out: em dashes, empty ticks, no breakdown. Tapping the body opens **Completion by set**: one row per base set (`buildSetBreakdown` over every narrowing except the Set facet); a row tap sets the Set facet to that set.
 - **Status rows.** Row one: search ("Search the vault"; name, subtitle, card number), Clear (only while narrowed, amber), Filters + active count. Row two: count ("n cards", amber when narrowed, no "of m"), finish-scope chip, icon-only Sort (desktop's sortable columns, `nextSortState`), List / Gallery toggle (List → 4 row sizes incl. no image; Gallery → 1 / 2 / 3 across; remembered per browser session).
@@ -1100,7 +1101,7 @@ focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
 ### 25.3 S3 Keypad, choosers, verify batch, commit (BL-249)
 
 Code: `frontend/src/mobile/tool/`. Route `#/pad` (the bar's centre button).
-- **Tool layer.** Opens over the current screen. The screen underneath stays mounted with its state; the bar is covered and inert. The header has the title and an X top-right (44 px). The camera mode toggle exists only behind `MOBILE_CAMERA_ENABLED` (off; the camera ships in slice 7). The keypad ignores the Vault's finish scope.
+- **Tool layer.** Opens over the current screen. The screen underneath stays mounted with its state; the bar is covered and inert. The header has the title and an X top-right (44 px). The header carries the keypad | camera mode toggle (camera mode: §25.7). *2026-10-11: "exists only behind `MOBILE_CAMERA_ENABLED` (off; the camera ships in slice 7)" is superseded — archive.* The keypad ignores the Vault's finish scope.
 - **Keypad.** Entry row: set button · number display (Russo One, max 4 digits, no system keyboard) · Verify button. Keys: Russo One 0–9, Clear and backspace, 58 px at rest. Hardware digits, Backspace and Enter work too. Resolution uses desktop `resolveRow` over the catalogue; a shared number shows desktop's axes (Which card? / Set / Stamp / Finish) as chips. A miss reads "Not in this set" plus desktop's sentence.
 - **Readout.** "In vault n/m" and "After add n/m" for the resolved printing, against its effective keep-limit (`LimitsContext`, hard or soft). At or over the limit the line is red `#ef4444`. "After add" counts owned + copies in the batch + 1. This readout is the only phone surface with an "n/m" fraction.
 - **Result layout.** While a card shows, the deck shrinks (44 px keys, 48 px entry row; one class flip, no animation). Card details / Add to batch stays pinned at the bottom of the result zone. A shared number compacts the panel. A finish-only share keeps desktop's non-foil default (BL-191) with the amber cue and a Change link. The deck restores on Clear and after Add.
@@ -1151,3 +1152,25 @@ Code: `frontend/src/mobile/account/`. Routes `#/more/settings`, `#/more/password
 - **Verify-email banner.** Desktop `VerifyEmailBanner`, unchanged, is the first child of the Vault's list area (`.m-vault__below`), under the header and above the status rows, full width in `#2a2110` with the `#b45309` rule. It shows for a signed-in, unverified account; it has no close button, "Resend email" has desktop's 30 s cooldown and spam-folder hint, and "I've verified" rechecks. It is content, so it does not collapse with the header; search mode hides it while the search box has focus. Buttons are 44 px. More keeps its shortened unverified sentence (§25.4); the banner lives only on the Vault.
 - **Analytics** (additive, `layout: "phone"`): `screen_viewed {screen: settings | password | delete | sharing}` once per open (closing a layer onto the screen beneath it is not a new view; a redirected signed-out visit sends nothing). `share_created` is desktop's own call (the `layout` super-property tags it); desktop sends no rotate or revoke event, so none is added. Desktop sends no `settings_*` events.
 - **Harness.** Playwright `e2e/mobile/s5-*.spec.ts` (the API double keeps the last limits PUT and holds one stateful share; the shared e2e account is signed in unverified, so every Vault spec runs with the banner, and the verified-account cases reuse `more-helpers.ts`). Vitest: `account.test.tsx`, `sharing.test.tsx`.
+
+### 25.7 S7 Camera (BL-253)
+
+Code: `frontend/src/mobile/camera/` (scanner) and `frontend/src/mobile/tool/{cameraHop,cue,batchPersist,scanSettings}.ts` (the parts the main document also loads). As-built facts from stages 7a-7c; the §25 consolidation belongs to the closing sweep.
+- **Document.** `/scan/` is a second Vite entry (`frontend/scan.html` -> `src/scan.tsx`) serving the **full app bundle**, so Vault, card detail, Verify and More all work inside it; the camera screen is the tool layer's camera mode. The main document never imports `mobile/camera/` (bundle check: `main-*.js` 0.25 kB and `App-*.js` contain none of the scanner, which lives in `scan-*.js` and `scan-workers/`). Dev and `vite preview` rewrite `/scan` and `/scan/` to `scan.html`; Firebase Hosting does the same with a 301 `/scan` -> `/scan/` and a `/scan/**` rewrite.
+- **Headers.** Only `/scan/**` and `/scan.html` carry COOP `same-origin`, COEP `require-corp`, `Permissions-Policy: camera=(self), microphone=(), geolocation=()` and `Cache-Control: no-cache`; `/vendor/scan/**` is `public, max-age=31536000, immutable` + CORP `same-origin` + COEP; `/scan-workers/**` carries CORP + COEP. COEP is needed on the worker script and the vendored files (without it the Paddle init never answers). The main document gets no COOP/COEP and its Permissions-Policy is untouched, so the Google sign-in popup keeps `window.opener`. One pure `headersFor(path)` feeds the dev middleware and is asserted equal to `firebase.json`.
+- **Isolation.** `/scan/` is `crossOriginIsolated`; `window.__scan.isolation` reports `crossOriginIsolated`, `SharedArrayBuffer`, `hardwareConcurrency`, ort threads = `crossOriginIsolated ? min(4, hardwareConcurrency) : 1`, and wasm SIMD (Chromium on the dev server: 12 cores, 4 threads, SIMD on). Phone-device proof is the LAN round's.
+- **Auth inside `/scan/`.** An isolated document calls `initializeAuth` with the same persistence stack (IndexedDB, local, session) **without** the popup/redirect resolver, because the auth helper iframe is blocked under COEP; the signed-in session is shared with `/`. Google sign-in cannot run there: any sign-in request inside `/scan/` bounces to `/#/vault` (return URL in `sessionStorage` `hsv.scan.signin`) and returns once signed in.
+- **The hop.** Camera mode on `/` navigates (`location.assign`) to `/scan/#/camera`; the entry beneath the tool is first rewritten to the screen under it, so Back never re-hops. Inside `/scan/` the keypad side of the mode toggle switches **in place** (`/scan/#/pad`); closing a hop-entered camera at navigation depth 0 walks back to the screen beneath it; a cold `/scan/` tab closes onto its own Vault. The camera stream is released on leaving the camera mode.
+- **State across documents.** The batch, `mode`, set code and precon deck are mirrored to `sessionStorage` `hsv.tool.v1` (versioned, every access guarded); a reload in the same tab therefore keeps the batch, a new tab starts empty, and a bfcache-restored page re-reads the mirror. Camera settings live in `localStorage` `hsv.scan.v1` = `{boxOffsetMm, boxOffsetVMm, fastAdd, mode}` (offsets clamped to ±4 mm, rounded to 0.1; unreadable storage -> defaults).
+- **Payload.** `frontend/public/vendor/scan/`, 15 files, 33,334,315 bytes, plain git (no LFS), with `THIRD_PARTY_NOTICES.txt` and the licence files (ppu-paddle-ocr 6.6.1 is **MIT** as shipped; onnxruntime-web 1.23.2 MIT; Tesseract.js, core and `eng.traineddata` Apache-2.0; the PP-OCRv6 tiny models and dictionary are credited to the PaddleOCR project, licence line unverified). Lazy: nothing under `/vendor/scan/` is requested on `/`, the Vault, the keypad or `/scan/` off the camera route; the Paddle group loads on the camera route and the Tesseract group only at the first fallback need (it fetches one core file).
+- **Reader.** Paddle runs in a module worker (`paddleWorker.ts`): ort `wasmPaths`, the threads rule above, EP `wasm`, the vendored bundle imported (not rebuilt) with `self.window = self`; frames travel as transferable `ImageBitmap`s and the UI thread never waits on OCR; init is bounded at 60 s. Measured on the dev server in Chromium: init 549-608 ms, a synthetic strip reads in 84-89 ms. A failed or timed-out reader never throws into the UI: the screen says "The card reader could not start", gives the reason and offers "Use the keypad".
+- **Catalogue and parser.** The scan catalogue is derived at load from the app's own catalogue (`scanCatalog.ts`, a port of the spike's `build_catalog.py`), so it cannot go stale; vitest proves it equals the spike's `catalog.json` (round trip; and, one-off, from the spike's raw API cache: 2,582 cards / 10,193 printings). The parser and Acceptor are the spike's `scan-core.js` v0.5.5 unchanged (all 53 parser cases and 15 replay scenarios pass).
+- **Thresholds as built.** Sharpness gate: Laplacian variance of the text band >= 14 (meter fill = value / 42; red < 14, amber < 21, green above); glyph floor 22 processed px ("Too small — move closer"); 3 agreeing reads of the last 4 with bars Tesseract 30 / Paddle 60; Paddle first, Tesseract only when Paddle gave no code or number, at most 1 per 2 frames, PSM 6 then 7 inside 700 ms plus a digits pass; no zoom code anywhere.
+- **Guide.** Portrait only (the landscape constants are ported and unused; a viewport wider than 767 px is served the desktop tree by the S1 gate, which has no camera). Crop = group + 3.15 mm each side; box and crop shifted -2.2 mm / +2.1 mm against the outline; the "Align guide" text button opens a "Guide alignment" sheet with the two ±4 mm sliders (live on input, persisted on release, "Reset to 0"). The geometry equals the spike's own functions (vitest reference crop `[188, 934, 576, 301]` for the 1080 x 1920 clip).
+- **Flow.** Searching -> found | pick -> hold. Found shows the keypad's `Identified` panel (shared numbers, BL-191 non-foil default, In vault / After add readout) with Card details (the card layer over the paused camera, same document), Add, and Wrong card (restart, no keypad prefill). Ambiguous reads are an amber pick with the program name per row (SS Store Showdown, RQ Regional Qualifier, PQ Planetary Qualifier, SQ Sector Qualifier, GC Galactic Championship); a pick resolves, then the cue. The Keypad link and the header's keypad toggle open `#/pad?set=<code>&num=<n>` from the last 8 reads, only when the set exists.
+- **Hold and suppression.** An Add (prompt or Fast add) starts the 1.5 s hold ("Fast add · next card in 1.5 s", "In batch n", Add hidden); the 3 s same-key suppression is counted from the resume; after an automatic add the key is also held until the card leaves the frame; a Fast add read that needs a pick falls back to the prompt; Wrong card inside the hold takes that copy back out.
+- **Cue.** One beep (1320 Hz, gain 0.0001 -> 0.2 in 10 ms -> 0.0001 at 80 ms) plus a full-screen green flash (`#178a3a`, .45, 180 ms on, .35 s fade) on every recognition; the `AudioContext` is created inside a user gesture (camera-mode tap, Start, any pointerdown on the screen); `navigator.vibrate` is never called.
+- **Analytics.** `screen_viewed {screen: camera}`, `scan_recognised`, `scan_decision`, `scan_pick_shown`, `scan_fallback_keypad`, and `add_cards_committed.method` `camera` / `camera_fast_add` with `fast_add` (registry rows in §22). Never raw OCR text, keys, card names or images (guard test).
+- **Not built / not ported.** The spike's research machinery (crop capture/export, review/truth screens, condition select, continuous mode, Photo, Setup, event log, `window.__bl238`), guide v1, the orientation toggle, the optional zoom / focus / torch / lens controls, and the `?debug=1` raw-text overlay.
+- **Provisional copy.** The camera's stream-state sentences ("Camera access is off", "Camera stopped by the phone", "Camera paused", "No camera found") and the generic pick question for non-collision picks ("This code matches more than one card. Pick the card you have.") are accepted provisionally; the owner adjusts them in the LAN round.
+- **Harness.** Playwright project `scan` (Chromium with `--use-fake-device-for-media-stream`; `e2e/mobile/clip-helpers.ts` launches one browser per clip with `--use-file-for-fake-video-capture`) drives the BL-238 spike's MJPEG clips (`e2e/mobile/clips/`, 9 files, 13 MB) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); the other phone projects ignore `s7-` specs. Vitest sits beside the code in `frontend/src/mobile/camera/`.

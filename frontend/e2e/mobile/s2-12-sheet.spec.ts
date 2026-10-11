@@ -83,11 +83,24 @@ test("s2-12-grow-transform-only", async ({ page }) => {
   await openFilters(page);
   await watchSheet(page);
   await tapIn(page, ".m-fgame__head");
-  await page.waitForTimeout(60);
-  const mid = await page.evaluate((sel) => {
-    const s = document.querySelector(`${sel} .m-sheet`)!;
-    return { t: getComputedStyle(s).transform, tp: getComputedStyle(s).transitionProperty };
-  }, FSHEET);
+  // The first frame where the grow is in flight (transform not "none"): a
+  // fixed 60 ms sample missed the window under load (7c hardening: observed
+  // flaking ~1 in 10 isolated runs, and once in a full-suite run).
+  const mid = await page.evaluate(
+    (sel) =>
+      new Promise<{ t: string; tp: string }>((resolve) => {
+        const s = document.querySelector(`${sel} .m-sheet`)!;
+        const t0 = performance.now();
+        const tick = () => {
+          const t = getComputedStyle(s).transform;
+          if (t !== "none" || performance.now() - t0 > 1000)
+            resolve({ t, tp: getComputedStyle(s).transitionProperty });
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+    FSHEET
+  );
   await page.waitForTimeout(400);
   const end = await page.evaluate((sel) => {
     const s = document.querySelector<HTMLElement>(`${sel} .m-sheet`)!;

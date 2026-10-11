@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page, Route } from "@playwright/test";
+import { scanCards } from "./scan-fixture";
 
 // BL-247 S1-10: the API double for the mobile e2e suite. Every /api/** and
 // card-image request is answered from committed fixtures (gen-fixtures.mjs);
@@ -13,7 +14,7 @@ const read = (name: string) => readFileSync(join(here, "fixtures", name));
 const json = <T>(name: string): T => JSON.parse(read(name).toString("utf8")) as T;
 const PX = read("px.webp");
 
-export type CardsFixture = "base-cards" | "base-cards-600";
+export type CardsFixture = "base-cards" | "base-cards-600" | "base-cards-scan";
 
 interface Slim {
   id: number;
@@ -135,6 +136,11 @@ export async function installApiMocks(
     // S1-19: an image the virtualised list unmounts (or a navigation drops)
     // mid-load is cancelled by the browser -- not a failed request.
     if (r.resourceType() === "image" && r.failure()?.errorText === "net::ERR_ABORTED") return;
+    // S7 (7c): the document hop to /scan/ (a full navigation) can abort the
+    // Auth emulator's helper iframe that the leaving document was still
+    // loading -- the navigation did it, not a failed request.
+    if (r.failure()?.errorText === "net::ERR_ABORTED" && r.url().includes("/emulator/auth/iframe"))
+      return;
     // A reload/navigation aborts in-flight third-party pixels (e.g. google.com
     // cleardot.gif) -- noise. Only same-origin (the app's localhost) aborts count.
     if (r.failure()?.errorText === "net::ERR_ABORTED") {
@@ -149,7 +155,10 @@ export async function installApiMocks(
     rec.failed.push(`${r.method()} ${r.url()} (${r.failure()?.errorText})`);
   });
 
-  const cards = json<Slim[]>(`${opts.fixture ?? "base-cards"}.json`);
+  const cards =
+    opts.fixture === "base-cards-scan"
+      ? (scanCards() as Slim[])
+      : json<Slim[]>(`${opts.fixture ?? "base-cards"}.json`);
   const sets = json<{ code: string; name: string }[]>("sets.json");
   const quantities = json<{ variant_id: number; quantity: number }[]>("quantities.json");
   const qtyById = new Map(quantities.map((q) => [q.variant_id, q.quantity]));

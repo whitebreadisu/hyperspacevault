@@ -1,9 +1,8 @@
-import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { expect } from "./helpers";
 
 // BL-253 stage 7b: drive the camera screen WITHOUT the fake-camera clips
-// (those are stage 7c's, S7-19/20): the page's getUserMedia returns a canvas
+// (the clip specs are stage 7c's, s7-19+ with clip-helpers.ts): the page's getUserMedia returns a canvas
 // stream (sharp noise, or flat grey = blurry), and the Paddle / Tesseract
 // readers on `window.__scan` are replaced by a scripted reader that returns
 // `window.__fakeRead` (the strip text the "camera" shows). The real frame
@@ -126,62 +125,10 @@ export async function installFakeScanner(
   );
 }
 
-/** The e2e catalogue derives SOR's main size from its own (trimmed) rows:
- * 9, not the printed 252 -- so a stub read of SOR 229 prints "/9". Stage 7c's
- * clips print /252 and need the catalogue extended (see the build log). */
-export const SOR_229 = "SOR • EN R 229/9";
-
-/** The ASHP 16 printed-code collision (spike catalogue: Grogu P26 16 "SS Top
- * 8" vs Emperor's Messenger ASHP 16 "Weekly Play"), added to this page's
- * catalogue only. */
-export async function withPromoCollision(page: Page) {
-  const cards = JSON.parse(
-    readFileSync("e2e/mobile/fixtures/base-cards.json", "utf8")
-  ) as unknown[];
-  const mk = (
-    id: number,
-    vid: number,
-    name: string,
-    subtitle: string,
-    src: string,
-    vt: string
-  ) => ({
-    id,
-    set_code: "ASH",
-    base_card_number: "155",
-    name,
-    subtitle,
-    type: "Unit",
-    rarity: "Rare",
-    cost: 2,
-    power: 1,
-    hp: 4,
-    arena: "Ground",
-    is_token: false,
-    aspects: [],
-    keywords: [],
-    traits: [],
-    variants: [
-      {
-        variant_id: vid,
-        variant_type: vt,
-        finish: vt,
-        channel: "Promo",
-        source_set_code: src,
-        card_number: "16",
-        front_image_url: null,
-        back_image_url: null,
-        price: null,
-      },
-    ],
-  });
-  cards.push(mk(991994, 922105, "Grogu", "Yes. Yes. Yes.", "P26", "SS Top 8"));
-  cards.push(mk(992031, 909292, "Emperor's Messenger", "", "ASHP", "Weekly Play"));
-  await page.route(
-    (u) => u.pathname === "/api/base-cards",
-    (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(cards) })
-  );
-}
+/** SOR 229 as the strip prints it. The scanner specs run on the
+ * `base-cards-scan` catalogue (scan-fixture.ts), whose SOR main size is the
+ * real 252, so the denominator validates. */
+export const SOR_229 = "SOR • EN R 229/252";
 
 /** Open the camera in the scanner document and wait for the live preview. */
 export async function openScanCamera(page: Page, hash = "#/camera") {

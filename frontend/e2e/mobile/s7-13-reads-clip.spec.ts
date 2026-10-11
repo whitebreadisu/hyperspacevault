@@ -8,6 +8,7 @@ import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 // loop then pauses (no further reads while the prompt is up). Stage 7b drives
 // it with the scripted reader over a canvas stream; stage 7c replaces both
 // with the fake_v2_std clip and the real Paddle worker.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 test("s7-13-reads-clip", async ({ page }) => {

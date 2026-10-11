@@ -6,6 +6,7 @@ import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 // (smoke_test.js live_blur). Stage 7b: a flat grey canvas stream stands in for
 // the fake_v2_blur clip (stage 7c runs the clip). A sharp frame turns the
 // meter green ("Sharp") and the reader starts reading.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 test("s7-12-blur-guidance", async ({ page }) => {

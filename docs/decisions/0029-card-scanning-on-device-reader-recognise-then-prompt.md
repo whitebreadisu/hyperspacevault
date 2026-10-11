@@ -3,6 +3,14 @@
 ## Status
 Accepted — 2026-10-10 (BL-238 camera spike, owner decisions during the 2026-10-09/10 live test session; feature **specified, not built** — App Spec §24)
 
+### Amendment — 2026-10-11: built (BL-253, slices 7a-7c)
+Status is now **built**: the scanner shipped as the camera mode of the phone's tool layer (App Spec §24 as-built flip, §25.7 facts). Decisions 1-7 stand as written. What the build added, and why:
+- **Isolation is per document, not site-wide.** Four Paddle threads need `SharedArrayBuffer`, i.e. cross-origin isolation, and a site-wide COEP breaks the Google sign-in popup. The camera therefore lives in a second Vite entry, `/scan/`, served with COOP/COEP only on `/scan/**`, the vendored payload and the worker script; the main document is untouched. `/scan/` serves the full app bundle so nothing leaves the document while the camera is in use; sign-in (a popup) bounces to `/` and returns. Alternative rejected: single-thread Paddle in the main document.
+- **Batch across the hop.** The batch and tool mode are mirrored to `sessionStorage`, so the document hop does not empty it.
+- **Payload in the repo.** The reader payload (33 MB on disk, ~7.6 MB over the wire, immutable cache) is vendored under `frontend/public/vendor/scan/` in plain git; it loads when the camera route opens, Tesseract only at the first fallback need.
+- **Crop padding follows the shipped spike code** (3.15 mm on every side); the "0.6 mm right of ©FFG" sentence in the pre-build §24.3 was stale and is superseded (archived verbatim).
+- **Not build gates:** the timed pile against the keypad, >= 110 attempts, collision evidence from the community and a second phone are collected on the real app in the owner's LAN rounds.
+
 ## Context
 BL-190 (mobile) reserved a place for camera entry from the outset, and
 BL-238 asked one question: can a phone **browser** identify a card

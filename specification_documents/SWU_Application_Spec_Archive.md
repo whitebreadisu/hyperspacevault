@@ -136,3 +136,46 @@ Two §25.4 sentences described slice-4 state ("until slice 5"); replaced in plac
 One §25.1 sentence described the pre-slice-6 state; replaced in place when the shared vault landed on the phone (BL-252). Verbatim:
 
 > - **Share links.** `/shared/{token}` links render the desktop view on phones until the shared-vault slice.
+
+## Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)
+
+Sentences replaced in place when the scanner was built (stages 7a-7c). Each is the exact superseded text.
+
+**§24 heading and Status paragraph ("NOT BUILT", prototype static mock).** Verbatim:
+
+> ## 24. Card scanning (BL-238 spike — specified 2026-10-10; **NOT BUILT**)
+>
+> **Status.** Design decided from the BL-238 camera spike (ADR-0029); nothing
+> ships yet. The mobile prototype (BL-190, Revision 1) carries the camera
+> screen as a static mock of this section. Owed before a build commits:
+> the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final
+> rules, printed-code collision evidence from the community, a second phone.
+>
+
+**§24.2 optional explicit controls sentence.** Verbatim:
+
+> distance is the user's control. Optional explicit controls (zoom, focus
+>   distance, torch, lens) may exist but default untouched.
+
+**§24.3 crop-start clause.** Verbatim:
+
+> The OCR crop is the group plus
+> 3.15 mm of padding, starting 0.6 mm right of `©FFG` so that text is
+> excluded.
+
+**§24.3 sliders sentence.** Verbatim:
+
+> two ±4 mm sliders exist for on-phone calibration. The owner expects to keep
+> refining these values.
+
+**§25.1 Shell bullet, bottom-bar clause.** Verbatim:
+
+> Three-item bottom bar (Vault, centre keypad SWUButton — camera behind `MOBILE_CAMERA_ENABLED = false` — More).
+
+**§25.1 routes bullet, route list.** Verbatim:
+
+> `#/card/<id>` (§25.2) and `#/pad` (§25.3) are built;
+
+**§25.3 Tool layer bullet, camera-toggle clause.** Verbatim:
+
+> The camera mode toggle exists only behind `MOBILE_CAMERA_ENABLED` (off; the camera ships in slice 7).

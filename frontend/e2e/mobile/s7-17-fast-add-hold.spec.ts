@@ -7,6 +7,7 @@ import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 // twice (r4-14-verify-camera-hold). The cue on every recognition is one beep
 // attempt + the green flash (r4-12-cue-fires-on-hold), observed via the beep
 // counter and a MutationObserver on the flash's class; never a vibration.
+test.use({ cardsFixture: "base-cards-scan" });
 test.afterEach(measureEach);
 
 type ScanWin = { __scan: { cues: { beeps: number } }; __flashes?: number; __vibrations?: number };

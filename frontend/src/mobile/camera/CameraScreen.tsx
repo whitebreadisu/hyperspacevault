@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useLimits } from "../../context/LimitsContext";
-import { MIcon } from "../icons";
 import { MSWUButton } from "../MSWUButton";
 import { go } from "../router";
 import { Sheet } from "../Sheet";
@@ -570,14 +569,11 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
             />
           )}
           {!paused && streamState.kind === "live" ? (
-            <button
-              type="button"
-              className="m-iconbtn m-cam__align"
-              onClick={() => setAlignOpen(true)}
-              aria-label="Guide alignment"
-            >
-              <MIcon name="filter" size={20} />
-            </button>
+            <div className="m-cam__align">
+              <MSWUButton size="touch" onClick={() => setAlignOpen(true)}>
+                Align guide
+              </MSWUButton>
+            </div>
           ) : null}
         </div>
         {panel}
