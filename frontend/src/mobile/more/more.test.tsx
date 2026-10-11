@@ -230,12 +230,13 @@ describe("S4-06 screen_viewed for More, About, Updates", () => {
     await goHash("#/more/about");
     await goHash("#/more/updates");
     await goHash("#/about");
-    await goHash("#/more/settings"); // ComingSoon: nothing yet
+    await goHash("#/more/sharing"); // signed out: guarded route sends nothing itself; the redirect target More is reported (S5 F1)
     expect(views()).toEqual([
       { screen: "more", layout: "phone" },
       { screen: "about", layout: "phone" },
       { screen: "new_arrivals", layout: "phone" },
       { screen: "about", layout: "phone" },
+      { screen: "more", layout: "phone" }, // S5 F1: the guard redirect lands on More, never reported before
     ]);
   });
 });

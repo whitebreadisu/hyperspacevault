@@ -38,11 +38,12 @@ test("s1-08-account-menu", async ({ page }) => {
   await expect(page.locator(".m-acct__menu")).toHaveCount(0);
   await expect(page).toHaveURL(/#\/vault$/);
 
-  // Items route: Settings / Change Password (ComingSoon until S5) / About &
-  // Legal (BL-250 S4-02 PORT: the real About screen).
+  // Items route: Settings / Change Password (BL-251 S5-04 PORT: the real
+  // Settings card and desktop's Change Password layer) / About & Legal (BL-250
+  // S4-02 PORT: the real About screen).
   for (const [label, hash, sel] of [
-    ["Settings", /#\/more\/settings$/, ".m-soon"],
-    ["Change Password", /#\/more\/password$/, ".m-soon"],
+    ["Settings", /#\/more\/settings$/, ".m-settings"],
+    ["Change Password", /#\/more\/password$/, ".m-acctlayer [role=dialog]"],
     ["About & Legal", /#\/about$/, ".m-about"],
   ] as const) {
     await page.goto("/#/vault");

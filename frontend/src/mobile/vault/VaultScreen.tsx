@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { ReactNode } from "react";
+import { VerifyEmailBanner } from "../../components/VerifyEmailBanner";
 import { useCollapse, useHeaderSlot } from "./useCollapse";
 import { VaultHeader } from "./VaultHeader";
 import type { StripSummary } from "./VaultHeader";
@@ -85,6 +86,8 @@ export function VaultScreen({
       />
       <div className="m-vh__slot" aria-hidden="true" />
       <div className="m-vault__below">
+        {/* BL-251 S5-08: desktop's banner, unchanged, at the top of the list area. */}
+        <VerifyEmailBanner />
         {controls}
         <div className="m-scroll m-vault__scroll" ref={setScroll} key={listKey}>
           <div className="m-pullshift">{children}</div>

@@ -31,6 +31,11 @@ export interface Recorder {
   adjust: { variantId: number; delta: number }[];
   /** BL-248 S2-07: GET /api/base-cards/{id}/price-history queries, in order. */
   priceHistory: { baseCardId: number; variantId: number; range: string }[];
+  /** BL-251 S5-01: PUT /api/settings/limits bodies, in order. */
+  limitPuts: { limits: unknown[]; cap_mode?: string }[];
+  /** BL-251 S5-07: share calls ("create Name" | "rename Name" | "rotate" |
+   * "revoke"), in order. */
+  shares: string[];
   /** BL-249 S3-15: POST /api/inventory/import calls (multipart fields + the
    * file's JSON), in order. */
   imports: { mode: string; capHandling: string; stage: string; file: ImportFile }[];
@@ -71,6 +76,8 @@ export const recorderFor = (page: Page): Recorder =>
     feedback: [],
     adjust: [],
     priceHistory: [],
+    limitPuts: [],
+    shares: [],
     imports: [],
     exports: [],
   };
@@ -106,6 +113,8 @@ export async function installApiMocks(
     feedback: [],
     adjust: [],
     priceHistory: [],
+    limitPuts: [],
+    shares: [],
     imports: [],
     exports: [],
   };
@@ -144,6 +153,37 @@ export async function installApiMocks(
         v.variant_id,
         (v as { price?: { market: number | null } | null }).price?.market ?? null
       );
+  type LimitsFixture = {
+    cap_mode: string;
+    limits: { type_category: string; limit_bucket: string; max_quantity: number | null }[];
+  };
+  let limitsOverrides: LimitsFixture["limits"] = [];
+  let limitsCapMode: string | null = null;
+  const limitsBody = () => {
+    const base = json<LimitsFixture>("limits.json");
+    return {
+      cap_mode: limitsCapMode ?? base.cap_mode,
+      limits: base.limits.map((c) => {
+        const o = limitsOverrides.find(
+          (x) => x.type_category === c.type_category && x.limit_bucket === c.limit_bucket
+        );
+        return o ? { ...c, max_quantity: o.max_quantity, is_default: false } : c;
+      }),
+    };
+  };
+  // S5-07: the shares double -- one active inventory share at most (§19.1),
+  // starting empty; rotate mints a new token, revoke clears it.
+  type ShareRow = {
+    id: number;
+    name: string;
+    scope: "inventory";
+    token: string;
+    created_at: string;
+    revoked: boolean;
+  };
+  let share: ShareRow | null = null;
+  let tokenSeq = 0;
+  const nextToken = () => `e2e-share-token-${++tokenSeq}`;
   const ok = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
@@ -165,8 +205,55 @@ export async function installApiMocks(
           route,
           [...qtyById].map(([variant_id, quantity]) => ({ variant_id, quantity }))
         );
-      if (method === "GET" && path === "/api/settings/limits")
-        return ok(route, json("limits.json"));
+      // S5-01: the limits double keeps what the last PUT wrote (a full
+      // replacement of the override set, as the backend does).
+      if (method === "GET" && path === "/api/settings/limits") return ok(route, limitsBody());
+      if (method === "PUT" && path === "/api/settings/limits") {
+        const body = req.postDataJSON() as {
+          limits: { type_category: string; limit_bucket: string; max_quantity: number | null }[];
+          cap_mode?: string;
+        };
+        rec.limitPuts.push(body);
+        limitsOverrides = body.limits;
+        if (body.cap_mode) limitsCapMode = body.cap_mode;
+        return ok(route, limitsBody());
+      }
+      if (path === "/api/shares" && method === "GET") return ok(route, share ? [share] : []);
+      if (path === "/api/shares" && method === "POST") {
+        const { name } = req.postDataJSON() as { name: string };
+        rec.shares.push("create " + name);
+        share = {
+          id: 1,
+          name,
+          scope: "inventory",
+          token: nextToken(),
+          created_at: "2026-10-11T12:00:00Z",
+          revoked: false,
+        };
+        return ok(route, share, 201);
+      }
+      const shareId = path.match(/^\/api\/shares\/(\d+)(\/rotate)?$/);
+      if (shareId && share) {
+        if (method === "PATCH") {
+          const { name } = req.postDataJSON() as { name: string };
+          rec.shares.push("rename " + name);
+          share = { ...share, name };
+          return ok(route, share);
+        }
+        if (method === "POST" && shareId[2]) {
+          rec.shares.push("rotate");
+          share = { ...share, token: nextToken() };
+          return ok(route, share);
+        }
+        if (method === "DELETE") {
+          rec.shares.push("revoke");
+          share = null;
+          // The real endpoint answers 204. F4 (2026-10-11): fulfill({ status: 204 }) with no
+          // body still aborts in Chromium (ERR_ABORTED, "failed requests"); revokeShare only
+          // checks res.ok -- so 200 + {}.
+          return ok(route, {});
+        }
+      }
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
       // S2-05: the stepper's batched adjust; the double keeps the quantities
       // it answers with (a later GET of /quantities still reads the fixture).

@@ -23,7 +23,8 @@ import "./more.css";
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
 /** Desktop CardsPage .ie-entry-nudge, minus its "— see the banner above."
- * tail: the phone has no verify-email banner (DECISION NEEDED, S4-01). */
+ * tail: the phone's verify-email banner lives under the Vault header (S5-08),
+ * not on More, so the clause stays out (orchestrator ruling, S4-01d). */
 export const IE_UNVERIFIED_NUDGE = "Verify your email to import or export your collection.";
 
 export interface MoreScreenProps {

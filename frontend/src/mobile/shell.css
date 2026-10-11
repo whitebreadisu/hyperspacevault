@@ -140,10 +140,6 @@
 .m-app .m-empty p {
   margin: 0 0 6px;
 }
-.m-app .m-soon {
-  justify-content: center;
-  padding-top: var(--sat);
-}
 
 /* ── Account slot (m-rev1.css:22-54; the menu is desktop UserMenu,
  * index.css:305-377, sized for touch: avatar 34 px in a 44 px hit, items
