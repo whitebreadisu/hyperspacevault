@@ -41,7 +41,7 @@ describe("S7-22 firebase.json isolation scope", () => {
   it("only the scanner's own paths carry isolation headers", () => {
     const sources = rules.filter(isolating).map((r) => r.source);
     expect(sources.sort()).toEqual(
-      ["/scan-workers/**", "/scan.html", "/scan/**", "/vendor/scan/**"].sort()
+      ["/scan", "/scan-workers/**", "/scan.html", "/scan/**", "/vendor/scan/**"].sort()
     );
   });
 });
