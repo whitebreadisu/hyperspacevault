@@ -1,0 +1,421 @@
+/* ── BL-249 S3-12: the Verify cards sheet (R5-8). Desktop
+ * AddCardsModal.css values (.ac-verify__section-title / __section-rule /
+ * __count / __table th + group head / __skip-reason / __over-limit-note,
+ * .ac-dot, .ac-precon-verify__integrity, .ac-modal__foot-error) laid out per
+ * copy for a 390 px sheet; footer + success from rev4 m-rev4-d2.css.
+ * --aspect-aggression (#c0202e) is written as a literal: the token lives in
+ * the desktop AddCardsModal.css, which the phone does not load. ────────── */
+.m-app .m-sheet-layer--verify .m-sheet__foot {
+  padding-top: 8px;
+}
+.m-app .m-verify {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.m-app .m-vsec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.m-app .ac-verify__section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-vsec__title {
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+.m-app .ac-verify__section--add .ac-verify__section-title {
+  color: var(--aspect-command);
+}
+.m-app .ac-verify__section--skip .ac-verify__section-title {
+  color: #c0202e;
+}
+.m-app .ac-verify__section-rule {
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: var(--color-border);
+}
+.m-app .ac-verify__count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text-muted);
+}
+.m-app .ac-precon-verify__integrity {
+  border-left: 3px solid #c0202e;
+  padding-left: 10px;
+}
+.m-app .m-vhead,
+.m-app .m-vfyrow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+}
+.m-app .ac-verify__section--add .m-vhead,
+.m-app .ac-verify__section--add .m-vfyrow {
+  grid-template-columns: 34px minmax(0, 1fr) auto 44px;
+}
+.m-app .m-vhead {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-vhead__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.m-app .m-vhead__inv {
+  text-align: right;
+}
+.m-app .m-vgroup {
+  padding: 6px 8px;
+  background: var(--bg-surface-alt);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .m-vfyrow {
+  min-height: 52px;
+  padding: 6px 0 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.m-app .m-vfyrow__num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.m-app .m-vfyrow__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.m-app .m-vfyrow__name {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  overflow: hidden;
+}
+.m-app .m-vfyrow__sub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-app .m-vfyrow__meta {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: #cfd6e4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-app .m-vfyrow__set {
+  color: var(--color-text-muted);
+}
+.m-app .m-vfyrow__set--op {
+  color: #dc2626;
+}
+.m-app .m-vfyrow__inv {
+  justify-self: end;
+}
+.m-app .ac-dot-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.m-app .ac-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid transparent;
+  display: inline-block;
+}
+.m-app .ac-dot--green {
+  background: var(--aspect-command);
+  box-shadow: 0 0 0 3px rgba(23, 138, 58, 0.18);
+}
+.m-app .ac-dot--red {
+  background: #c0202e;
+  box-shadow: 0 0 0 3px rgba(192, 32, 46, 0.18);
+}
+.m-app .ac-dot--amber {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 3px rgba(217, 154, 31, 0.2);
+}
+.m-app .ac-verify__skip-reason {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.35;
+  color: #c0202e;
+}
+.m-app .ac-verify__over-limit-note {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--color-warning);
+}
+/* Quick remove: the stepper's − (card.css .m-step), one copy per tap. */
+.m-app .m-vfyrow__remove {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 0 2px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  transition: background 0.12s ease;
+}
+.m-app .m-vfyrow__remove:active {
+  background: var(--color-primary-dim);
+  transform: translateY(1px);
+}
+
+/* Footer (rev4 m-rev4-d2.css .m-d2-verify__*) + desktop's foot error. */
+.m-app .m-d2-verify__foot {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-d2-verify__error {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-danger);
+  text-align: center;
+}
+.m-app .m-d2-verify__hint {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.m-app .m-d2-verify__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.m-app .m-d2-verify__actions .swu-btn {
+  flex: 1;
+  min-width: 0;
+}
+.m-app .m-d2-verify__actions .m-d2-verify__discard {
+  flex: none;
+  min-height: 44px;
+  color: var(--color-danger);
+}
+.m-app .m-d2-verify__success {
+  margin: 6px 0 16px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--aspect-command);
+}
+
+/* ── S3-13: long batch with both sections -- pinned two-way accordion.
+ * The sheet takes its full 86 %, the body stops scrolling, the expanded
+ * section's list fills the panel and scrolls, the other folds to its
+ * header (added pinned at the top, not-added at the bottom). Motion: the
+ * entering list's opacity + transform only. ──────────────────────────── */
+.m-app .m-sheet-layer--verify-long .m-sheet {
+  height: 86%;
+}
+.m-app .m-sheet-layer--verify-long .m-sheet__body {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+}
+.m-app .m-verify--acc {
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.m-app .m-vsec--acc {
+  min-height: 0;
+  gap: 0;
+}
+.m-app .m-vsec--acc:not(.m-vsec--collapsed) {
+  flex: 1 1 0;
+}
+.m-app .m-vsec--collapsed {
+  flex: none;
+}
+.m-app .m-vsec__head--btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.m-app .m-vsec--acc + .m-vsec--acc .m-vsec__head--btn {
+  border-top: 1px solid rgba(211, 211, 212, 0.16);
+}
+.m-app .m-vsec--acc .m-vsec__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.m-app .m-vsec--collapsed .m-vsec__list {
+  flex: none;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+.m-app .m-vsec__list--enter {
+  animation: m-vsec-in 0.15s ease-out;
+}
+@keyframes m-vsec-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── S3-14: the close-guard confirm (desktop AddCardsModal.css .ac-confirm:
+ * steel ring 0.35, 14 px cut, circuit tile at 420; rev4 m-rev4-d2.css). ── */
+.m-app .m-d2-confirm-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.m-app .m-d2-confirm-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: m-fade 0.15s ease;
+}
+.m-app .m-d2-confirm {
+  position: relative;
+  width: min(480px, 100%);
+  background: rgba(211, 211, 212, 0.35);
+  padding: 1.5px;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+  animation: m-fade 0.15s ease;
+}
+.m-app .m-d2-confirm__in {
+  padding: 8px 14px 18px 18px;
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+  clip-path: polygon(
+    12.5px 0,
+    100% 0,
+    100% calc(100% - 12.5px),
+    calc(100% - 12.5px) 100%,
+    0 100%,
+    0 12.5px
+  );
+}
+.m-app .m-d2-confirm__head {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.m-app .m-d2-confirm__title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--color-text);
+}
+.m-app .m-d2-confirm__x {
+  margin-right: -8px;
+  color: var(--color-text-muted);
+}
+.m-app .m-d2-confirm__body {
+  margin: 4px 0 18px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #9fb0cc;
+}
+.m-app .m-d2-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.m-app .m-d2-confirm__danger {
+  display: inline-flex;
+}
+/* F-2: on the button itself, at rest and hovered -- `.swu-btn` sets its own
+ * --color-primary (navy rest / blue hover), which shadows a wrapper's. */
+.m-app .m-d2-confirm__danger .swu-btn,
+.m-app .m-d2-confirm__danger .swu-btn:hover:not([aria-disabled="true"]) {
+  --color-primary: #c0202e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-vsec__list--enter,
+  .m-app .m-d2-confirm,
+  .m-app .m-d2-confirm-scrim {
+    animation: none;
+  }
+}

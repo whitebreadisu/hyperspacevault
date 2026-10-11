@@ -31,6 +31,32 @@ export interface Recorder {
   adjust: { variantId: number; delta: number }[];
   /** BL-248 S2-07: GET /api/base-cards/{id}/price-history queries, in order. */
   priceHistory: { baseCardId: number; variantId: number; range: string }[];
+  /** BL-249 S3-15: POST /api/inventory/import calls (multipart fields + the
+   * file's JSON), in order. */
+  imports: { mode: string; capHandling: string; stage: string; file: ImportFile }[];
+}
+
+export interface ImportFile {
+  format_version: string;
+  cards: {
+    swuapi_uuid: string;
+    set_code: string;
+    card_number: string;
+    variant_type: string;
+    quantity: number;
+  }[];
+}
+
+/** The multipart body runImport sends: string fields + one JSON file part. */
+function parseImport(body: string) {
+  const field = (n: string) => body.match(new RegExp(`name="${n}"\r\n\r\n([^\r]*)`))?.[1] ?? "";
+  const fileM = body.match(/filename="[^"]*"\r\nContent-Type: [^\r]*\r\n\r\n([\s\S]*?)\r\n--/);
+  return {
+    mode: field("mode"),
+    capHandling: field("cap_handling"),
+    stage: field("stage"),
+    file: JSON.parse(fileM?.[1] ?? "{}") as ImportFile,
+  };
 }
 
 const recorders = new WeakMap<Page, Recorder>();
@@ -42,6 +68,7 @@ export const recorderFor = (page: Page): Recorder =>
     feedback: [],
     adjust: [],
     priceHistory: [],
+    imports: [],
   };
 
 /** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
@@ -75,6 +102,7 @@ export async function installApiMocks(
     feedback: [],
     adjust: [],
     priceHistory: [],
+    imports: [],
   };
   recorders.set(page, rec);
 
@@ -125,7 +153,13 @@ export async function installApiMocks(
 
       if (method === "GET" && path === "/api/base-cards") return ok(route, cards);
       if (method === "GET" && path === "/api/sets") return ok(route, sets);
-      if (method === "GET" && path === "/api/inventory/quantities") return ok(route, quantities);
+      // S3-15: the quantities reflect the adjust / import doubles below, so a
+      // refresh after a commit reads what was written (a fresh page = fixture).
+      if (method === "GET" && path === "/api/inventory/quantities")
+        return ok(
+          route,
+          [...qtyById].map(([variant_id, quantity]) => ({ variant_id, quantity }))
+        );
       if (method === "GET" && path === "/api/settings/limits")
         return ok(route, json("limits.json"));
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
@@ -147,6 +181,44 @@ export async function installApiMocks(
           reason: null,
           over_limit: false,
           playset_complete: false,
+        });
+      }
+      // S3-15: precon commits (runImport). Rows resolve on set | number |
+      // variant_type against the fixture catalogue; a commit writes them.
+      if (method === "POST" && path === "/api/inventory/import") {
+        const imp = parseImport(req.postDataBuffer()?.toString("latin1") ?? "");
+        rec.imports.push(imp);
+        const rows = imp.file.cards.map((c, i) => {
+          let vid: number | null = null;
+          for (const card of cards)
+            for (const v of card.variants)
+              if (
+                v["source_set_code"] === c.set_code &&
+                v["card_number"] === c.card_number &&
+                v["variant_type"] === c.variant_type
+              )
+                vid ??= v.variant_id;
+          if (vid === null)
+            return { row_number: i + 1, status: "unresolved", reason: "unknown_triple", card: c };
+          const cur = qtyById.get(vid) ?? 0;
+          if (imp.stage === "commit") qtyById.set(vid, cur + c.quantity);
+          return {
+            row_number: i + 1,
+            status: "resolved",
+            card: c,
+            file_quantity: c.quantity,
+            current_quantity: cur,
+            resulting_quantity: cur + c.quantity,
+          };
+        });
+        return ok(route, {
+          stage: imp.stage,
+          mode: imp.mode,
+          cap_handling: imp.capHandling,
+          committed: imp.stage === "commit",
+          totals: {},
+          rows,
+          removed: [],
         });
       }
       if (method === "POST" && path === "/api/feedback") {

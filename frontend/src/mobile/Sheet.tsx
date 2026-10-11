@@ -26,6 +26,12 @@ export function SheetHost({ children }: { children: ReactNode }) {
   );
 }
 
+/** BL-249 S3-14: the SheetHost element, for a layer that must sit over
+ * every sheet (the batch close-guard confirm). Null outside a SheetHost. */
+export function useSheetHost(): HTMLElement | null {
+  return useContext(HostContext);
+}
+
 /** Inside a sheet: close it with the leave motion (e.g. after a pick). */
 export function useSheetClose(): () => void {
   return useContext(CloseContext);
@@ -42,10 +48,25 @@ interface Props {
   onClose: () => void;
   labelId: string;
   className?: string;
+  /** BL-249 S3-05: an optional pinned foot under the scrolling body (rev4
+   * MSheet footer, m-layout.css:248 .m-sheet__foot). */
+  footer?: ReactNode;
+  /** BL-249 S3 F1: while true Escape, the scrim and the swipe do nothing
+   * (a commit is in flight; the busy overlay already covers the X). */
+  locked?: boolean;
   children: ReactNode;
 }
 
-export function Sheet({ title, sub, onClose, labelId, className, children }: Props) {
+export function Sheet({
+  title,
+  sub,
+  onClose,
+  labelId,
+  className,
+  footer,
+  locked,
+  children,
+}: Props) {
   const host = useContext(HostContext);
   const [leaving, setLeaving] = useState(false);
   const [dy, setDy] = useState(0);
@@ -63,7 +84,14 @@ export function Sheet({ title, sub, onClose, labelId, className, children }: Pro
     done.current = true;
     onCloseRef.current();
   }, []);
-  const close = useCallback(() => setLeaving(true), []);
+  const lockedRef = useRef(false);
+  useEffect(() => {
+    lockedRef.current = !!locked;
+  }, [locked]);
+  const close = useCallback(() => {
+    if (lockedRef.current) return;
+    setLeaving(true);
+  }, []);
 
   // Leave: wait for the panel's sink animation, with a timer as the net.
   useEffect(() => {
@@ -154,6 +182,7 @@ export function Sheet({ title, sub, onClose, labelId, className, children }: Pro
               </button>
             </div>
             <div className="m-sheet__body">{children}</div>
+            {footer ? <div className="m-sheet__foot">{footer}</div> : null}
           </div>
         </div>
       </div>

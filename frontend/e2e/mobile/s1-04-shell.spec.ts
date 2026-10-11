@@ -3,8 +3,8 @@ import { expect, measureEach, test } from "./helpers";
 // S1-04: the shell's bottom bar (rev4 `bar-one`): three targets >= 44 px --
 // Vault tab, the centre SWUButton (keypad glyph only while the camera flag is
 // off), More tab -- the circuit separator straddling the bar's top edge, and
-// aria-current on the active tab; #/pad and #/more render ComingSoon with the
-// bar still visible.
+// aria-current on the active tab; #/more renders ComingSoon with the bar
+// still visible, and #/pad opens the tool layer over it (BL-249 S3-01 PORT).
 test.afterEach(measureEach);
 
 test.beforeEach(() => {
@@ -65,11 +65,17 @@ test("s1-04-bar-three-items", async ({ page }) => {
   );
   await expect(page.locator(".m-soon [aria-label=Close]")).toHaveCount(0);
 
+  // BL-249 S3-01 PORT: #/pad is no longer a ComingSoon screen with the bar
+  // visible -- it is the tool layer over the screen it opened from (here
+  // More), covering the bar; its X returns to that screen.
   await page.locator(".m-nav__center .swu-btn").click();
   await expect(page).toHaveURL(/#\/pad$/);
-  await expect(page.locator(".m-soon")).toHaveText("The keypad arrives with the next slice.");
+  await expect(page.locator(".m-tool .m-pad")).toBeVisible();
+  await expect(page.locator(".m-app__nav")).toHaveAttribute("inert", "");
+  await page.locator(".m-tool__head [aria-label='Close keypad']").click();
+  await expect(page).toHaveURL(/#\/more$/);
+  await expect(page.locator(".m-soon")).toHaveText("More arrives with a later slice.");
   await expect(nav).toBeVisible();
-  await expect(page.locator(".m-nav [aria-current=page]")).toHaveCount(0);
 
   await page.locator(".m-nav .m-tab", { hasText: "Vault" }).click();
   await expect(page).toHaveURL(/#\/vault$/);
