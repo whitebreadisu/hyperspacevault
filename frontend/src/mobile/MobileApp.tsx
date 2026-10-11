@@ -8,8 +8,12 @@ import { CardDetail } from "./card/CardDetail";
 import { FinishSheetHost } from "./card/FinishSheet";
 import { ComingSoon } from "./ComingSoon";
 import { FeedbackScreen } from "./FeedbackScreen";
+import { AboutScreen } from "./more/AboutScreen";
+import { MoreScreen } from "./more/MoreScreen";
+import { UpdatesScreen } from "./more/UpdatesScreen";
 import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
+import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
 import { back, go, parseHash, useRoute } from "./router";
 import type { Route } from "./router";
@@ -33,24 +37,34 @@ interface Screen {
 }
 
 const SOON: Record<string, string> = {
-  more: "More arrives with a later slice.",
-  "more/updates": "[HSV] Updates arrive with a later slice.",
   "more/settings": "Settings arrive with a later slice.",
   "more/password": "Change Password arrives with a later slice.",
-  about: "About & Legal arrives with a later slice.",
+  "more/sharing": "Sharing arrives with a later slice.",
+  "more/importexport": "Import & Export arrives with a later slice.",
 };
 
-function soonFor(route: Route): Screen | null {
+/** BL-250 S4: the routed (non-Vault) screen a route shows, by key -- null
+ * for the Vault (and the card / tool layers, which sit over a screen).
+ * `#/more/<unknown>` falls back to the More list (rev4 F-6). */
+function screenKey(route: Route): string | null {
   const [a, b] = route.segs;
-  if (a === "about") return { key: "about", el: <ComingSoon sentence={SOON.about} /> };
-  if (a === "more" && b === "feedback")
-    return { key: "more/feedback", el: <FeedbackScreen onClose={back} /> };
-  if (a === "more") {
-    const k = b && SOON["more/" + b] ? "more/" + b : "more";
-    return { key: k, el: <ComingSoon sentence={SOON[k]} /> };
-  }
-  return null;
+  if (a === "about") return "about";
+  if (a !== "more") return null;
+  if (b === "about" || b === "updates" || b === "feedback" || (b && SOON["more/" + b]))
+    return "more/" + b;
+  return "more";
 }
+
+/** S1-27 / S4-06: screen_viewed values by screen key. Updates reports
+ * desktop's `new_arrivals` (App Spec §22 names it for the same screen). */
+const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
+  vault: "vault",
+  more: "more",
+  about: "about",
+  "more/about": "about",
+  "more/updates": "new_arrivals",
+  "more/feedback": "feedback",
+};
 
 /** S1-15 (rev4 MApp.jsx:404-415, m-layout.css:643-655): the app frame
  * follows the visual viewport, so with the keyboard up the list's bottom
@@ -78,7 +92,7 @@ function useVisualViewport(): void {
 
 export function MobileApp() {
   const route = useRoute();
-  const { user, logout } = useAuth();
+  const { user, logout, emailVerified } = useAuth();
 
   // S1-09: the auth layer, closed by desktop's single-source-of-truth rule --
   // a successful sign-in closes it, except mid-signup / mid-Google-link where
@@ -96,10 +110,15 @@ export function MobileApp() {
     setGoogleLinkedInFlight(false);
   }, []);
 
-  // S1-07: the title chooser and the release-notes cue.
-  const cue = useReleaseCue(route.path);
+  // S1-07 / S4-04: the title chooser and the release-notes cue.
+  const cue = useReleaseCue();
   const [chooserOpen, setChooserOpen] = useState(false);
   const closeChooser = useCallback(() => setChooserOpen(false), []);
+  const { noteTitle, noteMore } = cue;
+  const openChooser = useCallback(() => {
+    setChooserOpen(true);
+    noteTitle();
+  }, [noteTitle]);
 
   const account = (
     <AccountSlot
@@ -144,33 +163,67 @@ export function MobileApp() {
   const [vaultParams, setVaultParams] = useState(() =>
     cardId == null && !isTool ? route.params : {}
   );
-  if (cardId == null && !isTool && !soonFor(route) && route.params !== vaultParams)
+  if (cardId == null && !isTool && !screenKey(route) && route.params !== vaultParams)
     setVaultParams(route.params);
 
-  const screen: Screen = (cardId == null || toolShown ? soonFor(screenRoute) : null) ?? {
-    key: "vault",
-    el: (
-      <Vault
-        params={vaultParams}
-        account={account}
-        unread={cue.unread}
-        onOpenChooser={() => setChooserOpen(true)}
-        onOpenFeedback={() => go("#/more/feedback")}
-        onSearchMode={setSearchMode}
-        // ── RUN 2B BEGIN (signin) ── the Filters sheet's signed-out route
-        onRequestSignIn={openSignIn}
-        // ── RUN 2B END (signin) ──
-      />
-    ),
+  const key = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  // BL-250 S4-05: a More sub-page entered from More shows the back chevron;
+  // entered any other way (chooser, account menu, rail chip, deep link) the X.
+  const [shownKey, setShownKey] = useState(key);
+  const [enteredFrom, setEnteredFrom] = useState<string | null>(null);
+  if (shownKey !== key) {
+    setEnteredFrom(shownKey);
+    setShownKey(key);
+  }
+  const fromMore = (shownKey === key ? enteredFrom : shownKey) === "more";
+
+  const routed = (k: string): ReactNode => {
+    if (k === "more")
+      return (
+        <MoreScreen
+          signedIn={!!user}
+          emailVerified={emailVerified}
+          hasPasswordProvider={hasPasswordProvider(user)}
+          updatesCue={cue.moreCue}
+          account={account}
+          onSignIn={openSignIn}
+          onLogout={() => void logout()}
+        />
+      );
+    if (k === "about" || k === "more/about") return <AboutScreen fromMore={fromMore} />;
+    if (k === "more/updates") return <UpdatesScreen fromMore={fromMore} onSeen={cue.clear} />;
+    if (k === "more/feedback") return <FeedbackScreen onClose={back} />;
+    return <ComingSoon sentence={SOON[k]} />;
   };
 
-  // S1-27: screen_viewed from the router, once per screen (not per param
-  // change), for the screens S1 builds; ComingSoon placeholders send nothing
-  // until their slices land.
+  const screen: Screen =
+    key !== "vault"
+      ? { key, el: routed(key) }
+      : {
+          key: "vault",
+          el: (
+            <Vault
+              params={vaultParams}
+              account={account}
+              unread={cue.unread}
+              onOpenChooser={openChooser}
+              onOpenFeedback={() => go("#/more/feedback")}
+              onSearchMode={setSearchMode}
+              // ── RUN 2B BEGIN (signin) ── the Filters sheet's signed-out route
+              onRequestSignIn={openSignIn}
+              // ── RUN 2B END (signin) ──
+            />
+          ),
+        };
+
+  // S1-27 / S4-06: screen_viewed from the router, once per screen (not per
+  // param change); ComingSoon placeholders send nothing until their slices
+  // land. S4-04: reaching More notes it for the Updates-row rule.
   useEffect(() => {
-    if (screen.key === "vault") phoneScreenViewed("vault");
-    else if (screen.key === "more/feedback") phoneScreenViewed("feedback");
-  }, [screen.key]);
+    const v = SCREEN_VIEWED[screen.key];
+    if (v) phoneScreenViewed(v);
+    if (screen.key === "more") noteMore();
+  }, [screen.key, noteMore]);
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
@@ -213,7 +266,6 @@ export function MobileApp() {
               }}
               onUpdates={() => {
                 setChooserOpen(false);
-                cue.clear();
                 go("#/more/updates");
               }}
             />

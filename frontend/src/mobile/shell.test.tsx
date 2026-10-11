@@ -45,9 +45,8 @@ describe("S1-07 title chooser + unread cue", () => {
   afterEach(() => localStorage.removeItem(SEEN));
 
   it("unread -> chooser open keeps it -> Updates navigation clears it", () => {
-    const { result } = renderHook(({ path }) => useReleaseCue(path), {
-      initialProps: { path: "vault" },
-    });
+    // BL-250 S4-04 PORT: the hook no longer takes the route path.
+    const { result } = renderHook(() => useReleaseCue());
     expect(result.current.unread).toBe(true);
 
     // Opening the chooser alone does not clear; its Updates button pulses.
@@ -74,19 +73,13 @@ describe("S1-07 title chooser + unread cue", () => {
     unmount();
 
     // Fresh open with the newest key stored: no cue.
-    const again = renderHook(() => useReleaseCue("vault"));
+    const again = renderHook(() => useReleaseCue());
     expect(again.result.current.unread).toBe(false);
   });
 
-  it("arriving at #/more/updates by any path clears it", () => {
-    const { result, rerender } = renderHook(({ path }) => useReleaseCue(path), {
-      initialProps: { path: "more" },
-    });
-    expect(result.current.unread).toBe(true);
-    rerender({ path: "more/updates" });
-    expect(result.current.unread).toBe(false);
-    expect(localStorage.getItem(SEEN)).toBe(latestEntryKey(RELEASE_NOTES));
-  });
+  // BL-250 S4-04 REPLACED "arriving at #/more/updates by any path clears
+  // it": the route alone no longer clears (S1 review F7); the real Updates
+  // screen clears on mount -- see more/more.test.tsx "S4-04".
 
   it("the More tab never gets the cue class", () => {
     render(<MobileNav route={parseHash("#/more")} />);

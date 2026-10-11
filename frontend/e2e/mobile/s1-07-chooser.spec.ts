@@ -75,11 +75,12 @@ test("s1-07-title-chooser", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(page.locator(".m-chooser")).toHaveCount(0);
 
-  // About & Legal navigates to #/about (ComingSoon until S4).
+  // About & Legal navigates to #/about (BL-250 S4-02 PORT: the real screen).
   await page.locator(".m-vh__hsv").click();
   await page.locator(".m-chooser .swu-btn", { hasText: "About & Legal" }).click();
   await expect(page).toHaveURL(/#\/about$/);
   await expect(page.locator(".m-chooser")).toHaveCount(0);
+  await expect(page.locator(".m-about")).toBeVisible();
 });
 
 /** Running animations: every keyframe property is opacity / transform. */
@@ -136,6 +137,8 @@ test("s1-07-cue-opacity-only-on-title", async ({ page }) => {
   // Updates navigation clears the cue for the session (and in storage).
   await page.locator(".m-chooser .swu-btn", { hasText: "[HSV] Updates" }).click();
   await expect(page).toHaveURL(/#\/more\/updates$/);
+  // BL-250 S4-04 PORT: the real Updates screen renders (its mount clears).
+  await expect(page.locator(".m-updates")).toBeVisible();
   await page.locator(".m-nav .m-tab", { hasText: "Vault" }).click();
   await expect(page.locator(".m-vh__word")).toBeVisible();
   await expect(page.locator(".m-cue")).toHaveCount(0);
