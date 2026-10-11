@@ -1058,3 +1058,41 @@ focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
 - **Leave Feedback** (`#/more/feedback`): desktop FeedbackModal copy and rules in a steel-ring screen; auto-closes 1.5 s after "Thanks for the feedback!".
 - **Analytics.** `layout` super-property (`phone` / `desktop`); phone events carry `layout: "phone"`: `screen_viewed` (vault, feedback), `view_mode_changed` (`rows_none…rows_lg`, `gallery_1…gallery_3`), `search_performed`, `sort_changed`, `finish_scope_changed`, `filters_cleared`, `feedback_submitted`.
 - **Tests.** Layout: Playwright in `frontend/e2e/mobile/` (projects phone-390, phone-430, desktop-1440; API answered from `e2e/mobile/fixtures/`; sign-in on the Firebase Auth emulator). Run `npm run e2e:mobile` in `frontend/` (starts the emulator when port 9099 is free); CI job `frontend-e2e-mobile`, required by `ci-ok`. Logic: vitest beside the code in `frontend/src/mobile/`.
+
+### 25.2 S2 Card detail + Filters (BL-248)
+
+**Card detail** (`frontend/src/mobile/card/`, route `#/card/<id>[?v=<variantId>]`):
+- Renders as a **layer over the Vault**, so the Vault's filters, scope and scroll position survive a round trip; the bottom bar is hidden under it. X top-right closes it.
+- Fixed starfield header that never collapses; the art region collapses on scroll by transform + opacity only (layout probe: 0 layouts / 0 shifts at 390 and 430); scrolling back to the top never re-expands; a tap or a deliberate pull does. Leaders flip (two-phase rotateY); bases show a landscape art box.
+- The top bar's "n of m" is amber when the list the card was opened from is narrowed; prev / next open the neighbour on its matching printing (scoped printing from a scoped row, displayed printing from a gallery cell).
+- The plate (steel frame, count chip + 10 px pips) describes the **selected printing** (R5-5): chip = that printing's count; pips amber while short of the playset, green inside the amber plate at a playset; no scope marker. Changing the printing in the rail updates the plate, art and price at once.
+- The rail is titled "Variants" (desktop label); only the selected printing carries a − / + stepper (desktop `adjustCard` with an optimistic patch); other rows show ×N. Signed out, the stepper is `aria-disabled` and routes to sign-in. Over the limit, the quantity is red/amber with desktop's "Over limit" tag; no "n/m" on card surfaces.
+- Price history: desktop ranges 30D / 90D / 1Y / All, line chart; a drag or tap sets the reading (touch replacement for the desktop crosshair); the readout shows the point's real date; empty state = desktop wording.
+- Swipe between cards: the body slides as one page under the fixed header (owner switch swipe=body); snap-back under threshold; the route changes after the motion.
+- Owned-by-finish sheet (R5-1), opened from a Vault row's price/playset cluster (signed in) or from the detail plate: head = the card's count chip + pips; one row per printing, owned or not, each with its own neutral chip and pips (0 = empty grey; short = amber; playset = green inside the amber plate); "Open card" only when opened from the Vault.
+- Aspects sheet: tapping an aspect icon lists the card's aspects with names (touch replacement for the desktop hover name).
+- Analytics (additive, `layout: "phone"`): `card_popup_opened {source: row | gallery | swipe | nav}`, `popup_card_navigated {method: swipe | …}`, `price_history_opened` (first range tap or chart touch per card), `quantity_changed {surface: "detail"}`.
+
+**Filters sheet** (`frontend/src/mobile/filters/`):
+- **Entry.** The Vault's Filters button opens the Filters sheet (`mobile/filters/FiltersSheet.tsx`). Compact rows, content-fit height (max 86 % of the screen). When content grows (Gameplay opens, chips wrap, a logo loads) the sheet keeps its previous top and slides up with a transform; a shrink snaps. X top-right.
+- **Live, not a draft.** Every edit applies to the Vault at once (as on desktop). Filters, search, toggles and scope are plain screen state, never persisted: a fresh open of the app starts unfiltered.
+- **Row order:** Set, Rarity, Collection, Finish, then Gameplay (collapsed by default). Set, Collection and Finish rows show the selected values as removable 44 px chips (drawn 30 px). With nothing selected they show desktop's placeholder ("All sets" / "Any" / "All finishes"). A tap on the row opens that facet's picker over Filters; a tap on a chip removes that value. Rarity stays inline as five icon-only badges.
+- **Badge.** The Filters button badge and the sheet's "n active" use desktop `countActiveFilters` plus the four Collection toggles. Each group counts once, search counts as its own group, and a mode-only Aspects change counts 1 (desktop quirk).
+- **Footer.** Reset filters (amber outline; inert and grey at default) = desktop Reset: every facet, the search, the four toggles and the scope. "Show N cards" is live and closes the sheet.
+- **Dead ends.** Every facet value is faceted against the other active filters (desktop `facetValidValues` over the toggle-narrowed, searched list). Pickers show their whole universe (`showAllValues` on): a 0-match value reads "(0)", is greyed and cannot be added. A selected value is never hidden and stays removable.
+- **Set picker.** Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`). The top bar holds "Show all sets" / "Base sets only" and Clear (no All, as desktop). The long tail (`allSetsGroups`) lists each base set's Weekly Play set in base order, then a divider, then the Exclusives. A selected long-tail set stays visible in base-only view.
+- **Collection picker.** Four switches in desktop's order (Only incomplete playsets / Only cards I own / Only cards I don't own / Over my keep limit), with desktop's exclusions applied as a toggle turns on. While scoped, the toggles are amber with a "Scoped: these read your <finish> copies only." note. Signed out, the Collection row reads "Sign in to filter" and a tap opens sign-in (MobileApp `openSignIn`).
+- **Finish picker** = desktop FinishFilter's two-tier tree (`buildFinishTree` / `shapeFinishTree`): pair rows (Non-foil / Foil chips), the Prestige row (Std / Foil / Serialized), plain rows, and tournament families. A family header only expands it; a collapsed family with selections shows "· n". A divider follows the pinned block. The top bar holds All + Clear. The value the scope wrote shows amber on the Finish row. Any Finish edit other than exactly the scoped value disengages the scope; edits to other facets keep it.
+- **Gameplay** (desktop's Gameplay group, Aspects first). The collapsed head shows "· n active" (one per group). Inside, in order:
+  - Aspects: seven chits including No Aspect. Empty = all lit; the first tap narrows to that one aspect.
+  - Any / Within / Exact (Exact is the default), with its one-line meaning.
+  - Type and Arena chips.
+  - Keyword and Trait rows. Each opens a full-height picker with a pinned 16 px search, focused on open, and an All / "All matches (n)" + Clear bar.
+  - Cost / Power / HP: one track with two 44 px thumbs and a Russo One readout ("Any" at full range). A narrowed range excludes cards with no value for that stat.
+- **Pickers.** A picker stacks over Filters with Done pinned in its foot. Set, Finish, Keyword and Trait pickers are full height; Collection sizes to its four rows. Escape closes only the top sheet. Show-all, expanded families and the search box reset on every open.
+- **Motion.** Inside the sheet and pickers only transform and opacity animate. Colour changes are instant.
+- **Analytics** (additive, BL-244), all with `layout: "phone"`:
+  - `filter_applied {field, active_filter_count, results_count}` fires once per user edit, after the change applies. Field names are desktop's (set, rarity, finish, type, arena, keyword, trait, cost, power, hp, aspect, aspect_mode, completion, owned, no_inventory, over_cap).
+  - `filters_cleared` fires on Reset.
+  - `finish_scope_changed` fires only on a scope pick.
+- **Harness.** Playwright specs `e2e/mobile/s2-12…s2-19-*.spec.ts` (helpers in `e2e/mobile/filters-helpers.ts`: rev4 b1Targets / b1NoOverflow / b1Motion ports) and vitest in `src/mobile/filters/` (`filterModel.test.ts`, `filterAnalytics.test.tsx`).
