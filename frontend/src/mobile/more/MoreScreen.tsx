@@ -116,7 +116,7 @@ export function MoreScreen({
       <SectionSeparator className="m-more__sep" />
       <div className="m-scroll m-more__scroll">
         <section className="m-moregroup" aria-label="Collection">
-          <h2 className="m-moregroup__label">Collection</h2>
+          {inShare ? null : <h2 className="m-moregroup__label">Collection</h2>}
           {inShare ? null : (
             <>
               <Row

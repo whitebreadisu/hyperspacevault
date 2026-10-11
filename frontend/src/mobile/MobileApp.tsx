@@ -90,14 +90,15 @@ const BLOCKED_IN_SHARE = new Set([
 
 /** BL-252 S6-01 / S6-07: the shared vault's own data instance + the share
  * owner's limits (desktop SharedVaultPage's nested LimitsProvider with
- * `shareToken` around its read-only CardsPage). Built once while a share is
- * held, read by the shared pane, its card layer and its Owned-by-finish
- * host; `token` is null until the share resolves (no token-scoped read
- * before the resolve succeeds, as desktop mounts CardsPage only when ready). */
-function ShareScope({ token, children }: { token: string | null; children: ReactNode }) {
+ * `shareToken` around its read-only CardsPage). Mounted only once the
+ * share has resolved (BL-252 S6a F5: an invalid / rate-limited token or an
+ * unswitched restored session downloads nothing, as desktop mounts CardsPage
+ * only when ready); read by the shared pane, its card layer and its
+ * Owned-by-finish host. */
+function ShareScope({ token, children }: { token: string; children: ReactNode }) {
   const value = useVaultDataSource(false, token);
   return (
-    <LimitsProvider isAuthenticated={false} shareToken={token ?? undefined}>
+    <LimitsProvider isAuthenticated={false} shareToken={token}>
       <VaultDataValue value={value}>{children}</VaultDataValue>
     </LimitsProvider>
   );
@@ -162,8 +163,15 @@ export function MobileApp() {
   const share = useShare();
   const inShare = share.shown;
   const { setShown: setShareShown } = share;
+  // A deep-link param left in the hash (a closed sheet's `?sheet=`) belongs to
+  // the vault that consumed it: switching vaults first clears it (synchronously,
+  // in the same batch) so the incoming pane never re-applies it.
+  const pickVault = (shared: boolean) => {
+    if (window.location.hash.includes("?")) go("#/vault", true);
+    setShareShown(shared);
+  };
   const navShare: NavShare | null = share.token
-    ? { name: share.name, shown: inShare, onPick: setShareShown }
+    ? { name: share.name, shown: inShare, onPick: pickVault }
     : null;
 
   const account = (
@@ -431,8 +439,9 @@ export function MobileApp() {
           >
             {screen.el}
           </div>
-          {share.token ? (
-            <ShareScope token={share.status === "ready" ? share.token : null}>
+          {share.token && share.status !== "ready" ? sharedPane : null}
+          {share.token && share.status === "ready" ? (
+            <ShareScope token={share.token}>
               {sharedPane}
               {inShare && cardId != null ? (
                 <CardDetail

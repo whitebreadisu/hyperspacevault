@@ -39,6 +39,8 @@ vi.mock("../../screens/cards/CardsPage", () => ({ CardsPage: () => <p>cards-stub
 import App from "../../App";
 import { capture } from "../../analytics/analytics";
 import { resolveShare } from "../../api/sharedView";
+import { getBaseCardsList } from "../../api/baseCards";
+import { getSets } from "../../api/sets";
 import { resetMediaMatches, setMediaMatches } from "../../test/setup";
 import { loadShareSession } from "../../utils/shareSession";
 import { resetRouterForTest } from "../router";
@@ -146,6 +148,42 @@ describe("S6-04 the Vault switch", () => {
     expect(screen.queryByRole("button", { name: "Keypad" })).toBeNull();
     expect(document.querySelector('[data-pane="own"]')?.className).toContain("--parked");
     expect(document.querySelector('[data-pane="shared"]')?.className).not.toContain("--parked");
+  });
+});
+
+describe("S6-04 focus (F2)", () => {
+  it("S6-F2: expand focuses the current choice; Escape and a pick return focus to the face", async () => {
+    await bootShared();
+    fireEvent.click(screen.getByRole("button", { name: "Rowan: switch vault" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Rowan's vault" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    await act(async () => {});
+    expect(screen.queryByRole("group", { name: "Choose a vault" })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Rowan: switch vault" })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Rowan: switch vault" }));
+    fireEvent.click(screen.getByRole("button", { name: "Your vault" }));
+    await act(async () => {});
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Vault: switch vault" })
+    );
+    // Expanding from the own face focuses the pressed (own) choice.
+    fireEvent.click(screen.getByRole("button", { name: "Vault: switch vault" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Your vault" }));
+  });
+});
+
+describe("S6-01 ShareScope data (F5)", () => {
+  it("S6-F5: an invalid token fetches no catalogue / sets for the share", async () => {
+    vi.mocked(resolveShare).mockRejectedValueOnce(new Error("404"));
+    vi.mocked(getBaseCardsList).mockClear();
+    vi.mocked(getSets).mockClear();
+    await bootShared("/shared/bad-tok");
+    // Only the own vault's instance fetched (once each); the share's never mounted.
+    expect(getBaseCardsList).toHaveBeenCalledTimes(1);
+    expect(getSets).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("This shared vault is no longer available.")).toBeTruthy();
   });
 });
 

@@ -130,3 +130,9 @@ Two §25.4 sentences described slice-4 state ("until slice 5"); replaced in plac
 > Code: `frontend/src/mobile/more/`. Routes `#/more`, `#/about`, `#/more/about`, `#/more/updates`, `#/more/importexport`; Settings, Change Password and Sharing stay one-sentence placeholders until slice 5.
 
 > - **Gating** is desktop's. Import & Export and Sharing stay listed as `aria-disabled` teasers for a signed-out visitor and open sign-in. Import & Export is also inert for a signed-in unverified account and a tap shows "Verify your email to import or export your collection." Desktop's tail "— see the banner above." is dropped because the phone has no verify banner until slice 5.
+
+## Archived 2026-10-11 — §25.1 shared-link interim sentence superseded by slice 6
+
+One §25.1 sentence described the pre-slice-6 state; replaced in place when the shared vault landed on the phone (BL-252). Verbatim:
+
+> - **Share links.** `/shared/{token}` links render the desktop view on phones until the shared-vault slice.

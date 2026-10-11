@@ -61,6 +61,20 @@ function VaultSwitch({ share, on }: { share: NavShare; on: boolean }) {
   const hasName = share.name != null;
   const face = switchFace(hasName, share.shown);
   const state = { expanded, shown: share.shown };
+  const refocus = useRef(false);
+
+  // Keyboard focus follows the expand: the pressed choice takes it; Escape or a
+  // pick hands it back to the face (an outside tap leaves focus where it went).
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (expanded) {
+      root.querySelector<HTMLElement>('.m-vswitch__panel [aria-pressed="true"]')?.focus();
+    } else if (refocus.current) {
+      refocus.current = false;
+      root.querySelector<HTMLElement>(".m-vswitch__face")?.focus();
+    }
+  }, [expanded]);
 
   useEffect(() => {
     if (!expanded) return undefined;
@@ -68,7 +82,10 @@ function VaultSwitch({ share, on }: { share: NavShare; on: boolean }) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setExpanded(false);
     };
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
+      if (e.key === "Escape") {
+        refocus.current = true;
+        setExpanded(false);
+      }
     };
     document.addEventListener("pointerdown", outside, true);
     window.addEventListener("keydown", key);
@@ -89,6 +106,7 @@ function VaultSwitch({ share, on }: { share: NavShare; on: boolean }) {
   };
   const pick = (shared: boolean) => {
     const next = switchStep(state, { type: "pick", shared });
+    refocus.current = true;
     setExpanded(next.expanded);
     share.onPick(next.shown);
     go("#/vault");

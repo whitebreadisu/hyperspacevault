@@ -51,7 +51,7 @@
   text-overflow: ellipsis;
 }
 .m-app .m-vswitch__face--shared.m-tab--on::after {
-  background: #d99a1f;
+  background: var(--color-warning);
 }
 
 /* Expanded: the two choices grow out of the slot's left edge along the bar

@@ -110,11 +110,22 @@ test.describe("anonymous viewer", () => {
       session: JSON.stringify({ token: "tok-1", name: "Rowan" }),
     });
     // Only the three token-scoped reads (no auth, as desktop sharedView.ts).
-    expect([...new Set(rec.sharedReads)].sort()).toEqual([
+    // Exact counts (F8), not a Set: the dev server runs React StrictMode, which
+    // double-runs each mount effect, so every token-scoped read lands exactly
+    // twice (resolve, limits, quantities); an extra fetch anywhere makes it 3+.
+    const sharedPaths = [
       "/api/shared/tok-1",
       "/api/shared/tok-1/limits",
       "/api/shared/tok-1/quantities",
-    ]);
+    ];
+    expect(
+      Object.fromEntries(sharedPaths.map((p) => [p, rec.sharedReads.filter((r) => r === p).length]))
+    ).toEqual({
+      "/api/shared/tok-1": 2,
+      "/api/shared/tok-1/limits": 2,
+      "/api/shared/tok-1/quantities": 2,
+    });
+    expect(rec.sharedReads).toHaveLength(6);
     // The hash router works beneath the pathname: a card opens at
     // /shared/tok-1#/card/<id> and closing it stays in the share.
     await page.locator(`${SH} .m-row .m-row__main`).first().click();
@@ -271,6 +282,20 @@ test.describe("anonymous viewer", () => {
     await expect(page.locator(`${OWN}:not(.m-app__screen--parked) .m-row`).first()).toBeVisible();
     await expect(page.locator(".m-nav__center")).toBeVisible();
     await expect(page.locator(".m-vswitch__face--shared")).toHaveCount(0);
+    // Ruling S6-04a pinned by computed colour, not just the class: no amber on
+    // the plain face or anything inside it.
+    const amber = await page.locator(".m-vswitch__face").evaluate((f) =>
+      [f, ...f.querySelectorAll("*")].flatMap((e) => {
+        const cs = getComputedStyle(e);
+        return [cs.backgroundColor, cs.borderTopColor, cs.color].filter((c) =>
+          c.includes("217, 154, 31")
+        );
+      })
+    );
+    expect(amber).toEqual([]);
+    expect(
+      await page.locator(".m-vswitch__face").evaluate((f) => getComputedStyle(f).backgroundColor)
+    ).not.toBe("rgb(217, 154, 31)");
     await expect(page.locator(".m-app")).not.toHaveAttribute("data-share", "shown");
     // ... and back to the share.
     await page.getByRole("button", { name: "Vault: switch vault" }).click();
@@ -390,6 +415,7 @@ test.describe("anonymous viewer", () => {
       .locator(".m-morerow")
       .evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.more));
     expect(keys).toEqual(["about", "updates", "feedback", "signin"]);
+    await expect(page.locator(".m-more .m-moregroup__label")).toHaveText(["Hyperspace Vault"]);
     await expect(page.locator(".m-more .m-shared-signin")).toBeVisible();
   });
 });
@@ -418,6 +444,8 @@ test("s6-06-more-trimmed-in-share", async ({ page }) => {
   // Updates, Feedback stay; Log Out stays for a signed-in viewer.
   expect(keys).toEqual(["about", "updates", "feedback", "logout"]);
   await expect(page.locator(".m-more__deckcheck")).toBeVisible();
+  // F6: no group label over the fine-print line alone.
+  await expect(page.locator(".m-more .m-moregroup__label")).toHaveText(["Hyperspace Vault"]);
   // Own-account routes land on the trimmed More inside a share; Delete is
   // blocked (rev4 D2).
   for (const r of ["settings", "delete", "password", "sharing", "importexport"]) {
@@ -458,4 +486,39 @@ test("s6-07-own-vault-state-survives", async ({ page }) => {
   await page.getByRole("button", { name: "Your vault" }).click();
   await expect(search(OWN)).toHaveValue("Luke");
   await expect(page.locator(`${OWN} .m-count`)).toHaveText(ownCount!);
+});
+
+test("s6-07-facet-and-scope-isolation", async ({ page }) => {
+  await openShare(page, "tok-1", "#/vault?sheet=filters");
+  const sheet = page.locator(".m-sheet-layer--filters");
+  await expect(sheet).toBeVisible();
+  await page.waitForTimeout(350);
+  // A facet pick on the share narrows the share only.
+  await sheet.locator('[data-facet="rarity"] [data-fv="Rare"]').first().click();
+  await sheet.locator(".m-sheet__close").click();
+  await expect(sheet).toHaveCount(0);
+  const sharedNarrow = await page.locator(`${SH} .m-count`).textContent();
+  expect(sharedNarrow).not.toBe(`${CARDS.length} cards`);
+  // The own vault: unfiltered, unscoped. Pick a scope there.
+  await page.locator(".m-vswitch__face--shared").click();
+  await page.getByRole("button", { name: "Your vault" }).click();
+  await expect(page.locator(`${OWN}:not(.m-app__screen--parked)`)).toBeVisible();
+  await expect(page.locator(`${OWN} .m-count`)).toHaveText(`${CARDS.length} cards`);
+  await expect(page.locator(`${OWN} .m-scopechip`)).not.toHaveClass(/m-scopechip--on/);
+  await page.locator(`${OWN} .m-scopechip`).click();
+  await page.waitForTimeout(350);
+  await page.locator('.m-sheet-layer--scope [data-scope="Hyperspace Foil"]').click();
+  await expect(page.locator(`${OWN} .m-scopechip`)).toHaveClass(/m-scopechip--on/);
+  const ownScoped = await page.locator(`${OWN} .m-count`).textContent();
+  // Back on the share: its facet stays, no scope leaked in from the own vault.
+  await page.getByRole("button", { name: "Vault: switch vault" }).click();
+  await page.getByRole("button", { name: "Rowan's vault" }).click();
+  await expect(page.locator(`${SH}:not(.m-app__screen--parked)`)).toBeVisible();
+  await expect(page.locator(`${SH} .m-count`)).toHaveText(sharedNarrow!);
+  await expect(page.locator(`${SH} .m-scopechip`)).not.toHaveClass(/m-scopechip--on/);
+  // And the own vault kept its scope, with no facet leaked in from the share.
+  await page.locator(".m-vswitch__face--shared").click();
+  await page.getByRole("button", { name: "Your vault" }).click();
+  await expect(page.locator(`${OWN} .m-scopechip`)).toHaveClass(/m-scopechip--on/);
+  await expect(page.locator(`${OWN} .m-count`)).toHaveText(ownScoped!);
 });
