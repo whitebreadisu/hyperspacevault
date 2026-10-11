@@ -37,6 +37,8 @@ interface Props {
   isAuthenticated: boolean;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
+  /** S2-10: the plate opens Owned by finish (signed in only). */
+  onOpenFinish?: () => void;
 }
 
 export function CardRegion({
@@ -51,6 +53,7 @@ export function CardRegion({
   isAuthenticated,
   priceKind,
   onPriceKind,
+  onOpenFinish,
 }: Props) {
   const [phase, setPhase] = useState<"out" | "in" | null>(null);
   const { hasBack } = geom;
@@ -81,7 +84,15 @@ export function CardRegion({
     "--mini-l": 16 + geom.cW + 14 + "px",
     "--flip-top": geom.flipTop + "px",
   } as CSSProperties;
-  const plate = <PrintingPlate type={card.type} qty={qty} isAuthenticated={isAuthenticated} />;
+  const plate = (
+    <PrintingPlate
+      type={card.type}
+      qty={qty}
+      isAuthenticated={isAuthenticated}
+      onClick={onOpenFinish}
+      label={`${card.name}: ${qty} ${finishLabel(variant)} owned. Show owned by finish`}
+    />
+  );
   const num = `${variant.source_set_code} ${variant.card_number}`;
 
   return (

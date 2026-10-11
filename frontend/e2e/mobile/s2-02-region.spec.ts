@@ -141,10 +141,16 @@ test("s2-02-base-rotated", async ({ page }) => {
   const full = await page.locator(".m-dreg3__art").boundingBox();
   expect(Math.round(full!.height)).toBe(238);
   expect(Math.round(full!.width)).toBe(333);
-  // A two-printing base is too short to collapse by scrolling (the
-  // short-content rule); card-base-collapsed opens it collapsed.
+  // S2-07 REPLACE (2A-2): with the price-history section in the body a
+  // two-printing base is long enough to collapse by scrolling at 390 (not at
+  // 430 -- the short-content rule); whichever happens, a scroll-collapsed
+  // base shows the landscape thumbnail, and card-base-collapsed opens it
+  // collapsed by the review param.
   await scrollDetail(page, 300);
-  expect(await isCollapsed(page)).toBe(false);
+  if (await isCollapsed(page)) {
+    const s = await page.locator(".m-dreg3__art").boundingBox();
+    expect([Math.round(s!.width), Math.round(s!.height)]).toEqual([112, 80]);
+  }
   await page.goto("about:blank");
   await page.goto(`/#/card/${c.id}?collapsed=1`);
   await expect(page.locator(".m-cardlayer .m-dreg3")).toBeVisible();

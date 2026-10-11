@@ -12,6 +12,12 @@ export interface NavContext {
   narrowed: boolean;
   /** The Vault's finish scope (raw finish) or null. */
   scope: string | null;
+  /** S2-09: which surface the list is drawn as -- a row opens on the scoped
+   * printing, a gallery cell on the printing it displays. */
+  source?: "row" | "gallery";
+  /** S2-09: the Finish facet's values (a gallery cell displays the lowest-
+   * numbered printing carrying one, BL-201). */
+  finishes?: string[];
 }
 
 let current: NavContext | null = null;
@@ -27,6 +33,8 @@ export function readNav(): NavContext | null {
 /** Test seam. */
 export function resetNavForTest(): void {
   current = null;
+  arrive = null;
+  openSource = null;
 }
 
 export interface NavPosition {
@@ -34,6 +42,8 @@ export interface NavPosition {
   pos: number;
   narrowed: boolean;
   scope: string | null;
+  source: "row" | "gallery" | null;
+  finishes: string[];
 }
 
 /** Where `id` sits: in the published list when it contains the card, else in
@@ -41,6 +51,48 @@ export interface NavPosition {
  * or a card the current filters no longer show), never narrowed there. */
 export function navPosition(id: number, ctx: NavContext | null, fallback: number[]): NavPosition {
   if (ctx && ctx.ids.includes(id))
-    return { list: ctx.ids, pos: ctx.ids.indexOf(id), narrowed: ctx.narrowed, scope: ctx.scope };
-  return { list: fallback, pos: fallback.indexOf(id), narrowed: false, scope: null };
+    return {
+      list: ctx.ids,
+      pos: ctx.ids.indexOf(id),
+      narrowed: ctx.narrowed,
+      scope: ctx.scope,
+      source: ctx.source ?? "row",
+      finishes: ctx.finishes ?? [],
+    };
+  return {
+    list: fallback,
+    pos: fallback.indexOf(id),
+    narrowed: false,
+    scope: null,
+    source: null,
+    finishes: [],
+  };
+}
+
+// S2-08 / S2-11: hand-offs to the next card's detail across a route change
+// (each card mounts afresh). Read with peek in a state initialiser (React
+// StrictMode runs initialisers twice) and cleared from an effect.
+
+/** How the next detail was opened (card_popup_opened.source). */
+export type OpenSource = "row" | "gallery" | "swipe" | "nav";
+let openSource: OpenSource | null = null;
+export function setOpenSource(s: OpenSource): void {
+  openSource = s;
+}
+export function peekOpenSource(): OpenSource | null {
+  return openSource;
+}
+
+/** A committed swipe / chevron lands in the collapse state it left (rev4
+ * M.ui.swipeArrive). */
+let arrive: { collapsed: boolean } | null = null;
+export function setArrive(a: { collapsed: boolean }): void {
+  arrive = a;
+}
+export function peekArrive(): { collapsed: boolean } | null {
+  return arrive;
+}
+export function clearHandoffs(): void {
+  arrive = null;
+  openSource = null;
 }

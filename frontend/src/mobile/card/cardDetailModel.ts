@@ -8,6 +8,8 @@ import {
 } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import type { PriceMode } from "../../utils/variantScope";
+import { pickRepresentative } from "../vault/cardImage";
+import type { NavPosition } from "./navList";
 
 // BL-248 S2-01 / S2-02 / S2-04: the card-detail screen's pure rules. Ports of
 // desktop logic that lives inside desktop component files (desktop is not
@@ -29,13 +31,19 @@ const finishOf = (v: InventoryVariant) => v.finish ?? v.variant_type;
  * R5-5), else the representative (Standard, else the first). */
 export function entryVariant(
   card: InventoryCard,
-  opts: { v?: number | null; scope?: string | null } = {}
+  opts: { v?: number | null; scope?: string | null; finishes?: string[] | null } = {}
 ): InventoryVariant | null {
   const { variants } = card;
   if (variants.length === 0) return null;
   if (opts.v != null) {
     const shown = variants.find((x) => x.variant_id === opts.v);
     if (shown) return shown;
+  }
+  // S2-09: from a gallery cell, the printing the cell displays (BL-201:
+  // the lowest-numbered printing carrying a Finish facet value).
+  if (opts.finishes && opts.finishes.length) {
+    const fs = new Set(opts.finishes);
+    if (variants.some((x) => fs.has(finishOf(x)))) return pickRepresentative(variants, fs);
   }
   if (opts.scope != null) {
     const scoped = variants.find((x) => finishOf(x) === opts.scope);
@@ -194,4 +202,21 @@ export function stepperState(
     atOrOverLimit: rawLimit !== null && qty >= rawLimit,
     softOverLimit: capMode === "soft" && rawLimit !== null && qty > rawLimit,
   };
+}
+
+/** S2-09 (rev4 M.navEntry, desktop BL-193 / BL-201): the printing a card
+ * opens on inside the list it was reached from -- `?v=` first; then, from a
+ * gallery, the printing the cell displays; from rows, the scoped printing;
+ * else the representative. Prev / next use the same rule for the neighbour. */
+export function navEntryVariant(
+  card: InventoryCard,
+  nav: Pick<NavPosition, "source" | "scope" | "finishes">,
+  v: number | null = null
+): InventoryVariant | null {
+  const gallery = nav.source === "gallery";
+  return entryVariant(card, {
+    v,
+    scope: gallery ? null : nav.scope,
+    finishes: gallery ? nav.finishes : null,
+  });
 }

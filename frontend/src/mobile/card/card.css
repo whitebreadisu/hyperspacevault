@@ -883,6 +883,304 @@
   font-size: 15px;
 }
 
+/* ── S2-08 body-slide swipe (m-rev3.css:139-143 + 420-436, the `body`
+ * reading): the neighbour page sits one width aside on the track; the
+ * header's titles + logo cross-dissolve on commit, opacity only. ───────── */
+.m-app .m-page--next {
+  transform: translateX(100%);
+}
+.m-app .m-page--prev {
+  transform: translateX(-100%);
+}
+@keyframes m-xout {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes m-xin {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.m-app .m-detail--xout .m-xfade:not(.m-xfade--in) {
+  animation: m-xout 0.2s ease both;
+}
+.m-app .m-xfade--in {
+  animation: m-xin 0.2s ease both;
+}
+/* The incoming titles sit exactly over the current ones (header padding-top
+ * + the 44 px bar space); out of flow, so the header never re-lays out. */
+.m-app .m-hdr > .m-hdr__titles.m-xfade--in {
+  position: absolute;
+  top: calc(4px + var(--sat) + 44px);
+  left: 16px;
+  right: 8px;
+  pointer-events: none;
+}
+
+/* ── S2-10: the plate as a button (m-layout.css:210) ───────────────────── */
+.m-app .m-plate-hit--btn {
+  height: 44px;
+  padding: 8px 0;
+  margin: -8px 0;
+  background: none;
+  border: none;
+}
+.m-app .m-dreg3__mini .m-plate-hit--btn {
+  height: 44px;
+}
+
+/* ── S2-07 price history (m-layout.css:362-363 + 385-399; desktop
+ * PriceHistoryPanel.css status / sparse / empty verbatim) ─────────────── */
+.m-app .m-sec__aside {
+  margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  text-align: right;
+}
+.m-app .m-chart {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--color-border);
+  padding: 12px 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.m-app .m-chart__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.m-app .m-chart__readout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 58px;
+  min-width: 0;
+}
+.m-app .m-chart__date {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-chart__price {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  color: #fff;
+  line-height: 1.1;
+}
+.m-app .m-chart__price--none {
+  color: var(--color-text-muted);
+}
+.m-app .m-chart__chg {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.m-app .m-chart__ranges {
+  flex: none;
+  margin-top: -5px;
+}
+/* Four 44 px tap targets (drawn 34 by the shared detail seg rule). */
+.m-app .m-detail .m-chart__ranges .m-seg__btn {
+  min-width: 44px;
+  padding: 0 6px;
+}
+.m-app .m-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.m-app .m-chart__grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.m-app .m-chart__line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.m-app .m-chart__cross {
+  stroke: rgba(211, 211, 212, 0.55);
+  stroke-width: 1;
+}
+.m-app .m-chart__dot {
+  fill: var(--color-primary);
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+.m-app .m-chart__axis {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--color-text-muted);
+}
+.m-app .m-chart__fine {
+  margin: 6px 0 0;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.m-app .m-chart .php-status {
+  padding: 16px 8px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.m-app .m-chart .php-status--error {
+  color: var(--color-danger);
+}
+.m-app .m-chart .php-sparse {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border-left: 2px solid var(--color-primary);
+  padding: 2px 0 2px 8px;
+}
+.m-app .m-chart .php-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  padding: 20px;
+}
+.m-app .m-chart .php-empty__dash,
+.m-app .m-chart .php-empty__title,
+.m-app .m-chart .php-empty__sub {
+  display: block;
+  text-align: center;
+}
+.m-app .m-chart .php-empty__dash {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+.m-app .m-chart .php-empty__title {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}
+.m-app .m-chart .php-empty__sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+  margin-top: 6px;
+}
+
+/* ── S2-07b aspects: the icons are a 44 px button (m-layout.css:408) and
+ * the sheet's rows (m-layout.css:289-290, 44 px floor) ────────────────── */
+.m-app button.m-info__aspects {
+  min-width: 44px;
+  background: none;
+  border: none;
+}
+.m-app .m-aspectlist__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-app .m-aspectlist__row:first-child {
+  border-top: none;
+}
+
+/* ── S2-10 Owned by finish (m-layout.css:251-259 + the R5-1 rows) ──────── */
+.m-app .m-dossier__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding-bottom: 10px;
+}
+.m-app .m-dossier__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-dossier__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+}
+.m-app .m-dossier__finish {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: #cfd6e4;
+}
+.m-app .m-dossier__num {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.m-app .m-dossier__pips {
+  flex: none;
+  min-width: 72px;
+  justify-content: flex-end;
+}
+.m-app .m-dossier__empty {
+  padding: 14px 0;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .m-aspectlist .m-dossier__empty {
+  border-top: none;
+}
+.m-app .m-dossier__foot {
+  padding-top: 12px;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.m-app .m-dossier__open {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+.m-app .m-swu-full {
+  width: 100%;
+}
+
 /* ── Reduced motion: the region snaps (S2-02). ─────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .m-app .m-dreg3__bg,
@@ -894,5 +1192,9 @@
   .m-app .m-dreg3__flip,
   .m-app .m-detail__body {
     transition: none !important;
+  }
+  .m-app .m-xfade,
+  .m-app .m-xfade--in {
+    animation: none !important;
   }
 }

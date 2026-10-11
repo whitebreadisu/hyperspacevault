@@ -35,10 +35,13 @@ export function CardInfo({
   card,
   detail,
   setName,
+  onOpenAspects,
 }: {
   card: InventoryCard;
   detail: BaseCardDetail | null;
   setName: string;
+  /** S2-07b: a tap on the aspect icons opens the Aspects sheet. */
+  onOpenAspects?: (aspects: string[]) => void;
 }) {
   const aspects = orderAspects(card.aspects);
   const glow = aspects.length ? (ASPECT_GLOW[aspects[0]] ?? "#2563eb") : "#2563eb";
@@ -69,15 +72,16 @@ export function CardInfo({
           {card.arena ? ` · ${card.arena}` : ""}
         </span>
         {aspects.length ? (
-          <span
+          <button
+            type="button"
             className="m-info__aspects"
-            role="img"
+            onClick={() => onOpenAspects?.(aspects)}
             aria-label={"Aspects: " + aspects.join(", ")}
           >
             {aspects.map((a) => (
               <AspectIcon key={a} aspect={a} size={30} />
             ))}
-          </span>
+          </button>
         ) : null}
       </div>
       {hasStats ? (

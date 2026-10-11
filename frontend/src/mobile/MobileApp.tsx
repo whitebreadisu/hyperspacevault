@@ -5,6 +5,7 @@ import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
 import { CardDetail } from "./card/CardDetail";
+import { FinishSheetHost } from "./card/FinishSheet";
 import { ComingSoon } from "./ComingSoon";
 import { FeedbackScreen } from "./FeedbackScreen";
 import { SheetHost } from "./Sheet";
@@ -163,6 +164,8 @@ export function MobileApp() {
               onRequestSignIn={openSignIn}
             />
           ) : null}
+          {/* BL-248 S2-10: Owned by finish opened from a Vault row. */}
+          <FinishSheetHost />
           {chooserOpen ? (
             <TitleChooser
               unread={cue.unread}

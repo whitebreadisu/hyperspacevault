@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import {
   entryVariant,
+  navEntryVariant,
   groupPrintings,
   orderPrintings,
   railPrice,
@@ -81,12 +82,18 @@ describe("S2-01 entry printing resolution", () => {
       pos: 1,
       narrowed: true,
       scope: "Hyperspace",
+      // S2-09 PORT: the position now also carries the list surface + facet
+      // values (a context published without them reads as rows, no facet).
+      source: "row",
+      finishes: [],
     });
     expect(navPosition(2, ctx, [1, 2, 87])).toEqual({
       list: [1, 2, 87],
       pos: 1,
       narrowed: false,
       scope: null,
+      source: null,
+      finishes: [],
     });
     expect(navPosition(2, null, [1, 2]).narrowed).toBe(false);
   });
@@ -142,5 +149,59 @@ describe("S2-05 stepper limit rules (desktop InventoryPlate)", () => {
     expect(s.incDisabled).toBe(false);
     expect(s.softOverLimit).toBe(true);
     expect(stepperState(std, 0, "standard", null, "soft").decDisabled).toBe(true);
+  });
+});
+
+describe("S2-09 nav entry resolution (prev / next on the matching printing)", () => {
+  // rev4 M.navEntry + desktop BL-193 / BL-201: the neighbour opens on the
+  // printing its own surface would show -- a scoped row its scoped
+  // printing, a gallery cell the printing it displays.
+  const SHD = card([
+    v(1, "Standard", "SHD", "40"),
+    v(2, "Hyperspace", "SHD", "300"),
+    v(3, "Hyperspace", "SHD", "299"),
+    v(4, "Foil", "SHD", "40"),
+  ]);
+  it("rows: the scoped printing (first printing carrying the scope)", () => {
+    const nav = { source: "row" as const, scope: "Hyperspace", finishes: ["Hyperspace"] };
+    expect(navEntryVariant(SHD, nav)?.variant_id).toBe(2);
+    expect(navEntryVariant(VADER, nav)?.variant_id).toBe(6795);
+  });
+  it("gallery: the displayed printing (lowest-numbered carrying a facet value)", () => {
+    const nav = { source: "gallery" as const, scope: "Hyperspace", finishes: ["Hyperspace"] };
+    expect(navEntryVariant(SHD, nav)?.variant_id).toBe(3);
+    const two = { source: "gallery" as const, scope: null, finishes: ["Foil", "Hyperspace"] };
+    expect(navEntryVariant(SHD, two)?.variant_id).toBe(4);
+  });
+  it("no scope / no facet / no match: the representative", () => {
+    expect(navEntryVariant(SHD, { source: "row", scope: null, finishes: [] })?.variant_id).toBe(1);
+    expect(
+      navEntryVariant(VADER, { source: "gallery", scope: null, finishes: ["Foil"] })?.variant_id
+    ).toBe(7221);
+    expect(navEntryVariant(SHD, { source: null, scope: null, finishes: [] })?.variant_id).toBe(1);
+  });
+  it("?v= still wins over the list rule", () => {
+    const nav = { source: "row" as const, scope: "Hyperspace", finishes: [] };
+    expect(navEntryVariant(SHD, nav, 4)?.variant_id).toBe(4);
+  });
+  it("navPosition carries the list's surface and facet values", () => {
+    const ctx = {
+      ids: [9, 87],
+      narrowed: true,
+      scope: "Hyperspace",
+      source: "gallery" as const,
+      finishes: ["Hyperspace"],
+    };
+    expect(navPosition(87, ctx, [])).toMatchObject({
+      pos: 1,
+      source: "gallery",
+      finishes: ["Hyperspace"],
+    });
+    expect(navPosition(5, ctx, [5])).toMatchObject({
+      pos: 0,
+      source: null,
+      finishes: [],
+      narrowed: false,
+    });
   });
 });

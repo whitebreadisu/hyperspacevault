@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
-import { publishNav } from "../card/navList";
+import { publishNav, setOpenSource } from "../card/navList";
 import { go } from "../router";
 import { Sheet } from "../Sheet";
 import { CompletionHeader } from "./CompletionHeader";
@@ -123,14 +123,20 @@ export function Vault({
   // (amber "n of m"), and the scope (it picks each card's default printing).
   const openCard = useCallback(
     (card: InventoryCard, variant: InventoryVariant | null) => {
+      // S2-09 / S2-11: the surface (row or gallery cell) decides the
+      // neighbour entry printing and card_popup_opened.source.
+      const source = vv.prefs.view === "gallery" ? "gallery" : "row";
       publishNav({
         ids: vv.list.map((c) => c.base_card_id),
         narrowed: vv.narrowed,
         scope: vv.state.scope,
+        source,
+        finishes: [...vv.state.filters.finish],
       });
+      setOpenSource(source);
       go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
     },
-    [vv.list, vv.narrowed, vv.state.scope]
+    [vv.list, vv.narrowed, vv.state.scope, vv.prefs.view, vv.state.filters.finish]
   );
   const closeSheet = useCallback(() => setSheet(null), []);
 

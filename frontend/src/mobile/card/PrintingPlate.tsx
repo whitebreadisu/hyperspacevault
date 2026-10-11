@@ -15,12 +15,17 @@ export function PrintingPlate({
   type,
   qty,
   isAuthenticated,
+  onClick,
+  label,
 }: {
   /** The base card's type (playset size). */
   type: string;
   /** The selected printing's (shown) quantity. */
   qty: number;
   isAuthenticated: boolean;
+  /** S2-10: the plate opens Owned by finish (rev4 MPlate onClick). */
+  onClick?: () => void;
+  label?: string;
 }) {
   const size = getPlaysetSize(type);
   const filled = isAuthenticated ? Math.min(size, qty) : 0;
@@ -33,32 +38,45 @@ export function PrintingPlate({
       : qty === 0
         ? " playset-chip--empty"
         : "";
-  return (
-    <div className="m-plate-hit" data-plate-qty={isAuthenticated ? qty : undefined}>
-      <span className="gallery-plate m-plate m-plate--table">
-        <span className="gallery-plate__inner">
-          <span
-            className={
-              "playset m-pips m-pips--chip" +
-              (complete ? " playset--complete" : "") +
-              (empty ? " playset--empty" : "")
-            }
-          >
-            <span className={"playset-chip" + chipMod}>{isAuthenticated ? qty : "—"}</span>
-            <span className={"playset__pips" + (complete ? " playset__pips--scoped-complete" : "")}>
-              {Array.from({ length: size }, (_, i) => (
-                <span
-                  key={i}
-                  className={
-                    "playset__pip" +
-                    (i < filled ? " playset__pip--filled playset__pip--scoped" : "")
-                  }
-                />
-              ))}
-            </span>
+  const frame = (
+    <span className="gallery-plate m-plate m-plate--table">
+      <span className="gallery-plate__inner">
+        <span
+          className={
+            "playset m-pips m-pips--chip" +
+            (complete ? " playset--complete" : "") +
+            (empty ? " playset--empty" : "")
+          }
+        >
+          <span className={"playset-chip" + chipMod}>{isAuthenticated ? qty : "—"}</span>
+          <span className={"playset__pips" + (complete ? " playset__pips--scoped-complete" : "")}>
+            {Array.from({ length: size }, (_, i) => (
+              <span
+                key={i}
+                className={
+                  "playset__pip" + (i < filled ? " playset__pip--filled playset__pip--scoped" : "")
+                }
+              />
+            ))}
           </span>
         </span>
       </span>
+    </span>
+  );
+  const dataQty = isAuthenticated ? qty : undefined;
+  return onClick ? (
+    <button
+      type="button"
+      className="m-plate-hit m-plate-hit--btn"
+      onClick={onClick}
+      aria-label={label}
+      data-plate-qty={dataQty}
+    >
+      {frame}
+    </button>
+  ) : (
+    <div className="m-plate-hit" data-plate-qty={dataQty}>
+      {frame}
     </div>
   );
 }
