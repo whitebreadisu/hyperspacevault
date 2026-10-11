@@ -4,6 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
+import { CardDetail } from "./card/CardDetail";
+import { FinishSheetHost } from "./card/FinishSheet";
 import { ComingSoon } from "./ComingSoon";
 import { FeedbackScreen } from "./FeedbackScreen";
 import { SheetHost } from "./Sheet";
@@ -36,13 +38,11 @@ const SOON: Record<string, string> = {
   "more/settings": "Settings arrive with a later slice.",
   "more/password": "Change Password arrives with a later slice.",
   about: "About & Legal arrives with a later slice.",
-  card: "Card detail arrives with the next slice.",
 };
 
 function soonFor(route: Route): Screen | null {
   const [a, b] = route.segs;
   if (a === "pad" || a === "camera") return { key: "pad", el: <ComingSoon sentence={SOON.pad} /> };
-  if (a === "card") return { key: "card", el: <ComingSoon sentence={SOON.card} /> };
   if (a === "about") return { key: "about", el: <ComingSoon sentence={SOON.about} /> };
   if (a === "more" && b === "feedback")
     return { key: "more/feedback", el: <FeedbackScreen onClose={back} /> };
@@ -115,16 +115,30 @@ export function MobileApp() {
   const [searchMode, setSearchMode] = useState(false);
   useVisualViewport();
 
-  const screen: Screen = soonFor(route) ?? {
+  // BL-248 S2-01: #/card/<id> is a layer over the Vault, which stays mounted
+  // under it with the params it last had (filters, scope, scroll and list
+  // survive the visit, as under desktop's popup).
+  // F9: a non-numeric id is still the card layer (id -1: not in the
+  // catalogue), not a fall-through to the Vault under a card hash.
+  const cardId =
+    route.segs[0] === "card" ? (/^\d+$/.test(route.segs[1] ?? "") ? +route.segs[1] : -1) : null;
+  const [vaultParams, setVaultParams] = useState(() => (cardId == null ? route.params : {}));
+  if (cardId == null && !soonFor(route) && route.params !== vaultParams)
+    setVaultParams(route.params);
+
+  const screen: Screen = (cardId == null ? soonFor(route) : null) ?? {
     key: "vault",
     el: (
       <Vault
-        params={route.params}
+        params={vaultParams}
         account={account}
         unread={cue.unread}
         onOpenChooser={() => setChooserOpen(true)}
         onOpenFeedback={() => go("#/more/feedback")}
         onSearchMode={setSearchMode}
+        // ── RUN 2B BEGIN (signin) ── the Filters sheet's signed-out route
+        onRequestSignIn={openSignIn}
+        // ── RUN 2B END (signin) ──
       />
     ),
   };
@@ -141,10 +155,22 @@ export function MobileApp() {
     <VaultDataProvider isAuthenticated={!!user}>
       <div className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}>
         <SheetHost>
-          <div className="m-app__screen" key={screen.key}>
+          <div className="m-app__screen" key={screen.key} inert={cardId != null}>
             {screen.el}
           </div>
-          <MobileNav route={route} />
+          <div className="m-app__nav" inert={cardId != null} style={{ display: "contents" }}>
+            <MobileNav route={route} />
+          </div>
+          {cardId != null ? (
+            <CardDetail
+              key={cardId}
+              id={cardId}
+              params={route.params}
+              onRequestSignIn={openSignIn}
+            />
+          ) : null}
+          {/* BL-248 S2-10: Owned by finish opened from a Vault row. */}
+          <FinishSheetHost />
           {chooserOpen ? (
             <TitleChooser
               unread={cue.unread}

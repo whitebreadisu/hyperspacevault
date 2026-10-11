@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 // BL-247 S1-10: the mobile e2e harness. Run with `npm run e2e:mobile`
 // (e2e/run-mobile.mjs wraps this in the Firebase Auth emulator when none is up).
-const PORT = 5174;
+const PORT = Number(process.env.E2E_PORT ?? 5174);
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const AUTH_FILE = "e2e/.auth/phone.json";

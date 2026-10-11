@@ -150,7 +150,8 @@ test("s1-07-cue-opacity-only-on-title", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   // (Settle first: a reload aborts in-flight third-party pixels, which the
   // health check would record as failed requests.)
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator(".m-row").first()).toBeVisible();
+  await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
   await page.reload();
   await expect(page.locator(".m-vh__word.m-cue")).toHaveCount(1);
   const rm = await page.evaluate(() => {

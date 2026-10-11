@@ -79,6 +79,15 @@ const P: Record<string, ReactElement> = {
       <path d="m5 12.5 4.5 4.5L19 7.5" />
     </g>
   ),
+  // BL-248 S2-02: the leader flip (rev4 MPrimitives.jsx `flip`).
+  flip: (
+    <g>
+      <path d="M5 12a7 7 0 0 1 12-4.9L19 9" />
+      <path d="M19 4.5V9h-4.5" />
+      <path d="M19 12a7 7 0 0 1-12 4.9L5 15" />
+      <path d="M5 19.5V15h4.5" />
+    </g>
+  ),
   chevup: (
     <g>
       <path d="m6 14.5 6-6 6 6" />

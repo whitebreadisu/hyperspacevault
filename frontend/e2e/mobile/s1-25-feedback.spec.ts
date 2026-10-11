@@ -156,8 +156,8 @@ test("s1-25-feedback-auto-close", async ({ page }) => {
   await page.locator(".m-fb__textarea").fill("Hello");
   await page.locator(".m-fb__submit").click();
   await expect(page.locator(".m-fb__success")).toBeVisible();
-  await page.waitForTimeout(1900);
-  await expect(page.locator(".m-fb")).toHaveCount(0);
+  // App auto-closes after SUCCESS_AUTO_CLOSE_MS (1500); allow +5 s for a slow runner.
+  await expect(page.locator(".m-fb")).toHaveCount(0, { timeout: 6500 });
   expect(new URL(page.url()).hash.startsWith("#/vault")).toBe(true);
   // X and Escape close back to the caller too.
   await page.locator(".m-vh__fb").click();

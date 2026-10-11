@@ -51,8 +51,11 @@
 
 /* ── R3-2 / R4-11: the short segments -- drawn 34 px (the wrapper's
  * ::before, 5 px in from each edge), every button a 44 px target. One rule
- * set for the header and the by-set sheet (same values in rev4). ───────── */
+ * set for the header and the by-set sheet (same values in rev4); BL-248
+ * S2-06 adds the card detail's Market / Low segments ("everywhere they
+ * appear"). ───────── */
 .m-app .m-summary__head .m-seg,
+.m-app .m-detail .m-seg,
 .m-app .m-bysets__top .m-seg {
   position: relative;
   border: none;
@@ -61,6 +64,7 @@
   border-radius: 0;
 }
 .m-app .m-summary__head .m-seg::before,
+.m-app .m-detail .m-seg::before,
 .m-app .m-bysets__top .m-seg::before {
   content: "";
   position: absolute;
@@ -76,7 +80,9 @@
 .m-app .m-summary__head .m-seg .m-seg__btn,
 .m-app .m-summary__head .m-seg .m-seg__btn--on,
 .m-app .m-summary__head .m-seg--amber .m-seg__btn--on,
+.m-app .m-detail .m-seg .m-seg__btn,
 .m-app .m-bysets__top .m-seg .m-seg__btn,
+.m-app .m-detail .m-seg .m-seg__btn--on,
 .m-app .m-bysets__top .m-seg .m-seg__btn--on {
   position: relative;
   z-index: 0;
@@ -85,6 +91,7 @@
   background: transparent;
 }
 .m-app .m-summary__head .m-seg .m-seg__btn::before,
+.m-app .m-detail .m-seg .m-seg__btn::before,
 .m-app .m-bysets__top .m-seg .m-seg__btn::before {
   content: "";
   position: absolute;
@@ -97,14 +104,17 @@
   transition: background 0.12s ease;
 }
 .m-app .m-summary__head .m-seg .m-seg__btn:first-child::before,
+.m-app .m-detail .m-seg .m-seg__btn:first-child::before,
 .m-app .m-bysets__top .m-seg .m-seg__btn:first-child::before {
   border-radius: 2px 0 0 2px;
 }
 .m-app .m-summary__head .m-seg .m-seg__btn:last-child::before,
+.m-app .m-detail .m-seg .m-seg__btn:last-child::before,
 .m-app .m-bysets__top .m-seg .m-seg__btn:last-child::before {
   border-radius: 0 2px 2px 0;
 }
 .m-app .m-summary__head .m-seg .m-seg__btn + .m-seg__btn::after,
+.m-app .m-detail .m-seg .m-seg__btn + .m-seg__btn::after,
 .m-app .m-bysets__top .m-seg .m-seg__btn + .m-seg__btn::after {
   content: "";
   position: absolute;
@@ -115,6 +125,7 @@
   background: var(--color-border);
 }
 .m-app .m-summary__head .m-seg .m-seg__btn--on::before,
+.m-app .m-detail .m-seg .m-seg__btn--on::before,
 .m-app .m-bysets__top .m-seg .m-seg__btn--on::before {
   background: rgba(37, 99, 235, 0.35);
 }

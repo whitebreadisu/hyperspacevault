@@ -3,8 +3,11 @@ import type { ReactNode } from "react";
 import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
+import { publishNav, setOpener, setOpenSource } from "../card/navList";
 import { go } from "../router";
-import { Sheet } from "../Sheet";
+// ── RUN 2B BEGIN (import) ── the Filters sheet replaces the ComingSoon Sheet
+import { FiltersSheet } from "../filters/FiltersSheet";
+// ── RUN 2B END (import) ──
 import { CompletionHeader } from "./CompletionHeader";
 import { completionView } from "./completionModel";
 import type { TotalsScope } from "./completionModel";
@@ -36,6 +39,10 @@ interface Props {
   onOpenFeedback: () => void;
   /** Search mode collapses the bottom bar too (MobileApp owns the bar). */
   onSearchMode: (on: boolean) => void;
+  // ── RUN 2B BEGIN (signin prop) ── MobileApp's openSignIn, threaded through
+  /** Signed out, the Filters sheet's Collection row routes to sign in. */
+  onRequestSignIn?: () => void;
+  // ── RUN 2B END (signin prop) ──
 }
 
 export function Vault({
@@ -45,6 +52,9 @@ export function Vault({
   onOpenChooser,
   onOpenFeedback,
   onSearchMode,
+  // ── RUN 2B BEGIN (signin destructure) ──
+  onRequestSignIn,
+  // ── RUN 2B END (signin destructure) ──
 }: Props) {
   const { isAuthenticated, loading, sets, setOrder, setNameByCode } = useVaultData();
   const vv = useVaultView(params);
@@ -117,9 +127,32 @@ export function Vault({
   }, [searching, onSearchMode]);
   useEffect(() => () => onSearchMode(false), [onSearchMode]);
 
-  const openCard = useCallback((card: InventoryCard, variant: InventoryVariant | null) => {
-    go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
-  }, []);
+  // S2-01: the detail browses the list it was opened from (rev4 M.navList,
+  // set on the tap): its ids in the current order, whether it is narrowed
+  // (amber "n of m"), and the scope (it picks each card's default printing).
+  const openCard = useCallback(
+    (card: InventoryCard, variant: InventoryVariant | null) => {
+      // S2-09 / S2-11: the surface (row or gallery cell) decides the
+      // neighbour entry printing and card_popup_opened.source.
+      const source = vv.prefs.view === "gallery" ? "gallery" : "row";
+      publishNav({
+        ids: vv.list.map((c) => c.base_card_id),
+        narrowed: vv.narrowed,
+        scope: vv.state.scope,
+        source,
+        finishes: [...vv.state.filters.finish],
+      });
+      setOpenSource(source);
+      const active = document.activeElement;
+      setOpener(
+        active instanceof HTMLElement && active !== document.body
+          ? active
+          : document.querySelector<HTMLElement>(`.m-app__screen [data-card="${card.base_card_id}"]`)
+      );
+      go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
+    },
+    [vv.list, vv.narrowed, vv.state.scope, vv.prefs.view, vv.state.filters.finish]
+  );
   const closeSheet = useCallback(() => setSheet(null), []);
 
   return (
@@ -181,16 +214,23 @@ export function Vault({
           onClose={closeSheet}
         />
       ) : null}
-      {sheet === "filters" ? (
-        <Sheet
-          title="Filters"
-          labelId="sheet-filters"
-          className="m-sheet-layer--filters"
-          onClose={closeSheet}
-        >
-          <p className="m-sheet__soon">Filters arrive with the next slice.</p>
-        </Sheet>
-      ) : null}
+      {
+        // ── RUN 2B BEGIN ──
+        // BL-248 S2-12: the Filters sheet. Signed out, the Collection row
+        // closes Filters and opens MobileApp's sign-in (onRequestSignIn,
+        // threaded from MobileApp's RUN 2B (signin) block).
+        sheet === "filters" ? (
+          <FiltersSheet
+            vv={vv}
+            onClose={closeSheet}
+            onRequestSignIn={() => {
+              setSheet(null);
+              onRequestSignIn?.();
+            }}
+          />
+        ) : null
+        // ── RUN 2B END ──
+      }
     </>
   );
 }

@@ -27,17 +27,55 @@ export interface Recorder {
   pageErrors: string[];
   /** Bodies POSTed to /api/feedback. */
   feedback: unknown[];
+  /** BL-248 S2-05: POST /api/inventory/{id}/adjust calls, in order. */
+  adjust: { variantId: number; delta: number }[];
+  /** BL-248 S2-07: GET /api/base-cards/{id}/price-history queries, in order. */
+  priceHistory: { baseCardId: number; variantId: number; range: string }[];
 }
 
 const recorders = new WeakMap<Page, Recorder>();
 export const recorderFor = (page: Page): Recorder =>
-  recorders.get(page) ?? { failed: [], consoleErrors: [], pageErrors: [], feedback: [] };
+  recorders.get(page) ?? {
+    failed: [],
+    consoleErrors: [],
+    pageErrors: [],
+    feedback: [],
+    adjust: [],
+    priceHistory: [],
+  };
+
+/** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
+ * gentle deterministic wave that ends exactly on the printing's market price
+ * (so the chart's latest reading equals the rail price); empty for a
+ * printing with no market price. */
+export const PRICE_AS_OF = "2026-09-26";
+const RANGE_N: Record<string, number> = { "30d": 30, "90d": 90, "1y": 365, all: 400 };
+export function priceSeries(market: number | null, range: string) {
+  if (market == null) return [];
+  const n = RANGE_N[range] ?? 90;
+  const end = Date.parse(PRICE_AS_OF + "T00:00:00Z");
+  return Array.from({ length: n }, (_, i) => {
+    const back = n - 1 - i;
+    const f = 1 + 0.25 * Math.sin(back / 9) * (back / n);
+    return {
+      as_of: new Date(end - back * 86400000).toISOString().slice(0, 10),
+      market: Math.round(market * f * 100) / 100,
+    };
+  });
+}
 
 export async function installApiMocks(
   page: Page,
   opts: { fixture?: CardsFixture } = {}
 ): Promise<Recorder> {
-  const rec: Recorder = { failed: [], consoleErrors: [], pageErrors: [], feedback: [] };
+  const rec: Recorder = {
+    failed: [],
+    consoleErrors: [],
+    pageErrors: [],
+    feedback: [],
+    adjust: [],
+    priceHistory: [],
+  };
   recorders.set(page, rec);
 
   page.on("pageerror", (e) => rec.pageErrors.push(String(e)));
@@ -48,6 +86,17 @@ export async function installApiMocks(
     // S1-19: an image the virtualised list unmounts (or a navigation drops)
     // mid-load is cancelled by the browser -- not a failed request.
     if (r.resourceType() === "image" && r.failure()?.errorText === "net::ERR_ABORTED") return;
+    // A reload/navigation aborts in-flight third-party pixels (e.g. google.com
+    // cleardot.gif) -- noise. Only same-origin (the app's localhost) aborts count.
+    if (r.failure()?.errorText === "net::ERR_ABORTED") {
+      let host = "";
+      try {
+        host = new URL(r.url()).hostname;
+      } catch {
+        /* unparsable URL: treat as same-origin and keep failing */
+      }
+      if (host && host !== "localhost" && host !== "127.0.0.1") return;
+    }
     rec.failed.push(`${r.method()} ${r.url()} (${r.failure()?.errorText})`);
   });
 
@@ -55,6 +104,13 @@ export async function installApiMocks(
   const sets = json<{ code: string; name: string }[]>("sets.json");
   const quantities = json<{ variant_id: number; quantity: number }[]>("quantities.json");
   const qtyById = new Map(quantities.map((q) => [q.variant_id, q.quantity]));
+  const markets = new Map<number, number | null>();
+  for (const c of cards)
+    for (const v of c.variants)
+      markets.set(
+        v.variant_id,
+        (v as { price?: { market: number | null } | null }).price?.market ?? null
+      );
   const ok = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
@@ -73,16 +129,39 @@ export async function installApiMocks(
       if (method === "GET" && path === "/api/settings/limits")
         return ok(route, json("limits.json"));
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
+      // S2-05: the stepper's batched adjust; the double keeps the quantities
+      // it answers with (a later GET of /quantities still reads the fixture).
+      const adj = path.match(/^\/api\/inventory\/(\d+)\/adjust$/);
+      if (method === "POST" && adj) {
+        const variantId = Number(adj[1]);
+        const delta = Number((req.postDataJSON() as { delta: number }).delta);
+        rec.adjust.push({ variantId, delta });
+        const quantity = Math.max(0, (qtyById.get(variantId) ?? 0) + delta);
+        qtyById.set(variantId, quantity);
+        return ok(route, {
+          variant_id: variantId,
+          quantity,
+          applied: delta,
+          requested: delta,
+          blocked: false,
+          reason: null,
+          over_limit: false,
+          playset_complete: false,
+        });
+      }
       if (method === "POST" && path === "/api/feedback") {
         rec.feedback.push(req.postDataJSON());
         return ok(route, { ok: true });
       }
       const price = path.match(/^\/api\/base-cards\/(\d+)\/price-history$/);
       if (method === "GET" && price) {
+        const variantId = Number(url.searchParams.get("variant_id") ?? 0);
+        const range = url.searchParams.get("range") ?? "90d";
+        rec.priceHistory.push({ baseCardId: Number(price[1]), variantId, range });
         return ok(route, {
-          variant_id: Number(url.searchParams.get("variant_id") ?? 0),
-          range: url.searchParams.get("range") ?? "90d",
-          series: [],
+          variant_id: variantId,
+          range,
+          series: priceSeries(markets.get(variantId) ?? null, range),
         });
       }
       const detail = path.match(/^\/api\/base-cards\/(\d+)$/);

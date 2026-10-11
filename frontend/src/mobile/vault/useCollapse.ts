@@ -48,7 +48,15 @@ export interface Collapse {
  * margin-bottom of --vh-delta while expanded), i.e. scroll room that exists
  * only while expanded; the short-list rule subtracts it so it measures the
  * room left once collapsed. */
-export function useCollapse(forced: boolean, minRoom = 320, parentCut = false): Collapse {
+/** `extraRoom` (BL-248 S2-02, card detail): scroll room that exists only
+ * while expanded for another reason -- the detail body's translateY(--d-delta)
+ * extends the scrollable overflow -- subtracted the same way. */
+export function useCollapse(
+  forced: boolean,
+  minRoom = 320,
+  parentCut = false,
+  extraRoom = 0
+): Collapse {
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [collapsed, setCollapsed] = useState(forced);
   const [pull, setPull] = useState(0);
@@ -66,6 +74,10 @@ export function useCollapse(forced: boolean, minRoom = 320, parentCut = false): 
   useEffect(() => {
     st.current.c = collapsed;
   }, [collapsed]);
+  const extraRef = useRef(extraRoom);
+  useEffect(() => {
+    extraRef.current = extraRoom;
+  }, [extraRoom]);
 
   useEffect(() => {
     if (!el) return undefined;
@@ -91,7 +103,8 @@ export function useCollapse(forced: boolean, minRoom = 320, parentCut = false): 
         parentCut && el.parentElement
           ? parseFloat(getComputedStyle(el.parentElement).marginBottom) || 0
           : 0;
-      if (el.scrollHeight - el.clientHeight - ex < minRoom) return;
+      const ex2 = extraRef.current;
+      if (el.scrollHeight - el.clientHeight - ex - ex2 < minRoom) return;
       if (t - s.anchor > 28) {
         s.c = true;
         setCollapsed(true);

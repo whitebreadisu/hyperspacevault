@@ -2,9 +2,11 @@ import { AspectIcon } from "../../components/AspectIcon";
 import { RarityBadge } from "../../components/RarityBadge";
 import { StatBadge } from "../../components/StatBadge";
 import { parseCardDisplay } from "../../utils/catalog";
+import { cardOwnedTotal } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { cardValuePrice, formatCardValue } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
+import { openFinishSheet } from "../card/FinishSheet";
 import { cellImage, pickRepresentative, scopedVariant } from "./cardImage";
 import { Playset } from "./Playset";
 import type { RowSize } from "./useVaultView";
@@ -16,7 +18,11 @@ import type { RowSize } from "./useVaultView";
 // the scoped printing's own number (amber), the price is that printing's
 // own price or an em dash (cardValuePrice -- never Standard's), the thumbnail
 // is its art, the pips read its count and the price + playset cluster carries
-// desktop's faint amber column wash. The whole row is one tap target.
+// desktop's faint amber column wash.
+// BL-248 S2-10 (R5-1): the row is two buttons side by side, as rev4 -- the
+// main part opens the card; the price + playset cluster opens Owned by
+// finish when signed in (the touch replacement for the desktop hover
+// dossier) and opens the card when signed out (desktop shows no dossier).
 
 export function CardRow({
   card,
@@ -41,34 +47,40 @@ export function CardRow({
     ? `${sv.source_set_code} ${sv.card_number}`
     : `${card.set_code} ${card.base_card_number}`;
   const numEl = <span className={"m-row__num" + (sv ? " m-row__num--scoped" : "")}>{num}</span>;
+  const label = `${num} ${displayName}${subtitle ? ", " + subtitle : ""}`;
+  const open = () => onOpen(card, sv ?? null);
   const own = (
-    <span className={"m-row__own" + (scope ? " m-row__own--scoped" : "")}>
+    <button
+      type="button"
+      className={"m-row__own" + (scope ? " m-row__own--scoped" : "")}
+      onClick={isAuthenticated ? () => openFinishSheet(card.base_card_id, open) : open}
+      aria-label={
+        isAuthenticated
+          ? `${displayName}: ${cardOwnedTotal(card.inventory)} owned. Show owned by finish`
+          : label
+      }
+    >
       <span className={"m-row__price" + (price === "—" ? " m-row__price--none" : "")}>{price}</span>
       <span className="m-row__ownline">
         <Playset card={card} scope={scope} isAuthenticated={isAuthenticated} />
       </span>
-    </span>
+    </button>
   );
-  const label = `${num} ${displayName}${subtitle ? ", " + subtitle : ""}`;
-  const open = () => onOpen(card, sv ?? null);
 
   if (size === "none") {
     return (
-      <button
-        type="button"
+      <div
         className="m-row m-row--t-none m-row--line"
         data-card={card.base_card_id}
         data-set={card.set_code}
-        onClick={open}
-        aria-label={label}
       >
-        <span className="m-row__main">
+        <button type="button" className="m-row__main" onClick={open} aria-label={label}>
           {numEl}
           <span className="m-row__name">{displayName}</span>
           {subtitle ? <span className="m-row__sub">{subtitle}</span> : null}
-        </span>
+        </button>
         {own}
-      </button>
+      </div>
     );
   }
 
@@ -76,15 +88,12 @@ export function CardRow({
   const aspectSize = size === "lg" ? 24 : size === "md" ? 20 : 18;
   const hasStats = card.cost != null || card.power != null || card.hp != null;
   return (
-    <button
-      type="button"
+    <div
       className={"m-row m-row--t-" + size}
       data-card={card.base_card_id}
       data-set={card.set_code}
-      onClick={open}
-      aria-label={label}
     >
-      <span className="m-row__main">
+      <button type="button" className="m-row__main" onClick={open} aria-label={label}>
         <span className="m-row__thumb">
           {img.images ? (
             <img
@@ -132,8 +141,8 @@ export function CardRow({
             </span>
           ) : null}
         </span>
-      </span>
+      </button>
       {own}
-    </button>
+    </div>
   );
 }
