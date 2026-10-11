@@ -3,7 +3,7 @@ import type { CapHandling } from "../../api/inventoryImportExport";
 import type { PreconEntry } from "../../data/preconDecks";
 import { useLimits } from "../../context/LimitsContext";
 import { entryName, entryProduct } from "../../screens/inventory/AddCardsPreconBar";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { useVaultData } from "../vault/useVaultData";
 import { addDeck } from "./batch";
 import { preconFacts, setLogoUrl } from "./padModel";
@@ -92,9 +92,9 @@ export function PreconPanel({
         <button type="button" className="m-textbtn m-d2-precon__change" onClick={onChangeSet}>
           Change set
         </button>
-        <MSWUButton size="md" active onClick={add} className="m-d2-precon__add">
+        <SWUButton size="md" active onClick={add} className="m-d2-precon__add">
           Add deck to batch
-        </MSWUButton>
+        </SWUButton>
       </div>
     </div>
   );

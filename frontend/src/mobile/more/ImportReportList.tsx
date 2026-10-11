@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportReport, ImportRowReport } from "../../api/inventoryImportExport";
 import { totalCardsFromReport } from "../../screens/importexport/ImportPreviewReport";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import {
   GENERIC_REASON_TEXT,
   MISMATCH_TEXT,
@@ -95,9 +95,9 @@ function Paged<T>({ items, render }: { items: T[]; render: (item: T, i: number) 
     <>
       <ul className="m-ie-list">{items.slice(0, shown).map(render)}</ul>
       {items.length > shown ? (
-        <MSWUButton size="touch" onClick={() => setShown((n) => n + PAGE)}>
+        <SWUButton size="touch" onClick={() => setShown((n) => n + PAGE)}>
           {`Show more (${items.length - shown})`}
-        </MSWUButton>
+        </SWUButton>
       ) : null}
     </>
   );
@@ -181,9 +181,9 @@ export function ImportReportList({ report, onDownloadProblemRows }: Props) {
           Resolved rows ({resolvedRows.length})
         </button>
       </div>
-      <MSWUButton size="touch" onClick={onDownloadProblemRows}>
+      <SWUButton size="touch" onClick={onDownloadProblemRows}>
         Download problem rows (CSV)
-      </MSWUButton>
+      </SWUButton>
 
       {view === "problem" ? (
         <section key="p" role="tabpanel" aria-label="Problem rows">

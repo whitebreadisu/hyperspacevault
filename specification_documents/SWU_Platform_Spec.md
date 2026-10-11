@@ -373,11 +373,13 @@ The consumer-facing rename to **HyperspaceVault** rides the same change: `terraf
 
 ### 3.11 Frontend ↔ backend connection
 
-`frontend/firebase.json`:
+`frontend/firebase.json` (excerpt: the `/api/**` rewrite):
 
 ```json
 "rewrites": [{ "source": "/api/**", "run": { "serviceId": "backend", "region": "us-central1" } }]
 ```
+
+The file also carries the `/images/**` and `/shared/**` rewrites and, since BL-253, the scanner's scoped rules (App Spec §25.7): a `/scan` -> `/scan/` redirect, a `/scan/**` rewrite to `scan.html`, and headers on `/scan/**` and `/scan.html` (COOP `same-origin`, COEP `require-corp`, `Permissions-Policy: camera=(self), microphone=(), geolocation=()`, `Cache-Control: no-cache`) and on `/vendor/scan/**` and `/scan-workers/**` (CORP `same-origin` + COEP). **The main document gets no COOP/COEP** — a site-wide COEP would block the Google sign-in popup — and its Permissions-Policy is untouched.
 
 Firebase Hosting transparently proxies `/api/**` requests to the Cloud Run `backend` service. From the browser's perspective, `https://www.hyperspacevault.com/api/sets` and `https://swu-prod.web.app/api/sets` are **same-origin** requests — CORS is never invoked in production.
 

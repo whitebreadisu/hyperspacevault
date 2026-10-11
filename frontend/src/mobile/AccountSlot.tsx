@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MSWUButton } from "./MSWUButton";
+import { SWUButton } from "../components/SWUButton";
 import { go } from "./router";
 
 // BL-247 S1-08: the header's account slot (rev4 MHome.jsx:77-117 = desktop
@@ -56,9 +56,9 @@ export function AccountSlot({
   if (!email) {
     return (
       <div className="m-acct">
-        <MSWUButton size="sm" className="m-acct__signin" onClick={onSignIn}>
+        <SWUButton size="sm" className="m-acct__signin" onClick={onSignIn}>
           Sign in
-        </MSWUButton>
+        </SWUButton>
       </div>
     );
   }

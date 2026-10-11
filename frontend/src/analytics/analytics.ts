@@ -38,7 +38,13 @@ export type AnalyticsEvent =
   | "export_performed"
   | "deck_check_run"
   | "share_created"
-  | "share_link_viewed";
+  | "share_link_viewed"
+  // BL-253 S7-18 (BL-244, additive): the phone camera (enums + booleans only;
+  // never OCR text, keys, card names or images)
+  | "scan_recognised"
+  | "scan_decision"
+  | "scan_pick_shown"
+  | "scan_fallback_keypad";
 
 // Property values are enums/counts only -- no raw user-typed text, no PII
 // (taxonomy property standard). The type can't prove "no free text", but it
@@ -65,6 +71,8 @@ export const SCREEN_VIEWED_SCREENS = [
   "vault",
   "card",
   "tool",
+  // BL-253 S7-18: the camera mode of the tool (the isolated /scan/ document).
+  "camera",
   "more",
   "feedback",
   "about",

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLimits } from "../../context/LimitsContext";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { capturePhone } from "../phoneAnalytics";
 import { Sheet, useSheetClose } from "../Sheet";
 import { useVaultData } from "../vault/useVaultData";
@@ -181,9 +181,9 @@ function FiltersFooter({
         >
           Reset filters
         </button>
-        <MSWUButton size="md" onClick={close} className="m-filterfoot__show">
+        <SWUButton size="md" onClick={close} className="m-filterfoot__show">
           {count === 1 ? "Show 1 card" : `Show ${count} cards`}
-        </MSWUButton>
+        </SWUButton>
       </div>
     </div>
   );

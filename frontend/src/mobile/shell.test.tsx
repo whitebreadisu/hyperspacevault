@@ -30,12 +30,18 @@ describe("S1-04 shell + bottom bar", () => {
     expect(current()).toEqual([]);
   });
 
-  it("the centre button is the keypad alone while the camera flag is off", () => {
+  // BL-253 S7-24 REPLACE (flag flipped in S7-09): was "the centre button is
+  // the keypad alone while the camera flag is off" -- the button now carries
+  // both glyphs + the divider and opens the last mode (keypad by default).
+  it("the centre button shows keypad | camera and opens the last mode", () => {
     render(<MobileNav route={parseHash("#/vault")} />);
-    const pad = screen.getByRole("button", { name: "Keypad" });
-    expect(pad.querySelectorAll(".m-nav__tool")).toHaveLength(1);
-    expect(pad.querySelector(".m-nav__tooldiv")).toBeNull();
-    fireEvent.click(pad);
+    const btn = screen.getByRole("button", {
+      name: "Keypad or camera: opens the mode you used last",
+    });
+    expect(btn.querySelectorAll(".m-nav__tool")).toHaveLength(2);
+    expect(btn.querySelector(".m-nav__tooldiv")).not.toBeNull();
+    expect(btn.querySelector(".m-nav__tool--on svg")).not.toBeNull();
+    fireEvent.click(btn);
     expect(window.location.hash).toBe("#/pad");
   });
 });

@@ -58,6 +58,10 @@ export function go(hash: string, replace?: boolean): void {
   }
 }
 
+/** BL-253 S7-09: forward navigations of ours left to walk back (the camera's
+ * close decides between an in-document back and the hop back to `/`). */
+export const navDepth = (): number => depth;
+
 export function back(): void {
   backOr("#/vault");
 }

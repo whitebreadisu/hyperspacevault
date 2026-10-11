@@ -14,7 +14,7 @@ import { useLimits } from "../../context/LimitsContext";
 import { useBusyOverlay } from "../../hooks/useBusyOverlay";
 import { groupBy } from "../../utils/addCardsResolver";
 import type { VerificationRow } from "../../utils/addCardsResolver";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { useVaultData } from "../vault/useVaultData";
 import {
@@ -400,7 +400,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
         >
           Discard batch
         </button>
-        <MSWUButton
+        <SWUButton
           size="md"
           active={adds > 0 && !committing}
           ariaDisabled={!adds || committing}
@@ -408,7 +408,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
           className="m-d2-verify__commit"
         >
           Add {cardsWord(adds)} to vault
-        </MSWUButton>
+        </SWUButton>
       </div>
     </div>
   ) : null;

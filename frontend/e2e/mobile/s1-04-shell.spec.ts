@@ -1,8 +1,8 @@
 import { expect, measureEach, test } from "./helpers";
 
 // S1-04: the shell's bottom bar (rev4 `bar-one`): three targets >= 44 px --
-// Vault tab, the centre SWUButton (keypad glyph only while the camera flag is
-// off), More tab -- the circuit separator straddling the bar's top edge, and
+// Vault tab, the centre SWUButton (keypad | camera glyphs + divider since the
+// camera flag flipped, BL-253 S7-09), More tab -- the circuit separator straddling the bar's top edge, and
 // aria-current on the active tab; #/more renders the More screen with the
 // bar still visible (BL-250 S4-01 PORT: was the ComingSoon sentence), and
 // #/pad opens the tool layer over it (BL-249 S3-01 PORT).
@@ -48,12 +48,13 @@ test("s1-04-bar-three-items", async ({ page }) => {
     expect(t.h).toBeGreaterThanOrEqual(44);
   }
   expect(m.tabs.map((t) => t.cur)).toEqual(["page", null]);
-  expect(m.btn.label).toBe("Keypad");
+  // BL-253 S7-24 REPLACE (flag on): was label "Keypad", 1 glyph, no divider.
+  expect(m.btn.label).toBe("Keypad or camera: opens the mode you used last");
   expect(m.btn.h).toBeGreaterThanOrEqual(44);
   expect(m.btn.w).toBeGreaterThanOrEqual(44);
   expect(Math.abs(m.btn.cx - m.iw / 2)).toBeLessThanOrEqual(2);
-  expect(m.tools).toBe(1);
-  expect(m.divider).toBe(false);
+  expect(m.tools).toBe(2);
+  expect(m.divider).toBe(true);
   expect(Math.abs(m.sepMid - m.navTop)).toBeLessThanOrEqual(1);
   expect(Math.round(m.navBottom)).toBe(m.ih);
 

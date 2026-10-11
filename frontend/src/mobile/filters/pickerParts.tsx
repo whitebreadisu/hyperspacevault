@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import type { SelectOption } from "../../utils/filters";
 import { MIcon } from "../icons";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { optionState } from "./filterModel";
 
@@ -117,9 +117,9 @@ function EscapeClosesTop() {
 function DoneButton() {
   const close = useSheetClose();
   return (
-    <MSWUButton size="md" onClick={close} className="m-picker__done">
+    <SWUButton size="md" onClick={close} className="m-picker__done">
       Done
-    </MSWUButton>
+    </SWUButton>
   );
 }
 

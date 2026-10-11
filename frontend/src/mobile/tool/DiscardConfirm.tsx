@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { MIcon } from "../icons";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { useSheetHost } from "../Sheet";
 import "./verify.css";
 
@@ -76,13 +76,13 @@ export function DiscardConfirm({ onDiscard, onReturn }: DiscardConfirmProps) {
           </p>
           <div className="m-d2-confirm__actions">
             <span className="m-d2-confirm__danger">
-              <MSWUButton size="touch" onClick={onDiscard}>
+              <SWUButton size="touch" onClick={onDiscard}>
                 Discard &amp; Close
-              </MSWUButton>
+              </SWUButton>
             </span>
-            <MSWUButton size="touch" onClick={onReturn}>
+            <SWUButton size="touch" onClick={onReturn}>
               Return to Batch
-            </MSWUButton>
+            </SWUButton>
           </div>
         </div>
       </div>

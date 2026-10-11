@@ -1,7 +1,40 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, coverageConfigDefaults } from "vitest/config";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { ENTRY_INPUTS } from "./src/mobile/camera/scanEntries.ts";
+import { headersFor, scanRewrite } from "./src/mobile/camera/scanHeaders.ts";
+
+// BL-253 S7-01 / S7-02: the scanner document. `/scan` and `/scan/` are served
+// scan.html (Firebase does the same with a rewrite in prod), and the scoped
+// isolation headers (COOP / COEP / Permissions-Policy on the document, immutable
+// caching + COEP on the vendored reader payload and the worker script) are set
+// by the same pure `headersFor` that firebase.json's rule is asserted against.
+// The main document and every other asset get nothing (plan A11).
+function scanDocument(): Plugin {
+  const middleware = (
+    req: { url?: string },
+    res: { setHeader(k: string, v: string): void },
+    next: () => void
+  ) => {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const h = headersFor(url.pathname);
+    if (h) for (const [k, v] of Object.entries(h)) res.setHeader(k, v);
+    const to = scanRewrite(url.pathname);
+    if (to) req.url = to + url.search;
+    next();
+  };
+  return {
+    name: "hsv-scan-document",
+    configureServer(server) {
+      server.middlewares.use(middleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware);
+    },
+  };
+}
 
 // BL-184: package.json's "version" is the single source of truth for the
 // app's displayed version (Header's footer label + the release-notes
@@ -15,9 +48,19 @@ const pkg = JSON.parse(
 ) as { version: string };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), scanDocument()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  build: {
+    // S7-01: two entries -- the app and the isolated scanner document.
+    rollupOptions: { input: ENTRY_INPUTS },
+  },
+  worker: {
+    // S7-05: the reader worker is an ES module worker, emitted under a fixed
+    // folder so the scoped COEP header rule can name it (scanHeaders.ts).
+    format: "es",
+    rollupOptions: { output: { entryFileNames: "scan-workers/[name]-[hash].js" } },
   },
   server: {
     host: "0.0.0.0",

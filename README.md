@@ -108,6 +108,14 @@ Stop with `docker compose down`. Local auth-emulator accounts persist across res
 - **Frontend** — Vite hot-reloads `frontend/src/` instantly.
 - **Tests** — `docker compose exec backend pytest` · `docker compose exec frontend npm test`
 
+## Phone layout
+
+At viewport widths up to 767 px the app renders a separate phone UI (`frontend/src/mobile/`) instead of the desktop tree: `App.tsx` switches on `useIsPhone()` (`matchMedia("(max-width: 767px)")`, live), so tablets and anything wider keep the desktop layout. The phone UI includes shared-vault links (`/shared/{token}`) and a card scanner: the camera runs in a second, cross-origin-isolated document served at `/scan/` (`frontend/scan.html`; only `/scan/**`, `/scan-workers/**` and `/vendor/scan/**` carry the COOP/COEP headers, set in `frontend/firebase.json`; the on-device reader payload lives in `frontend/public/vendor/scan/` with its licence notices). Everything about it is described in **`specification_documents/SWU_Application_Spec.md` §25** (the analytics events it sends are in §22, the scanner's design in §24).
+
+Tests: phone logic runs in the normal vitest suite (`npx vitest run src/mobile`); layout runs in Playwright against the dev server with the API mocked from committed fixtures and sign-in on the Auth emulator. From `frontend/`: `npm run e2e:mobile` runs every project (phone-390, phone-430, the fake-camera `scan` project, and a desktop-1440 smoke); pass Playwright arguments through, e.g. `node e2e/run-mobile.mjs --project=scan` or `--grep "s6-"`. CI runs the same suite as the required `frontend-e2e-mobile` job.
+
+In Docker, `docker compose exec frontend npm test` can run the phone docs guard (`src/mobile/docs.test.ts`) because the compose file mounts `./specification_documents` read-only into the frontend container.
+
 ## Project structure
 
 ```

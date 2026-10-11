@@ -18,6 +18,7 @@ import {
 } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import { cardsForEntry } from "../../utils/preconImport";
+import { clearPersisted, readPersisted, writeBatch } from "./batchPersist";
 import type { PadPicks } from "./toolStore";
 
 // BL-249 S3-08: the batch model (rev4 data.js RUN D2 `M.addEntry` /
@@ -42,10 +43,16 @@ import type { PadPicks } from "./toolStore";
 //     are "not added" with desktop's reason; soft mode and `force` rows stay
 //     in "added" flagged over-limit; the 999 ceiling blocks in both modes).
 //   - The store is a module store: the batch persists while the tool is
-//     closed and while the card layer is over it (session only, never
-//     persisted).
+//     closed and while the card layer is over it. BL-253 S7-08: it is also
+//     mirrored to sessionStorage (batchPersist.ts) so it survives the hop
+//     between the main document and the isolated /scan/ document; a new tab
+//     starts empty.
 
-export type BatchVia = "keypad" | "precon";
+/** BL-253 S7-14 / S7-17: camera rows (`camera` = Add in the prompt,
+ * `camera_fast_add` = the automatic add of Fast add) are keypad rows in every
+ * respect (set + number + picks, one adjust per printing at commit); the via
+ * only feeds add_cards_committed.method (S7-18). */
+export type BatchVia = "keypad" | "precon" | "camera" | "camera_fast_add";
 
 /** One copy waiting in the batch. */
 export interface BatchRow {
@@ -68,12 +75,24 @@ export interface BatchRow {
 
 export type NewBatchRow = Omit<BatchRow, "id">;
 
-let rows: BatchRow[] = [];
-let seq = 0;
+// Hydrated from the sessionStorage mirror at load (S7-08).
+const saved = readPersisted();
+let rows: BatchRow[] = saved?.rows ?? [];
+let seq = saved?.seq ?? 0;
 const subs = new Set<() => void>();
 
 function emit(next: BatchRow[]): void {
   rows = next;
+  writeBatch(rows, seq);
+  subs.forEach((f) => f());
+}
+
+/** S7-08: re-read the mirror (a bfcache `pageshow` -- the other document may
+ * have changed the batch while this one was frozen). */
+export function rehydrateBatch(): void {
+  const p = readPersisted();
+  rows = p?.rows ?? [];
+  seq = Math.max(seq, p?.seq ?? 0);
   subs.forEach((f) => f());
 }
 
@@ -130,6 +149,7 @@ export function discardBatch(): void {
 export function resetBatchForTest(): void {
   seq = 0;
   rows = [];
+  clearPersisted();
   subs.forEach((f) => f());
 }
 
@@ -289,7 +309,7 @@ function verificationRowOf(
   inv: InventoryStatus,
   catalog: AddCardsCatalogEntry[]
 ): VerificationRow {
-  if (r.via === "keypad") {
+  if (r.via !== "precon") {
     const row = keypadRowOf(r);
     const resolved = resolveRow(row, catalog);
     if (resolved.status === "resolved") {

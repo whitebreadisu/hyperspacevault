@@ -59,6 +59,9 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      # docs.test.ts reads ../specification_documents (the App Spec) from the vitest
+      # root, i.e. /specification_documents inside the container.
+      - ./specification_documents:/specification_documents:ro
     environment:
       VITE_API_URL: http://localhost:8000
     depends_on:

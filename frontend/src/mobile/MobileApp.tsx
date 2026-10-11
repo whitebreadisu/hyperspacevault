@@ -21,9 +21,19 @@ import { SharedStatus } from "./shared/SharedStatus";
 import { useShare } from "./shared/useShare";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
-import { back, backOr, go, parseHash, useRoute } from "./router";
+import { back, backOr, go, parseHash, setBgRoute, useRoute } from "./router";
 import type { Route } from "./router";
+import { rehydrateBatch } from "./tool/batch";
+import {
+  bounceSignIn,
+  finishSignInBounce,
+  getCameraScreen,
+  hopToCamera,
+  isScanDocument,
+  pendingSignInReturn,
+} from "./tool/cameraHop";
 import { ToolLayer } from "./tool/ToolLayer";
+import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "./vault/useVaultData";
@@ -128,25 +138,53 @@ function useVisualViewport(): void {
   }, []);
 }
 
+/** BL-253 S7-08: a page restored from the back/forward cache is frozen memory --
+ * the other document (main / isolated /scan/) may have changed the batch in
+ * between, so re-read the sessionStorage mirror. */
+function useRehydrateOnPageShow(): void {
+  useEffect(() => {
+    const on = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      rehydrateBatch();
+      rehydrateTool();
+    };
+    window.addEventListener("pageshow", on);
+    return () => window.removeEventListener("pageshow", on);
+  }, []);
+}
+
 export function MobileApp() {
   const route = useRoute();
+  useRehydrateOnPageShow();
   const { user, logout, emailVerified, loading } = useAuth();
 
   // S1-09: the auth layer, closed by desktop's single-source-of-truth rule --
   // a successful sign-in closes it, except mid-signup / mid-Google-link where
   // AuthModal owns its own follow-up screen (App.tsx BL-16 / BL-118).
-  const [authOpen, setAuthOpen] = useState(false);
+  // BL-253 S7-09 (7a FINDING 2, ruling 1): the isolated /scan/ document cannot
+  // run the Google popup, so its sign-in bounces here (cameraHop.bounceSignIn);
+  // this document opens the auth layer for a pending bounce and returns once
+  // signed in (or walks back if the layer is closed without signing in).
+  const [bounce] = useState(() => !isScanDocument() && pendingSignInReturn() !== null);
+  const [authOpen, setAuthOpen] = useState(bounce);
   const [signupInFlight, setSignupInFlight] = useState(false);
   const [googleLinkedInFlight, setGoogleLinkedInFlight] = useState(false);
   useEffect(() => {
-    if (user && !signupInFlight && !googleLinkedInFlight) setAuthOpen(false);
-  }, [user, signupInFlight, googleLinkedInFlight]);
-  const openSignIn = useCallback(() => setAuthOpen(true), []);
+    if (user && !signupInFlight && !googleLinkedInFlight) {
+      setAuthOpen(false);
+      if (bounce) finishSignInBounce(true);
+    }
+  }, [user, signupInFlight, googleLinkedInFlight, bounce]);
+  const openSignIn = useCallback(() => {
+    if (isScanDocument()) bounceSignIn();
+    else setAuthOpen(true);
+  }, []);
   const closeAuth = useCallback(() => {
     setAuthOpen(false);
     setSignupInFlight(false);
     setGoogleLinkedInFlight(false);
-  }, []);
+    if (bounce && !user) finishSignInBounce(false);
+  }, [bounce, user]);
 
   // S1-07 / S4-04: the title chooser and the release-notes cue.
   const cue = useReleaseCue();
@@ -214,6 +252,21 @@ export function MobileApp() {
     setToolUnderCard(seg0 === "card" && (prevSeg === "pad" || prevSeg === "camera"));
   }
   const toolShown = isTool || (cardId != null && toolUnderCard);
+  // BL-253 S7-10: which tool the layer shows (kept while a card is over it).
+  const [toolSeg, setToolSeg] = useState(seg0 === "camera" ? "camera" : "pad");
+  if (isTool && seg0 !== toolSeg) setToolSeg(seg0);
+  const cameraShown = toolShown && toolSeg === "camera";
+  // S7-09: the tool layer's X / Back returns to the screen beneath it; the
+  // camera hop rewrites the main document's entry to it before leaving.
+  useEffect(() => {
+    setBgRoute(baseRoute.hash);
+  }, [baseRoute]);
+  // S7-09: `#/camera` on the main document (a deep link, a stale history
+  // entry) is the hop to the isolated document -- it has no camera here.
+  const hopNeeded = seg0 === "camera" && !inShare && !getCameraScreen();
+  useEffect(() => {
+    if (hopNeeded) hopToCamera(true);
+  }, [hopNeeded]);
   const screenRoute = toolShown ? baseRoute : route;
 
   const [vaultParams, setVaultParams] = useState(() =>
@@ -464,6 +517,7 @@ export function MobileApp() {
           {toolShown && !inShare ? (
             <ToolLayer
               params={isTool ? route.params : {}}
+              camera={cameraShown}
               covered={cardId != null}
               onRequestSignIn={openSignIn}
             />

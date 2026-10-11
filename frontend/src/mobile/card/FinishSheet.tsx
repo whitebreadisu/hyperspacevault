@@ -3,7 +3,7 @@ import { parseCardDisplay } from "../../utils/catalog";
 import { getPlaysetSize } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { scopeShortName } from "../../utils/variantScope";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { Playset } from "../vault/Playset";
 import { useVaultData } from "../vault/useVaultData";
@@ -67,7 +67,7 @@ function OpenCard({ onOpen }: { onOpen: () => void }) {
   const close = useSheetClose();
   return (
     <div className="m-dossier__open">
-      <MSWUButton
+      <SWUButton
         size="md"
         className="m-swu-full"
         onClick={() => {
@@ -76,7 +76,7 @@ function OpenCard({ onOpen }: { onOpen: () => void }) {
         }}
       >
         Open card
-      </MSWUButton>
+      </SWUButton>
     </div>
   );
 }

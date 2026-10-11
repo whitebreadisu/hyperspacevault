@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { submitFeedback } from "../api/feedback";
 import { useAuth } from "../context/AuthContext";
 import { MIcon } from "./icons";
-import { MSWUButton } from "./MSWUButton";
+import { SWUButton } from "../components/SWUButton";
 import { capturePhone } from "./phoneAnalytics";
 import { backOr } from "./router";
 import "./feedback.css";
@@ -194,7 +194,7 @@ export function FeedbackScreen({
                 >
                   Cancel
                 </button>
-                <MSWUButton
+                <SWUButton
                   size="md"
                   active={canSubmit}
                   ariaDisabled={!canSubmit}
@@ -202,7 +202,7 @@ export function FeedbackScreen({
                   className="m-fb__submit"
                 >
                   {submitting ? "Sending…" : "Submit Feedback"}
-                </MSWUButton>
+                </SWUButton>
               </div>
             </div>
           )}

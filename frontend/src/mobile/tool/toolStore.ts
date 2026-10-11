@@ -3,11 +3,18 @@ import { MOBILE_CAMERA_ENABLED } from "../flags";
 import { go } from "../router";
 import { addCopy, resetBatchForTest } from "./batch";
 import type { NewBatchRow } from "./batch";
+import { clearPersisted, readPersisted, writeTool } from "./batchPersist";
+import { openCamera } from "./cameraHop";
+import { getScanSettings, resetScanSettingsForTest, setScanSettings } from "./scanSettings";
 
 // BL-249 S3-01: the tool layer's state (rev4 M.state().pad / padSet /
 // padPrecon / toolMode). A plain module store, so it survives the layer
-// closing and the card layer opening over it (S3-06), for the session only
-// (never persisted; a reload starts on SOR, rev4 data.js:79).
+// closing and the card layer opening over it (S3-06). BL-253 S7-08: `mode`,
+// `setCode` and `preconKey` are also mirrored to sessionStorage (batchPersist)
+// so they survive the hop to the isolated /scan/ document, and the last mode is
+// remembered across reloads in localStorage (scanSettings); a fresh tab with
+// no stored mode starts on the keypad and SOR (rev4 data.js:79). The typed
+// number, picks and the last-add cue are never persisted.
 //   - mode: the last-used tool mode. With MOBILE_CAMERA_ENABLED off there is
 //     only the keypad, so the camera mode can never be remembered (plan A8).
 //   - setCode / preconKey: what the keypad is locked to (S3-05). A deck
@@ -54,11 +61,33 @@ const INITIAL: ToolState = {
   preconAdded: null,
 };
 
-let state: ToolState = INITIAL;
+/** S7-08: the stored tool fields (session mirror first, then the remembered
+ * mode), with the camera mode coerced to the keypad while the camera flag is off. */
+function hydrated(): ToolState {
+  const t = readPersisted()?.tool ?? null;
+  const mode = t?.mode ?? getScanSettings().mode;
+  return {
+    ...INITIAL,
+    mode: mode === "camera" && !MOBILE_CAMERA_ENABLED ? "keypad" : mode,
+    setCode: t?.setCode ?? INITIAL.setCode,
+    preconKey: t?.preconKey ?? null,
+  };
+}
+
+let state: ToolState = hydrated();
 const subs = new Set<() => void>();
 
 function emit(next: ToolState): void {
   state = next;
+  writeTool({ mode: next.mode, setCode: next.setCode, preconKey: next.preconKey });
+  subs.forEach((f) => f());
+}
+
+/** S7-08: re-read the mirror (a bfcache `pageshow`). Only the persisted fields
+ * change; the typed number and picks stay. */
+export function rehydrateTool(): void {
+  const h = hydrated();
+  state = { ...state, mode: h.mode, setCode: h.setCode, preconKey: h.preconKey };
   subs.forEach((f) => f());
 }
 
@@ -81,7 +110,9 @@ export function useToolState(): ToolState {
   return useSyncExternalStore(subscribe, getToolState, getToolState);
 }
 
-/** The route a tool mode lives at. */
+/** The route a tool mode lives at. BL-253 S7-09: `#/camera` is served by the
+ * isolated /scan/ document; on the main document that route hops there
+ * (cameraHop.ts, MobileApp). */
 export function toolRouteFor(mode: ToolMode): string {
   return mode === "camera" && MOBILE_CAMERA_ENABLED ? "#/camera" : "#/pad";
 }
@@ -91,11 +122,14 @@ export function toolRouteFor(mode: ToolMode): string {
 export function setToolMode(mode: ToolMode): void {
   if (mode === "camera" && !MOBILE_CAMERA_ENABLED) return;
   if (state.mode !== mode) setToolState({ mode });
+  setScanSettings({ mode });
 }
 
-/** S3-01: the bar's centre button -- opens the mode used last. */
+/** S3-01: the bar's centre button -- opens the mode used last. BL-253 S7-09:
+ * the camera opens in place inside /scan/, else by the document hop. */
 export function openTool(): void {
-  go(toolRouteFor(state.mode));
+  if (toolRouteFor(state.mode) === "#/camera") openCamera();
+  else go("#/pad");
 }
 
 /** Keypad key handling (rev4 MPad onKey): digits append (max 4, leading
@@ -166,5 +200,7 @@ export function setPreconAdded(key: string, n: number): void {
 /** Test seam. */
 export function resetToolForTest(): void {
   resetBatchForTest();
+  resetScanSettingsForTest();
   emit(INITIAL);
+  clearPersisted();
 }

@@ -10,3 +10,7 @@ docker-compose.yml text eol=lf
 *.yml text eol=lf
 *.css text eol=lf
 *.html text eol=lf
+
+# BL-253: vendored scanner payload and fake-camera clips are byte-exact; never normalise line endings (ruling 2026-10-11 21:12Z)
+frontend/public/vendor/scan/** -text
+frontend/e2e/mobile/clips/** -text

@@ -1,0 +1,45 @@
+HyperspaceVault - third-party software shipped with the card scanner
+=====================================================================
+
+The card scanner (the isolated /scan/ document) reads the printed set code and
+card number on-device. Nothing in this folder is requested until the camera is
+used, and no image or text leaves the phone. These files were vendored once
+from the BL-238 scanner spike (copied, never rebuilt) and are served unchanged.
+
+1. ppu-paddle-ocr 6.6.1  (paddle/paddle-bundle.min.js)
+   Licence: MIT - see paddle/LICENSE-ppu-paddle-ocr.txt
+   Copyright (c) 2025 PT. Perkasa Pilar Utama
+   The web build, bundled once with esbuild 0.25.10 together with onnxruntime-web
+   (below) into the single file paddle-bundle.min.js.
+   (The BL-253 brief named this package Apache-2.0; the licence text that ships
+   with the vendored copy is MIT, and the shipped text is what is stated here.)
+
+2. onnxruntime-web 1.23.2  (inside paddle/paddle-bundle.min.js;
+   WebAssembly runtime in paddle/ort/ort-wasm-simd-threaded.wasm and .mjs)
+   Licence: MIT
+   Copyright (c) Microsoft Corporation. All rights reserved.
+   The licence notice is preserved in the bundle's trailing comment
+   ("Bundled license information").
+
+3. PP-OCRv6 tiny detection and recognition models and character dictionary
+   (paddle/models/PP-OCRv6_tiny_det.ort, PP-OCRv6_tiny_rec.ort,
+   ppocrv6_tiny_dict.txt)
+   Source: the PaddleOCR project's PP-OCRv6 tiny models, in the ONNX-Runtime
+   format published at huggingface.co/snowfluke/ppu-paddle-ocr-models (fetched
+   once by the ppu-paddle-ocr package and copied here).
+   Licence: Apache License 2.0, per the upstream PaddleOCR repository; not
+   independently verified for the converted .ort files.
+
+4. Tesseract.js  (tesseract.min.js, worker.min.js)
+   Licence: Apache License 2.0 - see LICENSE-tesseract.js.txt
+
+5. Tesseract.js core  (core/tesseract-core-lstm.wasm.js,
+   core/tesseract-core-simd-lstm.wasm.js,
+   core/tesseract-core-relaxedsimd-lstm.wasm.js)
+   Licence: Apache License 2.0 - see core/LICENSE-tesseract.js-core.txt
+
+6. Tesseract English language data  (lang/eng.traineddata.gz, "best_int")
+   Source: the Tesseract OCR project's tessdata_best_int English model
+   Licence: Apache License 2.0
+
+The licence texts named above sit beside the files they cover.

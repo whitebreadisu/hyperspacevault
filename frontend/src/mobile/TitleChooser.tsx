@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { MIcon } from "./icons";
-import { MSWUButton } from "./MSWUButton";
+import { SWUButton } from "../components/SWUButton";
 
 // BL-247 S1-07 (R5-2): tapping the title (expanded) or the [HSV] badge
 // (collapsed) opens this chooser -- a small centred card of the
@@ -50,10 +50,10 @@ export function TitleChooser({ unread, onClose, onAbout, onUpdates }: Props) {
           [HSV] Hyperspace Vault
         </h2>
         <div className="m-chooser__btns">
-          <MSWUButton size="touch" onClick={onAbout} className="m-chooser__btn">
+          <SWUButton size="touch" onClick={onAbout} className="m-chooser__btn">
             About & Legal
-          </MSWUButton>
-          <MSWUButton
+          </SWUButton>
+          <SWUButton
             size="touch"
             onClick={onUpdates}
             className={"m-chooser__btn" + (unread ? " m-chooser__btn--cue" : "")}
@@ -61,7 +61,7 @@ export function TitleChooser({ unread, onClose, onAbout, onUpdates }: Props) {
             <span className={unread ? "m-cue" : undefined} data-cue="[HSV] Updates">
               [HSV] Updates
             </span>
-          </MSWUButton>
+          </SWUButton>
         </div>
       </div>
     </div>

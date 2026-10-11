@@ -1,0 +1,540 @@
+/* BL-253 S7-10 .. S7-17: the camera screen. Values verbatim from rev4
+ * m-rev1.css:154-251 (the camera brief's HUD: thin lines, no steel ring on the
+ * guide; green = read, amber = ambiguous, red = the blurry meter only, blue
+ * only on controls) and m-layout.css:574-586 (the pick rows), scoped under
+ * .m-app. Deltas: the preview is a real <video> (object-fit: cover); the
+ * meter fill moves by transform (scaleX), not width (transform/opacity-only
+ * motion); the prototype-only "tap to read" chip and DEMO strip are absent.
+ * .m-cam is deliberately NOT positioned: the flash anchors to the tool layer;
+ * the panel rises inside .m-cam__stage so the bar stays in reach. */
+
+/* ── Header: Fast add (m-rev1.css:158-163) ─────────────────────────────── */
+.m-app .m-tool__fast {
+  flex: none;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+}
+.m-app .m-tool__fastl {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  white-space: nowrap;
+}
+.m-app .m-tool__fast.m-check--on .m-tool__fastl {
+  color: #fff;
+}
+.m-app .m-tool--camera .m-padlayer__sub {
+  display: none;
+}
+
+/* ── Screen ───────────────────────────────────────────────────────────── */
+.m-app .m-cam {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-cam__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-cam__view {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  display: block;
+  background: radial-gradient(ellipse 120% 80% at 35% 30%, #1a1d26 0%, #0b0d12 55%, #050608 100%);
+}
+.m-app .m-cam__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Guide (m-rev1.css:173-188) ───────────────────────────────────────── */
+.m-app .m-guide__card {
+  position: absolute;
+  pointer-events: none;
+  border-right: 2px solid rgba(230, 230, 230, 0.9);
+  border-bottom: 2px solid rgba(230, 230, 230, 0.9);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); /* dims outside the card, for the user only */
+}
+.m-app .m-guide__box {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px solid rgba(230, 230, 230, 0.85);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.m-app .m-guide__box--read {
+  border: 2px solid #178a3a;
+  background: rgba(23, 138, 58, 0.12);
+}
+.m-app .m-guide__box--amber {
+  border: 2px solid #f2c14e;
+  background: rgba(217, 154, 31, 0.14);
+}
+.m-app .m-guide__mk {
+  position: absolute;
+  top: calc(100% + 3px);
+  padding-top: 2px;
+  border-top: 1px solid rgba(230, 230, 230, 0.4);
+  font-family: var(--font-ui);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(230, 230, 230, 0.55);
+  text-shadow: 0 1px 2px #000;
+}
+.m-app .m-guide__mk--num {
+  text-align: right;
+}
+.m-app .m-guide__box--read .m-guide__mk,
+.m-app .m-guide__box--amber .m-guide__mk {
+  display: none;
+}
+
+/* ── Meter (m-rev1.css:189-206) ───────────────────────────────────────── */
+.m-app .m-meter {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 12px;
+  text-align: left;
+  background: rgba(11, 14, 24, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(211, 211, 212, 0.28);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.m-app .m-meter__l {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-meter__bar {
+  flex: none;
+  width: 26%;
+  max-width: 110px;
+  height: 8px;
+  background: rgba(211, 211, 212, 0.14);
+  clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+}
+.m-app .m-meter__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transition: transform 0.15s ease;
+}
+.m-app .m-meter__fill--red {
+  background: var(--color-danger, #dc2626);
+}
+.m-app .m-meter__fill--amber {
+  background: #d99a1f;
+}
+.m-app .m-meter__fill--green {
+  background: #178a3a;
+}
+.m-app .m-meter__words {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.m-app .m-meter__word {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  line-height: 1.1;
+}
+.m-app .m-meter__sub {
+  font-size: 12.5px;
+  color: #cfd6e4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-meter__read {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #9fb0cc;
+}
+.m-app .m-meter__keypad {
+  flex: none;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── Preview-corner control + messages ────────────────────────────────── */
+.m-app .m-cam__align {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  min-height: 44px;
+}
+.m-app .m-cam__msg {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  text-align: center;
+  background: rgba(11, 14, 24, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(211, 211, 212, 0.28);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+.m-app .m-cam__msgline {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.m-app .m-cam__msgsub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #cfd6e4;
+}
+.m-app .m-cam__msgacts {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Bottom bar (m-rev1.css:207-209) ──────────────────────────────────── */
+.m-app .m-cam__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px calc(10px + var(--sab));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--color-border);
+}
+.m-app .m-cam__spacer {
+  flex: 1;
+}
+
+/* ── Cue: the green flash (m-rev1.css:211-212) ────────────────────────── */
+.m-app .m-camflash {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background: #178a3a;
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+.m-app .m-camflash--on {
+  opacity: 0.45;
+  transition: none;
+}
+
+/* ── Rising panel (m-rev1.css:214-251) ────────────────────────────────── */
+.m-app .m-cam__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  max-height: 94%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(211, 211, 212, 0.34);
+  padding: 1.5px 1.5px 0;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%, 0 14px);
+  animation: m-camrise 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.m-app .m-cam__panel--amber {
+  background: rgba(217, 154, 31, 0.55);
+}
+@keyframes m-camrise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.m-app .m-cam__panelin {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 16px 14px;
+  clip-path: polygon(12.5px 0, calc(100% - 12.5px) 0, 100% 12.5px, 100% 100%, 0 100%, 0 12.5px);
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+}
+.m-app .m-cam__strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+.m-app .m-cam__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  white-space: nowrap;
+}
+.m-app .m-cam__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #178a3a;
+}
+.m-app .m-cam__state--amber {
+  color: #f2c14e;
+}
+.m-app .m-cam__state--amber .m-cam__dot {
+  background: #f2c14e;
+}
+.m-app .m-cam__code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #9fb0cc;
+}
+.m-app .m-cam__wrong {
+  flex: none;
+  margin-right: -8px;
+  min-height: 44px;
+}
+.m-app .m-cam__hold {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -4px;
+}
+.m-app .m-cam__holdbar {
+  flex: 1;
+  height: 3px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(211, 211, 212, 0.16);
+}
+/* Transform-only fill (rev4 animated background-size; same 1.5 s, linear). */
+.m-app .m-cam__holdbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #178a3a;
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: m-camhold linear forwards;
+  animation-duration: inherit;
+}
+@keyframes m-camhold {
+  to {
+    transform: scaleX(1);
+  }
+}
+.m-app .m-cam__holdtxt {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-cam__pickq {
+  margin: -4px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #cfd6e4;
+}
+.m-app .m-cam__picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-cam__pick {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 6px 10px 6px 8px;
+  border: none;
+  text-align: left;
+  color: inherit;
+  background: rgba(217, 154, 31, 0.06);
+  box-shadow: inset 3px 0 0 rgba(217, 154, 31, 0.6);
+}
+.m-app .m-cam__pick:active {
+  transform: translateY(1px);
+}
+.m-app .m-cam__pickthumb {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.m-app .m-cam__pickthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.m-app .m-cam__pick .m-result__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-app .m-cam__pick .m-result__name {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-cam__pick .m-result__meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.m-app .m-cam__pick .m-result__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #9fb0cc;
+  flex: none;
+}
+.m-app .m-cam__pick .m-result__subt {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-cam__program {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+.m-app .m-cam__owned {
+  flex: none;
+}
+.m-app .m-cam__pickfoot {
+  display: flex;
+  justify-content: flex-end;
+}
+.m-app .m-cam__pickfoot .m-textbtn {
+  margin-right: -8px;
+  min-height: 44px;
+}
+
+/* ── Guide alignment sheet (S7-11) ────────────────────────────────────── */
+.m-app .m-camalign__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 16px 16px;
+}
+.m-app .m-camalign__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.m-app .m-camalign__l {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #cfd6e4;
+}
+.m-app .m-camalign__v {
+  flex: none;
+  font-family: "Russo One", var(--font-ui);
+  font-weight: 400;
+  color: #fff;
+}
+.m-app .m-camalign__row input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--color-primary);
+}
+.m-app .m-camalign__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-cam__panel {
+    animation: none;
+  }
+  .m-app .m-meter__fill {
+    transition: none;
+  }
+}

@@ -2,7 +2,9 @@
 // Left cap SVG + center stripe (SVG bg + label) + right cap SVG.
 // Non-scaling-stroke keeps the cream outline uniform across caps and center.
 
-const SWU_SIZES = { sm: 40, md: 52, lg: 64 } as const;
+/** `touch` (BL-254 fold-back of the phone's MSWUButton): the small size stepped
+ * up to the 44 px tap floor; the phone layout's buttons use it. */
+const SWU_SIZES = { sm: 40, touch: 44, md: 52, lg: 64 } as const;
 const MAIN_TOP = 8;
 const MAIN_BOTTOM = 124.75;
 const TOTAL_H = 150.43;
@@ -19,6 +21,10 @@ interface Props {
    * flagged aria-disabled for assistive tech / testability. Deliberately NOT
    * the native `disabled` attribute, which would swallow the click event. */
   ariaDisabled?: boolean;
+  /** Phone layout: an accessible name for icon-only uses. */
+  ariaLabel?: string;
+  /** Phone layout: an extra class hook next to `swu-btn`. */
+  className?: string;
 }
 
 export function SWUButton({
@@ -27,6 +33,8 @@ export function SWUButton({
   onClick,
   size = "sm",
   ariaDisabled = false,
+  ariaLabel,
+  className,
 }: Props) {
   const h = SWU_SIZES[size];
   const capW = Math.round((CAP_W * h) / TOTAL_H);
@@ -56,9 +64,10 @@ export function SWUButton({
     <button
       type="button"
       onClick={onClick}
-      className="swu-btn"
+      className={"swu-btn" + (className ? " " + className : "")}
       style={{ height: h }}
       aria-disabled={ariaDisabled || undefined}
+      aria-label={ariaLabel}
     >
       <svg
         className="swu-btn__cap"
@@ -130,7 +139,7 @@ export function SWUButton({
             paddingTop: padTop,
             paddingBottom: padBot,
             color: text,
-            fontSize: size === "lg" ? 18 : size === "md" ? 15 : 13,
+            fontSize: size === "lg" ? 18 : size === "md" ? 15 : size === "touch" ? 14 : 13,
           }}
         >
           {children}

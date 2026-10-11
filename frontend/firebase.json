@@ -2,6 +2,7 @@
   "hosting": {
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [{ "source": "/scan", "destination": "/scan/", "type": 301 }],
     "rewrites": [
       {
         "source": "/api/**",
@@ -20,12 +21,49 @@
       {
         "source": "/shared/**",
         "destination": "/index.html"
+      },
+      {
+        "source": "/scan/**",
+        "destination": "/scan.html"
       }
     ],
     "headers": [
       {
         "source": "/shared/**",
         "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+      },
+      {
+        "source": "/scan/**",
+        "headers": [
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+          { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
+          { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()" },
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/scan.html",
+        "headers": [
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+          { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
+          { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()" },
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "/vendor/scan/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+          { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
+          { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+        ]
+      },
+      {
+        "source": "/scan-workers/**",
+        "headers": [
+          { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
+          { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+        ]
       }
     ]
   },

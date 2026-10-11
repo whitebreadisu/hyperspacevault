@@ -12,8 +12,11 @@ export function toolScreenViewed(): void {
   phoneScreenViewed("tool");
 }
 
+/** BL-253 S7-18: `camera` / `camera_fast_add` are additive method values;
+ * a camera commit also carries `fast_add` (the Fast add state of its adds).
+ * The keypad and precon shapes are unchanged. */
 export function toolAddCardsCommitted(
-  method: "keypad" | "precon",
+  method: "keypad" | "precon" | "camera" | "camera_fast_add",
   cardsAdded: number,
   distinctCards: number
 ): void {
@@ -21,6 +24,9 @@ export function toolAddCardsCommitted(
     method,
     cards_added: cardsAdded,
     distinct_cards: distinctCards,
+    ...(method === "camera" || method === "camera_fast_add"
+      ? { fast_add: method === "camera_fast_add" }
+      : {}),
   });
 }
 

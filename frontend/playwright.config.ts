@@ -42,18 +42,41 @@ export default defineConfig({
     {
       name: "phone-390",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
       dependencies: ["setup"],
       use: phone(390, 844),
     },
     {
       name: "phone-430",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
       dependencies: ["setup"],
       use: phone(430, 932),
+    },
+    // BL-253 S7: the scanner specs run in their own project.
+    {
+      name: "scan",
+      testMatch: /s7-.*\.spec\.ts/,
+      dependencies: ["setup"],
+      // BL-253 S7-19: Chromium's fake camera (a generated test pattern unless
+      // a spec asks for a clip: e2e/mobile/clip-helpers.ts launches its own
+      // browser per clip with --use-file-for-fake-video-capture). WebKit has
+      // no fake camera, so this project is Chromium only.
+      use: {
+        ...phone(390, 844),
+        browserName: "chromium",
+        launchOptions: {
+          args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+        },
+        permissions: ["camera"],
+      },
     },
     {
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts/,
+      // BL-252 S6-11: the desktop smoke signs in with the saved session.
+      dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },
     },
   ],

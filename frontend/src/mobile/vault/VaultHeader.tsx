@@ -3,7 +3,7 @@ import { SectionSeparator } from "../../components/SectionSeparator";
 import { formatMoney } from "../../utils/completion";
 import { formatVersionLabel } from "../../utils/version";
 import { MIcon } from "../icons";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 
 // BL-247 S1-05 / S1-06 / S1-07: the Vault's app header (rev4 MVault.jsx:480-530
 // + MHome.jsx:63-75). Expanded: brand stack ("[HSV] Hyperspace Vault" over
@@ -96,14 +96,14 @@ export function VaultHeader({
                 Unofficial Fan Project [<span className="m-vh__ver">{VERSION}</span>]
               </span>
             </button>
-            <MSWUButton
+            <SWUButton
               size="sm"
               onClick={onOpenFeedback}
               className="m-vh__fb"
               ariaLabel="Leave Feedback"
             >
               Feedback
-            </MSWUButton>
+            </SWUButton>
           </div>
           <div className="m-vh__strip" aria-hidden={collapsed ? undefined : true}>
             <button
