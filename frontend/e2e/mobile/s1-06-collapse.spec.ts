@@ -111,7 +111,10 @@ test("s1-06-back-top-stays-collapsed", async ({ page }) => {
   expect(await page.locator(SCROLL).evaluate((e) => e.scrollTop)).toBe(0);
 
   // vault-wheel-to-top-stays: a continuous wheel scroll to the top stays collapsed.
-  await page.waitForLoadState("networkidle");
+  // Deterministic readiness (networkidle never settles against the dev server's HMR socket).
+  await expect(page.locator(".m-row").first()).toBeVisible();
+  await expect(page.locator(".m-vh--collapsed")).toBeAttached();
+  await page.evaluate(() => document.fonts.ready);
   await page.reload();
   await openVault(page);
   await collapse(page);
