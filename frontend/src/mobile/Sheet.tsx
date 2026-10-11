@@ -51,10 +51,22 @@ interface Props {
   /** BL-249 S3-05: an optional pinned foot under the scrolling body (rev4
    * MSheet footer, m-layout.css:248 .m-sheet__foot). */
   footer?: ReactNode;
+  /** BL-249 S3 F1: while true Escape, the scrim and the swipe do nothing
+   * (a commit is in flight; the busy overlay already covers the X). */
+  locked?: boolean;
   children: ReactNode;
 }
 
-export function Sheet({ title, sub, onClose, labelId, className, footer, children }: Props) {
+export function Sheet({
+  title,
+  sub,
+  onClose,
+  labelId,
+  className,
+  footer,
+  locked,
+  children,
+}: Props) {
   const host = useContext(HostContext);
   const [leaving, setLeaving] = useState(false);
   const [dy, setDy] = useState(0);
@@ -72,7 +84,14 @@ export function Sheet({ title, sub, onClose, labelId, className, footer, childre
     done.current = true;
     onCloseRef.current();
   }, []);
-  const close = useCallback(() => setLeaving(true), []);
+  const lockedRef = useRef(false);
+  useEffect(() => {
+    lockedRef.current = !!locked;
+  }, [locked]);
+  const close = useCallback(() => {
+    if (lockedRef.current) return;
+    setLeaving(true);
+  }, []);
 
   // Leave: wait for the panel's sink animation, with a timer as the net.
   useEffect(() => {

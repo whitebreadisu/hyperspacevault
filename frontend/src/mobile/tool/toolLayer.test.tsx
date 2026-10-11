@@ -179,3 +179,41 @@ describe("S3-16 add_cards_abandoned from the close guard (desktop shape + layout
     expect(getBatch()).toHaveLength(0);
   });
 });
+
+describe("S3 F2 / F3 tool layer focus + Escape", () => {
+  beforeEach(() => {
+    resetRouterForTest();
+    resetToolForTest();
+    setMediaMatches(PHONE_QUERY, true);
+    spy.mockClear();
+  });
+  afterEach(() => resetMediaMatches());
+
+  it("F2: focus moves to the close control on open", async () => {
+    window.location.hash = "#/pad";
+    const { container } = render(<App />);
+    await act(async () => {});
+    expect(document.activeElement).toBe(container.querySelector(".m-tool__close"));
+  });
+
+  it("F3: Escape (no sheet open) asks the guard when a batch exists, like the X", async () => {
+    const { addCopy } = await import("./batch");
+    addCopy({
+      via: "keypad",
+      force: false,
+      setCode: "SOR",
+      cardNumber: "87",
+      picks: { cardKey: null, setKey: null, stamp: null, finish: null },
+      variantId: 7221,
+      baseCardId: 814,
+    });
+    window.location.hash = "#/pad";
+    const { container } = render(<App />);
+    await act(async () => {});
+    expect(container.querySelector(".m-d2-confirm-layer")).toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector(".m-d2-confirm-layer")).not.toBeNull();
+  });
+});

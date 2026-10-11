@@ -26,9 +26,10 @@ test("s3-15-commit-adjusts-quantities", async ({ page }) => {
   // One adjust per printing with the folded delta; the blocked copy is not sent.
   expect(rec.adjust).toEqual([{ variantId: 7221, delta: 2 }]);
   expect(rec.imports).toEqual([]);
-  // ... then the sheet closes on its own; the batch is empty.
+  // ... then the sheet closes on its own; only the written copies left the
+  // batch (F1) -- the not-added SOR 35 copy is still there.
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0, { timeout: 3000 });
-  await expect(page.locator(".m-pad__entry .m-logbtn--empty")).toHaveCount(1);
+  await expect(page.locator(".m-logbtn__n")).toHaveText("1");
   // The quantities refreshed: SOR 87 now reads 3 of 3 (at limit, red).
   await key(page, "Clear number");
   await typeNum(page, 87);
@@ -95,4 +96,35 @@ test("s3-15-commit-error-inline", async ({ page }) => {
     rec.consoleErrors.length,
     ...rec.consoleErrors.filter((m) => !/status of 500/.test(m))
   );
+});
+
+test("s3-15-commit-escape-locked-and-keeps-not-added", async ({ page }) => {
+  // F1: while the commit is in flight Escape does not close the sheet, and
+  // on success only the written copies leave the batch -- the not-added copy
+  // stays for the user to act on.
+  const rec = recorderFor(page);
+  let release: () => void = () => {};
+  const gate = new Promise<void>((res) => (release = res));
+  await page.route(
+    (u) => /^\/api\/inventory\/\d+\/adjust$/.test(u.pathname),
+    async (r) => {
+      await gate;
+      await r.fallback();
+    }
+  );
+  await openPad(page, "#/pad?set=SOR");
+  await addTimes(page, 87, 1);
+  await addTimes(page, 35, 1); // owned 3 of 3: not added
+  await openVerify(page);
+  const s = page.locator(".m-sheet-layer--verify");
+  await s.locator(".m-d2-verify__commit").click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  await expect(s).toBeVisible();
+  release();
+  await expect(s.locator(".m-d2-verify__success")).toHaveText("1 card added.");
+  await expect(page.locator(".m-sheet-layer")).toHaveCount(0, { timeout: 3000 });
+  expect(rec.adjust).toEqual([{ variantId: 7221, delta: 1 }]);
+  // The not-added copy is still in the batch.
+  await expect(page.locator(".m-logbtn__n")).toHaveText("1");
 });

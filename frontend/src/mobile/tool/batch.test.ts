@@ -14,6 +14,7 @@ import {
   batchView,
   discardBatch,
   foldAdded,
+  pendingEntries,
   getBatch,
   removeCopy,
   resetBatchForTest,
@@ -165,5 +166,17 @@ describe("S3-09 precon deck rows", () => {
     expect(v.notAdded).toHaveLength(1);
     expect(v.added).toHaveLength(1);
     expect(v.added[0].dotColor).toBe("amber");
+  });
+});
+
+describe("S3 F4 pending_entries (desktop's count)", () => {
+  beforeEach(() => resetBatchForTest());
+  it("keypad copies + 1 per chosen deck, however many cards the deck holds", () => {
+    const vaderDeck = PRECON_ENTRIES.find((e) => e.key === "SOR-VADER")!;
+    addCopy(vader);
+    addCopy(vader);
+    addDeck(vaderDeck, cards, false);
+    expect(getBatch().length).toBeGreaterThan(10);
+    expect(pendingEntries(getBatch())).toBe(3);
   });
 });

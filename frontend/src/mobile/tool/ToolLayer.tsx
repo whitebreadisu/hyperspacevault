@@ -4,7 +4,7 @@ import { publishNav } from "../card/navList";
 import { MOBILE_CAMERA_ENABLED } from "../flags";
 import { MIcon } from "../icons";
 import { back, go } from "../router";
-import { discardBatch, getBatch } from "./batch";
+import { discardBatch, getBatch, pendingEntries } from "./batch";
 import { DiscardConfirm } from "./DiscardConfirm";
 import { Pad } from "./Pad";
 import { VerifySheet } from "./VerifySheet";
@@ -65,6 +65,32 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
     if (getBatch().length) setGuard(true);
     else leave();
   };
+  // F2: focus the close control on open, return it to the opener on close.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (opener && opener.isConnected && opener.tagName !== "INPUT")
+        opener.focus({ preventScroll: true });
+    };
+  }, []);
+  // F3: Escape on the keypad layer (no sheet / confirm over it) = the X.
+  const closeRef2 = useRef(close);
+  const coveredRef = useRef(covered);
+  useEffect(() => {
+    closeRef2.current = close;
+    coveredRef.current = covered;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || coveredRef.current) return;
+      if (document.querySelector(".m-sheet-layer, .m-d2-confirm-layer")) return;
+      closeRef2.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <div
       className="m-padlayer m-tool"
@@ -105,6 +131,7 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
         ) : null}
         <button
           type="button"
+          ref={closeRef}
           className="m-iconbtn m-tool__close"
           onClick={close}
           aria-label="Close keypad"
@@ -127,7 +154,7 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
         <DiscardConfirm
           onReturn={() => setGuard(false)}
           onDiscard={() => {
-            toolAddCardsAbandoned(getBatch().length); // BL-235 shape, S3-16
+            toolAddCardsAbandoned(pendingEntries(getBatch())); // BL-235 shape, S3-16
             discardBatch();
             setToolState({ lastAdded: null });
             setGuard(false);

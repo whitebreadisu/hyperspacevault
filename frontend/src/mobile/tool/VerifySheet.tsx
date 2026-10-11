@@ -17,7 +17,14 @@ import type { VerificationRow } from "../../utils/addCardsResolver";
 import { MSWUButton } from "../MSWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { useVaultData } from "../vault/useVaultData";
-import { batchView, discardBatch, removeCopies, removeCopy, useBatch } from "./batch";
+import {
+  batchView,
+  discardBatch,
+  pendingEntries,
+  removeCopies,
+  removeCopy,
+  useBatch,
+} from "./batch";
 import { CommitError, commitPlan, committedRowIds, executeCommit } from "./commit";
 import { DiscardConfirm } from "./DiscardConfirm";
 import { toCatalog } from "./padModel";
@@ -353,7 +360,8 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
       return;
     }
     setCommitting(false);
-    discardBatch();
+    // F1: only the copies that were written leave; not-added rows stay.
+    removeCopies(new Set(view.added.map((v) => v.id)));
     setToolState({ lastAdded: null });
     setDone(plan.total);
   };
@@ -412,6 +420,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
       labelId="m-verify-title"
       className={"m-sheet-layer--verify" + (accordion ? " m-sheet-layer--verify-long" : "")}
       onClose={onClose}
+      locked={committing}
       footer={footer}
     >
       <div
@@ -462,7 +471,9 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
           </>
         )}
       </div>
-      {confirming ? <DiscardInSheet pending={total} onReturn={() => setConfirming(false)} /> : null}
+      {confirming ? (
+        <DiscardInSheet pending={pendingEntries(batch)} onReturn={() => setConfirming(false)} />
+      ) : null}
       {/* Outside the sheet's clip-path (desktop's overlay, z 300). */}
       {createPortal(<BusyOverlay stage={overlay.stage} />, document.body)}
     </Sheet>

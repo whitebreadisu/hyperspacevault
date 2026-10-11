@@ -209,3 +209,46 @@ test("s3-13-plain-scroll-one-section-long", async ({ page }) => {
     .evaluate((el) => el.scrollHeight > el.clientHeight + 1);
   expect(scrolls).toBe(true);
 });
+
+test("s3-13-fit-boundary", async ({ page }) => {
+  // F5: grow a two-section batch one copy at a time until the sheet flips
+  // from the plain scroll to the pinned accordion; just below the threshold
+  // it is plain with no pinned heads, at it the heads are pinned, and the
+  // mode neither oscillates while idle nor across a resize and back.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await raiseStandardLimit(page, 50);
+  await openPad(page, "#/pad?set=SOR");
+  await addTimes(page, 25, 2); // not added (a base, owned 1 of 1)
+  await addTimes(page, 87, 1);
+  const mode = () => sheet(page).locator(".m-verify").getAttribute("data-mode");
+  const closeSheet = async () => {
+    await sheet(page).locator(".m-sheet__close").click();
+    await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+  };
+  let flippedAt = -1;
+  for (let i = 0; i < 40 && flippedAt < 0; i++) {
+    await openVerify(page);
+    if ((await mode()) === "accordion") flippedAt = i;
+    else {
+      await expect(sheet(page).locator(".m-vsec__head--btn")).toHaveCount(0);
+      await closeSheet();
+      await page.locator(".m-ident__add .swu-btn").click();
+    }
+  }
+  expect(flippedAt).toBeGreaterThan(0); // the batch was plain one copy earlier
+  await expect(sheet(page).locator(".m-vsec__head--btn")).toHaveCount(2);
+  // Idle: stays put.
+  for (let i = 0; i < 4; i++) {
+    await page.waitForTimeout(150);
+    expect(await mode()).toBe("accordion");
+  }
+  // Resize down and back: same mode at the same size, no flapping between.
+  await page.setViewportSize({ width: 390, height: 820 });
+  await page.waitForTimeout(250);
+  expect(await mode()).toBe("accordion");
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (let i = 0; i < 4; i++) {
+    await page.waitForTimeout(150);
+    expect(await mode()).toBe("accordion");
+  }
+});

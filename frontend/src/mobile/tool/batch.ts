@@ -109,6 +109,18 @@ export function removeCopies(ids: Set<string>): void {
   if (ids.size && rows.some((r) => ids.has(r.id))) emit(rows.filter((r) => !ids.has(r.id)));
 }
 
+/** BL-235 `pending_entries` as desktop counts it: keypad copies plus one per
+ * chosen deck (AddCardsModal pendingEntries). */
+export function pendingEntries(list: BatchRow[]): number {
+  const decks = new Set<string>();
+  let n = 0;
+  for (const r of list) {
+    if (r.via === "precon" && r.deck) decks.add(r.deck.key);
+    else n++;
+  }
+  return n + decks.size;
+}
+
 /** Discard batch: clears every row. */
 export function discardBatch(): void {
   if (rows.length) emit([]);

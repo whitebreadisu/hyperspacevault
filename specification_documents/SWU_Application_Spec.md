@@ -1099,7 +1099,7 @@ focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
 
 ### 25.3 S3 Keypad, choosers, verify batch, commit (BL-249)
 
-Code: `frontend/src/mobile/tool/`. Route `#/pad` (the bar's centre button). It replaces the §25.1 placeholder.
+Code: `frontend/src/mobile/tool/`. Route `#/pad` (the bar's centre button).
 - **Tool layer.** Opens over the current screen. The screen underneath stays mounted with its state; the bar is covered and inert. The header has the title and an X top-right (44 px). The camera mode toggle exists only behind `MOBILE_CAMERA_ENABLED` (off; the camera ships in slice 7). The keypad ignores the Vault's finish scope.
 - **Keypad.** Entry row: set button · number display (Russo One, max 4 digits, no system keyboard) · Verify button. Keys: Russo One 0–9, Clear and backspace, 58 px at rest. Hardware digits, Backspace and Enter work too. Resolution uses desktop `resolveRow` over the catalogue; a shared number shows desktop's axes (Which card? / Set / Stamp / Finish) as chips. A miss reads "Not in this set" plus desktop's sentence.
 - **Readout.** "In vault n/m" and "After add n/m" for the resolved printing, against its effective keep-limit (`LimitsContext`, hard or soft). At or over the limit the line is red `#ef4444`. "After add" counts owned + copies in the batch + 1. This readout is the only phone surface with an "n/m" fraction.
