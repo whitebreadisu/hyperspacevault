@@ -19,6 +19,7 @@
 }
 .m-app .m-vault__searchrow {
   display: flex;
+  min-width: 0;
   gap: 8px;
   padding-bottom: 8px;
 }
@@ -26,7 +27,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
   height: 46px;
   margin-top: 2px;
   transition: opacity 0.12s ease;
@@ -179,13 +181,13 @@
 .m-app .m-scopechip {
   position: relative;
   z-index: 0;
-  flex: none;
+  flex: 0 1 auto;
   min-height: 44px;
   min-width: 44px;
-  padding: 0 9px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: none;
   border: none;
   color: #cfd6e4;
@@ -209,9 +211,11 @@
   background: rgba(9, 11, 20, 0.5);
 }
 .m-app .m-scopechip__t {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .m-app .m-scopechip__chev {
   flex: none;

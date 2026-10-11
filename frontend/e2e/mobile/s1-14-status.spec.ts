@@ -61,7 +61,7 @@ const rows = (p: Page) =>
 
 type Rows = Awaited<ReturnType<typeof rows>>;
 
-function expectFits(g: Rows) {
+function expectFits(g: Rows, opts: { chipMayTruncate?: boolean } = {}) {
   // Row two: one line, every item inside the row and the viewport, no overlap.
   const items = [g.count, g.chip, g.sort, g.toggle];
   for (const it of items) {
@@ -80,7 +80,7 @@ function expectFits(g: Rows) {
     expect(it.t).toBeGreaterThanOrEqual(g.one.t - 0.5);
     expect(it.b).toBeLessThanOrEqual(g.one.b + 0.5);
   }
-  expect(g.chipFull).toBe(true);
+  if (!opts.chipMayTruncate) expect(g.chipFull).toBe(true);
 }
 
 for (const vw of [390, 430]) {
@@ -105,6 +105,16 @@ test("s1-14-no-overflow-narrowed-scoped", async ({ page }) => {
   expectFits(g);
   // The search box narrowed to make room for Clear (its slot is not reserved).
   expect(g.search.r).toBeLessThanOrEqual(g.clear!.l + 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("s1-14-no-overflow-wide-font", async ({ page }) => {
+  // Shrink-safety under any font metrics: a wide generic fallback must still
+  // keep every item inside the 16 px gutter (the chip label may ellipsize).
+  await openVault(page, "#/vault?finish=Serialized%20Prestige&set=LAW");
+  await page.addStyleTag({ content: ".m-app * { font-family: Verdana, sans-serif !important }" });
+  await page.waitForTimeout(150);
+  expectFits(await rows(page), { chipMayTruncate: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
