@@ -34,6 +34,9 @@ export interface Recorder {
   /** BL-249 S3-15: POST /api/inventory/import calls (multipart fields + the
    * file's JSON), in order. */
   imports: { mode: string; capHandling: string; stage: string; file: ImportFile }[];
+  /** BL-250 S4-09: GET /api/inventory/export?format= and /api/catalog/reference.csv
+   * requests ("json" | "csv" | "reference"), in order. */
+  exports: string[];
 }
 
 export interface ImportFile {
@@ -69,6 +72,7 @@ export const recorderFor = (page: Page): Recorder =>
     adjust: [],
     priceHistory: [],
     imports: [],
+    exports: [],
   };
 
 /** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
@@ -103,6 +107,7 @@ export async function installApiMocks(
     adjust: [],
     priceHistory: [],
     imports: [],
+    exports: [],
   };
   recorders.set(page, rec);
 
@@ -188,6 +193,7 @@ export async function installApiMocks(
       if (method === "POST" && path === "/api/inventory/import") {
         const imp = parseImport(req.postDataBuffer()?.toString("latin1") ?? "");
         rec.imports.push(imp);
+        const seen = new Set<number>();
         const rows = imp.file.cards.map((c, i) => {
           let vid: number | null = null;
           for (const card of cards)
@@ -201,24 +207,72 @@ export async function installApiMocks(
           if (vid === null)
             return { row_number: i + 1, status: "unresolved", reason: "unknown_triple", card: c };
           const cur = qtyById.get(vid) ?? 0;
-          if (imp.stage === "commit") qtyById.set(vid, cur + c.quantity);
+          const next = imp.mode === "merge_add" ? cur + c.quantity : c.quantity;
+          seen.add(vid);
+          if (imp.stage === "commit") qtyById.set(vid, next);
           return {
             row_number: i + 1,
             status: "resolved",
             card: c,
             file_quantity: c.quantity,
             current_quantity: cur,
-            resulting_quantity: cur + c.quantity,
+            resulting_quantity: next,
           };
         });
+        // replace_all: everything owned that the file does not list goes
+        // (S4-11: the removal list the confirmation counts).
+        const removed =
+          imp.mode === "replace_all"
+            ? [...qtyById]
+                .filter(([vid, q]) => q > 0 && !seen.has(vid))
+                .map(([vid, q]) => ({ card: { swuapi_uuid: "variant-" + vid }, quantity: q }))
+            : [];
+        if (imp.stage === "commit" && imp.mode === "replace_all")
+          for (const r of removed) qtyById.set(Number(r.card.swuapi_uuid.slice(8)), 0);
+        const resolved = rows.filter((r) => r.status === "resolved").length;
         return ok(route, {
           stage: imp.stage,
           mode: imp.mode,
           cap_handling: imp.capHandling,
           committed: imp.stage === "commit",
-          totals: {},
+          totals: {
+            rows: rows.length,
+            resolved,
+            matched_by_fallback: 0,
+            unresolved: rows.length - resolved,
+            ambiguous: 0,
+            trimmed: 0,
+            ceiling_clamped: 0,
+            duplicate_rows_merged: 0,
+            unrecognized_columns: [],
+            removed_by_replace_all: removed.length,
+          },
           rows,
-          removed: [],
+          removed,
+        });
+      }
+      // S4-09: the two inventory exports and the public catalogue reference.
+      if (method === "GET" && path === "/api/inventory/export") {
+        const format = url.searchParams.get("format") ?? "";
+        rec.exports.push(format);
+        return route.fulfill({
+          status: 200,
+          contentType: format === "csv" ? "text/csv" : "application/json",
+          headers: {
+            "Content-Disposition": `attachment; filename="hyperspacevault-inventory.${format}"`,
+          },
+          body: format === "csv" ? "set_code,card_number\n" : "{}",
+        });
+      }
+      if (method === "GET" && path === "/api/catalog/reference.csv") {
+        rec.exports.push("reference");
+        return route.fulfill({
+          status: 200,
+          contentType: "text/csv",
+          headers: {
+            "Content-Disposition": 'attachment; filename="hyperspacevault-catalog-reference.csv"',
+          },
+          body: "set_code,card_number\n",
         });
       }
       if (method === "POST" && path === "/api/feedback") {

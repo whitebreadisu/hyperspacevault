@@ -9,6 +9,7 @@ import { FinishSheetHost } from "./card/FinishSheet";
 import { ComingSoon } from "./ComingSoon";
 import { FeedbackScreen } from "./FeedbackScreen";
 import { AboutScreen } from "./more/AboutScreen";
+import { ImportExportScreen } from "./more/ImportExportScreen";
 import { MoreScreen } from "./more/MoreScreen";
 import { UpdatesScreen } from "./more/UpdatesScreen";
 import { SheetHost } from "./Sheet";
@@ -40,7 +41,6 @@ const SOON: Record<string, string> = {
   "more/settings": "Settings arrive with a later slice.",
   "more/password": "Change Password arrives with a later slice.",
   "more/sharing": "Sharing arrives with a later slice.",
-  "more/importexport": "Import & Export arrives with a later slice.",
 };
 
 /** BL-250 S4: the routed (non-Vault) screen a route shows, by key -- null
@@ -50,7 +50,13 @@ function screenKey(route: Route): string | null {
   const [a, b] = route.segs;
   if (a === "about") return "about";
   if (a !== "more") return null;
-  if (b === "about" || b === "updates" || b === "feedback" || (b && SOON["more/" + b]))
+  if (
+    b === "about" ||
+    b === "updates" ||
+    b === "feedback" ||
+    b === "importexport" ||
+    (b && SOON["more/" + b])
+  )
     return "more/" + b;
   return "more";
 }
@@ -192,6 +198,15 @@ export function MobileApp() {
       );
     if (k === "about" || k === "more/about") return <AboutScreen fromMore={fromMore} />;
     if (k === "more/updates") return <UpdatesScreen fromMore={fromMore} onSeen={cue.clear} />;
+    if (k === "more/importexport")
+      return (
+        <ImportExportScreen
+          fromMore={fromMore}
+          signedIn={!!user}
+          emailVerified={emailVerified}
+          onRequestSignIn={openSignIn}
+        />
+      );
     if (k === "more/feedback") return <FeedbackScreen onClose={back} />;
     return <ComingSoon sentence={SOON[k]} />;
   };
