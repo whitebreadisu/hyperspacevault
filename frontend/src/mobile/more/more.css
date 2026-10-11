@@ -287,6 +287,8 @@
 .m-app .m-updates__chip {
   flex: none;
   min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
   display: inline-flex;
   align-items: center;
   background: none;
