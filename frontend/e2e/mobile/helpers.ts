@@ -7,12 +7,26 @@ import type { CardsFixture, Recorder } from "./mock-api";
 // (.ds-sync/mobile-check-rev4.mjs) swipe / pullDown / scrollBy / wheel /
 // layoutProbe / expectFn / measure, expressed against the real app.
 
+/** The Auth emulator SDK pins a "Running in emulator mode" banner over the
+ * bottom of the page (connectAuthEmulator without disableWarnings); it would
+ * sit on top of the bottom bar. Hidden in the harness only. */
+export function hideEmulatorBanner() {
+  const add = () => {
+    const st = document.createElement("style");
+    st.textContent = ".firebase-emulator-warning{display:none!important}";
+    document.head.append(st);
+  };
+  if (document.head) add();
+  else document.addEventListener("DOMContentLoaded", add);
+}
+
 /** `test` with the API mocks installed on every page; pick the catalogue with
  * `test.use({ cardsFixture: "base-cards-600" })`. */
 export const test = base.extend<{ cardsFixture: CardsFixture }>({
   cardsFixture: ["base-cards", { option: true }],
   page: async ({ page, cardsFixture }, use) => {
     await installApiMocks(page, { fixture: cardsFixture });
+    await page.addInitScript(hideEmulatorBanner);
     await use(page);
   },
 });
@@ -184,4 +198,11 @@ export async function measure(page: Page): Promise<void> {
  * afterEach(measure)" takes (afterEach hands a fixtures object, not a page). */
 export async function measureEach({ page }: { page: Page }): Promise<void> {
   await measure(page);
+}
+
+/** Centre of the first element matching `sel` (rev4 check script `center`). */
+export async function center(page: Page, sel: string): Promise<{ x: number; y: number }> {
+  const b = await page.locator(sel).first().boundingBox();
+  if (!b) throw new Error(`no box for ${sel}`);
+  return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
 }

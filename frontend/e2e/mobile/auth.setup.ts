@@ -16,26 +16,18 @@ setup("s1-00-auth-setup sign in against the auth emulator", async ({ page, reque
   );
   if (!res.ok()) expect(await res.text()).toContain("EMAIL_EXISTS");
 
+  // Stage 1a-s: sign in through the phone's own account slot (S1-08 Sign in
+  // control -> S1-09 auth layer = the desktop AuthModal), then wait for the
+  // avatar bubble.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  const signIn = page.getByRole("button", { name: /^sign in$/i });
-  // Stage 1a-h has no phone sign-in control yet: fall back to the desktop
-  // layout's Sign In (same AuthModal; the session is origin storage, so it is
-  // viewport-independent).
-  const phoneHasSignIn = await signIn
-    .first()
-    .isVisible({ timeout: 3000 })
-    .catch(() => false);
-  if (!phoneHasSignIn) {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(signIn.first()).toBeVisible();
-  }
-  await signIn.first().click();
+  const signIn = page.locator(".m-acct").getByRole("button", { name: /^sign in$/i });
+  await signIn.click();
   const dialog = page.getByRole("dialog", { name: "Log In" });
   await dialog.getByLabel("Email").fill(EMAIL);
   await dialog.getByLabel("Password").fill(PASSWORD);
   await dialog.getByRole("button", { name: "Log In", exact: true }).click();
-  await expect(signIn.first()).toBeHidden({ timeout: 15000 });
+  await expect(page.locator(".m-acct__hit")).toBeVisible({ timeout: 15000 });
   await expect(dialog).toBeHidden();
 
   mkdirSync("e2e/.auth", { recursive: true });
