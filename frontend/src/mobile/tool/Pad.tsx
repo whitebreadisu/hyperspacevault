@@ -4,7 +4,7 @@ import { useLimits } from "../../context/LimitsContext";
 import { getPlaysetSize } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { MIcon } from "../icons";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { cellImage } from "../vault/cardImage";
 import { useVaultData } from "../vault/useVaultData";
 import {
@@ -264,7 +264,7 @@ export function Identified(p: IdentProps) {
           Card details <MIcon name="fwd" size={16} />
         </button>
         {p.hideAdd ? null : (
-          <MSWUButton
+          <SWUButton
             size="md"
             active={p.canAdd}
             ariaDisabled={!p.canAdd}
@@ -272,7 +272,7 @@ export function Identified(p: IdentProps) {
             className="m-ident__addbtn"
           >
             {p.addLabel}
-          </MSWUButton>
+          </SWUButton>
         )}
       </div>
     </div>

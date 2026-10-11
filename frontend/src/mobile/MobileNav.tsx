@@ -3,7 +3,7 @@ import { SectionSeparator } from "../components/SectionSeparator";
 import { MOBILE_CAMERA_ENABLED } from "./flags";
 import { MIcon } from "./icons";
 import type { IconName } from "./icons";
-import { MSWUButton } from "./MSWUButton";
+import { SWUButton } from "../components/SWUButton";
 import { go } from "./router";
 import { switchFace, switchStep } from "./shared/vaultSwitch";
 import "./shared/shared.css";
@@ -192,7 +192,7 @@ export function MobileNav({ route, share }: { route: Route; share?: NavShare | n
         {inShare ? null : (
           <div className="m-nav__center">
             {MOBILE_CAMERA_ENABLED ? (
-              <MSWUButton
+              <SWUButton
                 size="md"
                 onClick={openTool}
                 ariaLabel="Keypad or camera: opens the mode you used last"
@@ -204,13 +204,13 @@ export function MobileNav({ route, share }: { route: Route; share?: NavShare | n
                 <span className={"m-nav__tool" + (cam ? " m-nav__tool--on" : "")}>
                   <MIcon name="camera" size={22} />
                 </span>
-              </MSWUButton>
+              </SWUButton>
             ) : (
-              <MSWUButton size="md" onClick={openTool} ariaLabel="Keypad">
+              <SWUButton size="md" onClick={openTool} ariaLabel="Keypad">
                 <span className="m-nav__tool m-nav__tool--on">
                   <MIcon name="pad" size={20} />
                 </span>
-              </MSWUButton>
+              </SWUButton>
             )}
           </div>
         )}

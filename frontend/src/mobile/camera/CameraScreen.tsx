@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useLimits } from "../../context/LimitsContext";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { go } from "../router";
 import { Sheet } from "../Sheet";
 import { cellImage } from "../vault/cardImage";
@@ -534,9 +534,9 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
             <div className="m-cam__msg" role="alert">
               <p className="m-cam__msgline">The card reader could not start</p>
               <p className="m-cam__msgsub">{readerFail}</p>
-              <MSWUButton size="md" onClick={toKeypad}>
+              <SWUButton size="md" onClick={toKeypad}>
                 Use the keypad
-              </MSWUButton>
+              </SWUButton>
             </div>
           ) : streamMsg ? (
             <div className="m-cam__msg" role="status">
@@ -544,7 +544,7 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
               {streamMsg.sub ? <p className="m-cam__msgsub">{streamMsg.sub}</p> : null}
               <div className="m-cam__msgacts">
                 {streamMsg.start ? (
-                  <MSWUButton
+                  <SWUButton
                     size="md"
                     onClick={() => {
                       audioUnlock();
@@ -552,7 +552,7 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
                     }}
                   >
                     Start
-                  </MSWUButton>
+                  </SWUButton>
                 ) : null}
                 <button type="button" className="m-textbtn" onClick={toKeypad}>
                   Use the keypad
@@ -570,9 +570,9 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
           )}
           {!paused && streamState.kind === "live" ? (
             <div className="m-cam__align">
-              <MSWUButton size="touch" onClick={() => setAlignOpen(true)}>
+              <SWUButton size="touch" onClick={() => setAlignOpen(true)}>
                 Align guide
-              </MSWUButton>
+              </SWUButton>
             </div>
           ) : null}
         </div>

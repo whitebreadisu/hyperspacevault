@@ -187,6 +187,15 @@ BL-ids.
 - `2026-08-16` **BL-226** — Table width tiers — Compact / Standard / Full with auto-selection
 - `2026-08-16` **BL-227** — Header links — white at rest, button-blue hover with glow
 
+### October 2026 — phone layout (BL-190), slice by slice
+
+- `2026-10-11` **BL-247** — Phone shell + Vault + Playwright harness (PR #210)
+- `2026-10-11` **BL-248** — Phone card detail + Filters sheet (PR #212)
+- `2026-10-11` **BL-249** — Phone keypad tool, choosers, verify batch, commit (PR #213)
+- `2026-10-11` **BL-250** — Phone More, About & Legal, Updates, Import & Export (PR #215)
+- `2026-10-11` **BL-251** — Phone Settings, Change Password, Delete Account, Sharing, verify banner (PR #216)
+- `2026-10-11` **BL-252** — Phone shared vault (PR #217); the closing integration sweep rides the camera PR
+- `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (in PR)
 
 ---
 

@@ -75,6 +75,8 @@ export default defineConfig({
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
       testIgnore: /s7-.*\.spec\.ts/,
+      // BL-252 S6-11: the desktop smoke signs in with the saved session.
+      dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },
     },
   ],

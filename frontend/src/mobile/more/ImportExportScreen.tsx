@@ -14,7 +14,7 @@ import { useBusyOverlay } from "../../hooks/useBusyOverlay";
 import "../../screens/importexport/ImportExportPage.css";
 import { totalCardsFromReport } from "../../screens/importexport/ImportPreviewReport";
 import { MIcon } from "../icons";
-import { MSWUButton } from "../MSWUButton";
+import { SWUButton } from "../../components/SWUButton";
 import { capturePhone, phoneScreenViewed } from "../phoneAnalytics";
 import { go } from "../router";
 import { useVaultData } from "../vault/useVaultData";
@@ -245,14 +245,14 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
   const removalCount = report?.totals.removed_by_replace_all ?? 0;
   const ready = !!file && !!mode && !!capHandling && !previewing;
   const dl = (kind: DownloadKind, label: string) => (
-    <MSWUButton
+    <SWUButton
       size="touch"
       active={!downloading.has(kind)}
       ariaDisabled={downloading.has(kind)}
       onClick={() => handleDownload(kind)}
     >
       {downloading.has(kind) ? "Preparing…" : label}
-    </MSWUButton>
+    </SWUButton>
   );
 
   return (
@@ -343,7 +343,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                         iOS Safari can swallow), and the input is itself a >= 44 px target. */}
                     <span className="m-ie__pick">
                       <span inert aria-hidden="true">
-                        <MSWUButton size="touch">Choose import file</MSWUButton>
+                        <SWUButton size="touch">Choose import file</SWUButton>
                       </span>
                       <input
                         id="ie-file-input"
@@ -404,14 +404,14 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                   </div>
                 </div>
                 <div className="ie-actions">
-                  <MSWUButton
+                  <SWUButton
                     size="touch"
                     active={ready}
                     ariaDisabled={!ready}
                     onClick={handlePreview}
                   >
                     {previewing ? "Previewing…" : "Preview import"}
-                  </MSWUButton>
+                  </SWUButton>
                 </div>
               </div>
             )}
@@ -452,18 +452,18 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                 )}
 
                 <div className="ie-actions m-ie__foot">
-                  <MSWUButton size="touch" onClick={() => setStep("configure")}>
+                  <SWUButton size="touch" onClick={() => setStep("configure")}>
                     Cancel
-                  </MSWUButton>
+                  </SWUButton>
                   <span className="ie-actions__spacer" />
-                  <MSWUButton
+                  <SWUButton
                     size="touch"
                     active={!confirmBlocked}
                     ariaDisabled={confirmBlocked}
                     onClick={handleConfirm}
                   >
                     {committing ? "Importing…" : "Confirm import"}
-                  </MSWUButton>
+                  </SWUButton>
                 </div>
               </div>
             )}
@@ -483,9 +483,9 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                     Import another file
                   </button>
                   <span className="ie-actions__spacer" />
-                  <MSWUButton size="touch" onClick={() => go("#/vault")}>
+                  <SWUButton size="touch" onClick={() => go("#/vault")}>
                     Back to Vault
-                  </MSWUButton>
+                  </SWUButton>
                 </div>
               </div>
             )}
