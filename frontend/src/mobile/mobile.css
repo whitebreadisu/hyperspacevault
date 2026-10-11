@@ -1,0 +1,84 @@
+/* BL-247 S1-02: the phone app frame (rev4 m-layout.css:13-48 + m-frame.css:8-22),
+ * scoped to .m-app. The app IS the page: the document never scrolls, only
+ * .m-scroll containers inside screens do. Page background = desktop's
+ * .app-layout (circuit tile at 1400 px over the page colour). */
+
+html:has(.m-app),
+html:has(.m-app) body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.m-app {
+  /* Safe-area insets, read by the bar (bottom) and header (top). */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  /* S1-15: MobileApp tracks visualViewport (--app-h / --app-top) so the frame
+   * ends at the keyboard's top edge (rev4 MApp.jsx:404-415). */
+  top: var(--app-top, 0px);
+  bottom: auto;
+  height: var(--app-h, 100dvh);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  box-sizing: border-box;
+  background-color: var(--bg-page, #090b14);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.m-app button {
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.m-app button:disabled {
+  cursor: default;
+}
+
+.m-app input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
+.m-app__screen {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.m-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The scroll container every screen uses; the bar stays pinned below it. */
+.m-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}

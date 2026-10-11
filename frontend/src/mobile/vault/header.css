@@ -1,0 +1,508 @@
+/* BL-247 S1-05 / S1-06: the Vault's collapsing app header. Consolidated from
+ * rev4 m-layout.css:49-84 (brand), m-rev1.css:55-89 (header, strip),
+ * m-rev2.css:9-32 + 100-112 (wordmark, badge, funnel, pull cue),
+ * m-rev3.css:15-88 + 115-119 (R3-6 overlay, R3-7 title row, R3-3 strip,
+ * R3-13 cut) and m-rev4.css:35-53 (R4-5 static sky); values verbatim, the
+ * rev-layer cascade collapsed to the final computed rule (plan A5).
+ *
+ * Motion rule (R3-6 / R4-5): the collapse animates ONLY transform, opacity
+ * and the sky's clip-path (visibility flips discretely at the end). Nothing
+ * transitions height, padding, top or margin. 0.24 s ease-out. */
+
+.m-app {
+  --m-collapse: 0.24s;
+  --m-collapse-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* S1-15: half the circuit seam's height (70/2560 of the width, ~11 px). */
+  --m-seam: 6px;
+}
+
+.m-app .m-vault {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── The header: an overlay with a fixed layout, moved by transform ─────── */
+.m-app .m-vh {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  padding: calc(10px + var(--sat)) 16px 14px;
+  background: transparent;
+  pointer-events: none;
+}
+/* R4-5: the starfield is its own STATIC layer; collapsing clips it from
+ * below (paint only), so the strip shows the slice at the top of the open
+ * header and the image never moves. Scrim = desktop index.css header. */
+.m-app .m-vh > .m-vh__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--bg-surface);
+  background-image:
+    linear-gradient(90deg, rgba(9, 11, 20, 0.62), rgba(9, 11, 20, 0.28)), var(--starfield);
+  background-size: cover;
+  background-position: center;
+  clip-path: inset(0 0 0 0);
+  transition: clip-path var(--m-collapse) var(--m-collapse-ease);
+}
+.m-app .m-vh--collapsed .m-vh > .m-vh__sky {
+  clip-path: inset(0 0 var(--vh-delta, 0px) 0);
+}
+/* The sliding surface: transparent since R4-5; carries the seam + pull bar. */
+.m-app .m-vh > .m-vh__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: transparent;
+  transform: translateY(0);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+}
+.m-app .m-vh--collapsed .m-vh > .m-vh__bg {
+  transform: translateY(calc(-1 * var(--vh-delta, 0px)));
+}
+/* The circuit seam rides on the surface's bottom edge, straddling it. */
+.m-app .m-vh__seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  transform: translateY(50%);
+}
+/* C1: the deliberate pull -- a steel bar fills at the header's bottom edge. */
+.m-app .m-pullbar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 2px;
+  width: calc(var(--pull, 0) * 100%);
+  background: #cfd6e4;
+  opacity: 0;
+  pointer-events: none;
+}
+.m-app .m-pulling .m-pullbar {
+  opacity: 0.9;
+}
+
+/* ── Title row: brand stack / strip (swapped) · account ─────────────────── */
+.m-app .m-vh > .m-vh__top {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  /* S1-15: search mode fades and lifts the row; restore runs back. */
+  transition:
+    opacity 0.15s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.m-app .m-vh__swap {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.m-app .m-vh__brand,
+.m-app .m-vh__strip {
+  grid-area: 1 / 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  transition:
+    opacity 0.15s ease,
+    transform 0.2s ease,
+    visibility 0s linear;
+}
+.m-app .m-vh__brand {
+  gap: 8px;
+}
+.m-app .m-vh__strip {
+  gap: 7px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition-delay: 0s, 0s, 0.2s;
+}
+.m-app .m-vh--collapsed .m-vh__brand {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition-delay: 0s, 0s, 0.15s;
+}
+.m-app .m-vh--collapsed .m-vh__strip {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0.08s, 0.08s, 0s;
+}
+
+/* Brand stack (R3-7 + R4-10 brand tap; R5-2 tag line carries the version). */
+.m-app .m-vh__brandtext {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+.m-app .m-vh__brandtext:active {
+  opacity: 0.8;
+}
+.m-app .m-vh__word {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.m-app .m-vh__tag {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  line-height: 1.1;
+  padding: 0;
+  white-space: nowrap;
+}
+/* The version keeps desktop's casing (index.css .app-header__version is not
+ * uppercased: "v1.5.1"), so the tag line reads "UNOFFICIAL FAN PROJECT [v1.5.1]". */
+.m-app .m-vh__ver {
+  text-transform: none;
+}
+/* Feedback (R3-7 text): the 40 px SWUButton, drawn at 40, hit at 44. */
+.m-app .m-vh__fb {
+  flex: none;
+  pointer-events: auto;
+}
+.m-app .m-vh__fb.swu-btn {
+  height: 44px !important;
+  padding: 2px 0;
+  margin-right: 0;
+}
+.m-app .m-vh__fb .swu-btn__label {
+  padding-left: 7px;
+  padding-right: 7px;
+  letter-spacing: 0.1em;
+}
+
+/* ── Collapsed strip: [HSV] badge, funnel (narrowed only), readout ──────── */
+.m-app .m-vh__hsv {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-vh__hsv:active {
+  opacity: 0.8;
+}
+.m-app .m-vh__readout {
+  min-height: 44px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  text-align: left;
+}
+.m-app .m-vh__narrow {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 2px;
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  background: rgba(217, 154, 31, 0.12);
+  color: #f2c14e;
+}
+.m-app .m-vh__pct {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-vh__ticks {
+  flex: none;
+  gap: 2px;
+  padding-left: 2px;
+}
+.m-app .m-vh__ticks .inv-summary__tick {
+  width: 4px;
+}
+.m-app .m-vh__fact--cards {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-vh__n {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9fb0cc;
+}
+.m-app .m-vh__value {
+  font-family: "Russo One", sans-serif;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-vh__chev {
+  flex: none;
+  color: #cfd6e4;
+}
+.m-app .m-pulling .m-vh__chev {
+  transform: translateY(calc(var(--pull, 0) * 4px));
+  color: #fff;
+}
+
+/* ── The panel: slides up by --vh-delta and fades on collapse ───────────── */
+.m-app .m-vh > .m-vh__panel {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    transform var(--m-collapse) var(--m-collapse-ease),
+    opacity 0.16s ease 0.06s,
+    visibility 0s linear;
+  will-change: transform, opacity;
+}
+.m-app .m-vh--collapsed .m-vh > .m-vh__panel {
+  transform: translateY(calc(-1 * var(--vh-delta, 0px)));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--m-collapse) var(--m-collapse-ease),
+    opacity 0.12s ease,
+    visibility 0s linear var(--m-collapse);
+}
+
+/* ── The slot and the content below (R3-6 / R3-13) ─────────────────────── */
+/* The layout slot is always the collapsed height; the content below is moved
+ * down by the difference while expanded. */
+.m-app .m-vh__slot {
+  flex: none;
+  height: var(--vh-min, 60px);
+}
+.m-app .m-vault__below {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(var(--vh-delta, 0px));
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+  /* R3-13: expanded and settled, the box is cut by the translate distance so
+   * it ends at the bar (set once per gesture by useHeaderSlot). */
+  margin-bottom: var(--vh-cut, 0px);
+}
+.m-app .m-vh--collapsed .m-vault__below {
+  transform: translateY(0);
+  margin-bottom: 0;
+}
+.m-app .m-vault__below > .m-scroll {
+  flex: 1;
+  min-height: 0;
+}
+.m-app .m-vault__scroll {
+  overscroll-behavior-y: none;
+}
+.m-app .m-pullshift {
+  transform: translateY(0);
+  transition: transform 0.15s ease;
+}
+.m-app .m-pulling .m-pullshift {
+  transform: translateY(var(--pull-shift, 0));
+  transition: none;
+}
+
+/* ── Collection panel (m-layout.css:421-439; S1-23 adds the head controls) */
+.m-app .m-summary {
+  margin: 8px 0 0;
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+}
+.m-app .m-summary__inner {
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(
+    13px 0,
+    100% 0,
+    100% calc(100% - 13px),
+    calc(100% - 13px) 100%,
+    0 100%,
+    0 13px
+  );
+  padding: 6px 14px 10px 16px;
+}
+.m-app .m-summary__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.m-app .m-summary__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-summary__body {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 6px 10px;
+  text-align: left;
+  padding: 6px 0 0;
+}
+.m-app .m-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.m-app .m-metric__label {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.m-app .m-metric__value {
+  font-family: var(--font-ui);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  line-height: 1;
+  white-space: nowrap;
+}
+.m-app .m-metric__ticks {
+  padding-left: 2px;
+}
+.m-app .m-metric__sub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ── S1-15 search mode (R5-4) ──────────────────────────────────────────────
+ * Focus in the search box: the app header and the collection panel go to
+ * nothing (opacity + translate; the sky fades), the sliding surface carries
+ * the seam up to the top edge, and the content below rises to sit under it
+ * with the status row hidden. Transform + opacity only; the box the list
+ * needs is grown ONCE at the class flip by the R3-13 cut mechanism (a margin
+ * on .m-vault__below), never animated. --m-seam is the seam's half-height
+ * (the separator is 70/2560 of the width, ~11 px at 390), so it sits whole
+ * below the safe-area edge; --vs-hide is row two's full step (margin-top 2 +
+ * 46 + the controls' 4 px foot, vault.css). */
+.m-app .m-vault {
+  --vs-hide: 52px;
+}
+.m-app .m-vault--search .m-vh > .m-vh__top,
+.m-app .m-vault--search .m-vh > .m-vh__panel {
+  opacity: 0;
+  transform: translateY(-24px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear var(--m-collapse);
+}
+.m-app .m-vault.m-vault--search .m-vh > .m-vh__sky {
+  clip-path: inset(0 0 calc(100% - var(--sat) - var(--m-seam)) 0);
+}
+.m-app .m-vault.m-vault--search .m-vh > .m-vh__bg {
+  transform: translateY(calc(var(--sat) + var(--m-seam) - var(--vh-full, 0px)));
+}
+.m-app .m-vault.m-vault--search .m-vault__below {
+  transform: translateY(calc(var(--sat) + var(--m-seam) - var(--vh-min, 60px)));
+  margin-bottom: calc(var(--sat) + var(--m-seam) - var(--vh-min, 60px) - var(--vs-hide));
+}
+.m-app .m-vault--search .m-vault__scroll {
+  transform: translateY(calc(-1 * var(--vs-hide)));
+}
+.m-app .m-vault__scroll {
+  transform: translateY(0);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+}
+.m-app .m-vault--search .m-vault__status {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    visibility 0s linear 0.12s;
+}
+.m-app .m-vault--search .m-clearbtn,
+.m-app .m-vault--search .m-filterbtn {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-vault--search .m-vh > .m-vh__top,
+  .m-app .m-vault--search .m-vh > .m-vh__panel {
+    transition: none;
+  }
+}

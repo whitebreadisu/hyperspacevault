@@ -138,3 +138,44 @@ if (typeof window !== "undefined") {
   };
   window.cancelAnimationFrame = () => {};
 }
+
+// BL-247 S1-01: jsdom implements no matchMedia, and the phone gate
+// (mobile/useIsPhone.ts, read by App) calls it on mount. This stub defaults
+// every query to `matches: false` (the desktop tree, which every
+// pre-existing test was written against) and keeps a registry so a test can
+// flip a query with `setMediaMatches(query, true)` -- that updates the
+// `matches` the NEXT matchMedia call returns and dispatches a `change` event
+// to live listeners, like a real viewport crossing a breakpoint.
+type MediaListener = (e: MediaQueryListEvent) => void;
+const mediaMatches = new Map<string, boolean>();
+const mediaListeners = new Map<string, Set<MediaListener>>();
+
+export function setMediaMatches(query: string, matches: boolean): void {
+  mediaMatches.set(query, matches);
+  mediaListeners.get(query)?.forEach((l) => l({ matches, media: query } as MediaQueryListEvent));
+}
+
+export function resetMediaMatches(): void {
+  mediaMatches.clear();
+}
+
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  window.matchMedia = (query: string): MediaQueryList => {
+    const listeners = mediaListeners.get(query) ?? new Set<MediaListener>();
+    mediaListeners.set(query, listeners);
+    return {
+      get matches() {
+        return mediaMatches.get(query) ?? false;
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_t: string, l: EventListenerOrEventListenerObject) =>
+        listeners.add(l as MediaListener),
+      removeEventListener: (_t: string, l: EventListenerOrEventListenerObject) =>
+        listeners.delete(l as MediaListener),
+      addListener: (l: MediaListener) => listeners.add(l),
+      removeListener: (l: MediaListener) => listeners.delete(l),
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList;
+  };
+}

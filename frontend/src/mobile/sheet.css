@@ -1,0 +1,221 @@
+/* BL-247 S1-13: the bottom sheet (rev4 m-layout.css:225-245) plus the small
+ * shared controls sheets use (m-layout.css:35-40 icon button, 302-311 choice
+ * rows, 317-321 check rows). Values verbatim; scoped to .m-app. Motion is
+ * transform + opacity only: m-rise / m-sink move the panel, m-fade the scrim. */
+
+.m-app .m-sheethost {
+  display: contents;
+}
+
+.m-app .m-iconbtn {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #cfd6e4;
+  transition:
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+.m-app .m-iconbtn:disabled {
+  opacity: 0.28;
+}
+.m-app .m-iconbtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+@keyframes m-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes m-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes m-rise {
+  from {
+    transform: translateY(28px);
+    opacity: 0.2;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes m-sink {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0.2;
+  }
+}
+
+.m-app .m-sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.m-app .m-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: m-fade 0.15s ease;
+}
+.m-app .m-sheet {
+  position: relative;
+  display: flex;
+  max-height: 86%;
+  min-height: 0;
+  background: rgba(211, 211, 212, 0.34);
+  padding: 1.5px 1.5px 0;
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%, 0 18px);
+  animation: m-rise 0.2s ease-out;
+  transition: transform 0.2s ease-out;
+}
+.m-app .m-sheet-layer--leaving {
+  pointer-events: none;
+}
+.m-app .m-sheet-layer--leaving .m-sheet {
+  animation: m-sink 0.18s ease-in forwards;
+}
+.m-app .m-sheet-layer--leaving .m-sheet-scrim {
+  animation: m-fade-out 0.18s ease-in forwards;
+}
+.m-app .m-sheet__inner {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  clip-path: polygon(16.5px 0, calc(100% - 16.5px) 0, 100% 16.5px, 100% 100%, 0 100%, 0 16.5px);
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+}
+.m-app .m-sheet__head {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 8px 8px 20px;
+  touch-action: none;
+  cursor: grab;
+}
+.m-app .m-sheet__grip {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 36px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: rgba(211, 211, 212, 0.35);
+}
+.m-app .m-sheet__titles {
+  flex: 1;
+  min-width: 0;
+}
+.m-app .m-sheet__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.m-app .m-sheet__sub {
+  margin-top: 3px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+.m-app .m-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px calc(22px + var(--sab));
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* ── Choice rows (m-layout.css:302-308) ─────────────────────────────────── */
+.m-app .m-choice {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-choice__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 10px;
+  margin: 0 -10px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-choice__row:first-child {
+  border-top: none;
+}
+.m-app .m-choice__row > span:first-child {
+  flex: 1;
+}
+.m-app .m-choice__row--on {
+  color: #fff;
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+/* ── Check rows (m-layout.css:317-319) ──────────────────────────────────── */
+.m-app .m-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+.m-app .m-check__box {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(211, 211, 212, 0.4);
+  border-radius: 2px;
+  color: #fff;
+}
+.m-app .m-check--on .m-check__box {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}

@@ -25,6 +25,8 @@ import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotes
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
 import { capture } from "./analytics/analytics";
+import { MobileApp } from "./mobile/MobileApp";
+import { useIsPhone } from "./mobile/useIsPhone";
 
 /** BL-56 §5.5: the app no longer gates on auth -- anonymous visitors get the
  * same shell (Header + unified Cards list) as signed-in users. Auth becomes a
@@ -59,6 +61,8 @@ import { capture } from "./analytics/analytics";
  * onSignedUp relies on. */
 function AppContent() {
   const { user, loading, logout, emailVerified } = useAuth();
+  // BL-247 S1-01: phone-width viewports render the mobile app instead.
+  const isPhone = useIsPhone();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
@@ -231,7 +235,8 @@ function AppContent() {
   // early-return (rules-of-hooks); the in-effect loading guard keeps the
   // first emit on the first *rendered* pane, not the loading splash.
   useEffect(() => {
-    if (loading) return;
+    // F2: the phone's router owns screen_viewed (MobileApp); skip it here.
+    if (loading || isPhone) return;
     const screenByView: Record<AppView, string> = {
       cards: "vault",
       "deck-check": "deck_check",
@@ -241,11 +246,14 @@ function AppContent() {
       "import-export": "import_export",
     };
     capture("screen_viewed", { screen: screenByView[view] });
-  }, [view, loading]);
+  }, [view, loading, isPhone]);
 
   if (loading) {
     return <p className="loading-text">Loading…</p>;
   }
+
+  // F1: share links stay on the desktop tree until the shared-vault slice.
+  if (isPhone && !parseShareRouteToken(window.location.pathname)) return <MobileApp />;
 
   return (
     <div className="app-layout">

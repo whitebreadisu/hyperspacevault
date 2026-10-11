@@ -1040,3 +1040,21 @@ Six runs of the spike page: median first-text → recognition 10.3 s →
 (48 prompts/picks); Safari grants a 4K stream, zoom 0.5–10, torch and
 focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
 (private layer).
+
+## 25. Mobile experience (BL-190 — as built, slice by slice)
+
+### 25.1 S1 Shell + Vault (BL-247)
+
+- **Gate.** `useIsPhone()` = `matchMedia("(max-width: 767px)")`, live; when it matches, `App.tsx` renders `frontend/src/mobile/MobileApp` inside the same providers, otherwise the desktop tree. Tablets (>= 768 px) get desktop. Phone CSS is scoped under `.m-app`.
+- **Share links.** `/shared/{token}` links render the desktop view on phones until the shared-vault slice.
+- **Routes (hash).** `#/vault` (params `set`, `finish`, `q`, `view`, `size`, `gsize`, `sheet=scope|sort|filters|sets`, `collapsed=1`), `#/more/feedback`; `#/card/<id>`, `#/pad`, `#/more`, `#/more/{updates,settings,password}`, `#/about` render a one-sentence placeholder until their slices. Unknown or empty hash → `#/vault`; back = history back, else `#/vault`.
+- **Shell.** Three-item bottom bar (Vault, centre keypad SWUButton — camera behind `MOBILE_CAMERA_ENABLED = false` — More). Header: `[HSV] Hyperspace Vault` over `Unofficial Fan Project [v#.#.#]`, text Feedback button, account slot (Sign in / avatar menu: Settings, Change Password with a password provider only, About & Legal, Log Out). Title / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the title (badge when collapsed), never on More.
+- **Collapse.** The header collapses as the list scrolls; back at the top it stays collapsed; a tap on the strip or a deliberate pull from the top expands. Motion is transform + opacity only; the starfield is clipped, never moved. Strip: badge, amber funnel while the totals are filtered, %, ten ticks, "n cards", value without cents.
+- **Completion panel.** Desktop `computePanelMetrics` over the narrowed list (or every card under Totals = All). Totals Filtered / All shows only while narrowed and signed in; Filtered draws the amber ring. Market / Low = desktop's persisted price kind (shared with the rows). Signed out: em dashes, empty ticks, no breakdown. Tapping the body opens **Completion by set**: one row per base set (`buildSetBreakdown` over every narrowing except the Set facet); a row tap sets the Set facet to that set.
+- **Status rows.** Row one: search ("Search the vault"; name, subtitle, card number), Clear (only while narrowed, amber), Filters + active count. Row two: count ("n cards", amber when narrowed, no "of m"), finish-scope chip, icon-only Sort (desktop's sortable columns, `nextSortState`), List / Gallery toggle (List → 4 row sizes incl. no image; Gallery → 1 / 2 / 3 across; remembered per browser session).
+- **Search mode.** Focus collapses both headers, the status row and the bottom bar (separators stay); blur restores; clearing the query does not.
+- **Finish scope.** Picking a scope writes the Finish facet (so Clear appears); editing the Finish facet disengages it; "All finishes" clears; never persisted. The scope drives row pips, number, price and art, and the sort.
+- **Card surfaces.** Rows and gallery plates use desktop's count chip + pips (`cards.css` literals); no "n/m" on any card surface; missing price = "—". Lists are virtualised. Empty state: "No cards match the current filters."
+- **Leave Feedback** (`#/more/feedback`): desktop FeedbackModal copy and rules in a steel-ring screen; auto-closes 1.5 s after "Thanks for the feedback!".
+- **Analytics.** `layout` super-property (`phone` / `desktop`); phone events carry `layout: "phone"`: `screen_viewed` (vault, feedback), `view_mode_changed` (`rows_none…rows_lg`, `gallery_1…gallery_3`), `search_performed`, `sort_changed`, `finish_scope_changed`, `filters_cleared`, `feedback_submitted`.
+- **Tests.** Layout: Playwright in `frontend/e2e/mobile/` (projects phone-390, phone-430, desktop-1440; API answered from `e2e/mobile/fixtures/`; sign-in on the Firebase Auth emulator). Run `npm run e2e:mobile` in `frontend/` (starts the emulator when port 9099 is free); CI job `frontend-e2e-mobile`, required by `ci-ok`. Logic: vitest beside the code in `frontend/src/mobile/`.

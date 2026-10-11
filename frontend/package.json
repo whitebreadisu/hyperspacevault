@@ -11,9 +11,11 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "lint": "eslint src",
+    "lint": "eslint src e2e",
     "format:check": "prettier --check src",
-    "format:write": "prettier --write src"
+    "format:write": "prettier --write src",
+    "e2e:mobile": "node e2e/run-mobile.mjs",
+    "e2e:mobile:ui": "playwright test --ui"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.9",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.61.0",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.0.1",
     "@types/react": "^19.2.18",

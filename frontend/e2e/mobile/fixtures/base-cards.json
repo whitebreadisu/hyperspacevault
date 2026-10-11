@@ -1,0 +1,4754 @@
+[
+  {
+    "id": 1861,
+    "set_code": "ASH",
+    "base_card_number": "5",
+    "name": "Luke Skywalker",
+    "subtitle": "I Can Save Him",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 7,
+    "power": 6,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": [],
+    "traits": ["Force", "Jedi", "Rebel"],
+    "variants": [
+      {
+        "variant_id": 213,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "5",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010005_EN_Luke_Skywalker_Leader_6431bba672.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08010005_EN_Luke_Skywalker_Leader_Unit_4b37986e1c.png",
+        "price": {
+          "market": 4.46,
+          "low": 3.95,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8544,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "269",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020269_EN_Luke_Skywalker_Leader_297270f64e.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08020269_EN_Luke_Skywalker_Leader_Unit_bbec743b91.png",
+        "price": {
+          "market": 0.49,
+          "low": 0.33,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9106,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "771",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08030771_EN_Luke_Skywalker_Leader_1207bba3d2.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08030771_EN_Luke_Skywalker_Leader_Unit_ca7bda3805.png",
+        "price": {
+          "market": 360.52,
+          "low": 275,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1126,
+    "set_code": "ASH",
+    "base_card_number": "7",
+    "name": "Grand Admiral Sloane",
+    "subtitle": "Holding the Empire Together",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 4,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": ["Sentinel", "Overwhelm"],
+    "traits": ["Imperial", "Official"],
+    "variants": [
+      {
+        "variant_id": 235,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "7",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010007_EN_Grand_Admiral_Sloane_Leader_2d2b9c6a51.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08010007_EN_Grand_Admiral_Sloane_Leader_Unit_b4a9c48cf0.png",
+        "price": {
+          "market": 0.15,
+          "low": 0.05,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8547,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "271",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020271_EN_Grand_Admiral_Sloane_Leader_9eb4a35ba1.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08020271_EN_Grand_Admiral_Sloane_Leader_Unit_04bbb28a44.png",
+        "price": {
+          "market": 0.37,
+          "low": 0.24,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9108,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "773",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08030773_EN_Grand_Admiral_Sloane_Leader_4955e6ab41.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08030773_EN_Grand_Admiral_Sloane_Leader_Unit_aa7dcd18a9.png",
+        "price": {
+          "market": 100.36,
+          "low": 124.95,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1397,
+    "set_code": "ASH",
+    "base_card_number": "14",
+    "name": "The Mandalorian",
+    "subtitle": "We Can't Keep Running",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 4,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Heroism"],
+    "keywords": ["Support"],
+    "traits": ["Mandalorian"],
+    "variants": [
+      {
+        "variant_id": 47,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "14",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010014_EN_The_Mandalorian_Leader_425f39b1be.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08010014_EN_The_Mandalorian_Leader_Unit_30f6ca0527.png",
+        "price": {
+          "market": 0.22,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8554,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "278",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020278_EN_The_Mandalorian_Leader_ebe2bf06a9.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08020278_EN_The_Mandalorian_Leader_Unit_9b0d276f55.png",
+        "price": {
+          "market": 0.42,
+          "low": 0.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9116,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "780",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08030780_EN_The_Mandalorian_Leader_12254a0d42.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08030780_EN_The_Mandalorian_Leader_Unit_638cd41958.png",
+        "price": {
+          "market": 270.29,
+          "low": 258,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1382,
+    "set_code": "ASH",
+    "base_card_number": "18",
+    "name": "Grogu",
+    "subtitle": "Charming Companion",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 4,
+    "power": 0,
+    "hp": 3,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Heroism"],
+    "keywords": [],
+    "traits": ["Force"],
+    "variants": [
+      {
+        "variant_id": 91,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "18",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010018_EN_Grogu_Leader_d7224ac11c.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08010018_EN_Grogu_Leader_Unit_3ce63a36cf.png",
+        "price": {
+          "market": 0.18,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8559,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "282",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020282_EN_Grogu_Leader_99949b2624.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08020282_EN_Grogu_Leader_Unit_20ed292a84.png",
+        "price": {
+          "market": 0.39,
+          "low": 0.2,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9120,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "784",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08030784_EN_Grogu_Leader_c3fdf0f8f5.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_08030784_EN_Grogu_Leader_Unit_10ae83ef5e.png",
+        "price": {
+          "market": 152.14,
+          "low": 280,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 3752,
+        "variant_type": "Movie Promo",
+        "finish": null,
+        "channel": "Movie",
+        "source_set_code": "MV26",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_MV_26100001_EN_Grogu_Leader_28df6fe2ac.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_MV_26100001_EN_Grogu_Leader_Unit_30a19fa0ba.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1981,
+    "set_code": "ASH",
+    "base_card_number": "19",
+    "name": "Fortress of the Great Mothers",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 30,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 102,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "19",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010019_EN_Fortress_of_the_Great_Mothers_Base_88cb8bca99.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.75,
+          "low": 2.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8560,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "283",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020283_EN_Fortress_of_the_Great_Mothers_Base_c1ea1ac0d2.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.17,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 952,
+    "set_code": "ASH",
+    "base_card_number": "26",
+    "name": "Freetown",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 30,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Cunning"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 181,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "26",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010026_EN_Freetown_Base_51e5e9bbbd.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.82,
+          "low": 3.82,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8568,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "290",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020290_EN_Freetown_Base_01632aa792.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.16,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 970,
+    "set_code": "ASH",
+    "base_card_number": "52",
+    "name": "Chimaera",
+    "subtitle": "A Frightening Reality",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 7,
+    "power": 6,
+    "hp": 6,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": [],
+    "traits": ["Capital Ship", "Imperial", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 216,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "52",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010052_EN_Chimaera_c7c0ad6b5a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 42.34,
+          "low": 39.5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8598,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "316",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020316_EN_Chimaera_7c8f317e58.png",
+        "back_image_url": null,
+        "price": {
+          "market": 53.59,
+          "low": 46,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8864,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "554",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320554_EN_Chimaera_90a72de43c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 64.49,
+          "low": 64.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22137,
+        "variant_type": "GC Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "189",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26900189_EN_Chimaera_a008c37245.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 855,
+    "set_code": "ASH",
+    "base_card_number": "53",
+    "name": "Pre Vizsla",
+    "subtitle": "Strong-Willed Ruler",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 8,
+    "power": 6,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": [],
+    "traits": ["Mandalorian", "Official"],
+    "variants": [
+      {
+        "variant_id": 217,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "53",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010053_EN_Pre_Vizsla_04e122a1d3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 35.43,
+          "low": 32,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8599,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "317",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020317_EN_Pre_Vizsla_2ddca6964c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 49.97,
+          "low": 40,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8865,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "555",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320555_EN_Pre_Vizsla_eaa4df0152.png",
+        "back_image_url": null,
+        "price": {
+          "market": 56.24,
+          "low": 44,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22063,
+        "variant_type": "GC Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "121",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26900121_EN_Pre_Vizsla_2e4a01139c.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22126,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "179",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980179_EN_Pre_Vizsla_6a51e83f76.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22189,
+        "variant_type": "SQ Day Two",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "235",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26760235_EN_Pre_Vizsla_Day2_da5096e1af.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 2044,
+    "set_code": "ASH",
+    "base_card_number": "62",
+    "name": "The Mandalorian",
+    "subtitle": "Devoted Rescuer",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 4,
+    "power": 5,
+    "hp": 4,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": ["Shielded"],
+    "traits": ["Mandalorian"],
+    "variants": [
+      {
+        "variant_id": 227,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "62",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010062_EN_The_Mandalorian_e5e7dfa30f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 16.79,
+          "low": 15,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8609,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "326",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020326_EN_The_Mandalorian_4b614a641d.png",
+        "back_image_url": null,
+        "price": {
+          "market": 19.06,
+          "low": 14.9,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8875,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "564",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320564_EN_The_Mandalorian_3b72e0ccd9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 16.97,
+          "low": 19.3,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9132,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "795",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08060795_EN_The_Mandalorian_Carb_A_1ea8926708.png",
+        "back_image_url": null,
+        "price": {
+          "market": 21.89,
+          "low": 21.89,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9185,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "842",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08330842_EN_The_Mandalorian_Carb_B_c869141e31.png",
+        "back_image_url": null,
+        "price": {
+          "market": 26.15,
+          "low": 49.75,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9236,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "889",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08340889_EN_The_Mandalorian_Carb_C_616c2406cf.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22060,
+        "variant_type": "GC Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "119",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26900119_EN_The_Mandalorian_0397981bcd.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22140,
+        "variant_type": "GC Top 64",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "191",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26000191_EN_The_Mandalorian_3fc04f05e8.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 947,
+    "set_code": "ASH",
+    "base_card_number": "112",
+    "name": "Luke Skywalker",
+    "subtitle": "Answering the Call",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 6,
+    "power": 5,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": ["Restore"],
+    "traits": ["Force", "Jedi"],
+    "variants": [
+      {
+        "variant_id": 17,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "112",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010112_EN_Luke_Skywalker_547807ff50.png",
+        "back_image_url": null,
+        "price": {
+          "market": 8,
+          "low": 5.7,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8664,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "376",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020376_EN_Luke_Skywalker_8c96883c6f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 9.16,
+          "low": 8,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8932,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "614",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320614_EN_Luke_Skywalker_09b650c2da.png",
+        "back_image_url": null,
+        "price": {
+          "market": 12.32,
+          "low": 10.91,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9140,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "801",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08060801_EN_Luke_Skywalker_Carb_A_67d5779f32.png",
+        "back_image_url": null,
+        "price": {
+          "market": 15.19,
+          "low": 14.4,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9191,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "848",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08330848_EN_Luke_Skywalker_Carb_B_fea4aeaade.png",
+        "back_image_url": null,
+        "price": {
+          "market": 31.11,
+          "low": 31,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9243,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "895",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08340895_EN_Luke_Skywalker_Carb_C_9589c4c9fe.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22136,
+        "variant_type": "GC Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "188",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26900188_EN_Luke_Skywalker_97653da16f.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22172,
+        "variant_type": "PQ Top 8",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "22",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26510022_EN_Luke_Skywalker_Top8_e85f588341.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22183,
+        "variant_type": "PQ Top 4",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "23",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26520023_EN_Luke_Skywalker_Top4_b67c8bd9da.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22194,
+        "variant_type": "PQ Finalist",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "24",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26530024_EN_Luke_Skywalker_inalist_27f8bb3f0d.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22195,
+        "variant_type": "PQ Champion",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "25",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26540025_EN_Luke_Skywalker_Champion_0111c4e0f4.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 786,
+    "set_code": "ASH",
+    "base_card_number": "50",
+    "name": "Morgan Elsbeth",
+    "subtitle": "Life Abandoned",
+    "type": "Unit",
+    "rarity": "Uncommon",
+    "cost": 6,
+    "power": 5,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": ["Support"],
+    "traits": ["Force", "Night"],
+    "variants": [
+      {
+        "variant_id": 214,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "50",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010050_EN_Morgan_Elsbeth_eb84dccb6b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.16,
+          "low": 0.09,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8596,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "314",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020314_EN_Morgan_Elsbeth_bc77e8807e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.23,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8862,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "552",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320552_EN_Morgan_Elsbeth_06c1e6e411.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.41,
+          "low": 0.12,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9129,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "792",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08060792_EN_Morgan_Elsbeth_Carb_A_291d200178.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.11,
+          "low": 1.96,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9181,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "839",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08330839_EN_Morgan_Elsbeth_Carb_B_4b73c805e4.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.77,
+          "low": 5.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9233,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "886",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08340886_EN_Morgan_Elsbeth_Carb_C_da32d63797.png",
+        "back_image_url": null,
+        "price": {
+          "market": null,
+          "low": 98,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9303,
+        "variant_type": "Weekly Play Foil",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "ASHP",
+        "card_number": "26",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08_W350026_EN_Morgan_Elsbeth_OP_Foil_9ac42866e7.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 9321,
+        "variant_type": "Weekly Play",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "ASHP",
+        "card_number": "6",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08_W600006_EN_Morgan_Elsbeth_OP_49eb01d267.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22086,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "142",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970142_EN_Morgan_Elsbeth_9fd0888fbe.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22099,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "154",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970154_EN_Morgan_Elsbeth_ca45ea3b0a.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22114,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "168",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980168_EN_Morgan_Elsbeth_38325d6dae.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1279,
+    "set_code": "ASH",
+    "base_card_number": "66",
+    "name": "Luke's Jedi Lightsaber",
+    "subtitle": "Constructed by Hand",
+    "type": "Upgrade",
+    "rarity": "Special",
+    "cost": 3,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": ["Sentinel"],
+    "traits": ["Item", "Lightsaber", "Weapon"],
+    "variants": [
+      {
+        "variant_id": 231,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "66",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010066_EN_Luke_s_Jedi_Lightsaber_3b2e25ccae.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.76,
+          "low": 2.75,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8614,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "330",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020330_EN_Luke_s_Jedi_Lightsaber_bf63cb7b86.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.28,
+          "low": 1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8879,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "568",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320568_EN_Luke_s_Jedi_Lightsaber_b34ae8c361.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.81,
+          "low": 1.56,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 873,
+    "set_code": "ASH",
+    "base_card_number": "114",
+    "name": "Sabine's Lightsaber",
+    "subtitle": "Not Alone",
+    "type": "Upgrade",
+    "rarity": "Rare",
+    "cost": 2,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": ["Restore"],
+    "traits": ["Item", "Lightsaber", "Weapon"],
+    "variants": [
+      {
+        "variant_id": 19,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "114",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010114_EN_Sabine_s_Lightsaber_e147bae5a3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.83,
+          "low": 0.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8666,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "378",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020378_EN_Sabine_s_Lightsaber_13e2f66575.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.38,
+          "low": 1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8934,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "616",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320616_EN_Sabine_s_Lightsaber_3438ea4791.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.63,
+          "low": 2.5,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1690,
+    "set_code": "ASH",
+    "base_card_number": "115",
+    "name": "The Student Guides the Master",
+    "subtitle": null,
+    "type": "Event",
+    "rarity": "Uncommon",
+    "cost": 1,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": [],
+    "traits": ["Learned"],
+    "variants": [
+      {
+        "variant_id": 20,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "115",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010115_EN_The_Student_Guides_the_Master_18e65785db.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.13,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8667,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "379",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020379_EN_The_Student_Guides_the_Master_39c901cd94.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.16,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8935,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "617",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320617_EN_The_Student_Guides_the_Master_9b8ce6eb13.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.39,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1727,
+    "set_code": "ASH",
+    "base_card_number": "67",
+    "name": "Get Lost",
+    "subtitle": null,
+    "type": "Event",
+    "rarity": "Uncommon",
+    "cost": 4,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": [],
+    "traits": ["Tactic"],
+    "variants": [
+      {
+        "variant_id": 232,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "67",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010067_EN_Get_Lost_697cd34881.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.15,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8615,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "331",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020331_EN_Get_Lost_21d3b2c28c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.31,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8880,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "569",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320569_EN_Get_Lost_838af345e2.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.21,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9305,
+        "variant_type": "Weekly Play Foil",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "ASHP",
+        "card_number": "28",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08_W350028_EN_Get_Lost_OP_Foil_a4875b6993.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.7,
+          "low": 0.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 9323,
+        "variant_type": "Weekly Play",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "ASHP",
+        "card_number": "8",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08_W600008_EN_Get_Lost_OP_5a2c32177b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.47,
+          "low": 0.14,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2182,
+    "set_code": "ASH",
+    "base_card_number": "86",
+    "name": "Durasteel Plating",
+    "subtitle": null,
+    "type": "Upgrade",
+    "rarity": "Common",
+    "cost": 2,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": ["Armor"],
+    "variants": [
+      {
+        "variant_id": 253,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "86",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010086_EN_Durasteel_Plating_2ca822b13c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.11,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8636,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "350",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020350_EN_Durasteel_Plating_56682df5fe.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.15,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8901,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "588",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320588_EN_Durasteel_Plating_cf29312847.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.15,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2074,
+    "set_code": "ASH",
+    "base_card_number": "79",
+    "name": "Koska Reeves",
+    "subtitle": "Warrior of Mandalore",
+    "type": "Unit",
+    "rarity": "Rare",
+    "cost": 4,
+    "power": 4,
+    "hp": 4,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": ["Sentinel"],
+    "traits": ["Mandalorian"],
+    "variants": [
+      {
+        "variant_id": 245,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "79",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010079_EN_Koska_Reeves_692e14ba7c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 14.67,
+          "low": 13.23,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8628,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "343",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020343_EN_Koska_Reeves_734c3ee543.png",
+        "back_image_url": null,
+        "price": {
+          "market": 19.87,
+          "low": 18,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8894,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "581",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320581_EN_Koska_Reeves_de596a4f2a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 22.59,
+          "low": 20.55,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22143,
+        "variant_type": "GC Top 64",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "194",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26000194_EN_Koska_Reeves_89342bc5d7.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 217,
+    "set_code": "ASH",
+    "base_card_number": "102",
+    "name": "Ravager",
+    "subtitle": "Final Imperial Command",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 9,
+    "power": 8,
+    "hp": 10,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": ["Restore"],
+    "traits": ["Capital Ship", "Imperial", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 6,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "102",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08010102_EN_Ravager_ffca62a284.png",
+        "back_image_url": null,
+        "price": {
+          "market": 7.81,
+          "low": 5.36,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8653,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "366",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08020366_EN_Ravager_c19abeeae7.png",
+        "back_image_url": null,
+        "price": {
+          "market": 9.88,
+          "low": 7.43,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 8921,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "ASH",
+        "card_number": "604",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_08320604_EN_Ravager_d62cff2131.png",
+        "back_image_url": null,
+        "price": {
+          "market": 13.03,
+          "low": 13.03,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 709,
+    "set_code": "TS26",
+    "base_card_number": "1",
+    "name": "Count Dooku",
+    "subtitle": "Offering Aid",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 7,
+    "power": 6,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": ["Restore"],
+    "traits": ["Force", "Official", "Separatist", "Sith"],
+    "variants": [
+      {
+        "variant_id": 7258,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010001_EN_Count_Dooku_Leader_410383f54c.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010001_EN_Count_Dooku_Leader_Unit_6bb2768962.png",
+        "price": {
+          "market": 0.66,
+          "low": 0.64,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22076,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "133",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970133_EN_Count_Dooku_Leader_2fd6b5d67a.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_P26970133_EN_Count_Dooku_Leader_Unit_f555384224.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 544,
+    "set_code": "TS26",
+    "base_card_number": "10",
+    "name": "Dooku's Palace",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Rare",
+    "cost": null,
+    "power": null,
+    "hp": 27,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Command"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 7260,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "10",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010010_EN_Dooku_s_Palace_Base_06f3c90d57.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.6,
+          "low": 0.39,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1572,
+    "set_code": "TS26",
+    "base_card_number": "38",
+    "name": "Dooku's Solar Sailer",
+    "subtitle": "Beautiful and Expensive",
+    "type": "Unit",
+    "rarity": "Rare",
+    "cost": 3,
+    "power": 2,
+    "hp": 4,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": [],
+    "traits": ["Separatist", "Transport", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 7292,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "38",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010038_EN_Dooku_s_Solar_Sailer_873690b897.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.44,
+          "low": 0.2,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2010,
+    "set_code": "IBH",
+    "base_card_number": "1",
+    "name": "Leia Organa",
+    "subtitle": "Get to Your Transports!",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 5,
+    "power": 3,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": [],
+    "traits": ["Official", "Rebel"],
+    "variants": [
+      {
+        "variant_id": 294,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010001_EN_Leia_Organa_Leader_fb42fa1eec.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I01010001_EN_Leia_Organa_Leader_Unit_d1f7a7c11b.png",
+        "price": {
+          "market": 0.26,
+          "low": 0.08,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 536,
+    "set_code": "IBH",
+    "base_card_number": "10",
+    "name": "Han Solo",
+    "subtitle": "Scruffy-Looking Nerf Herder",
+    "type": "Unit",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 4,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Heroism"],
+    "keywords": ["Raid"],
+    "traits": ["Rebel"],
+    "variants": [
+      {
+        "variant_id": 295,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "10",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010010_EN_Han_Solo_3eeb2f7aa3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.3,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2242,
+    "set_code": "LAW",
+    "base_card_number": "1",
+    "name": "Saw Gerrera",
+    "subtitle": "Bring Down the Empire",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 4,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Command"],
+    "keywords": ["Overwhelm"],
+    "traits": ["Rebel"],
+    "variants": [
+      {
+        "variant_id": 1594,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010001_EN_Saw_Gerrera_Leader_0c35c7027d.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07010001_EN_Saw_Gerrera_Leader_Unit_5d9e5ffd11.png",
+        "price": {
+          "market": 0.2,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1779,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "265",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020265_EN_Saw_Gerrera_Leader_5366717fcd.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07020265_EN_Saw_Gerrera_Leader_Unit_37b3fa21eb.png",
+        "price": {
+          "market": 0.37,
+          "low": 0.24,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2340,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "767",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07030767_EN_Saw_Gerrera_Leader_17f837ce8e.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07030767_EN_Saw_Gerrera_Leader_Unit_065cbbeed6.png",
+        "price": {
+          "market": 130.59,
+          "low": 100,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1697,
+    "set_code": "LAW",
+    "base_card_number": "7",
+    "name": "Boba Fett",
+    "subtitle": "Krayt's Claw Commander",
+    "type": "Leader",
+    "rarity": "Common",
+    "cost": 5,
+    "power": 3,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": ["Raid"],
+    "traits": ["Bounty Hunter", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 2265,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "7",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010007_EN_Boba_Fett_Leader_3fe60c239d.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07010007_EN_Boba_Fett_Leader_Unit_0103aa6f10.png",
+        "price": {
+          "market": 0.11,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1786,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "271",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020271_EN_Boba_Fett_Leader_5b43c17f92.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07020271_EN_Boba_Fett_Leader_Unit_a105be675e.png",
+        "price": {
+          "market": 0.15,
+          "low": 0.03,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2347,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "773",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07030773_EN_Boba_Fett_Leader_8349054196.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_07030773_EN_Boba_Fett_Leader_Unit_7581a0d8e9.png",
+        "price": {
+          "market": 128.79,
+          "low": 112,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1308,
+    "set_code": "LAW",
+    "base_card_number": "20",
+    "name": "Daimyo's Palace",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 27,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 1707,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "20",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010020_EN_Daimyo_s_Palace_Base_7ebc724de9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.16,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1800,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "284",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020284_EN_Daimyo_s_Palace_Base_48a779a372.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.34,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22071,
+        "variant_type": "GC VIP Promo",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "129",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26990129_EN_Daimyos_Palace_Base_bd8d17025b.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 646,
+    "set_code": "LAW",
+    "base_card_number": "101",
+    "name": "Lawbringer",
+    "subtitle": "Shadow Over Lothal",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 8,
+    "power": 7,
+    "hp": 7,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": [],
+    "traits": ["Capital Ship", "Imperial", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 1597,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "101",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010101_EN_Lawbringer_6acbf254f3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 14.62,
+          "low": 12.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1891,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "365",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020365_EN_Lawbringer_65654406f7.png",
+        "back_image_url": null,
+        "price": {
+          "market": 20.5,
+          "low": 18.5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2159,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "603",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320603_EN_Lawbringer_77c931ed6b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 23.32,
+          "low": 21.75,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4004,
+        "variant_type": "RQ Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "83",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26870083_EN_Lawbringer_9e0a6194e1.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4021,
+        "variant_type": "RQ Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "99",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26880099_EN_Lawbringer_21c2b1763e.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1409,
+    "set_code": "LAW",
+    "base_card_number": "108",
+    "name": "Lando Calrissian",
+    "subtitle": "Eyes Open",
+    "type": "Unit",
+    "rarity": "Special",
+    "cost": 5,
+    "power": 4,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": ["Sentinel"],
+    "traits": ["Rebel", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 1604,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "108",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010108_EN_Lando_Calrissian_93f63db128.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.95,
+          "low": 1.94,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1899,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "372",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020372_EN_Lando_Calrissian_6cd3a0a2a1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.08,
+          "low": 0.96,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2167,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "610",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320610_EN_Lando_Calrissian_459fa02264.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.58,
+          "low": 1.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2389,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "809",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07060809_EN_Lando_Calrissian_Carb_A_8a13ea1b12.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.41,
+          "low": 3,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2434,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "848",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07330848_EN_Lando_Calrissian_Carb_B_a9e7636989.png",
+        "back_image_url": null,
+        "price": {
+          "market": 7.08,
+          "low": 5.24,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2479,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "887",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07340887_EN_Lando_Calrissian_Carb_C_0aff11a404.png",
+        "back_image_url": null,
+        "price": {
+          "market": 299.99,
+          "low": 799.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22087,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "143",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970143_EN_Lando_Calrissian_6bebac7bed.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22100,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "155",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970155_EN_Lando_Calrissian_742537c3ab.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22115,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "169",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980169_EN_Lando_Calrissian_a3b214fb6f.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 293,
+    "set_code": "LAW",
+    "base_card_number": "152",
+    "name": "C-3PO",
+    "subtitle": "Translation Protocol",
+    "type": "Unit",
+    "rarity": "Uncommon",
+    "cost": 2,
+    "power": 1,
+    "hp": 4,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command"],
+    "keywords": [],
+    "traits": ["Droid", "Rebel", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 1653,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "152",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010152_EN_C_3_PO_c2420591d9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.19,
+          "low": 0.08,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1949,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "416",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020416_EN_C_3_PO_33be05d21f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.27,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2215,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "654",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320654_EN_C_3_PO_b2ac2c2c31.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.47,
+          "low": 0.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2387,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "807",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07060807_EN_C_3_P0_Carb_A_1ece4f3500.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.84,
+          "low": 0.33,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2432,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "846",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07330846_EN_C_3_P0_Carb_B_7b855eba8a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.16,
+          "low": 2.27,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2477,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "885",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07340885_EN_C_3_P0_Carb_C_bb8c3e9a2f.png",
+        "back_image_url": null,
+        "price": {
+          "market": null,
+          "low": 960,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2510,
+        "variant_type": "Weekly Play",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "LAWP",
+        "card_number": "13",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07_W600013_EN_C_3_PO_OP_125976a3a1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.33,
+          "low": 0.2,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2532,
+        "variant_type": "Weekly Play Foil",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "LAWP",
+        "card_number": "33",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07_W350033_EN_C_3_PO_OP_Foil_aa1bc9b110.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.19,
+          "low": 1.12,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 749,
+    "set_code": "LAW",
+    "base_card_number": "187",
+    "name": "“Staccato Lightning” Repeater",
+    "subtitle": null,
+    "type": "Upgrade",
+    "rarity": "Uncommon",
+    "cost": 3,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Aggression", "Heroism"],
+    "keywords": [],
+    "traits": ["Item", "Weapon"],
+    "variants": [
+      {
+        "variant_id": 1691,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "187",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010187_EN_Staccato_Lightning_Repeater_6d89b77a86.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.15,
+          "low": 0.09,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1988,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "451",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020451_EN_Staccato_Lightning_Repeater_e293b8dcbf.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.19,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2253,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "689",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320689_EN_Staccato_Lightning_Repeater_e9cbec3cda.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.27,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1514,
+    "set_code": "LAW",
+    "base_card_number": "214",
+    "name": "Boba Fett",
+    "subtitle": "For a Price",
+    "type": "Unit",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 6,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Villainy"],
+    "keywords": [],
+    "traits": ["Bounty Hunter", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 1723,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "214",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010214_EN_Boba_Fett_34cf2cf618.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.56,
+          "low": 0.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2017,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "478",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020478_EN_Boba_Fett_6c73bddfc0.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.61,
+          "low": 1.49,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2284,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "716",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320716_EN_Boba_Fett_2b0d5aae8f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.34,
+          "low": 2.5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2394,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "813",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07060813_EN_Boba_Fett_Carb_A_6f963201b5.png",
+        "back_image_url": null,
+        "price": {
+          "market": 4.05,
+          "low": 3.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2439,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "852",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07330852_EN_Boba_Fett_Carb_B_fb4ab63190.png",
+        "back_image_url": null,
+        "price": {
+          "market": 12.06,
+          "low": 10,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2484,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "891",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07340891_EN_Boba_Fett_Carb_C_14679547ae.png",
+        "back_image_url": null,
+        "price": {
+          "market": null,
+          "low": 359.5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 280,
+        "variant_type": "Convention Exclusive",
+        "finish": null,
+        "channel": "Convention",
+        "source_set_code": "C26",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_C26080001_EN_Boba_Fett_c883fb3ceb.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22062,
+        "variant_type": "GC Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "120",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26900120_EN_Boba_Fett_eb36fcefef.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22132,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "184",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980184_EN_Boba_Fett_3ec6a5db4a.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1184,
+    "set_code": "LAW",
+    "base_card_number": "264",
+    "name": "From a Certain Point of View",
+    "subtitle": null,
+    "type": "Event",
+    "rarity": "Common",
+    "cost": 1,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": [],
+    "keywords": [],
+    "traits": ["Learned"],
+    "variants": [
+      {
+        "variant_id": 1778,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "264",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010264_EN_From_a_Certain_Point_of_View_c96f31da5f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.11,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2074,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "528",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020528_EN_From_a_Certain_Point_of_View_25549ed0d0.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.15,
+          "low": 0.08,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2339,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "766",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320766_EN_From_a_Certain_Point_of_View_dd1ef6faeb.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.2,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2139,
+    "set_code": "LAW",
+    "base_card_number": "45",
+    "name": "Zeb Orellios",
+    "subtitle": "Spectre Four",
+    "type": "Unit",
+    "rarity": "Uncommon",
+    "cost": 5,
+    "power": 4,
+    "hp": 4,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Heroism", "Vigilance"],
+    "keywords": ["Sentinel"],
+    "traits": ["Rebel", "Spectre"],
+    "variants": [
+      {
+        "variant_id": 1986,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "45",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07010045_EN_Zeb_Orellios_b2908901c4.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.21,
+          "low": 0.15,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1829,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "309",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07020309_EN_Zeb_Orellios_99b9b39072.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.43,
+          "low": 0.21,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2095,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "547",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07320547_EN_Zeb_Orellios_3fe1c69469.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.92,
+          "low": 0.67,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2375,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "797",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07060797_EN_Zeb_Orellios_Carb_A_b70c350b2a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.07,
+          "low": 1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2421,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "836",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07330836_EN_Zeb_Orellios_Carb_B_f342300ad3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.39,
+          "low": 2,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2466,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "LAW",
+        "card_number": "875",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07340875_EN_Zeb_Orellios_Carb_C_2b0591bd5d.png",
+        "back_image_url": null,
+        "price": {
+          "market": 153,
+          "low": 137.7,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2521,
+        "variant_type": "Weekly Play Foil",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "LAWP",
+        "card_number": "23",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07_W350023_EN_Zeb_Orellios_OP_Foil_c8c0b2472e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1,
+          "low": 0.75,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 2528,
+        "variant_type": "Weekly Play",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "LAWP",
+        "card_number": "3",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_07_W600003_EN_Zeb_Orellios_OP_8287b4ec83.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.69,
+          "low": 0.65,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 22091,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "147",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970147_EN_Zeb_Orrelios_02cf872e12.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22104,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "159",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970159_EN_Zeb_Orrelios_8ca9ee75c4.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22111,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "165",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980165_EN_Zeb_Orrelios_07ff3f0317.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 2288,
+    "set_code": "SEC",
+    "base_card_number": "1",
+    "name": "Chancellor Palpatine",
+    "subtitle": "How Liberty Dies",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 7,
+    "power": 6,
+    "hp": 8,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": ["Plot"],
+    "traits": ["Official", "Republic"],
+    "variants": [
+      {
+        "variant_id": 4022,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010001_EN_Chancellor_Palpatine_Leader_0e56401e65.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_06010001_EN_Chancellor_Palpatine_Leader_Unit_f5c367b02f.png",
+        "price": {
+          "market": 0.25,
+          "low": 0.15,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4418,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "265",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020265_EN_Chancellor_Palpatine_Leader_c77516c5ee.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_06020265_EN_Chancellor_Palpatine_Leader_Unit_1a64c9faba.png",
+        "price": {
+          "market": 0.25,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4049,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1021",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06031021_EN_Chancellor_Palpatine_Leader_c95294b02f.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_06031021_EN_Chancellor_Palpatine_Leader_Unit_0aeadd5b74.png",
+        "price": {
+          "market": 78.42,
+          "low": 56.18,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 686,
+    "set_code": "SEC",
+    "base_card_number": "20",
+    "name": "Uscru Entertainment District",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 30,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 4346,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "20",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010020_EN_Uscru_Entertainment_District_Base_34d910b9b7.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.1,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4439,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "284",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020284_EN_Uscru_Entertainment_District_Base_01eb97d996.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.23,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 830,
+    "set_code": "SEC",
+    "base_card_number": "101",
+    "name": "Queen Amidala",
+    "subtitle": "Championing Her People",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 5,
+    "power": 5,
+    "hp": 3,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": [],
+    "traits": ["Naboo", "Official"],
+    "variants": [
+      {
+        "variant_id": 4036,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "101",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010101_EN_Queen_Amidala_2750936c4b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 9.11,
+          "low": 7.97,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4797,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "611",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06310611_EN_Queen_Amidala_7b4c7ca533.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.1,
+          "low": 5.43,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4530,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "365",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020365_EN_Queen_Amidala_50fea15d4d.png",
+        "back_image_url": null,
+        "price": {
+          "market": 8.68,
+          "low": 5.84,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 5061,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "857",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06320857_EN_Queen_Amidala_cdb93900b8.png",
+        "back_image_url": null,
+        "price": {
+          "market": 10.22,
+          "low": 8.2,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4071,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1041",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06061041_EN_Queen_Amidala_Carb_A_761ccfc8a6.png",
+        "back_image_url": null,
+        "price": {
+          "market": 11,
+          "low": 9.41,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4118,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1084",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06331084_EN_Queen_Amidala_Carb_B_f8e0045e84.png",
+        "back_image_url": null,
+        "price": {
+          "market": 25.68,
+          "low": 20,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4170,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1127",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06341127_EN_Queen_Amidala_Carb_C_febf35c9ee.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4171,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1127",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06361127_EN_Queen_Amidala_Carb_C_Rose_Gold_2b8aab49ba.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4172,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1127",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06371127_EN_Queen_Amidala_Carb_C_Gold_90e09826a7.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 411,
+        "variant_type": "Judge Program",
+        "finish": null,
+        "channel": "Judge",
+        "source_set_code": "J25",
+        "card_number": "16",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_J25070016_EN_Queen_Amidala_8971ab3dec.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3852,
+        "variant_type": "SS Top 8",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "27",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25410027_EN_Queen_Amidala_OP_Top8_cfab40d4f2.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3853,
+        "variant_type": "SS Top 4",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "28",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25420028_EN_Queen_Amidala_OP_Top4_c298e933b7.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 255,
+    "set_code": "SEC",
+    "base_card_number": "193",
+    "name": "Grand Admiral Thrawn",
+    "subtitle": "Grand Schemer",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 7,
+    "power": 8,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Villainy"],
+    "keywords": [],
+    "traits": ["Imperial", "Official"],
+    "variants": [
+      {
+        "variant_id": 4337,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "193",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010193_EN_Grand_Admiral_Thrawn_613e37090a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.35,
+          "low": 1.98,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4899,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "703",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06310703_EN_Grand_Admiral_Thrawn_24cb512058.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.49,
+          "low": 1.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4633,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "457",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020457_EN_Grand_Admiral_Thrawn_1725c0cec9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 4.47,
+          "low": 1.84,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 5163,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "949",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06320949_EN_Grand_Admiral_Thrawn_057425d495.png",
+        "back_image_url": null,
+        "price": {
+          "market": 5.79,
+          "low": 4.7,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4085,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1054",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06061054_EN_Grand_Admiral_Thrawn_Carb_A_55846b24b1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.16,
+          "low": 4,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4132,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1097",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06331097_EN_Grand_Admiral_Thrawn_Carb_B_fe3a35af4c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 13.13,
+          "low": 10.49,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4211,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1140",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06341140_EN_Grand_Admiral_Thrawn_Carb_C_e90af75a03.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4212,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1140",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06361140_EN_Grand_Admiral_Thrawn_Carb_C_Rose_Gold_c495116ca6.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4213,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1140",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06371140_EN_Grand_Admiral_Thrawn_Carb_C_Gold_7c664fb437.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3860,
+        "variant_type": "PQ Top 8",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "33",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25510033_EN_Grand_Admiral_Thrawn_OP_Top8_1b07554fe6.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3861,
+        "variant_type": "PQ Top 4",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "34",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25520034_EN_Grand_Admiral_Thrawn_OP_Top4_84234e09f3.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3862,
+        "variant_type": "PQ Finalist",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "35",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25530035_EN_Grand_Admiral_Thrawn_OP_Finalist_caff4c60b3.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 249,
+    "set_code": "SEC",
+    "base_card_number": "244",
+    "name": "Darth Nihilus",
+    "subtitle": "Lord of Hunger",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 7,
+    "power": 6,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Villainy"],
+    "keywords": [],
+    "traits": ["Force", "Sith"],
+    "variants": [
+      {
+        "variant_id": 4395,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "244",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010244_EN_Darth_Nihilus_4fbdd6104e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.68,
+          "low": 4.65,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4955,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "754",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06310754_EN_Darth_Nihilus_1a46a01dda.png",
+        "back_image_url": null,
+        "price": {
+          "market": 8.55,
+          "low": 6.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4690,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "508",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020508_EN_Darth_Nihilus_184efdbe4d.png",
+        "back_image_url": null,
+        "price": {
+          "market": 11.23,
+          "low": 9.04,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4026,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1000",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06321000_EN_Darth_Nihilus_78333a363e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 23.86,
+          "low": 20.74,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 3999,
+        "variant_type": "RQ Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "79",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26870079_EN_Darth_Nihilus_731bb614d3.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4017,
+        "variant_type": "RQ Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "95",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26880095_EN_Darth_Nihilus_c77ef1969a.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 472,
+    "set_code": "SEC",
+    "base_card_number": "90",
+    "name": "Director Krennic",
+    "subtitle": "I Lose Nothing But Time",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 9,
+    "power": 8,
+    "hp": 10,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": ["Sentinel"],
+    "traits": ["Imperial", "Official"],
+    "variants": [
+      {
+        "variant_id": 5109,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "90",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06010090_EN_Director_Krennic_938687c941.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.11,
+          "low": 0.49,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4785,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "600",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06310600_EN_Director_Krennic_24c5e38a4e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.13,
+          "low": 1.5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4518,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "354",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06020354_EN_Director_Krennic_eadcf68b88.png",
+        "back_image_url": null,
+        "price": {
+          "market": 4.46,
+          "low": 2.81,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 5049,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "846",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06320846_EN_Director_Krennic_63a16a9d91.png",
+        "back_image_url": null,
+        "price": {
+          "market": 4.32,
+          "low": 2.93,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4081,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1050",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06061050_EN_Director_Krennic_Carb_A_15fa453954.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.73,
+          "low": 2.34,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4128,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1093",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06331093_EN_Director_Krennic_Carb_B_91cc3fc750.png",
+        "back_image_url": null,
+        "price": {
+          "market": 5.94,
+          "low": 5,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 4198,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1136",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06341136_EN_Director_Krennic_Carb_C_30322dac74.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4199,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1136",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06361136_EN_Director_Krennic_Carb_C_Rose_Gold_2cd9ffa05c.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 4200,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "SEC",
+        "card_number": "1136",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_06371136_EN_Director_Krennic_Carb_C_Gold_a6943010a7.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22089,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "145",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970145_EN_Director_Krennic_d4dd5a99f9.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22102,
+        "variant_type": "GC Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "157",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26970157_EN_Director_Krennic_24e88dac96.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 22117,
+        "variant_type": "GC Event Pack",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "170",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26980170_EN_Director_Krennic_dd2a2fb289.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 137,
+    "set_code": "JTL",
+    "base_card_number": "1",
+    "name": "Asajj Ventress",
+    "subtitle": "I Work Alone",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 4,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": ["Grit"],
+    "traits": ["Bounty Hunter", "Force", "Night", "Pilot"],
+    "variants": [
+      {
+        "variant_id": 423,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04010001_EN_Asajj_Ventress_Leader_d67cf02090.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_04010001_EN_Asajj_Ventress_Leader_Unit_3f0b5622a7.png",
+        "price": {
+          "market": 0.14,
+          "low": 0.05,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 730,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "263",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04020263_EN_Asajj_Ventress_Leader_88c9c4b4be.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_04020263_EN_Asajj_Ventress_Leader_Unit_d3694864e3.png",
+        "price": {
+          "market": 0.41,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1550,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "997",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04030997_EN_Asajj_Ventress_Leader_274bae2642.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_04030997_EN_Asajj_Ventress_Leader_Unit_5285925901.png",
+        "price": {
+          "market": 43.79,
+          "low": 43.49,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2178,
+    "set_code": "JTL",
+    "base_card_number": "147",
+    "name": "Black One",
+    "subtitle": "Straight At Them",
+    "type": "Unit",
+    "rarity": "Rare",
+    "cost": 2,
+    "power": 2,
+    "hp": 3,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Aggression", "Heroism"],
+    "keywords": [],
+    "traits": ["Fighter", "Resistance", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 600,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "147",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04010147_EN_Black_One_91df727983.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.52,
+          "low": 1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 3829,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "167",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25880167_EN_Black_One_48ae664cbf.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 1158,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "645",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04310645_EN_Black_One_3836f88f5e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.02,
+          "low": 0.6,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 894,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "409",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04020409_EN_Black_One_d15678154a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 2.03,
+          "low": 1.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1422,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "881",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04320881_EN_Black_One_b5f07f4929.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.44,
+          "low": 2.73,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 463,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1033",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04061033_EN_Black_One_8b258cc0da.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.7,
+          "low": 3.6,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 502,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1069",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04331069_EN_Black_One_df7d3eb07b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 7.81,
+          "low": 7.2,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 543,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1105",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04341105_EN_Black_One_3faa3a7d3a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 77.27,
+          "low": 375,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 3818,
+        "variant_type": "RQ Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "157",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25870157_EN_Black_One_9f73b138f2.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3899,
+        "variant_type": "PQ Participation",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "7",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25500007_EN_Black_One_f5ea919985.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3910,
+        "variant_type": "PQ Judge",
+        "finish": null,
+        "channel": "Judge",
+        "source_set_code": "P25",
+        "card_number": "8",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25550008_EN_Black_One_3c0c5fa44f.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3996,
+        "variant_type": "RQ Prize Wall",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P26",
+        "card_number": "76",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P26870076_EN_Black_One_0acc38a6d1.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 665,
+    "set_code": "JTL",
+    "base_card_number": "235",
+    "name": "Commandeer",
+    "subtitle": null,
+    "type": "Event",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Cunning"],
+    "keywords": [],
+    "traits": ["Trick"],
+    "variants": [
+      {
+        "variant_id": 699,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "235",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04010235_EN_Commandeer_cf84ba5761.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.66,
+          "low": 0.25,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1257,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "733",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04310733_EN_Commandeer_97a996e199.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.5,
+          "low": 0.19,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 991,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "497",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04020497_EN_Commandeer_87d058fd1a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 5.31,
+          "low": 3.79,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1519,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "969",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04320969_EN_Commandeer_fa76d748a9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 4.85,
+          "low": 2.7,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2063,
+    "set_code": "JTL",
+    "base_card_number": "249",
+    "name": "Millennium Falcon",
+    "subtitle": "Get Out And Push",
+    "type": "Unit",
+    "rarity": "Special",
+    "cost": 3,
+    "power": 3,
+    "hp": 4,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Heroism"],
+    "keywords": [],
+    "traits": ["Rebel", "Transport", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 714,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "249",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04010249_EN_Millennium_Falcon_303e2ed5d9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.39,
+          "low": 1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1272,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "747",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04310747_EN_Millennium_Falcon_8ab72cb85b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.38,
+          "low": 0.1,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1009,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "511",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04020511_EN_Millennium_Falcon_db8e472ef9.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.38,
+          "low": 0.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1535,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "983",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04320983_EN_Millennium_Falcon_eb775f4ea1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.9,
+          "low": 1.49,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 479,
+        "variant_type": "Standard Prestige",
+        "finish": "Standard Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1048",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04061048_EN_Millennium_Falcon_e2692b0470.png",
+        "back_image_url": null,
+        "price": {
+          "market": 5.25,
+          "low": 4.27,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 519,
+        "variant_type": "Foil Prestige",
+        "finish": "Foil Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1084",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04331084_EN_Millennium_Falcon_5fc99d69bb.png",
+        "back_image_url": null,
+        "price": {
+          "market": 7.81,
+          "low": 7,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 560,
+        "variant_type": "Serialized Prestige",
+        "finish": "Serialized Prestige",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "1120",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04341120_EN_Millennium_Falcon_c5a2a32352.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 1563,
+        "variant_type": "Weekly Play",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "JTLP",
+        "card_number": "19",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04_W600019_EN_Millennium_Falcon_2c7b9805a1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.28,
+          "low": 0.14,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1585,
+        "variant_type": "Weekly Play Foil",
+        "finish": null,
+        "channel": "Weekly Play",
+        "source_set_code": "JTLP",
+        "card_number": "39",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04_W350039_EN_Millennium_Falcon_c85b887432.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.39,
+          "low": 0.2,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1357,
+    "set_code": "JTL",
+    "base_card_number": "51",
+    "name": "Red Squadron X-Wing",
+    "subtitle": null,
+    "type": "Unit",
+    "rarity": "Common",
+    "cost": 3,
+    "power": 3,
+    "hp": 4,
+    "arena": "Space",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": [],
+    "traits": ["Fighter", "Rebel", "Vehicle"],
+    "variants": [
+      {
+        "variant_id": 1007,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "51",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04010051_EN_Red_Squadron_X_Wing_1f484a318f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.12,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1050,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "549",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04310549_EN_Red_Squadron_X_Wing_28258c7519.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.19,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 787,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "313",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04020313_EN_Red_Squadron_X_Wing_0744f0574c.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.38,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 1314,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "JTL",
+        "card_number": "785",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_04320785_EN_Red_Squadron_X_Wing_cca26aca42.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.6,
+          "low": 0.3,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1791,
+    "set_code": "SOR",
+    "base_card_number": "10",
+    "name": "Darth Vader",
+    "subtitle": "Dark Lord of the Sith",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 7,
+    "power": 5,
+    "hp": 8,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": [],
+    "traits": ["Force", "Imperial", "Sith"],
+    "variants": [
+      {
+        "variant_id": 6274,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "10",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_010_Darth_Vader_Leader_2854ebf6ec.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_010_Darth_Vader_Leader_Unit_0ca1902a46.png",
+        "price": {
+          "market": 4.43,
+          "low": 4.31,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7251,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWOP_0106_002_Darth_Vader_Leader_HYP_3b847b861d.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWOP_0106_002_Darth_Vader_Leader_Unit_HYP_063ef5cbe7.png",
+        "price": null
+      },
+      {
+        "variant_id": 3904,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "74",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25030074_EN_Darth_Vader_Leader_de53f98856.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_P25030074_EN_Darth_Vader_Leader_Unit_dc100a297f.png",
+        "price": null
+      },
+      {
+        "variant_id": 6269,
+        "variant_type": "Prerelease Promo",
+        "finish": null,
+        "channel": "Prerelease",
+        "source_set_code": "SOR",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_0104_001_Darth_Vader_Leader_Alt_Art_33c0e172c9.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWH_0104_001_Darth_Vader_Leader_Unit_Alt_Art_e4ae3264f2.png",
+        "price": null
+      },
+      {
+        "variant_id": 6273,
+        "variant_type": "Prerelease Judge",
+        "finish": null,
+        "channel": "Judge",
+        "source_set_code": "SOR",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWOP_0102_002_Darth_Vader_Leader_OP_03f2665c6c.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_SWOP_0102_002_Darth_Vader_Leader_Unit_OP_91780697a8.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 97,
+    "set_code": "SOR",
+    "base_card_number": "5",
+    "name": "Luke Skywalker",
+    "subtitle": "Faithful Friend",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 4,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": [],
+    "traits": ["Force", "Rebel"],
+    "variants": [
+      {
+        "variant_id": 7123,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "5",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_005_Luke_Skywalker_Leader_ce133fc923.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_005_Luke_Skywalker_Leader_Unit_0dcb77795c.png",
+        "price": {
+          "market": 3.98,
+          "low": 3.56,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7248,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Weekly Play",
+        "source_set_code": "SORP",
+        "card_number": "1",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWOP_0106_001_Luke_Skywalker_Leader_HYP_ea00994a3f.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWOP_0106_001_Luke_Skywalker_Leader_Unit_HYP_deb02a921d.png",
+        "price": null
+      },
+      {
+        "variant_id": 3903,
+        "variant_type": "Showcase",
+        "finish": "Showcase",
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "73",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25030073_EN_Luke_Skywalker_Leader_13893bc1f8.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_P25030073_EN_Luke_Skywalker_Leader_Unit_db67872976.png",
+        "price": null
+      },
+      {
+        "variant_id": 6502,
+        "variant_type": "Prerelease Promo",
+        "finish": null,
+        "channel": "Prerelease",
+        "source_set_code": "SOR",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_0104_002_Luke_Skywalker_Leader_Alt_Art_28acde2d9d.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com/card_SWH_0104_002_Luke_Skywalker_Leader_Unit_Alt_Art_514b5d981b.png",
+        "price": null
+      },
+      {
+        "variant_id": 6507,
+        "variant_type": "Prerelease Judge",
+        "finish": null,
+        "channel": "Judge",
+        "source_set_code": "SOR",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWOP_0102_001_Luke_Skywalker_Leader_OP_8c223b9a90.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_SWOP_0102_001_Luke_Skywalker_Leader_Unit_OP_06722b4156.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1528,
+    "set_code": "SOR",
+    "base_card_number": "25",
+    "name": "Tarkintown",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Rare",
+    "cost": null,
+    "power": null,
+    "hp": 25,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Aggression"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 6612,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "25",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_025_Tarkintown_Base_d70be70a40.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.41,
+          "low": 0.22,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6613,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "25",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_025_Tarkintown_Base_Foil_daf9201f9e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.56,
+          "low": 0.29,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6665,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "291",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_291_Tarkintown_Base_HYP_e953a40aab.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.32,
+          "low": 6.4,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6666,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "291",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_291_Tarkintown_Base_HYP_Foil_ec873924a7.png",
+        "back_image_url": null,
+        "price": {
+          "market": 37.7,
+          "low": 37.69,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 1541,
+    "set_code": "SOR",
+    "base_card_number": "35",
+    "name": "Lieutenant Childsen",
+    "subtitle": "Death Star Prison Warden",
+    "type": "Unit",
+    "rarity": "Uncommon",
+    "cost": 4,
+    "power": 2,
+    "hp": 2,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Villainy"],
+    "keywords": ["Sentinel"],
+    "traits": ["Imperial", "Official"],
+    "variants": [
+      {
+        "variant_id": 6791,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "35",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_035_Liutenant_Chilsen_080a3ccb73.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.09,
+          "low": 0.03,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6792,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "35",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0131035en_Liutenant_Chilsen_Foil_995a0be729.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.2,
+          "low": 0.08,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6685,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "301",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_301_Liutenant_Chilsen_HYP_74d9b3b30e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.16,
+          "low": 0.75,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6686,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "301",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0132301en_Liutenant_Chilsen_HYP_Foil_48c844cacf.png",
+        "back_image_url": null,
+        "price": {
+          "market": 3.34,
+          "low": 3,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 814,
+    "set_code": "SOR",
+    "base_card_number": "87",
+    "name": "Darth Vader",
+    "subtitle": "Commanding the First Legion",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 7,
+    "power": 5,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": ["Ambush"],
+    "traits": ["Force", "Imperial", "Sith"],
+    "variants": [
+      {
+        "variant_id": 7221,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "87",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_087_Darth_Vader_9428962c5e.png",
+        "back_image_url": null,
+        "price": {
+          "market": 6.83,
+          "low": 5.44,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7222,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "87",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0131087en_Darth_Vader_Foil_05c959a1aa.png",
+        "back_image_url": null,
+        "price": {
+          "market": 13.97,
+          "low": 11.93,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6795,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "351",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_351_Darth_Vader_HYP_6010af3049.png",
+        "back_image_url": null,
+        "price": {
+          "market": 15.07,
+          "low": 13.99,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6796,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "351",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0132351en_Darth_Vader_HYP_Foil_0178fce19f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 58.58,
+          "low": 56,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 269,
+        "variant_type": "Convention Exclusive",
+        "finish": null,
+        "channel": "Convention",
+        "source_set_code": "C24",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_C2401002_EN_Darth_Vader_f1d7ec131d.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3760,
+        "variant_type": "GC Day Three",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "103",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25960103_EN_Darth_Vader_Participation_2dfe0813fe.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3771,
+        "variant_type": "GC Top 8",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "113",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25910113_EN_Darth_Vader_Top8_8508f06384.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3772,
+        "variant_type": "GC Top 4",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "114",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25920114_EN_Darth_Vader_Top4_177a4c455f.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3773,
+        "variant_type": "GC Finalist",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "115",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25930115_EN_Darth_Vader_Finalist_357b5a63a5.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3774,
+        "variant_type": "GC Champion",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "116",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25940116_Darth_Vader_Champion_ac129a3096.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3775,
+        "variant_type": "GC Judge",
+        "finish": null,
+        "channel": "Judge",
+        "source_set_code": "P25",
+        "card_number": "117",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25950117_EN_Darth_Vader_Judge_3b46be662a.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1682,
+    "set_code": "SOR",
+    "base_card_number": "136",
+    "name": "Vader's Lightsaber",
+    "subtitle": null,
+    "type": "Upgrade",
+    "rarity": "Special",
+    "cost": 2,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": [],
+    "traits": ["Item", "Lightsaber", "Weapon"],
+    "variants": [
+      {
+        "variant_id": 6354,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "136",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_136_Vaders_Lightsaber_68a2f8ece6.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.54,
+          "low": 0.35,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7252,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Weekly Play",
+        "source_set_code": "SORP",
+        "card_number": "4",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWOP_0103_004_Vaders_Lightsaber_OP_7b04fc88db.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 870,
+    "set_code": "SOR",
+    "base_card_number": "139",
+    "name": "Force Choke",
+    "subtitle": null,
+    "type": "Event",
+    "rarity": "Uncommon",
+    "cost": 2,
+    "power": null,
+    "hp": null,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": [],
+    "traits": ["Force"],
+    "variants": [
+      {
+        "variant_id": 6359,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "139",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_139_Force_Choke_257201b643.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.16,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6360,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "139",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0131139en_Force_Choke_Foil_bc5b8e79da.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.3,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6909,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "402",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_402_Force_Choke_HYP_9da16fb624.png",
+        "back_image_url": null,
+        "price": {
+          "market": 1.96,
+          "low": 0.35,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6910,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "402",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0132402en_Force_Choke_HYP_Foil_14c41d079b.png",
+        "back_image_url": null,
+        "price": {
+          "market": 5.86,
+          "low": 4.7,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 131,
+    "set_code": "SOR",
+    "base_card_number": "229",
+    "name": "Cell Block Guard",
+    "subtitle": null,
+    "type": "Unit",
+    "rarity": "Common",
+    "cost": 3,
+    "power": 3,
+    "hp": 3,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Villainy"],
+    "keywords": ["Sentinel"],
+    "traits": ["Imperial", "Trooper"],
+    "variants": [
+      {
+        "variant_id": 6571,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "229",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_229_Cell_Block_Guard_a62b77b8b4.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.09,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6572,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "229",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0131229en_Cell_Block_Guard_Foil_d9b26be4b3.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.19,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7103,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "490",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_490_Cell_Block_Guard_HYP_71cad81bd1.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.26,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7104,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "490",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0132490en_Cell_Block_Guard_HYP_Foil_1971c7a8d2.png",
+        "back_image_url": null,
+        "price": {
+          "market": 0.3,
+          "low": 0.01,
+          "as_of": "2026-09-27"
+        }
+      }
+    ]
+  },
+  {
+    "id": 156,
+    "set_code": "SOR",
+    "base_card_number": "51",
+    "name": "Luke Skywalker",
+    "subtitle": "Jedi Knight",
+    "type": "Unit",
+    "rarity": "Legendary",
+    "cost": 7,
+    "power": 6,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Heroism", "Vigilance"],
+    "keywords": ["Restore"],
+    "traits": ["Force", "Jedi", "Rebel"],
+    "variants": [
+      {
+        "variant_id": 7146,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "51",
+        "front_image_url": "https://cdn.starwarsunlimited.com/card_SWH_01_051_Luke_Skywalker_04975ee125.png",
+        "back_image_url": null,
+        "price": {
+          "market": 9.9,
+          "low": 8.24,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 7147,
+        "variant_type": "Standard Foil",
+        "finish": "Standard Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "51",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0131051en_Luke_Skywalker_Foil_798d937f9f.png",
+        "back_image_url": null,
+        "price": {
+          "market": 13.86,
+          "low": 10.47,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6719,
+        "variant_type": "Hyperspace",
+        "finish": "Hyperspace",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "317",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_01_317_Luke_Skywalker_HYP_9f28359c78.png",
+        "back_image_url": null,
+        "price": {
+          "market": 29,
+          "low": 27.21,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 6720,
+        "variant_type": "Hyperspace Foil",
+        "finish": "Hyperspace Foil",
+        "channel": "Retail",
+        "source_set_code": "SOR",
+        "card_number": "317",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0132317en_Luke_Skywalker_HYP_Foil_8b5991c57a.png",
+        "back_image_url": null,
+        "price": {
+          "market": 77.58,
+          "low": 72.89,
+          "as_of": "2026-09-27"
+        }
+      },
+      {
+        "variant_id": 3836,
+        "variant_type": "RQ Day Two",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "173",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25860173_EN_Luke_Skywalker_e35a69926f.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3837,
+        "variant_type": "RQ Top 8",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "174",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25810174_EN_Luke_Skywalker_Top8_55b5ae70e8.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3838,
+        "variant_type": "RQ Top 4",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "175",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25820175_EN_Luke_Skywalker_Top4_b2bac8fc11.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3839,
+        "variant_type": "RQ Finalist",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "176",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25830176_EN_Luke_Skywalker_Finalist_da724b3790.png",
+        "back_image_url": null,
+        "price": null
+      },
+      {
+        "variant_id": 3840,
+        "variant_type": "RQ Champion",
+        "finish": null,
+        "channel": "Promo / Tournament-tier",
+        "source_set_code": "P25",
+        "card_number": "177",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_P25840177_EN_Luke_Skywalker_Champion_d9caf36010.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  }
+]

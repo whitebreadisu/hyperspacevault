@@ -57,6 +57,63 @@ const ANALYTICS_HOSTNAMES = ["hyperspacevault.com", "www.hyperspacevault.com"];
 
 let initialized = false;
 
+/** BL-244 / BL-247 S1-11: the values screen_viewed.screen takes. Additive
+ * only -- existing desktop values (vault, deck_check, new_arrivals,
+ * shared_view, settings, import_export) are unchanged and never renamed; the
+ * rest are the phone app's. */
+export const SCREEN_VIEWED_SCREENS = [
+  "vault",
+  "card",
+  "tool",
+  "more",
+  "feedback",
+  "about",
+  "updates",
+  "settings",
+  "sharing",
+  "import_export",
+  "shared_view",
+  "deck_check",
+  "new_arrivals",
+] as const;
+export type ScreenViewedScreen = (typeof SCREEN_VIEWED_SCREENS)[number];
+
+/** BL-244 / BL-247 S1-27: the values view_mode_changed.mode takes. Additive
+ * only -- desktop's "table" / "gallery" (InventorySummary ViewToggle) are
+ * unchanged; the rest are the phone Vault's view + size pairs. */
+export const VIEW_MODE_CHANGED_MODES = [
+  "table",
+  "gallery",
+  "rows_none",
+  "rows_sm",
+  "rows_md",
+  "rows_lg",
+  "gallery_1",
+  "gallery_2",
+  "gallery_3",
+] as const;
+export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
+
+/** Same media query the phone gate uses (mobile/useIsPhone.ts PHONE_QUERY);
+ * duplicated as a literal so the analytics seam imports nothing from the UI. */
+const PHONE_MEDIA_QUERY = "(max-width: 767px)";
+
+function currentLayout(): "phone" | "desktop" {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "desktop";
+  return window.matchMedia(PHONE_MEDIA_QUERY).matches ? "phone" : "desktop";
+}
+
+/** Registers the `layout` super-property (rides every event) and keeps it
+ * current when the viewport crosses the phone breakpoint. */
+function registerLayout(): void {
+  posthog.register({ layout: currentLayout() });
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    window
+      .matchMedia(PHONE_MEDIA_QUERY)
+      .addEventListener("change", () => posthog.register({ layout: currentLayout() }));
+  }
+}
+
 export function initAnalytics(): void {
   if (initialized) return;
   if (!import.meta.env.PROD) return;
@@ -84,6 +141,7 @@ export function initAnalytics(): void {
     },
   });
   posthog.register({ app_version: __APP_VERSION__ });
+  registerLayout();
   initialized = true;
 }
 
