@@ -25,7 +25,7 @@ import {
   toCatalog,
 } from "./padModel";
 import { NO_PICKS } from "./toolStore";
-import type { PadEntry } from "./toolStore";
+import type { BatchRow } from "./batch";
 
 const sets = setsJson as CardSet[];
 const qty: Record<number, number> = Object.fromEntries(
@@ -108,8 +108,10 @@ describe("S3-03 readout (desktop inventoryStatus numbers, F-1 colours)", () => {
     // Variant 7221 (SOR 87 Standard) is owned 1 in the fixture.
     const r0 = padReadout("SOR", "87", NO_PICKS, [], catalog, limitsNull, "hard")!;
     expect(r0).toMatchObject({ owned: 1, limit: 3, after: 2, atLimit: false, afterOver: false });
-    const e = (i: number): PadEntry => ({
+    const e = (i: number): BatchRow => ({
       id: "e" + i,
+      via: "keypad",
+      force: false,
       setCode: "SOR",
       cardNumber: "87",
       picks: NO_PICKS,

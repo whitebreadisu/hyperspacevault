@@ -914,10 +914,80 @@
   font-size: 13px;
   color: #cfd6e4;
 }
+/* Desktop's keep-limit radios (AddCardsModal.css .ac-radio, as rev4 drew them
+ * m-rev4-d.css:217-232 + m-rev4-d2.css:59-61): the whole option is the radio,
+ * 44 px+; the dot is drawn. */
+.m-app .m-d2-precon__radios {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .ie-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  color: var(--color-text);
+  transition: border-color 0.15s;
+}
+.m-app .m-d1-radio--on {
+  border-color: var(--color-primary);
+}
+.m-app .m-d1-radio__dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid rgba(211, 211, 212, 0.4);
+  background: transparent;
+}
+.m-app .m-d1-radio--on .m-d1-radio__dot {
+  border-color: var(--color-primary);
+  box-shadow:
+    inset 0 0 0 3px var(--bg-surface),
+    inset 0 0 0 8px var(--color-primary);
+}
+.m-app .ie-radio-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.m-app .ie-radio-option__title {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+.m-app .m-d2-precon__done {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: #cfd6e4;
+}
 .m-app .m-d2-precon__actions {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+/* The deck panel's Change set / Add deck row stays pinned at the zone's
+ * bottom, as the keypad's Add row does (R4-6). */
+.m-app .m-pad__zone--precon .m-d2-precon__actions {
+  position: sticky;
+  bottom: -10px;
+  z-index: 2;
+  padding: 10px 0;
+  background: linear-gradient(to bottom, rgba(9, 11, 20, 0), rgba(9, 11, 20, 0.94) 12px);
 }
 .m-app .m-d2-precon__actions .swu-btn {
   flex: 1;

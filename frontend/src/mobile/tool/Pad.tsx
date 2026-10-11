@@ -21,8 +21,9 @@ import {
 import type { PadChoice, Readout } from "./padModel";
 import { PreconPanel } from "./PreconPanel";
 import { SetChooserSheet } from "./SetChooserSheet";
+import { useBatch } from "./batch";
+import type { BatchRow } from "./batch";
 import { addPadEntry, padKey, setPadPick, useToolState } from "./toolStore";
-import type { PadEntry } from "./toolStore";
 import { resolveRow } from "../../utils/addCardsResolver";
 
 // BL-249 S3-02 .. S3-05: the keypad (rev4 MPad.jsx, R4-6 collide=deck, D2
@@ -317,6 +318,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   const { cards, sets, setNameByCode, isAuthenticated } = useVaultData();
   const { limits, capMode } = useLimits();
   const st = useToolState();
+  const batch = useBatch();
   const catalog = useMemo(() => toCatalog(cards), [cards]);
   const [chooserOpen, setChooserOpen] = useState(false);
   // S3-04: which number's folded finish choices were unfolded by Change.
@@ -327,11 +329,11 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   const view = precon ? null : padView(st.setCode, st.num, st.picks, catalog, cards);
   const readout =
     view && view.kind === "card"
-      ? padReadout(st.setCode, st.num, st.picks, st.entries, catalog, limits, capMode)
+      ? padReadout(st.setCode, st.num, st.picks, batch, catalog, limits, capMode)
       : null;
 
-  const lastEntry: PadEntry | null = st.lastAdded
-    ? (st.entries.find((e) => e.id === st.lastAdded!.entryId) ?? null)
+  const lastEntry: BatchRow | null = st.lastAdded
+    ? (batch.find((e) => e.id === st.lastAdded!.entryId) ?? null)
     : null;
 
   const add = () => {
@@ -341,6 +343,8 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
       return;
     }
     addPadEntry({
+      via: "keypad",
+      force: false,
       setCode: st.setCode,
       cardNumber: st.num,
       picks: st.picks,
@@ -348,12 +352,14 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
       baseCardId: view.card.base_card_id,
     });
   };
-  const addAgain = (e: PadEntry) => {
+  const addAgain = (e: BatchRow) => {
     if (!isAuthenticated) {
       onRequestSignIn();
       return;
     }
     addPadEntry({
+      via: "keypad",
+      force: false,
       setCode: e.setCode,
       cardNumber: e.cardNumber,
       picks: e.picks,
@@ -388,7 +394,13 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   let zone: ReactNode = null;
   let resultZone = false;
   if (precon) {
-    zone = <PreconPanel entry={precon} onChangeSet={() => setChooserOpen(true)} />;
+    zone = (
+      <PreconPanel
+        entry={precon}
+        onChangeSet={() => setChooserOpen(true)}
+        onRequestSignIn={onRequestSignIn}
+      />
+    );
   } else if (view && view.kind === "card") {
     resultZone = true;
     const res = view.resolved;
@@ -446,7 +458,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
         lastEntry.setCode,
         lastEntry.cardNumber,
         lastEntry.picks,
-        st.entries,
+        batch,
         catalog,
         limits,
         capMode
@@ -544,7 +556,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
             <span className="m-padnum__val">{precon ? "Deck" : st.num || "000"}</span>
             {precon ? null : <span className="m-padnum__caret" aria-hidden="true" />}
           </div>
-          <VerifyButton n={st.entries.length} onOpen={onOpenVerify} />
+          <VerifyButton n={batch.length} onOpen={onOpenVerify} />
         </div>
         <Keys rest={!!precon} />
       </div>

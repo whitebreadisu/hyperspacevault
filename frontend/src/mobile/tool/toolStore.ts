@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { MOBILE_CAMERA_ENABLED } from "../flags";
 import { go } from "../router";
+import { addCopy, resetBatchForTest } from "./batch";
+import type { NewBatchRow } from "./batch";
 
 // BL-249 S3-01: the tool layer's state (rev4 M.state().pad / padSet /
 // padPrecon / toolMode). A plain module store, so it survives the layer
@@ -13,9 +15,10 @@ import { go } from "../router";
 //   - num: the typed card number (digits only, at most 4, no leading zero).
 //   - picks: the axis overrides the user made on a shared number -- desktop
 //     AddCardsKeypad's draft (cardKey / setKey / stamp / finish).
-//   - entries: the cards added from the keypad. Stage 3b replaces this with
-//     the batch model (mobile/tool/batch.ts: one row per copy, cap admission,
-//     remove one, discard); stage 3a only needs the count and the last add.
+//   - the batch itself (one row per copy, cap admission, remove one, discard)
+//     lives in batch.ts (S3-08); this store keeps only the keypad's own state:
+//     `lastAdded` names the batch row the "In batch" panel shows and
+//     `preconAdded` the deck-add confirmation line (S3-09).
 
 export type ToolMode = "keypad" | "camera";
 
@@ -28,27 +31,17 @@ export interface PadPicks {
 
 export const NO_PICKS: PadPicks = { cardKey: null, setKey: null, stamp: null, finish: null };
 
-/** One keypad add: the desktop Row it was entered as (setCode + number +
- * picks, so desktop inventoryStatus can count it) and the printing it
- * resolved to. */
-export interface PadEntry {
-  id: string;
-  setCode: string;
-  cardNumber: string;
-  picks: PadPicks;
-  variantId: number;
-  baseCardId: number;
-}
-
 export interface ToolState {
   mode: ToolMode;
   setCode: string;
   preconKey: string | null;
   num: string;
   picks: PadPicks;
-  entries: PadEntry[];
   /** The last add (drives the "In batch" panel until the next key press). */
   lastAdded: { entryId: string; at: number } | null;
+  /** S3-09: the last "Add deck to batch" (n copies written), shown in the
+   * precon panel until the deck or set changes. */
+  preconAdded: { key: string; n: number; at: number } | null;
 }
 
 const INITIAL: ToolState = {
@@ -57,12 +50,11 @@ const INITIAL: ToolState = {
   preconKey: null,
   num: "",
   picks: NO_PICKS,
-  entries: [],
   lastAdded: null,
+  preconAdded: null,
 };
 
 let state: ToolState = INITIAL;
-let seq = 0;
 const subs = new Set<() => void>();
 
 function emit(next: ToolState): void {
@@ -131,29 +123,48 @@ export function setPadPick(axis: keyof PadPicks, value: string | null): void {
 
 /** S3-05: lock the keypad to a set (clears a chosen deck and the number). */
 export function chooseSet(code: string): void {
-  emit({ ...state, setCode: code, preconKey: null, num: "", picks: NO_PICKS, lastAdded: null });
+  emit({
+    ...state,
+    setCode: code,
+    preconKey: null,
+    num: "",
+    picks: NO_PICKS,
+    lastAdded: null,
+    preconAdded: null,
+  });
 }
 
 /** S3-05: lock the keypad to a precon deck. */
 export function choosePrecon(key: string): void {
-  emit({ ...state, preconKey: key, num: "", picks: NO_PICKS, lastAdded: null });
-}
-
-/** S3-02 / S3-04: Add -- the entry goes in, the number clears (the deck
- * restores) and the panel shows the card just added. */
-export function addPadEntry(e: Omit<PadEntry, "id">): void {
-  const entry: PadEntry = { ...e, id: "pad-" + ++seq };
   emit({
     ...state,
-    entries: [...state.entries, entry],
+    preconKey: key,
     num: "",
     picks: NO_PICKS,
-    lastAdded: { entryId: entry.id, at: Date.now() },
+    lastAdded: null,
+    preconAdded: null,
   });
+}
+
+/** S3-02 / S3-04: Add -- the copy goes in the batch (S3-08), the number
+ * clears (the deck restores) and the panel shows the card just added. */
+export function addPadEntry(e: NewBatchRow): void {
+  const row = addCopy(e);
+  emit({
+    ...state,
+    num: "",
+    picks: NO_PICKS,
+    lastAdded: { entryId: row.id, at: Date.now() },
+  });
+}
+
+/** S3-09: the precon panel's confirmation line. */
+export function setPreconAdded(key: string, n: number): void {
+  emit({ ...state, preconAdded: { key, n, at: Date.now() } });
 }
 
 /** Test seam. */
 export function resetToolForTest(): void {
-  seq = 0;
+  resetBatchForTest();
   emit(INITIAL);
 }

@@ -22,7 +22,8 @@ import {
   weeklyPlayCodeFor,
 } from "../../utils/setGrouping";
 import type { SetRailGroup } from "../../utils/setGrouping";
-import type { PadEntry, PadPicks } from "./toolStore";
+import type { BatchRow } from "./batch";
+import type { PadPicks } from "./toolStore";
 
 // BL-249 S3-02 .. S3-05: the keypad's pure logic. Resolution is desktop's
 // (utils/addCardsResolver.ts resolveRow + inventoryStatus, the 4-axis
@@ -75,7 +76,7 @@ export function rowFor(id: string, setCode: string, cardNumber: string, picks: P
   return { id, setCode, cardNumber, ...picks };
 }
 
-export function entryRow(e: PadEntry): Row {
+export function entryRow(e: BatchRow): Row {
   return rowFor(e.id, e.setCode, e.cardNumber, e.picks);
 }
 
@@ -197,7 +198,7 @@ export function padReadout(
   setCode: string,
   num: string,
   picks: PadPicks,
-  entries: PadEntry[],
+  batch: BatchRow[],
   catalog: AddCardsCatalogEntry[],
   limits: LimitsMatrix | null,
   capMode: CapMode
@@ -205,17 +206,21 @@ export function padReadout(
   const draft = rowFor("__draft__", setCode, num, picks);
   const res = resolveRow(draft, catalog);
   if (res.status !== "resolved") return null;
-  const rows = [...entries.map(entryRow), draft];
-  const inv = inventoryStatus(rows, draft, res, catalog, limits, capMode);
+  // After add = owned + every copy of this printing already in the batch
+  // (keypad or precon -- S3-10) + this one. desktop inventoryStatus gives
+  // owned / limit / owned + 1 for the draft alone; the batch adds its count.
+  const inv = inventoryStatus([draft], draft, res, catalog, limits, capMode);
+  const inBatch = batch.reduce((n, b) => n + (b.variantId === res.variantId ? 1 : 0), 0);
+  const afterAdd = inv.afterAdd + inBatch;
   const limit = inv.effectiveLimit;
   const atLimit = limit !== null && inv.owned >= limit;
   return {
     owned: inv.owned,
     limit,
-    after: inv.afterAdd,
+    after: afterAdd,
     atLimit,
     overLimit: limit !== null && inv.owned > limit,
-    afterOver: limit !== null && !atLimit && inv.afterAdd > limit,
+    afterOver: limit !== null && !atLimit && afterAdd > limit,
   };
 }
 
