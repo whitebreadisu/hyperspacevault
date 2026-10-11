@@ -42,6 +42,8 @@ export interface Recorder {
   /** BL-250 S4-09: GET /api/inventory/export?format= and /api/catalog/reference.csv
    * requests ("json" | "csv" | "reference"), in order. */
   exports: string[];
+  /** BL-252 S6: GET /api/shared/{token}[/quantities|/limits] paths, in order. */
+  sharedReads: string[];
 }
 
 export interface ImportFile {
@@ -80,6 +82,7 @@ export const recorderFor = (page: Page): Recorder =>
     shares: [],
     imports: [],
     exports: [],
+    sharedReads: [],
   };
 
 /** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
@@ -117,6 +120,7 @@ export async function installApiMocks(
     shares: [],
     imports: [],
     exports: [],
+    sharedReads: [],
   };
   recorders.set(page, rec);
 
@@ -253,6 +257,39 @@ export async function installApiMocks(
           // checks res.ok -- so 200 + {}.
           return ok(route, {});
         }
+      }
+      // BL-252 S6: the read-only share surface (api/sharedView.ts). `tok-1`
+      // resolves to "Rowan" with its own quantities (the first printing of
+      // every third catalogue card, x2 -- distinct from the caller's own);
+      // `tok-long` carries a 30-character name; `tok-slow` answers after
+      // 1.5 s; `tok-404` / `tok-429` are the invalid and rate-limited answers.
+      const shared = path.match(/^\/api\/shared\/([^/]+)(\/quantities|\/limits)?$/);
+      if (method === "GET" && shared) {
+        rec.sharedReads.push(path);
+        const tok = decodeURIComponent(shared[1]);
+        const names: Record<string, string> = {
+          "tok-1": "Rowan",
+          "tok-slow": "Rowan",
+          "tok-long": "Rowan's Big Hyperspace Binder!",
+        };
+        if (tok === "tok-429")
+          return route.fulfill({
+            status: 429,
+            headers: { "Retry-After": "30" },
+            contentType: "application/json",
+            body: '{"detail":"rate limited"}',
+          });
+        if (!names[tok]) return ok(route, { detail: "Not found" }, 404);
+        if (shared[2] === "/quantities")
+          return ok(
+            route,
+            cards
+              .filter((_, i) => i % 3 === 0)
+              .map((c) => ({ variant_id: c.variants[0].variant_id, quantity: 2 }))
+          );
+        if (shared[2] === "/limits") return ok(route, json("limits.json"));
+        if (tok === "tok-slow") await new Promise((r) => setTimeout(r, 1500));
+        return ok(route, { name: names[tok], scope: "inventory" });
       }
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
       // S2-05: the stepper's batched adjust; the double keeps the quantities

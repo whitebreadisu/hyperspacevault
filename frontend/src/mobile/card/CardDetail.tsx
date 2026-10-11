@@ -74,7 +74,7 @@ interface TouchState {
 }
 
 export function CardDetail({ id, params, onRequestSignIn }: Props) {
-  const { cards, setOrder, setNameByCode, isAuthenticated, loading, patchQuantity } =
+  const { cards, setOrder, setNameByCode, isAuthenticated, loading, patchQuantity, readOnly } =
     useVaultData();
   const { limits, capMode } = useLimits();
   const [priceKind, setPriceKind] = usePriceKind();
@@ -319,6 +319,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
 
   const common = {
     isAuthenticated,
+    readOnly,
     priceKind,
     onPriceKind: setPriceKind,
     setNameByCode,

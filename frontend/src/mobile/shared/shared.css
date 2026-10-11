@@ -1,0 +1,167 @@
+/* BL-252 S6: the shared vault on the phone.
+ * Amber = the narrowed-to-someone-else's state (R5-7; the owner's decided use
+ * here): the Filters-on / strip-funnel amber family (vault.css .m-filterbtn--on,
+ * header.css .m-vh__narrow): outline rgba(217,154,31,0.6), wash 0.12, text #f2c14e. */
+
+/* ── S6-04 the bar while the share is shown: Vault + More, re-centred
+ * (rev4 m-rev4-d.css 160-161). */
+.m-app .m-nav--shared .m-nav__row--shared {
+  grid-template-columns: 1fr 1fr;
+  padding: 2px 12px 0;
+}
+.m-app .m-nav__row {
+  position: relative;
+}
+
+/* The switch: the Vault slot. */
+.m-app .m-vswitch {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.m-app .m-vswitch__face {
+  max-width: 100%;
+}
+.m-app .m-vswitch--open .m-vswitch__face {
+  visibility: hidden;
+}
+/* Amber face: the share's name in the icon's place, no VAULT label (R5-7
+ * default); a name too wide ends in an ellipsis. */
+.m-app .m-vswitch__face--shared {
+  padding: 0 4px;
+}
+.m-app .m-vswitch__name {
+  display: block;
+  max-width: 100%;
+  min-height: 32px;
+  line-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  border-radius: 3px;
+  background: rgba(217, 154, 31, 0.12);
+  color: #f2c14e;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-vswitch__face--shared.m-tab--on::after {
+  background: #d99a1f;
+}
+
+/* Expanded: the two choices grow out of the slot's left edge along the bar
+ * (transform + opacity only, like the view toggle's picker). */
+.m-app .m-vswitch__panel {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 24px - var(--sal) - var(--sar));
+  padding: 0 6px 0 0;
+  background: var(--bg-surface);
+  transform: translateY(-50%);
+  transform-origin: left center;
+  animation: m-vswitch-in 0.15s ease both;
+}
+@keyframes m-vswitch-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-vswitch__panel {
+    animation: none;
+  }
+}
+.m-app .m-vswitch__own {
+  flex: none;
+  min-width: 64px;
+}
+.m-app .m-vswitch__share {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  border-radius: 3px;
+  background: rgba(217, 154, 31, 0.12);
+  color: #f2c14e;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-app .m-vswitch__share[aria-pressed="true"] {
+  background: rgba(217, 154, 31, 0.22);
+}
+.m-app .m-vswitch__share svg {
+  flex: none;
+}
+.m-app .m-vswitch__full {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── S6-03 the account slot in a share, anonymous: a Sign in text link where
+ * desktop puts its Sign In button (rev4 m-rev4-d.css 163-168; 13 px / 0.04em
+ * so the wordmark never truncates -- rev4 R4-8 finding). */
+.m-app .m-shared-signin {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 4px;
+  margin-right: -4px;
+  background: none;
+  border: none;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(211, 211, 212, 0.5);
+}
+.m-app .m-shared-signin:active {
+  color: #fff;
+}
+
+/* ── S6-02 loading / rate-limited / invalid: one plain sentence in the normal
+ * frame (rev4 m-rev4-d.css 177). */
+.m-app .m-shared-status__text {
+  margin: 0;
+  padding: 28px 20px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* ── S6-07 the parked vault: the other vault stays mounted (its filters,
+ * scope and scroll survive), out of sight and out of reach. */
+.m-app .m-app__screen--parked {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}

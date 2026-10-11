@@ -121,6 +121,8 @@ interface Props {
   priceKind: PriceMode;
   onPriceKind: (m: PriceMode) => void;
   onOpenSets: () => void;
+  /** BL-252 S6-03: "<Name>'s collection" in a share (CSS uppercases it). */
+  label?: string;
 }
 
 export function CompletionHeader({
@@ -133,6 +135,7 @@ export function CompletionHeader({
   priceKind,
   onPriceKind,
   onOpenSets,
+  label = "Your collection",
 }: Props) {
   const pct = authed ? `${metrics.playsetPct}%` : EM_DASH;
   const copies = authed ? metrics.totalCopies.toLocaleString() : EM_DASH;
@@ -170,7 +173,7 @@ export function CompletionHeader({
               <ScopeToggle scope={scope} onChange={onScope} />
             </span>
           ) : (
-            <span className="m-summary__label">Your collection</span>
+            <span className="m-summary__label">{label}</span>
           )}
           <PriceSeg mode={priceKind} onChange={onPriceKind} />
         </div>

@@ -19,6 +19,8 @@ import type { Stepper } from "./useStepper";
 // −/+ stepper (desktop CardPopupInventory semantics, 44 px targets); the
 // other rows show desktop's ×N (green when owned). Signed out: no ×N, the
 // stepper is aria-disabled and routes to sign-in (desktop's teaser).
+// BL-252 S6-05: in a share (`readOnly`) the selected row shows the same ×N
+// as the others -- no stepper (rev4 r4-8-no-steppers; desktop disables it).
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 
@@ -36,6 +38,8 @@ interface Props {
   onRequestSignIn: () => void;
   /** The neighbour page drawn during a slide: no ids (they are the live page's). */
   ghost?: boolean;
+  /** S6-05: the share's quantities -- ×N on every row, no stepper. */
+  readOnly?: boolean;
 }
 
 export function Printings({
@@ -51,6 +55,7 @@ export function Printings({
   capMode,
   onRequestSignIn,
   ghost = false,
+  readOnly = false,
 }: Props) {
   const groups = useMemo(
     () =>
@@ -104,7 +109,7 @@ export function Printings({
                 <span className={"m-print__price" + (price === "—" ? " m-print__price--none" : "")}>
                   {price}
                 </span>
-                {active ? (
+                {active && !readOnly ? (
                   <Step
                     variant={v}
                     qty={qty}

@@ -7,15 +7,32 @@ import { go } from "./router";
 // the auth layer. Signed in: the avatar bubble (initial) opening desktop's
 // menu -- email row, Settings, Change Password (password accounts only),
 // About & Legal, Log Out. Closes on a scrim tap, Escape or any item.
+//
+// BL-252 S6-03: inside a share (the shared vault shown) an anonymous viewer
+// gets a Sign in TEXT link (rev4 R4-8, 13 px / 0.04em so the wordmark never
+// truncates); a signed-in viewer keeps the bubble. Its Settings / Change
+// Password leave the share first (`onLeaveShare`), as desktop's avatar menu
+// switches the pane away from the shared view.
 
 interface Props {
   email: string | null;
   hasPasswordProvider: boolean;
   onSignIn: () => void;
   onLogout: () => void;
+  /** The shared vault is shown (S6-03). */
+  shared?: boolean;
+  /** Shows the viewer's own vault again (before an account screen opens). */
+  onLeaveShare?: () => void;
 }
 
-export function AccountSlot({ email, hasPasswordProvider, onSignIn, onLogout }: Props) {
+export function AccountSlot({
+  email,
+  hasPasswordProvider,
+  onSignIn,
+  onLogout,
+  shared = false,
+  onLeaveShare,
+}: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -27,6 +44,15 @@ export function AccountSlot({ email, hasPasswordProvider, onSignIn, onLogout }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  if (!email && shared) {
+    return (
+      <div className="m-acct m-acct--shared">
+        <button type="button" className="m-shared-signin" onClick={onSignIn}>
+          Sign in
+        </button>
+      </div>
+    );
+  }
   if (!email) {
     return (
       <div className="m-acct">
@@ -40,6 +66,10 @@ export function AccountSlot({ email, hasPasswordProvider, onSignIn, onLogout }: 
   const nav = (hash: string) => {
     setOpen(false);
     go(hash);
+  };
+  const navOwn = (hash: string) => {
+    if (shared) onLeaveShare?.();
+    nav(hash);
   };
   return (
     <div className="m-acct">
@@ -62,7 +92,7 @@ export function AccountSlot({ email, hasPasswordProvider, onSignIn, onLogout }: 
               type="button"
               role="menuitem"
               className="app-header__menu-item m-acct__item"
-              onClick={() => nav("#/more/settings")}
+              onClick={() => navOwn("#/more/settings")}
             >
               Settings
             </button>
@@ -71,7 +101,7 @@ export function AccountSlot({ email, hasPasswordProvider, onSignIn, onLogout }: 
                 type="button"
                 role="menuitem"
                 className="app-header__menu-item m-acct__item"
-                onClick={() => nav("#/more/password")}
+                onClick={() => navOwn("#/more/password")}
               >
                 Change Password
               </button>

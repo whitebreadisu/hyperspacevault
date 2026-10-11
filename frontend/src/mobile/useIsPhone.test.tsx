@@ -47,13 +47,21 @@ describe("S1-01 phone gate", () => {
     expect(desktop.container.querySelector(".m-app")).toBeNull();
   });
 
-  it("F1: a /shared/<token> path keeps the desktop tree at phone width", () => {
+  // BL-252 S6-01 (replaces S1 review F1's "keeps the desktop tree"): the
+  // shared vault now has a phone layout, so a share path renders the phone
+  // tree at phone width -- and still the desktop tree above it.
+  it("S6-01: a /shared/<token> path renders the phone tree at phone width", () => {
     window.history.pushState({}, "", "/shared/abc");
     try {
       setMediaMatches(PHONE_QUERY, true);
       const r = render(<App />);
-      expect(r.container.querySelector(".m-app")).toBeNull();
-      expect(r.container.querySelector(".app-layout")).not.toBeNull();
+      expect(r.container.querySelector(".m-app")).not.toBeNull();
+      expect(r.container.querySelector(".app-layout")).toBeNull();
+      r.unmount();
+      setMediaMatches(PHONE_QUERY, false);
+      const d = render(<App />);
+      expect(d.container.querySelector(".app-layout")).not.toBeNull();
+      expect(d.container.querySelector(".m-app")).toBeNull();
     } finally {
       window.history.pushState({}, "", "/");
     }

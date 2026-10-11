@@ -19,6 +19,11 @@ import "./more.css";
 // inert for a signed-in, unverified account and explains itself inline
 // (CardsPage .ie-entry-nudge). The Updates row pulses only when More was
 // opened before the title (R5-2; `updatesCue`).
+//
+// BL-252 S6-06: inside a share (`inShare`) the rows that act on the viewer's
+// own vault or account are absent -- Import & Export, Sharing, Settings,
+// Change Password (rev4 R4-8 / BLOCKED_IN_SHARE; their routes land here) --
+// About & Legal, Updates and Leave Feedback stay, and Log Out (or Sign in).
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
@@ -35,6 +40,8 @@ export interface MoreScreenProps {
   account: ReactNode;
   onSignIn: () => void;
   onLogout: () => void;
+  /** The shared vault is shown (S6-06). */
+  inShare?: boolean;
 }
 
 interface RowProps {
@@ -76,6 +83,7 @@ export function MoreScreen({
   account,
   onSignIn,
   onLogout,
+  inShare = false,
 }: MoreScreenProps) {
   const [nudge, setNudge] = useState(false);
   const ieOpen = signedIn && emailVerified;
@@ -109,33 +117,37 @@ export function MoreScreen({
       <div className="m-scroll m-more__scroll">
         <section className="m-moregroup" aria-label="Collection">
           <h2 className="m-moregroup__label">Collection</h2>
-          <Row
-            id="importexport"
-            title="Import & Export"
-            line="Bring your collection in, or take it with you"
-            off={!ieOpen}
-            onClick={() => {
-              if (ieOpen) go("#/more/importexport");
-              else if (!signedIn) onSignIn();
-              else setNudge(true);
-            }}
-          />
-          {nudge && signedIn && !emailVerified ? (
-            <p className="m-more__nudge">{IE_UNVERIFIED_NUDGE}</p>
-          ) : null}
-          <Row
-            id="sharing"
-            title="Sharing"
-            line="Share a read-only view of your vault"
-            off={!signedIn}
-            onClick={() => (signedIn ? go("#/more/sharing") : onSignIn())}
-          />
+          {inShare ? null : (
+            <>
+              <Row
+                id="importexport"
+                title="Import & Export"
+                line="Bring your collection in, or take it with you"
+                off={!ieOpen}
+                onClick={() => {
+                  if (ieOpen) go("#/more/importexport");
+                  else if (!signedIn) onSignIn();
+                  else setNudge(true);
+                }}
+              />
+              {nudge && signedIn && !emailVerified ? (
+                <p className="m-more__nudge">{IE_UNVERIFIED_NUDGE}</p>
+              ) : null}
+              <Row
+                id="sharing"
+                title="Sharing"
+                line="Share a read-only view of your vault"
+                off={!signedIn}
+                onClick={() => (signedIn ? go("#/more/sharing") : onSignIn())}
+              />
+            </>
+          )}
           <p className="m-fine m-more__note m-more__deckcheck">
             Deck Check is on the desktop site.
           </p>
         </section>
 
-        {signedIn ? (
+        {signedIn && !inShare ? (
           <section className="m-moregroup" aria-label="Account">
             <h2 className="m-moregroup__label">Account</h2>
             <Row
