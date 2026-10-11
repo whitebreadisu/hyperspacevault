@@ -195,7 +195,7 @@ BL-ids.
 - `2026-10-11` **BL-250** — Phone More, About & Legal, Updates, Import & Export (PR #215)
 - `2026-10-11` **BL-251** — Phone Settings, Change Password, Delete Account, Sharing, verify banner (PR #216)
 - `2026-10-11` **BL-252** — Phone shared vault (PR #217); the closing integration sweep rides the camera PR
-- `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (in PR)
+- `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (PR #218)
 
 ---
 
