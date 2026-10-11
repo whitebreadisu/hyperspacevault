@@ -147,6 +147,14 @@ export function useFilterApplied(
   }, [list, activeCount]);
   return useCallback((field: FilterField) => {
     pending.current = field;
+    // An action that changes nothing renders nothing: drop the stash once the
+    // action's render has had its turn, so the next unrelated change is not
+    // attributed to it. (A macrotask, not a microtask: filterActions calls
+    // this BEFORE the setter, so a microtask would run before React's own
+    // flush and swallow every real event.)
+    setTimeout(() => {
+      if (pending.current === field) pending.current = null;
+    }, 0);
   }, []);
 }
 

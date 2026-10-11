@@ -35,6 +35,7 @@ export function resetNavForTest(): void {
   current = null;
   arrive = null;
   openSource = null;
+  opener = null;
 }
 
 export interface NavPosition {
@@ -91,6 +92,16 @@ export function setArrive(a: { collapsed: boolean }): void {
 }
 export function peekArrive(): { collapsed: boolean } | null {
   return arrive;
+}
+/** F4: the control that opened the card (captured at the tap), so closing
+ * returns focus to it. Survives the neighbour remounts of a swipe / chevron
+ * chain; a later tap overwrites it. */
+let opener: HTMLElement | null = null;
+export function setOpener(el: HTMLElement | null): void {
+  opener = el;
+}
+export function peekOpener(): HTMLElement | null {
+  return opener;
 }
 export function clearHandoffs(): void {
   arrive = null;

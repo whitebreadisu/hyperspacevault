@@ -135,7 +135,13 @@ test("s2-08-transform-only", async ({ page }) => {
   await page.evaluate(() =>
     (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click()
   );
-  await page.waitForTimeout(110);
+  // Wait for the slide itself to be under way (not a fixed delay), then
+  // sample within its 200 ms.
+  await page.waitForFunction(() =>
+    /^translate3d\(-/.test(
+      (document.querySelector(".m-detail__track") as HTMLElement).style.transform
+    )
+  );
   const mid = await page.evaluate((h) => {
     const bad: string[] = [];
     for (const e of document.querySelectorAll(".m-detail *")) {
@@ -172,6 +178,12 @@ test("s2-08-transform-only", async ({ page }) => {
       bad,
       same: location.hash === h,
       ghost: !!document.querySelector(".m-page--ghost.m-page--next"),
+      // F2: the neighbour's chart is not live -- it must not claim "no data".
+      ghostEmpty: /No price data/.test(document.querySelector(".m-page--ghost")?.textContent ?? ""),
+      // F8: the section ids are unique while two pages are mounted.
+      dupIds: [...document.querySelectorAll('.m-detail [id^="sec-"]')]
+        .map((e) => e.id)
+        .filter((id, i, a) => a.indexOf(id) !== i),
       track: t.style.transform,
       trackTransition: t.style.transition,
       xfade: getComputedStyle(document.querySelector(".m-hdr__titles.m-xfade--in")!).animationName,
@@ -182,6 +194,8 @@ test("s2-08-transform-only", async ({ page }) => {
   expect(mid.bad).toEqual([]);
   expect(mid.same).toBe(true);
   expect(mid.ghost).toBe(true);
+  expect(mid.ghostEmpty).toBe(false);
+  expect(mid.dupIds).toEqual([]);
   expect(mid.track).toMatch(/^translate3d\(-/);
   expect(mid.trackTransition).toMatch(/^transform 200ms/);
   // The header's titles cross-dissolve (opacity only) to the neighbour's.
@@ -198,8 +212,7 @@ test("s2-08-transform-only", async ({ page }) => {
   await page.evaluate(() =>
     (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
   );
-  await page.waitForTimeout(90);
-  expect(await page.locator(".m-page--ghost.m-page--prev").count()).toBe(1);
+  await expect(page.locator(".m-page--ghost.m-page--prev")).toHaveCount(1);
   await page.waitForTimeout(450);
   expect(await page.evaluate(() => location.hash)).toBe(hash0);
 });
@@ -218,4 +231,24 @@ test("s2-08-collapse-carries", async ({ page }) => {
   await page.locator(".m-dreg__btn").click();
   await page.waitForTimeout(400);
   await expect(page.locator(".m-dreg3--collapsed")).toHaveCount(0);
+});
+
+test("s2-08-close-mid-slide", async ({ page }) => {
+  // F1: closing while the chevron's slide is still running leaves the Vault
+  // on screen -- the slide's pending finish must not route to the neighbour.
+  await openCard(page, "ASH", 112);
+  await page.evaluate(() => {
+    (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click();
+    setTimeout(() => (document.querySelector(".m-hdr__close") as HTMLButtonElement).click(), 60);
+  });
+  await page.waitForTimeout(700);
+  expect(await page.evaluate(() => location.hash)).toBe("#/vault");
+  expect(await page.locator(".m-detail").count()).toBe(0);
+  // Router depth is consistent: opening a card again and closing returns to
+  // the Vault, not somewhere else.
+  await page.locator(".m-row[data-card]").first().click();
+  await expect(page.locator(".m-detail")).toHaveCount(1);
+  await page.locator(".m-hdr__close").click();
+  await expect(page.locator(".m-detail")).toHaveCount(0);
+  expect(await page.evaluate(() => location.hash)).toBe("#/vault");
 });

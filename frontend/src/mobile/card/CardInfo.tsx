@@ -36,12 +36,15 @@ export function CardInfo({
   detail,
   setName,
   onOpenAspects,
+  ghost = false,
 }: {
   card: InventoryCard;
   detail: BaseCardDetail | null;
   setName: string;
   /** S2-07b: a tap on the aspect icons opens the Aspects sheet. */
   onOpenAspects?: (aspects: string[]) => void;
+  /** The neighbour page drawn during a slide: no ids (they are the live page's). */
+  ghost?: boolean;
 }) {
   const aspects = orderAspects(card.aspects);
   const glow = aspects.length ? (ASPECT_GLOW[aspects[0]] ?? "#2563eb") : "#2563eb";
@@ -49,9 +52,9 @@ export function CardInfo({
   const hasText = !!(detail && (detail.front_text || detail.epic_action || hasBackText));
   const hasStats = card.cost != null || card.power != null || card.hp != null;
   return (
-    <section className="m-sec m-info" aria-labelledby="sec-card">
+    <section className="m-sec m-info" aria-labelledby={ghost ? undefined : "sec-card"}>
       <div className="m-sec__head">
-        <h2 className="m-sec__title" id="sec-card">
+        <h2 className="m-sec__title" id={ghost ? undefined : "sec-card"}>
           Card
         </h2>
       </div>

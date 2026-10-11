@@ -43,7 +43,7 @@ interface Props {
 export function PriceChart({ baseCardId, variant, live = true, onEngage }: Props) {
   const [range, setRange] = useState<PriceHistoryRange>("90d");
   const [series, setSeries] = useState<PriceHistoryPoint[] | null>(null);
-  const [loading, setLoading] = useState(live);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pin, setPin] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);

@@ -72,7 +72,9 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
         // Nothing tapped since the call left: the shared map now carries it.
         show(id, e.unflushed === 0 ? null : e.serverQty + e.unflushed);
       } catch (err) {
-        show(id, e.serverQty + e.unflushed);
+        // As the success branch: with nothing tapped since, drop the override
+        // so a later shared refresh (re-auth, refreshQuantities) shows through.
+        show(id, e.unflushed === 0 ? null : e.serverQty + e.unflushed);
         if (live.current)
           setError(err instanceof EmailNotVerifiedError ? VERIFY_EMAIL_MESSAGE : GENERIC_ERROR);
       } finally {

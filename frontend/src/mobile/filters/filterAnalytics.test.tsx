@@ -64,6 +64,21 @@ describe("S2-20 Filters analytics (filter_applied / filters_cleared / finish_sco
     expect(calls("filters_cleared")).toEqual([{ layout: "phone" }]);
   });
 
+  it("an action that changes nothing is not attributed to the next unrelated change (F7)", async () => {
+    const { result, rerender } = renderHook(
+      ({ list, n }: { list: number[]; n: number }) => useFilterApplied(list, n),
+      { initialProps: { list: [] as number[], n: 0 } }
+    );
+    // A stashed field whose edit renders nothing...
+    act(() => result.current("rarity"));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    // ...then an unrelated list change (a quantities refresh) stays silent.
+    rerender({ list: [1], n: 0 });
+    expect(calls("filter_applied")).toEqual([]);
+  });
+
   it("nothing fires without a user edit (a re-render or quantities refresh is silent)", () => {
     const { rerender } = renderHook(useSheet);
     rerender();

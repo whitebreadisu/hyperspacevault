@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
-import { publishNav, setOpenSource } from "../card/navList";
+import { publishNav, setOpener, setOpenSource } from "../card/navList";
 import { go } from "../router";
 // ── RUN 2B BEGIN (import) ── the Filters sheet replaces the ComingSoon Sheet
 import { FiltersSheet } from "../filters/FiltersSheet";
@@ -143,6 +143,12 @@ export function Vault({
         finishes: [...vv.state.filters.finish],
       });
       setOpenSource(source);
+      const active = document.activeElement;
+      setOpener(
+        active instanceof HTMLElement && active !== document.body
+          ? active
+          : document.querySelector<HTMLElement>(`.m-app__screen [data-card="${card.base_card_id}"]`)
+      );
       go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
     },
     [vv.list, vv.narrowed, vv.state.scope, vv.prefs.view, vv.state.filters.finish]

@@ -19,6 +19,7 @@ import { FinishSheet } from "./FinishSheet";
 import {
   clearHandoffs,
   navPosition,
+  peekOpener,
   peekArrive,
   peekOpenSource,
   readNav,
@@ -95,6 +96,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
   useEffect(() => {
     let live = true;
+    if (!(id > 0)) return undefined;
     getBaseCardDetail(id)
       .then((d) => {
         if (live) setDetail(d);
@@ -161,6 +163,27 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const t = useRef<TouchState | null>(null);
   const busy = useRef(false);
+  // F1: false once the layer is gone, so a slide's pending finish (timer /
+  // transitionend) can never route to the neighbour after a close.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  // F4: focus moves to the close control on open; on a real close (not a
+  // swipe / chevron hand-off to the neighbour, which sets `arrive`) it
+  // returns to the control that opened the card.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (peekArrive()) return;
+      const o = peekOpener();
+      if (o && o.isConnected) o.focus({ preventScroll: true });
+    };
+  }, []);
   const [ghostDir, setGhostDir] = useState<0 | 1 | -1>(0);
   const [pending, setPending] = useState<0 | 1 | -1>(0);
   const [xf, setXf] = useState<0 | 1 | -1>(0);
@@ -184,7 +207,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       if (e.target === tr && e.propertyName === "transform") finish();
     };
     const finish = () => {
-      if (done) return;
+      if (!alive.current || done) return;
       done = true;
       tr?.removeEventListener("transitionend", onEnd);
       fn();
@@ -418,6 +441,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
           <button
             type="button"
             className="m-iconbtn m-hdr__close"
+            ref={closeRef}
             onClick={back}
             aria-label="Close card"
           >

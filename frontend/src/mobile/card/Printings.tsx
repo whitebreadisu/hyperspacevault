@@ -34,6 +34,8 @@ interface Props {
   limits: LimitsMatrix | null;
   capMode: CapMode;
   onRequestSignIn: () => void;
+  /** The neighbour page drawn during a slide: no ids (they are the live page's). */
+  ghost?: boolean;
 }
 
 export function Printings({
@@ -48,6 +50,7 @@ export function Printings({
   limits,
   capMode,
   onRequestSignIn,
+  ghost = false,
 }: Props) {
   const groups = useMemo(
     () =>
@@ -56,9 +59,9 @@ export function Printings({
   );
   const category = typeCategoryOf(card.type);
   return (
-    <section className="m-sec m-printings" aria-labelledby="sec-printings">
+    <section className="m-sec m-printings" aria-labelledby={ghost ? undefined : "sec-printings"}>
       <div className="m-sec__head">
-        <h2 className="m-sec__title" id="sec-printings">
+        <h2 className="m-sec__title" id={ghost ? undefined : "sec-printings"}>
           Variants <span className="m-sec__count">{card.variants.length}</span>
         </h2>
         <PriceSeg mode={priceKind} onChange={onPriceKind} />

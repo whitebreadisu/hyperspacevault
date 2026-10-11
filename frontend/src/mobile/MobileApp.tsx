@@ -118,8 +118,10 @@ export function MobileApp() {
   // BL-248 S2-01: #/card/<id> is a layer over the Vault, which stays mounted
   // under it with the params it last had (filters, scope, scroll and list
   // survive the visit, as under desktop's popup).
+  // F9: a non-numeric id is still the card layer (id -1: not in the
+  // catalogue), not a fall-through to the Vault under a card hash.
   const cardId =
-    route.segs[0] === "card" && /^\d+$/.test(route.segs[1] ?? "") ? +route.segs[1] : null;
+    route.segs[0] === "card" ? (/^\d+$/.test(route.segs[1] ?? "") ? +route.segs[1] : -1) : null;
   const [vaultParams, setVaultParams] = useState(() => (cardId == null ? route.params : {}));
   if (cardId == null && !soonFor(route) && route.params !== vaultParams)
     setVaultParams(route.params);

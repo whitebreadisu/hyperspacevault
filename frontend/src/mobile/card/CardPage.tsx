@@ -109,6 +109,7 @@ export function CardPage(p: CardPageProps) {
             limits={p.limits}
             capMode={p.capMode}
             onRequestSignIn={p.onRequestSignIn}
+            ghost={!!ghost}
           />
           <section className="m-sec m-history" aria-labelledby={ghost ? undefined : "sec-history"}>
             <div className="m-sec__head">
@@ -131,6 +132,7 @@ export function CardPage(p: CardPageProps) {
             detail={p.detail}
             setName={p.setNameByCode[card.set_code] ?? card.set_code}
             onOpenAspects={ghost ? undefined : p.onOpenAspects}
+            ghost={!!ghost}
           />
         </div>
       </div>

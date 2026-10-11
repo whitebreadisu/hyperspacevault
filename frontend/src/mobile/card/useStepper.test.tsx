@@ -84,6 +84,17 @@ describe("S2-05 stepper calls + optimistic refresh", () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
+  it("a failure leaves no override: a later shared refresh shows through (F3)", async () => {
+    adjust.mockRejectedValue(new Error("500"));
+    const { result: h } = renderHook(() => useStepper(vi.fn()));
+    act(() => h.current.decrement(V));
+    await act(async () => {
+      vi.advanceTimersByTime(ADJUST_DEBOUNCE_MS);
+    });
+    // The shared data refreshes (re-auth / refreshQuantities) to 5.
+    expect(h.current.qtyOf({ ...V, quantity: 5 })).toBe(5);
+  });
+
   it("leaving the screen flushes an open batch immediately", async () => {
     adjust.mockResolvedValue(result(3));
     const patch = vi.fn();
