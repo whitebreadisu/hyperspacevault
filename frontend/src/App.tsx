@@ -252,8 +252,9 @@ function AppContent() {
     return <p className="loading-text">Loading…</p>;
   }
 
-  // F1: share links stay on the desktop tree until the shared-vault slice.
-  if (isPhone && !parseShareRouteToken(window.location.pathname)) return <MobileApp />;
+  // BL-252 S6-01: share links render the phone tree too (the S1 F1 yield is
+  // gone); MobileApp reads the /shared/{token} path and the tab's session.
+  if (isPhone) return <MobileApp />;
 
   return (
     <div className="app-layout">

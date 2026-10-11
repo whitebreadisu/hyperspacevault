@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
+import { LimitsProvider } from "../context/LimitsContext";
 import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
@@ -15,6 +16,9 @@ import { MoreScreen } from "./more/MoreScreen";
 import { UpdatesScreen } from "./more/UpdatesScreen";
 import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
+import type { NavShare } from "./MobileNav";
+import { SharedStatus } from "./shared/SharedStatus";
+import { useShare } from "./shared/useShare";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
 import { back, backOr, go, parseHash, useRoute } from "./router";
@@ -22,7 +26,7 @@ import type { Route } from "./router";
 import { ToolLayer } from "./tool/ToolLayer";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
-import { VaultDataProvider } from "./vault/useVaultData";
+import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "./vault/useVaultData";
 import { Vault } from "./vault/Vault";
 import "./mobile.css";
 import "./shell.css";
@@ -70,7 +74,35 @@ const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
   "more/about": "about",
   "more/updates": "new_arrivals",
   "more/feedback": "feedback",
+  // BL-252 S6-08: the shared vault shown (desktop App.tsx's `shared` pane).
+  shared: "shared_view",
 };
+
+/** S6-06: routes that act on the viewer's own vault or account; inside a
+ * share they land on the (trimmed) More, as rev4 BLOCKED_IN_SHARE (+ delete,
+ * run D2, which maps to the Settings key). */
+const BLOCKED_IN_SHARE = new Set([
+  "more/settings",
+  "more/password",
+  "more/sharing",
+  "more/importexport",
+]);
+
+/** BL-252 S6-01 / S6-07: the shared vault's own data instance + the share
+ * owner's limits (desktop SharedVaultPage's nested LimitsProvider with
+ * `shareToken` around its read-only CardsPage). Mounted only once the
+ * share has resolved (BL-252 S6a F5: an invalid / rate-limited token or an
+ * unswitched restored session downloads nothing, as desktop mounts CardsPage
+ * only when ready); read by the shared pane, its card layer and its
+ * Owned-by-finish host. */
+function ShareScope({ token, children }: { token: string; children: ReactNode }) {
+  const value = useVaultDataSource(false, token);
+  return (
+    <LimitsProvider isAuthenticated={false} shareToken={token}>
+      <VaultDataValue value={value}>{children}</VaultDataValue>
+    </LimitsProvider>
+  );
+}
 
 /** S1-15 (rev4 MApp.jsx:404-415, m-layout.css:643-655): the app frame
  * follows the visual viewport, so with the keyboard up the list's bottom
@@ -126,12 +158,30 @@ export function MobileApp() {
     noteTitle();
   }, [noteTitle]);
 
+  // BL-252 S6-01: the tab's share session; `inShare` = the shared vault is
+  // the vault shown (desktop's `shared` pane).
+  const share = useShare();
+  const inShare = share.shown;
+  const { setShown: setShareShown } = share;
+  // A deep-link param left in the hash (a closed sheet's `?sheet=`) belongs to
+  // the vault that consumed it: switching vaults first clears it (synchronously,
+  // in the same batch) so the incoming pane never re-applies it.
+  const pickVault = (shared: boolean) => {
+    if (window.location.hash.includes("?")) go("#/vault", true);
+    setShareShown(shared);
+  };
+  const navShare: NavShare | null = share.token
+    ? { name: share.name, shown: inShare, onPick: pickVault }
+    : null;
+
   const account = (
     <AccountSlot
       email={user?.email ?? null}
       hasPasswordProvider={hasPasswordProvider(user)}
       onSignIn={openSignIn}
       onLogout={() => void logout()}
+      shared={inShare}
+      onLeaveShare={() => setShareShown(false)}
     />
   );
 
@@ -171,8 +221,20 @@ export function MobileApp() {
   );
   if (cardId == null && !isTool && !screenKey(route) && route.params !== vaultParams)
     setVaultParams(route.params);
+  // BL-252 S6-07: each vault pane keeps the params it last had while parked
+  // (a deep-link param applies once, to the vault that was shown).
+  const [ownParams, setOwnParams] = useState<Record<string, string>>(() =>
+    inShare ? {} : vaultParams
+  );
+  const [sharedParams, setSharedParams] = useState<Record<string, string>>({});
+  if (!inShare && ownParams !== vaultParams) setOwnParams(vaultParams);
+  if (inShare && sharedParams !== vaultParams) setSharedParams(vaultParams);
 
-  const rawKey = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  const routeKey = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  // S6-06: inside a share the own-account routes show the trimmed More (the
+  // effect below rewrites the hash) -- never their screens, not for a frame.
+  const blocked = inShare && BLOCKED_IN_SHARE.has(routeKey);
+  const rawKey = blocked ? "more" : routeKey;
   // BL-251 S5-02 / S5-03: Change Password and Delete Account are layers
   // (desktop's modals, unchanged) over a screen that stays mounted beneath:
   // Delete over Settings (its route maps to the Settings key), Password over
@@ -201,6 +263,15 @@ export function MobileApp() {
   // to the anonymous Vault.
   const pwProvider = hasPasswordProvider(user);
   useEffect(() => {
+    // S6-04 / S6-06: no keypad and no own-account screens inside a share.
+    if (inShare && isTool) {
+      go("#/vault", true);
+      return;
+    }
+    if (blocked) {
+      go("#/more", true);
+      return;
+    }
     if (loading) return;
     if (!user && (rawKey === "more/settings" || isPassword)) go("#/vault", true);
     else if (user && isPassword && !pwProvider) go("#/more", true);
@@ -210,7 +281,18 @@ export function MobileApp() {
       go("#/more", true);
       openSignIn();
     }
-  }, [loading, user, rawKey, isPassword, isSharing, pwProvider, openSignIn]);
+  }, [
+    loading,
+    user,
+    rawKey,
+    isPassword,
+    isSharing,
+    pwProvider,
+    openSignIn,
+    inShare,
+    isTool,
+    blocked,
+  ]);
   // BL-250 S4-05: a More sub-page entered from More shows the back chevron;
   // entered any other way (chooser, account menu, rail chip, deep link) the X.
   // S4 F2: the decision is kept per screen key, so a history return (More ->
@@ -224,6 +306,8 @@ export function MobileApp() {
     else if (shownKey === "more") setMovedFromMore({ ...movedFromMore, [key]: true });
   }
   const fromMore = movedFromMore[key] === true;
+  // S6-07: the own Vault is parked (mounted, hidden) while the share is shown.
+  const ownParked = key === "vault" && inShare;
 
   const routed = (k: string): ReactNode => {
     if (k === "more")
@@ -236,6 +320,7 @@ export function MobileApp() {
           account={account}
           onSignIn={openSignIn}
           onLogout={() => void logout()}
+          inShare={inShare}
         />
       );
     if (k === "more/settings")
@@ -262,7 +347,8 @@ export function MobileApp() {
           key: "vault",
           el: (
             <Vault
-              params={vaultParams}
+              // S6-07: the parked own vault keeps the params it last had.
+              params={inShare ? ownParams : vaultParams}
               account={account}
               unread={cue.unread}
               onOpenChooser={openChooser}
@@ -275,12 +361,46 @@ export function MobileApp() {
           ),
         };
 
+  // BL-252 S6-07: the shared pane mounts the first time the share is shown
+  // and then stays mounted beside the own Vault (two data instances, like
+  // desktop's two display-toggled panes); each keeps its own filters, scope
+  // and scroll while the other is shown. Like the own Vault it leaves with
+  // the Vault route (More, About, ...); its data instance stays.
+  const [sharedMounted, setSharedMounted] = useState(inShare);
+  if (inShare && !sharedMounted) setSharedMounted(true);
+  const sharedPaneOn = key === "vault" && share.token != null && sharedMounted;
+  const sharedPane = sharedPaneOn ? (
+    <div
+      className={"m-app__screen" + (inShare ? "" : " m-app__screen--parked")}
+      key="vault-shared"
+      data-pane="shared"
+      aria-hidden={inShare ? undefined : true}
+      inert={!inShare || cardId != null || acctLayer != null}
+    >
+      {share.status === "ready" ? (
+        <Vault
+          params={inShare ? vaultParams : sharedParams}
+          account={account}
+          unread={cue.unread}
+          onOpenChooser={openChooser}
+          onOpenFeedback={() => go("#/more/feedback")}
+          onSearchMode={setSearchMode}
+          onRequestSignIn={openSignIn}
+          collectionLabel={`${share.name ?? ""}'s collection`}
+        />
+      ) : (
+        <SharedStatus status={share.status} account={account} />
+      )}
+    </div>
+  ) : null;
+
   // S1-27 / S4-06: screen_viewed from the router, once per screen (not per
   // param change); ComingSoon placeholders send nothing until their slices
   // land. S4-04: reaching More notes it for the Updates-row rule.
   // S5-05: the password / delete layers report as their own screens; closing
   // one back onto the screen beneath it is not a new view of that screen.
-  const viewKey = acctLayer ?? screen.key;
+  // S6-08: the shared vault reports as desktop's shared_view.
+  const viewKey = acctLayer ?? (screen.key === "vault" && inShare ? "shared" : screen.key);
   const prevView = useRef(viewKey);
   // S5 F1: the last non-layer screen actually reported, so closing a layer
   // onto a screen that was never reported (cold deep link, guard redirect)
@@ -305,30 +425,50 @@ export function MobileApp() {
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
-      <div className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}>
+      <div
+        className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}
+        data-share={inShare ? "shown" : undefined}
+      >
         <SheetHost>
           <div
-            className="m-app__screen"
+            className={"m-app__screen" + (ownParked ? " m-app__screen--parked" : "")}
             key={screen.key}
-            inert={cardId != null || toolShown || acctLayer != null}
+            data-pane={screen.key === "vault" ? "own" : undefined}
+            aria-hidden={ownParked ? true : undefined}
+            inert={cardId != null || toolShown || acctLayer != null || ownParked}
           >
             {screen.el}
           </div>
+          {share.token && share.status !== "ready" ? sharedPane : null}
+          {share.token && share.status === "ready" ? (
+            <ShareScope token={share.token}>
+              {sharedPane}
+              {inShare && cardId != null ? (
+                <CardDetail
+                  key={cardId}
+                  id={cardId}
+                  params={route.params}
+                  onRequestSignIn={openSignIn}
+                />
+              ) : null}
+              {inShare ? <FinishSheetHost /> : null}
+            </ShareScope>
+          ) : null}
           <div
             className="m-app__nav"
             inert={cardId != null || toolShown || acctLayer != null}
             style={{ display: "contents" }}
           >
-            <MobileNav route={navRoute} />
+            <MobileNav route={navRoute} share={navShare} />
           </div>
-          {toolShown ? (
+          {toolShown && !inShare ? (
             <ToolLayer
               params={isTool ? route.params : {}}
               covered={cardId != null}
               onRequestSignIn={openSignIn}
             />
           ) : null}
-          {cardId != null ? (
+          {cardId != null && !inShare ? (
             <CardDetail
               key={cardId}
               id={cardId}
@@ -337,7 +477,7 @@ export function MobileApp() {
             />
           ) : null}
           {/* BL-248 S2-10: Owned by finish opened from a Vault row. */}
-          <FinishSheetHost />
+          {inShare ? null : <FinishSheetHost />}
           {chooserOpen ? (
             <TitleChooser
               unread={cue.unread}
@@ -354,7 +494,7 @@ export function MobileApp() {
           ) : null}
           {/* A signed-out visitor is being redirected (guard above): the layer
               would otherwise mount for a frame and call its API unauthenticated. */}
-          {acctLayer && user ? (
+          {acctLayer && user && !inShare ? (
             <AccountLayer
               key={acctLayer}
               kind={acctLayer}

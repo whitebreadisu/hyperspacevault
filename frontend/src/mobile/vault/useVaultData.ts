@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { getBaseCardsList } from "../../api/baseCards";
 import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import { getQuantities } from "../../api/inventory";
+import { getSharedQuantities } from "../../api/sharedView";
 import { getSets } from "../../api/sets";
 import type { CardSet } from "../../api/sets";
 import type { SetOrderMap } from "../../utils/catalog";
@@ -28,9 +29,14 @@ import type { InventoryCard } from "../../utils/inventory";
 export interface VaultData {
   /** Every base card, merged with the caller's quantities (0 when anonymous). */
   cards: InventoryCard[];
+  /** BL-252 S6-05: the share's data (desktop CardsPage `readOnly`): the
+   * quantities are the share owner's, nothing here may mutate them. */
+  readOnly: boolean;
   sets: CardSet[];
   setOrder: SetOrderMap;
   setNameByCode: Record<string, string>;
+  /** Quantities are real (desktop CardsPage `hasData` = signed in OR a
+   * share): true for the share's instance whoever is viewing. */
   isAuthenticated: boolean;
   /** Catalogue or (signed-in) quantities still in flight. */
   loading: boolean;
@@ -55,7 +61,17 @@ export function mergeQuantities(
   }));
 }
 
-export function useVaultDataSource(isAuthenticated: boolean): VaultData {
+/** `shareToken` (BL-252 S6-01): the shared vault's own instance -- desktop's
+ * SharedVaultPage mounts a second CardsPage with `shareToken`, which reads
+ * the share owner's quantities (GET /api/shared/{token}/quantities, plain
+ * fetch, no auth) and is read-only. The catalogue and sets are fetched per
+ * instance, as desktop's two CardsPage panes do. */
+export function useVaultDataSource(
+  isAuthenticated: boolean,
+  shareToken: string | null = null
+): VaultData {
+  const readOnly = shareToken != null;
+  const hasData = isAuthenticated || readOnly;
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -88,19 +104,20 @@ export function useVaultDataSource(isAuthenticated: boolean): VaultData {
   }, []);
 
   const refreshQuantities = useCallback(async () => {
-    if (!isAuthenticated) {
+    // Desktop CardsPage: shareToken wins outright, checked before auth.
+    if (!readOnly && !isAuthenticated) {
       setQuantities({});
       return;
     }
-    const rows = await getQuantities();
+    const rows = readOnly ? await getSharedQuantities(shareToken!) : await getQuantities();
     const map: Record<number, number> = {};
     for (const r of rows) map[r.variant_id] = r.quantity;
     setQuantities(map);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, readOnly, shareToken]);
 
   useEffect(() => {
     let live = true;
-    setQuantitiesLoading(isAuthenticated);
+    setQuantitiesLoading(hasData);
     refreshQuantities()
       .catch((err) => {
         if (live) setError(String(err));
@@ -111,7 +128,7 @@ export function useVaultDataSource(isAuthenticated: boolean): VaultData {
     return () => {
       live = false;
     };
-  }, [refreshQuantities, isAuthenticated]);
+  }, [refreshQuantities, hasData]);
 
   const patchQuantity = useCallback((variantId: number, quantity: number) => {
     setQuantities((prev) =>
@@ -139,7 +156,8 @@ export function useVaultDataSource(isAuthenticated: boolean): VaultData {
     sets,
     setOrder,
     setNameByCode,
-    isAuthenticated,
+    readOnly,
+    isAuthenticated: hasData,
     loading: catalogLoading || quantitiesLoading,
     error,
     refreshQuantities,
@@ -157,6 +175,13 @@ export function VaultDataProvider({
   children: ReactNode;
 }) {
   const value = useVaultDataSource(isAuthenticated);
+  return createElement(VaultDataContext.Provider, { value }, children);
+}
+
+/** BL-252 S6-01: provides an already-built instance (the shared vault's,
+ * built once in MobileApp's share scope and read by its pane, card layer and
+ * Owned-by-finish host). */
+export function VaultDataValue({ value, children }: { value: VaultData; children: ReactNode }) {
   return createElement(VaultDataContext.Provider, { value }, children);
 }
 

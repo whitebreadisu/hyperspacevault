@@ -56,6 +56,8 @@ export interface CardPageProps {
   onOpenFinish?: () => void;
   onOpenAspects?: (aspects: string[]) => void;
   onChartEngage?: () => void;
+  /** BL-252 S6-05: a shared vault's card (×N, no stepper). */
+  readOnly?: boolean;
 }
 
 export function CardPage(p: CardPageProps) {
@@ -110,6 +112,7 @@ export function CardPage(p: CardPageProps) {
             capMode={p.capMode}
             onRequestSignIn={p.onRequestSignIn}
             ghost={!!ghost}
+            readOnly={p.readOnly}
           />
           <section className="m-sec m-history" aria-labelledby={ghost ? undefined : "sec-history"}>
             <div className="m-sec__head">

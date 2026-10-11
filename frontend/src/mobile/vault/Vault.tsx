@@ -43,6 +43,9 @@ interface Props {
   /** Signed out, the Filters sheet's Collection row routes to sign in. */
   onRequestSignIn?: () => void;
   // ── RUN 2B END (signin prop) ──
+  /** BL-252 S6-03: the title slot's text -- "<Name>'s collection" for a
+   * share (desktop's tab text); "Your collection" otherwise. */
+  collectionLabel?: string;
 }
 
 export function Vault({
@@ -55,6 +58,7 @@ export function Vault({
   // ── RUN 2B BEGIN (signin destructure) ──
   onRequestSignIn,
   // ── RUN 2B END (signin destructure) ──
+  collectionLabel,
 }: Props) {
   const { isAuthenticated, loading, sets, setOrder, setNameByCode } = useVaultData();
   const vv = useVaultView(params);
@@ -119,6 +123,7 @@ export function Vault({
       priceKind={vv.priceKind}
       onPriceKind={vv.setPriceKind}
       onOpenSets={() => setSheet("sets")}
+      label={collectionLabel}
     />
   );
 
@@ -147,7 +152,9 @@ export function Vault({
       setOpener(
         active instanceof HTMLElement && active !== document.body
           ? active
-          : document.querySelector<HTMLElement>(`.m-app__screen [data-card="${card.base_card_id}"]`)
+          : document.querySelector<HTMLElement>(
+              `.m-app__screen:not(.m-app__screen--parked) [data-card="${card.base_card_id}"]`
+            )
       );
       go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
     },
