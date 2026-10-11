@@ -59,11 +59,18 @@ export function go(hash: string, replace?: boolean): void {
 }
 
 export function back(): void {
+  backOr("#/vault");
+}
+
+/** History back while there is something of ours to walk back to, else
+ * `fallback` (BL-250 S4-05: a More sub-page's back chevron falls back to
+ * `#/more`). */
+export function backOr(fallback: string): void {
   if (depth > 0) {
     depth--;
     window.history.back();
   } else {
-    go("#/vault");
+    go(fallback);
   }
 }
 

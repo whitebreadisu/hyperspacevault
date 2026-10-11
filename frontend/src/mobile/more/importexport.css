@@ -1,0 +1,221 @@
+/* BL-250 S4-08 … S4-11: Import & Export. Desktop ImportExportPage.css loads as
+ * it is (imported by the screen); this file holds the phone deltas only, values
+ * from rev4 m-rev4-d.css 179-237 (one column, whole-row 48 px radios with a
+ * drawn dot, red Replace All, red check) plus the report list that replaces
+ * desktop's fixed-column tables. Scoped under .m-app. */
+
+.m-app .m-ie .ie-section {
+  padding: 16px 14px;
+  margin-bottom: 0;
+}
+.m-app .m-ie .ie-section__blurb,
+.m-app .m-ie .ie-format-note {
+  max-width: none;
+}
+.m-app .m-ie .ie-reference {
+  max-width: none;
+  gap: 12px;
+}
+.m-app .m-ie .ie-section__head > .ie-actions {
+  margin-top: 12px;
+}
+.m-app .m-ie .ie-radio-row {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 20px;
+}
+.m-app .m-ie .ie-radio-row .ie-radio-group {
+  flex: none;
+}
+.m-app .m-ie .ie-file-row {
+  flex-wrap: wrap;
+}
+.m-app .m-ie .ie-file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* The picker: desktop hides the native input behind the button and forwards a
+ * click; on the phone the input itself lies over the 44 px button, invisible,
+ * so the tap is the native picker's own (S4-10). 16 px so iOS Safari never
+ * zooms on it. */
+.m-app .m-ie .m-ie__pick {
+  position: relative;
+  display: inline-flex;
+}
+.m-app .m-ie .ie-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  clip: auto;
+  overflow: visible;
+  opacity: 0;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* The whole option is the radio (a 48 px+ row); the dot is drawn. */
+.m-app .m-ie .m-ie-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  text-align: left;
+  color: inherit;
+}
+.m-app .m-ie .m-ie-radio--on {
+  border-color: var(--color-primary);
+}
+.m-app .m-ie .ie-radio-option--danger.m-ie-radio--on {
+  border-color: var(--color-danger);
+}
+.m-app .m-ie .m-ie-radio__dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid rgba(211, 211, 212, 0.4);
+  background: transparent;
+}
+.m-app .m-ie .m-ie-radio--on .m-ie-radio__dot {
+  border-color: var(--color-primary);
+  box-shadow:
+    inset 0 0 0 3px var(--bg-surface),
+    inset 0 0 0 8px var(--color-primary);
+}
+.m-app .m-ie .ie-radio-option--danger.m-ie-radio--on .m-ie-radio__dot {
+  border-color: var(--color-danger);
+  box-shadow:
+    inset 0 0 0 3px var(--bg-surface),
+    inset 0 0 0 8px var(--color-danger);
+}
+.m-app .m-ie .ie-radio-option__text {
+  min-width: 0;
+}
+.m-app .m-ie .ie-radio-option__title {
+  font-size: 14px;
+}
+.m-app .m-ie .ie-radio-option__desc {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Desktop's Replace All confirmation (red check), now on the preview step. */
+.m-app .m-ie .m-ie__check {
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+.m-app .m-ie .m-ie__check .m-check__box {
+  margin-top: 1px;
+}
+.m-app .m-ie .m-ie__check.m-check--on .m-check__box {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+}
+
+.m-app .m-ie .m-ie__foot {
+  justify-content: space-between;
+}
+.m-app .m-ie .m-ie__link {
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 14px;
+}
+
+/* ── Report list (S4-11) ─────────────────────────────────────────────────── */
+.m-app .m-ie .ie-totals {
+  gap: 12px 16px;
+}
+.m-app .m-ie .m-ie-tabs {
+  display: flex;
+  gap: 6px;
+}
+.m-app .m-ie .ie-view-tab {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.m-app .m-ie .m-ie-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.m-app .m-ie .m-ie-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+.m-app .m-ie .m-ie-row:last-child {
+  border-bottom: none;
+}
+.m-app .m-ie .m-ie-row__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.m-app .m-ie .m-ie-row__num {
+  flex: none;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+.m-app .m-ie .m-ie-row__card {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.m-app .m-ie .m-ie-row__qty {
+  flex: none;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.m-app .m-ie .m-ie-row--removed {
+  color: var(--color-danger);
+}
+.m-app .m-ie .ie-report-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.m-app .m-ie .ie-table__detail {
+  color: var(--color-text-muted);
+}
+.m-app .m-ie .ie-table__note--trimmed {
+  color: var(--color-warning);
+}
+
+/* Replace All in red: the S3 tool's unscoped `.m-app .ie-radio-option__title`
+ * colour (tool.css) would otherwise outrank desktop's danger rule. */
+.m-app .m-ie .ie-radio-option__title--danger {
+  color: var(--color-danger);
+}

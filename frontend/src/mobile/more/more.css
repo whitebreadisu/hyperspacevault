@@ -1,0 +1,330 @@
+/* BL-250 S4-01 … S4-05: More, About & Legal, [HSV] Updates. Values verbatim
+ * from rev4 m-layout.css 497-515 (More groups / rows / foot), m-rev1.css
+ * 285-288, m-rev4-d.css 1-158 (full shell, About, Updates rail / well / band
+ * / seam, brand tap); desktop AboutModal.css and NewArrivalsPage.css load as
+ * they are (imported by the screens) and only the phone deltas live here.
+ * Scoped under .m-app. */
+
+/* ── More (S4-01) ───────────────────────────────────────────────────────── */
+.m-app .m-more {
+  position: relative;
+}
+/* The brand header: desktop's session starfield under the header scrim
+ * (header.css .m-vh__sky values), brand button + account slot on one row. */
+.m-app .m-more__hdr {
+  position: relative;
+  flex: none;
+  padding: calc(10px + var(--sat)) 16px 14px;
+}
+.m-app .m-more__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--bg-surface);
+  background-image:
+    linear-gradient(90deg, rgba(9, 11, 20, 0.62), rgba(9, 11, 20, 0.28)), var(--starfield);
+  background-size: cover;
+  background-position: center;
+}
+.m-app .m-more__top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+/* m-rev4-d.css .m-d1-brandbtn */
+.m-app .m-more__brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+.m-app .m-more__brand:active {
+  opacity: 0.8;
+}
+.m-app .m-more__sep {
+  flex: none;
+}
+.m-app .m-moregroup {
+  margin-top: 8px;
+}
+.m-app .m-moregroup__label {
+  margin: 0;
+  padding: 12px 16px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+/* Rows 52 px (brief S4-01; rev4 60), chevron, hairlines (rev4). */
+.m-app .m-morerow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 12px 6px 16px;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  color: var(--color-text-muted);
+}
+.m-app .m-moregroup__label + .m-morerow,
+.m-app .m-moregroup--end > .m-morerow:first-child {
+  border-top: 1px solid var(--color-border);
+}
+.m-app .m-morerow:active {
+  background: rgba(37, 99, 235, 0.1);
+}
+.m-app .m-morerow__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+.m-app .m-morerow__title {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+.m-app .m-morerow__line {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+/* Inert teaser (desktop aria-disabled SWUButton: dimmed, still tappable). */
+.m-app .m-morerow--off .m-morerow__title {
+  color: var(--color-text-muted);
+}
+/* S4-04: the Updates title pulses through the shared .m-cue layer
+ * (shell.css: an absolutely positioned ::after whose only animated property
+ * is opacity, 2 s; reduced motion = steady 0.85). */
+.m-app .m-morerow--cue .m-morerow__title {
+  color: #fff;
+}
+.m-app .m-more__nudge {
+  margin: 0;
+  padding: 8px 16px 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+/* m-layout.css:47 .m-fine + m-rev1.css:288 .m-more__note */
+.m-app .m-more__note {
+  margin: 12px 0 0;
+  padding: 4px 16px 0;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.m-app .m-moregroup--end {
+  margin-top: 24px;
+}
+.m-app .m-more__foot {
+  padding: 22px 16px 44px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+/* The version keeps desktop's casing (as the Vault header's tag line). */
+.m-app .m-more__foot .m-more__ver {
+  text-transform: none;
+}
+
+/* ── Full-shell console screen (S4-02 / S4-03; m-rev4-d.css 9-31, the
+ * Feedback screen's scale: 18 / 17 px cuts, steel ring 0.28 at 1.5 px). The
+ * screen sits above the bottom bar, so only the top takes the inset. ───── */
+.m-app .m-shellscreen {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(12px + var(--sat)) 12px 16px;
+  background-color: var(--bg-page);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+}
+.m-app .m-shell {
+  flex: none;
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    18px 0,
+    100% 0,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    0 100%,
+    0 18px
+  );
+}
+.m-app .m-shell__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 12px 18px;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    17px 0,
+    100% 0,
+    100% calc(100% - 17px),
+    calc(100% - 17px) 100%,
+    0 100%,
+    0 17px
+  );
+}
+.m-app .m-shell__panel--page {
+  padding: 6px 0 0;
+  gap: 0;
+}
+.m-app .m-shell__panel--page .m-shell__head {
+  padding: 0 12px;
+}
+.m-app .m-shell__head {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+}
+.m-app .m-shell__bal {
+  width: 44px;
+  flex: none;
+}
+/* AboutModal.css .about-title */
+.m-app .m-shell__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+.m-app .m-shell__close {
+  margin-right: -8px;
+  color: var(--color-text-muted);
+}
+.m-app .m-shell__back {
+  margin-left: -8px;
+  color: var(--color-text-muted);
+}
+.m-app .m-shell__close:active,
+.m-app .m-shell__back:active {
+  color: var(--color-text);
+}
+
+/* ── About & Legal (S4-02): AboutModal.css as-is, phone deltas only ─────── */
+.m-app .m-about .about-body {
+  padding: 18px 16px;
+}
+/* 14 px prose (desktop 13) -- the owner reads small type as too small. */
+.m-app .m-about .about-section__text,
+.m-app .m-about .about-section__list {
+  font-size: 14px;
+}
+/* .m-app button resets font and colour; restate desktop's .about-submit
+ * and step it to the 44 px floor (rev4 min-height 44, min-width 120). */
+.m-app .m-about .about-submit {
+  min-height: 44px;
+  min-width: 120px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+.m-app .m-about .about-submit:active {
+  background: var(--color-primary-dim);
+  transform: translateY(1px);
+}
+
+/* ── [HSV] Updates (S4-03): NewArrivalsPage.css as-is, phone deltas ─────── */
+.m-app .m-updates__rail.na-quicklinks {
+  gap: 4px 8px;
+  padding: 4px 12px;
+  /* Sticks at the safe-area edge, not 12 px below it (the screen's top
+   * padding is 12 px + the inset), so nothing scrolls through above it. */
+  top: -12px;
+  /* One row that scrolls sideways (TIEBREAKER S4-03): desktop's wrap makes
+   * three 44 px rows of sticky chrome at 390 px (~150 px of the screen). */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.m-app .m-updates__rail::-webkit-scrollbar {
+  display: none;
+}
+/* The chip is drawn as desktop's (.na-quicklink on the inner span: border 1,
+ * radius 4, 5 x 12, 12 px Barlow Condensed 700); the button is the 44 px hit. */
+.m-app .m-updates__chip {
+  flex: none;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.m-app .m-updates__chip--about {
+  margin-left: auto;
+}
+.m-app .m-updates__chip:active .na-quicklink {
+  color: var(--color-text);
+  border-color: var(--color-warning);
+  background: rgba(217, 154, 31, 0.1);
+}
+.m-app .m-updates .na-body {
+  padding: 0 14px 20px;
+}
+.m-app .m-updates .na-entry {
+  padding: 0 0 8px;
+}
+.m-app .m-updates .na-entry__header {
+  gap: 4px 10px;
+}
+.m-app .m-updates .na-entry__header--starfield {
+  padding: 14px 28px 22px;
+  margin-left: -14px;
+  margin-right: -14px;
+}
+.m-app .m-updates .na-divider--inner {
+  margin-left: -14px;
+  margin-right: -14px;
+}
+.m-app .m-updates .na-section__items {
+  gap: 10px;
+}
+.m-app .m-updates .na-item,
+.m-app .m-updates .na-announcement__body {
+  font-size: 14px;
+}

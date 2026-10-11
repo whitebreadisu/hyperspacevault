@@ -128,69 +128,103 @@ test("s2-08-first-edge", async ({ page }) => {
   expect(await page.evaluate(() => location.hash)).toBe(hash0);
 });
 
+interface MidSample {
+  bad: string[];
+  same: boolean;
+  ghost: boolean;
+  ghostEmpty: boolean;
+  dupIds: string[];
+  track: string;
+  trackTransition: string;
+  xfade: string;
+  xout: string;
+}
+
 test("s2-08-transform-only", async ({ page }) => {
   await openCard(page, "ASH", 112);
   const hash0 = await page.evaluate(() => location.hash);
   // card-arrow-slides: the chevron mounts the neighbour and slides first.
-  await page.evaluate(() =>
-    (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click()
-  );
   // Wait for the slide itself to be under way (not a fixed delay), then
   // sample within its 200 ms.
-  await page.waitForFunction(() =>
-    /^translate3d\(-/.test(
-      (document.querySelector(".m-detail__track") as HTMLElement).style.transform
-    )
-  );
-  const mid = await page.evaluate((h) => {
-    const bad: string[] = [];
-    for (const e of document.querySelectorAll(".m-detail *")) {
-      const cs = getComputedStyle(e);
-      if (!cs.transitionDuration.split(",").some((d) => parseFloat(d) > 0)) continue;
-      if (e.closest(".m-detail__bar, .swu-btn, .m-seg")) continue;
-      const props = cs.transitionProperty.split(",").map((s) => s.trim());
-      const ok = [
-        "transform",
-        "opacity",
-        "visibility",
-        "background",
-        "background-color",
-        "color",
-        "border-color",
-        "box-shadow",
-      ];
-      if (props.some((x) => !ok.includes(x))) out(e, cs.transitionProperty);
-      const kf = cs.animationName;
-      if (
-        kf &&
-        kf !== "none" &&
-        kf !== "m-xin" &&
-        kf !== "m-xout" &&
-        !/cp-image-flip|m-layer/.test(kf)
-      )
-        out(e, kf);
-    }
-    function out(e: Element, what: string) {
-      bad.push(String(e.className).slice(0, 40) + " :: " + what);
-    }
-    const t = document.querySelector(".m-detail__track") as HTMLElement;
-    return {
-      bad,
-      same: location.hash === h,
-      ghost: !!document.querySelector(".m-page--ghost.m-page--next"),
-      // F2: the neighbour's chart is not live -- it must not claim "no data".
-      ghostEmpty: /No price data/.test(document.querySelector(".m-page--ghost")?.textContent ?? ""),
-      // F8: the section ids are unique while two pages are mounted.
-      dupIds: [...document.querySelectorAll('.m-detail [id^="sec-"]')]
-        .map((e) => e.id)
-        .filter((id, i, a) => a.indexOf(id) !== i),
-      track: t.style.transform,
-      trackTransition: t.style.transition,
-      xfade: getComputedStyle(document.querySelector(".m-hdr__titles.m-xfade--in")!).animationName,
-      xout: getComputedStyle(document.querySelector(".m-hdr__titles:not(.m-xfade--in)")!)
-        .animationName,
-    };
-  }, hash0);
+  // Hardened (S4 4b full-green flake): sample inside the poll itself, on the
+  // first frame the slide is under way AND both header layers exist -- a
+  // separate waitForFunction + evaluate round trip could land after the
+  // 200 ms slide had ended under load.
+  type Handle = Awaited<ReturnType<typeof page.waitForFunction>>;
+  let midHandle!: Handle;
+  // A chevron tap before the card layer has its neighbour list is a no-op, so
+  // retry the tap (only while no slide has happened) until a slide starts.
+  await expect(async () => {
+    expect(await page.evaluate(() => location.hash)).toBe(hash0);
+    await page.evaluate(() =>
+      (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click()
+    );
+    midHandle = await page.waitForFunction(
+      (h) => {
+        const tr = (document.querySelector(".m-detail__track") as HTMLElement).style.transform;
+        if (
+          !/^translate3d\(-/.test(tr) ||
+          !document.querySelector(".m-hdr__titles.m-xfade--in") ||
+          !document.querySelector(".m-hdr__titles:not(.m-xfade--in)")
+        )
+          return null;
+
+        const bad: string[] = [];
+        for (const e of document.querySelectorAll(".m-detail *")) {
+          const cs = getComputedStyle(e);
+          if (!cs.transitionDuration.split(",").some((d) => parseFloat(d) > 0)) continue;
+          if (e.closest(".m-detail__bar, .swu-btn, .m-seg")) continue;
+          const props = cs.transitionProperty.split(",").map((s) => s.trim());
+          const ok = [
+            "transform",
+            "opacity",
+            "visibility",
+            "background",
+            "background-color",
+            "color",
+            "border-color",
+            "box-shadow",
+          ];
+          if (props.some((x) => !ok.includes(x))) out(e, cs.transitionProperty);
+          const kf = cs.animationName;
+          if (
+            kf &&
+            kf !== "none" &&
+            kf !== "m-xin" &&
+            kf !== "m-xout" &&
+            !/cp-image-flip|m-layer/.test(kf)
+          )
+            out(e, kf);
+        }
+        function out(e: Element, what: string) {
+          bad.push(String(e.className).slice(0, 40) + " :: " + what);
+        }
+        const t = document.querySelector(".m-detail__track") as HTMLElement;
+        return {
+          bad,
+          same: location.hash === h,
+          ghost: !!document.querySelector(".m-page--ghost.m-page--next"),
+          // F2: the neighbour's chart is not live -- it must not claim "no data".
+          ghostEmpty: /No price data/.test(
+            document.querySelector(".m-page--ghost")?.textContent ?? ""
+          ),
+          // F8: the section ids are unique while two pages are mounted.
+          dupIds: [...document.querySelectorAll('.m-detail [id^="sec-"]')]
+            .map((e) => e.id)
+            .filter((id, i, a) => a.indexOf(id) !== i),
+          track: t.style.transform,
+          trackTransition: t.style.transition,
+          xfade: getComputedStyle(document.querySelector(".m-hdr__titles.m-xfade--in")!)
+            .animationName,
+          xout: getComputedStyle(document.querySelector(".m-hdr__titles:not(.m-xfade--in)")!)
+            .animationName,
+        };
+      },
+      hash0,
+      { polling: "raf", timeout: 2500 }
+    );
+  }).toPass({ timeout: 25000 });
+  const mid = (await midHandle.jsonValue()) as MidSample;
   expect(mid.bad).toEqual([]);
   expect(mid.same).toBe(true);
   expect(mid.ghost).toBe(true);
@@ -209,10 +243,14 @@ test("s2-08-transform-only", async ({ page }) => {
     op: getComputedStyle(document.querySelector(".m-hdr__titles")!).opacity,
   }));
   expect(end).toEqual({ layers: 0, op: "1" });
-  await page.evaluate(() =>
-    (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
-  );
-  await expect(page.locator(".m-page--ghost.m-page--prev")).toHaveCount(1);
+  // Hardened: a chevron tap while the card layer is still settling from the
+  // first slide is a no-op, so retry it (only while no slide has started).
+  await expect(async () => {
+    await page.evaluate(() =>
+      (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
+    );
+    await expect(page.locator(".m-page--ghost.m-page--prev")).toHaveCount(1, { timeout: 1500 });
+  }).toPass({ timeout: 20000 });
   await page.waitForTimeout(450);
   expect(await page.evaluate(() => location.hash)).toBe(hash0);
 });

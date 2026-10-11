@@ -38,17 +38,18 @@ test("s1-08-account-menu", async ({ page }) => {
   await expect(page.locator(".m-acct__menu")).toHaveCount(0);
   await expect(page).toHaveURL(/#\/vault$/);
 
-  // Items route: Settings / Change Password / About & Legal (ComingSoon until S4/S5).
-  for (const [label, hash] of [
-    ["Settings", /#\/more\/settings$/],
-    ["Change Password", /#\/more\/password$/],
-    ["About & Legal", /#\/about$/],
+  // Items route: Settings / Change Password (ComingSoon until S5) / About &
+  // Legal (BL-250 S4-02 PORT: the real About screen).
+  for (const [label, hash, sel] of [
+    ["Settings", /#\/more\/settings$/, ".m-soon"],
+    ["Change Password", /#\/more\/password$/, ".m-soon"],
+    ["About & Legal", /#\/about$/, ".m-about"],
   ] as const) {
     await page.goto("/#/vault");
     await page.locator(".m-acct__hit").click();
     await page.locator(".m-acct__menu [role=menuitem]", { hasText: label }).click();
     await expect(page).toHaveURL(hash);
-    await expect(page.locator(".m-soon")).toBeVisible();
+    await expect(page.locator(sel)).toBeVisible();
   }
 });
 

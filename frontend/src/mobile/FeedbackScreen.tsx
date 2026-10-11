@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { MIcon } from "./icons";
 import { MSWUButton } from "./MSWUButton";
 import { capturePhone } from "./phoneAnalytics";
+import { backOr } from "./router";
 import "./feedback.css";
 
 // BL-247 S1-25: Leave Feedback at #/more/feedback (rev4 MMore.jsx:73-136;
@@ -18,7 +19,15 @@ import "./feedback.css";
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const SUCCESS_AUTO_CLOSE_MS = 1500;
 
-export function FeedbackScreen({ onClose }: { onClose: () => void }) {
+export function FeedbackScreen({
+  onClose,
+  fromMore = false,
+}: {
+  onClose: () => void;
+  /** S4 F3: reached from More -> a left back chevron to #/more (like every
+   * More sub-page); reached from the Vault header -> the X top-right. */
+  fromMore?: boolean;
+}) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [contactOk, setContactOk] = useState(false);
@@ -78,11 +87,24 @@ export function FeedbackScreen({ onClose }: { onClose: () => void }) {
       <div className="m-fb__shell">
         <div className="m-fb__panel">
           <header className="m-fb__head">
-            <span className="m-fb__bal" aria-hidden="true" />
+            {fromMore && !submitting ? (
+              <button
+                type="button"
+                className="m-iconbtn m-fb__back"
+                onClick={() => backOr("#/more")}
+                aria-label="Back"
+              >
+                <MIcon name="back" />
+              </button>
+            ) : (
+              <span className="m-fb__bal" aria-hidden="true" />
+            )}
             <h1 className="m-fb__title" id="fb-title">
               Leave Feedback
             </h1>
-            {!submitting ? (
+            {fromMore || submitting ? (
+              <span className="m-fb__bal" aria-hidden="true" />
+            ) : (
               <button
                 type="button"
                 className="m-iconbtn m-fb__close"
@@ -91,8 +113,6 @@ export function FeedbackScreen({ onClose }: { onClose: () => void }) {
               >
                 <MIcon name="close" />
               </button>
-            ) : (
-              <span className="m-fb__bal" aria-hidden="true" />
             )}
           </header>
           {succeeded ? (

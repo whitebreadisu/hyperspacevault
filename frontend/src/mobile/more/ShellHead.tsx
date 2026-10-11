@@ -1,0 +1,75 @@
+import { useCallback, useEffect } from "react";
+import { MIcon } from "../icons";
+import { back, backOr } from "../router";
+
+// BL-250 S4-05: the full-shell header for More's sub-pages (rev4
+// m-rev4-d.css .m-d1-head: 48 px row, 44 px balance, centred 22 px title).
+// Reached from More -> a LEFT back chevron that returns to #/more (skill,
+// round 2: screens that navigate back keep a left back chevron); reached
+// from the title chooser, the account menu, a rail chip or a deep link -> the
+// X top-right only (round 2: every close-able screen puts its X top-right;
+// rev4 D1: About from the wordmark has X). Escape does the same (desktop
+// useModalDismiss).
+
+export function useShellExit(fromMore: boolean): () => void {
+  return useCallback(() => (fromMore ? backOr("#/more") : back()), [fromMore]);
+}
+
+interface Props {
+  title: string;
+  titleId: string;
+  fromMore: boolean;
+  /** S4 F1: a long-running action is under way (Import & Export previewing /
+   * committing): Escape and the X / chevron do nothing. */
+  locked?: boolean;
+}
+
+// S4 F1: layers that sit above the screen and own Escape (same idiom as
+// ToolLayer): the tool, sheets, confirms, the sign-in layer, the card layer.
+const ABOVE_SCREEN = ".m-tool, .m-sheet-layer, .m-d2-confirm-layer, .m-authlayer, .m-cardlayer";
+
+export function ShellHead({ title, titleId, fromMore, locked = false }: Props) {
+  const exit = useShellExit(fromMore);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || locked) return;
+      if (document.querySelector(ABOVE_SCREEN)) return;
+      exit();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [exit, locked]);
+  return (
+    <header className="m-shell__head">
+      {fromMore ? (
+        <button
+          type="button"
+          className="m-iconbtn m-shell__back"
+          onClick={locked ? undefined : exit}
+          aria-label="Back"
+          aria-disabled={locked || undefined}
+        >
+          <MIcon name="back" />
+        </button>
+      ) : (
+        <span className="m-shell__bal" aria-hidden="true" />
+      )}
+      <h1 className="m-shell__title" id={titleId}>
+        {title}
+      </h1>
+      {fromMore ? (
+        <span className="m-shell__bal" aria-hidden="true" />
+      ) : (
+        <button
+          type="button"
+          className="m-iconbtn m-shell__close"
+          onClick={locked ? undefined : exit}
+          aria-label="Close"
+          aria-disabled={locked || undefined}
+        >
+          <MIcon name="close" />
+        </button>
+      )}
+    </header>
+  );
+}
