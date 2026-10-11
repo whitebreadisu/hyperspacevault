@@ -114,6 +114,8 @@ At viewport widths up to 767 px the app renders a separate phone UI (`frontend/s
 
 Tests: phone logic runs in the normal vitest suite (`npx vitest run src/mobile`); layout runs in Playwright against the dev server with the API mocked from committed fixtures and sign-in on the Auth emulator. From `frontend/`: `npm run e2e:mobile` runs every project (phone-390, phone-430, the fake-camera `scan` project, and a desktop-1440 smoke); pass Playwright arguments through, e.g. `node e2e/run-mobile.mjs --project=scan` or `--grep "s6-"`. CI runs the same suite as the required `frontend-e2e-mobile` job.
 
+In Docker, `docker compose exec frontend npm test` can run the phone docs guard (`src/mobile/docs.test.ts`) because the compose file mounts `./specification_documents` read-only into the frontend container.
+
 ## Project structure
 
 ```

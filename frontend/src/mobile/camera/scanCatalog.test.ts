@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import raw from "../../../e2e/mobile/fixtures/scan-raw-sor-ash.json";
 import snapshot from "../../../e2e/mobile/fixtures/scan-catalog.snapshot.json";
 import { buildScanCatalog } from "./scanCatalog";
 import type { ScanSourceCard, ScanSourceSet } from "./scanCatalog";
@@ -165,5 +166,67 @@ describe("S7-07 scan catalogue derived from the app's data", () => {
     expect(cat.printed.SOR).toEqual(["SOR", "SORP"]);
     expect(cat.printed.ASHP).toEqual(["P26"]); // the owner-evidenced collision extra
     expect(cat.p.some((r) => r[3] === 90)).toBe(false); // a non-numeric printing is not scannable
+  });
+});
+
+// S7-F4: the non-circular half of the gate. The fixture is a trimmed copy of
+// the RAW swuapi cache (is_token and is_base_set as the API returns them, not
+// read back from the snapshot): the SOR and ASH base cards. The catalogue the
+// app derives from it must equal the matching slice of the spike's snapshot,
+// printing by printing (SOR: Weekly Play pairs, early-set classes; ASH: the
+// ASHP -> P26 collision, hyperspace / showcase numbering).
+describe("S7-F4 the derivation from raw API data equals the snapshot slice", () => {
+  const sets = raw.sets.map(([code, name, isBase]) => ({
+    code: code as string,
+    name: name as string,
+    is_base_set: isBase as boolean,
+  }));
+  const cards: ScanSourceCard[] = (raw.cards as unknown[][]).map((c) => ({
+    base_card_id: c[0] as number,
+    set_code: c[1] as string,
+    base_card_number: c[2] as string,
+    name: c[3] as string,
+    subtitle: c[4] as string | null,
+    type: c[5] as string | null,
+    is_token: c[6] as boolean,
+    variants: (c[7] as [number, string, string, string][]).map(
+      ([variant_id, variant_type, source_set_code, card_number]) => ({
+        variant_id,
+        variant_type,
+        source_set_code,
+        card_number,
+      })
+    ),
+  }));
+  const built = buildScanCatalog(cards, sets);
+
+  // One comparable tuple per printing, the card index resolved to its fields.
+  const resolve = (d: ScanCatalogData, onlyHomes?: string[]) =>
+    d.p
+      .map(([src, num, ci, vid, vti, cls]) => ({
+        src,
+        num,
+        card: d.cards[ci],
+        vid,
+        vt: d.vt[vti],
+        cls,
+      }))
+      .filter((r) => !onlyHomes || onlyHomes.includes(r.card[3]));
+
+  it("every printing (source, number, card, variant, type, class) matches", () => {
+    const got = resolve(built);
+    const want = resolve(SNAP, ["SOR", "ASH"]);
+    expect(got.length).toBe(want.length);
+    expect(got.length).toBeGreaterThan(2000);
+    expect(got).toEqual(want);
+  });
+
+  it("main sizes and printed-code sets match, incl. ASHP -> P26", () => {
+    expect(built.main.SOR).toBe(SNAP.main.SOR);
+    expect(built.main.ASH).toBe(SNAP.main.ASH);
+    expect(built.printed.ASHP).toEqual(SNAP.printed.ASHP);
+    expect(built.printed.ASHP).toContain("P26");
+    expect(built.early).toEqual(SNAP.early);
+    expect(built.setNames).toEqual(SNAP.setNames);
   });
 });

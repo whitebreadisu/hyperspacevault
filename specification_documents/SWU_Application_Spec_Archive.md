@@ -182,6 +182,8 @@ Sentences replaced in place when the scanner was built (stages 7a-7c). Each is t
 
 ## Archived 2026-10-11 — §25 slice-by-slice text superseded by the closing consolidation (BL-252 S6-09)
 
+Per-section disposition (stays / merged into 25.x / archived) for the old 25.1-25.5 and 25.7: the stage 6b section of the BL-252 build log (S6_BUILD_LOG.md) and the PR description.
+
 Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, §25.6 added): the gate, routes and share-link bullets of §25.1, the per-subsection Analytics and Tests/Harness bullets (now §25.0 and §22), the in-text supersession tombstones, and the interim wording ("placeholder", "arrives with the closing sweep", "since slice 5", "the §25 consolidation belongs to the closing sweep"). The whole pre-consolidation §25 follows **verbatim**.
 
 > ## 25. Mobile experience (BL-190 — as built, slice by slice)

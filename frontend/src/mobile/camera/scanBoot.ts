@@ -33,8 +33,6 @@ declare global {
   }
 }
 
-const onCameraRoute = () => /^#\/camera(\/|\?|$)/.test(window.location.hash);
-
 export function bootScan(): ScanDebug {
   const isolation = isolationReport();
   console.info("[scan] isolation " + JSON.stringify(isolation));
@@ -64,11 +62,8 @@ export function bootScan(): ScanDebug {
   // S7-10: the camera screen, bound to this document's readers, fills the
   // tool layer's camera slot (the main document never registers one).
   registerCameraScreen(bindCameraScreen(window.__scan ?? dbg));
-
-  const maybeStart = () => {
-    if (onCameraRoute() && dbg.reader.state === "idle") void dbg.startReader();
-  };
-  maybeStart();
-  window.addEventListener("hashchange", maybeStart);
+  // The Paddle download starts when the camera screen mounts (the controller
+  // calls startReader), never from the route alone: at >= 768 px the camera
+  // route renders the desktop tree and nothing is fetched.
   return dbg;
 }

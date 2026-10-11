@@ -27,7 +27,8 @@ from the BL-238 scanner spike (copied, never rebuilt) and are served unchanged.
    Source: the PaddleOCR project's PP-OCRv6 tiny models, in the ONNX-Runtime
    format published at huggingface.co/snowfluke/ppu-paddle-ocr-models (fetched
    once by the ppu-paddle-ocr package and copied here).
-   Licence: Apache License 2.0, as published by the PaddleOCR project.
+   Licence: Apache License 2.0, per the upstream PaddleOCR repository; not
+   independently verified for the converted .ort files.
 
 4. Tesseract.js  (tesseract.min.js, worker.min.js)
    Licence: Apache License 2.0 - see LICENSE-tesseract.js.txt

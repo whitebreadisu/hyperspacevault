@@ -36,9 +36,18 @@ test("s6-11-desktop-smoke-vault-renders", async ({ page }) => {
 test("s6-11-desktop-smoke-filters-panel-opens", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("tbody tr").nth(5)).toBeVisible();
+  // Closed rail first (the tab is shown, the panel is not), then open, then
+  // collapsed again: the test proves the toggle, not just the title text.
   const tab = page.locator(".ifp-sidebar-tab");
-  if (await tab.isVisible()) await tab.click();
-  await expect(page.locator(".ifp-sidebar__title")).toHaveText("Filters");
+  const title = page.locator(".ifp-sidebar__title");
+  await expect(tab).toBeVisible();
+  await expect(title).toHaveCount(0);
+  await tab.click();
+  await expect(title).toHaveText("Filters");
+  await expect(tab).toHaveCount(0);
+  await page.getByRole("button", { name: "Collapse filters" }).click();
+  await expect(title).toHaveCount(0);
+  await expect(tab).toBeVisible();
 });
 
 test("s6-11-desktop-smoke-card-popup-opens", async ({ page }) => {

@@ -201,6 +201,42 @@ describe("S7-13 read loop + agreement (stub reader)", () => {
     expect(accepts).toHaveLength(2);
   });
 
+  it("S7-F1 one number_conflict frame between clean frames does not open a pick", async () => {
+    const reads = [
+      "ASHP·EN O 16 1",
+      "SOR • EN R 229/252",
+      "SOR • EN R 229/252",
+      "SOR • EN R 229/252",
+    ];
+    let i = 0;
+    const accepts: string[] = [];
+    const ambig: string[] = [];
+    const { loop, at } = rig(
+      { primary: async () => ok(reads[i], 92) },
+      { onAccept: (a) => accepts.push(a.key), onAmbiguous: (_e, r) => ambig.push(r) }
+    );
+    for (i = 0; i < reads.length; i++) {
+      at(1000 + i * 300);
+      await loop.readOnce();
+    }
+    expect(ambig).toEqual([]);
+    expect(accepts).toEqual(["SOR 229/252"]);
+  });
+
+  it("S7-F1 two consecutive same-key ambiguous reads open one pick", async () => {
+    const ambig: string[] = [];
+    const { loop, at } = rig(
+      { primary: async () => ok("ASHP • EN 16", 92) },
+      { onAmbiguous: (_e, r) => ambig.push(r) }
+    );
+    for (let k = 0; k < 2; k++) {
+      at(1000 + k * 300);
+      await loop.readOnce();
+    }
+    expect(ambig).toHaveLength(1);
+    expect(loop.paused).toBe(true);
+  });
+
   it("partialRead: the newest of the last 8 reads with a code or number", () => {
     expect(partialRead([])).toBeNull();
     expect(

@@ -132,6 +132,9 @@ export class ScanLoop {
   private fb = { frame: 0, last: -99 };
   private firstTextT: number | null = null;
   private suppress: { key: string; until: number } | null = null;
+  /** The key of the previous ambiguous read (cleared by any other read):
+   * a pick opens only on a second consecutive read of the same key. */
+  private ambiguousKey: string | null = null;
   /** The last OCR'd reads' parsed code / number (newest last, capped). */
   reads: PartialRead[] = [];
   /** Counters the tests read. */
@@ -146,6 +149,7 @@ export class ScanLoop {
     if (this.running) return;
     this.running = true;
     this.resetCycle();
+    this.ambiguousKey = null;
     void this.loop();
   }
 
@@ -172,6 +176,7 @@ export class ScanLoop {
     this.deps.acceptor.reset();
     if (key && holdUntilGone) this.deps.acceptor.markAccepted(key, t);
     this.resetCycle();
+    this.ambiguousKey = null;
     this.paused = false;
   }
 
@@ -361,6 +366,8 @@ export class ScanLoop {
       reader: meta.reader || "tesseract",
     });
     if (dcs.rearm) this.resetCycle();
+    // A clean (non-ambiguous) read supersedes a pending ambiguous one.
+    if (!isSkip && full.result !== "ambiguous") this.ambiguousKey = null;
     if (isSkip) {
       if (!acc.blocked) this.events.onStatus?.({ kind: "searching", reason: "blurry" });
       return;
@@ -405,6 +412,15 @@ export class ScanLoop {
         this.events.onStatus?.({ kind: "suppressed", key: full.best.key });
         return;
       }
+      // One noisy frame (a number_conflict / reading_conflict on trailing
+      // noise) is superseded by the next clean read, as in the spike: pause
+      // for a pick only on two consecutive same-key ambiguous reads.
+      if (this.ambiguousKey !== full.best.key) {
+        this.ambiguousKey = full.best.key;
+        this.events.onStatus?.({ kind: "searching", reason: full.reason || null });
+        return;
+      }
+      this.ambiguousKey = null;
       this.paused = true;
       this.events.onAmbiguous?.(full, full.reason || full.best.reason, tAcc);
       return;

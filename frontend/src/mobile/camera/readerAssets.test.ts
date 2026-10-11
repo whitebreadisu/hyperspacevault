@@ -83,4 +83,9 @@ describe("S7-04 reader payload", () => {
     ])
       expect(notices, name).toContain(name);
   });
+
+  it("S7-F2 the PP-OCRv6 model licence line is qualified, not stated as fact", () => {
+    const notices = readFileSync(join(ROOT, NOTICES_FILE), "utf8").replace(/\s+/g, " ");
+    expect(notices).toContain("per the upstream PaddleOCR repository; not independently verified");
+  });
 });

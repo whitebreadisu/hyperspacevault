@@ -3,6 +3,9 @@ import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import { SCREEN_VIEWED_SCREENS, VIEW_MODE_CHANGED_MODES } from "../analytics/analytics";
+import { PICK_REASONS } from "./camera/scanAnalytics";
+import { ADJUST_METHODS } from "./tool/commit";
 
 // BL-252 stage 6b: documentation guards for the phone layout. The App Spec is
 // the registry of record (§22 analytics, §25 mobile experience); these tests
@@ -35,11 +38,38 @@ describe("S6-09 App Spec §25 is one coherent as-built section", () => {
     }
   });
 
-  it("carries no unfinished-work wording (placeholder / later slice / until slice)", () => {
+  // The guard's own pattern, exercised on fixture strings in the next test.
+  const UNFINISHED =
+    /placeholder|later slice|next slice|until (the )?[\w -]*?slice|arrives with|ships in slice|closing sweep|stage (6b|7[abc]?)\b/i;
+
+  it("the unfinished-work pattern catches the natural phrasings (and spares normal prose)", () => {
+    for (const bad of [
+      "a placeholder for now",
+      "comes in a later slice",
+      "until slice 5",
+      "until the shared-vault slice",
+      "until the next slice",
+      "arrives with the camera",
+      "ships in slice 7",
+      "the closing sweep",
+      "done at stage 6b",
+      "done at Stage 7",
+    ])
+      expect(UNFINISHED.test(bad), bad).toBe(true);
+    for (const good of [
+      "hint text in the field",
+      "the slice of the catalogue",
+      "pick one slice of the pie",
+      "the camera ships with the app",
+    ])
+      expect(UNFINISHED.test(good), good).toBe(false);
+  });
+
+  it("carries no unfinished-work wording (placeholder / later slice / until ... slice / stage 6b)", () => {
     const hits = s25
       .split("\n")
       .map((line, i) => ({ line, i }))
-      .filter(({ line }) => /placeholder|later slice|until slice|arrives with/i.test(line))
+      .filter(({ line }) => UNFINISHED.test(line))
       .map(({ line, i }) => `${i}: ${line.slice(0, 80)}`);
     expect(hits).toEqual([]);
   });
@@ -137,17 +167,49 @@ describe("S6-10 App Spec §22 lists every phone event and property", () => {
     expect(missing).toEqual([]);
   });
 
-  it("the phone-only enum values are registered", () => {
-    for (const v of [
-      "rows_none",
-      "gallery_3",
-      "shared_view",
-      "swipe",
-      "detail",
-      "camera_fast_add",
-      "scan_recognised",
-    ]) {
-      expect(s22, v).toContain(v);
-    }
+  it("the phone-only enum values are registered, from the exported const arrays", () => {
+    const row = (event: string) => {
+      const line = s22.split("\n").find((l) => l.startsWith("| `" + event + "`"));
+      expect(line, "registry row for " + event).toBeDefined();
+      return line as string;
+    };
+    const has = (line: string, v: string) =>
+      new RegExp("(^|[^A-Za-z0-9_])" + v + "([^A-Za-z0-9_]|$)").test(line);
+    const check = (event: string, values: readonly string[]) => {
+      expect(values.length, event + " values").toBeGreaterThan(0);
+      const r = row(event);
+      expect(
+        values.filter((v) => !has(r, v)),
+        event + " values missing from its §22 row"
+      ).toEqual([]);
+    };
+    check("screen_viewed", SCREEN_VIEWED_SCREENS);
+    check("view_mode_changed", VIEW_MODE_CHANGED_MODES);
+    check("scan_pick_shown", PICK_REASONS);
+    check("add_cards_committed", ADJUST_METHODS);
+    // No exported array for these: listed beside the test.
+    check("scan_decision", ["add", "details", "wrong_card", "pick"]);
+    check("scan_recognised", ["paddle", "tesseract", "weak", "strong"]);
+    // filter_applied.field: FilterField is a type, so its names are listed here.
+    check("filter_applied", [
+      "set",
+      "rarity",
+      "finish",
+      "type",
+      "arena",
+      "keyword",
+      "trait",
+      "cost",
+      "power",
+      "hp",
+      "aspect",
+      "aspect_mode",
+      "completion",
+      "owned",
+      "no_inventory",
+      "over_cap",
+    ]);
+    // Values of events without a single exported array (kept from the hand-picked list).
+    for (const v of ["swipe", "detail"]) expect(s22, v).toContain(v);
   });
 });
