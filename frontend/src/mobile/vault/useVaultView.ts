@@ -4,10 +4,10 @@ import { DEFAULT_SORT_STATE, nextSortState } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
 import type { FilterState } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
-import { loadPriceKind, savePriceKind } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
 import type { ViewModeChangedMode } from "../../analytics/analytics";
 import { capturePhone, phoneViewMode } from "../phoneAnalytics";
+import { usePriceKind } from "../priceKind";
 import { useVaultData } from "./useVaultData";
 import {
   buildVaultList,
@@ -99,7 +99,8 @@ export function useVaultViewOver(
   const [state, setState] = useState<VaultFilterState>(freshFilterState);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT_STATE);
   const [prefs, setPrefs] = useState<ViewPrefs>(loadPrefs);
-  const [priceKind, setPriceKindState] = useState<PriceMode>(loadPriceKind);
+  // S2-02: the shared phone price kind (card detail moves it too).
+  const [priceKind, setPriceKindShared] = usePriceKind();
 
   const updatePrefs = useCallback((patch: Partial<ViewPrefs>) => {
     setPrefs((p) => {
@@ -212,10 +213,7 @@ export function useVaultViewOver(
       (gallerySize: GallerySize) => pickPrefs({ gallerySize }),
       [pickPrefs]
     ),
-    setPriceKind: useCallback((k: PriceMode) => {
-      savePriceKind(k);
-      setPriceKindState(k);
-    }, []),
+    setPriceKind: setPriceKindShared,
   };
 }
 

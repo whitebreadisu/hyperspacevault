@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
+import { publishNav } from "../card/navList";
 import { go } from "../router";
 import { Sheet } from "../Sheet";
 import { CompletionHeader } from "./CompletionHeader";
@@ -117,9 +118,20 @@ export function Vault({
   }, [searching, onSearchMode]);
   useEffect(() => () => onSearchMode(false), [onSearchMode]);
 
-  const openCard = useCallback((card: InventoryCard, variant: InventoryVariant | null) => {
-    go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
-  }, []);
+  // S2-01: the detail browses the list it was opened from (rev4 M.navList,
+  // set on the tap): its ids in the current order, whether it is narrowed
+  // (amber "n of m"), and the scope (it picks each card's default printing).
+  const openCard = useCallback(
+    (card: InventoryCard, variant: InventoryVariant | null) => {
+      publishNav({
+        ids: vv.list.map((c) => c.base_card_id),
+        narrowed: vv.narrowed,
+        scope: vv.state.scope,
+      });
+      go("#/card/" + card.base_card_id + (variant ? "?v=" + variant.variant_id : ""));
+    },
+    [vv.list, vv.narrowed, vv.state.scope]
+  );
   const closeSheet = useCallback(() => setSheet(null), []);
 
   return (

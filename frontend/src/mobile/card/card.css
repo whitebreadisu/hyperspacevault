@@ -1,0 +1,898 @@
+/* BL-248 stage 2A-1: the card detail screen. Consolidated from rev4
+ * m-layout.css:50-59 (header base) + 330-417 (detail), m-rev1.css:252-284
+ * (region), m-rev2.css:85-112 (X top-right, collapsed row, pull cue),
+ * m-rev3.css:136-225 + 400-410 (R3-6 transform-only region, R3-8 amber
+ * "n of m", R3-12 fixed header) and m-rev4.css:54-67 (table plate); the
+ * rev-layer cascade collapsed to the final computed rule (plan A5). Desktop
+ * rules the screen reuses are copied VERBATIM from CardPopup.css (rail
+ * group label, rail item, ×N qty, flip, text panel, plate readout colours,
+ * over-limit tag, mutation error) so nothing depends on the desktop sheet
+ * being loaded. Scoped under .m-app.
+ *
+ * Motion rule (R3-6): the collapse animates ONLY transform and opacity
+ * (visibility flips discretely at the end); nothing transitions height,
+ * padding, top, left or margin. */
+
+/* ── The layer: over the Vault (which stays mounted) and the bar ────────── */
+.m-app .m-cardlayer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background-color: var(--bg-page);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+}
+.m-app .m-detail--r3 {
+  position: absolute;
+  touch-action: pan-y;
+}
+
+/* ── Header (m-layout.css:50-59 + 331-340; m-rev3.css:405): fixed ──────── */
+.m-app .m-hdr {
+  position: relative;
+  flex: none;
+  background: var(--bg-surface);
+  padding: calc(14px + var(--sat)) 16px 18px;
+}
+.m-app .m-hdr::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, rgba(9, 11, 20, 0.62), rgba(9, 11, 20, 0.28)), var(--starfield);
+  background-size: cover;
+  background-position: center;
+}
+.m-app .m-hdr > * {
+  position: relative;
+}
+.m-app .m-hdr--detail {
+  padding: calc(4px + var(--sat)) 8px 18px 16px;
+}
+.m-app .m-hdr--detail-fixed {
+  flex: none;
+}
+.m-app .m-hdr__barspace {
+  height: 44px;
+}
+.m-app .m-hdr__titles {
+  padding-right: 96px;
+  margin-top: 2px;
+}
+.m-app .m-detail__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.02;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-detail__sub {
+  margin-top: 3px;
+  font-size: 15px;
+  font-style: italic;
+  color: #d7dee9;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-hdr > .m-hdr__setlogo {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  height: 30px;
+  max-width: 92px;
+  object-fit: contain;
+  object-position: right;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* ── The bar over the header: spacer, prev / n of m / next, X (rev2 D1) ── */
+.m-app .m-detail__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  padding: calc(4px + var(--sat)) 8px 0 16px;
+  pointer-events: none;
+}
+.m-app .m-detail__bar .m-hdr__bar > * {
+  pointer-events: auto;
+}
+.m-app .m-hdr__bar {
+  display: flex;
+  align-items: center;
+  margin-left: -12px;
+}
+.m-app .m-hdr__bar--r2 {
+  margin-right: -4px;
+}
+.m-app .m-detail__bar .m-iconbtn {
+  color: #fff;
+}
+.m-app .m-hdr__nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.m-app .m-hdr__balance {
+  width: 44px;
+  flex: none;
+}
+.m-app .m-hdr__pos {
+  min-width: 86px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+/* R3-8: the list is the Vault's narrowed list -> lit amber. */
+.m-app .m-hdr__pos--narrowed {
+  color: #f2c14e;
+}
+
+/* ── Viewport / track / page (m-rev3.css:138-145, 404-410) ─────────────── */
+.m-app .m-detail--r3 > .m-detail__viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.m-app .m-detail__track {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.m-app .m-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+.m-app .m-page > .m-detail__scroll {
+  flex: 1;
+  min-height: 0;
+}
+.m-app .m-detail__scroll--r3 {
+  position: relative;
+  overflow-anchor: none;
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
+}
+
+/* ── The region: a constant 100 px layout box (m-rev3.css:153-215) ─────── */
+.m-app .m-dreg.m-dreg3 {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 100px;
+  overflow: visible;
+}
+.m-app .m-dreg3__bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--d-full);
+  background-color: var(--bg-page);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+  border-bottom: 1px solid var(--color-border);
+  transform: translateY(0);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+}
+.m-app .m-dreg3__bg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 18px;
+  transform: translateY(100%);
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity var(--m-collapse) ease;
+  pointer-events: none;
+}
+.m-app .m-dreg3--collapsed .m-dreg3__bg {
+  transform: translateY(calc(-1 * var(--d-delta)));
+}
+.m-app .m-dreg3--collapsed .m-dreg3__bg::after {
+  opacity: 1;
+}
+.m-app .m-dreg3__bg .m-pullbar {
+  z-index: 2;
+}
+/* Art: full size, centred; collapsed, the outer layer moves its left edge to
+ * 16 px and the inner layer scales it to the 80 px thumbnail (top-left). */
+.m-app .m-dreg3__artpos {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0;
+  z-index: 2;
+  transform: translateX(0);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+}
+.m-app .m-dreg3--collapsed .m-dreg3__artpos {
+  transform: translateX(calc(-50% + 16px + var(--art-w) / 2));
+}
+.m-app .m-artslide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0;
+  will-change: transform;
+}
+.m-app .m-dreg3__art {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: var(--art-w);
+  height: var(--art-h);
+  margin-left: calc(var(--art-w) / -2);
+  perspective: 1400px;
+  transform-origin: 0 0;
+  transform: translate(0, 0) scale(1);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+}
+.m-app .m-dreg3--collapsed .m-dreg3__art {
+  transform: translate(0, -4px) scale(var(--art-s));
+}
+.m-app .m-art__btn {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  max-width: 100%;
+}
+.m-app .m-dreg3 .m-dreg__btn {
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+}
+.m-app .m-art__img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  display: block;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.m-app .m-dreg3 .m-dreg__img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+}
+.m-app .m-img-ph {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* Desktop's two-phase flip (CardPopup.css:454-478): 0.18 s + 0.18 s rotateY. */
+@keyframes cp-flip-out {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(90deg);
+  }
+}
+@keyframes cp-flip-in {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+.m-app .cp-image-flip--out {
+  animation: cp-flip-out 0.18s ease forwards;
+}
+.m-app .cp-image-flip--in {
+  animation: cp-flip-in 0.18s ease forwards;
+}
+/* Expanded plate block: caption over the 280 px plate; fades + lifts away. */
+.m-app .m-dreg3__own {
+  position: absolute;
+  top: var(--own-top);
+  left: calc(50% - 140px);
+  width: 280px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    opacity 0.16s ease 0.06s,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear;
+}
+.m-app .m-dreg3--collapsed .m-dreg3__own {
+  opacity: 0;
+  transform: translateY(-28px);
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear var(--m-collapse);
+}
+.m-app .m-dreg__cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.m-app .m-dreg__fin {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-dreg__num {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #9fb0cc;
+}
+/* Collapsed row: plate at its natural width + price + Market / Low. */
+.m-app .m-dreg3__mini {
+  position: absolute;
+  top: 10px;
+  height: 80px;
+  left: var(--mini-l);
+  right: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(12px);
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear var(--m-collapse);
+}
+.m-app .m-dreg3--collapsed .m-dreg3__mini {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    opacity 0.16s ease 0.08s,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear;
+}
+.m-app .m-dreg3__mini .m-plate-hit {
+  width: auto;
+  flex: none;
+}
+.m-app .m-dreg3__mini .gallery-plate {
+  padding: 1px;
+}
+.m-app .m-dreg3__mini .gallery-plate__inner {
+  position: relative;
+  inset: auto;
+  height: 100%;
+  gap: 10px;
+}
+.m-app .m-dreg__price {
+  margin-left: auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.m-app .m-dreg__pval {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.m-app .m-dreg__pval--none {
+  color: var(--color-text-muted);
+}
+.m-app .m-dreg__price .m-seg--sm .m-seg__btn {
+  padding: 0 8px;
+}
+/* The leader's flip button, under the plate; hidden when collapsed. */
+.m-app .m-dreg__flip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--flip-top);
+  display: flex;
+  justify-content: center;
+}
+.m-app .m-dreg3__flip {
+  z-index: 2;
+  transform: translateY(0);
+  transition:
+    opacity 0.15s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear;
+}
+.m-app .m-dreg3--collapsed .m-dreg3__flip {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-28px);
+  transition-delay: 0s, 0s, 0.15s;
+}
+/* .cp-flip verbatim (CardPopup.css:516-529) + rev4 .m-flipbtn sizing. */
+.m-app .cp-flip {
+  display: block;
+  background: var(--color-btn-off);
+  color: var(--color-text);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 7px 16px;
+  cursor: pointer;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.m-app .m-flipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 12px;
+}
+
+/* ── The table plate (rev4 m-layout.css:209-211, m-rev4.css:67) ────────── */
+.m-app .m-plate-hit {
+  display: block;
+  width: 100%;
+}
+.m-app .m-plate--table .gallery-plate__inner {
+  justify-content: center;
+  padding: 0 10px;
+}
+
+/* ── Body: under the 100 px box; expanded, a transform moves it down to
+ * the region's full height. The C1 pull cue adds its shift on top. ─────── */
+.m-app .m-detail__body {
+  padding: 16px 16px calc(36px + var(--sab));
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+  transform: translateY(calc(var(--d-delta) + var(--pull-shift, 0px)));
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+  will-change: transform;
+}
+.m-app .m-page--collapsed .m-detail__body {
+  transform: translateY(var(--pull-shift, 0px));
+}
+.m-app .m-pulling .m-detail__body {
+  transition: none;
+}
+
+/* ── Sections (m-layout.css:361-367) ───────────────────────────────────── */
+.m-app .m-sec__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+.m-app .m-sec__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.m-app .m-sec__count {
+  font-family: "Russo One", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+.m-app .m-sec__head > .m-seg {
+  margin-left: auto;
+}
+
+/* ── Printings rail (m-layout.css:368-392 over desktop's rail items) ───── */
+/* CardPopup.css:298-306 verbatim. */
+.m-app .cp-rail__group-label {
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+/* CardPopup.css:314-338 verbatim (hover dropped: touch). */
+.m-app .cp-rail__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(15, 21, 40, 0.85);
+  border: none;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  cursor: pointer;
+  text-align: left;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+.m-app .cp-rail__item--active {
+  background: rgba(37, 99, 235, 0.28);
+  border-left-color: var(--color-primary);
+  color: #ffffff;
+}
+/* CardPopup.css:359-368 verbatim. */
+.m-app .cp-rail__item-qty {
+  font-weight: 700;
+  font-size: 11px;
+  min-width: 22px;
+  text-align: right;
+  color: #4a5570;
+}
+.m-app .cp-rail__item-qty--owned {
+  color: #1fa347;
+}
+.m-app .m-printgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-printgroup + .m-printgroup {
+  margin-top: 12px;
+}
+.m-app .m-printgroup__label {
+  margin: 0 0 1px 2px;
+  font-size: 12px;
+}
+.m-app .m-print {
+  align-items: center;
+  padding: 0 4px 0 0;
+  gap: 8px;
+  min-height: 60px;
+}
+.m-app .m-print__main {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 8px 2px 8px 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+}
+.m-app .m-print__finish {
+  max-width: 100%;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-print__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #9fb0cc;
+}
+.m-app .m-print__price {
+  flex: none;
+  min-width: 58px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.m-app .m-print__price--none {
+  color: var(--color-text-muted);
+}
+/* The quantity column: the selected row's stepper, else desktop's ×N in the
+ * same 120 px slot, so the price column never moves with the selection. */
+.m-app .m-print__qtyslot {
+  flex: none;
+  width: 120px;
+  display: flex;
+  justify-content: center;
+}
+.m-app .m-print__qty {
+  min-width: 32px;
+  text-align: center;
+  font-size: 13px;
+}
+.m-app .m-stepper {
+  flex: none;
+  width: 120px;
+  display: flex;
+  align-items: center;
+}
+.m-app .m-step {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--color-primary);
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 0 2px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  transition: background 0.12s ease;
+}
+.m-app .m-step:active:not(:disabled) {
+  background: var(--color-primary-dim);
+  transform: translateY(1px);
+}
+.m-app .m-step:disabled,
+.m-app .m-step[aria-disabled="true"] {
+  background: #232c40;
+  color: #4a5570;
+}
+.m-app .m-step__qty {
+  min-width: 32px;
+  flex: 1;
+  text-align: center;
+  font-family: "Russo One", sans-serif;
+  font-size: 18px;
+  color: #4a5570;
+}
+.m-app .m-step__qty--on {
+  color: #fff;
+}
+/* Desktop's plate readout colours (CardPopup.css:662-669): red at / past
+ * the keep-limit, amber past it in soft mode. */
+.m-app .m-step__qty.cp-plate__count--at-limit {
+  color: var(--color-danger);
+}
+.m-app .m-step__qty.cp-plate__count--over-limit {
+  color: var(--color-warning);
+}
+/* CardPopup.css:684-695 verbatim. */
+.m-app .cp-plate__over-limit-tag {
+  align-self: flex-start;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning-dim);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+/* CardPopup.css:71-85 (status error + mutation error), phone padding. */
+.m-app .cp-status--error {
+  color: var(--color-danger);
+}
+.m-app .m-print__error {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  text-align: left;
+}
+
+/* ── Card text + facts (m-layout.css:404-417; .cp-text CardPopup.css:776-829
+ * verbatim) ──────────────────────────────────────────────────────────── */
+.m-app .m-info__setrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.m-app .m-info__settext {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.m-app .m-info__setname {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.m-app .m-info__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.m-app .m-info__num {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+.m-app .m-info__typerow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 10px;
+}
+.m-app .m-info__type {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .m-info__aspects {
+  margin-left: auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+.m-app .m-info__stats {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  margin: 4px 0 16px 2px;
+}
+.m-app .m-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.m-app .m-stat__l {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .cp-text {
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+.m-app .cp-text__inner {
+  background: #0d101c;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  clip-path: polygon(
+    11px 0,
+    100% 0,
+    100% calc(100% - 11px),
+    calc(100% - 11px) 100%,
+    0 100%,
+    0 11px
+  );
+}
+.m-app .m-info .cp-text__inner {
+  font-size: 15px;
+}
+.m-app .cp-text__header {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.m-app .cp-text__body {
+  margin: 0;
+}
+.m-app .cp-text__epic-label {
+  font-weight: 600;
+}
+.m-app .cp-text__back {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-facts {
+  margin: 16px 0 0;
+}
+.m-app .m-facts__row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-border);
+}
+.m-app .m-facts dt {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  min-width: 84px;
+}
+.m-app .m-facts dd {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* ── Reduced motion: the region snaps (S2-02). ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-dreg3__bg,
+  .m-app .m-dreg3__bg::after,
+  .m-app .m-dreg3__artpos,
+  .m-app .m-dreg3__art,
+  .m-app .m-dreg3__own,
+  .m-app .m-dreg3__mini,
+  .m-app .m-dreg3__flip,
+  .m-app .m-detail__body {
+    transition: none !important;
+  }
+}

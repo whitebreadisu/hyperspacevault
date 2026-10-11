@@ -37,6 +37,10 @@ export interface VaultData {
   error: string | null;
   /** Re-reads the caller's quantities (after a mutation; S2/S3). */
   refreshQuantities: () => Promise<void>;
+  /** BL-248 S2-05: writes one variant's server-confirmed quantity (the
+   * adjust endpoint's returned `quantity`) into the shared map, so every
+   * screen re-renders from it without a full re-fetch. */
+  patchQuantity: (variantId: number, quantity: number) => void;
 }
 
 /** The desktop merge (CardsPage.tsx `baseCards`): slim catalogue variants +
@@ -109,6 +113,12 @@ export function useVaultDataSource(isAuthenticated: boolean): VaultData {
     };
   }, [refreshQuantities, isAuthenticated]);
 
+  const patchQuantity = useCallback((variantId: number, quantity: number) => {
+    setQuantities((prev) =>
+      prev[variantId] === quantity ? prev : { ...prev, [variantId]: quantity }
+    );
+  }, []);
+
   const { setOrder, setNameByCode } = useMemo(() => {
     const order: SetOrderMap = {};
     const names: Record<string, string> = {};
@@ -133,6 +143,7 @@ export function useVaultDataSource(isAuthenticated: boolean): VaultData {
     loading: catalogLoading || quantitiesLoading,
     error,
     refreshQuantities,
+    patchQuantity,
   };
 }
 

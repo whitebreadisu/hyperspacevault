@@ -27,17 +27,25 @@ export interface Recorder {
   pageErrors: string[];
   /** Bodies POSTed to /api/feedback. */
   feedback: unknown[];
+  /** BL-248 S2-05: POST /api/inventory/{id}/adjust calls, in order. */
+  adjust: { variantId: number; delta: number }[];
 }
 
 const recorders = new WeakMap<Page, Recorder>();
 export const recorderFor = (page: Page): Recorder =>
-  recorders.get(page) ?? { failed: [], consoleErrors: [], pageErrors: [], feedback: [] };
+  recorders.get(page) ?? {
+    failed: [],
+    consoleErrors: [],
+    pageErrors: [],
+    feedback: [],
+    adjust: [],
+  };
 
 export async function installApiMocks(
   page: Page,
   opts: { fixture?: CardsFixture } = {}
 ): Promise<Recorder> {
-  const rec: Recorder = { failed: [], consoleErrors: [], pageErrors: [], feedback: [] };
+  const rec: Recorder = { failed: [], consoleErrors: [], pageErrors: [], feedback: [], adjust: [] };
   recorders.set(page, rec);
 
   page.on("pageerror", (e) => rec.pageErrors.push(String(e)));
@@ -73,6 +81,26 @@ export async function installApiMocks(
       if (method === "GET" && path === "/api/settings/limits")
         return ok(route, json("limits.json"));
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
+      // S2-05: the stepper's batched adjust; the double keeps the quantities
+      // it answers with (a later GET of /quantities still reads the fixture).
+      const adj = path.match(/^\/api\/inventory\/(\d+)\/adjust$/);
+      if (method === "POST" && adj) {
+        const variantId = Number(adj[1]);
+        const delta = Number((req.postDataJSON() as { delta: number }).delta);
+        rec.adjust.push({ variantId, delta });
+        const quantity = Math.max(0, (qtyById.get(variantId) ?? 0) + delta);
+        qtyById.set(variantId, quantity);
+        return ok(route, {
+          variant_id: variantId,
+          quantity,
+          applied: delta,
+          requested: delta,
+          blocked: false,
+          reason: null,
+          over_limit: false,
+          playset_complete: false,
+        });
+      }
       if (method === "POST" && path === "/api/feedback") {
         rec.feedback.push(req.postDataJSON());
         return ok(route, { ok: true });
