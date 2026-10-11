@@ -1,0 +1,359 @@
+/* BL-248 stage 2B-1: the Filters sheet. Values verbatim from rev4
+ * m-layout.css:291-299 / 309-315 / 329 (sheet foot, filter groups, footer),
+ * m-rev3.css:236-246 / 282-339 (motion rule, inert, disclosure, Reset) and
+ * m-rev4-b.css (R4-3 compact rows, Rarity inline, Gameplay head). Scoped to
+ * .m-app. Motion: inside the sheet only transform and opacity animate. */
+
+/* ── Motion rule (rev4 m-rev3.css:238-241): colour changes are instant. ─── */
+.m-app .m-sheet-layer--filters .m-filters__scroll *,
+.m-app .m-sheet-layer--filters .m-resetbtn,
+.m-app .m-sheet-layer--picker .m-sheet__body * {
+  transition-property: transform, opacity !important;
+}
+
+/* ── Frame: the shared Sheet has no footer slot, so the Filters content
+ * splits its body into a scrolling region + a pinned foot (m-layout.css:
+ * 244-245 .m-sheet__body / .m-sheet__foot values). Height = content up to
+ * the sheet's 86 % (sheetfit=content). ────────────────────────────────── */
+.m-app .m-sheet-layer--filters .m-sheet__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.m-app .m-filters {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-filters__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 22px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.m-app .m-filters__foot {
+  flex: none;
+  padding: 12px 16px calc(12px + var(--sab));
+  border-top: 1px solid rgba(211, 211, 212, 0.16);
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Groups (m-layout.css:309-311) ───────────────────────────────────── */
+.m-app .m-fgroup {
+  padding: 14px 0 16px;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.m-app .m-fgroup:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+/* ══ R4-3 compact rows: label | selected chips | chevron (m-rev4-b.css) ══ */
+.m-app .m-sheet-layer--fcompact .m-frow4 {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 2px 0;
+}
+.m-app .m-sheet-layer--fcompact .m-frow4:first-child {
+  padding-top: 2px;
+}
+.m-app .m-frow4__open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+/* A clickable row is signalled by its wash (skill: never by blue text). */
+.m-app .m-frow4__open:active {
+  background: rgba(37, 99, 235, 0.12);
+}
+.m-app .m-frow4__k {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 86px;
+  pointer-events: none;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-frow4__chips {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+}
+.m-app .m-frow4__ph {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-frow4__chev {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  margin-right: 2px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.m-app .m-frow4--on .m-frow4__chev {
+  color: #cfd6e4;
+}
+
+/* Selected value chip: 44 px target, drawn 30 px in the selected chip idiom
+ * (.m-chip--on: blue wash + primary edge), with a small x. */
+.m-app .m-fsel {
+  pointer-events: auto;
+  flex: none;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+}
+.m-app .m-fsel__in {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px 0 9px;
+  box-sizing: border-box;
+  background: rgba(37, 99, 235, 0.28);
+  border: 1px solid var(--color-primary);
+  border-radius: 3px;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.m-app .m-fsel:active .m-fsel__in {
+  transform: translateY(1px);
+}
+.m-app .m-fsel__logo {
+  display: block;
+  height: 16px;
+  width: auto;
+  max-width: 62px;
+  object-fit: contain;
+}
+.m-app .m-fsel__logo--LAW,
+.m-app .m-fsel__logo--IBH {
+  height: 14px;
+}
+.m-app .m-fsel__x {
+  flex: none;
+  color: rgba(255, 255, 255, 0.72);
+}
+/* Scoped (the Finish value the scope wrote; the Collection toggles while
+ * scoped): the scope's amber, as the B2 vocabulary. */
+.m-app .m-fsel--scoped .m-fsel__in {
+  background: rgba(217, 154, 31, 0.16);
+  border-color: rgba(217, 154, 31, 0.6);
+  color: #f2c14e;
+}
+.m-app .m-fsel--scoped .m-fsel__x {
+  color: rgba(242, 193, 78, 0.8);
+}
+
+/* Rarity inline: five icon badges in one row beside the label. */
+.m-app .m-frow4__rar {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  gap: 4px;
+}
+.m-app .m-fchip.m-fchip--rar {
+  width: 100%;
+  min-width: 44px;
+  padding: 0;
+}
+.m-app .m-fchip--rar .rarity-badge {
+  display: inline-flex;
+}
+.m-app .m-fchip--rar .rarity-badge__icon {
+  display: block;
+}
+
+/* Inert (0 matches under the other filters): greyed, "(0)", not addable
+ * (m-rev3.css:247-250). */
+.m-app .m-fchip--inert {
+  opacity: 0.38;
+}
+.m-app .m-fchip--inert.m-chip--on {
+  opacity: 0.6;
+}
+.m-app .m-fchip:disabled {
+  cursor: default;
+}
+
+/* ══ R4-2 Gameplay disclosure (m-rev3.css:303-308 + m-rev4-b.css) ═══════ */
+@keyframes m-layer {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.m-app .m-fmore {
+  gap: 0;
+}
+.m-app .m-fmore__head {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+}
+.m-app .m-fmore__n {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+.m-app .m-fmore__hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-fmore__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  animation: m-layer 0.15s ease-out;
+}
+.m-app .m-fgame.m-fgroup {
+  padding: 2px 0;
+}
+.m-app .m-fgame__head {
+  gap: 8px;
+  min-height: 52px;
+}
+.m-app .m-fgame__k {
+  flex: none;
+  width: 86px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+/* The hint is nowrap + ellipsis; a zero basis keeps its full text width out
+ * of the head's min-content (it widened the sheet's inner layer past the
+ * viewport in rev4). */
+.m-app .m-fgame__head .m-fmore__hint {
+  flex: 1 1 0;
+  width: 0;
+}
+.m-app .m-fgame__head .m-ffin__chev {
+  margin-right: 2px;
+}
+.m-app .m-fgame__body {
+  padding-top: 0;
+  gap: 0;
+}
+.m-app .m-fgame__soon {
+  margin: 0;
+  padding: 10px 0 12px;
+  border-top: 1px solid rgba(211, 211, 212, 0.12);
+}
+
+/* ── Footer: Reset (amber outline idiom, inert at default) + Show N
+ * (m-layout.css:329, m-rev3.css:325-339). ─────────────────────────────── */
+.m-app .m-filterfoot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.m-app .m-resetbtn {
+  position: relative;
+  z-index: 0;
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+.m-app .m-resetbtn::before {
+  content: "";
+  position: absolute;
+  inset: 6px 0;
+  z-index: -1;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  border-radius: 4px;
+  background: rgba(217, 154, 31, 0.16);
+}
+.m-app .m-resetbtn:active {
+  transform: translateY(1px);
+}
+.m-app .m-resetbtn--inert {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+.m-app .m-resetbtn--inert::before {
+  border-color: rgba(211, 211, 212, 0.16);
+  background: transparent;
+}
+.m-app .m-resetbtn--inert:active {
+  transform: none;
+}

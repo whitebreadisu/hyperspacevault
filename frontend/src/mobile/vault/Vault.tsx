@@ -4,7 +4,9 @@ import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { go } from "../router";
-import { Sheet } from "../Sheet";
+// ── RUN 2B BEGIN (import) ── the Filters sheet replaces the ComingSoon Sheet
+import { FiltersSheet } from "../filters/FiltersSheet";
+// ── RUN 2B END (import) ──
 import { CompletionHeader } from "./CompletionHeader";
 import { completionView } from "./completionModel";
 import type { TotalsScope } from "./completionModel";
@@ -181,16 +183,26 @@ export function Vault({
           onClose={closeSheet}
         />
       ) : null}
-      {sheet === "filters" ? (
-        <Sheet
-          title="Filters"
-          labelId="sheet-filters"
-          className="m-sheet-layer--filters"
-          onClose={closeSheet}
-        >
-          <p className="m-sheet__soon">Filters arrive with the next slice.</p>
-        </Sheet>
-      ) : null}
+      {
+        // ── RUN 2B BEGIN ──
+        // BL-248 S2-12: the Filters sheet. Vault has no sign-in callback of
+        // its own (MobileApp owns the auth layer and does not thread one
+        // here), so a signed-out Collection tap closes Filters and presses
+        // the header's own Sign in control (AccountSlot -> MobileApp
+        // openSignIn). Orchestrator: thread `onRequestSignIn` from MobileApp
+        // into Vault and pass it straight through instead.
+        sheet === "filters" ? (
+          <FiltersSheet
+            vv={vv}
+            onClose={closeSheet}
+            onRequestSignIn={() => {
+              setSheet(null);
+              document.querySelector<HTMLButtonElement>(".m-app .m-acct__signin")?.click();
+            }}
+          />
+        ) : null
+        // ── RUN 2B END ──
+      }
     </>
   );
 }
