@@ -5,8 +5,8 @@ import { expect, measureEach, test } from "./helpers";
 // vitest S1-08 -- the Auth emulator cannot mint a Google provider without OAuth.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone account slot");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone account slot");
 });
 
 test("s1-08-account-menu", async ({ page }) => {

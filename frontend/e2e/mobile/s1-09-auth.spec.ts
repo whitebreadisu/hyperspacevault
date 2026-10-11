@@ -9,8 +9,8 @@ import type { Page } from "@playwright/test";
 test.afterEach(measureEach);
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone auth layer");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone auth layer");
 });
 
 async function layerOk(page: Page, name: string) {

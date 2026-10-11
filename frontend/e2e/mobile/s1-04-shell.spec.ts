@@ -7,8 +7,8 @@ import { expect, measureEach, test } from "./helpers";
 // bar still visible.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone shell");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone shell");
 });
 
 test("s1-04-bar-three-items", async ({ page }) => {

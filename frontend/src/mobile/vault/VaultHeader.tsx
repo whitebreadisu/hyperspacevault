@@ -27,6 +27,8 @@ export interface StripSummary {
   value: number;
   /** Totals are narrowed by a filter (the amber funnel). */
   narrowed: boolean;
+  /** Signed out: the readout shows em dashes and empty ticks (S1-23). */
+  authed?: boolean;
 }
 
 interface Props {
@@ -54,8 +56,11 @@ export function VaultHeader({
   account,
   panel,
 }: Props) {
-  const filled = Math.round(summary.pct / 10);
-  const value = formatMoney(summary.value).replace(/\.\d\d$/, "");
+  const authed = summary.authed !== false;
+  const filled = authed ? Math.round(summary.pct / 10) : 0;
+  const value = authed ? formatMoney(summary.value).replace(/\.\d\d$/, "") : "—";
+  const pct = authed ? `${summary.pct}%` : "—";
+  const copies = authed ? summary.copies.toLocaleString() : "—";
   return (
     <header
       ref={hdrRef}
@@ -116,14 +121,14 @@ export function VaultHeader({
               className="m-vh__readout"
               onClick={onExpand}
               tabIndex={collapsed ? undefined : -1}
-              aria-label={`Collection${summary.narrowed ? ", filtered totals" : ""}: playsets ${summary.pct}%, ${summary.copies} cards, ${value}. Expand the header`}
+              aria-label={`Collection${summary.narrowed ? ", filtered totals" : ""}: playsets ${pct}, ${copies} cards, ${value}. Expand the header`}
             >
               {summary.narrowed ? (
                 <span className="m-vh__narrow" aria-hidden="true">
                   <MIcon name="filter" size={14} />
                 </span>
               ) : null}
-              <span className="m-vh__pct">{summary.pct}%</span>
+              <span className="m-vh__pct">{pct}</span>
               <span className="inv-summary__ticks m-vh__ticks">
                 {Array.from({ length: 10 }, (_, i) => (
                   <span
@@ -135,7 +140,7 @@ export function VaultHeader({
                 ))}
               </span>
               <span className="m-vh__fact m-vh__fact--cards">
-                <span className="m-vh__n">{summary.copies}</span> cards
+                <span className="m-vh__n">{copies}</span> cards
               </span>
               <span className="m-vh__value">{value}</span>
               <MIcon name="chevdown" size={16} className="m-vh__chev" />

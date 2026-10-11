@@ -5,8 +5,8 @@ import type { Page } from "@playwright/test";
 // r4-1-sort-icon-only, b2-row-sort-scoped, b2-sort-scoped-across-sets).
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone sort");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone sort");
 });
 
 async function openVault(page: Page, hash = "#/vault") {

@@ -24,10 +24,10 @@ export function hideEmulatorBanner() {
  * `test.use({ cardsFixture: "base-cards-600" })`. */
 export const test = base.extend<{ cardsFixture: CardsFixture }>({
   cardsFixture: ["base-cards", { option: true }],
-  page: async ({ page, cardsFixture }, use) => {
+  page: async ({ page, cardsFixture }, provide) => {
     await installApiMocks(page, { fixture: cardsFixture });
     await page.addInitScript(hideEmulatorBanner);
-    await use(page);
+    await provide(page);
   },
 });
 export { expect };

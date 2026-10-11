@@ -7,8 +7,8 @@ import type { Page } from "@playwright/test";
 // b2-gallery-plates) and the 1 / 2 / 3 grid.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone gallery");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone gallery");
 });
 
 interface FxVariant {

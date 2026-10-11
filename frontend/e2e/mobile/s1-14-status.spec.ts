@@ -7,8 +7,8 @@ import type { Page } from "@playwright/test";
 // vault-count-* / vault-clear-amber re-expressed for the two rows.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone status rows");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone status rows");
 });
 
 const CARDS = JSON.parse(readFileSync("e2e/mobile/fixtures/base-cards.json", "utf8")) as {

@@ -9,8 +9,8 @@ import type { Page } from "@playwright/test";
 // row between the wordmark and the account slot, starfield + desktop scrim.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone header");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone header");
 });
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };

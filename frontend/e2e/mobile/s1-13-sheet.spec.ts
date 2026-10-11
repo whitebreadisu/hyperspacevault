@@ -6,8 +6,8 @@ import type { Page } from "@playwright/test";
 // sheet (a ComingSoon sheet until S2) and the scope sheet.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone sheet");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone sheet");
 });
 
 async function openVault(page: Page, hash = "#/vault") {

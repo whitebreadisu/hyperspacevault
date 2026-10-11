@@ -5,16 +5,16 @@ import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
 import { ComingSoon } from "./ComingSoon";
+import { FeedbackScreen } from "./FeedbackScreen";
 import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
-import { go, useRoute } from "./router";
+import { phoneScreenViewed } from "./phoneAnalytics";
+import { back, go, useRoute } from "./router";
 import type { Route } from "./router";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
-import { CompletionHeader } from "./vault/CompletionHeader";
 import { VaultDataProvider } from "./vault/useVaultData";
 import { Vault } from "./vault/Vault";
-import type { StripSummary } from "./vault/VaultHeader";
 import "./mobile.css";
 import "./shell.css";
 
@@ -24,9 +24,6 @@ import "./shell.css";
  * and the title chooser + release-notes cue (R5-2). Screens later slices
  * build render ComingSoon until then. */
 
-// Stage 1a-s: the strip and panel read zeros until S1-23 wires the metrics.
-const NO_SUMMARY: StripSummary = { pct: 0, copies: 0, value: 0, narrowed: false };
-
 interface Screen {
   key: string;
   el: ReactNode;
@@ -35,7 +32,6 @@ interface Screen {
 const SOON: Record<string, string> = {
   pad: "The keypad arrives with the next slice.",
   more: "More arrives with a later slice.",
-  "more/feedback": "Leave Feedback arrives with a later slice.",
   "more/updates": "[HSV] Updates arrive with a later slice.",
   "more/settings": "Settings arrive with a later slice.",
   "more/password": "Change Password arrives with a later slice.",
@@ -48,6 +44,8 @@ function soonFor(route: Route): Screen | null {
   if (a === "pad" || a === "camera") return { key: "pad", el: <ComingSoon sentence={SOON.pad} /> };
   if (a === "card") return { key: "card", el: <ComingSoon sentence={SOON.card} /> };
   if (a === "about") return { key: "about", el: <ComingSoon sentence={SOON.about} /> };
+  if (a === "more" && b === "feedback")
+    return { key: "more/feedback", el: <FeedbackScreen onClose={back} /> };
   if (a === "more") {
     const k = b && SOON["more/" + b] ? "more/" + b : "more";
     return { key: k, el: <ComingSoon sentence={SOON[k]} /> };
@@ -122,8 +120,6 @@ export function MobileApp() {
     el: (
       <Vault
         params={route.params}
-        summary={NO_SUMMARY}
-        panel={<CompletionHeader summary={NO_SUMMARY} unique={0} />}
         account={account}
         unread={cue.unread}
         onOpenChooser={() => setChooserOpen(true)}
@@ -132,6 +128,14 @@ export function MobileApp() {
       />
     ),
   };
+
+  // S1-27: screen_viewed from the router, once per screen (not per param
+  // change), for the screens S1 builds; ComingSoon placeholders send nothing
+  // until their slices land.
+  useEffect(() => {
+    if (screen.key === "vault") phoneScreenViewed("vault");
+    else if (screen.key === "more/feedback") phoneScreenViewed("feedback");
+  }, [screen.key]);
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>

@@ -18,8 +18,8 @@ import type { Page } from "@playwright/test";
 // vault collapse / expand layout probes.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone header");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone header");
 });
 
 const SCROLL = ".m-vault__scroll";

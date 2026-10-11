@@ -9,8 +9,8 @@ import type { Page } from "@playwright/test";
 // the frame tests, the feel is judged on the device.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone search");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone search");
 });
 
 const CARDS = JSON.parse(readFileSync("e2e/mobile/fixtures/base-cards.json", "utf8")) as {

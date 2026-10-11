@@ -78,6 +78,22 @@ export const SCREEN_VIEWED_SCREENS = [
 ] as const;
 export type ScreenViewedScreen = (typeof SCREEN_VIEWED_SCREENS)[number];
 
+/** BL-244 / BL-247 S1-27: the values view_mode_changed.mode takes. Additive
+ * only -- desktop's "table" / "gallery" (InventorySummary ViewToggle) are
+ * unchanged; the rest are the phone Vault's view + size pairs. */
+export const VIEW_MODE_CHANGED_MODES = [
+  "table",
+  "gallery",
+  "rows_none",
+  "rows_sm",
+  "rows_md",
+  "rows_lg",
+  "gallery_1",
+  "gallery_2",
+  "gallery_3",
+] as const;
+export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
+
 /** Same media query the phone gate uses (mobile/useIsPhone.ts PHONE_QUERY);
  * duplicated as a literal so the analytics seam imports nothing from the UI. */
 const PHONE_MEDIA_QUERY = "(max-width: 767px)";

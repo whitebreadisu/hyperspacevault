@@ -6,8 +6,8 @@ import type { Page } from "@playwright/test";
 // b2-menu-options, b2-trigger-copy-amber, b2-targets-44).
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone scope");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone scope");
 });
 
 const CARDS = JSON.parse(readFileSync("e2e/mobile/fixtures/base-cards.json", "utf8")) as {

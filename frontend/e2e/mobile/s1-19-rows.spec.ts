@@ -8,8 +8,8 @@ import type { Page } from "@playwright/test";
 // and virtualisation over 600 cards.
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone rows");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone rows");
 });
 
 interface FxVariant {

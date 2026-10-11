@@ -1,3 +1,4 @@
+/* global console */
 // BL-247 S1-10: one-shot fixture generator (a tool, not a test dependency --
 // the generated JSON is committed). Reads the rev4 prototype's real-catalogue
 // sample (window.M_CARDS / M_SETS / M_SEED_QTY) and writes JSON shaped to the

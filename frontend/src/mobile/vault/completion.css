@@ -1,0 +1,232 @@
+/* BL-247 S1-23 / S1-24: the collection panel's head controls and the
+ * by-set sheet. Values verbatim from rev4 m-layout.css:119 / 258-275 /
+ * 432-442, m-rev1.css:111, m-rev2.css:29-39 / 65-80, m-rev3.css:89-114 and
+ * m-rev4.css:68-88 (desktop sources: cards.css:286-298 amber ring,
+ * cards.css:526 complete ticks). Scoped under .m-app. */
+
+.m-app .m-seg--sm .m-seg__btn {
+  font-size: 12px;
+  padding: 0 10px;
+}
+.m-app .m-seg--amber .m-seg__btn--on {
+  background: rgba(217, 154, 31, 0.16);
+  color: #f2c14e;
+}
+
+/* ── S1-23 panel: head row, Totals switch, amber ring (m-rev2.css:33-39) ─ */
+.m-app .m-summary.m-summary--amber {
+  background: rgba(217, 154, 31, 0.4);
+}
+.m-app .m-summary__scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.m-app .m-scope .m-seg__btn {
+  padding: 0 9px;
+}
+.m-app .m-summary__head .m-priceseg {
+  margin-left: auto;
+}
+.m-app .m-summary .m-summary__body {
+  background: none;
+  border: none;
+  color: inherit;
+}
+.m-app .m-summary__by {
+  grid-column: 1 / -1;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+
+/* ── R3-2 / R4-11: the short segments -- drawn 34 px (the wrapper's
+ * ::before, 5 px in from each edge), every button a 44 px target. One rule
+ * set for the header and the by-set sheet (same values in rev4). ───────── */
+.m-app .m-summary__head .m-seg,
+.m-app .m-bysets__top .m-seg {
+  position: relative;
+  border: none;
+  background: none;
+  overflow: visible;
+  border-radius: 0;
+}
+.m-app .m-summary__head .m-seg::before,
+.m-app .m-bysets__top .m-seg::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  bottom: 5px;
+  pointer-events: none;
+  border: 1px solid rgba(30, 39, 72, 0.9);
+  border-radius: 3px;
+  background: rgba(9, 11, 20, 0.5);
+}
+.m-app .m-summary__head .m-seg .m-seg__btn,
+.m-app .m-summary__head .m-seg .m-seg__btn--on,
+.m-app .m-summary__head .m-seg--amber .m-seg__btn--on,
+.m-app .m-bysets__top .m-seg .m-seg__btn,
+.m-app .m-bysets__top .m-seg .m-seg__btn--on {
+  position: relative;
+  z-index: 0;
+  min-height: 44px;
+  border-left: none;
+  background: transparent;
+}
+.m-app .m-summary__head .m-seg .m-seg__btn::before,
+.m-app .m-bysets__top .m-seg .m-seg__btn::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 6px;
+  bottom: 6px;
+  z-index: -1;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.m-app .m-summary__head .m-seg .m-seg__btn:first-child::before,
+.m-app .m-bysets__top .m-seg .m-seg__btn:first-child::before {
+  border-radius: 2px 0 0 2px;
+}
+.m-app .m-summary__head .m-seg .m-seg__btn:last-child::before,
+.m-app .m-bysets__top .m-seg .m-seg__btn:last-child::before {
+  border-radius: 0 2px 2px 0;
+}
+.m-app .m-summary__head .m-seg .m-seg__btn + .m-seg__btn::after,
+.m-app .m-bysets__top .m-seg .m-seg__btn + .m-seg__btn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--color-border);
+}
+.m-app .m-summary__head .m-seg .m-seg__btn--on::before,
+.m-app .m-bysets__top .m-seg .m-seg__btn--on::before {
+  background: rgba(37, 99, 235, 0.35);
+}
+.m-app .m-summary__head .m-seg--amber .m-seg__btn--on::before {
+  background: rgba(217, 154, 31, 0.16);
+}
+.m-app .m-summary__head .m-seg--amber::before {
+  border-color: rgba(217, 154, 31, 0.4);
+}
+
+/* ── S1-24 by-set sheet (m-layout.css:258-275, m-rev2.css:29-30 / 65-80) ─ */
+.m-app .m-bysets__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+.m-app .m-bysets__note {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.m-app .m-bysets__cols,
+.m-app .m-setrow--r2 {
+  display: grid;
+  grid-template-columns: 104px repeat(3, minmax(0, 1fr));
+  column-gap: 12px;
+  align-items: center;
+}
+.m-app .m-bysets__cols {
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-bysets__colset {
+  visibility: hidden;
+}
+.m-app .m-setrows {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-setrow {
+  min-height: 66px;
+  padding: 10px 10px;
+  margin: 0 -10px;
+  width: calc(100% + 20px);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+  color: inherit;
+  transition: background 0.12s ease;
+}
+.m-app .m-setrow--r2 {
+  gap: 0 12px;
+}
+.m-app .m-setrow:first-child {
+  border-top: none;
+}
+.m-app .m-setrow:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+.m-app .m-setrow--on {
+  background: rgba(37, 99, 235, 0.14);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+.m-app .m-setrow__logo {
+  flex: none;
+  width: 104px;
+  height: 32px;
+  object-fit: contain;
+  object-position: left center;
+}
+.m-app .m-bys__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.m-app .m-bys__v {
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.m-app .m-bys__v--complete {
+  color: #3fb950;
+}
+.m-app .m-ticks--narrow {
+  gap: 2px;
+  padding-left: 2px;
+}
+.m-app .m-ticks--narrow .inv-summary__tick {
+  width: 4px;
+}
+.m-app .m-ticks--complete .inv-summary__tick--filled {
+  background: #3fb950;
+}
+.m-app .m-bysets__empty {
+  padding: 14px 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.m-app .m-summary__by--off {
+  visibility: hidden;
+}

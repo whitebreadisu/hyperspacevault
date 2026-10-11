@@ -1,3 +1,4 @@
+/* global process, console */
 // BL-247 S1-10: `npm run e2e:mobile [playwright args]`. The phone projects sign
 // in against the Firebase Auth emulator (port 9099). If one is already up (the
 // compose stack's firebase-emulator service) attach to it; otherwise start one

@@ -157,11 +157,17 @@ export function filterCards(
   return s.query.trim() ? faceted.filter((c) => matchesQuery(c, s.query)) : faceted;
 }
 
+/** A stable empty Set facet (desktop EMPTY_SET_CODES). */
+const NO_SETS: Set<string> = new Set();
+
 export interface VaultList {
   /** Every card in default order (the unnarrowed list; "All" totals, S1-23). */
   all: InventoryCard[];
   /** The narrowed list, sorted -- what the rows / gallery render. */
   list: InventoryCard[];
+  /** S1-24: every narrowing EXCEPT the Set facet (desktop CardsPage
+   * breakdownCards, BL-224) -- the by-set rows' universe. */
+  breakdown: InventoryCard[];
   narrowed: boolean;
   activeCount: number;
 }
@@ -184,6 +190,7 @@ export function buildVaultList(
     setOrder: ctx.setOrder,
     defaultIndex,
   });
+  const breakdown = filterCards(all, { ...s, filters: { ...s.filters, set: NO_SETS } }, ctx.limits);
   const activeCount = activeFilterCount(s);
-  return { all, list, narrowed: activeCount > 0, activeCount };
+  return { all, list, breakdown, narrowed: activeCount > 0, activeCount };
 }

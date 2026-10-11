@@ -6,8 +6,8 @@ import type { Page } from "@playwright/test";
 // rows-none-one-line, rows-size-lg-scrolled).
 test.afterEach(measureEach);
 
-test.beforeEach(({}, info) => {
-  test.skip(!info.project.name.startsWith("phone"), "phone view toggle");
+test.beforeEach(() => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone view toggle");
 });
 
 async function openVault(page: Page, hash = "#/vault") {

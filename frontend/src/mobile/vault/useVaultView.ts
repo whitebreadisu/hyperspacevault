@@ -6,6 +6,8 @@ import type { FilterState } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
 import { loadPriceKind, savePriceKind } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
+import type { ViewModeChangedMode } from "../../analytics/analytics";
+import { capturePhone, phoneViewMode } from "../phoneAnalytics";
 import { useVaultData } from "./useVaultData";
 import {
   buildVaultList,
@@ -56,6 +58,11 @@ function loadPrefs(): ViewPrefs {
   }
 }
 
+/** S1-27: view_mode_changed.mode for a view + size pair. */
+export function viewModeOf(p: ViewPrefs): ViewModeChangedMode {
+  return p.view === "gallery" ? `gallery_${p.gallerySize}` : `rows_${p.rowSize}`;
+}
+
 function savePrefs(p: ViewPrefs): void {
   try {
     window.sessionStorage.setItem(VIEW_KEY, JSON.stringify(p));
@@ -101,6 +108,16 @@ export function useVaultViewOver(
       return next;
     });
   }, []);
+  // S1-27: a user's view / size pick reports the new mode when it changed
+  // (desktop InventorySummary: only a genuine switch is captured).
+  const pickPrefs = useCallback(
+    (patch: Partial<ViewPrefs>) => {
+      const next = { ...prefs, ...patch };
+      if (viewModeOf(next) !== viewModeOf(prefs)) phoneViewMode(viewModeOf(next));
+      updatePrefs(patch);
+    },
+    [prefs, updatePrefs]
+  );
 
   // Review / deep-link params (rev4 MVault.jsx:420-447): ?set= writes the Set
   // facet, ?finish= scopes (one of the 13 values), ?q= searches, ?view= /
@@ -134,6 +151,23 @@ export function useVaultViewOver(
     [cards, state, sort, setOrder, priceKind, limits]
   );
 
+  // S1-27: search_performed as desktop CardsPage -- 400 ms after the last
+  // keystroke, never for an empty box; length + result count only.
+  const resultsRef = useRef(0);
+  useEffect(() => {
+    resultsRef.current = list.list.length;
+  }, [list.list.length]);
+  useEffect(() => {
+    if (state.query.length === 0) return undefined;
+    const t = setTimeout(() => {
+      capturePhone("search_performed", {
+        query_length: state.query.length,
+        results_count: resultsRef.current,
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [state.query]);
+
   return {
     ...list,
     state,
@@ -146,14 +180,27 @@ export function useVaultViewOver(
       (toggles: CollectionToggles) => setState((s) => ({ ...s, toggles })),
       []
     ),
-    setScope: useCallback((scope: string | null) => setState((s) => withScope(s, scope)), []),
-    clearAll: useCallback(() => setState(freshFilterState()), []),
-    pickSort: useCallback((column: SortColumn) => setSort((s) => nextSortState(s, column)), []),
-    setView: useCallback((view: ViewMode) => updatePrefs({ view }), [updatePrefs]),
-    setRowSize: useCallback((rowSize: RowSize) => updatePrefs({ rowSize }), [updatePrefs]),
+    setScope: useCallback((scope: string | null) => {
+      capturePhone("finish_scope_changed", { finish: scope ?? "all" });
+      setState((s) => withScope(s, scope));
+    }, []),
+    clearAll: useCallback(() => {
+      capturePhone("filters_cleared");
+      setState(freshFilterState());
+    }, []),
+    pickSort: useCallback(
+      (column: SortColumn) => {
+        const next = nextSortState(sort, column);
+        capturePhone("sort_changed", { column, direction: next.direction });
+        setSort(next);
+      },
+      [sort]
+    ),
+    setView: useCallback((view: ViewMode) => pickPrefs({ view }), [pickPrefs]),
+    setRowSize: useCallback((rowSize: RowSize) => pickPrefs({ rowSize }), [pickPrefs]),
     setGallerySize: useCallback(
-      (gallerySize: GallerySize) => updatePrefs({ gallerySize }),
-      [updatePrefs]
+      (gallerySize: GallerySize) => pickPrefs({ gallerySize }),
+      [pickPrefs]
     ),
     setPriceKind: useCallback((k: PriceMode) => {
       savePriceKind(k);

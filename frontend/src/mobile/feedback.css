@@ -1,0 +1,187 @@
+/* BL-247 S1-25: Leave Feedback (rev4 m-rev2.css:113-158 + m-rev3.css:226-235,
+ * values verbatim; desktop FeedbackModal.css for the honeypot and the error
+ * text). The screen sits above the bottom bar, so only the top takes the
+ * safe-area inset. Scoped under .m-app. */
+.m-app .m-fb {
+  overflow-y: auto;
+  padding: calc(12px + var(--sat)) 12px 16px;
+  background-color: var(--bg-page);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+}
+.m-app .m-fb__shell {
+  flex: none;
+  background: rgba(211, 211, 212, 0.28);
+  padding: 1.5px;
+  clip-path: polygon(
+    18px 0,
+    100% 0,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    0 100%,
+    0 18px
+  );
+}
+.m-app .m-fb__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 14px 16px;
+  background: var(--bg-surface-alt);
+  clip-path: polygon(
+    17px 0,
+    100% 0,
+    100% calc(100% - 17px),
+    calc(100% - 17px) 100%,
+    0 100%,
+    0 17px
+  );
+}
+.m-app .m-fb__head {
+  display: flex;
+  align-items: center;
+}
+.m-app .m-fb__bal {
+  width: 44px;
+  flex: none;
+}
+.m-app .m-fb__title {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+.m-app .m-fb__close {
+  margin-right: -8px;
+}
+.m-app .m-fb__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.m-app .m-fb__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-fb__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .m-fb__textarea,
+.m-app .m-fb__input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.m-app .m-fb__textarea {
+  min-height: 148px;
+  resize: vertical;
+}
+.m-app .m-fb__input {
+  height: 48px;
+}
+.m-app .m-fb__textarea:focus,
+.m-app .m-fb__input:focus {
+  border-color: var(--color-primary);
+}
+.m-app .m-fb__textarea::placeholder,
+.m-app .m-fb__input::placeholder {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+.m-app .m-fb__check {
+  align-items: flex-start;
+  padding-top: 10px;
+}
+.m-app .m-fb__check .m-check__text {
+  font-size: 14px;
+  line-height: 1.4;
+  padding-top: 2px;
+}
+.m-app .m-fb__fine {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+.m-app .m-fb__error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #f87171;
+}
+.m-app .m-fb__honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+/* R3-10: Submit takes its own drawn width; Cancel fills the rest, so the
+ * pair always ends at the body's inner edge. */
+.m-app .m-fb__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.m-app .m-fb__cancel {
+  min-width: 0;
+  min-height: 48px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-app .m-fb__cancel:active {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+.m-app .m-fb__submit.swu-btn {
+  flex: none;
+  min-width: 0;
+  max-width: 100%;
+}
+.m-app .m-fb__submit .swu-btn__label {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.m-app .m-fb__success {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  font-size: 15px;
+  color: var(--color-text);
+}
