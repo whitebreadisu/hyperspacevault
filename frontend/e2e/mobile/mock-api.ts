@@ -86,6 +86,17 @@ export async function installApiMocks(
     // S1-19: an image the virtualised list unmounts (or a navigation drops)
     // mid-load is cancelled by the browser -- not a failed request.
     if (r.resourceType() === "image" && r.failure()?.errorText === "net::ERR_ABORTED") return;
+    // A reload/navigation aborts in-flight third-party pixels (e.g. google.com
+    // cleardot.gif) -- noise. Only same-origin (the app's localhost) aborts count.
+    if (r.failure()?.errorText === "net::ERR_ABORTED") {
+      let host = "";
+      try {
+        host = new URL(r.url()).hostname;
+      } catch {
+        /* unparsable URL: treat as same-origin and keep failing */
+      }
+      if (host && host !== "localhost" && host !== "127.0.0.1") return;
+    }
     rec.failed.push(`${r.method()} ${r.url()} (${r.failure()?.errorText})`);
   });
 
