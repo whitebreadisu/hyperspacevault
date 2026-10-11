@@ -50,9 +50,9 @@ function formatDisplayDate(iso: string): string {
   return month ? `${month} ${day}, ${year}` : iso;
 }
 
-/** Desktop scrollIntoView, phone delta: the rail wraps to two or more rows at
- * phone width, so the entry lands just under the sticky rail's measured
- * bottom instead of a fixed scroll-margin. Reduced motion jumps. */
+/** Desktop scrollIntoView, phone delta: the rail is one sideways-scrolling row
+ * (S4-03b), so the entry lands just under the sticky rail's measured bottom
+ * instead of a fixed scroll-margin. Reduced motion jumps. */
 function scrollToEntry(entry: ReleaseNotesEntry) {
   const el = document.getElementById(entryAnchorId(entry));
   const scroller = el?.closest<HTMLElement>(".m-shellscreen");

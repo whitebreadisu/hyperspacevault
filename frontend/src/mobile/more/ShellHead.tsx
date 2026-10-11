@@ -19,21 +19,36 @@ interface Props {
   title: string;
   titleId: string;
   fromMore: boolean;
+  /** S4 F1: a long-running action is under way (Import & Export previewing /
+   * committing): Escape and the X / chevron do nothing. */
+  locked?: boolean;
 }
 
-export function ShellHead({ title, titleId, fromMore }: Props) {
+// S4 F1: layers that sit above the screen and own Escape (same idiom as
+// ToolLayer): the tool, sheets, confirms, the sign-in layer, the card layer.
+const ABOVE_SCREEN = ".m-tool, .m-sheet-layer, .m-d2-confirm-layer, .m-authlayer, .m-cardlayer";
+
+export function ShellHead({ title, titleId, fromMore, locked = false }: Props) {
   const exit = useShellExit(fromMore);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") exit();
+      if (e.key !== "Escape" || e.defaultPrevented || locked) return;
+      if (document.querySelector(ABOVE_SCREEN)) return;
+      exit();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [exit]);
+  }, [exit, locked]);
   return (
     <header className="m-shell__head">
       {fromMore ? (
-        <button type="button" className="m-iconbtn m-shell__back" onClick={exit} aria-label="Back">
+        <button
+          type="button"
+          className="m-iconbtn m-shell__back"
+          onClick={locked ? undefined : exit}
+          aria-label="Back"
+          aria-disabled={locked || undefined}
+        >
           <MIcon name="back" />
         </button>
       ) : (
@@ -48,8 +63,9 @@ export function ShellHead({ title, titleId, fromMore }: Props) {
         <button
           type="button"
           className="m-iconbtn m-shell__close"
-          onClick={exit}
+          onClick={locked ? undefined : exit}
           aria-label="Close"
+          aria-disabled={locked || undefined}
         >
           <MIcon name="close" />
         </button>

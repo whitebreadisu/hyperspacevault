@@ -25,6 +25,7 @@ import { cueStep, moreRowPulses } from "../useReleaseCue";
 import type { CueState } from "../useReleaseCue";
 import { IE_UNVERIFIED_NUDGE, MoreScreen } from "./MoreScreen";
 import type { MoreScreenProps } from "./MoreScreen";
+import { ShellHead } from "./ShellHead";
 
 const SEEN = "swu.releaseNotes.lastSeen";
 
@@ -236,5 +237,38 @@ describe("S4-06 screen_viewed for More, About, Updates", () => {
       { screen: "new_arrivals", layout: "phone" },
       { screen: "about", layout: "phone" },
     ]);
+  });
+});
+
+describe("S4-F1 ShellHead Escape", () => {
+  beforeEach(() => {
+    resetRouterForTest();
+    window.location.hash = "#/more/about";
+  });
+  afterEach(() => {
+    document.querySelectorAll(".m-tool").forEach((n) => n.remove());
+  });
+  const esc = () => fireEvent.keyDown(document, { key: "Escape" });
+
+  it("exits when it is the top-most layer", () => {
+    render(<ShellHead title="T" titleId="t" fromMore={false} />);
+    esc();
+    expect(window.location.hash).toBe("#/vault");
+  });
+
+  it("is ignored while locked (Escape, X and chevron do nothing)", () => {
+    render(<ShellHead title="T" titleId="t" fromMore={false} locked />);
+    esc();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(window.location.hash).toBe("#/more/about");
+  });
+
+  it("is ignored while the tool layer is open (only the tool closes)", () => {
+    const tool = document.createElement("div");
+    tool.className = "m-tool";
+    document.body.appendChild(tool);
+    render(<ShellHead title="T" titleId="t" fromMore={false} />);
+    esc();
+    expect(window.location.hash).toBe("#/more/about");
   });
 });

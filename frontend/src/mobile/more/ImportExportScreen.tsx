@@ -264,7 +264,12 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     >
       <div className="m-shell">
         <div className="m-shell__panel">
-          <ShellHead title="Import & Export" titleId="m-ie-title" fromMore={fromMore} />
+          <ShellHead
+            title="Import & Export"
+            titleId="m-ie-title"
+            fromMore={fromMore}
+            locked={previewing || committing}
+          />
 
           {step === "configure" && (
             <section className="ie-section" aria-labelledby="ie-export-title" data-section="export">

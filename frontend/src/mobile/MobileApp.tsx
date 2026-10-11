@@ -175,13 +175,17 @@ export function MobileApp() {
   const key = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
   // BL-250 S4-05: a More sub-page entered from More shows the back chevron;
   // entered any other way (chooser, account menu, rail chip, deep link) the X.
+  // S4 F2: the decision is kept per screen key, so a history return (More ->
+  // Updates -> rail About -> X) re-enters Updates with its chevron. Cleared on
+  // reaching More or the Vault (a later chooser / menu entry is not "from More").
   const [shownKey, setShownKey] = useState(key);
-  const [enteredFrom, setEnteredFrom] = useState<string | null>(null);
+  const [movedFromMore, setMovedFromMore] = useState<Record<string, true>>({});
   if (shownKey !== key) {
-    setEnteredFrom(shownKey);
     setShownKey(key);
+    if (key === "more" || key === "vault") setMovedFromMore({});
+    else if (shownKey === "more") setMovedFromMore({ ...movedFromMore, [key]: true });
   }
-  const fromMore = (shownKey === key ? enteredFrom : shownKey) === "more";
+  const fromMore = movedFromMore[key] === true;
 
   const routed = (k: string): ReactNode => {
     if (k === "more")
@@ -207,7 +211,7 @@ export function MobileApp() {
           onRequestSignIn={openSignIn}
         />
       );
-    if (k === "more/feedback") return <FeedbackScreen onClose={back} />;
+    if (k === "more/feedback") return <FeedbackScreen onClose={back} fromMore={fromMore} />;
     return <ComingSoon sentence={SOON[k]} />;
   };
 
