@@ -134,6 +134,9 @@ export function MobileApp() {
         onOpenChooser={() => setChooserOpen(true)}
         onOpenFeedback={() => go("#/more/feedback")}
         onSearchMode={setSearchMode}
+        // ── RUN 2B BEGIN (signin) ── the Filters sheet's signed-out route
+        onRequestSignIn={openSignIn}
+        // ── RUN 2B END (signin) ──
       />
     ),
   };

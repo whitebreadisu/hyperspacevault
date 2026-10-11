@@ -5,7 +5,9 @@ import type { SetMeta } from "../../utils/completion";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { publishNav, setOpenSource } from "../card/navList";
 import { go } from "../router";
-import { Sheet } from "../Sheet";
+// ── RUN 2B BEGIN (import) ── the Filters sheet replaces the ComingSoon Sheet
+import { FiltersSheet } from "../filters/FiltersSheet";
+// ── RUN 2B END (import) ──
 import { CompletionHeader } from "./CompletionHeader";
 import { completionView } from "./completionModel";
 import type { TotalsScope } from "./completionModel";
@@ -37,6 +39,10 @@ interface Props {
   onOpenFeedback: () => void;
   /** Search mode collapses the bottom bar too (MobileApp owns the bar). */
   onSearchMode: (on: boolean) => void;
+  // ── RUN 2B BEGIN (signin prop) ── MobileApp's openSignIn, threaded through
+  /** Signed out, the Filters sheet's Collection row routes to sign in. */
+  onRequestSignIn?: () => void;
+  // ── RUN 2B END (signin prop) ──
 }
 
 export function Vault({
@@ -46,6 +52,9 @@ export function Vault({
   onOpenChooser,
   onOpenFeedback,
   onSearchMode,
+  // ── RUN 2B BEGIN (signin destructure) ──
+  onRequestSignIn,
+  // ── RUN 2B END (signin destructure) ──
 }: Props) {
   const { isAuthenticated, loading, sets, setOrder, setNameByCode } = useVaultData();
   const vv = useVaultView(params);
@@ -199,16 +208,23 @@ export function Vault({
           onClose={closeSheet}
         />
       ) : null}
-      {sheet === "filters" ? (
-        <Sheet
-          title="Filters"
-          labelId="sheet-filters"
-          className="m-sheet-layer--filters"
-          onClose={closeSheet}
-        >
-          <p className="m-sheet__soon">Filters arrive with the next slice.</p>
-        </Sheet>
-      ) : null}
+      {
+        // ── RUN 2B BEGIN ──
+        // BL-248 S2-12: the Filters sheet. Signed out, the Collection row
+        // closes Filters and opens MobileApp's sign-in (onRequestSignIn,
+        // threaded from MobileApp's RUN 2B (signin) block).
+        sheet === "filters" ? (
+          <FiltersSheet
+            vv={vv}
+            onClose={closeSheet}
+            onRequestSignIn={() => {
+              setSheet(null);
+              onRequestSignIn?.();
+            }}
+          />
+        ) : null
+        // ── RUN 2B END ──
+      }
     </>
   );
 }
