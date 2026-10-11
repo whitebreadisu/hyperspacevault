@@ -25,6 +25,8 @@ import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotes
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
 import { capture } from "./analytics/analytics";
+import { MobileApp } from "./mobile/MobileApp";
+import { useIsPhone } from "./mobile/useIsPhone";
 
 /** BL-56 §5.5: the app no longer gates on auth -- anonymous visitors get the
  * same shell (Header + unified Cards list) as signed-in users. Auth becomes a
@@ -59,6 +61,8 @@ import { capture } from "./analytics/analytics";
  * onSignedUp relies on. */
 function AppContent() {
   const { user, loading, logout, emailVerified } = useAuth();
+  // BL-247 S1-01: phone-width viewports render the mobile app instead.
+  const isPhone = useIsPhone();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
@@ -246,6 +250,8 @@ function AppContent() {
   if (loading) {
     return <p className="loading-text">Loading…</p>;
   }
+
+  if (isPhone) return <MobileApp />;
 
   return (
     <div className="app-layout">

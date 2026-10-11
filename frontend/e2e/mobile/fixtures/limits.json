@@ -1,0 +1,185 @@
+{
+  "cap_mode": "hard",
+  "limits": [
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Standard",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Standard Foil",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Hyperspace",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Hyperspace Foil",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Standard Prestige",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Foil Prestige",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Serialized Prestige",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Showcase",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Weekly Play",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Judge",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Convention",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Promo / Tournament-tier",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Movie",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Prerelease",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "singleton",
+      "limit_bucket": "Retail",
+      "max_quantity": 1,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Standard",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Standard Foil",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Hyperspace",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Hyperspace Foil",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Standard Prestige",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Foil Prestige",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Serialized Prestige",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Showcase",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Weekly Play",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Judge",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Convention",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Promo / Tournament-tier",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Movie",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Prerelease",
+      "max_quantity": 3,
+      "is_default": true
+    },
+    {
+      "type_category": "standard",
+      "limit_bucket": "Retail",
+      "max_quantity": 3,
+      "is_default": true
+    }
+  ]
+}

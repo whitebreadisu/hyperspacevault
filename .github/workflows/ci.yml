@@ -258,6 +258,45 @@ jobs:
         working-directory: frontend
         run: npx vitest run --coverage
 
+  frontend-e2e-mobile:
+    # BL-247 S1-10: the phone-app Playwright suite (frontend/e2e/mobile).
+    # Same gating as frontend; runs after it so lint/type/unit failures
+    # surface first. `npm run e2e:mobile` starts the Firebase Auth emulator
+    # itself (firebase-tools is a devDependency) and the Vite dev server via
+    # playwright.config.ts; the API is mocked from committed fixtures.
+    needs: [classify-pr, frontend]
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mobile e2e
+        working-directory: frontend
+        run: npm run e2e:mobile
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
   terraform-fmt:
     # BL-178: same gating as backend — see the comment there.
     needs: [classify-pr]
@@ -282,7 +321,7 @@ jobs:
   # existing pipeline unchanged.
 
   ci-ok:
-    needs: [classify-pr, backend, frontend, terraform-fmt]
+    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
@@ -293,10 +332,11 @@ jobs:
           CODE_CHANGED: ${{ needs.classify-pr.outputs.code_changed }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
+          FRONTEND_E2E_MOBILE_RESULT: ${{ needs.frontend-e2e-mobile.result }}
           TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
         run: |
           echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED"
-          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
             echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
@@ -304,15 +344,15 @@ jobs:
           fi
 
           if [ "$CODE_CHANGED" = "true" ]; then
-            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TERRAFORM_FMT_RESULT"; do
+            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$FRONTEND_E2E_MOBILE_RESULT" "$TERRAFORM_FMT_RESULT"; do
               if [ "$r" != "success" ]; then
-                echo "::error::code-changing PR requires backend/frontend/terraform-fmt all green."
+                echo "::error::code-changing PR requires backend/frontend/frontend-e2e-mobile/terraform-fmt all green."
                 exit 1
               fi
             done
             echo "Code PR: all heavy jobs green."
           else
-            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TERRAFORM_FMT_RESULT"; do
+            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$FRONTEND_E2E_MOBILE_RESULT" "$TERRAFORM_FMT_RESULT"; do
               if [ "$r" != "skipped" ] && [ "$r" != "success" ]; then
                 echo "::error::docs-only PR, but a heavy job reports '$r' (expected skipped)."
                 exit 1

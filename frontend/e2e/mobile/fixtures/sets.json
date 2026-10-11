@@ -1,0 +1,198 @@
+[
+  {
+    "id": 1,
+    "code": "SOR",
+    "name": "Spark of Rebellion",
+    "is_base_set": true,
+    "release_date": "2024-03-08"
+  },
+  {
+    "id": 2,
+    "code": "SORP",
+    "name": "Spark of Rebellion Weekly Play",
+    "is_base_set": false,
+    "release_date": "2024-03-08"
+  },
+  {
+    "id": 3,
+    "code": "SHDP",
+    "name": "Shadows of the Galaxy Weekly Play",
+    "is_base_set": false,
+    "release_date": "2024-07-12"
+  },
+  {
+    "id": 4,
+    "code": "SHD",
+    "name": "Shadows of the Galaxy",
+    "is_base_set": true,
+    "release_date": "2024-08-02"
+  },
+  {
+    "id": 5,
+    "code": "TWI",
+    "name": "Twilight of the Republic",
+    "is_base_set": true,
+    "release_date": "2024-11-08"
+  },
+  {
+    "id": 6,
+    "code": "TWIP",
+    "name": "Twilight of the Republic Weekly Play",
+    "is_base_set": false,
+    "release_date": "2024-11-08"
+  },
+  {
+    "id": 7,
+    "code": "JTL",
+    "name": "Jump to Lightspeed",
+    "is_base_set": true,
+    "release_date": "2025-03-14"
+  },
+  {
+    "id": 8,
+    "code": "LOF",
+    "name": "Legends of the Force",
+    "is_base_set": true,
+    "release_date": "2025-06-06"
+  },
+  {
+    "id": 9,
+    "code": "SEC",
+    "name": "Secrets of Power",
+    "is_base_set": true,
+    "release_date": "2025-09-12"
+  },
+  {
+    "id": 10,
+    "code": "LAW",
+    "name": "A Lawless Time",
+    "is_base_set": true,
+    "release_date": "2025-12-05"
+  },
+  {
+    "id": 11,
+    "code": "C26",
+    "name": "2026 Convention Exclusive",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 12,
+    "code": "TS26",
+    "name": "2026 Twin Suns",
+    "is_base_set": true,
+    "release_date": null
+  },
+  {
+    "id": 13,
+    "code": "ASH",
+    "name": "Ashes of the Empire",
+    "is_base_set": true,
+    "release_date": null
+  },
+  {
+    "id": 14,
+    "code": "MV26",
+    "name": "The Mandalorian and Grogu Movie Promo",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 15,
+    "code": "C24",
+    "name": "2024 Convention Exclusive",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 16,
+    "code": "JTLP",
+    "name": "Jump to Lightspeed Weekly Play",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 17,
+    "code": "P25",
+    "name": "2025 Promo",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 18,
+    "code": "GG",
+    "name": "Gamegenic",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 19,
+    "code": "J24",
+    "name": "2024 Judge Program",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 20,
+    "code": "J25",
+    "name": "2025 Judge Program",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 21,
+    "code": "LOFP",
+    "name": "Legends of the Force Weekly Play",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 22,
+    "code": "C25",
+    "name": "2025 Convention Exclusive",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 23,
+    "code": "IBH",
+    "name": "Intro Battle: Hoth",
+    "is_base_set": true,
+    "release_date": null
+  },
+  {
+    "id": 24,
+    "code": "SECP",
+    "name": "Secrets of Power Weekly Play",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 25,
+    "code": "P26",
+    "name": "2026 Promo",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 26,
+    "code": "G25",
+    "name": "2025 Gift Box",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 27,
+    "code": "LAWP",
+    "name": "A Lawless Time Weekly Play",
+    "is_base_set": false,
+    "release_date": null
+  },
+  {
+    "id": 28,
+    "code": "ASHP",
+    "name": "Ashes of the Empire Weekly Play",
+    "is_base_set": false,
+    "release_date": null
+  }
+]

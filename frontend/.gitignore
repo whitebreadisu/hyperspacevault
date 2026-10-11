@@ -1,0 +1,5 @@
+# BL-247 S1-10: Playwright artifacts + the signed-in storageState written by
+# e2e/mobile/auth.setup.ts (holds an emulator-only token).
+e2e/.auth/
+playwright-report/
+test-results/
