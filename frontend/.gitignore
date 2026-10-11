@@ -3,3 +3,5 @@
 e2e/.auth/
 playwright-report/
 test-results/
+vitest-results/
+e2e-results/

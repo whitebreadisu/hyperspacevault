@@ -12,6 +12,8 @@
 .m-app {
   --m-collapse: 0.24s;
   --m-collapse-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* S1-15: half the circuit seam's height (70/2560 of the width, ~11 px). */
+  --m-seam: 6px;
 }
 
 .m-app .m-vault {
@@ -92,6 +94,11 @@
   position: relative;
   z-index: 2;
   pointer-events: auto;
+  /* S1-15: search mode fades and lifts the row; restore runs back. */
+  transition:
+    opacity 0.15s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -348,7 +355,6 @@
 }
 .m-app .m-vault__scroll {
   overscroll-behavior-y: none;
-  padding-top: 12px;
 }
 .m-app .m-pullshift {
   transform: translateY(0);
@@ -442,25 +448,61 @@
   white-space: nowrap;
 }
 
-/* ── Stage 1a-s scaffold list (deleted with InterimList.tsx by S1-19) ───── */
-.m-app .m-interim__row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--color-border);
+/* ── S1-15 search mode (R5-4) ──────────────────────────────────────────────
+ * Focus in the search box: the app header and the collection panel go to
+ * nothing (opacity + translate; the sky fades), the sliding surface carries
+ * the seam up to the top edge, and the content below rises to sit under it
+ * with the status row hidden. Transform + opacity only; the box the list
+ * needs is grown ONCE at the class flip by the R3-13 cut mechanism (a margin
+ * on .m-vault__below), never animated. --m-seam is the seam's half-height
+ * (the separator is 70/2560 of the width, ~11 px at 390), so it sits whole
+ * below the safe-area edge; --vs-hide is row two's full step (margin-top 2 +
+ * 46 + the controls' 4 px foot, vault.css). */
+.m-app .m-vault {
+  --vs-hide: 52px;
 }
-.m-app .m-interim__num {
-  flex: none;
-  width: 64px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-muted);
+.m-app .m-vault--search .m-vh > .m-vh__top,
+.m-app .m-vault--search .m-vh > .m-vh__panel {
+  opacity: 0;
+  transform: translateY(-24px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear var(--m-collapse);
 }
-.m-app .m-interim__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.m-app .m-vault.m-vault--search .m-vh > .m-vh__sky {
+  clip-path: inset(0 0 calc(100% - var(--sat) - var(--m-seam)) 0);
+}
+.m-app .m-vault.m-vault--search .m-vh > .m-vh__bg {
+  transform: translateY(calc(var(--sat) + var(--m-seam) - var(--vh-full, 0px)));
+}
+.m-app .m-vault.m-vault--search .m-vault__below {
+  transform: translateY(calc(var(--sat) + var(--m-seam) - var(--vh-min, 60px)));
+  margin-bottom: calc(var(--sat) + var(--m-seam) - var(--vh-min, 60px) - var(--vs-hide));
+}
+.m-app .m-vault--search .m-vault__scroll {
+  transform: translateY(calc(-1 * var(--vs-hide)));
+}
+.m-app .m-vault__scroll {
+  transform: translateY(0);
+  transition: transform var(--m-collapse) var(--m-collapse-ease);
+}
+.m-app .m-vault--search .m-vault__status {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    visibility 0s linear 0.12s;
+}
+.m-app .m-vault--search .m-clearbtn,
+.m-app .m-vault--search .m-filterbtn {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-vault--search .m-vh > .m-vh__top,
+  .m-app .m-vault--search .m-vh > .m-vh__panel {
+    transition: none;
+  }
 }

@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }, info) => {
 
 async function openVault(page: Page) {
   await page.goto("/#/vault");
-  await expect(page.locator(".m-interim__row").first()).toBeVisible();
+  await expect(page.locator(".m-row").first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
 

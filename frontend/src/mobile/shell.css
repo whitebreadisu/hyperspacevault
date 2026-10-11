@@ -26,6 +26,32 @@
   padding-bottom: var(--sab);
   z-index: 3;
 }
+/* S1-15 search mode (R5-4): the bar leaves the layout (one flip, the screen
+ * grows to the frame's bottom = the keyboard's top edge) and slides down
+ * until only its seam strip shows; transform + opacity only. */
+.m-app .m-nav {
+  transform: translateY(0);
+  transition: transform var(--m-collapse, 0.24s) var(--m-collapse-ease, ease);
+}
+.m-app.m-app--search .m-nav {
+  position: absolute;
+  left: var(--sal);
+  right: var(--sar);
+  bottom: 0;
+  transform: translateY(calc(100% - var(--m-seam, 6px)));
+}
+.m-app .m-nav__row {
+  transition:
+    opacity 0.15s ease,
+    visibility 0s;
+}
+.m-app.m-app--search .m-nav__row {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.15s ease,
+    visibility 0s linear 0.15s;
+}
 .m-app .m-nav__sep {
   position: absolute;
   left: 0;

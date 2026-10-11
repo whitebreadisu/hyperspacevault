@@ -1,0 +1,985 @@
+/* BL-247 stage 1b: the Vault's status rows, search, scope chip + menu, sort,
+ * view toggle, rows and gallery. Consolidated from rev4 m-layout.css:100-216
+ * (search, segments, chips, vault, rows, grid), m-rev1.css:93-148 (controls,
+ * size picker, row tiers), m-rev2.css:40-64 (one-line row, view toggle,
+ * grid sizes), m-rev3.css:120-135 (Clear) + 340-441 (scope, amber),
+ * m-rev4.css:7-34 (sort icon, chip) + 54-67, re-cut into R5-3's two rows.
+ * The count chip, pips and gallery plate are desktop cards.css copied
+ * VERBATIM under .m-app (block at the end, rule for rule from the cited
+ * ranges, no value changed); only the plate's phone scale (8 / 13 / 28 px,
+ * the accepted rev4 builder call) follows it. */
+
+/* ── Controls under the header: two rows (R5-3) ─────────────────────────── */
+.m-app .m-vault__controls {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  /* The 12 px top pad the 1a-s list carried; 4 px foot (part of --vs-hide). */
+  padding: 12px 16px 4px;
+}
+.m-app .m-vault__searchrow {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.m-app .m-vault__status {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 46px;
+  margin-top: 2px;
+  transition: opacity 0.12s ease;
+}
+
+/* ── Search field (AddCardsModal.css .ac-input look; 16 px, iOS never zooms) */
+.m-app .m-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.m-app .m-search__input {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  padding: 0 48px 0 40px;
+  border-radius: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(9, 11, 20, 0.72);
+  color: var(--color-text);
+  border: 1px solid rgba(211, 211, 212, 0.22);
+  font-family: var(--font-body);
+  outline: none;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.m-app .m-search__input::placeholder {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+/* Desktop .ac-input draws focus with its blue border only (outline: none). */
+.m-app .m-search__input:focus-visible {
+  outline: none;
+}
+.m-app .m-search__input:focus {
+  border-color: var(--color-primary);
+  background: rgba(9, 11, 20, 0.9);
+}
+.m-app .m-search__glass {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.m-app .m-search__clear {
+  position: absolute;
+  right: 2px;
+  color: var(--color-text-muted);
+}
+
+/* ── Filters button (m-layout.css:156-163) ──────────────────────────────── */
+.m-app .m-filterbtn {
+  flex: none;
+  height: 48px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(211, 211, 212, 0.22);
+  border-radius: 2px;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.m-app .m-filterbtn--on {
+  border-color: rgba(217, 154, 31, 0.6);
+  background: rgba(217, 154, 31, 0.08);
+  color: #f2c14e;
+}
+.m-app .m-filterbtn__n {
+  font-family: "Russo One", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0;
+  min-width: 20px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: rgba(217, 154, 31, 0.22);
+  text-align: center;
+}
+
+/* ── Clear: desktop's amber outline (R3-5), drawn 32 px, hit 44 px. Its slot
+ * is not reserved: the search box narrows when it appears. ──────────────── */
+.m-app .m-clearbtn {
+  position: relative;
+  z-index: 0;
+  flex: none;
+  align-self: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+.m-app .m-clearbtn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  bottom: 6px;
+  z-index: -1;
+  border: 1px solid rgba(217, 154, 31, 0.4);
+  border-radius: 4px;
+  background: rgba(217, 154, 31, 0.16);
+  transition: background 0.12s ease;
+}
+.m-app .m-clearbtn:active::before {
+  background: rgba(217, 154, 31, 0.26);
+}
+.m-app .m-clearbtn:active {
+  transform: translateY(1px);
+}
+
+/* ── Row two: count (left-most) · scope chip · Sort · view toggle ───────── */
+.m-app .m-count {
+  flex: 1 0 auto;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  white-space: nowrap;
+}
+.m-app .m-count--narrowed {
+  color: #f2c14e;
+}
+/* The scope chip: drawn 32 px in the R3-5 outline idiom, hit 44 px; steel
+ * unscoped, amber (desktop trigger --on) scoped. */
+.m-app .m-scopechip {
+  position: relative;
+  z-index: 0;
+  flex: none;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: #cfd6e4;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.m-app .m-scopechip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  bottom: 6px;
+  z-index: -1;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: rgba(9, 11, 20, 0.5);
+}
+.m-app .m-scopechip__t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-scopechip__chev {
+  flex: none;
+  opacity: 0.8;
+}
+.m-app .m-scopechip--on {
+  color: #f2c14e;
+}
+.m-app .m-scopechip--on::before {
+  border-color: rgba(217, 154, 31, 0.4);
+  background: rgba(217, 154, 31, 0.16);
+}
+.m-app .m-scopechip:active {
+  transform: translateY(1px);
+}
+.m-app .m-pipsglyph {
+  flex: none;
+  display: block;
+}
+/* Sort: the 44 px square, glyph only (the name is in aria-label). */
+.m-app .m-sortbtn {
+  flex: none;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 11, 20, 0.5);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: #cfd6e4;
+}
+
+/* ── Segmented control + the view toggle (m-layout.css:109-118, m-rev1.css
+ * 118-123, m-rev2.css:51-57). Each side opens its sizes in place; the open
+ * is a discrete state change (rev4's max-width slide animated a layout
+ * property, so the sizes simply appear). ────────────────────────────────── */
+.m-app .m-seg {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(9, 11, 20, 0.5);
+}
+.m-app .m-seg__btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.m-app .m-seg__btn:first-child {
+  border-left: none;
+}
+.m-app .m-seg__btn--on {
+  background: rgba(37, 99, 235, 0.35);
+  color: #fff;
+}
+.m-app .m-viewseg {
+  position: relative;
+}
+.m-app .m-viewseg .m-seg__btn {
+  padding: 0;
+}
+.m-app .m-viewseg__sizes {
+  display: none;
+}
+.m-app .m-viewseg--open-rows .m-viewseg__sizes--rows,
+.m-app .m-viewseg--open-gal .m-viewseg__sizes--gal {
+  display: inline-flex;
+}
+.m-app .m-viewseg__sizes .m-seg__btn {
+  min-width: 48px;
+}
+.m-app .m-viewseg__sizes .m-seg__btn:first-child {
+  border-left: none;
+}
+.m-app .m-viewseg__sizes--gal .m-seg__btn:first-child {
+  border-left: 1px solid var(--color-border);
+}
+.m-app .m-viewseg--open-rows .m-viewseg__list,
+.m-app .m-viewseg--open-gal .m-viewseg__gal {
+  border-left: 1px solid var(--color-border);
+  background: rgba(37, 99, 235, 0.18);
+}
+/* Picker open: count, chip and Sort step aside; the label shows at left. */
+.m-app .m-vault__sizelabel {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-vault__status--sizes .m-vault__sizelabel {
+  opacity: 1;
+}
+.m-app .m-vault__status--sizes .m-count,
+.m-app .m-vault__status--sizes .m-scopechip,
+.m-app .m-vault__status--sizes .m-sortbtn {
+  display: none;
+}
+.m-app .m-vault__status--sizes .m-viewseg {
+  margin-left: auto;
+}
+
+/* ── The list ───────────────────────────────────────────────────────────── */
+.m-app .m-vault__scroll {
+  border-top: 1px solid var(--color-border);
+}
+.m-app .m-rows {
+  position: relative;
+  background: var(--bg-surface);
+}
+.m-app .m-vrow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.m-app .m-row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  color: inherit;
+  transition: background 0.12s ease;
+}
+.m-app .m-row:active {
+  background: rgba(37, 99, 235, 0.1);
+}
+.m-app .m-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0 9px 16px;
+}
+.m-app .m-row__thumb {
+  position: relative;
+  flex: none;
+  width: var(--tw, 46px);
+  height: var(--th, 64px);
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+.m-app .m-row__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.m-app .m-row__thumb img.m-img--rotated {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--th, 64px);
+  height: var(--tw, 46px);
+  transform: translate(-50%, -50%) rotate(-90deg);
+  object-fit: cover;
+}
+.m-app .m-row__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.m-app .m-row__name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.m-app .m-row__sub {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.m-app .m-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 1px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.m-app .m-row__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #9fb0cc;
+  white-space: nowrap;
+}
+.m-app .m-row__num--scoped {
+  color: #f2c14e;
+}
+.m-app .m-row__type {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.m-app .m-row__aspects {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+.m-app .m-row__aspects img {
+  display: block !important;
+}
+.m-app .m-row__own {
+  flex: none;
+  /* rev4 92 px; 96 px border-box holds chip + three pips, so the column's
+   * edge lines up whatever the playset size (1 or 3 pips). */
+  box-sizing: border-box;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px 8px 8px;
+  border-left: 1px solid rgba(30, 39, 72, 0.6);
+}
+/* Scoped: desktop's Playset + Value columns carry the faint amber wash. */
+.m-app .m-row__own--scoped {
+  background: rgba(217, 154, 31, 0.05);
+}
+.m-app .m-row__price {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-text);
+}
+.m-app .m-row__price--none {
+  color: var(--color-text-muted);
+}
+.m-app .m-row__ownline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Tiers (m-rev1.css:131-148). */
+.m-app .m-row--t-sm {
+  --tw: 34px;
+  --th: 48px;
+}
+.m-app .m-row--t-sm .m-row__main {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  gap: 10px;
+}
+.m-app .m-row--t-sm .m-row__own {
+  gap: 5px;
+}
+.m-app .m-row--t-lg {
+  --tw: 92px;
+  --th: 129px;
+}
+.m-app .m-row--t-lg .m-row__main {
+  align-items: flex-start;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.m-app .m-row--t-lg .m-row__thumb {
+  border-radius: 5px;
+}
+.m-app .m-row--t-lg .m-row__name {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 16px;
+}
+.m-app .m-row--t-lg .m-row__text {
+  gap: 4px;
+  padding-top: 2px;
+}
+.m-app .m-row__stats {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+.m-app .m-row__stats .m-row__type {
+  margin-left: 4px;
+  align-self: center;
+}
+.m-app .m-row--t-lg .m-row__own {
+  justify-content: flex-start;
+  padding-top: 14px;
+}
+/* The no-image row is ONE line (rev2 V2): set/#, name, subtitle, then a fixed
+ * right column so price + playset line up row to row. */
+.m-app .m-row--line .m-row__main {
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 0 0 16px;
+  align-items: center;
+}
+.m-app .m-row--line .m-row__num {
+  flex: none;
+  min-width: 7.4ch;
+}
+.m-app .m-row--line .m-row__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 15px;
+}
+.m-app .m-row--line .m-row__sub {
+  flex: 1 1 0;
+  min-width: 14px;
+  font-size: 13px;
+}
+.m-app .m-row--line .m-row__own {
+  width: 166px;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 0 8px;
+}
+.m-app .m-row--line .m-row__price {
+  min-width: 7ch;
+  text-align: right;
+  font-size: 13px;
+}
+
+/* ── Gallery (m-layout.css:197-216, m-rev2.css:59-62): virtual lines of
+ * 1 / 2 / 3 cells. ─────────────────────────────────────────────────────── */
+.m-app .m-grid {
+  position: relative;
+}
+.m-app .m-gline {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  padding-bottom: 20px;
+}
+.m-app .m-grid--g1 .m-gline {
+  grid-template-columns: minmax(0, 330px);
+  justify-content: center;
+  padding-bottom: 24px;
+}
+.m-app .m-grid--g3 .m-gline {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 8px;
+  padding-bottom: 16px;
+}
+.m-app .m-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+}
+.m-app .m-cell__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+  transition:
+    border-color 0.15s,
+    transform 0.12s ease;
+}
+.m-app .m-cell:active .m-cell__frame {
+  transform: scale(0.98);
+  border-color: var(--color-primary);
+}
+.m-app .m-cell--empty .m-cell__frame {
+  border-style: dashed;
+  background: rgba(0, 0, 0, 0.14);
+}
+.m-app .m-cell__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.m-app .m-cell__frame img.m-img--rotated {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140%;
+  height: 71.43%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+/* ── Empty state (m-layout.css:217-219; .m-empty lives in shell.css) ───── */
+.m-app .m-empty--list {
+  padding-top: 48px;
+}
+
+/* ── Scope menu (rev4 MScope.jsx; m-layout.css:122-130 chips; the facet row
+ * anatomy it reuses, m-rev3.css:244-292 + 383-389) ───────────────────────── */
+.m-app .m-fnote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+.m-app .m-scopemenu {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-scopemenu__meaning {
+  margin: 0 0 4px;
+}
+.m-app .m-scopemenu__bar {
+  display: flex;
+  gap: 18px;
+}
+.m-app .m-flink {
+  align-self: flex-start;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0 6px;
+  background: none;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  text-decoration: underline;
+  text-decoration-color: rgba(211, 211, 212, 0.3);
+  text-underline-offset: 4px;
+}
+.m-app .m-flink:disabled {
+  opacity: 0.4;
+}
+.m-app .m-ftree {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-ffin {
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+}
+.m-app .m-ftree > .m-ffin:first-child {
+  border-top: none;
+}
+.m-app .m-ffin--pair,
+.m-app .m-ffin--prestige {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 6px 0;
+}
+.m-app .m-ffin__label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-ffin__chips {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.m-app .m-chip {
+  flex: none;
+  height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: #cfd6e4;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+.m-app .m-chip--on {
+  background: rgba(37, 99, 235, 0.28);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.m-app .m-ffin__chip {
+  padding: 0 12px;
+  font-size: 13px;
+  min-width: 52px;
+}
+.m-app .m-fdivider {
+  height: 1px;
+  margin: 2px 0;
+  background: rgba(211, 211, 212, 0.22);
+}
+.m-app .m-ffin__head {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #cfd6e4;
+}
+.m-app .m-ffin__chev {
+  flex: none;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+.m-app .m-ffin__chev--open {
+  transform: rotate(180deg);
+}
+.m-app .m-fcheck {
+  width: 100%;
+}
+.m-app .m-ffin--plain .m-fcheck__text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
+.m-app .m-sheet__soon {
+  margin: 4px 0 8px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #cfd6e4;
+}
+
+/* ══ desktop cards.css, VERBATIM under .m-app (S1-19 / S1-20) ══════════════ */
+/* ── cards.css:944-1011 (playset pips + count chip) ── */
+.m-app .playset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.m-app .playset__pips {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.m-app .playset__pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-text-muted);
+  background: transparent;
+  display: inline-block;
+  box-sizing: border-box;
+}
+.m-app .playset__pip--filled {
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+.m-app .playset--complete .playset__pip--filled {
+  background: var(--aspect-command);
+  border-color: var(--aspect-command);
+}
+.m-app .playset--empty .playset__pip {
+  border-color: var(--color-border);
+}
+.m-app .playset-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 5px 8px;
+  box-sizing: border-box;
+  font-family: "Russo One", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-text);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.m-app .playset-chip--complete {
+  color: var(--aspect-command);
+  border-color: rgba(23, 138, 58, 0.6);
+  box-shadow: 0 0 6px rgba(23, 138, 58, 0.25);
+}
+.m-app .playset-chip--empty,
+.m-app .playset-chip--signed-out {
+  color: var(--color-text-muted);
+}
+/* ── cards.css:1287-1385 (console plate) ── */
+.m-app .gallery-plate {
+  position: relative;
+  height: 24px;
+  box-sizing: border-box;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background: rgba(211, 211, 212, 0.35);
+}
+.m-app .gallery-plate--complete {
+  background: rgba(31, 163, 71, 0.55);
+}
+.m-app .gallery-plate__inner {
+  position: absolute;
+  inset: 1px;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 10px;
+  box-sizing: border-box;
+}
+.m-app .gallery-plate__inner--signed-out {
+  justify-content: center;
+}
+.m-app .gallery-plate__pips {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.m-app .gallery-plate__pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 1px solid rgba(230, 230, 230, 0.45);
+  background: transparent;
+}
+.m-app .gallery-plate__pip--filled {
+  border-color: #e6e6e6;
+  background: #e6e6e6;
+}
+.m-app .gallery-plate--complete .gallery-plate__pip--filled {
+  border-color: #1fa347;
+  background: #1fa347;
+}
+.m-app .gallery-plate__total {
+  font-family: "Russo One", sans-serif;
+  font-size: 11.5px;
+  line-height: 1;
+  color: #e6e6e6;
+}
+.m-app .gallery-plate__total--empty {
+  color: #6b7a99;
+}
+.m-app .gallery-plate__total--complete {
+  color: #1fa347;
+}
+.m-app .gallery-plate__total-limit {
+  opacity: 0.55;
+  font-size: 9.5px;
+}
+.m-app .gallery-plate__sign-in {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #6b7a99;
+  white-space: nowrap;
+}
+/* ── cards.css:1482-1546 (scoped pips, plate BL-222) ── */
+.m-app .playset__pip--scoped,
+.m-app .playset--complete .playset__pip--filled.playset__pip--scoped {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+}
+.m-app .playset__pips--scoped-complete {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  background: rgba(217, 154, 31, 0.08);
+}
+.m-app .playset__pips--scoped-complete .playset__pip--filled.playset__pip--scoped {
+  background: var(--aspect-command);
+  border-color: var(--aspect-command);
+}
+.m-app .gallery-plate__pip--scoped {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+.m-app .gallery-plate--complete .gallery-plate__inner {
+  background-color: rgba(217, 154, 31, 0.08);
+}
+
+/* ── Gallery plate at phone scale (accepted rev4 builder call: sizes only;
+ * colours stay desktop's above) and the 3-across tightening (m-rev2.css). */
+.m-app .m-plate {
+  display: block;
+  width: 100%;
+  height: 28px;
+}
+.m-app .m-plate .gallery-plate__pip {
+  width: 8px;
+  height: 8px;
+}
+.m-app .m-plate .gallery-plate__total {
+  font-size: 13px;
+}
+.m-app .m-grid--g3 .m-plate .gallery-plate__inner {
+  padding: 0 6px 0 8px;
+}
+.m-app .m-grid--g3 .m-plate .gallery-plate__pips {
+  gap: 2px;
+}

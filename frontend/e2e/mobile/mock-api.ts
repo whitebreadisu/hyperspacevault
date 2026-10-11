@@ -44,9 +44,12 @@ export async function installApiMocks(
   page.on("console", (m) => {
     if (m.type() === "error") rec.consoleErrors.push(m.text());
   });
-  page.on("requestfailed", (r) =>
-    rec.failed.push(`${r.method()} ${r.url()} (${r.failure()?.errorText})`)
-  );
+  page.on("requestfailed", (r) => {
+    // S1-19: an image the virtualised list unmounts (or a navigation drops)
+    // mid-load is cancelled by the browser -- not a failed request.
+    if (r.resourceType() === "image" && r.failure()?.errorText === "net::ERR_ABORTED") return;
+    rec.failed.push(`${r.method()} ${r.url()} (${r.failure()?.errorText})`);
+  });
 
   const cards = json<Slim[]>(`${opts.fixture ?? "base-cards"}.json`);
   const sets = json<{ code: string; name: string }[]>("sets.json");

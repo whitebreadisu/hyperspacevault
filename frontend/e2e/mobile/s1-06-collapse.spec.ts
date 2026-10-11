@@ -27,7 +27,7 @@ const isCollapsed = (p: Page) => p.evaluate(() => !!document.querySelector(".m-v
 
 async function openVault(page: Page) {
   await page.goto("/#/vault");
-  await expect(page.locator(".m-interim__row").first()).toBeVisible();
+  await expect(page.locator(".m-row").first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
 }
@@ -328,7 +328,7 @@ test("s1-06-list-bottom-edge", async ({ page }) => {
   // (The jump to the end collapses the header again; let its 0.24 s settle.)
   await page.waitForTimeout(600);
   const clear = await page.evaluate(() => {
-    const rows = document.querySelectorAll(".m-interim__row");
+    const rows = document.querySelectorAll(".m-row");
     return (
       rows[rows.length - 1].getBoundingClientRect().bottom <=
       document.querySelector(".m-nav")!.getBoundingClientRect().top + 1

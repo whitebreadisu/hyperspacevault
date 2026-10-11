@@ -52,6 +52,76 @@ const P: Record<string, ReactElement> = {
       <path d="m6 9.5 6 6 6-6" />
     </g>
   ),
+  // S1-14 .. S1-18 (status rows, sort, view toggle, sheets).
+  search: (
+    <g>
+      <circle cx="10.5" cy="10.5" r="5.5" />
+      <path d="m14.5 14.5 5 5" />
+    </g>
+  ),
+  sort: (
+    <g>
+      <path d="M8 5v14M4.5 15.5 8 19l3.5-3.5M16 19V5M12.5 8.5 16 5l3.5 3.5" />
+    </g>
+  ),
+  rows: (
+    <g>
+      <path d="M4 6h3M4 12h3M4 18h3M10 6h10M10 12h10M10 18h10" />
+    </g>
+  ),
+  grid: (
+    <g>
+      <path d="M4.5 4.5h6v6h-6zM13.5 4.5h6v6h-6zM4.5 13.5h6v6h-6zM13.5 13.5h6v6h-6z" />
+    </g>
+  ),
+  check: (
+    <g>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </g>
+  ),
+  chevup: (
+    <g>
+      <path d="m6 14.5 6-6 6 6" />
+    </g>
+  ),
+  sz0: (
+    <g>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </g>
+  ),
+  sz1: (
+    <g>
+      <path d="M4 5.5h3v4H4zM4 14.5h3v4H4z" />
+      <path d="M10 7.5h10M10 16.5h10" />
+    </g>
+  ),
+  sz2: (
+    <g>
+      <path d="M4 4.5h5.5v7H4zM4 13h5.5v7H4z" />
+      <path d="M12.5 8h8M12.5 16.5h8" />
+    </g>
+  ),
+  sz3: (
+    <g>
+      <path d="M3.5 4h9v13h-9z" />
+      <path d="M15.5 7h5M15.5 11h5M15.5 15h3.5" />
+    </g>
+  ),
+  g1: (
+    <g>
+      <path d="M7 3.5h10v17H7z" />
+    </g>
+  ),
+  g2: (
+    <g>
+      <path d="M3.5 5.5h7.5v13H3.5zM13 5.5h7.5v13H13z" />
+    </g>
+  ),
+  g3: (
+    <g>
+      <path d="M2.5 7h5.2v10H2.5zM9.4 7h5.2v10H9.4zM16.3 7h5.2v10h-5.2z" />
+    </g>
+  ),
 };
 
 export type IconName = keyof typeof P;

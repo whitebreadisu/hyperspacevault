@@ -5,14 +5,15 @@ import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
 import { ComingSoon } from "./ComingSoon";
+import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
 import { go, useRoute } from "./router";
 import type { Route } from "./router";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { CompletionHeader } from "./vault/CompletionHeader";
-import { InterimList } from "./vault/InterimList";
-import { VaultScreen } from "./vault/VaultScreen";
+import { VaultDataProvider } from "./vault/useVaultData";
+import { Vault } from "./vault/Vault";
 import type { StripSummary } from "./vault/VaultHeader";
 import "./mobile.css";
 import "./shell.css";
@@ -54,6 +55,30 @@ function soonFor(route: Route): Screen | null {
   return null;
 }
 
+/** S1-15 (rev4 MApp.jsx:404-415, m-layout.css:643-655): the app frame
+ * follows the visual viewport, so with the keyboard up the list's bottom
+ * edge sits on the keyboard's top edge. */
+function useVisualViewport(): void {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const root = document.documentElement;
+    const on = () => {
+      root.style.setProperty("--app-h", vv.height + "px");
+      root.style.setProperty("--app-top", vv.offsetTop + "px");
+    };
+    vv.addEventListener("resize", on);
+    vv.addEventListener("scroll", on);
+    on();
+    return () => {
+      vv.removeEventListener("resize", on);
+      vv.removeEventListener("scroll", on);
+      root.style.removeProperty("--app-h");
+      root.style.removeProperty("--app-top");
+    };
+  }, []);
+}
+
 export function MobileApp() {
   const route = useRoute();
   const { user, logout } = useAuth();
@@ -88,51 +113,58 @@ export function MobileApp() {
     />
   );
 
+  // S1-15: search mode collapses the bottom bar as well as the headers.
+  const [searchMode, setSearchMode] = useState(false);
+  useVisualViewport();
+
   const screen: Screen = soonFor(route) ?? {
     key: "vault",
     el: (
-      <VaultScreen
+      <Vault
+        params={route.params}
         summary={NO_SUMMARY}
         panel={<CompletionHeader summary={NO_SUMMARY} unique={0} />}
         account={account}
         unread={cue.unread}
         onOpenChooser={() => setChooserOpen(true)}
         onOpenFeedback={() => go("#/more/feedback")}
-        startCollapsed={route.params.collapsed === "1"}
-      >
-        <InterimList />
-      </VaultScreen>
+        onSearchMode={setSearchMode}
+      />
     ),
   };
 
   return (
-    <div className="m-app">
-      <div className="m-app__screen" key={screen.key}>
-        {screen.el}
+    <VaultDataProvider isAuthenticated={!!user}>
+      <div className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}>
+        <SheetHost>
+          <div className="m-app__screen" key={screen.key}>
+            {screen.el}
+          </div>
+          <MobileNav route={route} />
+          {chooserOpen ? (
+            <TitleChooser
+              unread={cue.unread}
+              onClose={closeChooser}
+              onAbout={() => {
+                setChooserOpen(false);
+                go("#/about");
+              }}
+              onUpdates={() => {
+                setChooserOpen(false);
+                cue.clear();
+                go("#/more/updates");
+              }}
+            />
+          ) : null}
+          {authOpen ? (
+            <AuthLayer
+              onClose={closeAuth}
+              onSignedUp={() => setSignupInFlight(true)}
+              onGoogleLinked={() => setGoogleLinkedInFlight(true)}
+            />
+          ) : null}
+        </SheetHost>
       </div>
-      <MobileNav route={route} />
-      {chooserOpen ? (
-        <TitleChooser
-          unread={cue.unread}
-          onClose={closeChooser}
-          onAbout={() => {
-            setChooserOpen(false);
-            go("#/about");
-          }}
-          onUpdates={() => {
-            setChooserOpen(false);
-            cue.clear();
-            go("#/more/updates");
-          }}
-        />
-      ) : null}
-      {authOpen ? (
-        <AuthLayer
-          onClose={closeAuth}
-          onSignedUp={() => setSignupInFlight(true)}
-          onGoogleLinked={() => setGoogleLinkedInFlight(true)}
-        />
-      ) : null}
-    </div>
+    </VaultDataProvider>
   );
 }
