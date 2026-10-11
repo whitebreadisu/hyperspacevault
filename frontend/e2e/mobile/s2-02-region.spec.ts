@@ -98,6 +98,8 @@ test("s2-02-collapsed-row", async ({ page }) => {
   await expect(mini.locator(".m-dreg__pval")).toHaveText(`$${std.price!.market!.toFixed(2)}`);
 });
 
+type FlipWin = { __flip?: { cls: string; name: string } };
+
 test("s2-02-leader-flip", async ({ page }) => {
   const c = await openCard(page, "SOR", 10);
   expect(c.type).toBe("Leader");
@@ -109,11 +111,22 @@ test("s2-02-leader-flip", async ({ page }) => {
   const front = await page.locator(".m-dreg3__art").boundingBox();
   expect(front!.width).toBeGreaterThan(front!.height);
   // card-leader-flipped: desktop's two-phase rotateY, then the portrait back.
+  // Record the out phase from a MutationObserver armed before the click: a
+  // single post-click read can land after the phase has ended under load.
+  await page.locator(".m-dreg__btn").evaluate((e) => {
+    const w = window as unknown as { __flip?: { cls: string; name: string } };
+    const seen = () => {
+      if (e.className.includes("cp-image-flip--out") && !w.__flip)
+        w.__flip = { cls: e.className, name: getComputedStyle(e).animationName };
+    };
+    new MutationObserver(seen).observe(e, { attributes: true, attributeFilter: ["class"] });
+    seen();
+  });
   await flip.click();
-  const anim = await page
-    .locator(".m-dreg__btn")
-    .evaluate((e) => ({ cls: e.className, name: getComputedStyle(e).animationName }));
-  expect(anim.cls).toContain("cp-image-flip--out");
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as FlipWin).__flip?.cls ?? ""))
+    .toContain("cp-image-flip--out");
+  const anim = await page.evaluate(() => (window as unknown as FlipWin).__flip!);
   expect(anim.name).toBe("cp-flip-out");
   await page.waitForTimeout(700);
   await expect(page.locator(".m-dreg__img")).toHaveAttribute("alt", /\(back\)$/);

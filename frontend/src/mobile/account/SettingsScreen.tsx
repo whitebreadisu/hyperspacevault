@@ -48,6 +48,18 @@ export function SettingsScreen({ fromMore, onDeleteAccount }: Props) {
     }
   }, [cells, capMode]);
 
+  // S5 F2: a failed save shows desktop's own .settings-error alert; disarm so
+  // a later, unrelated limits refresh never reads as "Saved.".
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const mo = new MutationObserver(() => {
+      if (root.querySelector(".settings-error")) armed.current = false;
+    });
+    mo.observe(root, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
+
   function onCardClick(e: MouseEvent<HTMLDivElement>) {
     const btn = (e.target as HTMLElement).closest("button");
     const isSave = !!btn?.classList.contains("settings-btn--primary");

@@ -191,6 +191,9 @@ export function MobileApp() {
   const [layerBase, setLayerBase] = useState("more");
   if (!overLayer && rawKey !== layerBase) setLayerBase(rawKey);
   const key = overLayer ? layerBase : rawKey;
+  // S5 F5: under an account layer the bar highlights the route beneath, as it
+  // does under the tool layer.
+  const navRoute = overLayer ? parseHash("#/" + layerBase) : screenRoute;
   // The account screens need a signed-in user (Settings / Delete) and a
   // password provider (Change Password): anything else lands on the Vault /
   // More, as desktop's panes snap back to Cards on sign-out (App.tsx). After a
@@ -279,19 +282,26 @@ export function MobileApp() {
   // one back onto the screen beneath it is not a new view of that screen.
   const viewKey = acctLayer ?? screen.key;
   const prevView = useRef(viewKey);
+  // S5 F1: the last non-layer screen actually reported, so closing a layer
+  // onto a screen that was never reported (cold deep link, guard redirect)
+  // still reports it once.
+  const lastReportedScreen = useRef<string | null>(null);
   useEffect(() => {
     const closing =
       prevView.current === "password" ||
       prevView.current === "delete" ||
       prevView.current === "sharing";
     prevView.current = viewKey;
-    if (closing && !acctLayer) return;
+    if (closing && !acctLayer && viewKey === lastReportedScreen.current) return;
     // A signed-out visitor on an account route is being sent to the Vault.
     if (!user && (viewKey === "more/settings" || acctLayer)) return;
+    // A Google-only account at the Change Password deep link is bounced to More.
+    if (acctLayer === "password" && !pwProvider) return;
+    if (!acctLayer) lastReportedScreen.current = viewKey;
     const v = SCREEN_VIEWED[viewKey];
     if (v) phoneScreenViewed(v);
     if (viewKey === "more") noteMore();
-  }, [viewKey, acctLayer, user, noteMore]);
+  }, [viewKey, acctLayer, user, pwProvider, noteMore]);
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
@@ -309,7 +319,7 @@ export function MobileApp() {
             inert={cardId != null || toolShown || acctLayer != null}
             style={{ display: "contents" }}
           >
-            <MobileNav route={screenRoute} />
+            <MobileNav route={navRoute} />
           </div>
           {toolShown ? (
             <ToolLayer

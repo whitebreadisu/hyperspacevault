@@ -66,3 +66,16 @@ test("s5-04-routes-from-menu-and-more", async ({ page }) => {
     "Log Out",
   ]);
 });
+
+// S5 review F5: under an account layer the bar highlights the route beneath
+// (the Vault here), as it does under the tool layer -- not More.
+test("s5-f5-bar-under-layer", async ({ page }) => {
+  await openVault(page);
+  await page.locator(".m-acct__hit").click();
+  await page.locator(".m-acct__menu [role=menuitem]", { hasText: "Change Password" }).click();
+  await expect(page).toHaveURL(/#\/more\/password$/);
+  await expect(page.getByRole("dialog", { name: "Change Password" })).toBeVisible();
+  const tabs = page.locator(".m-nav .m-tab");
+  await expect(tabs.filter({ hasText: "Vault" })).toHaveAttribute("aria-current", "page");
+  await expect(tabs.filter({ hasText: "More" })).not.toHaveAttribute("aria-current", "page");
+});

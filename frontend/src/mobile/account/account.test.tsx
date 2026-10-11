@@ -144,6 +144,31 @@ describe("S5-01 Settings card", () => {
     expect(screen.getByRole("heading", { name: "Danger Zone" })).toBeTruthy();
   });
 
+  it("S5-01 F2: a failed PUT shows desktop's alert and no 'Saved.'; the next success shows it", async () => {
+    const body: LimitsResponseBody = { limits: defaultCells(), cap_mode: "hard" };
+    vi.mocked(getLimits).mockResolvedValue(body);
+    vi.mocked(putLimits).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(putLimits).mockImplementation(async (_overrides, capMode) => ({
+      cap_mode: capMode ?? "hard",
+      limits: body.limits.map((c) => ({ ...c })),
+    }));
+    render(
+      <LimitsProvider isAuthenticated>
+        <SettingsScreen fromMore={false} onDeleteAccount={vi.fn()} />
+      </LimitsProvider>
+    );
+    const save = await screen.findByRole("button", { name: "Save changes" });
+    fireEvent.click(screen.getByRole("radio", { name: /No limits/ }));
+    fireEvent.click(save);
+    await waitFor(() => expect(putLimits).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText("Saved.")).toBeNull();
+    // Retry succeeds: the status line appears once, from the new tap.
+    fireEvent.click(save);
+    await waitFor(() => expect(putLimits).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Saved.")).toBeTruthy();
+  });
+
   it("Delete Account in the Danger Zone calls the delete trigger", async () => {
     vi.mocked(getLimits).mockResolvedValue({ limits: defaultCells(), cap_mode: "hard" });
     const onDelete = vi.fn();
@@ -257,5 +282,73 @@ describe("S5-05 screen_viewed for Settings, Password, Delete", () => {
       { screen: "more", layout: "phone" },
       { screen: "password", layout: "phone" },
     ]);
+  });
+});
+
+describe("S5-F1 screen_viewed after a layer closes onto an unreported screen", () => {
+  const spy = vi.mocked(capture);
+  const views = () => spy.mock.calls.filter(([e]) => e === "screen_viewed").map(([, p]) => p);
+
+  beforeEach(() => {
+    spy.mockClear();
+    resetRouterForTest();
+  });
+
+  it("cold deep link #/more/password then close: password, then more once", async () => {
+    auth.user = PASSWORD_USER;
+    window.location.hash = "#/more/password";
+    render(<MobileApp />);
+    await act(async () => {});
+    await goHash("#/more");
+    expect(views()).toEqual([
+      { screen: "password", layout: "phone" },
+      { screen: "more", layout: "phone" },
+    ]);
+  });
+
+  it("Google-only deep link #/more/password sends no password view; More reported once", async () => {
+    auth.user = GOOGLE_USER;
+    window.location.hash = "#/more/password";
+    render(<MobileApp />);
+    await act(async () => {});
+    expect(window.location.hash).toBe("#/more");
+    expect(views()).toEqual([{ screen: "more", layout: "phone" }]);
+  });
+
+  it("signed-out #/more/sharing from About redirects to More, which is reported once", async () => {
+    auth.user = null;
+    window.location.hash = "#/about";
+    render(<MobileApp />);
+    await act(async () => {});
+    await goHash("#/more/sharing");
+    expect(views()).toEqual([
+      { screen: "about", layout: "phone" },
+      { screen: "more", layout: "phone" },
+    ]);
+  });
+});
+
+describe("S5-F7 post-delete return", () => {
+  it("when the user signs out on Settings, the shell returns to the anonymous Vault", async () => {
+    resetRouterForTest();
+    auth.user = PASSWORD_USER;
+    vi.mocked(getLimits).mockResolvedValue({ limits: defaultCells(), cap_mode: "hard" });
+    window.location.hash = "#/more/settings";
+    const ui = (
+      <LimitsProvider isAuthenticated>
+        <MobileApp />
+      </LimitsProvider>
+    );
+    const { rerender } = render(ui);
+    const ui2 = (
+      <LimitsProvider isAuthenticated>
+        <MobileApp />
+      </LimitsProvider>
+    );
+    await act(async () => {});
+    expect(window.location.hash).toBe("#/more/settings");
+    auth.user = null;
+    rerender(ui2);
+    await waitFor(() => expect(window.location.hash).toBe("#/vault"));
   });
 });

@@ -248,8 +248,9 @@ export async function installApiMocks(
         if (method === "DELETE") {
           rec.shares.push("revoke");
           share = null;
-          // The real endpoint answers 204; Chromium aborts a CDP-fulfilled 204 here
-          // (ERR_ABORTED), and revokeShare only checks res.ok -- so 200 + {}.
+          // The real endpoint answers 204. F4 (2026-10-11): fulfill({ status: 204 }) with no
+          // body still aborts in Chromium (ERR_ABORTED, "failed requests"); revokeShare only
+          // checks res.ok -- so 200 + {}.
           return ok(route, {});
         }
       }
