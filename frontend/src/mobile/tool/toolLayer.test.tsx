@@ -134,3 +134,48 @@ describe("S3-07 tool analytics (additive, layout: phone)", () => {
     expect(calls("add_cards_abandoned")).toEqual([{ pending_entries: 4, layout: "phone" }]);
   });
 });
+
+describe("S3-16 add_cards_abandoned from the close guard (desktop shape + layout phone)", () => {
+  beforeEach(() => {
+    resetRouterForTest();
+    resetToolForTest();
+    setMediaMatches(PHONE_QUERY, true);
+    spy.mockClear();
+  });
+  afterEach(() => resetMediaMatches());
+
+  it("X with copies waiting -> Discard & Close sends pending_entries = copies; Return sends nothing", async () => {
+    const { addCopy, getBatch } = await import("./batch");
+    const row = {
+      via: "keypad" as const,
+      force: false,
+      setCode: "SOR",
+      cardNumber: "87",
+      picks: { cardKey: null, setKey: null, stamp: null, finish: null },
+      variantId: 7221,
+      baseCardId: 814,
+    };
+    addCopy(row);
+    addCopy(row);
+    addCopy(row);
+    window.location.hash = "#/pad";
+    const { container } = render(<App />);
+    await act(async () => {});
+    const x = container.querySelector<HTMLButtonElement>(
+      '.m-tool__head [aria-label="Close keypad"]'
+    )!;
+    const btn = (t: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>(".m-d2-confirm .swu-btn")].find(
+        (b) => b.textContent?.trim() === t
+      )!;
+    await act(async () => x.click());
+    expect(container.querySelector(".m-d2-confirm-layer")).not.toBeNull();
+    await act(async () => btn("Return to Batch").click());
+    expect(container.querySelector(".m-d2-confirm-layer")).toBeNull();
+    expect(calls("add_cards_abandoned")).toEqual([]);
+    await act(async () => x.click());
+    await act(async () => btn("Discard & Close").click());
+    expect(calls("add_cards_abandoned")).toEqual([{ pending_entries: 3, layout: "phone" }]);
+    expect(getBatch()).toHaveLength(0);
+  });
+});

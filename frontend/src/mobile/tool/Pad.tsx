@@ -372,7 +372,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   // while a sheet or the card layer is over the pad, or a field has focus.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (document.querySelector(".m-sheet-layer, .m-cardlayer")) return;
+      if (document.querySelector(".m-sheet-layer, .m-cardlayer, .m-d2-confirm-layer")) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
       if (/^[0-9]$/.test(e.key)) {

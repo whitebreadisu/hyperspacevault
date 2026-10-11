@@ -1,12 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { publishNav } from "../card/navList";
 import { MOBILE_CAMERA_ENABLED } from "../flags";
 import { MIcon } from "../icons";
 import { back, go } from "../router";
+import { discardBatch, getBatch } from "./batch";
+import { DiscardConfirm } from "./DiscardConfirm";
 import { Pad } from "./Pad";
+import { VerifySheet } from "./VerifySheet";
 import { chooseSet, getToolState, setToolMode, setToolState, useToolState } from "./toolStore";
-import { toolScreenViewed } from "./toolAnalytics";
+import { toolAddCardsAbandoned, toolScreenViewed } from "./toolAnalytics";
 import "./tool.css";
 
 // BL-249 S3-01: the tool layer at #/pad (rev4 MTool.jsx). A layer over the
@@ -14,7 +17,9 @@ import "./tool.css";
 // (the Vault keeps its state), the bottom bar is covered and inert. Header =
 // title + sub, the mode toggle (only behind MOBILE_CAMERA_ENABLED, plan
 // A8), X top-right. The X closes back to the screen the tool opened over;
-// the close guard for a non-empty batch is stage 3c (S3-14). The keypad
+// with a non-empty batch it asks desktop's close guard first (S3-14:
+// Discard & Close empties the batch and closes, Return to Batch keeps
+// both). The entry row's Verify button opens the Verify cards sheet (S3-12). The keypad
 // ignores the Vault's finish scope: nothing here reads it, and Card details
 // opens the S2 card layer on the resolved printing with no scope (S3-06).
 
@@ -52,7 +57,14 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
     if (pNum && /^\d{1,4}$/.test(pNum)) setToolState({ num: pNum.replace(/^0+(?=\d)/, "") });
   }, [pSet, pNum, covered]);
 
-  const close = onClose ?? back;
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [guard, setGuard] = useState(false);
+  const leave = onClose ?? back;
+  // S3-14: the X asks first while copies wait in the batch.
+  const close = () => {
+    if (getBatch().length) setGuard(true);
+    else leave();
+  };
   return (
     <div
       className="m-padlayer m-tool"
@@ -108,10 +120,21 @@ export function ToolLayer({ params, covered, onRequestSignIn, onClose }: ToolLay
           publishNav({ ids: [card.base_card_id], narrowed: false, scope: null });
           go("#/card/" + card.base_card_id + "?v=" + variant.variant_id);
         }}
-        onOpenVerify={() => {
-          /* S3-12 (stage 3c): the Verify cards sheet. */
-        }}
+        onOpenVerify={() => setVerifyOpen(true)}
       />
+      {verifyOpen ? <VerifySheet onClose={() => setVerifyOpen(false)} /> : null}
+      {guard ? (
+        <DiscardConfirm
+          onReturn={() => setGuard(false)}
+          onDiscard={() => {
+            toolAddCardsAbandoned(getBatch().length); // BL-235 shape, S3-16
+            discardBatch();
+            setToolState({ lastAdded: null });
+            setGuard(false);
+            leave();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

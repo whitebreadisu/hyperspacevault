@@ -46,3 +46,40 @@ export async function pickSet(page: Page, code: string, all = false) {
   await page.locator(`.m-setpick__row[data-code="${code}"]`).click();
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
 }
+
+// ── BL-249 stage 3c: batch + Verify cards helpers ─────────────────────────
+
+/** Type a number and add it to the batch `times` times (Add to batch, then
+ * the "Add another" button the panel shows after an add). */
+export async function addTimes(page: Page, n: number | string, times = 1) {
+  await key(page, "Clear number");
+  await typeNum(page, n);
+  const add = page.locator(".m-ident__add .swu-btn");
+  await expect(add).toContainText("Add to batch");
+  for (let i = 0; i < times; i++) {
+    await add.click();
+    await expect(add).toContainText("Add another");
+  }
+}
+
+/** Open the Verify cards sheet from the entry row's Verify button. */
+export async function openVerify(page: Page) {
+  await page.locator(".m-pad__entry .m-logbtn").click();
+  await expect(page.locator(".m-sheet-layer--verify")).toBeVisible();
+  await page.waitForTimeout(250);
+}
+
+/** Hard-cap limits with the non-singleton Standard bucket raised to `max`
+ * (a long batch of one printing then stays admitted). */
+export async function raiseStandardLimit(page: Page, max: number) {
+  const { readFileSync } = await import("node:fs");
+  const limits = JSON.parse(readFileSync("e2e/mobile/fixtures/limits.json", "utf8")) as {
+    limits: { type_category: string; limit_bucket: string; max_quantity: number }[];
+  };
+  for (const l of limits.limits)
+    if (l.type_category === "standard" && l.limit_bucket === "Standard") l.max_quantity = max;
+  await page.route(
+    (u) => u.pathname === "/api/settings/limits",
+    (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(limits) })
+  );
+}

@@ -26,6 +26,12 @@ export function SheetHost({ children }: { children: ReactNode }) {
   );
 }
 
+/** BL-249 S3-14: the SheetHost element, for a layer that must sit over
+ * every sheet (the batch close-guard confirm). Null outside a SheetHost. */
+export function useSheetHost(): HTMLElement | null {
+  return useContext(HostContext);
+}
+
 /** Inside a sheet: close it with the leave motion (e.g. after a pick). */
 export function useSheetClose(): () => void {
   return useContext(CloseContext);

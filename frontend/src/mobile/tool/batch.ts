@@ -104,6 +104,11 @@ export function removeCopy(id: string): void {
   if (rows.some((r) => r.id === id)) emit(rows.filter((r) => r.id !== id));
 }
 
+/** S3-15: drop the copies a partial commit already wrote. */
+export function removeCopies(ids: Set<string>): void {
+  if (ids.size && rows.some((r) => ids.has(r.id))) emit(rows.filter((r) => !ids.has(r.id)));
+}
+
 /** Discard batch: clears every row. */
 export function discardBatch(): void {
   if (rows.length) emit([]);
