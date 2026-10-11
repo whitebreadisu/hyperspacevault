@@ -205,3 +205,52 @@
 .m-app .m-acctlayer .auth-modal-actions {
   gap: 10px;
 }
+
+/* -- Sharing layer (BL-251 S5-07): ShareManageModal.css at phone scale, values
+ * from rev4 m-rev4-d2.css 248-261. The overlay / card / form grain is the
+ * .m-authlayer wrapper's (shell.css). ------------------------------------- */
+.m-app .m-acctlayer .share-modal__rename-link {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0 0 8px;
+  font-size: 12px;
+}
+.m-app .m-acctlayer .share-modal__link-input {
+  min-height: 44px;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+.m-app .m-acctlayer .share-modal__link-row .auth-submit {
+  flex: none;
+  min-width: 76px;
+}
+.m-app .m-acctlayer .share-modal__hint {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* -- Verify-email banner (BL-251 S5-08): VerifyEmailBanner.css at phone scale
+ * (rev4 m-rev4-d2.css 262-272), the first child of .m-vault__below. It is
+ * content, not header: it does not collapse with the header. Search mode lifts
+ * the status rows to the top of the screen on fixed offsets, so the banner
+ * (one extra row above them) steps aside while the search box has focus. --- */
+.m-app .m-vault__below > .verify-email-banner {
+  flex: none;
+  gap: 8px 10px;
+  padding: 8px 12px;
+}
+.m-app .m-vault__below > .verify-email-banner .verify-email-banner__text {
+  flex: 1 1 100%;
+  font-size: 13.5px;
+}
+.m-app .m-vault__below > .verify-email-banner .verify-email-banner__button {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.m-app .m-vault__below > .verify-email-banner .verify-email-banner__hint {
+  flex: 1 1 100%;
+}
+.m-app .m-vault--search .m-vault__below > .verify-email-banner {
+  display: none;
+}

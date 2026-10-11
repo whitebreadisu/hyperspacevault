@@ -230,7 +230,7 @@ describe("S4-06 screen_viewed for More, About, Updates", () => {
     await goHash("#/more/about");
     await goHash("#/more/updates");
     await goHash("#/about");
-    await goHash("#/more/sharing"); // ComingSoon until S5-07: nothing yet
+    await goHash("#/more/sharing"); // signed out: guarded account route, sends nothing (S5-07)
     expect(views()).toEqual([
       { screen: "more", layout: "phone" },
       { screen: "about", layout: "phone" },

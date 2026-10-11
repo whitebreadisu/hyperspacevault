@@ -122,3 +122,11 @@ The variant-mapping spec and the exceptions report have no archive file of their
 **Disposition:** → ADR-0028 (printed codes map direct at onboarding) + archive. The "never a guess" refusal stays in §17.5; only the admission rule changed.
 
 > - **The refusal posture (locked):** all mapping tables are **deliberately partial** — an unmapped set code (`unmapped_set`) or quantity column (`unmapped_column`) becomes an itemized problem row, **never a guess** (a wrong set/column guess silently attributes the wrong printing — the one failure mode worse than refusing). Owner's standing rule: the tables map only swuapi-sourced catalog content, and a code enters a table only once a real export from that tool has shown it (e.g. `HMW` stayed unmapped from its 2026-08 preview appearance until a real HoloScan/SWUDB-format export verified it on 2026-10-08).
+
+## Archived 2026-10-11 — §25.4 slice-4 interim wording superseded by slice 5 (§25.5)
+
+Two §25.4 sentences described slice-4 state ("until slice 5"); replaced in place when slice 5 landed (BL-251). Verbatim:
+
+> Code: `frontend/src/mobile/more/`. Routes `#/more`, `#/about`, `#/more/about`, `#/more/updates`, `#/more/importexport`; Settings, Change Password and Sharing stay one-sentence placeholders until slice 5.
+
+> - **Gating** is desktop's. Import & Export and Sharing stay listed as `aria-disabled` teasers for a signed-out visitor and open sign-in. Import & Export is also inert for a signed-in unverified account and a tap shows "Verify your email to import or export your collection." Desktop's tail "— see the banner above." is dropped because the phone has no verify banner until slice 5.
