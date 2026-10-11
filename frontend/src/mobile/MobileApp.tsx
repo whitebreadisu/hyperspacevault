@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import { hasPasswordProvider } from "../utils/googleAuth";
@@ -6,6 +6,8 @@ import { AccountSlot } from "./AccountSlot";
 import { AuthLayer } from "./AuthLayer";
 import { CardDetail } from "./card/CardDetail";
 import { FinishSheetHost } from "./card/FinishSheet";
+import { AccountLayer } from "./account/AccountLayer";
+import { SettingsScreen } from "./account/SettingsScreen";
 import { ComingSoon } from "./ComingSoon";
 import { FeedbackScreen } from "./FeedbackScreen";
 import { AboutScreen } from "./more/AboutScreen";
@@ -16,7 +18,7 @@ import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
-import { back, go, parseHash, useRoute } from "./router";
+import { back, backOr, go, parseHash, useRoute } from "./router";
 import type { Route } from "./router";
 import { ToolLayer } from "./tool/ToolLayer";
 import { TitleChooser } from "./TitleChooser";
@@ -38,8 +40,6 @@ interface Screen {
 }
 
 const SOON: Record<string, string> = {
-  "more/settings": "Settings arrive with a later slice.",
-  "more/password": "Change Password arrives with a later slice.",
   "more/sharing": "Sharing arrives with a later slice.",
 };
 
@@ -50,6 +50,12 @@ function screenKey(route: Route): string | null {
   const [a, b] = route.segs;
   if (a === "about") return "about";
   if (a !== "more") return null;
+  // BL-251 S5-01: Settings; Delete Account is a layer over it (S5-03), so its
+  // route keeps the Settings screen mounted underneath.
+  if (b === "settings" || b === "delete") return "more/settings";
+  // S5-02: Change Password is a layer over whatever screen it was opened from
+  // (see `layerBase` below).
+  if (b === "password") return "more/password";
   if (
     b === "about" ||
     b === "updates" ||
@@ -66,6 +72,9 @@ function screenKey(route: Route): string | null {
 const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
   vault: "vault",
   more: "more",
+  "more/settings": "settings",
+  password: "password",
+  delete: "delete",
   about: "about",
   "more/about": "about",
   "more/updates": "new_arrivals",
@@ -98,7 +107,7 @@ function useVisualViewport(): void {
 
 export function MobileApp() {
   const route = useRoute();
-  const { user, logout, emailVerified } = useAuth();
+  const { user, logout, emailVerified, loading } = useAuth();
 
   // S1-09: the auth layer, closed by desktop's single-source-of-truth rule --
   // a successful sign-in closes it, except mid-signup / mid-Google-link where
@@ -172,7 +181,31 @@ export function MobileApp() {
   if (cardId == null && !isTool && !screenKey(route) && route.params !== vaultParams)
     setVaultParams(route.params);
 
-  const key = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  const rawKey = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  // BL-251 S5-02 / S5-03: Change Password and Delete Account are layers
+  // (desktop's modals, unchanged) over a screen that stays mounted beneath:
+  // Delete over Settings (its route maps to the Settings key), Password over
+  // the last screen shown (More on a deep link).
+  const isPassword = rawKey === "more/password";
+  const acctLayer: "password" | "delete" | null = isPassword
+    ? "password"
+    : rawKey === "more/settings" && screenRoute.segs[1] === "delete"
+      ? "delete"
+      : null;
+  const [layerBase, setLayerBase] = useState("more");
+  if (!isPassword && rawKey !== layerBase) setLayerBase(rawKey);
+  const key = isPassword ? layerBase : rawKey;
+  // The account screens need a signed-in user (Settings / Delete) and a
+  // password provider (Change Password): anything else lands on the Vault /
+  // More, as desktop's panes snap back to Cards on sign-out (App.tsx). After a
+  // successful Delete Account, Firebase signs out and this returns the shell
+  // to the anonymous Vault.
+  const pwProvider = hasPasswordProvider(user);
+  useEffect(() => {
+    if (loading) return;
+    if (!user && (rawKey === "more/settings" || isPassword)) go("#/vault", true);
+    else if (user && isPassword && !pwProvider) go("#/more", true);
+  }, [loading, user, rawKey, isPassword, pwProvider]);
   // BL-250 S4-05: a More sub-page entered from More shows the back chevron;
   // entered any other way (chooser, account menu, rail chip, deep link) the X.
   // S4 F2: the decision is kept per screen key, so a history return (More ->
@@ -200,6 +233,8 @@ export function MobileApp() {
           onLogout={() => void logout()}
         />
       );
+    if (k === "more/settings")
+      return <SettingsScreen fromMore={fromMore} onDeleteAccount={() => go("#/more/delete")} />;
     if (k === "about" || k === "more/about") return <AboutScreen fromMore={fromMore} />;
     if (k === "more/updates") return <UpdatesScreen fromMore={fromMore} onSeen={cue.clear} />;
     if (k === "more/importexport")
@@ -238,22 +273,35 @@ export function MobileApp() {
   // S1-27 / S4-06: screen_viewed from the router, once per screen (not per
   // param change); ComingSoon placeholders send nothing until their slices
   // land. S4-04: reaching More notes it for the Updates-row rule.
+  // S5-05: the password / delete layers report as their own screens; closing
+  // one back onto the screen beneath it is not a new view of that screen.
+  const viewKey = acctLayer ?? screen.key;
+  const prevView = useRef(viewKey);
   useEffect(() => {
-    const v = SCREEN_VIEWED[screen.key];
+    const closing = prevView.current === "password" || prevView.current === "delete";
+    prevView.current = viewKey;
+    if (closing && !acctLayer) return;
+    // A signed-out visitor on an account route is being sent to the Vault.
+    if (!user && (viewKey === "more/settings" || acctLayer)) return;
+    const v = SCREEN_VIEWED[viewKey];
     if (v) phoneScreenViewed(v);
-    if (screen.key === "more") noteMore();
-  }, [screen.key, noteMore]);
+    if (viewKey === "more") noteMore();
+  }, [viewKey, acctLayer, user, noteMore]);
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
       <div className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}>
         <SheetHost>
-          <div className="m-app__screen" key={screen.key} inert={cardId != null || toolShown}>
+          <div
+            className="m-app__screen"
+            key={screen.key}
+            inert={cardId != null || toolShown || acctLayer != null}
+          >
             {screen.el}
           </div>
           <div
             className="m-app__nav"
-            inert={cardId != null || toolShown}
+            inert={cardId != null || toolShown || acctLayer != null}
             style={{ display: "contents" }}
           >
             <MobileNav route={screenRoute} />
@@ -287,6 +335,13 @@ export function MobileApp() {
                 setChooserOpen(false);
                 go("#/more/updates");
               }}
+            />
+          ) : null}
+          {acctLayer ? (
+            <AccountLayer
+              key={acctLayer}
+              kind={acctLayer}
+              onClose={() => backOr(acctLayer === "delete" ? "#/more/settings" : "#/more")}
             />
           ) : null}
           {authOpen ? (

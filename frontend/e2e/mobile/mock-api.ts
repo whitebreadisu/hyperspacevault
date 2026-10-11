@@ -31,6 +31,8 @@ export interface Recorder {
   adjust: { variantId: number; delta: number }[];
   /** BL-248 S2-07: GET /api/base-cards/{id}/price-history queries, in order. */
   priceHistory: { baseCardId: number; variantId: number; range: string }[];
+  /** BL-251 S5-01: PUT /api/settings/limits bodies, in order. */
+  limitPuts: { limits: unknown[]; cap_mode?: string }[];
   /** BL-249 S3-15: POST /api/inventory/import calls (multipart fields + the
    * file's JSON), in order. */
   imports: { mode: string; capHandling: string; stage: string; file: ImportFile }[];
@@ -71,6 +73,7 @@ export const recorderFor = (page: Page): Recorder =>
     feedback: [],
     adjust: [],
     priceHistory: [],
+    limitPuts: [],
     imports: [],
     exports: [],
   };
@@ -106,6 +109,7 @@ export async function installApiMocks(
     feedback: [],
     adjust: [],
     priceHistory: [],
+    limitPuts: [],
     imports: [],
     exports: [],
   };
@@ -144,6 +148,24 @@ export async function installApiMocks(
         v.variant_id,
         (v as { price?: { market: number | null } | null }).price?.market ?? null
       );
+  type LimitsFixture = {
+    cap_mode: string;
+    limits: { type_category: string; limit_bucket: string; max_quantity: number | null }[];
+  };
+  let limitsOverrides: LimitsFixture["limits"] = [];
+  let limitsCapMode: string | null = null;
+  const limitsBody = () => {
+    const base = json<LimitsFixture>("limits.json");
+    return {
+      cap_mode: limitsCapMode ?? base.cap_mode,
+      limits: base.limits.map((c) => {
+        const o = limitsOverrides.find(
+          (x) => x.type_category === c.type_category && x.limit_bucket === c.limit_bucket
+        );
+        return o ? { ...c, max_quantity: o.max_quantity, is_default: false } : c;
+      }),
+    };
+  };
   const ok = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
@@ -165,8 +187,19 @@ export async function installApiMocks(
           route,
           [...qtyById].map(([variant_id, quantity]) => ({ variant_id, quantity }))
         );
-      if (method === "GET" && path === "/api/settings/limits")
-        return ok(route, json("limits.json"));
+      // S5-01: the limits double keeps what the last PUT wrote (a full
+      // replacement of the override set, as the backend does).
+      if (method === "GET" && path === "/api/settings/limits") return ok(route, limitsBody());
+      if (method === "PUT" && path === "/api/settings/limits") {
+        const body = req.postDataJSON() as {
+          limits: { type_category: string; limit_bucket: string; max_quantity: number | null }[];
+          cap_mode?: string;
+        };
+        rec.limitPuts.push(body);
+        limitsOverrides = body.limits;
+        if (body.cap_mode) limitsCapMode = body.cap_mode;
+        return ok(route, limitsBody());
+      }
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
       // S2-05: the stepper's batched adjust; the double keeps the quantities
       // it answers with (a later GET of /quantities still reads the fixture).

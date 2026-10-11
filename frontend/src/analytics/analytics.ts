@@ -70,6 +70,8 @@ export const SCREEN_VIEWED_SCREENS = [
   "about",
   "updates",
   "settings",
+  "password",
+  "delete",
   "sharing",
   "import_export",
   "shared_view",
