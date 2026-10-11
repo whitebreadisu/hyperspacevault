@@ -100,6 +100,16 @@ describe("S1-27 phone analytics events", () => {
     ]);
   });
 
+  it("F6: a ?q= deep link does not emit search_performed; a keystroke does", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVaultViewOver([], {}, { q: "luke" }));
+    act(() => vi.advanceTimersByTime(1000));
+    expect(calls("search_performed")).toEqual([]);
+    act(() => result.current.setQuery("lukes"));
+    act(() => vi.advanceTimersByTime(400));
+    expect(calls("search_performed")).toHaveLength(1);
+  });
+
   it("feedback_submitted after a successful submit", async () => {
     render(<FeedbackScreen onClose={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Bug reports, ideas, anything on your mind..."), {

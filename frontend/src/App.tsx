@@ -235,7 +235,8 @@ function AppContent() {
   // early-return (rules-of-hooks); the in-effect loading guard keeps the
   // first emit on the first *rendered* pane, not the loading splash.
   useEffect(() => {
-    if (loading) return;
+    // F2: the phone's router owns screen_viewed (MobileApp); skip it here.
+    if (loading || isPhone) return;
     const screenByView: Record<AppView, string> = {
       cards: "vault",
       "deck-check": "deck_check",
@@ -245,13 +246,14 @@ function AppContent() {
       "import-export": "import_export",
     };
     capture("screen_viewed", { screen: screenByView[view] });
-  }, [view, loading]);
+  }, [view, loading, isPhone]);
 
   if (loading) {
     return <p className="loading-text">Loading…</p>;
   }
 
-  if (isPhone) return <MobileApp />;
+  // F1: share links stay on the desktop tree until the shared-vault slice.
+  if (isPhone && !parseShareRouteToken(window.location.pathname)) return <MobileApp />;
 
   return (
     <div className="app-layout">

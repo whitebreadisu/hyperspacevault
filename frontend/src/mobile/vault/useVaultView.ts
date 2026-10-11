@@ -123,6 +123,9 @@ export function useVaultViewOver(
   // facet, ?finish= scopes (one of the 13 values), ?q= searches, ?view= /
   // ?size= / ?gsize= pick the view. Applied once per distinct param set.
   const applied = useRef<string | null>(null);
+  // F6: a query set by the ?q= param is a deep link, not a search; its
+  // search_performed is skipped until the user types.
+  const paramQuery = useRef<string | null>(null);
   const key = JSON.stringify(params);
   useEffect(() => {
     if (applied.current === key) return;
@@ -135,7 +138,10 @@ export function useVaultViewOver(
         s = withFilters(s, { ...s.filters, set: new Set(codes) });
       }
       if (p.finish && SCOPE_VALUES.includes(p.finish)) s = withScope(s, p.finish);
-      if (p.q != null) s = { ...s, query: p.q };
+      if (p.q != null) {
+        paramQuery.current = p.q;
+        s = { ...s, query: p.q };
+      }
       return s;
     });
     const patch: Partial<ViewPrefs> = {};
@@ -159,6 +165,7 @@ export function useVaultViewOver(
   }, [list.list.length]);
   useEffect(() => {
     if (state.query.length === 0) return undefined;
+    if (state.query === paramQuery.current) return undefined;
     const t = setTimeout(() => {
       capturePhone("search_performed", {
         query_length: state.query.length,
@@ -174,7 +181,10 @@ export function useVaultViewOver(
     sort,
     prefs,
     priceKind,
-    setQuery: useCallback((query: string) => setState((s) => ({ ...s, query })), []),
+    setQuery: useCallback((query: string) => {
+      paramQuery.current = null;
+      setState((s) => ({ ...s, query }));
+    }, []),
     setFilters: useCallback((next: FilterState) => setState((s) => withFilters(s, next)), []),
     setToggles: useCallback(
       (toggles: CollectionToggles) => setState((s) => ({ ...s, toggles })),

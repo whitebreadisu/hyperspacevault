@@ -74,7 +74,7 @@ export function FeedbackScreen({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="m-screen m-fb" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+    <div className="m-screen m-fb" role="dialog" aria-labelledby="fb-title">
       <div className="m-fb__shell">
         <div className="m-fb__panel">
           <header className="m-fb__head">

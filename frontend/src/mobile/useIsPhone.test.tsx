@@ -46,4 +46,16 @@ describe("S1-01 phone gate", () => {
     expect(desktop.container.querySelector(".app-layout")).not.toBeNull();
     expect(desktop.container.querySelector(".m-app")).toBeNull();
   });
+
+  it("F1: a /shared/<token> path keeps the desktop tree at phone width", () => {
+    window.history.pushState({}, "", "/shared/abc");
+    try {
+      setMediaMatches(PHONE_QUERY, true);
+      const r = render(<App />);
+      expect(r.container.querySelector(".m-app")).toBeNull();
+      expect(r.container.querySelector(".app-layout")).not.toBeNull();
+    } finally {
+      window.history.pushState({}, "", "/");
+    }
+  });
 });

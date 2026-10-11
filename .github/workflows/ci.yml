@@ -226,7 +226,7 @@ jobs:
   frontend:
     # BL-178: same gating as backend — see the comment there.
     needs: [classify-pr]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' && needs.frontend.result == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
