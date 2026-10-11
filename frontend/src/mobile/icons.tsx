@@ -93,6 +93,13 @@ const P: Record<string, ReactElement> = {
       <path d="m6 14.5 6-6 6 6" />
     </g>
   ),
+  // BL-249 S3-02: the keypad's delete-digit key (rev4 MPrimitives.jsx `bksp`).
+  bksp: (
+    <g>
+      <path d="M9 5.5h11v13H9L3.5 12z" />
+      <path d="m12 9.5 5 5M17 9.5l-5 5" />
+    </g>
+  ),
   sz0: (
     <g>
       <path d="M4 7h16M4 12h16M4 17h16" />

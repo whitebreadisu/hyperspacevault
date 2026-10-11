@@ -11,8 +11,9 @@ import { FeedbackScreen } from "./FeedbackScreen";
 import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
 import { phoneScreenViewed } from "./phoneAnalytics";
-import { back, go, useRoute } from "./router";
+import { back, go, parseHash, useRoute } from "./router";
 import type { Route } from "./router";
+import { ToolLayer } from "./tool/ToolLayer";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider } from "./vault/useVaultData";
@@ -32,7 +33,6 @@ interface Screen {
 }
 
 const SOON: Record<string, string> = {
-  pad: "The keypad arrives with the next slice.",
   more: "More arrives with a later slice.",
   "more/updates": "[HSV] Updates arrive with a later slice.",
   "more/settings": "Settings arrive with a later slice.",
@@ -42,7 +42,6 @@ const SOON: Record<string, string> = {
 
 function soonFor(route: Route): Screen | null {
   const [a, b] = route.segs;
-  if (a === "pad" || a === "camera") return { key: "pad", el: <ComingSoon sentence={SOON.pad} /> };
   if (a === "about") return { key: "about", el: <ComingSoon sentence={SOON.about} /> };
   if (a === "more" && b === "feedback")
     return { key: "more/feedback", el: <FeedbackScreen onClose={back} /> };
@@ -122,11 +121,33 @@ export function MobileApp() {
   // catalogue), not a fall-through to the Vault under a card hash.
   const cardId =
     route.segs[0] === "card" ? (/^\d+$/.test(route.segs[1] ?? "") ? +route.segs[1] : -1) : null;
-  const [vaultParams, setVaultParams] = useState(() => (cardId == null ? route.params : {}));
-  if (cardId == null && !soonFor(route) && route.params !== vaultParams)
+  // BL-249 S3-01: #/pad (and #/camera) is the tool LAYER over the screen it
+  // was opened from (baseRoute: the last route that is neither the tool nor
+  // a card), which stays mounted beneath it with the bar covered. S3-06: a
+  // card opened from the tool layers over the tool, which stays mounted
+  // (inert) so its state is untouched when the card closes.
+  const seg0 = route.segs[0];
+  const isTool = seg0 === "pad" || seg0 === "camera";
+  const [baseRoute, setBaseRoute] = useState<Route>(() =>
+    isTool || cardId != null ? parseHash("#/vault") : route
+  );
+  if (!isTool && cardId == null && route !== baseRoute) setBaseRoute(route);
+  const [prevSeg, setPrevSeg] = useState(seg0);
+  const [toolUnderCard, setToolUnderCard] = useState(false);
+  if (prevSeg !== seg0) {
+    setPrevSeg(seg0);
+    setToolUnderCard(seg0 === "card" && (prevSeg === "pad" || prevSeg === "camera"));
+  }
+  const toolShown = isTool || (cardId != null && toolUnderCard);
+  const screenRoute = toolShown ? baseRoute : route;
+
+  const [vaultParams, setVaultParams] = useState(() =>
+    cardId == null && !isTool ? route.params : {}
+  );
+  if (cardId == null && !isTool && !soonFor(route) && route.params !== vaultParams)
     setVaultParams(route.params);
 
-  const screen: Screen = (cardId == null ? soonFor(route) : null) ?? {
+  const screen: Screen = (cardId == null || toolShown ? soonFor(screenRoute) : null) ?? {
     key: "vault",
     el: (
       <Vault
@@ -155,12 +176,23 @@ export function MobileApp() {
     <VaultDataProvider isAuthenticated={!!user}>
       <div className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}>
         <SheetHost>
-          <div className="m-app__screen" key={screen.key} inert={cardId != null}>
+          <div className="m-app__screen" key={screen.key} inert={cardId != null || toolShown}>
             {screen.el}
           </div>
-          <div className="m-app__nav" inert={cardId != null} style={{ display: "contents" }}>
-            <MobileNav route={route} />
+          <div
+            className="m-app__nav"
+            inert={cardId != null || toolShown}
+            style={{ display: "contents" }}
+          >
+            <MobileNav route={screenRoute} />
           </div>
+          {toolShown ? (
+            <ToolLayer
+              params={isTool ? route.params : {}}
+              covered={cardId != null}
+              onRequestSignIn={openSignIn}
+            />
+          ) : null}
           {cardId != null ? (
             <CardDetail
               key={cardId}

@@ -4,6 +4,7 @@ import { MIcon } from "./icons";
 import type { IconName } from "./icons";
 import { MSWUButton } from "./MSWUButton";
 import { go } from "./router";
+import { openTool } from "./tool/toolStore";
 import type { Route } from "./router";
 
 // BL-247 S1-04: the bottom bar (rev4 MApp.jsx:70-102, `bar=one`): Vault tab,
@@ -46,7 +47,7 @@ export function MobileNav({ route }: { route: Route }) {
           {MOBILE_CAMERA_ENABLED ? (
             <MSWUButton
               size="md"
-              onClick={() => go("#/pad")}
+              onClick={openTool}
               ariaLabel="Keypad or camera: opens the mode you used last"
             >
               <span className="m-nav__tool m-nav__tool--on">
@@ -58,7 +59,7 @@ export function MobileNav({ route }: { route: Route }) {
               </span>
             </MSWUButton>
           ) : (
-            <MSWUButton size="md" onClick={() => go("#/pad")} ariaLabel="Keypad">
+            <MSWUButton size="md" onClick={openTool} ariaLabel="Keypad">
               <span className="m-nav__tool m-nav__tool--on">
                 <MIcon name="pad" size={20} />
               </span>
