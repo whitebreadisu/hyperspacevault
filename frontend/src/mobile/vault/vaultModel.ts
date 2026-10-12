@@ -61,7 +61,7 @@ function scopeRaw(row: ScopeMenuRow): string[] {
   return row.kind === "plain" ? [row.rawValue] : row.chips.map((c) => c.rawValue);
 }
 
-/** The 13 owner-locked scope values (variantScope.ts option set C). */
+/** The 14 owner-locked scope values (variantScope.ts option set C). */
 export const SCOPE_VALUES: string[] = [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].flatMap(
   scopeRaw
 );

@@ -121,7 +121,7 @@ export function useVaultViewOver(
   );
 
   // Review / deep-link params (rev4 MVault.jsx:420-447): ?set= writes the Set
-  // facet, ?finish= scopes (one of the 13 values), ?q= searches, ?view= /
+  // facet, ?finish= scopes (one of the 14 values), ?q= searches, ?view= /
   // ?size= / ?gsize= pick the view. Applied once per distinct param set.
   const applied = useRef<string | null>(null);
   // F6: a query set by the ?q= param is a deep link, not a search; its

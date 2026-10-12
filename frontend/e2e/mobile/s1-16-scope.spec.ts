@@ -63,21 +63,24 @@ test("s1-16-menu-options", async ({ page }) => {
     return {
       rows: rows.join("|"),
       allInert: (m.querySelector(".m-scopemenu__all") as HTMLButtonElement).disabled,
-      showcase: !!m.querySelector('[data-scope="Showcase"]'),
+      showcase: m.querySelectorAll('[data-scope="Showcase"]').length,
     };
   });
+  // REPLACE (BL-259 FR4-03, owner decision 2026-10-12): this test pinned four
+  // pinned rows, "no Showcase" and 13 values; Showcase is back as the last
+  // pinned row (one chip), so it pins five rows, one Showcase and 14 values.
   expect(r.rows).toBe(
-    "Standard:Non-foil/Foil|Hyperspace:Non-foil/Foil|Prestige:Std/Foil/Serialized|Weekly Play:Non-foil/Foil"
+    "Standard:Non-foil/Foil|Hyperspace:Non-foil/Foil|Prestige:Std/Foil/Serialized|Weekly Play:Non-foil/Foil|Showcase:Showcase"
   );
   expect(r.allInert).toBe(true);
-  expect(r.showcase).toBe(false);
+  expect(r.showcase).toBe(1);
   await page.locator(".m-scopemenu__more").click();
   const all = await page.evaluate(() =>
     [...document.querySelectorAll(".m-sheet-layer--scope [data-scope]")].map(
       (e) => (e as HTMLElement).dataset.scope
     )
   );
-  expect(all).toHaveLength(13);
+  expect(all).toHaveLength(14);
   expect(all.slice(-4)).toEqual([
     "Convention Exclusive",
     "Event Exclusive",

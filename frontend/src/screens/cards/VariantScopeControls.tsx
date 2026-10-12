@@ -122,6 +122,7 @@ function ScopeChips({
             scope === chip.rawValue ? " ifp-finish-pair__chip--on" : ""
           }`}
           aria-pressed={scope === chip.rawValue}
+          data-scope={chip.rawValue}
           onClick={() => onPick(chip.rawValue)}
         >
           {chip.label}
@@ -156,8 +157,16 @@ function ScopeRow({
       </button>
     );
   }
+  // Pair / group / single rows share one anatomy: label column + chips. A
+  // "single" row (Showcase, BL-259) is a one-value row drawn with ONE chip --
+  // the picker's single-select idiom -- never the check-box glyph above.
   return (
-    <div className="ifp-finish-pair vs-scope-menu__row--chips">
+    <div
+      className={`ifp-finish-pair vs-scope-menu__row--chips${
+        row.kind === "single" ? " vs-scope-menu__row--single" : ""
+      }`}
+      data-row={row.key}
+    >
       <span className="ifp-finish-pair__label vs-scope-menu__row-label">{row.label}</span>
       <ScopeChips chips={row.chips} scope={scope} onPick={onPick} />
     </div>

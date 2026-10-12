@@ -334,3 +334,15 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 §25.3, verify quick-remove sentence, verbatim:
 
 > Each added row has a 44 px "−" quick remove that drops one copy.
+
+## Archived 2026-10-12 — §5.13 / §25.1 scope option set superseded: Showcase returns to the scope picker (BL-259)
+
+**Disposition:** → merge into ADR-0030 (dated amendment "Showcase returns to the scope picker (BL-259)") + archive. The round-4 revision of the variant-scope picker (BL-173) removed Showcase from the option set. On 2026-10-12 the owner asked for it back as the last pinned choice, drawn as a non-check-box control, on desktop and phone. §25.1's Finish-scope bullet did not enumerate the option set, so nothing was removed from it; it gained the option-set sentence.
+
+§5.13, variant-scope control bullet, verbatim:
+
+> - **Variant-scope control** in the Playset header (trigger reads **ALL FINISHES** unscoped / `PIPS · <finish>` scoped): single-select menu built from the FinishFilter's control anatomy, order mirroring the sidebar Finish filter (pair chips; Prestige as a pinned chip row; expander rows for Convention/Event/Prerelease/Movie; **Showcase deliberately excluded** — a leaders-only playset-1 finish is not a pip scope; 13 scopes total).
+
+Code comment that carried the same decision (`frontend/src/utils/variantScope.ts`, above `SCOPE_PINNED_ROWS`), verbatim:
+
+> Round 4 owner revisions to the option set: (1) order mirrors the sidebar Finish filter's pinned order (Standard, Hyperspace, Prestige, Weekly Play -- FINISH_TOP_LEVEL_ORDER minus Showcase); (2) Prestige moved UP from the expander into the core rows; (3) Showcase REMOVED from the picker entirely (a leaders-only playset-1 finish never made sense as a pip scope -- it remains fully reachable via the sidebar Finish filter); (4) the "leaders · playset 1" annotations are dropped.

@@ -1896,10 +1896,10 @@ describe("CardsPage docked filter sidebar layout (BL-129 R2, CREATE)", () => {
 // lives in CardsTable.test.tsx; this file only proves the CardsPage-owned
 // state machine that connects it to the rest of the filtering pipeline.
 describe("CardsPage variant scope (BL-173, CREATE)", () => {
-  // PORT (round 4 owner revisions): Showcase left the picker's option set,
-  // so these state-machine tests pick a Prestige chip instead --
-  // "Serialized" is the one chip face that's unique across the whole menu,
-  // keeping every pick a single unambiguous getByText.
+  // These state-machine tests pick a Prestige chip: "Serialized" is a chip
+  // face that's unique across the whole menu, keeping every pick a single
+  // unambiguous getByText. (Showcase, back in the picker since BL-259, has
+  // its own test below.)
   const scopeFixtureCards: BaseCardDetail[] = [
     makeBaseCardDetail({
       id: 50,
@@ -2033,6 +2033,53 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
 
     await renderPage();
     expect(scopeTriggerBtn().textContent).toContain("ALL FINISHES");
+  });
+
+  // CREATE (BL-259 FR4-02/04, owner decision 2026-10-12): Showcase is a scope
+  // again; picking it runs the same state machine as every other value.
+  it("fr4-02 picking Showcase writes the Finish facet to Showcase and lists only cards with a Showcase printing", async () => {
+    mockGetBaseCardsList.mockResolvedValue([
+      ...scopeFixtureCards,
+      makeBaseCardDetail({
+        id: 52,
+        set_code: "SOR",
+        base_card_number: "5",
+        name: "Showcase Leader",
+        type: "Leader",
+        variants: [
+          makeVariant({
+            variant_id: 521,
+            variant_type: "Standard",
+            finish: "Standard",
+            source_set_code: "SOR",
+            card_number: "5",
+            quantity: 1,
+          }),
+          makeVariant({
+            variant_id: 522,
+            variant_type: "Showcase",
+            finish: "Showcase",
+            source_set_code: "SOR",
+            card_number: "771",
+            quantity: 1,
+          }),
+        ],
+      }),
+    ]);
+    await renderPage();
+    fireEvent.click(scopeTriggerBtn());
+    fireEvent.click(document.querySelector('.vs-scope-menu [data-scope="Showcase"]')!);
+
+    expect(screen.getByText("Showcase Leader")).toBeInTheDocument();
+    expect(screen.queryByText("Has Serialized")).toBeNull();
+    expect(screen.queryByText("Standard Only")).toBeNull();
+    expect(screen.getByRole("button", { name: "Finish — Showcase" })).toBeTruthy();
+    expect(scopeTriggerBtn().textContent).toContain("PIPS · Showcase");
+    expect(scopeTriggerBtn().className).toContain("vs-header-scope__trigger--on");
+    // Leader playset 1: the one owned Showcase copy fills the one scoped pip.
+    const cell = document.querySelector("td.td-playset")!;
+    expect(cell.querySelectorAll(".playset__pip--scoped")).toHaveLength(1);
+    expect(cell.querySelector(".playset__pips--scoped-complete")).not.toBeNull();
   });
 
   it("anonymous: scope still narrows the list (public catalog) and the Value column still renders", async () => {

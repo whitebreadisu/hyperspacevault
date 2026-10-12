@@ -11,6 +11,8 @@ import { Sheet, useSheetClose } from "../Sheet";
 // while unscoped), desktop's pinned rows (SCOPE_PINNED_ROWS), a divider, then
 // "Show all finishes…" for SCOPE_EXPANDED_ROWS. A pick closes the menu
 // (desktop). The scope itself writes the Finish facet (vaultModel.withScope).
+// The last pinned row is Showcase (BL-259): a one-value row drawn with one
+// chip (the menu's single-select idiom), not the tail's check-box row.
 
 export const UNSCOPED_LABEL = "All finishes";
 
@@ -103,7 +105,14 @@ function ScopeMenu({
           r.kind === "plain" ? null : (
             <div
               key={r.key}
-              className={"m-ffin " + (r.kind === "group" ? "m-ffin--prestige" : "m-ffin--pair")}
+              className={
+                "m-ffin " +
+                (r.kind === "group"
+                  ? "m-ffin--prestige"
+                  : r.kind === "single"
+                    ? "m-ffin--pair m-ffin--single"
+                    : "m-ffin--pair")
+              }
               data-row={r.key}
             >
               <span className="m-ffin__label">{r.label}</span>

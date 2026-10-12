@@ -290,9 +290,9 @@ export function isFinishSetScopedTo(finish: Set<string>, scope: string): boolean
 }
 
 // ── Scope menu -- Option set C (Definition §2, owner-locked) ────────────────
-// 14 scopes + "All variants": the pinned section (3 pair rows + Showcase,
-// mirroring buildFinishTree's own pinned rows) plus an expandable "Show all
-// finishes…" tail (Prestige's 3-chip group + 4 more plain rows). Values here
+// 14 scopes + "All finishes": the pinned section (3 pair rows, Prestige's
+// 3-chip group and the single-chip Showcase row) plus an expandable "Show
+// all finishes…" tail (4 plain rows). Values here
 // are literal raw finish strings (== the exported variant_type values,
 // confirmed 1:1 against the feasibility analysis's per-value table) -- they
 // are NOT faceted against the live catalog (the option SET itself is
@@ -325,15 +325,25 @@ interface ScopeGroupRow {
   chips: ScopeChip[];
 }
 
-export type ScopeMenuRow = ScopePairRow | ScopePlainRow | ScopeGroupRow;
+/** A one-value row drawn in the picker's own single-select idiom: the
+ * label column plus ONE chip (never the check-box glyph the plain rows
+ * use). `chips` keeps the pair/group shape so every consumer that reads
+ * `row.chips` handles it with no special case. */
+interface ScopeSingleRow {
+  kind: "single";
+  key: string;
+  label: string;
+  chips: [ScopeChip];
+}
 
-/* Round 4 owner revisions to the option set: (1) order mirrors the sidebar
- * Finish filter's pinned order (Standard, Hyperspace, Prestige, Weekly
- * Play -- FINISH_TOP_LEVEL_ORDER minus Showcase); (2) Prestige moved UP
- * from the expander into the core rows; (3) Showcase REMOVED from the
- * picker entirely (a leaders-only playset-1 finish never made sense as a
- * pip scope -- it remains fully reachable via the sidebar Finish filter);
- * (4) the "leaders · playset 1" annotations are dropped. */
+export type ScopeMenuRow = ScopePairRow | ScopePlainRow | ScopeGroupRow | ScopeSingleRow;
+
+/* The pinned option set: Standard, Hyperspace, Prestige, Weekly Play, then
+ * Showcase as the LAST pinned row -- visible without expanding, before the
+ * divider and "Show all finishes…". Showcase is in the picker by owner
+ * decision 2026-10-12 (BL-259, ADR-0030 amendment): he scopes to Showcase
+ * leaders. It is a single-chip row, not a check-box row -- the picker is
+ * single-select. Rows carry no "leaders · playset 1" annotations. */
 export const SCOPE_PINNED_ROWS: ScopeMenuRow[] = [
   {
     kind: "pair",
@@ -371,6 +381,12 @@ export const SCOPE_PINNED_ROWS: ScopeMenuRow[] = [
       { rawValue: "Weekly Play", label: "Non-foil" },
       { rawValue: "Weekly Play Foil", label: "Foil" },
     ],
+  },
+  {
+    kind: "single",
+    key: "Showcase",
+    label: "Showcase",
+    chips: [{ rawValue: "Showcase", label: "Showcase" }],
   },
 ];
 

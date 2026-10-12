@@ -64,6 +64,17 @@ describe("S2-20 Filters analytics (filter_applied / filters_cleared / finish_sco
     expect(calls("filters_cleared")).toEqual([{ layout: "phone" }]);
   });
 
+  // BL-259 FR4-03: the Showcase scope pick reports like every other value.
+  // (Asserted here, not in e2e: the phone harness runs with analytics off.)
+  it("fr4-03 a Showcase scope pick fires finish_scope_changed { finish: 'Showcase' } and writes the Finish facet", () => {
+    const { result } = renderHook(useSheet);
+    act(() => result.current.vv.setScope("Showcase"));
+    expect(calls("finish_scope_changed")).toEqual([{ finish: "Showcase", layout: "phone" }]);
+    expect(result.current.vv.state.scope).toBe("Showcase");
+    expect([...result.current.vv.state.filters.finish]).toEqual(["Showcase"]);
+    expect(calls("filter_applied")).toEqual([]);
+  });
+
   it("an action that changes nothing is not attributed to the next unrelated change (F7)", async () => {
     const { result, rerender } = renderHook(
       ({ list, n }: { list: number[]; n: number }) => useFilterApplied(list, n),
