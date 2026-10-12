@@ -258,15 +258,36 @@ jobs:
         working-directory: frontend
         run: npx vitest run --coverage
 
-  frontend-e2e-mobile:
-    # BL-247 S1-10: the phone-app Playwright suite (frontend/e2e/mobile).
-    # Same gating as frontend; runs after it so lint/type/unit failures
-    # surface first. `npm run e2e:mobile` starts the Firebase Auth emulator
-    # itself (firebase-tools is a devDependency) and the Vite dev server via
+  e2e-mobile-shard:
+    # BL-247 S1-10 / BL-260: the phone-app Playwright suite
+    # (frontend/e2e/mobile), split into five legs by Playwright project
+    # (phone-390 and phone-430 each halved with --shard=N/2; scan + desktop
+    # together) so legs carry roughly equal test time -- a plain --shard=N/4
+    # left one leg almost all self-skipped desktop tests. Cuts CI wall time
+    # (~25 min -> ~6-7 min; issue #227). Same code_changed
+    # gating as frontend, but it starts WITH frontend rather than after it:
+    # the repo is public (standard-runner minutes are free) so a wasted shard
+    # when lint fails costs nothing, and ci-ok + the deploy chain still
+    # require `frontend` to pass. Each shard keeps Playwright's default 2
+    # workers (the suite is timing-sensitive; do not raise workers) and
+    # starts its own Firebase Auth emulator via `npm run e2e:mobile`
+    # (firebase-tools is a devDependency) and the Vite dev server via
     # playwright.config.ts; the API is mocked from committed fixtures.
-    needs: [classify-pr, frontend]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' && needs.frontend.result == 'success' }}
+    # The required check name `frontend-e2e-mobile` lives on the aggregator
+    # job below, not here.
+    name: e2e-mobile (${{ matrix.name }})
+    needs: [classify-pr]
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: p390-1, name: "phone-390 (1/2)", args: "--project=phone-390 --shard=1/2" }
+          - { id: p390-2, name: "phone-390 (2/2)", args: "--project=phone-390 --shard=2/2" }
+          - { id: p430-1, name: "phone-430 (1/2)", args: "--project=phone-430 --shard=1/2" }
+          - { id: p430-2, name: "phone-430 (2/2)", args: "--project=phone-430 --shard=2/2" }
+          - { id: scan-desktop, name: "scan + desktop", args: "--project=scan --project=desktop-1440" }
 
     steps:
       - uses: actions/checkout@v7
@@ -287,15 +308,41 @@ jobs:
 
       - name: Run mobile e2e
         working-directory: frontend
-        run: npm run e2e:mobile
+        run: npm run e2e:mobile -- ${{ matrix.args }}
 
       - name: Upload Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.id }}
           path: frontend/playwright-report/
           retention-days: 7
+
+  frontend-e2e-mobile:
+    # BL-260: aggregator that carries the stable check name
+    # `frontend-e2e-mobile` ("the whole phone suite passed"). ci-ok,
+    # detect-changes, build-and-push and .github/scripts/ci_gate.sh all key on
+    # this name (BL-178 / BL-256) and are unchanged. Same skip semantics as
+    # before: skipped on docs-only PRs (code_changed != 'true') and when the
+    # run is cancelled; otherwise it runs and fails unless every shard
+    # succeeded (`needs.<matrix job>.result` is success only if all legs
+    # passed, failure if any failed). It does not look at `frontend`: a
+    # failing frontend already fails ci-ok and the deploy chain.
+    needs: [classify-pr, e2e-mobile-shard]
+    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify all mobile e2e shards passed
+        env:
+          SHARD_RESULT: ${{ needs.e2e-mobile-shard.result }}
+        run: |
+          echo "e2e-mobile-shard=$SHARD_RESULT"
+          if [ "$SHARD_RESULT" != "success" ]; then
+            echo "::error::mobile e2e shards did not all succeed (result '$SHARD_RESULT')."
+            exit 1
+          fi
+          echo "All mobile e2e shards green."
 
   terraform-fmt:
     # BL-178: same gating as backend — see the comment there.
