@@ -41,3 +41,7 @@ Adopt **Model B — build once, promote the artifact**, right-sized:
 - **−** How far the human gate can later thin is **bounded by detection + rollback maturity** (P6 observability + Cloud Run revision rollback are the levers).
 
 **Related:** BL-43 (implementation), ADR-0006 (the `swu-dev` environment this ships to), `SWU_Platform_Roadmap.md` §7 (principles 2/3/5/6; Stages 2–4), `docs/decisions/agentic-platform-concepts.md` (§4–9: build-once comparison, staging triggers, gate mechanics, autonomy concepts).
+
+---
+
+**Amendment 2026-10-12 (BL-256) — every test job gates every deploy.** The post-merge chain had grown a gap: the mobile Playwright job (`frontend-e2e-mobile`, added by BL-247) was required by the PR's `ci-ok` check but not by `detect-changes`, so a main push built and deployed dev while that suite was still running, and the `risk:low` fast promote inherited the same chain. Two rules now hold: (1) `detect-changes` (and so `build-and-push`, `deploy-dev`, `promote-prod-fast`) needs every test job, not a subset — a new test job is added to that `needs` list in the same PR that creates it; (2) `promote-prod.yml` independently verifies the promoted SHA's own main-run check runs (`.github/scripts/ci_gate.sh`) before anything moves, because branch protection proves only the PR's checks, not the merged commit's. Found by an external repo review (2026-10-12); confirmed live on `7d984df`.

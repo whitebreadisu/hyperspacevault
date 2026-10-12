@@ -376,7 +376,11 @@ jobs:
   # captures exactly what this push changed relative to the prior main tip.
 
   detect-changes:
-    needs: [backend, frontend]
+    # BL-256: frontend-e2e-mobile is a prerequisite of the whole deploy
+    # chain (build-and-push -> deploy-dev -> promote-prod-fast), not only of
+    # the PR's ci-ok gate -- a main push used to deploy dev while the mobile
+    # suite was still running (observed live on 7d984df, 2026-10-12).
+    needs: [backend, frontend, frontend-e2e-mobile]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -426,7 +430,7 @@ jobs:
   # ── main-only: build image once, push to both dev and prod AR ──────────────
 
   build-and-push:
-    needs: [backend, frontend, detect-changes]
+    needs: [backend, frontend, frontend-e2e-mobile, detect-changes]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
