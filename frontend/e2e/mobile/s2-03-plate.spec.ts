@@ -2,12 +2,13 @@ import { expect, measureEach, test } from "./helpers";
 import type { Page } from "@playwright/test";
 import { byNum, fin, openCard, openVault, QTY, tapRow } from "./card-helpers";
 
-// S2-03 (R5-5): the card-detail plate follows the SELECTED printing --
-// REPLACES rev4 r4-7-detail-plate-states + b2-detail-scoped-printing (both
-// asserted the card-total / scoped plate R5-5 retired). Computed colours =
-// cards.css literals (rev4 r47Check table) for empty / short / complete
-// printings of SOR 87 Darth Vader and ASH 52 Chimaera, in the expanded and
-// the collapsed plate.
+// S2-03: the card-detail plate follows the SELECTED printing. BL-257 FR1-07
+// (owner decision 2026-10-12, ADR-0030) REPLACED the R5-5 idiom this spec
+// first asserted (the vault-list count chip + 10 px pips inside the steel
+// frame): the plate is now the gallery plate scoped to the selected printing.
+// Computed colours = cards.css gallery-plate literals (the s1-20 table) for
+// empty / short / complete printings of SOR 87 Darth Vader and ASH 52
+// Chimaera, in the expanded and the collapsed plate.
 test.afterEach(measureEach);
 test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone detail");
@@ -15,66 +16,65 @@ test.beforeEach(() => {
 
 const T = {
   text: "rgb(230, 230, 230)",
-  surf: "rgb(15, 21, 40)",
-  border: "rgb(30, 39, 72)",
   muted: "rgb(107, 122, 153)",
-  green: "rgb(23, 138, 58)",
-  greenRing: "rgba(23, 138, 58, 0.6)",
-  greenGlow: "rgba(23, 138, 58, 0.25) 0px 0px 6px 0px",
+  green: "rgb(31, 163, 71)",
+  ring: "rgba(211, 211, 212, 0.35)",
+  ringDone: "rgba(31, 163, 71, 0.55)",
+  inner: "rgb(11, 14, 24)",
   amber: "rgb(217, 154, 31)",
-  amberLine: "rgba(217, 154, 31, 0.6)",
   amberWash: "rgba(217, 154, 31, 0.08)",
+  pipLine: "rgba(230, 230, 230, 0.45)",
   none: "rgba(0, 0, 0, 0)",
 };
 
 const readPlate = (page: Page, root: string) =>
   page.evaluate((root) => {
     const el = document.querySelector(root)!;
-    const chip = el.querySelector(".playset-chip")!;
-    const cs = getComputedStyle(chip);
-    const box = el.querySelector(".playset__pips")!;
-    const bs = getComputedStyle(box);
     const frame = el.querySelector(".gallery-plate")!;
+    const inner = frame.querySelector(".gallery-plate__inner")!;
+    const tot = frame.querySelector(".gallery-plate__total")!;
+    const ts = getComputedStyle(tot);
+    const pipsBox = frame.querySelector(".gallery-plate__pips")!;
     return {
-      chip: {
-        text: chip.textContent,
-        russo12: /Russo One/.test(cs.fontFamily) && cs.fontSize === "12px",
-        color: cs.color,
-        bg: cs.backgroundColor,
-        border: cs.borderTopColor,
-        glow: cs.boxShadow,
+      total: {
+        text: tot.textContent,
+        russo13: /Russo One/.test(ts.fontFamily) && ts.fontSize === "13px",
+        color: ts.color,
       },
-      chipLeft: chip.getBoundingClientRect().right <= box.getBoundingClientRect().left + 0.5,
-      plate: { border: bs.borderTopColor, bg: bs.backgroundColor },
+      pipsLeft: pipsBox.getBoundingClientRect().right <= tot.getBoundingClientRect().left + 0.5,
       frameRing: getComputedStyle(frame).backgroundColor,
-      pips: [...el.querySelectorAll(".playset__pip")].map((p) => {
+      inner: getComputedStyle(inner).backgroundColor,
+      plateH: frame.getBoundingClientRect().height,
+      oldIdiom: el.querySelectorAll(".playset-chip, .playset__pips").length,
+      pips: [...frame.querySelectorAll(".gallery-plate__pip")].map((p) => {
         const ps = getComputedStyle(p);
         return { w: ps.width, fill: ps.backgroundColor, line: ps.borderTopColor };
       }),
-      text: el.textContent,
+      text: frame.textContent,
     };
   }, root);
 
 type State = "empty" | "short" | "complete";
 function expectState(r: Awaited<ReturnType<typeof readPlate>>, q: number, size: number, s: State) {
-  expect(r.chip.text).toBe(String(q));
-  expect(r.chip.russo12).toBe(true);
-  expect(r.chip.bg).toBe(T.surf);
-  expect(r.chip.color).toBe(s === "complete" ? T.green : s === "empty" ? T.muted : T.text);
-  expect(r.chip.border).toBe(s === "complete" ? T.greenRing : T.border);
-  expect(r.chip.glow).toBe(s === "complete" ? T.greenGlow : "none");
-  expect(r.chipLeft).toBe(true);
-  // The amber-outlined plate only at a playset (playset__pips--scoped-complete).
-  expect(r.plate.border === T.amberLine && r.plate.bg === T.amberWash).toBe(s === "complete");
-  // The steel frame never takes the gallery's green ring.
-  expect(r.frameRing).toBe("rgba(211, 211, 212, 0.35)");
+  // The number = the selected printing's count, Russo One at the phone scale.
+  expect(r.total.text).toBe(String(q));
+  expect(r.total.russo13).toBe(true);
+  expect(r.total.color).toBe(s === "complete" ? T.green : s === "empty" ? T.muted : T.text);
+  expect(r.pipsLeft).toBe(true);
+  // The gallery's complete state at a playset: green ring + amber inner wash.
+  expect(r.frameRing).toBe(s === "complete" ? T.ringDone : T.ring);
+  expect(r.inner).toBe(s === "complete" ? T.amberWash : T.inner);
+  expect(r.plateH).toBe(28);
+  // The vault-list idiom is gone from the plate.
+  expect(r.oldIdiom).toBe(0);
   expect(r.pips.length).toBe(size);
   r.pips.forEach((p, i) => {
     const on = i < Math.min(q, size);
-    expect(p.w).toBe("10px");
+    expect(p.w).toBe("8px");
+    // Scoped idiom: amber while short, green at a playset.
     const want = !on ? T.none : s === "complete" ? T.green : T.amber;
     expect(p.fill).toBe(want);
-    expect(p.line).toBe(on ? want : s === "empty" ? T.border : T.muted);
+    expect(p.line).toBe(on ? want : T.pipLine);
   });
   // No fraction on the card surface.
   expect(r.text).not.toMatch(/\d\s*\/\s*\d/);

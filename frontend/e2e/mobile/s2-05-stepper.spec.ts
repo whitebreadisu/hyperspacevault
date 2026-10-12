@@ -22,7 +22,7 @@ test("s2-05-stepper-adjusts", async ({ page }) => {
   await inc.click();
   // Optimistic: the readout and the plate move at once, before any call.
   await expect(qty).toHaveText("3");
-  await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText("3");
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText("3");
   expect(recorderFor(page).adjust).toEqual([]);
   await page.waitForTimeout(700);
   expect(recorderFor(page).adjust).toEqual([{ variantId: std.variant_id, delta: 1 }]);
@@ -72,7 +72,9 @@ test.describe("signed out", () => {
     await expect(dec).toHaveAttribute("aria-disabled", "true");
     await expect(page.locator(`${ACTIVE} .m-step__qty`)).toHaveText("—");
     await expect(page.locator(".cp-rail__item-qty")).toHaveCount(0);
-    await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText("—");
+    await expect(page.locator(".m-dreg3__own .gallery-plate__sign-in")).toHaveText(
+      "SIGN IN TO TRACK"
+    );
     // aria-disabled keeps the control tappable (Playwright treats it as disabled).
     await dec.click({ force: true });
     await expect(page.getByRole("dialog", { name: "Log In" })).toBeVisible();

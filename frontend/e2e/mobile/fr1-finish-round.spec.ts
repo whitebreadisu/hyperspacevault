@@ -32,6 +32,9 @@ test("fr1-01 search hint fits beside Filters + Clear; clear button clears the te
   });
   console.log("fr1-01 measure", JSON.stringify(m));
   expect(m.text).toBeLessThanOrEqual(m.content);
+  // FR1-01b: a real iPhone's font metrics differ from Chromium's, so the hint
+  // needs room to spare, not a bare fit: >= 6 px at 390 (and so at 430).
+  expect(m.content - m.text).toBeGreaterThanOrEqual(6);
   // With a value the clear button does not overlap the text area.
   await page.locator(".m-search__input").fill("luke skywalker and a long query string");
   const o = await page.evaluate(() => {
@@ -186,7 +189,9 @@ test("fr1-06 a tap anywhere on a variant row selects it; the stepper keeps its o
   expect(Number(await selectedId())).toBe(a);
   await expect(page.locator(`${row(a)} .m-print__main`)).toHaveAttribute("aria-pressed", "true");
   expect(await page.locator(".m-dreg__img").getAttribute("src")).not.toBe(artBefore);
-  await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText(String(QTY.get(a) ?? 0));
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText(
+    String(QTY.get(a) ?? 0)
+  );
   await expect(page.locator(".m-dreg__fin")).not.toHaveText("");
   // x N cell of another unselected row selects it.
   await scrollDetail(page, 0);

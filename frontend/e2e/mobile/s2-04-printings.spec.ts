@@ -61,7 +61,7 @@ test("s2-04-rail-select-swaps-art-and-plate", async ({ page }) => {
   const after = await page.locator(".m-dreg__img").getAttribute("src");
   expect(after).not.toBe(before);
   await expect(page.locator(".m-dreg__fin")).toHaveText("Hyperspace");
-  await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText(
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText(
     String(QTY.get(hs.variant_id) ?? 0)
   );
   await expect(page.locator(".m-dreg3__mini .m-dreg__pval")).toHaveText(

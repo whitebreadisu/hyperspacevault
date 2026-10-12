@@ -67,9 +67,10 @@
   font-style: italic;
 }
 /* FR1-01: the clear button's 48 px slot is reserved only while there is a
-   value; an empty field keeps a 12 px right pad so the hint is not clipped. */
+   value; an empty field keeps a 4 px right pad so the hint is not clipped
+   (FR1-01b: >= 6 px to spare at 390 px with a filter active). */
 .m-app .m-search__input:placeholder-shown {
-  padding-right: 12px;
+  padding-right: 4px;
 }
 /* Desktop .ac-input draws focus with its blue border only (outline: none). */
 .m-app .m-search__input:focus-visible {

@@ -318,3 +318,19 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 > - **Not built / not ported.** The spike's research machinery (crop capture/export, review/truth screens, condition select, continuous mode, Photo, Setup, event log, `window.__bl238`), guide v1, the orientation toggle, the optional zoom / focus / torch / lens controls, and the `?debug=1` raw-text overlay.
 > - **Provisional copy.** The camera's stream-state sentences ("Camera access is off", "Camera stopped by the phone", "Camera paused", "No camera found") and the generic pick question for non-collision picks ("This code matches more than one card. Pick the card you have.") are accepted provisionally; the owner adjusts them in the LAN round.
 > - **Harness.** Playwright project `scan` (Chromium with `--use-fake-device-for-media-stream`; `e2e/mobile/clip-helpers.ts` launches one browser per clip with `--use-file-for-fake-video-capture`) drives the BL-238 spike's MJPEG clips (`e2e/mobile/clips/`, 9 files, 13 MB) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); the other phone projects ignore `s7-` specs. Vitest sits beside the code in `frontend/src/mobile/camera/`.
+
+## Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)
+
+**Disposition:** → ADR-0030 (mobile 2.0 owner finish round) + archive. The owner walked the phone build on his iPhone on 2026-10-12 and reversed two as-built choices: the card-detail plate now uses the gallery idiom scoped to the selected printing, and a count is red only past its limit (phone and desktop). The verify sheet's remove control changed in the same round (a look change, no decision of its own; recorded here so the old wording is not lost).
+
+§25.2, plate sentence (R5-5), verbatim:
+
+> - The plate (steel frame, count chip + 10 px pips) describes the **selected printing** (R5-5): chip = that printing's count; pips amber while short of the playset, green inside the amber plate at a playset; no scope marker. Changing the printing in the rail updates the plate, art and price at once.
+
+§25.2, limit-colour sentence, verbatim (as built it applied the red from the limit upward — `qty >= limit` — on the phone stepper and in the desktop card popup, count and bar fill):
+
+> Over the limit, the quantity is red/amber with desktop's "Over limit" tag; no "n/m" on card surfaces.
+
+§25.3, verify quick-remove sentence, verbatim:
+
+> Each added row has a 44 px "−" quick remove that drops one copy.

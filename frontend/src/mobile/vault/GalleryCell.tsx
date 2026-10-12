@@ -3,6 +3,7 @@ import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/i
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
 import { cellImage, pickRepresentative } from "./cardImage";
+import { GalleryPlate } from "./GalleryPlate";
 import type { GallerySize } from "./useVaultView";
 
 // BL-247 S1-20: one gallery cell (rev4 MVault.jsx:177-193; desktop
@@ -48,11 +49,6 @@ export function GalleryCell({
   const scopedComplete =
     isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
   const pipsComplete = isScoped ? scopedComplete : complete;
-  const totalClass = complete
-    ? " gallery-plate__total--complete"
-    : owned === 0
-      ? " gallery-plate__total--empty"
-      : "";
   const { displayName } = parseCardDisplay(card);
   const finishLabel = shown && filterDriven ? ", " + (shown.finish ?? shown.variant_type) : "";
 
@@ -80,32 +76,15 @@ export function GalleryCell({
           />
         ) : null}
       </span>
-      <span className={`gallery-plate m-plate${pipsComplete ? " gallery-plate--complete" : ""}`}>
-        <span
-          className={`gallery-plate__inner${isAuthenticated ? "" : " gallery-plate__inner--signed-out"}`}
-        >
-          {isAuthenticated ? (
-            <>
-              <span className="gallery-plate__pips">
-                {Array.from({ length: size }).map((_, i) => {
-                  const isFilled = i < filledPips;
-                  return (
-                    <span
-                      key={i}
-                      className={`gallery-plate__pip${isFilled ? " gallery-plate__pip--filled" : ""}${
-                        isScoped && isFilled ? " gallery-plate__pip--scoped" : ""
-                      }`}
-                    />
-                  );
-                })}
-              </span>
-              <span className={`gallery-plate__total${totalClass}`}>{owned}</span>
-            </>
-          ) : (
-            <span className="gallery-plate__sign-in">SIGN IN TO TRACK</span>
-          )}
-        </span>
-      </span>
+      <GalleryPlate
+        size={size}
+        filled={filledPips}
+        scoped={isScoped}
+        complete={pipsComplete}
+        total={owned}
+        totalComplete={complete}
+        isAuthenticated={isAuthenticated}
+      />
     </button>
   );
 }

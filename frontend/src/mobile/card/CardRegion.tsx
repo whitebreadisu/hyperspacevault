@@ -17,8 +17,11 @@ import { PrintingPlate } from "./PrintingPlate";
 // overflow below it, and collapsing moves them with transform + opacity only
 // (the surface slides up by --d-delta, the art translates + scales to the
 // 80 px thumbnail from its top-left corner, the expanded plate block fades
-// and lifts, the collapsed row -- plate + the selected printing's price +
-// Market / Low -- fades in). Tap the collapsed art (or pull from the top)
+// and lifts, the collapsed row fades in). BL-257 FR1-08 / FR1-09: the
+// expanded caption reads "finish - SET ###" at the left and the selected
+// printing's price (per Market / Low) at the right; the collapsed row is
+// three columns -- thumbnail | finish label over the plate | Market / Low
+// over the price -- with no set / number. Tap the collapsed art (or pull from the top)
 // to expand; scrolling back to the top never does. Leaders flip with
 // desktop's two-phase rotateY (cp-image-flip--out / --in, 0.36 s total);
 // reduced motion swaps at once.
@@ -94,6 +97,8 @@ export function CardRegion({
     />
   );
   const num = `${variant.source_set_code} ${variant.card_number}`;
+  const fin = finishLabel(variant);
+  const noPrice = price === "—";
 
   return (
     <div
@@ -142,21 +147,35 @@ export function CardRegion({
       <div className="m-dreg3__fade">
         <div className="m-dreg3__own" aria-hidden={collapsed ? true : undefined}>
           <div className="m-dreg__cap">
-            <span className="m-dreg__fin">{finishLabel(variant)}</span>
-            <span className="m-dreg__num">{num}</span>
+            <span className="m-dreg__id">
+              <span className="m-dreg__fin">{fin}</span>
+              <span className="m-dreg__sep" aria-hidden="true">
+                {" - "}
+              </span>
+              <span className="m-dreg__num">{num}</span>
+            </span>
+            <span
+              className={"m-dreg__cprice" + (noPrice ? " m-dreg__cprice--none" : "")}
+              aria-label={`${fin} price ${price}`}
+            >
+              {price}
+            </span>
           </div>
           {plate}
         </div>
         <div className="m-dreg3__mini" aria-hidden={collapsed ? undefined : true}>
-          {plate}
+          <span className="m-dreg__inv">
+            <span className="m-dreg__minilab">{fin}</span>
+            {plate}
+          </span>
           <span className="m-dreg__price">
+            <PriceSeg mode={priceKind} onChange={onPriceKind} />
             <span
-              className={"m-dreg__pval" + (price === "—" ? " m-dreg__pval--none" : "")}
-              aria-label={`${finishLabel(variant)} price ${price}`}
+              className={"m-dreg__pval" + (noPrice ? " m-dreg__pval--none" : "")}
+              aria-label={`${fin} price ${price}`}
             >
               {price}
             </span>
-            <PriceSeg mode={priceKind} onChange={onPriceKind} />
           </span>
         </div>
         {hasBack ? (
