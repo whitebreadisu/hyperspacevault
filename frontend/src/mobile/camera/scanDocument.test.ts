@@ -16,7 +16,7 @@ const firebase = JSON.parse(readFileSync("firebase.json", "utf8")) as {
   hosting: {
     headers: Rule[];
     rewrites: { source: string; destination?: string }[];
-    redirects: { source: string; destination: string }[];
+    redirects?: { source: string; destination: string }[];
   };
 };
 const ruleHeaders = (source: string): Record<string, string> => {
@@ -44,13 +44,18 @@ describe("S7-01 second Vite entry", () => {
     expect(scanRewrite("/scan/")).toBe("/scan.html");
     expect(scanRewrite("/")).toBeNull();
     expect(scanRewrite("/scanner")).toBeNull();
-    const rewrite = firebase.hosting.rewrites.find((r) => r.source === "/scan/**");
-    expect(rewrite?.destination).toBe("/scan.html");
-    expect(firebase.hosting.redirects).toContainEqual({
-      source: "/scan",
-      destination: "/scan/",
-      type: 301,
-    });
+    // Both paths are REWRITES. There must be no `/scan` -> `/scan/` redirect:
+    // Hosting matches a redirect glob against the trailing-slash-normalised
+    // path, so that 301 also fired on `/scan/` and redirected it to itself
+    // (Safari "too many redirects", owner review round 2026-10-11).
+    const rewriteFor = (source: string) =>
+      firebase.hosting.rewrites.find((r) => r.source === source)?.destination;
+    expect(rewriteFor("/scan")).toBe("/scan.html");
+    expect(rewriteFor("/scan/**")).toBe("/scan.html");
+    const scanRedirects = (firebase.hosting.redirects ?? []).filter((r) =>
+      r.source.startsWith("/scan")
+    );
+    expect(scanRedirects).toEqual([]);
   });
 });
 
@@ -58,6 +63,10 @@ describe("S7-02 scoped isolation headers", () => {
   it("headersFor('/scan/') equals firebase.json's /scan/** block", () => {
     expect(headersFor("/scan/")).toEqual(ruleHeaders("/scan/**"));
     expect(headersFor("/scan")).toEqual(ruleHeaders("/scan/**"));
+    // Hosting's `/scan/**` header glob does not cover the slash-less form, so
+    // bare `/scan` carries its own identical block (preview-channel proof
+    // 2026-10-11: without it `/scan` served scan.html un-isolated).
+    expect(headersFor("/scan")).toEqual(ruleHeaders("/scan"));
     expect(headersFor("/scan.html")).toEqual(ruleHeaders("/scan.html"));
   });
 
