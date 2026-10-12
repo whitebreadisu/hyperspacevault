@@ -34,16 +34,20 @@ function SearchField({
   inputRef,
   onFocus,
   onBlur,
+  narrowed,
 }: {
   value: string;
   onChange: (q: string) => void;
   inputRef: RefObject<HTMLInputElement | null>;
   onFocus: () => void;
   onBlur: () => void;
+  /** Clear is on the row (a filter or scope is active): the field is at its
+   * narrowest, so the hint drops to 14 px (FR1-01b). */
+  narrowed: boolean;
 }) {
   return (
     <form
-      className="m-search"
+      className={"m-search" + (narrowed ? " m-search--narrowed" : "")}
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
@@ -232,6 +236,7 @@ export function VaultStatus({
           inputRef={searchRef}
           onFocus={onSearchFocus}
           onBlur={onSearchBlur}
+          narrowed={vv.narrowed}
         />
         {vv.narrowed ? (
           <button type="button" className="m-clearbtn" onClick={vv.clearAll}>

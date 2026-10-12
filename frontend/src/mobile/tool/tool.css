@@ -905,9 +905,13 @@
  * The logo is a SetLogo box (setLogoArt.ts SET_LOGO_BOX.deck, 66 x 24). The
  * deck name wraps to a second line where the row is tight (owner finish
  * round 2026-10-12: every name reads in full); product + two name lines is
- * about 51 px, inside the 68 px row. Gap 8 (was 10): a SELECTED Hoth row at
- * 390 px then leaves 115 px of text, and its one-line product ("Whole box ·
- * 2 decks", 112 px) is not cut by the check. */
+ * about 51 px, inside the 68 px row. Gap 8 (was 10): a SELECTED two-leader
+ * row at 390 px leaves 115 px of text. The product line is one line wherever
+ * it fits and wraps to a second where it does not (CI fix run: "Whole box ·
+ * 2 decks" is 112 px with sub-pixel text and 120 px where glyph advances snap
+ * to whole pixels, so one line was a 3 px fit on one machine and a cut on
+ * another). Two product lines + two name lines is about 63 px: still inside
+ * the 68 px row, so no row grows. */
 .m-app .m-d2-deck {
   min-height: 68px;
   gap: 8px;
@@ -962,7 +966,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #9fb0cc;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 /* Two lines at most, no ellipsis in practice: every one of the 23 names fits
  * (e2e fr3-03 asserts none is clipped at 390, a selected row included). */

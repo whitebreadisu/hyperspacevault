@@ -5,7 +5,7 @@ import { DECK_ART } from "../../src/mobile/tool/deckArtModel";
 import { BASE_SET_ORDER } from "../../src/utils/setGrouping";
 import { openCard } from "./card-helpers";
 import { FSHEET, openFilters, tapIn } from "./filters-helpers";
-import { expect, measureEach, test } from "./helpers";
+import { expect, measureEach, test, wideText } from "./helpers";
 import { openPad, pickSet } from "./tool-helpers";
 
 // BL-257 FR3 (owner finish round, 2026-10-12): the keypad's "Choose a set"
@@ -605,7 +605,8 @@ const probeNames = (page: Page) =>
         textW: text.width,
         nameLines: Math.round(name.getBoundingClientRect().height / lh),
         // (11 px caps: one line is about 13 px tall.)
-        productLines: product.getBoundingClientRect().height < 20 ? 1 : 2,
+        productLines: Math.round(product.getBoundingClientRect().height / 13.2),
+        productInk: inkRight(product) - product.getBoundingClientRect().left,
         nameClipped:
           name.scrollWidth > name.clientWidth + 0.5 ||
           name.scrollHeight > name.clientHeight + 0.5 ||
@@ -785,6 +786,9 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
   // the 23 deck names reads in full -- two lines at most, never cut -- with
   // the art on the rows, at 390 and 430, a SELECTED row (the check takes
   // 30 px) included; rows stay 68 px.
+  // CI fix run (PR #226): the product line reads in full too, on one line
+  // where it fits and on two where it does not, and all of it holds under the
+  // whole-pixel text condition (helpers.ts wideText) as well.
   test("fr3-03 every deck name reads in full, selected Twin Suns and Hoth rows included", async ({
     page,
   }) => {
@@ -800,7 +804,11 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
         const label = `${when}: ${r.deck} "${r.name}"`;
         expect(r.nameClipped, label).toBe(false);
         expect(r.productClipped, label).toBe(false);
-        expect(r.productLines, label).toBe(1);
+        // REPLACE (CI fix run; was `productLines` toBe(1)): one line was a
+        // 3 px fit on Windows and a cut on Linux. The product line may wrap;
+        // it is never cut and the row does not grow.
+        expect(r.productLines, label).toBeGreaterThanOrEqual(1);
+        expect(r.productLines, label).toBeLessThanOrEqual(2);
         expect(r.nameLines, label).toBeGreaterThanOrEqual(1);
         expect(r.nameLines, label).toBeLessThanOrEqual(2);
         expect(Math.round(r.rowH), label).toBe(68);
@@ -809,9 +817,14 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
     const all = await probeNames(page);
     expect(all).toHaveLength(23);
     check(all, "none selected");
+    // Unselected, every product line has room for one line, with or without
+    // sub-pixel text (the narrowest unselected text column is 143 px).
+    for (const r of all) expect(r.productLines, r.deck).toBe(1);
     // Each two-leader row selected in turn (the tightest case: 122 px of art
-    // and the check).
-    for (const deck of ["TS26-IMPROVISED", "TS26-DOOKU", "TS26-MAUL", "TS26-ANAKIN", "IBH"]) {
+    // and the check). SOR-LUKE carries the longest product line ("Two-Player
+    // Starter") beside two-leader art in these fixtures.
+    const tight = ["TS26-IMPROVISED", "TS26-DOOKU", "TS26-MAUL", "TS26-ANAKIN", "IBH", "SOR-LUKE"];
+    for (const deck of tight) {
       await page.locator(`.m-d2-deck[data-deck="${deck}"]`).click();
       await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
       await page.locator(".m-pad__entry .m-padset").click();
@@ -827,6 +840,20 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
       // The selected row gave 30 px to the check and still shows its name.
       const before = all.find((r) => r.deck === deck)!;
       expect(before.textW - sel[0].textW).toBeGreaterThan(25);
+      // The same list under the whole-pixel text condition: still nothing
+      // cut, two lines at most each, rows 68 px.
+      const widened = await wideText(page);
+      const wide = await probeNames(page);
+      check(wide, `${deck} selected, wide text`);
+      const ws = wide.find((r) => r.selected)!;
+      // (The widening took: the line is longer, or it wrapped.)
+      if (widened)
+        expect(ws.productLines > 1 || ws.productInk > sel[0].productInk, deck).toBe(true);
+      console.log(
+        `fr3-03 ${deck} selected: text ${sel[0].textW.toFixed(1)} px, product ` +
+          `${sel[0].productInk.toFixed(1)} px on ${sel[0].productLines} line(s); wide ` +
+          `${ws.productInk.toFixed(1)} px on ${ws.productLines} line(s), name ${ws.nameLines} line(s), row ${ws.rowH}`
+      );
     }
   });
 });

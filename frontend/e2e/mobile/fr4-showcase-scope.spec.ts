@@ -91,14 +91,16 @@ test.describe("FR4-03 Showcase on the phone Finish scope sheet", () => {
         scope: chip.dataset.scope,
         pressed: chip.getAttribute("aria-pressed"),
         checkRow: !!row.closest(".m-check") || !!row.querySelector(".m-check, .m-check__box"),
-        w: b.width >= 44,
-        h: b.height,
+        // (Sizes compared to 0.5 px: a rect at a fractional offset can report
+        // 44.00003 or 43.99997 for the same box -- PR #226 CI fix run.)
+        w: b.width >= 43.5,
+        h: Math.round(b.height),
         // Same chip drawing as the pair rows above it: height, right edge, colours.
-        sameH: b.height === pair.height,
+        sameH: Math.abs(b.height - pair.height) < 0.5,
         sameRight: Math.abs(b.right - pair.right) < 0.5,
         border: cs.borderTopColor,
         bg: cs.backgroundColor,
-        visible: b.bottom <= innerHeight,
+        visible: b.bottom <= innerHeight + 0.5,
       };
     });
     expect(r).toEqual({
@@ -234,11 +236,11 @@ test.describe("FR4-03 Showcase on the phone Finish scope sheet", () => {
             scope: chips[0].dataset.scope,
             aria: chips[0].getAttribute("aria-label"),
             pressed: chips[0].getAttribute("aria-pressed"),
-            h: b.height,
-            w44: b.width >= 44,
+            h: Math.round(b.height),
+            w44: b.width >= 43.5,
             // Same drawing as the Showcase row: row height, chip right edge;
             // the label sits on one line and clears the chip; nothing spills.
-            sameRowH: row.getBoundingClientRect().height === showH,
+            sameRowH: Math.abs(row.getBoundingClientRect().height - showH) < 0.5,
             sameRight: Math.abs(b.right - showChip.right) < 0.5,
             oneLine: range.getClientRects().length === 1,
             clear: range.getBoundingClientRect().right <= b.left,
@@ -473,7 +475,7 @@ test.describe("FR4-02 Showcase in the desktop scope menu (real app)", () => {
       return {
         last: row.dataset.row,
         check: !!row.querySelector(".ifp-multi__check"),
-        sameH: c.height === wp.height,
+        sameH: Math.abs(c.height - wp.height) < 0.5,
         sameRight: Math.abs(c.right - wp.right) < 0.5,
       };
     });
@@ -519,7 +521,7 @@ test.describe("FR4-02 Showcase in the desktop scope menu (real app)", () => {
             chip: chip.textContent,
             // The label is not ellipsised; the chip is the Showcase chip's size and edge.
             full: label.scrollWidth <= label.clientWidth,
-            sameH: b.height === show.height,
+            sameH: Math.abs(b.height - show.height) < 0.5,
             sameRight: Math.abs(b.right - show.right) < 0.5,
           };
         }),
@@ -551,7 +553,7 @@ test.describe("FR4-02 Showcase in the desktop scope menu (real app)", () => {
       const b = document
         .querySelector('.vs-scope-menu button[data-scope="Movie Promo"]')!
         .getBoundingClientRect();
-      return b.top >= items.top && b.bottom <= items.bottom;
+      return b.top >= items.top - 0.5 && b.bottom <= items.bottom + 0.5;
     });
     expect(reach).toBe(true);
     await shot(page, "fix-desktop-menu-expanded");

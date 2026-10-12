@@ -72,6 +72,14 @@
 .m-app .m-search__input:placeholder-shown {
   padding-right: 4px;
 }
+/* FR1-01b (CI fix run): with Clear on the row the hint is 14 px. Where the
+   browser snaps glyph advances to whole pixels (Linux Chromium) FILTERS and
+   CLEAR draw about 7 px wider between them and the field loses that much;
+   at 15 px the hint then had 2 px to spare, at 14 px it has 8 (15 on
+   Windows). The typed text stays 16 px (iOS never zooms). */
+.m-app .m-search--narrowed .m-search__input::placeholder {
+  font-size: 14px;
+}
 /* Desktop .ac-input draws focus with its blue border only (outline: none). */
 .m-app .m-search__input:focus-visible {
   outline: none;

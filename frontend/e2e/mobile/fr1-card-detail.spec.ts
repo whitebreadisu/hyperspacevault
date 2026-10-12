@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, measureEach, test } from "./helpers";
+import { expect, measureEach, test, wideText } from "./helpers";
 import { byNum, fin, openCard, scrollDetail } from "./card-helpers";
 import type { FxCard } from "./card-helpers";
 
@@ -406,7 +406,22 @@ test("fr1-08 caption: finish - set number at the left, the printing's price at t
   expect(Math.abs(m.fin.top - m.num.top)).toBeLessThan(6);
   expect(m.id.right).toBeLessThanOrEqual(m.price.left);
   expect(m.price.right).toBeLessThanOrEqual(m.own.right + 0.5);
-  expect(m.own.height).toBeLessThanOrEqual(52);
+  // PORT (CI fix run): the plate block is 52 px in the collapse arithmetic
+  // (S2-02: 14 + 392 + 12 + 52 + 12); the browser reports 52.00003 on some
+  // runs, so the bound carries a sub-pixel tolerance. A second caption line
+  // would add 15 px or more.
+  expect(m.own.height).toBeLessThanOrEqual(52.5);
+  // The same caption under the whole-pixel text condition (helpers.ts
+  // wideText): still one line, the price whole and inside the block; the
+  // finish - set number group is the part that may take the ellipsis.
+  await wideText(page);
+  m = await read();
+  expect(m.cap.height).toBeLessThanOrEqual(20);
+  expect(m.fin.height).toBeLessThanOrEqual(20);
+  expect(m.priceCut).toBe(false);
+  expect(m.id.right).toBeLessThanOrEqual(m.price.left);
+  expect(m.price.right).toBeLessThanOrEqual(m.own.right + 0.5);
+  expect(m.own.height).toBeLessThanOrEqual(52.5);
   // No price: an em dash in the muted colour (this printing has no Market).
   await seg("Market").click();
   await expect(page.locator(".m-dreg__cprice")).toHaveText("—");
@@ -448,8 +463,9 @@ test("fr1-09 collapsed row: thumbnail, finish label over the plate, Market / Low
     expect(g.pvalText).toBe(price);
     expect(g.pval.top).toBeGreaterThanOrEqual(g.seg.bottom - 5 - 0.5);
     expect(Math.abs(g.pval.right - g.seg.right)).toBeLessThan(1);
-    expect(g.segDrawn).toBe(34);
-    for (const h of g.segBtns) expect(h).toBeGreaterThanOrEqual(44);
+    // (0.5 px: a computed difference of rect sizes, PR #226 CI fix run.)
+    expect(Math.abs(g.segDrawn - 34)).toBeLessThanOrEqual(0.5);
+    for (const h of g.segBtns) expect(h).toBeGreaterThanOrEqual(43.5);
     // No set / number in the collapsed row.
     expect(g.numInMini).toBe(0);
     expect(g.miniText).not.toContain(c.set_code);

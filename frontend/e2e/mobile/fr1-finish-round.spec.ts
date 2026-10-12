@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { center, expect, measureEach, scrollBy, test } from "./helpers";
+import { center, expect, measureEach, scrollBy, test, wideText } from "./helpers";
 import { fin, openCard, QTY, scrollDetail } from "./card-helpers";
 import { addTimes, openPad, openVerify } from "./tool-helpers";
 
@@ -16,26 +16,42 @@ test("fr1-01 search hint fits beside Filters + Clear; clear button clears the te
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator(".m-clearbtn")).toBeVisible();
   await expect(page.locator(".m-filterbtn__n")).toBeVisible();
-  const m = await page.evaluate(() => {
-    const el = document.querySelector<HTMLInputElement>(".m-search__input")!;
-    const cs = getComputedStyle(el);
-    const ph = getComputedStyle(el, "::placeholder");
-    const c = document.createElement("canvas").getContext("2d")!;
-    c.font = `${ph.fontStyle} ${ph.fontWeight} ${ph.fontSize} ${ph.fontFamily}`;
-    const text = c.measureText(el.placeholder).width;
-    const content =
-      el.getBoundingClientRect().width -
-      parseFloat(cs.paddingLeft) -
-      parseFloat(cs.paddingRight) -
-      parseFloat(cs.borderLeftWidth) -
-      parseFloat(cs.borderRightWidth);
-    return { text, content, padR: cs.paddingRight, phSize: ph.fontSize };
-  });
+  const hint = () =>
+    page.evaluate(() => {
+      const el = document.querySelector<HTMLInputElement>(".m-search__input")!;
+      const cs = getComputedStyle(el);
+      const ph = getComputedStyle(el, "::placeholder");
+      const c = document.createElement("canvas").getContext("2d")!;
+      c.font = `${ph.fontStyle} ${ph.fontWeight} ${ph.fontSize} ${ph.fontFamily}`;
+      const text = c.measureText(el.placeholder).width;
+      const content =
+        el.getBoundingClientRect().width -
+        parseFloat(cs.paddingLeft) -
+        parseFloat(cs.paddingRight) -
+        parseFloat(cs.borderLeftWidth) -
+        parseFloat(cs.borderRightWidth);
+      return { text, content, padR: cs.paddingRight, phSize: ph.fontSize };
+    });
+  const m = await hint();
   console.log("fr1-01 measure", JSON.stringify(m));
   expect(m.text).toBeLessThanOrEqual(m.content);
   // FR1-01b: a real iPhone's font metrics differ from Chromium's, so the hint
   // needs room to spare, not a bare fit: >= 6 px at 390 (and so at 430).
   expect(m.content - m.text).toBeGreaterThanOrEqual(6);
+  // The third sanctioned lever: with Clear on the row the hint is 14 px (the
+  // typed text stays 16 px, so iOS never zooms the field).
+  expect(m.phSize).toBe("14px");
+  expect(await page.locator(".m-search__input").evaluate((e) => getComputedStyle(e).fontSize)).toBe(
+    "16px"
+  );
+  // The same room under the whole-pixel text condition (helpers.ts wideText:
+  // FILTERS and CLEAR draw wider, the field narrows). On the Linux runner the
+  // assertion above already is that condition and this repeats it.
+  const widened = await wideText(page);
+  const w = await hint();
+  console.log("fr1-01 measure wide", JSON.stringify({ widened, ...w }));
+  if (widened) expect(w.content).toBeLessThan(m.content - 6);
+  expect(w.content - w.text).toBeGreaterThanOrEqual(6);
   // With a value the clear button does not overlap the text area.
   await page.locator(".m-search__input").fill("luke skywalker and a long query string");
   const o = await page.evaluate(() => {
@@ -49,6 +65,18 @@ test("fr1-01 search hint fits beside Filters + Clear; clear button clears the te
     };
   });
   expect(o.textRight).toBeLessThanOrEqual(o.btnLeft + 0.5);
+});
+
+test("fr1-01 the hint is 15 px while nothing narrows the vault", async ({ page }) => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone search");
+  await page.goto("/#/vault");
+  await expect(page.locator(".m-row").first()).toBeVisible();
+  await expect(page.locator(".m-clearbtn")).toHaveCount(0);
+  expect(
+    await page
+      .locator(".m-search__input")
+      .evaluate((e) => getComputedStyle(e, "::placeholder").fontSize)
+  ).toBe("15px");
 });
 
 // ── FR1-02: one shared pull bar, app blue, scaleX fill, same on both screens ──

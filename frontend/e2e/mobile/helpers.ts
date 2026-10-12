@@ -200,6 +200,41 @@ export async function measureEach({ page }: { page: Page }): Promise<void> {
   await measure(page);
 }
 
+/** The whole-pixel text condition (PR #226 CI fix run). Linux Chromium -- the
+ * CI runner -- snaps every glyph advance to a whole CSS px, where Windows,
+ * macOS and iOS position glyphs at fractions. With the same web fonts loaded,
+ * Barlow (body) nets out level, but Barlow Condensed labels draw 0.43 to
+ * 0.67 px per glyph wider (measured: FILTERS 14 px 39.5 -> 44, CLEAR 13 px
+ * 29.9 -> 32, "Whole box · 2 decks" 11 px 112.1 -> 120.3), which is what
+ * turned 3 to 8 px text fits into cuts on CI only.
+ *
+ * On a browser with sub-pixel text this widens every Barlow Condensed text
+ * now in `.m-app` by 0.7 px per glyph (the top of the measured range) and
+ * returns true. Where the browser already snaps it does nothing and returns
+ * false: that run IS the condition. One shot -- call it again after the app
+ * re-renders the elements under test. A text fit asserted before and after
+ * this call holds on both kinds of platform, whichever one runs the suite. */
+export async function wideText(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const c = document.createElement("canvas").getContext("2d")!;
+    const snapped = [13, 14, 15, 17].every((px) => {
+      c.font = `600 ${px}px "Barlow Condensed"`;
+      return Number.isInteger(c.measureText("Whole box 2 decks").width);
+    });
+    if (snapped) return false;
+    for (const el of document.querySelectorAll<HTMLElement>(".m-app *")) {
+      if (el.dataset.wideText) continue;
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim());
+      const cs = getComputedStyle(el);
+      if (!own || !cs.fontFamily.includes("Barlow Condensed")) continue;
+      const now = parseFloat(cs.letterSpacing) || 0;
+      el.style.setProperty("letter-spacing", `${now + 0.7}px`, "important");
+      el.dataset.wideText = "1";
+    }
+    return true;
+  });
+}
+
 /** Centre of the first element matching `sel` (rev4 check script `center`). */
 export async function center(page: Page, sel: string): Promise<{ x: number; y: number }> {
   const b = await page.locator(sel).first().boundingBox();
