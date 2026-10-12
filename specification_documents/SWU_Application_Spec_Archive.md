@@ -318,3 +318,48 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 > - **Not built / not ported.** The spike's research machinery (crop capture/export, review/truth screens, condition select, continuous mode, Photo, Setup, event log, `window.__bl238`), guide v1, the orientation toggle, the optional zoom / focus / torch / lens controls, and the `?debug=1` raw-text overlay.
 > - **Provisional copy.** The camera's stream-state sentences ("Camera access is off", "Camera stopped by the phone", "Camera paused", "No camera found") and the generic pick question for non-collision picks ("This code matches more than one card. Pick the card you have.") are accepted provisionally; the owner adjusts them in the LAN round.
 > - **Harness.** Playwright project `scan` (Chromium with `--use-fake-device-for-media-stream`; `e2e/mobile/clip-helpers.ts` launches one browser per clip with `--use-file-for-fake-video-capture`) drives the BL-238 spike's MJPEG clips (`e2e/mobile/clips/`, 9 files, 13 MB) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); the other phone projects ignore `s7-` specs. Vitest sits beside the code in `frontend/src/mobile/camera/`.
+
+## Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)
+
+**Disposition:** → archive (clause-level). The owner decided 2026-10-12 that every set order, desktop and phone, runs main-release sets newest first (HMW … SOR) with IBH, TS26, Weekly Play and every other set keeping their place; the spec carries the new wording plus a dated tombstone per bullet. Each clause below is the exact superseded text, with its section as of the extraction date.
+
+### §5.4 locked-header logo derivation (BL-180)
+
+> …side by side in canonical release order — one logo when the container maps…
+
+### §5.13 completion panel (BL-163) — "by set" breakdown rows
+
+> …set-logo rows, plain release order)…
+
+### §5.13 Add Cards dropdowns (BL-164) — set list order
+
+> …canonical rail groups → divider → IBH/TS26;…
+
+### §5.16 scoped `#` column + row order (BL-187)
+
+> …the same set-release/tokens-last precedence as `sortBaseCards`…
+
+### §17.3 file order & reference quantity (dev-review round 2)
+
+> …curated set groups (base sets in release order through TS26 → Weekly Play in base-set order →…
+
+### §21 BL-213 column sorting
+
+> …Sets never interleave — `#`/Set sorts keep sets grouped (binder order);…
+
+### §23 Homeworlds set-grouping sentence
+
+> …its own group before Intro Battle: Hoth, with…
+
+### §25.1 Completion by set
+
+> …one row per base set (`buildSetBreakdown`…
+
+### §25.2 Set picker paragraph
+
+> …Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`).…
+
+### §25.2 Set picker paragraph (Weekly Play clause)
+
+> …lists each base set's Weekly Play set in base order, then a divider…
+

@@ -194,5 +194,19 @@
     "name": "Ashes of the Empire Weekly Play",
     "is_base_set": false,
     "release_date": null
+  },
+  {
+    "id": 29,
+    "code": "HMW",
+    "name": "Homeworlds",
+    "is_base_set": true,
+    "release_date": null
+  },
+  {
+    "id": 30,
+    "code": "HMWP",
+    "name": "Homeworlds Weekly Play",
+    "is_base_set": false,
+    "release_date": null
   }
 ]

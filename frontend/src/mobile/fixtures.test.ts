@@ -29,7 +29,8 @@ describe("S1-10 e2e fixtures type-check against the API types", () => {
     const s: CardSet[] = sets;
     const q: VariantQuantity[] = quantities;
     const l: LimitsResponseBody = limits as LimitsResponseBody;
-    expect(s).toHaveLength(28);
+    // PORT (BL-258 FR2-05): 28 prototype sets + hand-added HMW and HMWP.
+    expect(s).toHaveLength(30);
     expect(q.length).toBeGreaterThan(30);
     expect(l.limits).toHaveLength(30);
   });

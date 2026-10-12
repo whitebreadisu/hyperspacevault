@@ -5,30 +5,33 @@ import type { CardSet } from "../api/sets";
  * Every set is exactly one of: a base set (canonical or secondary), a
  * Weekly Play companion (nests under its base set -- only Weekly Play sets
  * nest), or an Exclusive (everything else). This module is the single
- * documented source for that fixed structure/membership/order -- do not
+ * documented source for that structure/membership/order -- do not
  * re-derive it ad hoc elsewhere; both Add Cards dropdowns (SetDropdown.tsx)
  * and FilterPanel's Set multi-select key off these same constants.
  *
- * "Fixed (do not change): group structure, membership, ordering, and
- * labels" -- per the doc's own closing section. New sets extend the lists
- * per the doc's "Rules for future sets (durable)" section; nothing here
- * should be derived from `is_base_set` alone (MV26 anchors only to ASH but
- * is still an Exclusive, so anchoring != base-set membership). */
+ * ORDER RULE (owner, 2026-10-12, BL-258, ADR-0031): main-release sets are
+ * listed NEWEST FIRST (HMW ... SOR). Intro Battle: Hoth and Twin Suns keep
+ * their place after the main block; Weekly Play sets follow their base set;
+ * every other set keeps its existing position. Group structure, membership
+ * and labels are unchanged. **A new main set is added at the FRONT of
+ * SET_CANONICAL** (and of the backend blocks in services/set_order.py).
+ * Nothing here should be derived from `is_base_set` alone (MV26 anchors only
+ * to ASH but is still an Exclusive, so anchoring != base-set membership). */
 
-/** Canonical base sets, release order. */
+/** Canonical base sets, display order: newest main release first. */
 export const SET_CANONICAL: readonly string[] = [
-  "SOR",
-  "SHD",
-  "TWI",
-  "JTL",
-  "LOF",
-  "SEC",
-  "LAW",
-  "ASH",
   "HMW",
+  "ASH",
+  "LAW",
+  "SEC",
+  "LOF",
+  "JTL",
+  "TWI",
+  "SHD",
+  "SOR",
 ];
 
-/** Secondary base sets, release order -- UI-mechanically the same tier as
+/** Secondary base sets, kept after the main block (IBH, TS26) -- UI-mechanically the same tier as
  * canonical (View 2's base-group list), but a separate block in View 1. */
 export const SET_SECONDARY: readonly string[] = ["IBH", "TS26"];
 
@@ -72,8 +75,8 @@ export function isBaseSetCode(code: string): boolean {
   return isCanonicalSet(code) || isSecondaryBaseSet(code);
 }
 
-/** Sort rank for the guaranteed ordering: canonical (release order), then
- * secondary (release order), then everything else (a stable high rank --
+/** Sort rank for the guaranteed ordering: canonical (newest first), then
+ * secondary, then everything else (a stable high rank --
  * callers needing a deterministic order for the "rest" should add their own
  * tiebreak, e.g. `.sort((a, b) => setSortRank(a) - setSortRank(b) ||
  * a.localeCompare(b))`). */
@@ -102,7 +105,7 @@ export function findSet(sets: readonly CardSet[], code: string): CardSet | null 
  *     `weeklyPlayCodeFor` encodes -- no catalog scan needed);
  *   - any other non-base set (Exclusives: C24/J25/P26/GG/...) shows the
  *     distinct home base sets (`set_code`) of the printings it released
- *     (`source_set_code === selected`), in canonical release order -- one
+ *     (`source_set_code === selected`), in canonical display order -- one
  *     logo when they all map to a single base set, several side by side
  *     when the container spans base sets.
  *

@@ -108,6 +108,61 @@ describe("SetDropdown", () => {
     expect(screen.queryByRole("listbox", { name: "Set" })).not.toBeInTheDocument();
   });
 
+  // CREATE (BL-258): FR2-04 -- literal rendered order, not derived from the constant.
+  it("fr2-04 base-only view lists HMW first ... SOR, then IBH, TS26", () => {
+    render(<SetDropdown sets={ALL_TEN} onChoose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Set" }));
+    const codes = screen
+      .getAllByRole("option")
+      .map((o) => o.getAttribute("aria-label")?.split(" — ")[0]);
+    expect(codes).toEqual([
+      "HMW",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+      "IBH",
+      "TS26",
+    ]);
+  });
+
+  it("fr2-04 all-sets view: Weekly Play mirrors the order, exclusives unchanged after the base block", () => {
+    const sets = [
+      ...ALL_TEN,
+      makeSet("HMWP", false),
+      makeSet("SORP", false),
+      makeSet("C24", false),
+      makeSet("J24", false),
+    ];
+    render(<SetDropdown sets={sets} onChoose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Set" }));
+    fireEvent.click(screen.getByText("Show all sets"));
+    const codes = screen
+      .getAllByRole("option")
+      .map((o) => o.getAttribute("aria-label")?.split(" — ")[0]);
+    expect(codes).toEqual([
+      "HMW",
+      "HMWP",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+      "SORP",
+      "IBH",
+      "TS26",
+      "C24",
+      "J24",
+    ]);
+  });
+
   it("omits a set entirely from either view when absent from the fetched sets list", () => {
     render(<SetDropdown sets={[makeSet("SOR")]} onChoose={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Set" }));

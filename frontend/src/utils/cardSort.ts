@@ -96,11 +96,11 @@ export interface SortContext {
   /** Unit/Collection display mode driving the Value column (CardsPage's
    * `valueDisplay`). */
   unitMode: ValueDisplayMode;
-  /** set_code -> release order, feeding the `#`/`Set` columns' set-group
+  /** set_code -> release_date (only non-base sets), feeding the `#`/`Set` columns' set-group
    * comparisons (utils/catalog.ts's setReleaseRank -- the same canonical
    * order sortBaseCards/orderSetCodes already use). */
   setOrder: SetOrderMap;
-  /** base_card_id -> the row's position in TODAY's default order (canonical
+  /** base_card_id -> the row's position in TODAY's default order (newest-first
    * set order, numbers ascending -- the array CardsPage's `cards` memo
    * already produces via sortCardsByScope). This is both the universal
    * tie-break every column falls back to AND the literal definition of `#`/
@@ -126,7 +126,7 @@ function compareDefaultOrder(a: InventoryCard, b: InventoryCard, context: SortCo
   return defaultIndexOf(a, context) - defaultIndexOf(b, context);
 }
 
-/** set_code group compare, release order ascending -- the same grouping
+/** set_code group compare, display order (newest main set first; Set desc reverses it) -- the same grouping
  * sortBaseCards/orderSetCodes use (utils/catalog.ts). */
 function compareSetGroup(a: InventoryCard, b: InventoryCard, context: SortContext): number {
   const [aTier, aKey] = setReleaseRank(a.set_code, context.setOrder);
@@ -285,8 +285,8 @@ export function sortCards(
     };
   } else if (column === "number" && direction === "desc") {
     // "Within each set group, numbers descending; the SET GROUP ORDER STAYS
-    // the canonical ascending order -- sets never interleave and never
-    // reverse here" (owner spec). Group by canonical set order ascending,
+    // the default (newest-first, BL-258) order -- sets never interleave and
+    // never reverse here" (owner spec). Group by the default set order,
     // then tokens pinned last (owner revision 2026-08-16 -- ascending
     // already pins them via the default order's own tokens-last rule), then
     // the row's own displayed number (BL-187 scope-aware) descending.

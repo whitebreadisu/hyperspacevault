@@ -104,6 +104,10 @@ test("s2-08-snapback", async ({ page }) => {
 });
 
 test("s2-08-first-edge", async ({ page }) => {
+  // PORT (BL-258): SOR 10 is now near the END of the newest-first list, so the
+  // walk back to position 1 takes ~45 prev taps (330 ms each) -- same walk,
+  // longer budget.
+  test.setTimeout(90_000);
   // card-swipe-first-edge: the first card of the list -- a right swipe is
   // dampened (a quarter of the finger) and always snaps back.
   await openCard(page, "SOR", 10);

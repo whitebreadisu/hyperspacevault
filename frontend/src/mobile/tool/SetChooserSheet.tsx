@@ -14,8 +14,8 @@ import { choosePrecon, chooseSet } from "./toolStore";
 // desktop's unlocked set bar + precon bar triggers (AddCardsSetBar /
 // AddCardsPreconBar) -- neither open on arrival; tapping one expands its
 // list in place (and folds the other). The set list is desktop
-// SetDropdown's two views from setGrouping.ts (Base sets only: canonical in
-// release order, divider, secondary; Show all sets: each base set with its
+// SetDropdown's two views from setGrouping.ts (Base sets only: canonical,
+// newest main set first, divider, secondary; Show all sets: each base set with its
 // Weekly Play set nested under it, divider, the Exclusives under desktop's
 // subgroup labels), the toggle in the sheet foot; the deck list is desktop's
 // 23 entries (preconEntries + sortedEntries). Picking closes the sheet and

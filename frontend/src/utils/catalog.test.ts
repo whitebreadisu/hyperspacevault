@@ -1,6 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { CURATED_SET_ORDER, orderSetCodes, sortBaseCards } from "./catalog";
+import { orderSetCodes, setReleaseRank, sortBaseCards } from "./catalog";
 import type { BaseCard } from "./catalog";
+
+// BL-258 (owner 2026-10-12): the single literal expectation for the base
+// block -- main sets newest first, then IBH, TS26. (A literal, not imported,
+// so the tests pin the order rather than echo the constant.)
+const NEW_BASE_ORDER = [
+  "HMW",
+  "ASH",
+  "LAW",
+  "SEC",
+  "LOF",
+  "JTL",
+  "TWI",
+  "SHD",
+  "SOR",
+  "IBH",
+  "TS26",
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -47,11 +64,24 @@ function makeBaseCard(overrides: Partial<BaseCard> = {}): BaseCard {
 describe("sortBaseCards", () => {
   const setOrder = { SOR: "2024-03-08", SHD: "2024-08-02" };
 
-  it("orders by release date across sets, not alphabetically by set_code", () => {
+  // PORT (BL-258): was "orders by release date across sets" (SOR, SHD). Same
+  // intent -- order follows the release sequence, not alphabetical set_code --
+  // now newest first, driven by the base-set order, not release_date.
+  it("orders main sets newest first across sets, not alphabetically by set_code", () => {
     const shd = makeBaseCard({ base_card_id: 1, set_code: "SHD", base_card_number: "1" });
     const sor = makeBaseCard({ base_card_id: 2, set_code: "SOR", base_card_number: "1" });
-    const result = sortBaseCards([shd, sor], setOrder);
-    expect(result.map((c) => c.set_code)).toEqual(["SOR", "SHD"]);
+    const result = sortBaseCards([sor, shd], setOrder);
+    expect(result.map((c) => c.set_code)).toEqual(["SHD", "SOR"]);
+  });
+
+  // CREATE (BL-258): release_date still orders the sets that are not in the
+  // base-set order (the old date tier, now below every base/Weekly Play set).
+  it("still orders non-base sets by release date, after every base set", () => {
+    const p26 = makeBaseCard({ base_card_id: 1, set_code: "P26", base_card_number: "1" });
+    const p25 = makeBaseCard({ base_card_id: 2, set_code: "P25", base_card_number: "1" });
+    const ts26 = makeBaseCard({ base_card_id: 3, set_code: "TS26", base_card_number: "1" });
+    const result = sortBaseCards([p26, p25, ts26], { P25: "2025-01-01", P26: "2026-01-01" });
+    expect(result.map((c) => c.set_code)).toEqual(["TS26", "P25", "P26"]);
   });
 
   it("falls back to curated set order when no release_date is present", () => {
@@ -59,16 +89,18 @@ describe("sortBaseCards", () => {
     const sor = makeBaseCard({ base_card_id: 2, set_code: "SOR", base_card_number: "1" });
     const lof = makeBaseCard({ base_card_id: 3, set_code: "LOF", base_card_number: "1" });
     const result = sortBaseCards([ts26, sor, lof]);
-    expect(result.map((c) => c.set_code)).toEqual(["SOR", "LOF", "TS26"]);
+    expect(result.map((c) => c.set_code)).toEqual(["LOF", "SOR", "TS26"]); // PORT (BL-258)
   });
 
-  it("lets a present release_date take precedence over the curated index", () => {
-    // TS26 is last in CURATED_SET_ORDER, but an explicit early release_date
-    // should still win over SOR's curated (earlier) index.
+  // REPLACE (BL-258): was "lets a present release_date take precedence over
+  // the curated index" (TS26 with an early date sorted before SOR). That
+  // behaviour is designed away: a base set's place comes from the single
+  // base-set order, so an explicit release_date never reorders base sets.
+  it("does not let a release_date reorder base sets", () => {
     const ts26 = makeBaseCard({ base_card_id: 1, set_code: "TS26", base_card_number: "1" });
     const sor = makeBaseCard({ base_card_id: 2, set_code: "SOR", base_card_number: "1" });
-    const result = sortBaseCards([sor, ts26], { TS26: "2020-01-01", SOR: "2024-03-08" });
-    expect(result.map((c) => c.set_code)).toEqual(["TS26", "SOR"]);
+    const result = sortBaseCards([ts26, sor], { TS26: "2020-01-01", SOR: "2024-03-08" });
+    expect(result.map((c) => c.set_code)).toEqual(["SOR", "TS26"]);
   });
 
   it("sorts sets with no release_date and no curated entry last, tiebroken by set_code", () => {
@@ -93,14 +125,15 @@ describe("sortBaseCards", () => {
     expect(result.map((c) => c.set_code)).toEqual(["LAW", "ZZZ"]);
   });
 
-  it("orders all ten base sets per CURATED_SET_ORDER when none have a release_date", () => {
-    const cards = CURATED_SET_ORDER.slice()
+  // PORT (BL-258): same all-base-sets walk, expectation is the new literal.
+  it("orders all base sets newest first when none have a release_date", () => {
+    const cards = NEW_BASE_ORDER.slice()
       .reverse()
       .map((setCode, i) =>
         makeBaseCard({ base_card_id: i, set_code: setCode, base_card_number: "1" })
       );
     const result = sortBaseCards(cards);
-    expect(result.map((c) => c.set_code)).toEqual(CURATED_SET_ORDER);
+    expect(result.map((c) => c.set_code)).toEqual(NEW_BASE_ORDER);
   });
 
   it("sorts tokens after non-tokens within the same set", () => {
@@ -145,19 +178,22 @@ describe("sortBaseCards", () => {
 // (release_date, then curated fallback, then set_code tiebreak) is exercised
 // here directly rather than re-deriving it through a card fixture.
 describe("orderSetCodes (BL-163)", () => {
-  it("orders by release date across codes, not alphabetically", () => {
-    const result = orderSetCodes(["SHD", "SOR"], { SOR: "2024-03-08", SHD: "2024-08-02" });
-    expect(result).toEqual(["SOR", "SHD"]);
+  // PORT (BL-258): newest first; release_date no longer drives base sets.
+  it("orders main sets newest first across codes, not alphabetically", () => {
+    const result = orderSetCodes(["SOR", "SHD"], { SOR: "2024-03-08", SHD: "2024-08-02" });
+    expect(result).toEqual(["SHD", "SOR"]);
   });
 
   it("falls back to curated set order when no release_date is present", () => {
     const result = orderSetCodes(["TS26", "SOR", "LOF"]);
-    expect(result).toEqual(["SOR", "LOF", "TS26"]);
+    expect(result).toEqual(["LOF", "SOR", "TS26"]); // PORT (BL-258)
   });
 
-  it("lets a present release_date take precedence over the curated index", () => {
-    const result = orderSetCodes(["SOR", "TS26"], { TS26: "2020-01-01", SOR: "2024-03-08" });
-    expect(result).toEqual(["TS26", "SOR"]);
+  // REPLACE (BL-258): see the sortBaseCards twin -- release_date never
+  // reorders base sets any more.
+  it("does not let a release_date reorder base sets", () => {
+    const result = orderSetCodes(["TS26", "SOR"], { TS26: "2020-01-01", SOR: "2024-03-08" });
+    expect(result).toEqual(["SOR", "TS26"]);
   });
 
   it("sorts codes with no release_date and no curated entry last, tiebroken by code", () => {
@@ -172,9 +208,73 @@ describe("orderSetCodes (BL-163)", () => {
     expect(codes).toEqual(original);
   });
 
-  it("orders all ten base sets per CURATED_SET_ORDER when none have a release_date", () => {
-    const result = orderSetCodes([...CURATED_SET_ORDER].reverse());
-    expect(result).toEqual(CURATED_SET_ORDER);
+  // PORT (BL-258): same walk, new literal expectation.
+  it("orders all base sets newest first when none have a release_date", () => {
+    const result = orderSetCodes([...NEW_BASE_ORDER].reverse());
+    expect(result).toEqual(NEW_BASE_ORDER);
+  });
+});
+
+describe("FR2-02 setReleaseRank comes from the base-set order (BL-258)", () => {
+  it("fr2-02 ranks HMW < ASH < ... < SOR < IBH < TS26 and SORP sits directly after SOR", () => {
+    const codes = [
+      "SORP",
+      "TS26",
+      "IBH",
+      "SOR",
+      "SHD",
+      "TWI",
+      "JTL",
+      "LOF",
+      "SEC",
+      "LAW",
+      "ASH",
+      "HMW",
+    ];
+    expect(orderSetCodes(codes)).toEqual([
+      "HMW",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+      "SORP",
+      "IBH",
+      "TS26",
+    ]);
+  });
+
+  it("fr2-02 a Weekly Play code follows its base even when it carries a release_date", () => {
+    const order = { SORP: "2024-03-08", SOR: "2024-03-08", SHDP: "2024-08-02" };
+    expect(orderSetCodes(["SOR", "SHDP", "SORP", "SHD", "IBH"], order)).toEqual([
+      "SHD",
+      "SHDP",
+      "SOR",
+      "SORP",
+      "IBH",
+    ]);
+    expect(setReleaseRank("SORP", order)[0]).toBe(0);
+  });
+
+  it("fr2-02 an explicit release_date no longer reorders main sets", () => {
+    expect(orderSetCodes(["SOR", "HMW"], { SOR: "2099-01-01", HMW: "2000-01-01" })).toEqual([
+      "HMW",
+      "SOR",
+    ]);
+  });
+
+  it("fr2-02 non-base dated sets and unknown codes keep their old relative order after TS26", () => {
+    const order = { P25: "2025-01-01", P26: "2026-01-01" };
+    expect(orderSetCodes(["ZZZ", "P26", "TS26", "AAA", "P25"], order)).toEqual([
+      "TS26",
+      "P25",
+      "P26",
+      "AAA",
+      "ZZZ",
+    ]);
   });
 });
 

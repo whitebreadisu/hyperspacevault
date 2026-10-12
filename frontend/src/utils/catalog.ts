@@ -1,4 +1,5 @@
 import type { ImageRenditions, PriceInfo } from "../api/baseCards";
+import { BASE_SET_ORDER, weeklyPlayCodeFor } from "./setGrouping";
 
 export interface Variant {
   variant_id: number;
@@ -54,43 +55,29 @@ export function parseCardDisplay(card: BaseCard): { displayName: string; subtitl
  * from `getSets()` so catalog.ts doesn't depend on the sets API directly. */
 export type SetOrderMap = Record<string, string | null>;
 
-/** Curated fallback release order for the base sets, used when a set has
- * no `release_date` in the data (swuapi doesn't currently supply dates, so
- * as of this writing this is the order that actually governs). Spark of the
- * Rebellion through 2026 Twin Suns. Sets absent from both `setOrder` and
- * this list sort last, tiebroken by set_code. */
-export const CURATED_SET_ORDER = [
-  "SOR",
-  "SHD",
-  "TWI",
-  "JTL",
-  "LOF",
-  "SEC",
-  "LAW",
-  "ASH",
-  "HMW",
-  "IBH",
-  "TS26",
-];
-
-/** Release-order rank for one set code: `release_date` when present, else
- * the curated fallback order, else last (tiebroken by set_code itself).
- * Extracted from sortBaseCards's inline closure (BL-163) so
- * utils/completion.ts's set-code ordering (the completion panel's "by set"
- * breakdown rows) can share the exact same rule instead of re-deriving it --
- * one release-order definition, two call sites (card-level sort here,
- * set-code-level sort there). */
+/** Display rank for one set code (BL-258, owner 2026-10-12: newest main sets
+ * first). Precedence: (a) a base set -> its index in `BASE_SET_ORDER`
+ * (utils/setGrouping.ts, the single definition: main block newest first, then
+ * IBH, TS26); (b) a Weekly Play code whose base is in that list -> directly
+ * after its base; (c) anything else keeps its old relative order after every
+ * (a)/(b) set -- `release_date` ascending when present, else alphabetical.
+ * An explicit `release_date` never reorders (a)/(b) sets. Shared by
+ * sortBaseCards, orderSetCodes (completion rows), cardSort and variantScope
+ * so there is one rank rule. */
 export function setReleaseRank(setCode: string, setOrder: SetOrderMap): [number, string | number] {
-  const releaseDate = setOrder[setCode];
-  if (releaseDate != null) return [0, releaseDate];
+  const baseIndex = BASE_SET_ORDER.indexOf(setCode);
+  if (baseIndex !== -1) return [0, baseIndex * 2];
 
-  const curatedIndex = CURATED_SET_ORDER.indexOf(setCode);
-  if (curatedIndex !== -1) return [1, curatedIndex];
+  const wpBaseIndex = BASE_SET_ORDER.findIndex((base) => weeklyPlayCodeFor(base) === setCode);
+  if (wpBaseIndex !== -1) return [0, wpBaseIndex * 2 + 1];
+
+  const releaseDate = setOrder[setCode];
+  if (releaseDate != null) return [1, releaseDate];
 
   return [2, setCode];
 }
 
-/** Orders a list of set codes by release order (see setReleaseRank) --
+/** Orders a list of set codes in display order (see setReleaseRank) --
  * BL-163: used to put the completion panel's base-set breakdown rows in
  * release order, the same rule sortBaseCards applies at the card level. */
 export function orderSetCodes(codes: string[], setOrder: SetOrderMap = {}): string[] {
@@ -103,8 +90,8 @@ export function orderSetCodes(codes: string[], setOrder: SetOrderMap = {}): stri
   });
 }
 
-/** Standard sort: (1) set in release order — `release_date` when present,
- * else the curated fallback order, else last (tiebroken by set_code) —
+/** Standard sort: (1) set in display order (newest main set first; see
+ * setReleaseRank) —
  * (2) tokens last within a set, (3) base_card_number ascending (numeric).
  * Shared by the unified Cards view (BL-56) — see
  * screens/cards/CardsPage.tsx / CardsTable.tsx. */

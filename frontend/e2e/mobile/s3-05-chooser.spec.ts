@@ -13,7 +13,8 @@ test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone tool");
 });
 
-const CANON = ["SOR", "SHD", "TWI", "JTL", "LOF", "SEC", "LAW", "ASH", "HMW"];
+// PORT (BL-258): the main block is newest first.
+const CANON = ["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"];
 const SECOND = ["IBH", "TS26"];
 const EX: [string, string[]][] = [
   ["Convention Exclusives", ["C24", "C25", "C26"]],

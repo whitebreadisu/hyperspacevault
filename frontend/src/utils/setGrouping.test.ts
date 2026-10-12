@@ -34,8 +34,9 @@ function makeSet(code: string, overrides: Partial<CardSet> = {}): CardSet {
 }
 
 describe("setGrouping constants", () => {
-  it("SET_CANONICAL is the 9-set release order SOR..HMW", () => {
-    expect(SET_CANONICAL).toEqual(["SOR", "SHD", "TWI", "JTL", "LOF", "SEC", "LAW", "ASH", "HMW"]);
+  // PORT (BL-258): same 9-set membership, now the newest-first display order.
+  it("SET_CANONICAL is the 9-set display order HMW..SOR (newest first)", () => {
+    expect(SET_CANONICAL).toEqual(["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"]);
   });
 
   it("SET_SECONDARY is IBH then TS26", () => {
@@ -80,11 +81,12 @@ describe("setSortRank", () => {
   it("orders canonical before secondary before everything else", () => {
     const ranks = ["ASH", "IBH", "TS26", "SOR", "C24"].map((c) => [c, setSortRank(c)] as const);
     const sorted = [...ranks].sort((a, b) => a[1] - b[1]).map(([c]) => c);
-    expect(sorted).toEqual(["SOR", "ASH", "IBH", "TS26", "C24"]);
+    expect(sorted).toEqual(["ASH", "SOR", "IBH", "TS26", "C24"]); // PORT (BL-258)
   });
 
-  it("ranks within canonical/secondary follow release order", () => {
-    expect(setSortRank("SOR")).toBeLessThan(setSortRank("SHD"));
+  // PORT (BL-258): inside the canonical block the newer set ranks first.
+  it("ranks within canonical newest first; secondary keeps IBH then TS26", () => {
+    expect(setSortRank("SHD")).toBeLessThan(setSortRank("SOR"));
     expect(setSortRank("ASH")).toBeLessThan(setSortRank("IBH"));
     expect(setSortRank("IBH")).toBeLessThan(setSortRank("TS26"));
   });
@@ -116,7 +118,7 @@ describe("baseOnlyGroups (View 1 -- base sets only)", () => {
   it("omits sets absent from the fetched list rather than rendering a broken group", () => {
     const sets = [makeSet("SOR"), makeSet("SHD")];
     const { canonical, secondary } = baseOnlyGroups(sets);
-    expect(canonical.map((g) => g.key)).toEqual(["SOR", "SHD"]);
+    expect(canonical.map((g) => g.key)).toEqual(["SHD", "SOR"]); // PORT (BL-258)
     expect(secondary).toEqual([]);
   });
 });
@@ -136,10 +138,10 @@ describe("allSetsGroups (View 2 -- Show all sets)", () => {
     expect(baseGroups[0].memberCodes).toEqual(["TS26"]);
   });
 
-  it("base groups appear canonical-then-secondary, in release order", () => {
+  it("base groups appear canonical-then-secondary, canonical newest first", () => {
     const sets = [makeSet("TS26"), makeSet("SHD"), makeSet("SOR"), makeSet("IBH")];
     const { baseGroups } = allSetsGroups(sets);
-    expect(baseGroups.map((g) => g.key)).toEqual(["SOR", "SHD", "IBH", "TS26"]);
+    expect(baseGroups.map((g) => g.key)).toEqual(["SHD", "SOR", "IBH", "TS26"]); // PORT (BL-258)
   });
 
   it("only renders Exclusives subgroups that have at least one present member", () => {
@@ -168,7 +170,8 @@ describe("allSetsGroups (View 2 -- Show all sets)", () => {
     ];
     const { baseGroups, exclusiveGroups } = allSetsGroups(sets);
     expect(baseGroups.map((g) => g.key)).toEqual(BASE_SET_ORDER);
-    expect(baseGroups[0].memberCodes).toEqual(["SOR", "SORP"]);
+    // PORT (BL-258): SOR is now the last main-block group (before IBH, TS26).
+    expect(baseGroups[8].memberCodes).toEqual(["SOR", "SORP"]);
     expect(exclusiveGroups.map((g) => g.label)).toEqual([
       "Judge Program",
       "Promos",
@@ -198,7 +201,7 @@ describe("headerLogoCodesFor (Add Cards locked-header base-set logos)", () => {
     expect(headerLogoCodesFor("C25", cards)).toEqual(["JTL"]);
   });
 
-  it("an Exclusives set spanning base sets shows every home base set in canonical release order", () => {
+  it("an Exclusives set spanning base sets shows every home base set in canonical display order", () => {
     // Deliberately inserted out of order -- the sort must impose
     // BASE_SET_ORDER, not insertion or alphabetical order.
     const cards = [
@@ -208,12 +211,52 @@ describe("headerLogoCodesFor (Add Cards locked-header base-set logos)", () => {
       card("SOR", "J25"),
       card("SHD", "OTHER"),
     ];
-    expect(headerLogoCodesFor("J25", cards)).toEqual(["SOR", "TWI", "LOF"]);
+    expect(headerLogoCodesFor("J25", cards)).toEqual(["LOF", "TWI", "SOR"]); // PORT (BL-258)
   });
 
   it("a non-base home set is never emitted, and an unmapped selection yields []", () => {
     // A printing whose own home somehow isn't a base set has no logo asset.
     expect(headerLogoCodesFor("GG", [card("GG", "GG")])).toEqual([]);
     expect(headerLogoCodesFor("UNKNOWN", [card("SOR", "SORP")])).toEqual([]);
+  });
+});
+
+// CREATE (BL-258): FR2-01 -- the one literal definition, pinned end to end.
+describe("FR2-01 set order newest first (BL-258)", () => {
+  const MAIN = ["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"];
+
+  it("fr2-01 main block is literal newest first; IBH, TS26 follow it", () => {
+    expect(SET_CANONICAL).toEqual(MAIN);
+    expect(SET_SECONDARY).toEqual(["IBH", "TS26"]);
+    expect(BASE_SET_ORDER).toEqual([...MAIN, "IBH", "TS26"]);
+  });
+
+  it("fr2-01 Weekly Play nests under its base in the new order", () => {
+    const sets = [
+      ...BASE_SET_ORDER.map((c) => makeSet(c)),
+      ...MAIN.map((c) => makeSet(weeklyPlayCodeFor(c), { is_base_set: false })),
+    ];
+    const { baseGroups } = allSetsGroups(sets);
+    expect(baseGroups.map((g) => g.key)).toEqual([...MAIN, "IBH", "TS26"]);
+    expect(baseGroups[0].memberCodes).toEqual(["HMW", "HMWP"]);
+    expect(baseGroups[8].memberCodes).toEqual(["SOR", "SORP"]);
+    expect(baseGroups[9].memberCodes).toEqual(["IBH"]);
+  });
+
+  it("fr2-01 exclusives' subgroup order and membership are unchanged", () => {
+    expect(EXCLUSIVE_SUBGROUPS.map((g) => [g.label, [...g.codes]])).toEqual([
+      ["Convention Exclusives", ["C24", "C25", "C26"]],
+      ["Judge Program", ["J24", "J25"]],
+      ["Promos", ["P25", "P26"]],
+      ["Other promos", ["G25", "MV26", "GG", "CST"]],
+    ]);
+  });
+
+  it("fr2-01 headerLogoCodesFor returns home bases in the new order", () => {
+    const cards = ["SOR", "HMW", "SHD", "LAW"].map((c) => ({
+      set_code: c,
+      source_set_code: "J25",
+    }));
+    expect(headerLogoCodesFor("J25", cards)).toEqual(["HMW", "LAW", "SHD", "SOR"]);
   });
 });
