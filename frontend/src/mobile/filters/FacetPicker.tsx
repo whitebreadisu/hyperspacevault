@@ -4,6 +4,7 @@ import { buildFinishTree, shapeFinishTree } from "../../utils/filters";
 import type { FilterState, ShapedFinishRow } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
 import { MIcon } from "../icons";
+import { SetLogo } from "../SetLogo";
 import type { CollectionToggles } from "../vault/vaultModel";
 import { COLLECTION_LONG } from "./collectionLabels";
 import { facetValid, fieldOptions, listUniverse, setPickerGroups } from "./filterModel";
@@ -105,11 +106,7 @@ function SetPicker({ f, facetCards, sets, setNameByCode, act, onClose }: PickerP
               onToggle={act.toggleSet}
               className="m-chip--set m-setfacet__chip"
             >
-              <img
-                className={"m-chip__logo m-chip__logo--" + code}
-                src={`/images/set_${code}.png`}
-                alt=""
-              />
+              <SetLogo code={code} box="chip" imgClassName="m-chip__logo" />
             </FChip>
           ))}
         </div>

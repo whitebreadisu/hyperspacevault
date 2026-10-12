@@ -133,11 +133,11 @@
   background-position: center;
   box-shadow: inset 0 0 0 1px rgba(211, 211, 212, 0.3);
 }
-.m-app .m-padset__logo {
-  height: 30px;
-  width: 62px;
-  object-fit: contain;
-  object-position: left center;
+/* BL-257 fix run: the button's logo is a SetLogo box (setLogoArt.ts
+ * SET_LOGO_BOX.pad 62 x 30; .padNarrow 46 x 30 beside a subset code or a
+ * deck's short name) -- artwork centred, equal area. The shadow sits on the
+ * box: on the <img> the box's clip would cut it. */
+.m-app .m-padset > .m-setlogo {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 .m-app .m-padset__code {
@@ -148,21 +148,16 @@
   border: 1px solid rgba(211, 211, 212, 0.3);
   border-radius: 3px;
 }
-/* R4-4: a subset code (LAWP) beside a smaller borrowed logo; an exclusive
- * shows its code alone (m-rev4-c.css:34-36). */
-.m-app .m-padset--sub .m-padset__logo {
-  width: 46px;
-}
+/* R4-4: a subset code (LAWP) beside a smaller borrowed logo (the padNarrow
+ * box); an exclusive shows its code alone (m-rev4-c.css:34-36). */
 .m-app .m-padset--nologo {
   justify-content: center;
 }
 .m-app .m-padset--nologo .m-padset__code {
   font-size: 14px;
 }
-/* R4-14.2: while a deck is chosen (m-rev4-d2.css:33-36). */
-.m-app .m-padset--deck .m-padset__logo {
-  width: 46px;
-}
+/* R4-14.2: while a deck is chosen (m-rev4-d2.css:33-36; the logo takes the
+ * padNarrow box). */
 .m-app .m-padset--deck .m-padset__code {
   min-width: 0;
   max-width: 64px;
@@ -816,14 +811,8 @@
   padding-bottom: calc(10px + var(--sab));
 }
 
-/* Set rows (m-layout.css:285-287 + m-rev4-c.css:5-30). */
-.m-app .m-choice__logo {
-  width: 96px;
-  height: 30px;
-  object-fit: contain;
-  object-position: left center;
-  flex: none;
-}
+/* Set rows (m-layout.css:285-287 + m-rev4-c.css:5-30). The logo is a SetLogo
+ * box (sheet.css .m-setlogo; the old .m-choice__logo fit is gone -- BL-257). */
 .m-app .m-choice__setname {
   flex: 1;
   display: flex;
@@ -894,7 +883,11 @@
 .m-app .m-setpick__row > .m-setpick__nologo:first-child {
   flex: none;
 }
-.m-app .m-setpick__row--weekly .m-choice__logo,
+/* The long-tail rows' leading mark is dimmed. A Weekly Play row renders its
+ * code (.m-setpick__nologo), as an exclusive does; a logo, should one ever
+ * render there, is covered too. */
+.m-app .m-setpick__row--weekly .m-setpick__nologo,
+.m-app .m-setpick__row--weekly .m-setlogo,
 .m-app .m-setpick__row--exclusive .m-setpick__nologo {
   opacity: 0.85;
 }
@@ -908,11 +901,16 @@
 
 /* Deck rows: set logo + leader / base art + product (small caps) + deck name
  * (m-rev4-d2.css:47-53; BL-257 FR3-03 adds the art and the height it needs:
- * 58 px -> 64 px, cap 76). The logo is a SetLogo box (setLogoArt.ts
- * SET_LOGO_BOX.deck). */
+ * 58 px -> 68 px, cap 76 -- the art is 56 px tall with a 13 px base peek).
+ * The logo is a SetLogo box (setLogoArt.ts SET_LOGO_BOX.deck, 66 x 24). The
+ * deck name wraps to a second line where the row is tight (owner finish
+ * round 2026-10-12: every name reads in full); product + two name lines is
+ * about 51 px, inside the 68 px row. Gap 8 (was 10): a SELECTED Hoth row at
+ * 390 px then leaves 115 px of text, and its one-line product ("Whole box ·
+ * 2 decks", 112 px) is not cut by the check. */
 .m-app .m-d2-deck {
-  min-height: 64px;
-  gap: 10px;
+  min-height: 68px;
+  gap: 8px;
 }
 
 /* ── BL-257 FR3-03: the deck art (DeckArt.tsx; geometry inline from
@@ -964,17 +962,24 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #9fb0cc;
+  white-space: nowrap;
 }
+/* Two lines at most, no ellipsis in practice: every one of the 23 names fits
+ * (e2e fr3-03 asserts none is clipped at 390, a selected row included). */
 .m-app .m-d2-deck__name {
   font-family: var(--font-body);
   font-size: 15.5px;
   font-weight: 600;
+  line-height: 1.16;
   letter-spacing: 0;
   text-transform: none;
   color: var(--color-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 /* ── Precon panel head in the result zone (m-rev4-d2.css:57-70) ─────────── */
@@ -988,10 +993,7 @@
   align-items: center;
   gap: 12px;
 }
-.m-app .m-d2-precon__head .m-d2-deck__logo {
-  width: 92px;
-  height: 34px;
-}
+/* (The head's logo is a SetLogo box: SET_LOGO_BOX.precon, 92 x 34.) */
 .m-app .m-d2-precon__titles {
   flex: 1;
   min-width: 0;

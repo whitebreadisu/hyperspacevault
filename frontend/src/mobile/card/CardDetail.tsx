@@ -10,6 +10,7 @@ import { MIcon } from "../icons";
 import { capturePhone } from "../phoneAnalytics";
 import { usePriceKind } from "../priceKind";
 import { back, go } from "../router";
+import { SetLogo } from "../SetLogo";
 import { prefersReducedMotion, useCollapse } from "../vault/useCollapse";
 import { useVaultData } from "../vault/useVaultData";
 import { AspectsSheet } from "./AspectsSheet";
@@ -313,10 +314,13 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const xn = xf ? neighbour(xf) : null;
 
   const starfield = card ? starfieldSrc(card.set_code) : null;
+  // The set whose logo shows (desktop CardPopup's rule: the printing's source
+  // set when it has a logo, else the card's set). BL-257: drawn by SetLogo.
+  const hasLogo = (code: string) => (setLogoSrc(code) ? code : null);
   const logo = card
-    ? ((variant && setLogoSrc(variant.source_set_code)) ?? setLogoSrc(card.set_code))
+    ? ((variant && hasLogo(variant.source_set_code)) ?? hasLogo(card.set_code))
     : null;
-  const xnLogo = xn ? setLogoSrc(xn.set_code) : null;
+  const xnLogo = xn ? hasLogo(xn.set_code) : null;
 
   const common = {
     isAuthenticated,
@@ -351,7 +355,13 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
           {card?.subtitle ? <div className="m-detail__sub">{card.subtitle}</div> : null}
         </div>
         {logo && card ? (
-          <img className="m-hdr__setlogo m-xfade" src={logo} alt={`${card.set_code} logo`} />
+          <SetLogo
+            code={logo}
+            box="detail"
+            align="right"
+            label={`${card.set_code} logo`}
+            className="m-hdr__setlogo m-xfade"
+          />
         ) : null}
         {xn ? (
           <div className="m-hdr__titles m-xfade m-xfade--in" aria-hidden="true">
@@ -360,11 +370,11 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
           </div>
         ) : null}
         {xnLogo ? (
-          <img
+          <SetLogo
+            code={xnLogo}
+            box="detail"
+            align="right"
             className="m-hdr__setlogo m-xfade m-xfade--in"
-            src={xnLogo}
-            alt=""
-            aria-hidden="true"
           />
         ) : null}
       </header>
