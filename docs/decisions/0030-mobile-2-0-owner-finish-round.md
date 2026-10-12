@@ -33,18 +33,31 @@ blocked". The `+` button is already disabled there, which says what needs
 saying.
 
 ## Decision
-1. **The card-detail plate is the gallery plate, scoped to the selected
-   printing.** It uses the gallery plate's own markup and classes (one
-   shared component drawn by both the gallery cell and card detail), in the
-   state the gallery shows while the Vault is scoped to a single finish,
-   with the selected printing standing in for that scope: pips are that
-   printing's count against the card's playset size, amber while short;
-   at a playset the plate takes the complete state; the number is that
-   printing's count. Card detail has no "all finishes" state, because a
-   printing is always selected. Signed out it shows the gallery's signed-out
-   plate. It remains the button that opens Owned by finish. The phone
-   gallery tile itself is unchanged — the owner confirmed it was already
-   right.
+1. **The card-detail plate is the gallery plate, and it behaves exactly
+   like a gallery tile scoped to the selected printing's finish.** It uses
+   the gallery plate's own markup and classes (one shared component drawn
+   by both the gallery cell and card detail) and the same helper functions
+   for its numbers, with the selected printing's finish standing in for
+   the Vault's scope: the pips fill from every owned printing of that
+   finish, summed, against the card's playset size, in the amber scoped
+   idiom; when that sum reaches a playset the plate takes the complete
+   state; the number is the card's total owned across all printings, green
+   when the total reaches a playset and muted at 0. Card detail has no
+   "all finishes" state, because a printing is always selected. Signed out
+   it shows the gallery's signed-out plate. It remains the button that
+   opens Owned by finish. The phone gallery tile itself is unchanged — the
+   owner confirmed it was already right.
+
+   *How it got here (both on 2026-10-12).* The plate was first built with
+   the selected printing's own quantity for the pips, the ring and the
+   number, which is what the slice brief said and what agreed with the
+   stepper beneath it. The review showed that this differs from a gallery
+   tile in three cases: another finish is also owned (the tile's number
+   counts it), two printings share a finish (the tile's pips sum both),
+   and the owned printing is not the selected one (the tile still shows
+   its number). The owner saw the comparison and chose the gallery's
+   behaviour in full, accepting that the plate's number will not always
+   equal the stepper's.
 2. **A count is red only when it is past its limit — on the phone and on
    the desktop card popup.** At the limit the count keeps its normal
    colour. Past the limit it keeps the colours it already had: amber with
@@ -57,17 +70,29 @@ saying.
 - One plate idiom per frame. Anything that changes the gallery plate now
   changes card detail with it, because both draw the same component; a
   future divergence has to be asked for rather than drifting in.
-- What each plate counts, as built. A finish-scoped gallery tile fills its
-  pips from the sum of every printing of that finish, and its number is the
-  card's total across all printings. The detail plate uses the selected
-  printing's quantity for the pips, the ring and the number. They differ
-  when another finish is owned, when two printings share a finish, and when
-  the owned printing is not the selected one. The owner has been asked
-  whether the detail plate's number should follow the gallery's; this
-  records the behaviour as built, not an answer.
-- R5-5's rule that the plate follows the selected printing stands; only its
-  drawing is superseded. The Owned-by-finish sheet keeps the chip-and-pips
-  idiom (R5-1), which is the list's idiom on a list-like surface.
+- The detail plate and a gallery tile scoped to the same finish always
+  show the same thing for the same card: both compute the card total, the
+  finish's owned sum and the two complete states with the same functions
+  (`cardOwnedTotal`, `isPlaysetComplete`, `scopedOwnedCount`,
+  `scopedPlaysetComplete`). A test compares the two directly, including
+  the three cases where the first build differed.
+- The plate's number is the card total, so it can differ from the
+  stepper's count for the selected printing directly below it (2 Standard
+  and 1 Hyperspace owned, Standard selected: the plate reads 3 with two
+  amber pips, the stepper reads 2). The owner accepted this. Selecting
+  another printing moves the pips but not the number.
+- The plate counts the quantities the stepper shows, so a tap on − or +
+  moves it before the server answers.
+- A printing whose finish the Vault cannot be scoped to (a prize-wall or
+  participation printing, for example) still gets the same arithmetic,
+  with its own finish as the scope; no gallery tile exists to compare it
+  with.
+- R5-5's rule that the plate follows the selected printing stands in this
+  form: the selected printing chooses the finish the pips count. Its
+  drawing, and its "chip = that printing's count", are superseded. The
+  Owned-by-finish sheet keeps the chip-and-pips idiom (R5-1), which is the
+  list's idiom on a list-like surface, and is where the per-printing
+  counts are read.
 - Red on a quantity now always means "more than you said you keep". A full
   playset at a hard cap no longer looks like an error on either platform.
 - The desktop card popup changed behaviour in a phone-led round. It is the
@@ -87,7 +112,8 @@ saying.
   precision; the limits this colour rule reads.
 - `frontend/src/mobile/vault/GalleryPlate.tsx`,
   `frontend/src/mobile/card/PrintingPlate.tsx`,
-  `frontend/src/mobile/card/cardDetailModel.ts` (`stepperState`),
+  `frontend/src/mobile/card/cardDetailModel.ts` (`plateState`,
+  `stepperState`), `frontend/src/mobile/vault/GalleryCell.tsx`,
   `frontend/src/screens/cards/CardPopupInventory.tsx`.
 - Tests: `e2e/mobile/fr1-card-detail.spec.ts` (`fr1-07`),
   `e2e/mobile/s2-03-plate.spec.ts`, and the `FR1-05` boundary tables in

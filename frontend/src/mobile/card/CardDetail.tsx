@@ -43,8 +43,9 @@ import "./card.css";
 //   - Opens on the printing the list showed (?v=), else the list's entry
 //     printing (S2-09: scoped printing from rows, displayed printing from a
 //     gallery), else the representative (R5-5).
-//   - Body = CardPage: the collapsing region with the plate for the
-//     selected printing (tap = Owned by finish, S2-10), the printings rail +
+//   - Body = CardPage: the collapsing region with the plate (the gallery
+//     tile's plate scoped to the selected printing's finish, FR1-07; tap =
+//     Owned by finish, S2-10), the printings rail +
 //     stepper, price history (S2-07), the card text (aspects tap = Aspects
 //     sheet, S2-07b).
 //   - S2-08 body-slide swipe (R5 switch swipe=body; rev4 R3-9 carousel in

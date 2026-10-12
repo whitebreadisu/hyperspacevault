@@ -190,9 +190,20 @@ test("fr1-06 a tap anywhere on a variant row selects it; the stepper keeps its o
   expect(Number(await selectedId())).toBe(a);
   await expect(page.locator(`${row(a)} .m-print__main`)).toHaveAttribute("aria-pressed", "true");
   expect(await page.locator(".m-dreg__img").getAttribute("src")).not.toBe(artBefore);
-  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText(
-    String(QTY.get(a) ?? 0)
+  // Owner decision 2026-10-12 (plate exactly like the gallery, ADR-0030;
+  // REPLACES "plate number = the selected printing's count"): the plate's
+  // pips follow the newly selected printing's finish; its number is the card
+  // total and does not move with the selection.
+  const finA = fin(c.variants.find((v) => v.variant_id === a)!);
+  const sum = (only?: string) =>
+    c.variants
+      .filter((v) => only == null || fin(v) === only)
+      .reduce((s, v) => s + (QTY.get(v.variant_id) ?? 0), 0);
+  await expect(page.locator(".m-dreg3__own .m-plate-hit--btn")).toHaveAttribute(
+    "data-plate-scoped",
+    String(sum(finA))
   );
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText(String(sum()));
   await expect(page.locator(".m-dreg__fin")).not.toHaveText("");
   // x N cell of another unselected row selects it.
   await scrollDetail(page, 0);

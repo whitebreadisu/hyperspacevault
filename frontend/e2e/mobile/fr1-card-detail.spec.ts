@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, measureEach, test } from "./helpers";
 import { byNum, fin, openCard, scrollDetail } from "./card-helpers";
+import type { FxCard } from "./card-helpers";
 
 // FR1 stage 1b (BL-257): the card-detail items of the mobile 2.0 finish round
 // (FR1-07 plate, FR1-08 caption, FR1-09 collapsed row). Stage 1a's items are
@@ -10,7 +11,7 @@ test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone detail");
 });
 
-// ── FR1-07: the card-detail plate is the gallery plate, scoped to the printing ──
+// ── FR1-07: the card-detail plate is the gallery plate, scoped to the printing's finish ──
 const plateShape = (page: Page, root: string) =>
   page.evaluate((root) => {
     const el = document.querySelector(root)!;
@@ -62,79 +63,258 @@ const miniGeom = (page: Page) =>
     };
   });
 
-test("fr1-07 card-detail plate = the gallery plate scoped to the selected printing", async ({
-  page,
-}) => {
-  // ASH 52 Chimaera (playset 3): only its one Hyperspace printing is owned,
-  // at each quantity in turn, so the gallery tile of a Hyperspace-scoped Vault
-  // and the detail's plate describe the same number.
-  const c = byNum("ASH", 52);
-  const hs = c.variants.find((v) => fin(v) === "Hyperspace")!;
-  let q = 0;
+// FR1-07, second owner decision 2026-10-12 ("plate exactly like the gallery"):
+// the detail plate is compared with the gallery tile of the same card while
+// the Vault is scoped to the selected printing's finish.
+type Owned = Record<number, number>;
+type Want = { size: number; total: number; scoped: number };
+/** Serve these quantities (and nothing else) as the signed-in inventory. */
+async function serveQuantities(page: Page, get: () => Owned) {
   await page.route(
     (u) => u.pathname === "/api/inventory/quantities",
     (r) =>
       r.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify([{ variant_id: hs.variant_id, quantity: q }]),
+        body: JSON.stringify(
+          Object.entries(get()).map(([id, quantity]) => ({ variant_id: Number(id), quantity }))
+        ),
       })
   );
+}
+/** What a finish-scoped gallery tile must show (vault/GalleryCell.tsx). */
+const want = (c: FxCard, scope: string, owned: Owned): Want => {
+  const size = c.type === "Leader" || c.type === "Base" ? 1 : 3;
+  const total = c.variants.reduce((s, v) => s + (owned[v.variant_id] ?? 0), 0);
+  const scoped = c.variants
+    .filter((v) => fin(v) === scope)
+    .reduce((s, v) => s + (owned[v.variant_id] ?? 0), 0);
+  return { size, total, scoped };
+};
+function expectPlate(r: Awaited<ReturnType<typeof plateShape>>, w: Want) {
+  expect(r.hasPips).toBe(1);
+  expect(r.oldIdiom).toBe(0);
+  // Pips: the scoped finish's sum, in the amber (scoped) idiom.
+  const lit = Math.min(w.size, w.scoped);
+  expect(r.pips).toHaveLength(w.size);
+  expect(r.pips.filter((p) => p.includes("gallery-plate__pip--filled"))).toHaveLength(lit);
+  expect(r.pips.filter((p) => p.includes("gallery-plate__pip--scoped"))).toHaveLength(lit);
+  // Complete state: the SCOPED sum is a playset.
+  expect(r.plate.includes("gallery-plate--complete")).toBe(w.scoped >= w.size);
+  // The number: the card's total across all printings, the gallery's classes.
+  expect(r.total).toBe(String(w.total));
+  expect(r.totalCls).toBe(
+    "gallery-plate__total" +
+      (w.total >= w.size
+        ? " gallery-plate__total--complete"
+        : w.total === 0
+          ? " gallery-plate__total--empty"
+          : "")
+  );
+}
+const OWN = ".m-cardlayer .m-dreg3__own";
+const MINI = ".m-cardlayer .m-dreg3__mini";
+const ACTIVE = ".m-print.cp-rail__item--active";
+/** Read the card's tile in the gallery of a Vault scoped to `scope`, tap it,
+ * and return the tile's plate + the printing the detail opened on. */
+async function openFromScopedTile(page: Page, c: FxCard, scope: string) {
   const cell = `.m-cell[data-card="${c.id}"]`;
-  for (q of [0, 1, 3, 4]) {
-    await page.goto("about:blank");
-    await page.goto("/#/vault?view=gallery&finish=Hyperspace");
-    await expect(page.locator(".m-cell").first()).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-    for (let i = 0; i < 80 && !(await page.locator(cell).count()); i++) {
-      await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop += 300));
-      await page.waitForTimeout(60);
-    }
-    await page.locator(cell).scrollIntoViewIfNeeded();
-    const tile = await plateShape(page, cell);
-    await page.locator(cell).click();
-    await expect(page.locator(".m-cardlayer .m-dreg3")).toBeVisible();
-    await expect(page.locator(".m-print.cp-rail__item--active")).toHaveAttribute(
-      "data-variant",
-      String(hs.variant_id)
-    );
-    const own = await plateShape(page, ".m-cardlayer .m-dreg3__own");
-    const mini = await plateShape(page, ".m-cardlayer .m-dreg3__mini");
-    const n = q;
-    await test.step(`quantity ${n}`, () => {
-      expect(own.hasPips).toBe(1);
-      expect(own.total).toBe(String(n));
-      expect(own.oldIdiom + mini.oldIdiom).toBe(0);
+  await page.goto("about:blank");
+  await page.goto(`/#/vault?view=gallery&finish=${encodeURIComponent(scope)}`);
+  await expect(page.locator(".m-cell").first()).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (let i = 0; i < 80 && !(await page.locator(cell).count()); i++) {
+    await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop += 300));
+    await page.waitForTimeout(60);
+  }
+  await page.locator(cell).scrollIntoViewIfNeeded();
+  const tile = await plateShape(page, cell);
+  await page.locator(cell).click();
+  await expect(page.locator(".m-cardlayer .m-dreg3")).toBeVisible();
+  const id = Number(await page.locator(ACTIVE).getAttribute("data-variant"));
+  const selected = c.variants.find((v) => v.variant_id === id)!;
+  // The detail opened on a printing of the scoped finish: its finish is the
+  // plate's scope, so tile and plate describe the same thing.
+  expect(fin(selected)).toBe(scope);
+  return { tile, selected };
+}
+async function pickRow(page: Page, id: number) {
+  await page.locator(`.m-print[data-variant="${id}"] .m-print__main`).click();
+  await expect(page.locator(ACTIVE)).toHaveAttribute("data-variant", String(id));
+}
+
+test("fr1-07 card-detail plate = the gallery tile scoped to the selected printing's finish", async ({
+  page,
+}) => {
+  // ASH 52 Chimaera (playset 3): only its one Hyperspace printing is owned,
+  // at 0 / partial / playset / over a playset.
+  const c = byNum("ASH", 52);
+  const hs = c.variants.find((v) => fin(v) === "Hyperspace")!;
+  let owned: Owned = {};
+  // Four full gallery loads: over the 30 s default when the machine is busy.
+  test.setTimeout(75_000);
+  await serveQuantities(page, () => owned);
+  for (const q of [0, 1, 3, 4]) {
+    owned = { [hs.variant_id]: q };
+    const { tile, selected } = await openFromScopedTile(page, c, "Hyperspace");
+    expect(selected.variant_id).toBe(hs.variant_id);
+    const own = await plateShape(page, OWN);
+    const mini = await plateShape(page, MINI);
+    const w = want(c, "Hyperspace", owned);
+    await test.step(`quantity ${q}`, () => {
+      expect(w).toEqual({ size: 3, total: q, scoped: q });
       // Same classes and total as the gallery tile, in both plates.
       expect(own).toEqual(tile);
       expect(mini).toEqual(tile);
-      // And the states themselves: amber (scoped) pips, complete at a playset.
-      expect(own.pips).toHaveLength(3);
-      expect(own.pips.filter((p) => p.includes("gallery-plate__pip--scoped"))).toHaveLength(
-        Math.min(3, n)
-      );
-      expect(own.plate.includes("gallery-plate--complete")).toBe(n >= 3);
-      expect(own.totalCls).toBe(
-        "gallery-plate__total" +
-          (n >= 3
-            ? " gallery-plate__total--complete"
-            : n === 0
-              ? " gallery-plate__total--empty"
-              : "")
-      );
+      expectPlate(own, w);
     });
-    await expect(page.locator(".m-dreg3__own .m-plate-hit--btn")).toHaveAttribute(
+    // data-plate-qty carries the number drawn (the card total).
+    await expect(page.locator(`${OWN} .m-plate-hit--btn`)).toHaveAttribute(
       "data-plate-qty",
-      String(n)
+      String(q)
     );
   }
-  // The plate is still the button that opens Owned by finish.
-  const btn = page.locator(".m-dreg3__own .m-plate-hit--btn");
-  await expect(btn).toHaveAttribute("aria-label", /Show owned by finish$/);
+  // The plate is still the button that opens Owned by finish; its label says
+  // what it shows: the card total, then the selected finish's count.
+  const btn = page.locator(`${OWN} .m-plate-hit--btn`);
+  await expect(btn).toHaveAttribute(
+    "aria-label",
+    `${c.name}: 4 owned, 4 Hyperspace. Show owned by finish`
+  );
   await btn.click();
   await expect(page.locator(".m-sheet-layer--finish")).toBeVisible();
   await page.locator(".m-sheet-layer--finish .m-sheet__close").click();
   await expect(page.locator(".m-sheet-layer--finish")).toHaveCount(0);
+});
+
+// The first FR1-07 build drew the SELECTED PRINTING's quantity in pips, ring
+// and number. Owner decision 2026-10-12: exactly like the gallery -- pips =
+// every printing of the selected finish, number = the card total. These are
+// the cases where the two differ, in two tests of three gallery loads each.
+type Case = [string, FxCard, string, Owned, Want];
+/** Each case: tile and both detail plates agree, and show `expected`.
+ * `pair` = two printings of the scoped finish: selecting the other one must
+ * not change the plate. */
+async function compareWithTile(page: Page, cases: Case[], pair?: [number, number]) {
+  // Three full gallery loads: near the 30 s default when the machine is busy.
+  test.setTimeout(75_000);
+  let owned: Owned = {};
+  await serveQuantities(page, () => owned);
+  for (const [name, c, scope, q, expected] of cases) {
+    owned = q;
+    const { tile, selected } = await openFromScopedTile(page, c, scope);
+    const own = await plateShape(page, OWN);
+    const mini = await plateShape(page, MINI);
+    await test.step(name, () => {
+      // The case really has the shape it names.
+      expect(want(c, scope, q)).toEqual(expected);
+      expect(own).toEqual(tile);
+      expect(mini).toEqual(tile);
+      expectPlate(own, expected);
+      // ... and the first build's number (the selected printing's) differs.
+      expect(String(q[selected.variant_id] ?? 0)).not.toBe(own.total);
+    });
+    const btn = page.locator(`${OWN} .m-plate-hit--btn`);
+    await expect(btn).toHaveAttribute("data-plate-qty", String(expected.total));
+    await expect(btn).toHaveAttribute("data-plate-scoped", String(expected.scoped));
+    if (pair) {
+      // The other printing of the same finish: same scope, same plate.
+      await pickRow(page, selected.variant_id === pair[0] ? pair[1] : pair[0]);
+      expect(await plateShape(page, OWN)).toEqual(tile);
+      await pickRow(page, selected.variant_id);
+    }
+  }
+}
+
+test("fr1-07 plate = gallery tile when another finish is owned, and when the owned printing is not the selected one", async ({
+  page,
+}) => {
+  const chim = byNum("ASH", 52);
+  const cStd = chim.variants.find((v) => fin(v) === "Standard")!.variant_id;
+  const cHs = chim.variants.find((v) => fin(v) === "Hyperspace")!.variant_id;
+  await compareWithTile(page, [
+    // (a) another finish is also owned: the number counts it, the pips do not.
+    [
+      "a: 1 Hyperspace + 2 Standard",
+      chim,
+      "Hyperspace",
+      { [cHs]: 1, [cStd]: 2 },
+      { size: 3, total: 3, scoped: 1 },
+    ],
+    [
+      "a: 3 Hyperspace + 1 Standard",
+      chim,
+      "Hyperspace",
+      { [cHs]: 3, [cStd]: 1 },
+      { size: 3, total: 4, scoped: 3 },
+    ],
+    // (c) the owned printing is not the selected one: empty pips, its number.
+    [
+      "c: 2 Standard, Hyperspace selected",
+      chim,
+      "Hyperspace",
+      { [cStd]: 2 },
+      { size: 3, total: 2, scoped: 0 },
+    ],
+  ]);
+});
+
+test("fr1-07 plate = gallery tile when two printings share the selected finish; + moves the plate at once", async ({
+  page,
+}) => {
+  // JTL 147 Black One has TWO Standard printings (JTL 147 and P25 167).
+  const black = byNum("JTL", 147);
+  const [s1, s2] = black.variants.filter((v) => fin(v) === "Standard").map((v) => v.variant_id);
+  expect(s2).toBeDefined();
+  const bHs = black.variants.find((v) => fin(v) === "Hyperspace")!.variant_id;
+  // (b) two printings share the selected finish: the pips sum both.
+  const cases: Case[] = [
+    [
+      "b: 1 + 2 Standard",
+      black,
+      "Standard",
+      { [s1]: 1, [s2]: 2 },
+      { size: 3, total: 3, scoped: 3 },
+    ],
+    [
+      "b: 2 + 2 Standard + 1 Hyperspace",
+      black,
+      "Standard",
+      { [s1]: 2, [s2]: 2, [bHs]: 1 },
+      { size: 3, total: 5, scoped: 4 },
+    ],
+    [
+      "b: 1 + 1 Standard",
+      black,
+      "Standard",
+      { [s1]: 1, [s2]: 1 },
+      { size: 3, total: 2, scoped: 2 },
+    ],
+  ];
+  await compareWithTile(page, cases, [s1, s2]);
+
+  // Still on Black One, 1 + 1 Standard, a Standard printing selected: + moves
+  // the plate at once -- from the stepper's optimistic quantity, before the
+  // server has answered (the adjust call is held here and never answered).
+  await page.route(
+    (u) => /^\/api\/inventory\/\d+\/adjust$/.test(u.pathname),
+    () => {}
+  );
+  const stepQty = page.locator(`${ACTIVE} .m-step__qty`);
+  await expect(stepQty).toHaveText("1");
+  await page.locator(`${ACTIVE} .m-step[aria-label^="Increment"]`).click();
+  await expect(stepQty).toHaveText("2");
+  // 2 + 1 Standard: a playset of the finish and of the card. The number (3)
+  // is the card total, not the stepper's 2 (owner-accepted).
+  for (const root of [OWN, MINI])
+    expectPlate(await plateShape(page, root), { size: 3, total: 3, scoped: 3 });
+  await expect(page.locator(`${OWN} .m-plate-hit--btn`)).toHaveAttribute(
+    "aria-label",
+    `${black.name}: 3 owned, 3 Standard. Show owned by finish`
+  );
+  await expect(page.locator(`${OWN} .m-plate-hit--btn`)).toHaveAttribute("data-plate-qty", "3");
+  // Nothing was answered: the plate state above came from the shown quantity.
+  await page.unrouteAll({ behavior: "ignoreErrors" });
 });
 
 test.describe("fr1-07 signed out", () => {

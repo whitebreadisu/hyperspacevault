@@ -5,6 +5,7 @@ import {
   navEntryVariant,
   groupPrintings,
   orderPrintings,
+  plateState,
   railPrice,
   regionGeom,
   stepperState,
@@ -226,4 +227,113 @@ describe("FR1-05 count is red only OVER the limit (owner decision 2026-10-12)", 
       expect(s.incDisabled).toBe(incDisabled);
     }
   );
+});
+
+describe("FR1-07 plate = a finish-scoped gallery tile (owner decision 2026-10-12)", () => {
+  // The tile's own arithmetic (vault/GalleryCell.tsx:43-51), written out
+  // independently: pips = the scoped finish summed over every printing of it;
+  // the number = all printings; green number at a total playset; complete
+  // plate at a SCOPED playset.
+  const q = (id: number, finish: string, quantity: number) =>
+    v(id, finish, "SOR", String(id), { quantity });
+  it.each([
+    // name, variants, scope, type, [owned, scopedOwned, filled, pipsComplete, totalComplete]
+    [
+      "nothing owned",
+      [q(1, "Standard", 0), q(2, "Hyperspace", 0)],
+      "Standard",
+      "Unit",
+      [0, 0, 0, false, false],
+    ],
+    [
+      "partial, one printing",
+      [q(1, "Standard", 1), q(2, "Hyperspace", 0)],
+      "Standard",
+      "Unit",
+      [1, 1, 1, false, false],
+    ],
+    [
+      "playset in the scope",
+      [q(1, "Standard", 3), q(2, "Hyperspace", 0)],
+      "Standard",
+      "Unit",
+      [3, 3, 3, true, true],
+    ],
+    [
+      "over a playset: pips clamp, number does not",
+      [q(1, "Standard", 5)],
+      "Standard",
+      "Unit",
+      [5, 5, 3, true, true],
+    ],
+    [
+      "(a) another finish also owned",
+      [q(1, "Standard", 2), q(2, "Hyperspace", 1)],
+      "Standard",
+      "Unit",
+      [3, 2, 2, false, true],
+    ],
+    [
+      "(b) two printings share the finish",
+      [q(1, "Standard", 1), q(2, "Standard", 2), q(3, "Hyperspace", 0)],
+      "Standard",
+      "Unit",
+      [3, 3, 3, true, true],
+    ],
+    [
+      "(b) short across two printings",
+      [q(1, "Standard", 1), q(2, "Standard", 1)],
+      "Standard",
+      "Unit",
+      [2, 2, 2, false, false],
+    ],
+    [
+      "(c) the owned printing is not the selected one",
+      [q(1, "Standard", 2), q(2, "Hyperspace", 0)],
+      "Hyperspace",
+      "Unit",
+      [2, 0, 0, false, false],
+    ],
+    [
+      "leader: playset of one",
+      [q(1, "Standard", 0), q(2, "Showcase", 1)],
+      "Showcase",
+      "Leader",
+      [1, 1, 1, true, true],
+    ],
+    [
+      "leader owned in another finish",
+      [q(1, "Standard", 1), q(2, "Showcase", 0)],
+      "Showcase",
+      "Leader",
+      [1, 0, 0, false, true],
+    ],
+  ] as const)(
+    "%s",
+    (_name, variants, scope, type, [owned, scopedOwned, filled, pipsComplete, totalComplete]) => {
+      const s = plateState([...variants], scope, type, true);
+      expect(s.size).toBe(type === "Leader" ? 1 : 3);
+      expect(s.owned).toBe(owned);
+      expect(s.scopedOwned).toBe(scopedOwned);
+      expect(s.filled).toBe(filled);
+      expect(s.scoped).toBe(true);
+      expect(s.pipsComplete).toBe(pipsComplete);
+      expect(s.totalComplete).toBe(totalComplete);
+    }
+  );
+
+  it("falls back to variant_type when a printing has no finish", () => {
+    const s = plateState(
+      [{ variant_id: 1, variant_type: "Standard", finish: null, quantity: 2 }],
+      "Standard",
+      "Unit",
+      true
+    );
+    expect([s.owned, s.scopedOwned, s.filled]).toEqual([2, 2, 2]);
+  });
+
+  it("signed out: nothing filled, nothing complete", () => {
+    const s = plateState([q(1, "Standard", 3)], "Standard", "Unit", false);
+    expect([s.filled, s.scoped, s.pipsComplete, s.totalComplete]).toEqual([0, false, false, false]);
+  });
 });

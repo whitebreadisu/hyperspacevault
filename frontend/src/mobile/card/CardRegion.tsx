@@ -36,7 +36,9 @@ interface Props {
   setShowBack: (b: boolean) => void;
   collapsed: boolean;
   onExpand: () => void;
-  qty: number;
+  /** Every printing of the card with the quantity to show (the stepper's
+   * optimistic quantities included): the plate counts across them (FR1-07). */
+  shownVariants: InventoryVariant[];
   isAuthenticated: boolean;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
@@ -52,7 +54,7 @@ export function CardRegion({
   setShowBack,
   collapsed,
   onExpand,
-  qty,
+  shownVariants,
   isAuthenticated,
   priceKind,
   onPriceKind,
@@ -89,11 +91,12 @@ export function CardRegion({
   } as CSSProperties;
   const plate = (
     <PrintingPlate
+      name={card.name}
       type={card.type}
-      qty={qty}
+      variants={shownVariants}
+      scope={variant.finish ?? variant.variant_type}
       isAuthenticated={isAuthenticated}
       onClick={onOpenFinish}
-      label={`${card.name}: ${qty} ${finishLabel(variant)} owned. Show owned by finish`}
     />
   );
   const num = `${variant.source_set_code} ${variant.card_number}`;

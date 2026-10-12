@@ -321,7 +321,7 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 
 ## Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)
 
-**Disposition:** → ADR-0030 (mobile 2.0 owner finish round) + archive. The owner walked the phone build on his iPhone on 2026-10-12 and reversed two as-built choices: the card-detail plate now uses the gallery idiom scoped to the selected printing, and a count is red only past its limit (phone and desktop). The verify sheet's remove control changed in the same round (a look change, no decision of its own; recorded here so the old wording is not lost).
+**Disposition:** → ADR-0030 (mobile 2.0 owner finish round) + archive. The owner walked the phone build on his iPhone on 2026-10-12 and reversed two as-built choices: the card-detail plate now uses the gallery idiom, exactly as a gallery tile scoped to the selected printing's finish shows it, and a count is red only past its limit (phone and desktop). The verify sheet's remove control changed in the same round (a look change, no decision of its own; recorded here so the old wording is not lost).
 
 §25.2, plate sentence (R5-5), verbatim:
 

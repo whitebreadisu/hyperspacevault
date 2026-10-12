@@ -21,8 +21,17 @@ test("s2-05-stepper-adjusts", async ({ page }) => {
   await expect(qty).toHaveText("2");
   await inc.click();
   // Optimistic: the readout and the plate move at once, before any call.
+  // Owner decision 2026-10-12 (plate exactly like the gallery, ADR-0030;
+  // REPLACES "plate number = the selected printing's 3"): the plate's pips
+  // carry the Standard count (2 -> 3, a playset), its number the card total
+  // (2 + 1 + 1 = 4 -> 5).
   await expect(qty).toHaveText("3");
-  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText("3");
+  await expect(page.locator(".m-dreg3__own .m-plate-hit--btn")).toHaveAttribute(
+    "data-plate-scoped",
+    "3"
+  );
+  await expect(page.locator(".m-dreg3__own .gallery-plate--complete")).toHaveCount(1);
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText("5");
   expect(recorderFor(page).adjust).toEqual([]);
   await page.waitForTimeout(700);
   expect(recorderFor(page).adjust).toEqual([{ variantId: std.variant_id, delta: 1 }]);
