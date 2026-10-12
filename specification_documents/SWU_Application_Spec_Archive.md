@@ -334,3 +334,18 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 §25.3, verify quick-remove sentence, verbatim:
 
 > Each added row has a 44 px "−" quick remove that drops one copy.
+
+§24.2, camera decide-step sentence (the button label "Add"), verbatim:
+
+> - **Default: recognise, then decide.** On a successful read the scanner
+>   pauses and shows the card exactly as the keypad shows a resolved card
+>   (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
+>   AFTER ADD readout) with **Card details / Add / Wrong card**. Nothing is
+
+§25.7, Flow bullet (first sentences, the button label "Add"), verbatim:
+
+> - **Flow.** Searching -> found | pick -> hold. Found shows the keypad's `Identified` panel (shared numbers, BL-191 non-foil default, In vault / After add readout) with Card details (the card layer over the paused camera, same document), Add, and Wrong card (restart, no keypad prefill).
+
+§25.7, Hold and suppression bullet (first sentence), verbatim:
+
+> - **Hold and suppression.** An Add (prompt or Fast add) starts the 1.5 s hold ("Fast add · next card in 1.5 s", "In batch n", Add hidden);

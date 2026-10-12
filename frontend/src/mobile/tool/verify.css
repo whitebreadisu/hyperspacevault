@@ -212,7 +212,12 @@
   border-radius: 3px;
   cursor: pointer;
 }
-.m-app .m-vfyrow__remove:hover,
+@media (hover: hover) {
+  .m-app .m-vfyrow__remove:hover {
+    color: var(--aspect-aggression);
+    background: var(--bg-page);
+  }
+}
 .m-app .m-vfyrow__remove:active {
   color: var(--aspect-aggression);
   background: var(--bg-page);

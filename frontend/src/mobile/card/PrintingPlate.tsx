@@ -9,7 +9,12 @@ import { GalleryPlate } from "../vault/GalleryPlate";
 // against the card's playset size, amber (scoped) while short; at a playset
 // the plate takes the complete state (green ring, green pips, amber inner
 // wash). The number at the right = the selected printing's count (green at a
-// playset, muted at 0). There is no all-finishes state here: a printing is
+// playset, muted at 0). This differs from a finish-scoped gallery tile, whose
+// pips sum every printing of that finish and whose number is the card total
+// across all printings: they diverge when another finish is owned, when two
+// printings share a finish, and when the owned printing is not the selected
+// one. Whether the number should follow the gallery is an open owner question
+// (ADR-0030). There is no all-finishes state here: a printing is
 // always selected. Signed out: the gallery's SIGN IN TO TRACK plate.
 
 export function PrintingPlate({

@@ -57,11 +57,14 @@ saying.
 - One plate idiom per frame. Anything that changes the gallery plate now
   changes card detail with it, because both draw the same component; a
   future divergence has to be asked for rather than drifting in.
-- The detail plate's number is the selected printing's count, while a
-  gallery tile's number is the card's total across printings. They agree
-  whenever one printing is owned and differ otherwise; that difference is
-  the point of "scoped to the selected printing" and is the one place the
-  two plates are not literally the same reading.
+- What each plate counts, as built. A finish-scoped gallery tile fills its
+  pips from the sum of every printing of that finish, and its number is the
+  card's total across all printings. The detail plate uses the selected
+  printing's quantity for the pips, the ring and the number. They differ
+  when another finish is owned, when two printings share a finish, and when
+  the owned printing is not the selected one. The owner has been asked
+  whether the detail plate's number should follow the gallery's; this
+  records the behaviour as built, not an answer.
 - R5-5's rule that the plate follows the selected printing stands; only its
   drawing is superseded. The Owned-by-finish sheet keeps the chip-and-pips
   idiom (R5-1), which is the list's idiom on a list-like surface.

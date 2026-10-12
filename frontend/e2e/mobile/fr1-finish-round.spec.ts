@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { center, expect, measureEach, scrollBy, test } from "./helpers";
-import { openCard, QTY, scrollDetail } from "./card-helpers";
+import { fin, openCard, QTY, scrollDetail } from "./card-helpers";
 import { addTimes, openPad, openVerify } from "./tool-helpers";
 
 // FR1 (BL-257): mobile 2.0 finish round, slice 1. One named test per item.
@@ -197,15 +198,27 @@ test("fr1-06 a tap anywhere on a variant row selects it; the stepper keeps its o
   await scrollDetail(page, 0);
   await tapCentre(page, `${row(b)} .m-print__qtyslot`);
   expect(Number(await selectedId())).toBe(b);
-  // + on the selected row increments and does not change the selection.
-  const qtyEl = page.locator(`${row(b)} .m-step__qty`);
-  const q0 = Number(await qtyEl.textContent());
-  const inc = page.locator(`${row(b)} .m-step`).last();
-  if (!(await inc.isDisabled())) {
-    await tapCentre(page, `${row(b)} .m-step >> nth=1`);
-    await expect(qtyEl).toHaveText(String(q0 + 1));
-  }
-  expect(Number(await selectedId())).toBe(b);
+  // + and - on the selected row keep their own action and do not change the
+  // selection. Deterministic target: the Hyperspace Foil printing (owned 1,
+  // hard limit 3 in the fixtures), so + is always enabled.
+  const hf = c.variants.find((v) => fin(v) === "Hyperspace Foil")!.variant_id;
+  expect(QTY.get(hf)).toBe(1);
+  await scrollDetail(page, 0);
+  // (The x N slot exists only while the row is unselected.)
+  if (Number(await selectedId()) !== hf) await tapCentre(page, `${row(hf)} .m-print__qtyslot`);
+  expect(Number(await selectedId())).toBe(hf);
+  const qtyEl = page.locator(`${row(hf)} .m-step__qty`);
+  await expect(qtyEl).toHaveText("1");
+  const inc = page.locator(`${row(hf)} .m-step[aria-label^="Increment"]`);
+  const dec = page.locator(`${row(hf)} .m-step[aria-label^="Decrement"]`);
+  await expect(inc).toBeEnabled();
+  await tapCentre(page, `${row(hf)} .m-step[aria-label^="Increment"]`);
+  await expect(qtyEl).toHaveText("2");
+  expect(Number(await selectedId())).toBe(hf);
+  await tapCentre(page, `${row(hf)} .m-step[aria-label^="Decrement"]`);
+  await expect(qtyEl).toHaveText("1");
+  await expect(dec).toBeEnabled();
+  expect(Number(await selectedId())).toBe(hf);
 });
 
 test("fr1-06 the read-only (shared) row still selects from its price cell", async ({ page }) => {
@@ -225,4 +238,38 @@ test("fr1-06 the read-only (shared) row still selects from its price cell", asyn
   const b = (await target.locator(".m-print__price").boundingBox())!;
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await expect(target).toHaveClass(/cp-rail__item--active/);
+});
+
+// ── FR1-05: red only PAST the limit (the phone half of the surviving rule) ──
+test("fr1-05 hard cap past the limit is red", async ({ page }) => {
+  test.skip(!test.info().project.name.startsWith("phone"), "phone detail");
+  // Hard cap, Standard keep-limit lowered to 1 beneath the 2 copies of ASH 112
+  // Standard: the count is past its limit, so it is red (--color-danger).
+  const limits = JSON.parse(readFileSync("e2e/mobile/fixtures/limits.json", "utf8")) as {
+    cap_mode: string;
+    limits: { type_category: string; limit_bucket: string; max_quantity: number }[];
+  };
+  limits.cap_mode = "hard";
+  for (const l of limits.limits)
+    if (l.type_category === "standard" && l.limit_bucket === "Standard") l.max_quantity = 1;
+  await page.route(
+    (u) => u.pathname === "/api/settings/limits",
+    (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(limits) })
+  );
+  await openCard(page, "ASH", 112);
+  const active = ".m-print.cp-rail__item--active";
+  const qty = page.locator(`${active} .m-step__qty`);
+  await expect(qty).toHaveText("2");
+  const danger = await page.evaluate(() => {
+    const el = document.createElement("span");
+    el.style.color = "var(--color-danger)";
+    document.body.appendChild(el);
+    const c = getComputedStyle(el).color;
+    el.remove();
+    return c;
+  });
+  expect(danger).toBe("rgb(248, 113, 113)");
+  expect(await qty.evaluate((e) => getComputedStyle(e).color)).toBe(danger);
+  await expect(page.locator(`${active} .m-step[aria-label^="Increment"]`)).toBeDisabled();
+  await expect(page.locator(".cp-plate__over-limit-tag")).toHaveCount(0);
 });
