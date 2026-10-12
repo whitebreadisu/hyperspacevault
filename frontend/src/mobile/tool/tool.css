@@ -751,7 +751,69 @@
 }
 .m-app .m-setchooser__list {
   padding: 0 0 10px;
-  animation: m-fade 0.15s ease;
+  animation: m-setchooser-in 0.15s ease-out;
+}
+@keyframes m-setchooser-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── BL-257 FR3-02: the pinned two-way accordion. Mirrors the Verify sheet's
+ * mechanism (verify.css S3-13: .m-sheet-layer--verify-long, .m-vsec--acc)
+ * under chooser names, so that sheet is untouched. With a section open the
+ * sheet takes its full 86 %, the body stops scrolling and becomes a column;
+ * the open section fills it and its list is the only scroller. "Set" is
+ * first, so it is always at the top of the panel; "Precon deck" follows it
+ * directly while Set is folded, and is pushed to the bottom of the panel
+ * (just above the foot) while Set is open. Both collapsed: the sheet is its
+ * natural short height. Motion: the entering list's opacity + transform. */
+.m-app .m-setsec {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+}
+.m-app .m-setsec + .m-setsec > .m-setchooser {
+  border-top: 1px solid var(--color-border);
+}
+.m-app .m-setsec > .m-setchooser {
+  flex: none;
+}
+.m-app .m-sheet-layer--setpick-long .m-sheet {
+  height: 86%;
+}
+.m-app .m-sheet-layer--setpick-long .m-sheet__body {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+.m-app .m-sheet-layer--setpick-long .m-setchoosers {
+  flex: 1;
+  min-height: 0;
+}
+.m-app .m-setsec--open {
+  flex: 1 1 0;
+}
+.m-app .m-setsec--open > .m-setchooser__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -10px;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+/* The deck list runs to the sheet's bottom edge (no foot under it). */
+.m-app .m-setsec--open > #m-setchooser-precon {
+  padding-bottom: calc(10px + var(--sab));
 }
 
 /* Set rows (m-layout.css:285-287 + m-rev4-c.css:5-30). */
@@ -844,14 +906,49 @@
   align-self: center;
 }
 
-/* Deck rows: set logo + product (small caps) + deck name, 58 px
- * (m-rev4-d2.css:47-53). */
+/* Deck rows: set logo + leader / base art + product (small caps) + deck name
+ * (m-rev4-d2.css:47-53; BL-257 FR3-03 adds the art and the height it needs:
+ * 58 px -> 64 px, cap 76). The logo is a SetLogo box (setLogoArt.ts
+ * SET_LOGO_BOX.deck). */
 .m-app .m-d2-deck {
-  min-height: 58px;
+  min-height: 64px;
+  gap: 10px;
 }
-.m-app .m-d2-deck .m-d2-deck__logo {
-  width: 76px;
-  height: 28px;
+
+/* ── BL-257 FR3-03: the deck art (DeckArt.tsx; geometry inline from
+ * deckArtModel.ts DECK_ART). Cosmetics are desktop's hover preview
+ * (AddCardsModal.css .acx-pdd__preview-base / -leader) at row scale: steel
+ * hairline ring, small radius, the base under the leader. */
+.m-app .m-deckart {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+}
+.m-app .m-deckart__base,
+.m-app .m-deckart__leader {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #0b0e18;
+}
+.m-app .m-deckart__base {
+  z-index: 1;
+  border: 1px solid rgba(211, 211, 212, 0.3);
+}
+.m-app .m-deckart__leader {
+  z-index: 2;
+  border: 1px solid rgba(211, 211, 212, 0.35);
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.6);
+}
+.m-app .m-deckart img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
 }
 .m-app .m-d2-deck__text {
   flex: 1;

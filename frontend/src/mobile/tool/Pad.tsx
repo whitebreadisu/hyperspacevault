@@ -571,6 +571,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
       {chooserOpen ? (
         <SetChooserSheet
           sets={sets}
+          catalog={catalog}
           setCode={precon ? null : st.setCode}
           preconKey={st.preconKey}
           onClose={() => setChooserOpen(false)}

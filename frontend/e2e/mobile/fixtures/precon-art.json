@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1788,
+    "set_code": "SHD",
+    "base_card_number": "18",
+    "name": "The Mandalorian",
+    "subtitle": "Sworn To The Creed",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 4,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Heroism"],
+    "keywords": [],
+    "traits": ["Mandalorian", "Bounty Hunter"],
+    "variants": [
+      {
+        "variant_id": 5445,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SHD",
+        "card_number": "18",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_02_018_The_Mandalorian_Leader_39e96b9f94.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_SWH_02_018_The_Mandalorian_Leader_tnit_4088c46c4d.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1386,
+    "set_code": "SHD",
+    "base_card_number": "20",
+    "name": "Remote Village",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 30,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 5503,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SHD",
+        "card_number": "20",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0201020_EN_Remote_Village_Base_70adda2d28.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 864,
+    "set_code": "TS26",
+    "base_card_number": "7",
+    "name": "Asajj Ventress",
+    "subtitle": "Ambitious Apprentice",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 3,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Villainy"],
+    "keywords": ["Hidden"],
+    "traits": ["Force", "Separatist", "Sith"],
+    "variants": [
+      {
+        "variant_id": 7328,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "7",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010007_EN_Asajj_Ventress_Leader_fea4e2d457.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010007_EN_Asajj_Ventress_Leader_Unit_b4cc18c531.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1620,
+    "set_code": "IBH",
+    "base_card_number": "2",
+    "name": "Echo Caverns",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Special",
+    "cost": null,
+    "power": null,
+    "hp": 20,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Cunning"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 310,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010002_EN_Echo_Caverns_Base_ce71769ee1.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I010002_EN_Echo_Caverns_Base_30hp_d353325a7b.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 2243,
+    "set_code": "IBH",
+    "base_card_number": "53",
+    "name": "Darth Vader",
+    "subtitle": "Don't Fail Me Again",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 3,
+    "hp": 8,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": [],
+    "traits": ["Force", "Imperial", "Sith"],
+    "variants": [
+      {
+        "variant_id": 347,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "53",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010053_EN_Darth_Vader_Leader_3a38941d2c.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I01010053_EN_Darth_Vader_Leader_Unit_9f6a0193d6.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 645,
+    "set_code": "IBH",
+    "base_card_number": "54",
+    "name": "Forward Command Post",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Special",
+    "cost": null,
+    "power": null,
+    "hp": 20,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 348,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "54",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010054_EN_Forward_Command_Post_Base_2ab941045b.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I010054_EN_Forward_Command_Post_Base_30hp_113dc49ed1.png",
+        "price": null
+      }
+    ]
+  }
+]
