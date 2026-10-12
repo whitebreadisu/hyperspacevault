@@ -107,3 +107,19 @@ extraction batch. Section numbers refer to the spec as of the extraction date.
 > | Portability off GCP | Low | High |
 >
 > **What tipped it:** zero new account/SDK/secret, composes directly with 4.1's logging and 4.3's alerting — one "pane of glass." **Revisit if:** error volume/team size grows enough that *triage quality* ("which of these 200 similar errors is new") becomes the bottleneck — Sentry's SDK can run *alongside* continued Cloud Logging as a pure addition, not a migration.
+
+## Superseded 2026-10-12 (BL-260, mobile e2e sharding)
+
+### §2.1 job count and pipeline diagram (pre-BL-260)
+
+> `.github/workflows/ci.yml` defines eleven jobs in a build-once / promote model:
+>
+> ```
+> backend ─────────────────────────┐
+> frontend ─► frontend-e2e-mobile ─┴─► detect-changes ─► build-and-push ──┬─► check-risk-level ─► promote-prod-fast (risk:low)
+>                                     (main push,         (main only,      └─► deploy-dev
+>                                      skipped if          skipped if
+>                                      docs-only)          docs-only)
+> ```
+
+Tombstone 2026-10-12: `frontend-e2e-mobile` was a single job that ran after `frontend`; it is now an aggregator over the `e2e-mobile-shard` matrix (five legs split by project), and the legs start with `frontend` (see Platform Spec §2.1, ADR-0007 amendment BL-260).
