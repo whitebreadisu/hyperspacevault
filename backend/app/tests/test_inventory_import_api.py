@@ -332,6 +332,10 @@ def bl186_catalog(db):
       predicate rather than variant_type.
     - serialized (SEC, "9840"): three "Serialized Prestige" variants, same
       triple -- irreducibly ambiguous (mirrors bl185_catalog's SEC family).
+    - hmw (HMW, "9843"): Standard only -- BL-245 (2026-10-12): the
+      sw-unlimited-db preset maps HMW once its released numbering was
+      spot-checked; the set row is inserted here too because CI's fresh
+      DB carries no Homeworlds ingestion.
     - tokencollide real/token pair (LAW, "9842"): a real base card AND an
       is_token base card sharing one bare (set, number) -- BL-199's token-
       routing shape: the raw id's T- prefix (T9842 vs 9842) is the row's
@@ -350,6 +354,12 @@ def bl186_catalog(db):
         text(
             "INSERT INTO sets (code, name, is_base_set) "
             "VALUES ('P25', 'Prerelease 2025', false) ON CONFLICT (code) DO NOTHING"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO sets (code, name, is_base_set) "
+            "VALUES ('HMW', 'Homeworlds', true) ON CONFLICT (code) DO NOTHING"
         )
     )
     db.commit()
@@ -486,10 +496,15 @@ def bl186_catalog(db):
     tokencollide_token = _upsert_variant(
         "bl186-v-tokencollide-token", bc_tokencollide_token, "LAW", "9842", "Standard"
     )
+    bc_hmw = _upsert_base_card("bl186-bc-hmw", "HMW", "9843", "BL186 Homeworlds Hero")
+    hmw_standard = _upsert_variant(
+        "bl186-v-hmw-standard", bc_hmw, "HMW", "9843", "Standard"
+    )
     db.commit()
 
     return {
         "multi_standard": {"id": multi_standard, "uuid": "bl186-v-multi-standard"},
+        "hmw_standard": {"id": hmw_standard, "uuid": "bl186-v-hmw-standard"},
         "multi_foil": {"id": multi_foil, "uuid": "bl186-v-multi-foil"},
         "multi_hyperspace": {
             "id": multi_hyperspace,
@@ -2398,28 +2413,29 @@ class TestSwunlimiteddbSerializedAmbiguous:
         assert sorted(candidate_uuids) == sorted(bl186_catalog["serialized_uuids"])
 
 
-class TestSwunlimiteddbUnmappedSet:
-    def test_hmw_is_unmapped_set(self, bl54s2_tenant):
-        """PORT (BL-241 / ADR-0028, 2026-10-08): HMW is in the catalog and
-        the SWUDB preset maps it; THIS preset holds it until
-        sw-unlimited-db's released numbering is spot-checked (its only
-        sample on file is pre-release preview numbering). Behavior under
-        the hold is unchanged: refused as unmapped_set, never guessed.
-        Becomes a resolution test when the row lands."""
+class TestSwunlimiteddbHomeworlds:
+    def test_hmw_row_resolves(self, bl54s2_tenant, bl186_catalog):
+        """REPLACE (BL-245, 2026-10-12) of test_hmw_is_unmapped_set (BL-241's
+        PORT of the BL-186 refusal): the hold ended once a reporter's
+        post-release export was spot-checked against the catalog (runbook
+        step 12 -- all 272 Homeworlds numbers matched; #4 Grand Moff Tarkin
+        is labelled by its back face "The Death Star" in that tool). A
+        Homeworlds row now resolves through the ordinary base-card-first
+        path like any other mapped base set; nothing else about the row's
+        handling changed."""
         client, _ = bl54s2_tenant
         resp = _post_xlsx_import(
             client,
             header=["Set", "Base card id", "Name", "Normal"],
-            rows=[["HMW", "4", "Hijacked AT-ST", 1]],
+            rows=[["HMW", "9843", "BL186 Homeworlds Hero", 1]],
             mode="merge_add",
             cap_handling="add_above",
             stage="dry_run",
         )
         assert resp.status_code == 200
         row = resp.json()["rows"][0]
-        assert row["status"] == "unresolved"
-        assert row["reason"] == "unmapped_set"
-        assert row["card"]["set_code"] == "HMW"
+        assert row["card"]["swuapi_uuid"] == bl186_catalog["hmw_standard"]["uuid"]
+        assert row["file_quantity"] == 1
 
 
 class TestSwunlimiteddbUnmappedColumn:
