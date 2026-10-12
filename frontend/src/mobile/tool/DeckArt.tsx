@@ -14,7 +14,8 @@ import type { DeckArtImage, DeckRowArt } from "./deckArtModel";
 //
 // A failed image never shows as a broken image: after the stored-URL swap
 // (utils/cardImages.ts) also fails, a base is dropped and a failed leader
-// removes the row's art altogether.
+// removes the row's art altogether -- its (empty) box stays, so the text
+// keeps its place.
 
 function Face({
   image,
@@ -59,10 +60,21 @@ function Face({
 export function DeckArt({ art }: { art: DeckRowArt }) {
   const [gone, setGone] = useState<ReadonlySet<number>>(new Set());
   if (art.kind === "none") return null;
-  if (art.leaders.some((l) => gone.has(l.id))) return null;
+  const box = deckArtBox(art.kind);
+  // A leader whose image failed (after layout -- the browser only knows once
+  // it has tried): the art goes, but its box stays, so the row's text does
+  // not jump left by the art's width.
+  if (art.leaders.some((l) => gone.has(l.id)))
+    return (
+      <span
+        className="m-deckart m-deckart--gone"
+        style={{ width: box.w, height: box.h }}
+        data-art="gone"
+        aria-hidden="true"
+      />
+    );
   const onGone = (id: number) => setGone((g) => new Set(g).add(id));
   const { leaderW: lw, leaderH: lh, peek, gap, dualBase } = DECK_ART;
-  const box = deckArtBox(art.kind);
   const bases = art.bases.map((b) => (b && !gone.has(b.id) ? b : null));
   const dualW = Math.round(box.w * dualBase);
   return (

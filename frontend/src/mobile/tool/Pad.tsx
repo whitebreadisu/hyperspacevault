@@ -4,6 +4,7 @@ import { useLimits } from "../../context/LimitsContext";
 import { getPlaysetSize } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { MIcon } from "../icons";
+import { SetLogo } from "../SetLogo";
 import { SWUButton } from "../../components/SWUButton";
 import { cellImage } from "../vault/cardImage";
 import { useVaultData } from "../vault/useVaultData";
@@ -14,7 +15,6 @@ import {
   padView,
   preconByKey,
   preconShort,
-  setLogoUrl,
   starfieldUrl,
   toCatalog,
 } from "./padModel";
@@ -543,7 +543,13 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
                 : `Set: ${setNameByCode[st.setCode] ?? st.setCode}. Change set`
             }
           >
-            {base ? <img className="m-padset__logo" src={setLogoUrl(base)} alt="" /> : null}
+            {base ? (
+              <SetLogo
+                code={base}
+                box={sub || precon ? "padNarrow" : "pad"}
+                imgClassName="m-padset__logo"
+              />
+            ) : null}
             <span className="m-padset__code">{precon ? preconShort(precon) : st.setCode}</span>
             <MIcon name="chevdown" size={16} />
           </button>

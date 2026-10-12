@@ -78,14 +78,13 @@
   color: #d7dee9;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
+/* BL-257: a SetLogo box (setLogoArt.ts SET_LOGO_BOX.detail, 92 x 30) in the
+ * same corner; the artwork takes the common area and is held to the box's
+ * right edge, so every set's mark ends on the header's 16 px margin. */
 .m-app .m-hdr > .m-hdr__setlogo {
   position: absolute;
   right: 16px;
   bottom: 18px;
-  height: 30px;
-  max-width: 92px;
-  object-fit: contain;
-  object-position: right;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 

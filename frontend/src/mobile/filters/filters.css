@@ -164,17 +164,9 @@
 .m-app .m-fsel:active .m-fsel__in {
   transform: translateY(1px);
 }
-.m-app .m-fsel__logo {
-  display: block;
-  height: 16px;
-  width: auto;
-  max-width: 62px;
-  object-fit: contain;
-}
-.m-app .m-fsel__logo--LAW,
-.m-app .m-fsel__logo--IBH {
-  height: 14px;
-}
+/* (BL-257: a base set's chip holds a SetLogo box -- setLogoArt.ts
+ * SET_LOGO_BOX.fsel, 54 x 18 -- in place of the height-fitted PNG and its
+ * per-set LAW / IBH overrides; .m-fsel__logo is the <img> inside it.) */
 .m-app .m-fsel__x {
   flex: none;
   color: rgba(255, 255, 255, 0.72);
@@ -449,17 +441,10 @@
 .m-app .m-setfacet__chip {
   min-width: 96px;
 }
-.m-app .m-chip__logo {
-  height: 22px;
-  width: auto;
-  max-width: 88px;
-  object-fit: contain;
-  display: block;
-}
-.m-app .m-chip__logo--LAW,
-.m-app .m-chip__logo--IBH {
-  height: 18px;
-}
+/* (BL-257: the chip holds a SetLogo box -- setLogoArt.ts SET_LOGO_BOX.chip,
+ * 80 x 24, so every base-set chip is 106 px wide, three to a row --
+ * in place of the height-fitted PNG and its per-set LAW / IBH overrides;
+ * .m-chip__logo is the <img> inside it.) */
 
 /* ── Check rows (m-rev3.css:246-254, 261-262, 394-396) ─────────────────── */
 .m-app .m-fcheck--inert,

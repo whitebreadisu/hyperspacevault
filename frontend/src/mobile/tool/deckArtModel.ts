@@ -12,13 +12,15 @@ import { buildPreconPreview } from "../../utils/preconPreview";
 
 /** Card art geometry on a deck row, CSS px. One leader size for every row
  * kind (desktop's rule, PreconDropdown.tsx:186-189): a landscape card
- * (88 : 63). The base sits behind, raised by `peek` so its name strip shows
- * above the leader. `gap` separates two leaders; a Twin Suns row's single
- * base is `dualBase` of the two-leader width, centred (desktop: 62 %). */
+ * (88 : 63). The base sits behind, raised by `peek` so its name strip AND a
+ * sliver of the card show above the leader (13 of 43 px, about 30 % --
+ * desktop's hover art raises it about 32 %; owner finish round 2026-10-12).
+ * `gap` separates two leaders; a Twin Suns row's single base is `dualBase`
+ * of the two-leader width, centred (desktop: 62 %). */
 export const DECK_ART = {
   leaderW: 60,
   leaderH: 43,
-  peek: 8,
+  peek: 13,
   gap: 2,
   dualBase: 0.62,
 } as const;

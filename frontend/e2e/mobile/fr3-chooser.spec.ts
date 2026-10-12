@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { SET_LOGO_ART, SET_LOGO_BOX } from "../../src/mobile/setLogoArt";
+import { SET_LOGO_ART, SET_LOGO_BOX, setLogoNudge } from "../../src/mobile/setLogoArt";
 import { DECK_ART } from "../../src/mobile/tool/deckArtModel";
 import { BASE_SET_ORDER } from "../../src/utils/setGrouping";
+import { openCard } from "./card-helpers";
+import { FSHEET, openFilters, tapIn } from "./filters-helpers";
 import { expect, measureEach, test } from "./helpers";
-import { openPad } from "./tool-helpers";
+import { openPad, pickSet } from "./tool-helpers";
 
 // BL-257 FR3 (owner finish round, 2026-10-12): the keypad's "Choose a set"
 // sheet. FR3-01 set logos centred and optically even (also on the
@@ -70,6 +72,32 @@ function artRect(p: LogoProbe) {
 const CAPPED: Record<string, string> = {
   SOR: "11 : 1 wordmark -- at the box's full width its height is under a third of the others'",
 };
+/** REPLACE (fix run, owner finish round 2026-10-12): LAW left the +/-20 % band
+ * on purpose. Bounding-box area cannot see ink density; LAW's mark is the
+ * densest (ink .66 of its box against ~.4) and read as the biggest logo, so
+ * it is drawn at 0.64 of the common area (0.88 of the box's width), which
+ * levels its ink with the others'. Its band, as a share of the median: */
+const OPTICAL: Record<string, [number, number]> = { LAW: [0.55, 0.75] };
+
+/** The artwork sits on the logo box's centre on both axes, within 1 px, and
+ * inside the box. REPLACE (fix run): the horizontal centre allows the set's
+ * optical nudge from the table (JTL only -- 0 for every other set, which are
+ * held to the centre exactly as before; a full-width artwork gets none). */
+function assertCentred(p: LogoProbe, label: string) {
+  const art = artRect(p);
+  const nudge = setLogoNudge(p.code, art.w, p.box.w);
+  if (p.code !== "JTL") expect(nudge, label).toBe(0);
+  expect(Math.abs(art.x + art.w / 2 - (p.box.x + p.box.w / 2) - nudge), label).toBeLessThanOrEqual(
+    1
+  );
+  expect(Math.abs(art.y + art.h / 2 - (p.box.y + p.box.h / 2)), label).toBeLessThanOrEqual(1);
+  // The artwork never overflows its box.
+  expect(art.x, label).toBeGreaterThanOrEqual(p.box.x - 0.5);
+  expect(art.y, label).toBeGreaterThanOrEqual(p.box.y - 0.5);
+  expect(art.x + art.w, label).toBeLessThanOrEqual(p.box.x + p.box.w + 0.5);
+  expect(art.y + art.h, label).toBeLessThanOrEqual(p.box.y + p.box.h + 0.5);
+  return art;
+}
 
 function assertLogos(probes: LogoProbe[], box: { w: number; h: number }, where: string) {
   expect(probes.map((p) => p.code).sort(), where).toEqual([...BASE_SET_ORDER].sort());
@@ -81,15 +109,7 @@ function assertLogos(probes: LogoProbe[], box: { w: number; h: number }, where: 
     expect(p.natural, label).toEqual([a.w, a.h]);
     expect(p.box.w, label).toBeCloseTo(box.w, 1);
     expect(p.box.h, label).toBeCloseTo(box.h, 1);
-    const art = artRect(p);
-    // Centred in the logo box on both axes, within 1 px.
-    expect(Math.abs(art.x + art.w / 2 - (p.box.x + p.box.w / 2)), label).toBeLessThanOrEqual(1);
-    expect(Math.abs(art.y + art.h / 2 - (p.box.y + p.box.h / 2)), label).toBeLessThanOrEqual(1);
-    // The artwork never overflows its box.
-    expect(art.x, label).toBeGreaterThanOrEqual(p.box.x - 0.5);
-    expect(art.y, label).toBeGreaterThanOrEqual(p.box.y - 0.5);
-    expect(art.x + art.w, label).toBeLessThanOrEqual(p.box.x + p.box.w + 0.5);
-    expect(art.y + art.h, label).toBeLessThanOrEqual(p.box.y + p.box.h + 0.5);
+    const art = assertCentred(p, label);
     areas[p.code] = art.w * art.h;
   }
   const sorted = Object.values(areas).sort((x, y) => x - y);
@@ -97,12 +117,52 @@ function assertLogos(probes: LogoProbe[], box: { w: number; h: number }, where: 
   for (const [code, area] of Object.entries(areas)) {
     const ratio = area / median;
     if (code in CAPPED) expect(ratio, `${where} ${code} is the cap case`).toBeLessThan(0.8);
-    else {
+    else if (code in OPTICAL) {
+      expect(ratio, `${where} ${code} optical case`).toBeGreaterThanOrEqual(OPTICAL[code][0]);
+      expect(ratio, `${where} ${code} optical case`).toBeLessThanOrEqual(OPTICAL[code][1]);
+    } else {
       expect(ratio, `${where} ${code} area vs median`).toBeGreaterThanOrEqual(0.8);
       expect(ratio, `${where} ${code} area vs median`).toBeLessThanOrEqual(1.2);
     }
   }
 }
+
+/** Review N10: the trim table against the PNGs themselves, not only their
+ * pixel size. Each served logo is drawn to a canvas and its alpha bounding
+ * box re-measured with the script's rule (alpha >= 24 / 255,
+ * scripts/measure-set-logos.mjs); a re-exported logo with different padding
+ * at the same pixel size fails here. */
+const measureTrims = (page: Page, codes: readonly string[]) =>
+  page.evaluate(async (list) => {
+    const out: Record<string, { l: number; t: number; aw: number; ah: number }> = {};
+    for (const code of list) {
+      const img = new Image();
+      img.src = `/images/set_${code}.png`;
+      await img.decode();
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, w, h).data;
+      let x0 = w;
+      let y0 = h;
+      let x1 = -1;
+      let y1 = -1;
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++)
+          if (d[(y * w + x) * 4 + 3] >= 24) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      out[code] = { l: x0 / w, t: y0 / h, aw: (x1 - x0 + 1) / w, ah: (y1 - y0 + 1) / h };
+    }
+    return out;
+  }, codes);
 
 test.describe("FR3-01 set logos centred and optically even", () => {
   test("fr3-01 chooser set rows: 11 logos centred, even, inside the box; rows stay 52 px", async ({
@@ -121,6 +181,39 @@ test.describe("FR3-01 set logos centred and optically even", () => {
       .locator(".m-setpick .m-setlogo")
       .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)));
     expect(new Set(lefts).size).toBe(1);
+    // N10: every trim in the table is the served PNG's own alpha box.
+    const trims = await measureTrims(page, BASE_SET_ORDER);
+    for (const code of BASE_SET_ORDER) {
+      const a = SET_LOGO_ART[code];
+      for (const k of ["l", "t", "aw", "ah"] as const)
+        expect(Math.abs(trims[code][k] - a[k]), `${code} trim ${k}`).toBeLessThanOrEqual(0.002);
+    }
+  });
+
+  test("fr3-01 Weekly Play and exclusive rows: the leading code is dimmed to 0.85", async ({
+    page,
+  }) => {
+    await openChooser(page);
+    await page.locator(SET_HEAD).click();
+    await page.locator(".m-setpick__all").click();
+    await expect(page.locator(".m-setpick")).toHaveAttribute("data-view", "all");
+    const marks = await page.locator(".m-setpick .m-setpick__row").evaluateAll((rows) =>
+      rows.map((r) => ({
+        kind: ["base", "weekly", "exclusive"].find((k) =>
+          r.classList.contains("m-setpick__row--" + k)
+        ),
+        mark: r.firstElementChild!.className,
+        opacity: getComputedStyle(r.firstElementChild!).opacity,
+      }))
+    );
+    const weekly = marks.filter((m) => m.kind === "weekly");
+    expect(weekly.length).toBeGreaterThanOrEqual(9);
+    for (const m of weekly) expect(m).toMatchObject({ mark: "m-setpick__nologo", opacity: "0.85" });
+    for (const m of marks.filter((x) => x.kind === "exclusive")) expect(m.opacity).toBe("0.85");
+    for (const m of marks.filter((x) => x.kind === "base")) {
+      expect(m.mark).toContain("m-setlogo");
+      expect(m.opacity).toBe("1");
+    }
   });
 
   test("fr3-01 Completion by set rows: 11 logos centred, even, inside the box", async ({
@@ -132,19 +225,120 @@ test.describe("FR3-01 set logos centred and optically even", () => {
     assertLogos(await probeLogos(page, ".m-setrows"), SET_LOGO_BOX.sets, "by-set");
   });
 
-  test("fr3-01 deck rows: the set logo is centred in its (smaller) box", async ({ page }) => {
+  test("fr3-01 deck rows: the set logo is centred in its 66 x 24 box and legible", async ({
+    page,
+  }) => {
     await openChooser(page);
     await page.locator(DECK_HEAD).click();
     const probes = await probeLogos(page, ".m-d2-decks");
     expect(probes).toHaveLength(23);
+    expect(SET_LOGO_BOX.deck).toEqual({ w: 66, h: 24 });
     for (const p of probes) {
-      const art = artRect(p);
       expect(p.box.w).toBeCloseTo(SET_LOGO_BOX.deck.w, 1);
-      expect(Math.abs(art.x + art.w / 2 - (p.box.x + p.box.w / 2)), p.code).toBeLessThanOrEqual(1);
-      expect(Math.abs(art.y + art.h / 2 - (p.box.y + p.box.h / 2)), p.code).toBeLessThanOrEqual(1);
-      expect(art.w, p.code).toBeLessThanOrEqual(p.box.w + 0.5);
-      expect(art.h, p.code).toBeLessThanOrEqual(p.box.h + 0.5);
+      expect(p.box.h).toBeCloseTo(SET_LOGO_BOX.deck.h, 1);
+      // (Centre + containment: the checks this test always made, now through
+      // the shared helper.)
+      const art = assertCentred(p, `deck ${p.code}`);
+      // Review S5: a size floor. The thinnest wordmark (SOR) is 66 x 6.0 here;
+      // at the 50 px box it was 50 x 4.6 and this fails.
+      expect(art.h, `deck ${p.code} artwork height`).toBeGreaterThanOrEqual(5.8);
+      expect(art.w, `deck ${p.code} artwork width`).toBeGreaterThanOrEqual(54);
     }
+    // The 23 rows show every one of the 11 logos.
+    expect(new Set(probes.map((p) => p.code))).toEqual(new Set(BASE_SET_ORDER));
+  });
+});
+
+// ── FR3-01, every other phone surface that draws a set logo (review S6 / N9) ─
+
+test.describe("FR3-01 the same logo treatment on every phone surface", () => {
+  test("fr3-01 keypad set button and precon panel head: artwork centred in the box", async ({
+    page,
+  }) => {
+    await openPad(page);
+    // A base set locked: the 62 x 30 box.
+    await pickSet(page, "LAW");
+    let [p] = await probeLogos(page, ".m-pad__entry .m-padset");
+    expect(p.code).toBe("LAW");
+    expect([p.box.w, p.box.h]).toEqual([SET_LOGO_BOX.pad.w, SET_LOGO_BOX.pad.h]);
+    assertCentred(p, "pad LAW");
+    await pickSet(page, "JTL");
+    [p] = await probeLogos(page, ".m-pad__entry .m-padset");
+    assertCentred(p, "pad JTL");
+    // A subset: its base set's logo in the narrow box, beside the code.
+    await pickSet(page, "LAWP", true);
+    [p] = await probeLogos(page, ".m-pad__entry .m-padset");
+    expect(p.code).toBe("LAW");
+    expect([p.box.w, p.box.h]).toEqual([SET_LOGO_BOX.padNarrow.w, SET_LOGO_BOX.padNarrow.h]);
+    assertCentred(p, "pad LAWP");
+    // The set button never grows past its 128 px.
+    expect(
+      await page.locator(".m-pad__entry .m-padset").evaluate((e) => e.getBoundingClientRect().width)
+    ).toBe(128);
+    // A deck chosen: the narrow box on the button, the 92 x 34 box on the
+    // precon panel's head.
+    await page.locator(".m-pad__entry .m-padset").click();
+    await page.locator(DECK_HEAD).click();
+    await page.locator('.m-d2-deck[data-deck="TS26-ANAKIN"]').click();
+    await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+    [p] = await probeLogos(page, ".m-pad__entry .m-padset");
+    expect(p.code).toBe("TS26");
+    expect(p.box.w).toBe(SET_LOGO_BOX.padNarrow.w);
+    assertCentred(p, "pad deck TS26");
+    const [h] = await probeLogos(page, ".m-d2-precon__head");
+    expect(h.code).toBe("TS26");
+    expect([h.box.w, h.box.h]).toEqual([SET_LOGO_BOX.precon.w, SET_LOGO_BOX.precon.h]);
+    assertCentred(h, "precon head TS26");
+  });
+
+  test("fr3-01 Filters: Set picker chips and the Set row's selected chips, artwork centred", async ({
+    page,
+  }) => {
+    await openFilters(page);
+    await tapIn(page, '[data-fpick="set"]');
+    const pick = page.locator(".m-sheet-layer--fpick-set");
+    await expect(pick).toBeVisible();
+    await page.waitForTimeout(300);
+    const chips = await probeLogos(page, ".m-sheet-layer--fpick-set .m-setfacet");
+    // All 11 base sets: centred, even, inside the 80 x 24 box.
+    assertLogos(chips, SET_LOGO_BOX.chip, "set picker chip");
+    // Equal chips, three to a row at 390 and 430.
+    const cr = await pick
+      .locator(".m-setfacet__chip")
+      .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.width, r.top]));
+    expect(new Set(cr.map((c) => Math.round(c[0]))).size).toBe(1);
+    expect(new Set(cr.map((c) => Math.round(c[1]))).size).toBe(4);
+    // Select three and close the picker: the Set row's chips.
+    for (const code of ["LAW", "JTL", "SOR"])
+      await pick.locator(`.m-setfacet__chip[data-fv="${code}"]`).click();
+    await pick.locator(".m-picker__done").click();
+    await expect(pick).toHaveCount(0);
+    const sel = await probeLogos(page, `${FSHEET} [data-facet="set"] .m-fsel`);
+    expect(sel.map((s) => s.code).sort()).toEqual(["JTL", "LAW", "SOR"]);
+    for (const s of sel) {
+      expect([s.box.w, s.box.h]).toEqual([SET_LOGO_BOX.fsel.w, SET_LOGO_BOX.fsel.h]);
+      assertCentred(s, `selected chip ${s.code}`);
+    }
+  });
+
+  test("fr3-01 card detail header: the artwork ends on the box's right edge, centred vertically", async ({
+    page,
+  }) => {
+    await openCard(page, "ASH", 112);
+    const [p] = await probeLogos(page, ".m-hdr--detail");
+    expect(p.code).toBe("ASH");
+    expect([p.box.w, p.box.h]).toEqual([SET_LOGO_BOX.detail.w, SET_LOGO_BOX.detail.h]);
+    const art = artRect(p);
+    expect(Math.abs(art.x + art.w - (p.box.x + p.box.w))).toBeLessThanOrEqual(1);
+    expect(Math.abs(art.y + art.h / 2 - (p.box.y + p.box.h / 2))).toBeLessThanOrEqual(1);
+    expect(art.x).toBeGreaterThanOrEqual(p.box.x - 0.5);
+    // The same corner as before: 16 px from the header's right edge.
+    const vw = page.viewportSize()!.width;
+    expect(Math.abs(vw - (p.box.x + p.box.w) - 16)).toBeLessThanOrEqual(0.5);
+    // A named image (it stands alone in the header).
+    const logo = page.locator(".m-hdr--detail .m-hdr__setlogo").first();
+    await expect(logo).toHaveAttribute("role", "img");
+    await expect(logo).toHaveAttribute("aria-label", "ASH logo");
   });
 });
 
@@ -321,8 +515,10 @@ test.describe("FR3-02 Set / Precon deck are a pinned two-way accordion", () => {
 
 // The shared fixture catalogue holds few deck leaders. precon-art.json adds
 // the real catalogue rows (leader / base, Standard printing) that complete
-// three decks: SHD-MANDO (single), TS26-DOOKU (Twin Suns, dual) and the Hoth
-// box (ibh). HMW-CHEWBACCA's leader is in neither file.
+// SHD-MANDO (single), all four Twin Suns decks (dual; the other three were
+// added by the fix run so the "every name reads in full" test measures the
+// names beside real two-leader art) and the Hoth box (ibh). HMW-CHEWBACCA's
+// leader is in neither file.
 async function withDeckArt(page: Page) {
   const read = (f: string) => JSON.parse(readFileSync(`e2e/mobile/fixtures/${f}`, "utf8"));
   const cards = [...read("base-cards.json"), ...read("precon-art.json")];
@@ -385,6 +581,41 @@ const probeDeck = (page: Page, deck: string) =>
     };
   });
 
+/** Every deck row's two text lines, as laid out: is either cut (content wider
+ * or taller than its box, or past the text column), and how many lines the
+ * name takes. */
+const probeNames = (page: Page) =>
+  page.locator(".m-d2-decks .m-d2-deck").evaluateAll((rows) =>
+    rows.map((row) => {
+      const product = row.querySelector(".m-d2-deck__product") as HTMLElement;
+      const name = row.querySelector(".m-d2-deck__name") as HTMLElement;
+      const text = row.querySelector(".m-d2-deck__text")!.getBoundingClientRect();
+      const lh = parseFloat(getComputedStyle(name).lineHeight);
+      // The widest rendered line of each element (a range over its text).
+      const inkRight = (e: HTMLElement) => {
+        const r = document.createRange();
+        r.selectNodeContents(e);
+        return Math.max(...[...r.getClientRects()].map((c) => c.right));
+      };
+      return {
+        deck: (row as HTMLElement).dataset.deck!,
+        name: name.textContent!,
+        selected: row.getAttribute("aria-selected") === "true",
+        rowH: row.getBoundingClientRect().height,
+        textW: text.width,
+        nameLines: Math.round(name.getBoundingClientRect().height / lh),
+        // (11 px caps: one line is about 13 px tall.)
+        productLines: product.getBoundingClientRect().height < 20 ? 1 : 2,
+        nameClipped:
+          name.scrollWidth > name.clientWidth + 0.5 ||
+          name.scrollHeight > name.clientHeight + 0.5 ||
+          inkRight(name) > text.right + 0.5,
+        productClipped:
+          product.scrollWidth > product.clientWidth + 0.5 || inkRight(product) > text.right + 0.5,
+      };
+    })
+  );
+
 test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
   test("fr3-03 single / Twin Suns / Hoth art, between logo and text, rows <= 76 px", async ({
     page,
@@ -411,10 +642,19 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
     const rise = sl.y - sb.y;
     near(rise, peek);
     expect(rise).toBeGreaterThan(0);
-    expect(rise).toBeLessThanOrEqual(sb.h * 0.25);
+    // REPLACE (fix run, owner finish round 2026-10-12: "the base name and a
+    // smidge of the card"): the base's visible height is 12-13 px -- the name
+    // strip plus a sliver of the card, about 30 % of the base as desktop's
+    // hover art (32 %). Was: rise <= 25 % of the base (the 8 px peek showed
+    // the name strip only). Still bounded, and still mostly covered:
+    expect(rise).toBeGreaterThanOrEqual(12);
+    expect(rise).toBeLessThanOrEqual(13);
+    expect(rise / sb.h).toBeGreaterThan(0.25);
+    expect(rise / sb.h).toBeLessThanOrEqual(0.33);
     const covered =
       (Math.min(sb.r, sl.r) - Math.max(sb.x, sl.x)) * (Math.min(sb.b, sl.b) - Math.max(sb.y, sl.y));
-    expect(covered / (sb.w * sb.h)).toBeGreaterThan(0.75);
+    // REPLACE (same reason): > 75 % covered became > 2/3 (13 of 43 px shows).
+    expect(covered / (sb.w * sb.h)).toBeGreaterThan(0.66);
     // Art sits between the logo and the text; decorative; no layout shift.
     expect(s.art!.x).toBeGreaterThanOrEqual(s.logo.r - 0.1);
     expect(s.text.x).toBeGreaterThanOrEqual(s.art!.r - 0.1);
@@ -447,9 +687,16 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
     near(d.leaders[0].y - db.y, peek);
     expect(d.art!.x).toBeGreaterThanOrEqual(d.logo.r - 0.1);
     expect(d.text.x).toBeGreaterThanOrEqual(d.art!.r - 0.1);
-    // The text keeps its two lines and a usable width at this viewport.
-    expect(d.lines.every((l) => l.h > 0 && l.h < 24)).toBe(true);
-    expect(d.text.w).toBeGreaterThanOrEqual(150);
+    // REPLACE (fix run, review S5 + owner decision "names wrap"): the proxy
+    // `text.w >= 150` and "both lines under 24 px" are superseded by the real
+    // thing -- no deck name is cut on any row (fr3-03 "every deck name reads
+    // in full", below, covers all 23 rows and the selected state). Here: the
+    // product is one line; the name is one or two.
+    expect(d.lines[0].h).toBeGreaterThan(0);
+    expect(d.lines[0].h).toBeLessThan(20);
+    expect(d.lines[1].h).toBeGreaterThan(0);
+    expect(d.lines[1].h).toBeLessThanOrEqual(37);
+    expect(d.lines[1].clipped).toBe(false);
 
     // The Hoth box: two leaders and two bases, each base behind its leader.
     await showDeck(page, "IBH");
@@ -480,8 +727,9 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
       expect(r.h).toBeLessThanOrEqual(76);
       expect(r.right).toBeLessThanOrEqual(vw + 0.1);
     }
-    // One row height for every kind.
+    // One row height for every kind: 68 px (56 px of art; cap 76).
     expect(new Set(rows.map((r) => Math.round(r.h * 10))).size).toBe(1);
+    expect(Math.round(rows[0].h)).toBe(68);
     expect(await list.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true
@@ -518,9 +766,67 @@ test.describe("FR3-03 precon deck rows show the deck's leader and base", () => {
     await page.locator(DECK_HEAD).click();
     const row = page.locator('.m-d2-deck[data-deck="SHD-MANDO"]');
     await row.scrollIntoViewIfNeeded();
-    await expect(row.locator(".m-deckart")).toHaveCount(0);
-    await expect(row.locator("img")).toHaveCount(1);
+    // REPLACE (fix run, review N11): the art's IMAGES go, its box stays. Was
+    // `.m-deckart` count 0 -- removing the box after layout made the row's
+    // text jump left by the art's width (about 70 px). Never a broken image:
+    await expect(row.locator(".m-deckart img")).toHaveCount(0);
+    await expect(row.locator("img")).toHaveCount(1); // the set logo only
+    await expect(row.locator(".m-deckart")).toHaveAttribute("data-art", "gone");
+    // ...and the text stays where a loaded single-leader row's text is.
+    const g = await probeDeck(page, "SHD-MANDO");
+    near(g.art!.w, DECK_ART.leaderW);
+    near(g.text.x - g.logo.r, DECK_ART.leaderW + 16); // art + the row's two 8 px gaps
+    expect(g.label).toBe("Two-Player Starter — The Mandalorian");
     // Its neighbour keeps its art.
-    await expect(page.locator('.m-d2-deck[data-deck="TS26-DOOKU"] .m-deckart')).toHaveCount(1);
+    await expect(page.locator('.m-d2-deck[data-deck="TS26-DOOKU"] .m-deckart img')).toHaveCount(3);
+  });
+
+  // Review S3 / S5 + owner decision 2026-10-12 ("names wrap"): every one of
+  // the 23 deck names reads in full -- two lines at most, never cut -- with
+  // the art on the rows, at 390 and 430, a SELECTED row (the check takes
+  // 30 px) included; rows stay 68 px.
+  test("fr3-03 every deck name reads in full, selected Twin Suns and Hoth rows included", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await withDeckArt(page);
+    await openChooser(page);
+    await page.locator(DECK_HEAD).click();
+    await expect(page.locator(".m-d2-decks .m-d2-deck")).toHaveCount(23);
+    await showDeck(page, "TS26-DOOKU"); // a two-leader row really carries its art
+    expect((await probeDeck(page, "TS26-DOOKU")).kind).toBe("dual");
+    const check = (rows: Awaited<ReturnType<typeof probeNames>>, when: string) => {
+      for (const r of rows) {
+        const label = `${when}: ${r.deck} "${r.name}"`;
+        expect(r.nameClipped, label).toBe(false);
+        expect(r.productClipped, label).toBe(false);
+        expect(r.productLines, label).toBe(1);
+        expect(r.nameLines, label).toBeGreaterThanOrEqual(1);
+        expect(r.nameLines, label).toBeLessThanOrEqual(2);
+        expect(Math.round(r.rowH), label).toBe(68);
+      }
+    };
+    const all = await probeNames(page);
+    expect(all).toHaveLength(23);
+    check(all, "none selected");
+    // Each two-leader row selected in turn (the tightest case: 122 px of art
+    // and the check).
+    for (const deck of ["TS26-IMPROVISED", "TS26-DOOKU", "TS26-MAUL", "TS26-ANAKIN", "IBH"]) {
+      await page.locator(`.m-d2-deck[data-deck="${deck}"]`).click();
+      await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+      await page.locator(".m-pad__entry .m-padset").click();
+      await page.locator(DECK_HEAD).click();
+      const row = page.locator(`.m-d2-deck[data-deck="${deck}"]`);
+      await expect(row).toHaveAttribute("aria-selected", "true");
+      await row.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(200); // the list's 0.15 s entrance
+      const rows = await probeNames(page);
+      const sel = rows.filter((r) => r.selected);
+      expect(sel.map((r) => r.deck)).toEqual([deck]);
+      check(rows, `${deck} selected`);
+      // The selected row gave 30 px to the check and still shows its name.
+      const before = all.find((r) => r.deck === deck)!;
+      expect(before.textW - sel[0].textW).toBeGreaterThan(25);
+    }
   });
 });
