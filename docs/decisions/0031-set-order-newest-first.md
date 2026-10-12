@@ -32,8 +32,11 @@ set: with a 9-set main block, Homeworlds sat at the bottom of every list.
    array is removed, and an explicit `release_date` can no longer reorder a
    base set. The precon list ranks with the same `setSortRank`.
 4. **The Set sort toggle:** `Set` ascending and `#` ascending are the new
-   default; `Set` descending shows oldest first (the group order reversed,
-   numbers still ascending); `#` descending keeps the default group order.
+   default; `Set` descending shows the main sets oldest first (SOR, SORP, SHD, ... HMW,
+   HMWP; each Weekly Play set stays directly after its base) while Hoth, Twin
+   Suns and every other set keep their place after them -- the owner's "Hoth
+   and TS ... remain last in every scenario" -- with numbers still ascending;
+   `#` descending keeps the default group order.
 5. **Out of scope, deliberately:** the printings lists (home set first, then
    alphabetical), the `/api/sets` response order, the import adapters, deck
    check, and the published release notes.
@@ -47,6 +50,7 @@ set: with a 9-set main block, Homeworlds sat at the bottom of every list.
 - Tests that pinned the old order were ported (same intent, new order),
   replaced (the `release_date`-beats-curated-index case is designed away) or
   newly written (FR2-01..09, literal expectations rather than derived from the
-  constant); the disposition log is in the stage's build log.
+  constant); the disposition table is in the stage's build log
+  (`## Disposition table` in `FR2_BUILD_LOG.md`, private planning layer).
 - Superseded spec wording moved verbatim to `SWU_Application_Spec_Archive.md`
   (batch "Archived 2026-10-12").

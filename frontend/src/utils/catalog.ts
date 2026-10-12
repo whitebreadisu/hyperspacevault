@@ -79,7 +79,7 @@ export function setReleaseRank(setCode: string, setOrder: SetOrderMap): [number,
 
 /** Orders a list of set codes in display order (see setReleaseRank) --
  * BL-163: used to put the completion panel's base-set breakdown rows in
- * release order, the same rule sortBaseCards applies at the card level. */
+ * display order (newest main set first), the same rule sortBaseCards applies at the card level. */
 export function orderSetCodes(codes: string[], setOrder: SetOrderMap = {}): string[] {
   return [...codes].sort((a, b) => {
     const [aTier, aKey] = setReleaseRank(a, setOrder);

@@ -390,7 +390,7 @@
   color: #ffffff;
 }
 
-/* "«metric» by set" breakdown popover -- base sets in release order, a
+/* "«metric» by set" breakdown popover -- base sets in display order, a
  * plain list (no canonical/secondary separation, owner call). */
 /* Owner dev review 2026-07-26: expanded panels sized UP relative to the
  * blocks (logos 24->34, ticks enlarged via the scoped rule below, text

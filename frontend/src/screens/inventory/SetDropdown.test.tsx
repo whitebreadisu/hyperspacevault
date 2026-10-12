@@ -25,12 +25,12 @@ describe("SetDropdown", () => {
     expect(screen.getByRole("listbox", { name: "Set" })).toBeInTheDocument();
   });
 
-  it("base-only view (default): canonical rail groups in release order, divider, then secondary", () => {
+  it("base-only view (default): canonical rail groups in display order (newest first), divider, then secondary", () => {
     render(<SetDropdown sets={ALL_TEN} onChoose={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Set" }));
 
     const options = screen.getAllByRole("option");
-    // Every base set appears, canonical (SOR..HMW) then
+    // Every base set appears, canonical (HMW..SOR) then
     // secondary (IBH, TS26) -- the guaranteed order.
     expect(options.map((o) => o.getAttribute("aria-label")?.split(" — ")[0])).toEqual(
       BASE_SET_ORDER

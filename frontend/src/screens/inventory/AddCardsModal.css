@@ -160,7 +160,7 @@
 }
 /* Locked-header logo group: one or more base-set marks as a single flex
    item (an Exclusives selection spanning base sets shows several logos
-   side by side, canonical release order) -- tighter internal gap than the
+   side by side, canonical display order) -- tighter internal gap than the
    bar's own 16px so the group reads as one unit. */
 .ac-setbar__marks {
   display: inline-flex;

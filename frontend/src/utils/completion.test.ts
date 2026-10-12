@@ -286,7 +286,7 @@ describe("computePanelMetrics (BL-163: one pass, all four metrics)", () => {
   });
 });
 
-describe("buildSetBreakdown (BL-163: per-set rows, release-ordered)", () => {
+describe("buildSetBreakdown (BL-163: per-set rows, display-ordered)", () => {
   const orderedBaseSets = [
     { code: "SOR", name: "Spark of Rebellion" },
     { code: "SHD", name: "Shadows of the Galaxy" },

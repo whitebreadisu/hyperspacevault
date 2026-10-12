@@ -68,6 +68,13 @@ export function isSecondaryBaseSet(code: string): boolean {
   return SET_SECONDARY.includes(code);
 }
 
+/** BL-258: true for a main-release set (a SET_CANONICAL member) or the Weekly
+ * Play companion of one -- the block the Set column's descending sort reverses
+ * (oldest first). IBH, TS26 and every other set are outside it. */
+export function isMainBlockSet(code: string): boolean {
+  return SET_CANONICAL.some((base) => base === code || weeklyPlayCodeFor(base) === code);
+}
+
 /** True for any base set (canonical or secondary) -- the same
  * codes CLAUDE.md's Set Codes table and the backend's curated
  * BASE_SET_CODES enumerate. */

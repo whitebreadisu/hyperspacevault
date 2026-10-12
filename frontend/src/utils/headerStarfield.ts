@@ -9,6 +9,7 @@
  * open draws from the other nine, because a repeat reads as "it didn't
  * change" rather than as randomness. */
 
+// Deliberately oldest-first and append-only (release-note art is assigned by index); this is NOT the display order of sets (BL-258).
 export const HEADER_STARFIELD_CODES = [
   "SOR",
   "SHD",

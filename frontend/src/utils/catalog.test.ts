@@ -49,17 +49,18 @@ function makeBaseCard(overrides: Partial<BaseCard> = {}): BaseCard {
 // (the old set_code-alphabetical-then-number behavior was only exercised
 // incidentally via the now-default sort path in groupByBaseCard /
 // groupWithInventory). This is a NEW test suite, not a port, covering the
-// new standard sort: (1) set in release order — release_date when present,
-// else curated fallback order, else last (tiebroken by set_code) —
+// new standard sort: (1) set in display order (newest main set first; sets
+// outside it by release_date, else last, tiebroken by set_code) —
 // (2) tokens last within a set, (3) base_card_number ascending numeric.
 //
 // DISPOSITION (REPLACE): the original "null release_date" and "absent from
 // setOrder" tests used SOR/SHD/PRM/PRZ/ZZZ and asserted set_code-tiebreak
-// ordering among them. SOR and SHD are now in CURATED_SET_ORDER, so those
-// fixtures no longer exercise the "no curated entry" path. Replaced with
-// sets outside CURATED_SET_ORDER (e.g. PRM/PRZ/ZZZ) to keep covering the
-// final tiebreak tier, and added new tests for the curated-order tier
-// itself plus the precedence of release_date over the curated index.
+// ordering among them. SOR and SHD are base sets (ranked by their place in
+// BASE_SET_ORDER; the former CURATED_SET_ORDER array has since been removed,
+// BL-258), so those fixtures no longer exercise the "unranked set" path.
+// Replaced with sets outside the base block (e.g. PRM/PRZ/ZZZ) to keep
+// covering the final tiebreak tier, and added new tests for the base-set tier
+// itself plus the rule that a release_date never reorders a base set.
 
 describe("sortBaseCards", () => {
   const setOrder = { SOR: "2024-03-08", SHD: "2024-08-02" };
@@ -171,11 +172,11 @@ describe("sortBaseCards", () => {
   });
 });
 
-// CREATE (BL-163): orderSetCodes shares sortBaseCards' release-order rule
+// CREATE (BL-163): orderSetCodes shares sortBaseCards' display-order rule
 // (setReleaseRank) at the set-code level rather than the card level -- the
 // completion panel's "by set" breakdown rows need a plain ordered list of
 // set codes, not full BaseCard objects. Same three-tier precedence
-// (release_date, then curated fallback, then set_code tiebreak) is exercised
+// (base-set position, then release_date, then set_code tiebreak) is exercised
 // here directly rather than re-deriving it through a card fixture.
 describe("orderSetCodes (BL-163)", () => {
   // PORT (BL-258): newest first; release_date no longer drives base sets.

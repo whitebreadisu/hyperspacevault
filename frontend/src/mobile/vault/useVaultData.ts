@@ -96,7 +96,7 @@ export function useVaultDataSource(
         if (live) setSets(s);
       })
       .catch(() => {
-        /* desktop logs and carries on with release-order fallbacks */
+        /* desktop logs and carries on with display-order fallbacks */
       });
     return () => {
       live = false;
