@@ -69,20 +69,21 @@ class TestSetCodeMap:
             "ASH",
             "IBH",
             "TS26",
+            "HMW",
         ):
             assert swi.SET_CODE_MAP[code] == code
 
-    def test_hmw_absent(self):
-        """HMW -- PORT (BL-241, 2026-10-08): the behavior (HMW refused by
-        THIS preset) still holds, but the reason changed. HMW is in the
-        catalog since v1.5 and the SWUDB preset maps it (PR #192); under
-        ADR-0028 it enters this table too once sw-unlimited-db's released
-        numbering is spot-checked against the catalog -- the only sample on
-        file (2026-08-03) is pre-release preview data with HMW #4 = Hijacked
-        AT-ST where the released set has #4 = Grand Moff Tarkin. Until that
-        check, the hold rule applies: refused, never guessed. Flip this to a
-        positive assertion when the row lands."""
-        assert "HMW" not in swi.SET_CODE_MAP
+    def test_hmw_mapped(self):
+        """HMW -- REPLACE (BL-245, 2026-10-12) of test_hmw_absent (BL-241's
+        PORT of the original BL-186 refusal). The hold ended the way
+        ADR-0028 / runbook step 12 prescribe: a reporter's post-release
+        export (feedback #38; 272 HMW rows numbered 1-272) was spot-checked
+        against the catalog -- #4 Grand Moff Tarkin (labelled by the back
+        face "The Death Star" in the export), #121 Hijacked AT-ST (#4 in
+        the stale 2026-08-03 sample), #272 Growth -- and every row's number
+        and name matched, so the printed code maps direct. The row below
+        is the positive table assertion step 12 asks for."""
+        assert swi.SET_CODE_MAP["HMW"] == "HMW"
 
 
 class TestNormalizeNumber:

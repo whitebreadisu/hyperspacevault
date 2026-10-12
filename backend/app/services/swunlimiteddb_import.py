@@ -102,10 +102,14 @@ REQUIRED_COLUMNS = {"Set", "Base card id"}
 # columns). Extension policy (ADR-0028, 2026-10-08): a new base set's printed
 # code is added at onboarding behind a 2-3 card (code, number) spot-check
 # against the catalog; a tool still carrying pre-release numbering is HELD
-# until street date. HMW is held here on exactly that rule: the only
-# sw-unlimited-db sample on file (2026-08-03) numbers HMW #4 as Hijacked
-# AT-ST where the released set has Grand Moff Tarkin (#121 = Hijacked
-# AT-ST); the SWUDB preset maps HMW since PR #192. Anything else stays
+# until street date. HMW was held on exactly that rule (the 2026-08-03
+# sample numbered #4 as Hijacked AT-ST, which the released set has at
+# #121) and mapped on 2026-10-12 (BL-245, feedback #38): a reporter's
+# post-release export (272 HMW rows, numbers 1-272) matched the catalog's
+# released numbering on every row -- #4 Grand Moff Tarkin (the tool labels
+# the double-sided leader by its back face, "The Death Star"), #121
+# Hijacked AT-ST, #272 Growth -- and all 359 of its (card, column)
+# candidates resolve to exactly one home-set variant. Anything else stays
 # unmapped, never guessed.
 SET_CODE_MAP: dict[str, str] = {
     "SOR": "SOR",
@@ -118,6 +122,7 @@ SET_CODE_MAP: dict[str, str] = {
     "ASH": "ASH",
     "IBH": "IBH",
     "TS26": "TS26",
+    "HMW": "HMW",
 }
 
 # §5.4/§10: columns that resolve to a single, direct variant_type on the
@@ -459,8 +464,8 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
             continue
 
         if mapped is None:
-            # §3/§10 (owner-locked): unmapped set (incl. HMW and anything
-            # else outside the 10 base sets) -- never guessed, same
+            # §3/§10 (owner-locked): unmapped set (anything outside the
+            # mapped base sets) -- never guessed, same
             # generic reason SWUDB's own unmapped-set case uses.
             parsed_rows.append(
                 ParsedRow(
