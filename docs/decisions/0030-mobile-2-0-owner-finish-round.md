@@ -105,6 +105,76 @@ saying.
   ("Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by
   the owner finish round (BL-257)").
 
+## Amendment 2026-10-12 — Showcase returns to the scope picker (BL-259)
+
+**Context.** The single-select finish scope (desktop: the Playset header's
+scope menu; phone: the Vault's scope chip and "Finish scope" sheet) offered
+thirteen values. Round 4 of the variant-scope review (BL-173) had removed
+Showcase from it on the reasoning that a leaders-only finish with a playset
+of one "never made sense as a pip scope"; it stayed reachable as a
+check-box row in Filters → Finish. In the same 2026-10-12 walk the owner
+asked for it back: "add 'Showcase' … as the last choice in the finish
+list. Unlike the finish filter, do not make this a checkbox as this is not
+a multi-select control — make it a different control that is design
+aligned in the respective mobile and desktop versions." He confirmed the
+control he meant is the scope picker.
+
+**Decision.** Showcase is a scope value again — fourteen in all. It is the
+**last row of the pinned section** on both platforms (after Weekly Play,
+before the divider and "Show all finishes…"), so it is visible without
+expanding. It is drawn as a **label with one chip** — the chip the pair
+rows and the Prestige row already use for a single-select pick, in each
+platform's own styling — and not with the check-box glyph. Picking it
+behaves like every other scope: the Finish facet is written to Showcase,
+the trigger / chip turns amber and reads "Showcase", and pips, number,
+value and sort read the Showcase printing. No scoped-behaviour rule
+changed: a leader's playset is one, so one Showcase copy completes it, and
+cards without a Showcase printing are filtered out exactly as under any
+scope they have no printing for.
+
+**Why.** The record holds the request, not a motive: the owner asked for
+Showcase as the last choice in the picker, as a non-check-box
+single-select control. That reverses the round-4 removal. (Our own note on
+what the change does, not his reason: a scope makes pips, number and value
+read the one finish, where the Filters → Finish check-box only narrows the
+list.)
+
+**Follow-up decisions (2026-10-12, after the slice review).** The review
+put three points to the owner; he decided all three the same day.
+- **Position confirmed.** Showcase stays the last row of the main (pinned)
+  list, above the divider — not the last row of the whole menu with the
+  extra finishes open.
+- **Chip text kept.** The chip reads "Showcase", repeating the row's name.
+- **The four extra finishes take the same control.** Convention Exclusive,
+  Event Exclusive, Prerelease Promo and Movie Promo — the rows "Show all
+  finishes…" reveals — were check-box rows. The picker is single-select,
+  so they are now the same row as Showcase on both platforms: the row's
+  label and one chip that repeats it, with the same selected state. The
+  scope picker has no check-box row. Their order, the expander, the raw
+  values written to the Finish facet and to analytics, and the rule that a
+  selected value is never hidden are unchanged. This supersedes the first
+  build's "expanded rows untouched".
+
+**Consequences.**
+- The chip repeats the row's name ("Showcase · [Showcase]", "Movie Promo ·
+  [Movie Promo]") because these values have no sub-flavour to name, unlike
+  "Non-foil / Foil". The longest, "Convention Exclusive", fits on one line
+  beside its label at 390 px, so the chips carry full names, not the short
+  names the trigger uses.
+- The row kind `plain` (the check-box row) is removed from
+  `utils/variantScope.ts`; every scope row carries chips.
+- Filters → Finish is unchanged; its Showcase row remains a check-box
+  there, where multi-select is the point.
+- Superseded text is verbatim in `SWU_Application_Spec_Archive.md`
+  ("Archived 2026-10-12 — §5.13 / §25.1 scope option set superseded:
+  Showcase returns to the scope picker (BL-259)").
+- Code and tests: `frontend/src/utils/variantScope.ts`
+  (`SCOPE_PINNED_ROWS`, row kind `single`),
+  `screens/cards/VariantScopeControls.tsx`, `mobile/vault/ScopeChip.tsx`;
+  `FR4-01` / `FR4-04` in `variantScope.test.ts`, `FR4-02` in
+  `VariantScopeControls.test.tsx`, `fr4-03` in
+  `e2e/mobile/fr4-showcase-scope.spec.ts`.
+
 ## Related
 - App Spec §25.2 (card detail as built), §25.1 (gallery plate), §4.5
   (keep-limits and cap modes).

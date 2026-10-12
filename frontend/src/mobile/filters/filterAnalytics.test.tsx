@@ -64,6 +64,33 @@ describe("S2-20 Filters analytics (filter_applied / filters_cleared / finish_sco
     expect(calls("filters_cleared")).toEqual([{ layout: "phone" }]);
   });
 
+  // BL-259 FR4-03: the Showcase scope pick reports like every other value.
+  // (Asserted here, not in e2e: the phone harness runs with analytics off.)
+  it("fr4-03 a Showcase scope pick fires finish_scope_changed { finish: 'Showcase' } and writes the Finish facet", () => {
+    const { result } = renderHook(useSheet);
+    act(() => result.current.vv.setScope("Showcase"));
+    expect(calls("finish_scope_changed")).toEqual([{ finish: "Showcase", layout: "phone" }]);
+    expect(result.current.vv.state.scope).toBe("Showcase");
+    expect([...result.current.vv.state.filters.finish]).toEqual(["Showcase"]);
+    expect(calls("filter_applied")).toEqual([]);
+  });
+
+  // BL-259 review N6: the ?finish= deep link accepts every picker value, so
+  // ?finish=Showcase scopes the Vault and writes the Finish facet. A deep
+  // link is not a user pick (no finish_scope_changed); a value outside the
+  // 14 does not scope.
+  it("fr4-03 the ?finish=Showcase deep link scopes the Vault; an unknown value does not", () => {
+    const linked = renderHook(() => useVaultViewOver([], {}, { finish: "Showcase" }));
+    expect(linked.result.current.state.scope).toBe("Showcase");
+    expect([...linked.result.current.state.filters.finish]).toEqual(["Showcase"]);
+    expect(calls("finish_scope_changed")).toEqual([]);
+    const extra = renderHook(() => useVaultViewOver([], {}, { finish: "Movie Promo" }));
+    expect(extra.result.current.state.scope).toBe("Movie Promo");
+    const unknown = renderHook(() => useVaultViewOver([], {}, { finish: "Prerelease Judge" }));
+    expect(unknown.result.current.state.scope).toBeNull();
+    expect(unknown.result.current.state.filters.finish.size).toBe(0);
+  });
+
   it("an action that changes nothing is not attributed to the next unrelated change (F7)", async () => {
     const { result, rerender } = renderHook(
       ({ list, n }: { list: number[]; n: number }) => useFilterApplied(list, n),

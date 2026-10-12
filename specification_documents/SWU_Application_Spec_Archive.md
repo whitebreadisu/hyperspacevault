@@ -393,3 +393,24 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 
 > …lists each base set's Weekly Play set in base order, then a divider…
 
+## Archived 2026-10-12 — §5.13 / §25.1 scope option set superseded: Showcase returns to the scope picker (BL-259)
+
+**Disposition:** → merge into ADR-0030 (dated amendment "Showcase returns to the scope picker (BL-259)") + archive. The round-4 revision of the variant-scope picker (BL-173) removed Showcase from the option set. On 2026-10-12 the owner asked for it back as the last pinned choice, drawn as a non-check-box control, on desktop and phone. §25.1's Finish-scope bullet did not enumerate the option set, so nothing was removed from it; it gained the option-set sentence.
+
+§5.13, variant-scope control bullet, verbatim:
+
+> - **Variant-scope control** in the Playset header (trigger reads **ALL FINISHES** unscoped / `PIPS · <finish>` scoped): single-select menu built from the FinishFilter's control anatomy, order mirroring the sidebar Finish filter (pair chips; Prestige as a pinned chip row; expander rows for Convention/Event/Prerelease/Movie; **Showcase deliberately excluded** — a leaders-only playset-1 finish is not a pip scope; 13 scopes total).
+
+Code comment that carried the same decision (`frontend/src/utils/variantScope.ts`, above `SCOPE_PINNED_ROWS`), verbatim:
+
+> Round 4 owner revisions to the option set: (1) order mirrors the sidebar Finish filter's pinned order (Standard, Hyperspace, Prestige, Weekly Play -- FINISH_TOP_LEVEL_ORDER minus Showcase); (2) Prestige moved UP from the expander into the core rows; (3) Showcase REMOVED from the picker entirely (a leaders-only playset-1 finish never made sense as a pip scope -- it remains fully reachable via the sidebar Finish filter); (4) the "leaders · playset 1" annotations are dropped.
+
+**Follow-up, same day (2026-10-12).** **Disposition:** → merge into ADR-0030 (same amendment, "Follow-up decisions") + archive. The first BL-259 build left the four extra finishes as check-box rows and the spec said so. After the review the owner decided the whole picker is single-select chips: Convention Exclusive, Event Exclusive, Prerelease Promo and Movie Promo take the same one-chip row as Showcase, on desktop and phone. The two sentences below were written and superseded on the same day.
+
+§5.13, variant-scope control bullet, option-set parenthesis, verbatim:
+
+> order mirroring the sidebar Finish filter (pair chips for Standard, Hyperspace and Weekly Play; Prestige as a pinned chip row; **Showcase as the last pinned row** — a label plus one chip, the menu's single-select idiom, not a check-box row — then the divider and the expander rows for Convention/Event/Prerelease/Movie, which are check-box rows; 14 scopes total).
+
+§25.1, Finish-scope bullet, option-set sentence, verbatim:
+
+> The "Finish scope" sheet offers desktop's option set (§5.13, `utils/variantScope.ts`), 14 values: pinned chip rows for Standard, Hyperspace, Prestige and Weekly Play, then **Showcase as the last pinned row** — its label and one 44 px chip, the sheet's single-select idiom, not a check-box row — then a divider and "Show all finishes…" for the four check-box rows (Convention Exclusive, Event Exclusive, Prerelease Promo, Movie Promo).

@@ -1940,21 +1940,14 @@
 }
 
 /* Scope dropdown menu (VariantScopeControls.tsx's ScopeMenuContent).
- * Round 4 (owner): the menu now adopts the FinishFilter's OWN control
- * anatomy -- ifp-multi__item rows + check glyphs, square ifp-finish-pair
- * chips, ifp-finish-group expander -- all styled by FilterPanel.css, so
- * this section shrinks to the two things the sidebar shell doesn't set
- * (fixed portal width, item-list height) plus the plain-row note. The
- * bespoke pill chips, dot row, amber row highlights, and the footer
- * coverage line are all retired. */
+ * The menu uses the FinishFilter's chip and expander anatomy -- square
+ * ifp-finish-pair chips, ifp-finish-group expander -- all styled by
+ * FilterPanel.css, so this section holds only the two things the sidebar
+ * shell doesn't set (fixed portal width, item-list height). Every row is a
+ * label + chips row; the picker has no check-box rows. */
 .vs-scope-menu {
   width: 300px;
 }
 .vs-scope-menu__items {
   max-height: 380px;
-}
-.vs-scope-menu__row-note {
-  flex: none;
-  font-size: 11px;
-  color: var(--color-text-muted);
 }

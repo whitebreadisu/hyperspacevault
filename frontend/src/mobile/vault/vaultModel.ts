@@ -17,7 +17,7 @@ import {
   scopedPlaysetComplete,
   sortCardsByScope,
 } from "../../utils/variantScope";
-import type { PriceMode, ScopeMenuRow } from "../../utils/variantScope";
+import type { PriceMode } from "../../utils/variantScope";
 
 // BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
 // desktop's own types and utilities (filters.ts, variantScope.ts,
@@ -57,13 +57,9 @@ export function freshFilterState(): VaultFilterState {
 
 // ── Scope (S1-16; desktop CardsPage handleScopeChange / handleFilterPanelChange)
 
-function scopeRaw(row: ScopeMenuRow): string[] {
-  return row.kind === "plain" ? [row.rawValue] : row.chips.map((c) => c.rawValue);
-}
-
-/** The 13 owner-locked scope values (variantScope.ts option set C). */
+/** The 14 owner-locked scope values (variantScope.ts option set C). */
 export const SCOPE_VALUES: string[] = [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].flatMap(
-  scopeRaw
+  (row) => row.chips.map((c) => c.rawValue)
 );
 
 /** Picking a scope writes the Finish facet to exactly that value; clearing

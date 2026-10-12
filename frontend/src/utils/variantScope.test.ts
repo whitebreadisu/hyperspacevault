@@ -566,41 +566,161 @@ describe("scopeShortName", () => {
   });
 });
 
-// REPLACE (BL-173 review round 4, owner): the option set evolved -- order
-// mirrors the sidebar Finish filter (Standard, Hyperspace, Prestige, Weekly
-// Play), Prestige moved UP into the pinned rows, Showcase left the picker
-// entirely (a leaders-only playset-1 finish never made sense as a pip
-// scope), and the annotations are gone. 14 scopes became 13.
-describe("Scope menu data (round-4 owner revision of option set C)", () => {
-  it("pinned section is 3 pair rows + the Prestige chip group, in the filter panel's order", () => {
+// The scope option set: the first four rows mirror the sidebar Finish
+// filter's pinned order (Standard, Hyperspace, Prestige, Weekly Play),
+// Prestige is a pinned chip group, rows carry no annotations, and Showcase
+// is the last pinned row by owner decision (2026-10-12) -- not the sidebar's
+// position for it.
+// REPLACE (BL-259 FR4-01, owner decision 2026-10-12): the two tests below
+// pinned the round-4 set ("Showcase is not offered anywhere in the picker",
+// "13 total scopes"). The owner reversed that removal -- he scopes to
+// Showcase leaders -- so they now pin 5 pinned rows and 14 scopes.
+// REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+// single-select chips): the expanded test pinned "4 plain rows"; the four
+// extra finishes are now `single` rows (the `plain` kind is gone), so it pins
+// 4 single rows, still no annotations, still 14 unique values.
+const rawValuesOf = (rows: typeof SCOPE_PINNED_ROWS): string[] =>
+  rows.flatMap((r) => r.chips.map((c) => c.rawValue));
+
+describe("Scope menu data (option set C)", () => {
+  it("pinned section is 3 pair rows + the Prestige chip group in the filter panel's pinned order, then Showcase last (owner decision 2026-10-12)", () => {
     expect(SCOPE_PINNED_ROWS.map((r) => r.key)).toEqual([
       "Standard",
       "Hyperspace",
       "Prestige",
       "Weekly Play",
+      "Showcase",
     ]);
     const prestige = SCOPE_PINNED_ROWS.find((r) => r.key === "Prestige");
     expect(prestige?.kind).toBe("group");
     expect(prestige && prestige.kind === "group" ? prestige.chips : []).toHaveLength(3);
-    // Showcase is not offered anywhere in the picker.
-    const allKeys = [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].map((r) => r.key);
-    expect(allKeys).not.toContain("Showcase");
   });
 
-  it("expanded section is 4 plain rows with no annotations, covering 13 total scopes", () => {
+  it("expanded section is 4 single-chip rows with no annotations, covering 14 total scopes", () => {
     expect(SCOPE_EXPANDED_ROWS).toHaveLength(4);
-    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind === "plain")).toBe(true);
-    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind !== "plain" || r.note === undefined)).toBe(true);
+    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind === "single" && r.chips.length === 1)).toBe(
+      true
+    );
+    // No annotation field survives on any row (was `note === undefined`).
+    expect(SCOPE_EXPANDED_ROWS.every((r) => !("note" in r))).toBe(true);
+    // No row kind draws a check box: every row of the picker carries chips.
+    expect(
+      [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].every((r) =>
+        ["pair", "group", "single"].includes(r.kind)
+      )
+    ).toBe(true);
 
-    const pinnedRawCount = SCOPE_PINNED_ROWS.reduce(
-      (n, r) => n + (r.kind === "pair" ? 2 : r.kind === "group" ? r.chips.length : 1),
-      0
-    );
-    const expandedRawCount = SCOPE_EXPANDED_ROWS.reduce(
-      (n, r) => n + (r.kind === "pair" ? 2 : r.kind === "group" ? r.chips.length : 1),
-      0
-    );
-    expect(pinnedRawCount + expandedRawCount).toBe(13);
+    const all = [...rawValuesOf(SCOPE_PINNED_ROWS), ...rawValuesOf(SCOPE_EXPANDED_ROWS)];
+    expect(all).toHaveLength(14);
+    expect(new Set(all).size).toBe(14);
+  });
+});
+
+describe("FR4-01 Showcase is in the scope option set", () => {
+  it("fr4-01 Showcase is the last pinned value, appears exactly once; the expanded values and order are unchanged", () => {
+    const pinned = rawValuesOf(SCOPE_PINNED_ROWS);
+    expect(pinned).toEqual([
+      "Standard",
+      "Standard Foil",
+      "Hyperspace",
+      "Hyperspace Foil",
+      "Standard Prestige",
+      "Foil Prestige",
+      "Serialized Prestige",
+      "Weekly Play",
+      "Weekly Play Foil",
+      "Showcase",
+    ]);
+    const all = [...pinned, ...rawValuesOf(SCOPE_EXPANDED_ROWS)];
+    expect(all.filter((v) => v === "Showcase")).toHaveLength(1);
+    // A single-chip row, not a check-box row: the picker is single-select.
+    const last = SCOPE_PINNED_ROWS[SCOPE_PINNED_ROWS.length - 1];
+    expect(last).toEqual({
+      kind: "single",
+      key: "Showcase",
+      label: "Showcase",
+      chips: [{ rawValue: "Showcase", label: "Showcase" }],
+    });
+    // REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+    // single-select chips): this pinned the four expanded rows as `plain`
+    // (check-box) rows. Same four values, order, keys and labels; each is now
+    // the Showcase row shape -- one chip that repeats the row's label and
+    // carries the unchanged raw value.
+    const single = (v: string) => ({
+      kind: "single",
+      key: v,
+      label: v,
+      chips: [{ rawValue: v, label: v }],
+    });
+    expect(SCOPE_EXPANDED_ROWS).toEqual([
+      single("Convention Exclusive"),
+      single("Event Exclusive"),
+      single("Prerelease Promo"),
+      single("Movie Promo"),
+    ]);
+    expect(scopeShortName("Showcase")).toBe("Showcase");
+  });
+});
+
+describe("FR4-04 scoping to Showcase needs no special case", () => {
+  const price = (market: number, low: number) => ({ market, low, as_of: "2026-10-12" });
+  const leader = (showcaseQty: number) => [
+    makeVariant({ variant_id: 1, card_number: "005", quantity: 2, price: price(4, 3) }),
+    makeVariant({
+      variant_id: 2,
+      variant_type: "Showcase",
+      finish: "Showcase",
+      card_number: "771",
+      quantity: showcaseQty,
+      price: price(360, 275),
+    }),
+  ];
+  // A common with no Showcase printing and no Prestige printing either.
+  const common = [
+    makeVariant({ variant_id: 3, card_number: "120", quantity: 3, price: price(0.1, 0.05) }),
+    makeVariant({
+      variant_id: 4,
+      variant_type: "Hyperspace",
+      finish: "Hyperspace",
+      card_number: "390",
+      quantity: 1,
+      price: price(1, 0.5),
+    }),
+  ];
+
+  it("fr4-04 a leader with a Showcase printing reads scoped count, playset 1, number and value", () => {
+    // Unowned Showcase: the scope reads that printing alone, not the 2 Standard copies.
+    expect(scopedOwnedCount(leader(0), "Showcase")).toBe(0);
+    expect(scopedPlaysetComplete(leader(0), "Showcase", "Leader")).toBe(false);
+    expect(cardCollectionValue(leader(0), "Showcase", "market")).toBeNull();
+    // One copy completes the leader's playset of 1.
+    expect(scopedOwnedCount(leader(1), "Showcase")).toBe(1);
+    expect(scopedPlaysetComplete(leader(1), "Showcase", "Leader")).toBe(true);
+    expect(scopedCardNumber(leader(1), "Showcase")).toBe("771");
+    expect(cardValuePrice(leader(1), "Showcase", "market")).toBe(360);
+    expect(cardValuePrice(leader(1), "Showcase", "low")).toBe(275);
+    expect(cardCollectionValue(leader(1), "Showcase", "market")).toBe(360);
+    expect(cardCollectionValue(leader(2), "Showcase", "low")).toBe(550);
+    expect(isFinishSetScopedTo(new Set(["Showcase"]), "Showcase")).toBe(true);
+    expect(isFinishSetScopedTo(new Set(["Showcase", "Standard"]), "Showcase")).toBe(false);
+  });
+
+  it("fr4-04 a card with no Showcase printing reads exactly as under any scope it has no printing for", () => {
+    const read = (scope: string) => ({
+      owned: scopedOwnedCount(common, scope),
+      complete: scopedPlaysetComplete(common, scope, "Unit"),
+      number: scopedCardNumber(common, scope),
+      unit: cardValuePrice(common, scope, "market"),
+      total: cardCollectionValue(common, scope, "market"),
+    });
+    expect(read("Showcase")).toEqual({
+      owned: 0,
+      complete: false,
+      number: null,
+      unit: null,
+      total: null,
+    });
+    expect(read("Showcase")).toEqual(read("Standard Prestige"));
   });
 });
 

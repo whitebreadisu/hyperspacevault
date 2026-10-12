@@ -63,27 +63,40 @@ test("s1-16-menu-options", async ({ page }) => {
     return {
       rows: rows.join("|"),
       allInert: (m.querySelector(".m-scopemenu__all") as HTMLButtonElement).disabled,
-      showcase: !!m.querySelector('[data-scope="Showcase"]'),
+      showcase: m.querySelectorAll('[data-scope="Showcase"]').length,
     };
   });
+  // REPLACE (BL-259 FR4-03, owner decision 2026-10-12): this test pinned four
+  // pinned rows, "no Showcase" and 13 values; Showcase is back as the last
+  // pinned row (one chip), so it pins five rows, one Showcase and 14 values.
   expect(r.rows).toBe(
-    "Standard:Non-foil/Foil|Hyperspace:Non-foil/Foil|Prestige:Std/Foil/Serialized|Weekly Play:Non-foil/Foil"
+    "Standard:Non-foil/Foil|Hyperspace:Non-foil/Foil|Prestige:Std/Foil/Serialized|Weekly Play:Non-foil/Foil|Showcase:Showcase"
   );
   expect(r.allInert).toBe(true);
-  expect(r.showcase).toBe(false);
+  expect(r.showcase).toBe(1);
   await page.locator(".m-scopemenu__more").click();
   const all = await page.evaluate(() =>
     [...document.querySelectorAll(".m-sheet-layer--scope [data-scope]")].map(
       (e) => (e as HTMLElement).dataset.scope
     )
   );
-  expect(all).toHaveLength(13);
+  expect(all).toHaveLength(14);
   expect(all.slice(-4)).toEqual([
     "Convention Exclusive",
     "Event Exclusive",
     "Prerelease Promo",
     "Movie Promo",
   ]);
+  // BL-259 fix run (owner decision 2026-10-12: whole scope picker
+  // single-select chips): every value is a chip; no check-box row in the sheet.
+  const kinds = await page.evaluate(() => {
+    const layer = document.querySelector(".m-sheet-layer--scope")!;
+    return {
+      chips: layer.querySelectorAll("button.m-chip[data-scope]").length,
+      checks: layer.querySelectorAll(".m-check, .m-check__box").length,
+    };
+  });
+  expect(kinds).toEqual({ chips: 14, checks: 0 });
 });
 
 test("s1-16-trigger-copy-amber", async ({ page }) => {
@@ -142,9 +155,14 @@ test("s1-16-targets-44", async ({ page }) => {
     const small = [...layer.querySelectorAll("button")]
       .map((b) => b.getBoundingClientRect())
       .filter((b) => b.width < 43.5 || b.height < 43.5).length;
+    // REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+    // single-select chips): `tail` counted the four `.m-ffin--plain` check-box
+    // rows; the tail is now four one-chip rows after the expander. Still 4,
+    // still opened by an expanded-only scope, every target still >= 44 px.
     return {
       small,
-      tail: layer.querySelectorAll(".m-ffin--plain").length,
+      tail: layer.querySelectorAll(".m-scopemenu__more ~ .m-ffin--single button.m-chip").length,
+      plain: layer.querySelectorAll(".m-ffin--plain, .m-check").length,
       on: layer.querySelector('[data-scope="Prerelease Promo"]')!.getAttribute("aria-pressed"),
       overflow: document.documentElement.scrollWidth > innerWidth,
       sub: layer.querySelector(".m-sheet__sub")?.textContent,
@@ -153,6 +171,7 @@ test("s1-16-targets-44", async ({ page }) => {
   expect(r).toEqual({
     small: 0,
     tail: 4,
+    plain: 0,
     on: "true",
     overflow: false,
     sub: "Scoped · Prerelease Promo",
