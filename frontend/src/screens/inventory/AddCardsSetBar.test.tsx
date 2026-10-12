@@ -54,14 +54,14 @@ describe("AddCardsSetBar locked-header logo", () => {
     expect(screen.queryByAltText("SORP logo")).toBeNull();
   });
 
-  it("an Exclusives selection spanning base sets shows each home base mark in canonical order", () => {
+  it("an Exclusives selection spanning base sets shows each home base mark in canonical (newest-first) order", () => {
     renderLocked("J25", [
       entry("TWI", "J25"),
       entry("SOR", "J25"),
       entry("SOR", "P26"), // other container -- must not leak in
     ]);
     const marks = screen.getAllByRole("img").map((img) => img.getAttribute("alt"));
-    expect(marks).toEqual(["SOR logo", "TWI logo"]);
+    expect(marks).toEqual(["TWI logo", "SOR logo"]); // PORT (BL-258)
   });
 
   it("an unmappable selection renders no mark rather than a broken image", () => {

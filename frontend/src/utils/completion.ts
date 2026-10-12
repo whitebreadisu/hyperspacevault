@@ -159,7 +159,7 @@ export interface SetBreakdownRow extends SetMeta {
 }
 
 /** "«metric» by set" popover rows -- one row per entry in `orderedBaseSets`
- * (already release-ordered, see utils/catalog.ts's orderSetCodes), each
+ * (already in display order, see utils/catalog.ts's orderSetCodes), each
  * scoped to `card.set_code === row.code` (a card's home set, per the file
  * header). A base set with zero cards in the current scope still renders
  * its row (0%/0/$0) -- the design's "No base-set cards in scope" empty

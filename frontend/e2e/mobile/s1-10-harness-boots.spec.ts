@@ -24,7 +24,8 @@ test("s1-10-harness-boots", async ({ page }, info) => {
     };
   });
   expect(status.cards.body).toHaveLength(53);
-  expect(status.sets.body).toHaveLength(28);
+  // PORT (BL-258 FR2-05): 28 prototype sets + hand-added HMW and HMWP.
+  expect(status.sets.body).toHaveLength(30);
   expect(status.qty.status).toBe(200);
   expect(status.limits.body.limits).toHaveLength(30);
   expect(status.img).toBe(200);

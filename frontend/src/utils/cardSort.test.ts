@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sortCards, nextSortState, ariaSortValue, DEFAULT_SORT_STATE } from "./cardSort";
+import { sortBaseCards } from "./catalog";
 import type { SortState, SortContext } from "./cardSort";
 import type { InventoryCard, InventoryVariant } from "./inventory";
 
@@ -90,19 +91,21 @@ describe("# column", () => {
     expect(ids(result)).toEqual([1, 2, 3]);
   });
 
-  it("descending keeps the set GROUP order ascending, only reversing numbers within each group", () => {
+  // PORT (BL-258): same intent -- `#` desc keeps the DEFAULT set-group order
+  // and only reverses numbers -- the default group order is now newest first.
+  it("descending keeps the default set GROUP order (newest first), only reversing numbers within each group", () => {
     const sor1 = makeCard({ base_card_id: 1, set_code: "SOR", base_card_number: "001" });
     const sor2 = makeCard({ base_card_id: 2, set_code: "SOR", base_card_number: "002" });
     const shd1 = makeCard({ base_card_id: 3, set_code: "SHD", base_card_number: "010" });
     const shd2 = makeCard({ base_card_id: 4, set_code: "SHD", base_card_number: "011" });
-    // Default-order array: SOR before SHD (curated fallback order), numbers
+    // Default-order array: SHD before SOR (newest first, BL-258), numbers
     // ascending within each -- exactly what sortCardsByScope would produce.
-    const defaultOrder = [sor1, sor2, shd1, shd2];
+    const defaultOrder = [shd1, shd2, sor1, sor2];
     const context = contextFor(defaultOrder);
     const result = sortCards(defaultOrder, state("number", "desc"), context);
-    // SOR group still comes first (ascending set order); within it, 002
-    // before 001 (numbers descending). Same for SHD.
-    expect(ids(result)).toEqual([2, 1, 4, 3]);
+    // SHD group still comes first (default set order); within it, 011
+    // before 010 (numbers descending). Same for SOR.
+    expect(ids(result)).toEqual([4, 3, 2, 1]);
   });
 
   it("descending pins tokens LAST within their set group (owner revision 2026-08-16 -- ascending already pins them via default order)", () => {
@@ -157,20 +160,92 @@ describe("Set column", () => {
   const sor2 = makeCard({ base_card_id: 2, set_code: "SOR", base_card_number: "002" });
   const shd1 = makeCard({ base_card_id: 3, set_code: "SHD", base_card_number: "010" });
   const shd2 = makeCard({ base_card_id: 4, set_code: "SHD", base_card_number: "011" });
-  const defaultOrder = [sor1, sor2, shd1, shd2];
+  // PORT (BL-258): the default order is newest first, so SHD precedes SOR.
+  const defaultOrder = [shd1, shd2, sor1, sor2];
 
   it("ascending is IDENTICAL to the default order", () => {
     const context = contextFor(defaultOrder);
     const result = sortCards(defaultOrder, state("set", "asc"), context);
-    expect(ids(result)).toEqual([1, 2, 3, 4]);
+    expect(ids(result)).toEqual([3, 4, 1, 2]);
   });
 
   it("descending reverses the SET GROUP order only -- numbers stay ascending within each group", () => {
     const context = contextFor(defaultOrder);
     const result = sortCards(defaultOrder, state("set", "desc"), context);
-    // SHD group now first (groups reversed), but 010 before 011 inside it --
-    // numbers did NOT reverse, only the group order did.
-    expect(ids(result)).toEqual([3, 4, 1, 2]);
+    // SOR group now first (groups reversed, oldest first), but 001 before
+    // 002 inside it -- numbers did NOT reverse, only the group order did.
+    expect(ids(result)).toEqual([1, 2, 3, 4]);
+  });
+});
+
+// CREATE (BL-258): FR2-03 -- the Set sort toggle with the new default.
+// REPLACE (review FR2, N1): the Set-desc assertion was "exact reverse of the
+// group order" (TS26/IBH leading); reason: owner's words "Hoth and TS ...
+// remain last in every scenario" + "the Set column toggle flips to oldest
+// first" -- descending reverses ONLY the main-release block.
+describe("FR2-03 Set sort toggle follows the newest-first default (BL-258)", () => {
+  const sor = makeCard({ base_card_id: 1, set_code: "SOR", base_card_number: "001" });
+  const sor2 = makeCard({ base_card_id: 2, set_code: "SOR", base_card_number: "002" });
+  const shd = makeCard({ base_card_id: 3, set_code: "SHD", base_card_number: "010" });
+  const hmw = makeCard({ base_card_id: 4, set_code: "HMW", base_card_number: "005" });
+  const hmw2 = makeCard({ base_card_id: 5, set_code: "HMW", base_card_number: "006" });
+  const ibh = makeCard({ base_card_id: 6, set_code: "IBH", base_card_number: "001" });
+  const sorp = makeCard({ base_card_id: 7, set_code: "SORP", base_card_number: "001" });
+  const ts26 = makeCard({ base_card_id: 8, set_code: "TS26", base_card_number: "001" });
+  const other = makeCard({ base_card_id: 9, set_code: "C24", base_card_number: "001" });
+  const all = [sor2, ibh, shd, hmw2, sor, hmw, sorp, ts26, other];
+  // The default order, built the way CardsPage builds it.
+  const defaultOrder = sortBaseCards(all);
+
+  it("fr2-03 default and Set asc: HMW, SHD, SOR, SORP, IBH, TS26, other with numbers ascending", () => {
+    expect(defaultOrder.map((c) => c.set_code)).toEqual([
+      "HMW",
+      "HMW",
+      "SHD",
+      "SOR",
+      "SOR",
+      "SORP",
+      "IBH",
+      "TS26",
+      "C24",
+    ]);
+    const context = contextFor(defaultOrder);
+    const result = sortCards(defaultOrder, state("set", "asc"), context);
+    expect(ids(result)).toEqual([4, 5, 3, 1, 2, 7, 6, 8, 9]);
+  });
+
+  it("fr2-03 Set desc flips ONLY the main block (SOR, SORP, SHD, HMW); IBH, TS26 and other sets stay last", () => {
+    const context = contextFor(defaultOrder);
+    const result = sortCards(defaultOrder, state("set", "desc"), context);
+    expect(result.map((c) => c.set_code)).toEqual([
+      "SOR",
+      "SOR",
+      "SORP",
+      "SHD",
+      "HMW",
+      "HMW",
+      "IBH",
+      "TS26",
+      "C24",
+    ]);
+    expect(ids(result)).toEqual([1, 2, 7, 3, 4, 5, 6, 8, 9]);
+  });
+
+  it("fr2-03 # desc keeps HMW first, numbers descending", () => {
+    const context = contextFor(defaultOrder);
+    const result = sortCards(defaultOrder, state("number", "desc"), context);
+    expect(result.map((c) => c.set_code)).toEqual([
+      "HMW",
+      "HMW",
+      "SHD",
+      "SOR",
+      "SOR",
+      "SORP",
+      "IBH",
+      "TS26",
+      "C24",
+    ]);
+    expect(ids(result)).toEqual([5, 4, 3, 2, 1, 7, 6, 8, 9]);
   });
 });
 

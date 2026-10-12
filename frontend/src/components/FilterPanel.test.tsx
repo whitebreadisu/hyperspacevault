@@ -129,6 +129,53 @@ describe("FilterPanel set toggle", () => {
   });
 });
 
+// CREATE (BL-258): FR2-04 -- the Set field's rendered order, literal.
+describe("FR2-04 FilterPanel Set field order (BL-258)", () => {
+  const mk = (id: number, code: string, base: boolean): CardSet => ({
+    id,
+    code,
+    name: `${code} Name`,
+    is_base_set: base,
+    release_date: null,
+  });
+
+  async function openSetField() {
+    getSets.mockResolvedValue([
+      mk(1, "SOR", true),
+      mk(2, "SORP", false),
+      mk(3, "HMW", true),
+      mk(4, "IBH", true),
+      mk(5, "SHD", true),
+      mk(6, "TS26", true),
+      mk(7, "HMWP", false),
+      mk(8, "C24", false),
+    ]);
+    const Wrapper = () => {
+      const [filters, setFilters] = useState(DEFAULT_FILTERS);
+      return <FilterPanel filters={filters} setFilters={setFilters} cards={[]} />;
+    };
+    await act(async () => {
+      render(<Wrapper />);
+    });
+    await waitFor(() => expect(getSets).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole("button", { name: /^Set —/ }));
+  }
+
+  const optionCodes = () =>
+    screen.getAllByRole("option").map((o) => (o.textContent ?? "").trim().split(" ")[0]);
+
+  it("fr2-04 base-only view: HMW, SHD, SOR, then IBH, TS26", async () => {
+    await openSetField();
+    expect(optionCodes()).toEqual(["HMW", "SHD", "SOR", "IBH", "TS26"]);
+  });
+
+  it("fr2-04 show-all view: Weekly Play right after its base, exclusives after the block", async () => {
+    await openSetField();
+    fireEvent.click(screen.getByText("Show all sets"));
+    expect(optionCodes()).toEqual(["HMW", "HMWP", "SHD", "SOR", "SORP", "IBH", "TS26", "C24"]);
+  });
+});
+
 // DISPOSITION (REPLACE, BL-56): the "CatalogPage integration test" block that
 // lived here imported the now-retired components/CatalogPage. Its three
 // assertions (no old set-logo toggle, no old aspect toggle, FilterPanel

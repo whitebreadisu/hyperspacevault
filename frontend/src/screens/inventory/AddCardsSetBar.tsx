@@ -77,7 +77,7 @@ export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }
       {/* The header logo is always a BASE set's mark (logo assets exist per
           base set only): a Weekly Play or Exclusives selection shows the base
           set(s) its printings belong to -- several side by side, canonical
-          release order, when an Exclusives container spans base sets
+          display order (newest first), when an Exclusives container spans base sets
           (headerLogoCodesFor). An unmappable selection renders no logo at
           all rather than a broken image. */}
       <span className="ac-setbar__marks">

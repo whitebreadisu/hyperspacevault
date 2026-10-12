@@ -77,7 +77,7 @@ export function Vault({
   }
 
   // S1-23 / S1-24: desktop CardsPage's completion universe (BL-163) -- the
-  // base sets by is_base_set, release-ordered for the by-set rows.
+  // base sets by is_base_set, in display order for the by-set rows.
   const baseSetCodes = useMemo(
     () => new Set(sets.filter((s) => s.is_base_set).map((s) => s.code)),
     [sets]

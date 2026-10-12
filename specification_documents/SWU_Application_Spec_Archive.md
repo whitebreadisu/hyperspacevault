@@ -349,3 +349,47 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 §25.7, Hold and suppression bullet (first sentence), verbatim:
 
 > - **Hold and suppression.** An Add (prompt or Fast add) starts the 1.5 s hold ("Fast add · next card in 1.5 s", "In batch n", Add hidden);
+## Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)
+
+**Disposition:** → archive (clause-level). The owner decided 2026-10-12 that every set order, desktop and phone, runs main-release sets newest first (HMW … SOR) with IBH, TS26, Weekly Play and every other set keeping their place; the spec carries the new wording plus a dated tombstone per bullet. Each clause below is the exact superseded text, with its section as of the extraction date.
+
+### §5.4 locked-header logo derivation (BL-180)
+
+> …side by side in canonical release order — one logo when the container maps…
+
+### §5.13 completion panel (BL-163) — "by set" breakdown rows
+
+> …set-logo rows, plain release order)…
+
+### §5.13 Add Cards dropdowns (BL-164) — set list order
+
+> …canonical rail groups → divider → IBH/TS26;…
+
+### §5.16 scoped `#` column + row order (BL-187)
+
+> …the same set-release/tokens-last precedence as `sortBaseCards`…
+
+### §17.3 file order & reference quantity (dev-review round 2)
+
+> …curated set groups (base sets in release order through TS26 → Weekly Play in base-set order →…
+
+### §21 BL-213 column sorting
+
+> …Sets never interleave — `#`/Set sorts keep sets grouped (binder order);…
+
+### §23 Homeworlds set-grouping sentence
+
+> …its own group before Intro Battle: Hoth, with…
+
+### §25.1 Completion by set
+
+> …one row per base set (`buildSetBreakdown`…
+
+### §25.2 Set picker paragraph
+
+> …Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`).…
+
+### §25.2 Set picker paragraph (Weekly Play clause)
+
+> …lists each base set's Weekly Play set in base order, then a divider…
+

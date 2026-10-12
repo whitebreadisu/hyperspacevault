@@ -499,7 +499,9 @@ describe("sortCardsByScope", () => {
     expect(result.map((c) => c.base_card_id)).toEqual([2, 1]);
   });
 
-  it("preserves the set-release-order and tokens-last tiers ahead of the number tiebreak", () => {
+  // PORT (BL-258): same tiers (set order, then tokens-last, then number); the
+  // set order is now newest first, so SHD's group precedes SOR's.
+  it("preserves the set-display-order and tokens-last tiers ahead of the number tiebreak", () => {
     const shdToken = makeCard({
       base_card_id: 1,
       set_code: "SHD",
@@ -521,7 +523,7 @@ describe("sortCardsByScope", () => {
     });
     const setOrder = { SOR: "2024-03-08", SHD: "2024-08-02" };
     const result = sortCardsByScope([shdToken, sorCard, shdCard], setOrder, "Standard");
-    expect(result.map((c) => c.base_card_id)).toEqual([2, 3, 1]);
+    expect(result.map((c) => c.base_card_id)).toEqual([3, 1, 2]);
   });
 
   it("does not mutate the input array", () => {

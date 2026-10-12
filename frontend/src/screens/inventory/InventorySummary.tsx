@@ -44,7 +44,7 @@ interface Props {
    * percentages -- a safe "not loaded yet" fallback that never shows a
    * fabricated 100%). */
   baseSetCodes?: Set<string>;
-  /** The base sets, release-ordered (utils/catalog.ts's orderSetCodes),
+  /** The base sets, in display order (utils/catalog.ts's orderSetCodes),
    * for the breakdown popovers' row order. Defaults to empty, which shows
    * each popover's "No base-set cards in scope" empty state. */
   orderedBaseSets?: SetMeta[];

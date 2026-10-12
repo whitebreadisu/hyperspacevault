@@ -8,7 +8,7 @@ import { PriceSeg, Ticks } from "./CompletionHeader";
 import { wholeMoney } from "./completionModel";
 
 // BL-247 S1-24: Completion by set (rev4 MSheet.jsx:105-155; CSS m-rev2.css:
-// 65-80, m-rev4.css:68-88). One row per base set, release-ordered: the set
+// 65-80, m-rev4.css:68-88). One row per base set, in display order (newest first): the set
 // image and three equal facts (Playsets % + ticks, Cards, Value). Rows =
 // desktop buildSetBreakdown over desktop's breakdownCards universe -- every
 // narrowing except the Set facet (BL-224: the rows are the Set facet's own

@@ -196,6 +196,8 @@ describe("S1-17 Sort", () => {
   it("scoped default order reads the scoped printing's number", () => {
     const s = withScope(freshFilterState(), "Hyperspace");
     const r = buildVaultList(CARDS, s, DEFAULT_SORT_STATE, CTX);
-    expect(r.list.map((c) => c.base_card_id)).toEqual([2, 1, 3]);
+    // PORT (BL-258): same intent (scoped printing's number orders cards inside
+    // a set); the set order is now newest first, so ASH (3) leads SOR (2, 1).
+    expect(r.list.map((c) => c.base_card_id)).toEqual([3, 2, 1]);
   });
 });

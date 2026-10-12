@@ -78,6 +78,7 @@ def ordering_fixture_variant_ids(db, reference_fixture_variant_ids):
     card-number comparison. Container sets aren't part of CI's minimal
     seed, so this creates them (idempotently) first."""
     for code, name in (
+        ("SHD", "Shadows of the Galaxy"),
         ("TS26", "2026 Twin Suns"),
         ("SORP", "Spark of Rebellion Weekly Play"),
         ("J24", "2024 Judge Program"),
@@ -96,6 +97,7 @@ def ordering_fixture_variant_ids(db, reference_fixture_variant_ids):
 
     variant_ids = {}
     for swuapi_id, source_set_code, card_number in (
+        ("test-reference-ord-shd", "SHD", "1"),
         ("test-reference-ord-sor-9602", "SOR", "9602"),
         ("test-reference-ord-sor-10000", "SOR", "10000"),
         ("test-reference-ord-ts26", "TS26", "1"),
@@ -182,14 +184,16 @@ class TestReferenceCsvContent:
     def test_vault_matching_set_group_order_and_numeric_card_numbers(
         self, anon_client, ordering_fixture_variant_ids
     ):
-        """Owner dev-review 2026-07-23 (CREATE): the file order matches the
-        Vault -- base sets first (TS26 last among them), then Weekly Play,
-        then the long-tail containers -- with card_number compared
-        numerically ("10000" after "9602", which lexicographic order would
-        invert)."""
+        """Owner dev-review 2026-07-23 (CREATE), PORTED for BL-258
+        (2026-10-12): the file order matches the Vault -- base sets first,
+        main block NEWEST FIRST (SHD before SOR), TS26 last among them, then
+        Weekly Play, then the long-tail containers -- with card_number
+        compared numerically ("10000" after "9602", which lexicographic
+        order would invert)."""
         lines = anon_client.get("/api/catalog/reference.csv").text.splitlines()
         fixture_lines = [line for line in lines if "test-reference-ord" in line]
         assert [line.split(",")[0] for line in fixture_lines] == [
+            "test-reference-ord-shd",
             "test-reference-ord-sor-9602",
             "test-reference-ord-sor-10000",
             "test-reference-ord-ts26",

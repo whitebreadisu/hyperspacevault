@@ -12,8 +12,10 @@ test.beforeEach(() => {
 });
 
 const PICK = ".m-sheet-layer--fpick-set";
-const BASE_ORDER = "SOR,SHD,TWI,JTL,LOF,SEC,LAW,ASH,IBH,TS26";
-const WEEKLY = "SORP,SHDP,TWIP,JTLP,LOFP,SECP,LAWP,ASHP";
+// PORT (BL-258): newest first; the fixture now carries HMW/HMWP (FR2-05), so
+// they lead -- and HMWP leads the Weekly Play tail.
+const BASE_ORDER = "HMW,ASH,LAW,SEC,LOF,JTL,TWI,SHD,SOR,IBH,TS26";
+const WEEKLY = "HMWP,ASHP,LAWP,SECP,LOFP,JTLP,TWIP,SHDP,SORP";
 const EXCLUSIVES = "C24,C25,C26,J24,J25,P25,P26,G25,MV26,GG";
 const inSets = (codes: string[]) =>
   CARDS.filter(

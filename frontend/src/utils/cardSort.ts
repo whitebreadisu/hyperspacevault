@@ -17,6 +17,7 @@
 import type { InventoryCard } from "./inventory";
 import { getPlaysetSize, cardOwnedTotal } from "./inventory";
 import { setReleaseRank, parseCardDisplay } from "./catalog";
+import { isMainBlockSet } from "./setGrouping";
 import type { SetOrderMap } from "./catalog";
 import {
   cardValuePrice,
@@ -96,11 +97,11 @@ export interface SortContext {
   /** Unit/Collection display mode driving the Value column (CardsPage's
    * `valueDisplay`). */
   unitMode: ValueDisplayMode;
-  /** set_code -> release order, feeding the `#`/`Set` columns' set-group
-   * comparisons (utils/catalog.ts's setReleaseRank -- the same canonical
-   * order sortBaseCards/orderSetCodes already use). */
+  /** set_code -> release_date (only non-base sets), feeding the `#`/`Set` columns' set-group
+   * comparisons (utils/catalog.ts's setReleaseRank -- the same display
+   * order, newest main set first, sortBaseCards/orderSetCodes already use). */
   setOrder: SetOrderMap;
-  /** base_card_id -> the row's position in TODAY's default order (canonical
+  /** base_card_id -> the row's position in TODAY's default order (newest-first
    * set order, numbers ascending -- the array CardsPage's `cards` memo
    * already produces via sortCardsByScope). This is both the universal
    * tie-break every column falls back to AND the literal definition of `#`/
@@ -126,7 +127,7 @@ function compareDefaultOrder(a: InventoryCard, b: InventoryCard, context: SortCo
   return defaultIndexOf(a, context) - defaultIndexOf(b, context);
 }
 
-/** set_code group compare, release order ascending -- the same grouping
+/** set_code group compare, display order (newest main set first) -- the same grouping
  * sortBaseCards/orderSetCodes use (utils/catalog.ts). */
 function compareSetGroup(a: InventoryCard, b: InventoryCard, context: SortContext): number {
   const [aTier, aKey] = setReleaseRank(a.set_code, context.setOrder);
@@ -134,6 +135,27 @@ function compareSetGroup(a: InventoryCard, b: InventoryCard, context: SortContex
   if (aTier !== bTier) return aTier - bTier;
   if (aKey === bKey) return 0;
   return aKey < bKey ? -1 : 1;
+}
+
+/** Set DESCENDING group compare: shows the main sets oldest first (SOR, SORP,
+ * SHD, ... HMW, HMWP) -- each Weekly Play set still directly after its base.
+ * Hoth, Twin Suns and every other set keep their default place after the main
+ * block (owner: "Hoth and TS ... remain last in every scenario"). Only the
+ * main block is reversed; its membership comes from setGrouping's
+ * isMainBlockSet. Within the block the rank key is `baseIndex * 2` (+1 for
+ * Weekly Play), so reversing the base index and keeping the +1 gives the
+ * oldest-first order. */
+function compareSetGroupDescending(
+  a: InventoryCard,
+  b: InventoryCard,
+  context: SortContext
+): number {
+  if (isMainBlockSet(a.set_code) && isMainBlockSet(b.set_code)) {
+    const aKey = setReleaseRank(a.set_code, context.setOrder)[1] as number;
+    const bKey = setReleaseRank(b.set_code, context.setOrder)[1] as number;
+    return Math.floor(bKey / 2) - Math.floor(aKey / 2) || (aKey % 2) - (bKey % 2);
+  }
+  return compareSetGroup(a, b, context);
 }
 
 /** The `#` column's own displayed number (BL-187 scoped card_number when a
@@ -285,8 +307,8 @@ export function sortCards(
     };
   } else if (column === "number" && direction === "desc") {
     // "Within each set group, numbers descending; the SET GROUP ORDER STAYS
-    // the canonical ascending order -- sets never interleave and never
-    // reverse here" (owner spec). Group by canonical set order ascending,
+    // the default (newest-first, BL-258) order -- sets never interleave and
+    // never reverse here" (owner spec). Group by the default set order,
     // then tokens pinned last (owner revision 2026-08-16 -- ascending
     // already pins them via the default order's own tokens-last rule), then
     // the row's own displayed number (BL-187 scope-aware) descending.
@@ -297,13 +319,13 @@ export function sortCards(
         numeric: true,
       });
   } else if (column === "set" && direction === "desc") {
-    // "Descending reverses the SET GROUP order only, with numbers still
-    // ASCENDING within each group" (owner spec). Reversing just the group
-    // comparison and falling through to the universal defaultIndex tiebreak
-    // below reproduces that in-group ascending sub-order (tokens-last,
-    // numbers ascending) for free -- defaultIndex IS the default order, and
-    // it's monotonic ascending within any one set group.
-    primary = (a, b) => -compareSetGroup(a, b, context);
+    // "Descending flips the main-release sets to oldest first; Hoth, Twin Suns
+    // and every other set stay where they are, numbers still ASCENDING within
+    // each group" (owner, BL-258). Only the group comparison changes; the
+    // universal defaultIndex tiebreak below reproduces the in-group ascending
+    // sub-order (tokens-last, numbers ascending) for free -- defaultIndex IS
+    // the default order, and it's monotonic ascending within any one set group.
+    primary = (a, b) => compareSetGroupDescending(a, b, context);
   } else {
     const ascending = ascendingCompareFor(column, context);
     primary = direction === "asc" ? ascending : (a, b) => -ascending(a, b);

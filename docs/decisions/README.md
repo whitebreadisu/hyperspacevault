@@ -43,3 +43,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0028](0028-import-set-codes-printed-codes-map-direct.md) | Import set-code tables — printed codes map direct at onboarding | Accepted |
 | [0029](0029-card-scanning-on-device-reader-recognise-then-prompt.md) | Card scanning — on-device reader, recognise-then-prompt, printed-code collisions as picks | Accepted |
 | [0030](0030-mobile-2-0-owner-finish-round.md) | Mobile 2.0 owner finish round — the gallery plate on card detail; red only past the limit | Accepted |
+| [0031](0031-set-order-newest-first.md) | Set order — main-release sets newest first, everywhere | Accepted |

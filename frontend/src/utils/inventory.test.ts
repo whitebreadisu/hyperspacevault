@@ -76,7 +76,8 @@ describe("toInventoryCards", () => {
       makeBaseCard({ id: 2, set_code: "SOR", base_card_number: "1" }),
     ];
     const result = toInventoryCards(cards, { SOR: "2024-03-08", SHD: "2024-08-02" });
-    expect(result.map((c) => c.set_code)).toEqual(["SOR", "SHD"]);
+    // PORT (BL-258): newest main set first.
+    expect(result.map((c) => c.set_code)).toEqual(["SHD", "SOR"]);
   });
 
   it("sorts tokens after non-tokens within a set", () => {
@@ -88,16 +89,16 @@ describe("toInventoryCards", () => {
     expect(result.map((c) => c.base_card_id)).toEqual([2, 1]);
   });
 
-  // DISPOSITION (PORT, unchanged expectation from groupWithInventory): SOR
-  // and SHD are both in CURATED_SET_ORDER (catalog.ts), so with no setOrder
-  // given the fallback is the curated index, not an alphabetical tiebreak.
+  // DISPOSITION (PORT, BL-258: expectation flipped to newest first): SOR
+  // and SHD are both base sets (BASE_SET_ORDER, setGrouping.ts), so with no
+  // setOrder given the rank is their base-set index, not alphabetical.
   it("falls back to curated set order when no setOrder is given", () => {
     const cards = [
       makeBaseCard({ id: 1, set_code: "SHD", base_card_number: "1" }),
       makeBaseCard({ id: 2, set_code: "SOR", base_card_number: "1" }),
     ];
     const result = toInventoryCards(cards);
-    expect(result.map((c) => c.set_code)).toEqual(["SOR", "SHD"]);
+    expect(result.map((c) => c.set_code)).toEqual(["SHD", "SOR"]);
   });
 
   it("falls back to set_code tiebreak when sets have no release_date and no curated entry", () => {
