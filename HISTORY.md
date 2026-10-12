@@ -196,6 +196,7 @@ BL-ids.
 - `2026-10-11` **BL-251** — Phone Settings, Change Password, Delete Account, Sharing, verify banner (PR #216)
 - `2026-10-11` **BL-252** — Phone shared vault (PR #217); the closing integration sweep rides the camera PR
 - `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (PR #218)
+- `2026-10-12` **BL-256** — Mobile e2e gates every deploy; promote-prod verifies the promoted SHA's own checks (ADR-0007 amendment)
 
 ---
 

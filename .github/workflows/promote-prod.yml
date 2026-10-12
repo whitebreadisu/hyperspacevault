@@ -72,6 +72,7 @@ jobs:
       # action's final step force-moves the `prod-current` tag.
       contents: write
       id-token: write
+      checks: read # BL-256: the CI gate reads the promoted SHA's check runs
 
     steps:
       - uses: actions/checkout@v7
@@ -97,6 +98,15 @@ jobs:
       # Promote the stated commit's own tree: terraform config, frontend
       # source, and the promote-prod composite action are all read from the
       # promoted SHA, not from main's tip.
+      # BL-256: the promoted commit's own main-run checks (backend, frontend,
+      # frontend-e2e-mobile) must be green -- waits for in-progress runs,
+      # refuses failures and commits with no main run. Runs from main's
+      # checkout so the gate itself cannot be edited away in the promoted SHA.
+      - name: CI gate for the promoted SHA (BL-256)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/ci_gate.sh "${{ steps.resolve.outputs.sha }}"
+
       - name: Check out the promoted commit
         run: git checkout --quiet "${{ steps.resolve.outputs.sha }}"
 
