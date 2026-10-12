@@ -233,7 +233,9 @@ export function padSetBase(code: string): string | null {
   return BASE_SET_ORDER.find((b) => weeklyPlayCodeFor(b) === code) ?? null;
 }
 
-export const setLogoUrl = (code: string) => `/images/set_${code}.png`;
+// BL-257 FR3-01: setLogoUrl lives with the logo artwork table (the trims and
+// the sizing rule) in ../setLogoArt.ts; re-exported here for the tool's callers.
+export { setLogoUrl } from "../setLogoArt";
 export const starfieldUrl = (code: string) => `/images/starfields/starfield_${code}.jpg`;
 
 export interface SetSheetGroups {

@@ -228,3 +228,31 @@
   display: flex;
   justify-content: center;
 }
+
+/* ── BL-257 FR3-01: the set-logo box (SetLogo.tsx / setLogoArt.ts). The box is
+ * fixed per surface; the PNG is placed inside it by its measured artwork
+ * (inline left / top / width / height), so the artwork is centred and every
+ * set's artwork takes the same area. The box clips transparent padding only. */
+.m-app .m-setlogo {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+}
+/* (.m-choice__row > span:first-child stretches a row's label; the logo box
+ * is a first-child span too and must not.) */
+.m-app .m-choice__row > .m-setlogo:first-child {
+  flex: none;
+}
+.m-app .m-setlogo__img {
+  position: absolute;
+  display: block;
+  max-width: none;
+}
+.m-app .m-setlogo__img--fit {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
