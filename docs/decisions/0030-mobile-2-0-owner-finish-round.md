@@ -104,19 +104,37 @@ changed: a leader's playset is one, so one Showcase copy completes it, and
 cards without a Showcase printing are filtered out exactly as under any
 scope they have no printing for.
 
-**Why.** The owner wants to look at his Showcase leaders as a set — what
-he owns, what each is worth — which is what a scope does and a filter
-check-box does not (the filter narrows the list but leaves pips and value
-reading across all finishes). The round-4 objection was about usefulness,
-not correctness, and the owner's use overrides it.
+**Why.** The record holds the request, not a motive: the owner asked for
+Showcase as the last choice in the picker, as a non-check-box
+single-select control. That reverses the round-4 removal. (Our own note on
+what the change does, not his reason: a scope makes pips, number and value
+read the one finish, where the Filters → Finish check-box only narrows the
+list.)
+
+**Follow-up decisions (2026-10-12, after the slice review).** The review
+put three points to the owner; he decided all three the same day.
+- **Position confirmed.** Showcase stays the last row of the main (pinned)
+  list, above the divider — not the last row of the whole menu with the
+  extra finishes open.
+- **Chip text kept.** The chip reads "Showcase", repeating the row's name.
+- **The four extra finishes take the same control.** Convention Exclusive,
+  Event Exclusive, Prerelease Promo and Movie Promo — the rows "Show all
+  finishes…" reveals — were check-box rows. The picker is single-select,
+  so they are now the same row as Showcase on both platforms: the row's
+  label and one chip that repeats it, with the same selected state. The
+  scope picker has no check-box row. Their order, the expander, the raw
+  values written to the Finish facet and to analytics, and the rule that a
+  selected value is never hidden are unchanged. This supersedes the first
+  build's "expanded rows untouched".
 
 **Consequences.**
-- The four expanded rows (Convention Exclusive, Event Exclusive,
-  Prerelease Promo, Movie Promo) still use the check-box glyph in the same
-  single-select menu. They were out of scope for this change; whether they
-  should take the chip idiom too is the owner's call.
-- The chip repeats the row's name ("Showcase · [Showcase]") because the
-  value has no sub-flavour to name, unlike "Non-foil / Foil".
+- The chip repeats the row's name ("Showcase · [Showcase]", "Movie Promo ·
+  [Movie Promo]") because these values have no sub-flavour to name, unlike
+  "Non-foil / Foil". The longest, "Convention Exclusive", fits on one line
+  beside its label at 390 px, so the chips carry full names, not the short
+  names the trigger uses.
+- The row kind `plain` (the check-box row) is removed from
+  `utils/variantScope.ts`; every scope row carries chips.
 - Filters → Finish is unchanged; its Showcase row remains a check-box
   there, where multi-select is the point.
 - Superseded text is verbatim in `SWU_Application_Spec_Archive.md`

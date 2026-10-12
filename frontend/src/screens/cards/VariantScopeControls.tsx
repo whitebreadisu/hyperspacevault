@@ -76,32 +76,13 @@ function ScopeMenuPortal({
   );
 }
 
-/* Round 4 (owner): the menu adopts the FinishFilter's OWN control anatomy --
- * square ifp-finish-pair chips, ifp-multi__item rows with the checkbox
- * glyph, ifp-finish-group expander -- so the scope picker and the sidebar's
- * Finish filter read as the same family of control (FilterPanel.css owns
- * all of that styling; the vs-scope-menu__* names retained below are
- * structural hooks for tests/width only, no longer look-and-feel). */
-
-/** Same check glyph FinishFilter renders (its Check is module-private). */
-function Check({ on }: { on: boolean }) {
-  return (
-    <span className={`ifp-multi__check${on ? " ifp-multi__check--on" : ""}`}>
-      {on && (
-        <svg width="10" height="8" viewBox="0 0 10 8">
-          <path
-            d="M1 4l3 3 5-6"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-    </span>
-  );
-}
+/* The menu uses the FinishFilter's chip and expander anatomy -- square
+ * ifp-finish-pair chips, ifp-finish-group expander -- so the scope picker
+ * and the sidebar's Finish filter read as the same family of control
+ * (FilterPanel.css owns that styling; the vs-scope-menu__* names below are
+ * structural hooks for tests/width only). Unlike the filter, the picker is
+ * single-select, so it has no check-box rows: every value is a chip (owner
+ * decision 2026-10-12, BL-259). */
 
 function ScopeChips({
   chips,
@@ -141,25 +122,9 @@ function ScopeRow({
   scope: string | null;
   onPick: (raw: string) => void;
 }) {
-  if (row.kind === "plain") {
-    const active = scope === row.rawValue;
-    return (
-      <button
-        type="button"
-        className={`ifp-multi__item${active ? " ifp-multi__item--on" : ""}`}
-        role="option"
-        aria-selected={active}
-        onClick={() => onPick(row.rawValue)}
-      >
-        <Check on={active} />
-        <span className="ifp-multi__item-label vs-scope-menu__row-label">{row.label}</span>
-        {row.note && <span className="vs-scope-menu__row-note">{row.note}</span>}
-      </button>
-    );
-  }
-  // Pair / group / single rows share one anatomy: label column + chips. A
-  // "single" row (Showcase, BL-259) is a one-value row drawn with ONE chip --
-  // the picker's single-select idiom -- never the check-box glyph above.
+  // Every row shares one anatomy: label column + chips. A "single" row
+  // (Showcase and the four extra finishes, BL-259) is a one-value row drawn
+  // with ONE chip -- the picker's single-select idiom. No row is a check-box.
   return (
     <div
       className={`ifp-finish-pair vs-scope-menu__row--chips${

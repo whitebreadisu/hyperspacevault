@@ -11,8 +11,9 @@ import { Sheet, useSheetClose } from "../Sheet";
 // while unscoped), desktop's pinned rows (SCOPE_PINNED_ROWS), a divider, then
 // "Show all finishes…" for SCOPE_EXPANDED_ROWS. A pick closes the menu
 // (desktop). The scope itself writes the Finish facet (vaultModel.withScope).
-// The last pinned row is Showcase (BL-259): a one-value row drawn with one
-// chip (the menu's single-select idiom), not the tail's check-box row.
+// Showcase (last pinned row) and the four extra finishes are one-value rows
+// drawn with one chip (BL-259): the menu is single-select and has no
+// check-box row.
 
 export const UNSCOPED_LABEL = "All finishes";
 
@@ -56,7 +57,7 @@ export function ScopeChip({ scope, onOpen }: { scope: string | null; onOpen: () 
 const SCOPE_MEANING = "Pips, number, price and art read through one finish.";
 
 function rawOf(row: ScopeMenuRow): string[] {
-  return row.kind === "plain" ? [row.rawValue] : row.chips.map((c) => c.rawValue);
+  return row.chips.map((c) => c.rawValue);
 }
 
 function ScopeMenu({
@@ -88,6 +89,24 @@ function ScopeMenu({
       {c.label}
     </button>
   );
+  // Every row is label + chips; a one-value row carries one chip.
+  const row = (r: ScopeMenuRow) => (
+    <div
+      key={r.key}
+      className={
+        "m-ffin " +
+        (r.kind === "group"
+          ? "m-ffin--prestige"
+          : r.kind === "single"
+            ? "m-ffin--pair m-ffin--single"
+            : "m-ffin--pair")
+      }
+      data-row={r.key}
+    >
+      <span className="m-ffin__label">{r.label}</span>
+      <span className="m-ffin__chips">{r.chips.map(chip)}</span>
+    </div>
+  );
   return (
     <div className="m-scopemenu" role="group" aria-label="Finish scope">
       <div className="m-scopemenu__bar">
@@ -101,25 +120,7 @@ function ScopeMenu({
         </button>
       </div>
       <div className="m-ftree">
-        {SCOPE_PINNED_ROWS.map((r) =>
-          r.kind === "plain" ? null : (
-            <div
-              key={r.key}
-              className={
-                "m-ffin " +
-                (r.kind === "group"
-                  ? "m-ffin--prestige"
-                  : r.kind === "single"
-                    ? "m-ffin--pair m-ffin--single"
-                    : "m-ffin--pair")
-              }
-              data-row={r.key}
-            >
-              <span className="m-ffin__label">{r.label}</span>
-              <span className="m-ffin__chips">{r.chips.map(chip)}</span>
-            </div>
-          )
-        )}
+        {SCOPE_PINNED_ROWS.map(row)}
         <div className="m-fdivider" role="presentation" />
         <button
           type="button"
@@ -136,25 +137,7 @@ function ScopeMenu({
             {all ? "Hide extra finishes" : "Show all finishes…"}
           </span>
         </button>
-        {all
-          ? SCOPE_EXPANDED_ROWS.flatMap(rawOf).map((raw) => (
-              <button
-                key={raw}
-                type="button"
-                className={
-                  "m-check m-fcheck m-ffin m-ffin--plain" + (scope === raw ? " m-check--on" : "")
-                }
-                aria-pressed={scope === raw}
-                data-scope={raw}
-                onClick={() => pick(raw)}
-              >
-                <span className="m-check__box">
-                  {scope === raw ? <MIcon name="check" size={16} /> : null}
-                </span>
-                <span className="m-fcheck__text">{raw}</span>
-              </button>
-            ))
-          : null}
+        {all ? SCOPE_EXPANDED_ROWS.map(row) : null}
       </div>
     </div>
   );

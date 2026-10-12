@@ -564,18 +564,24 @@ describe("scopeShortName", () => {
   });
 });
 
-// The scope option set: order mirrors the sidebar Finish filter (Standard,
-// Hyperspace, Prestige, Weekly Play), Prestige is a pinned chip group, rows
-// carry no annotations, and Showcase is the last pinned row.
+// The scope option set: the first four rows mirror the sidebar Finish
+// filter's pinned order (Standard, Hyperspace, Prestige, Weekly Play),
+// Prestige is a pinned chip group, rows carry no annotations, and Showcase
+// is the last pinned row by owner decision (2026-10-12) -- not the sidebar's
+// position for it.
 // REPLACE (BL-259 FR4-01, owner decision 2026-10-12): the two tests below
 // pinned the round-4 set ("Showcase is not offered anywhere in the picker",
 // "13 total scopes"). The owner reversed that removal -- he scopes to
 // Showcase leaders -- so they now pin 5 pinned rows and 14 scopes.
+// REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+// single-select chips): the expanded test pinned "4 plain rows"; the four
+// extra finishes are now `single` rows (the `plain` kind is gone), so it pins
+// 4 single rows, still no annotations, still 14 unique values.
 const rawValuesOf = (rows: typeof SCOPE_PINNED_ROWS): string[] =>
-  rows.flatMap((r) => (r.kind === "plain" ? [r.rawValue] : r.chips.map((c) => c.rawValue)));
+  rows.flatMap((r) => r.chips.map((c) => c.rawValue));
 
 describe("Scope menu data (option set C)", () => {
-  it("pinned section is 3 pair rows + the Prestige chip group + Showcase, in the filter panel's order", () => {
+  it("pinned section is 3 pair rows + the Prestige chip group in the filter panel's pinned order, then Showcase last (owner decision 2026-10-12)", () => {
     expect(SCOPE_PINNED_ROWS.map((r) => r.key)).toEqual([
       "Standard",
       "Hyperspace",
@@ -588,10 +594,19 @@ describe("Scope menu data (option set C)", () => {
     expect(prestige && prestige.kind === "group" ? prestige.chips : []).toHaveLength(3);
   });
 
-  it("expanded section is 4 plain rows with no annotations, covering 14 total scopes", () => {
+  it("expanded section is 4 single-chip rows with no annotations, covering 14 total scopes", () => {
     expect(SCOPE_EXPANDED_ROWS).toHaveLength(4);
-    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind === "plain")).toBe(true);
-    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind !== "plain" || r.note === undefined)).toBe(true);
+    expect(SCOPE_EXPANDED_ROWS.every((r) => r.kind === "single" && r.chips.length === 1)).toBe(
+      true
+    );
+    // No annotation field survives on any row (was `note === undefined`).
+    expect(SCOPE_EXPANDED_ROWS.every((r) => !("note" in r))).toBe(true);
+    // No row kind draws a check box: every row of the picker carries chips.
+    expect(
+      [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].every((r) =>
+        ["pair", "group", "single"].includes(r.kind)
+      )
+    ).toBe(true);
 
     const all = [...rawValuesOf(SCOPE_PINNED_ROWS), ...rawValuesOf(SCOPE_EXPANDED_ROWS)];
     expect(all).toHaveLength(14);
@@ -600,7 +615,7 @@ describe("Scope menu data (option set C)", () => {
 });
 
 describe("FR4-01 Showcase is in the scope option set", () => {
-  it("fr4-01 Showcase is the last pinned value, appears exactly once, expanded rows unchanged", () => {
+  it("fr4-01 Showcase is the last pinned value, appears exactly once; the expanded values and order are unchanged", () => {
     const pinned = rawValuesOf(SCOPE_PINNED_ROWS);
     expect(pinned).toEqual([
       "Standard",
@@ -616,7 +631,7 @@ describe("FR4-01 Showcase is in the scope option set", () => {
     ]);
     const all = [...pinned, ...rawValuesOf(SCOPE_EXPANDED_ROWS)];
     expect(all.filter((v) => v === "Showcase")).toHaveLength(1);
-    // A single-chip row, not a check-box ("plain") row: the picker is single-select.
+    // A single-chip row, not a check-box row: the picker is single-select.
     const last = SCOPE_PINNED_ROWS[SCOPE_PINNED_ROWS.length - 1];
     expect(last).toEqual({
       kind: "single",
@@ -624,26 +639,22 @@ describe("FR4-01 Showcase is in the scope option set", () => {
       label: "Showcase",
       chips: [{ rawValue: "Showcase", label: "Showcase" }],
     });
+    // REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+    // single-select chips): this pinned the four expanded rows as `plain`
+    // (check-box) rows. Same four values, order, keys and labels; each is now
+    // the Showcase row shape -- one chip that repeats the row's label and
+    // carries the unchanged raw value.
+    const single = (v: string) => ({
+      kind: "single",
+      key: v,
+      label: v,
+      chips: [{ rawValue: v, label: v }],
+    });
     expect(SCOPE_EXPANDED_ROWS).toEqual([
-      {
-        kind: "plain",
-        key: "Convention Exclusive",
-        rawValue: "Convention Exclusive",
-        label: "Convention Exclusive",
-      },
-      {
-        kind: "plain",
-        key: "Event Exclusive",
-        rawValue: "Event Exclusive",
-        label: "Event Exclusive",
-      },
-      {
-        kind: "plain",
-        key: "Prerelease Promo",
-        rawValue: "Prerelease Promo",
-        label: "Prerelease Promo",
-      },
-      { kind: "plain", key: "Movie Promo", rawValue: "Movie Promo", label: "Movie Promo" },
+      single("Convention Exclusive"),
+      single("Event Exclusive"),
+      single("Prerelease Promo"),
+      single("Movie Promo"),
     ]);
     expect(scopeShortName("Showcase")).toBe("Showcase");
   });

@@ -9,11 +9,38 @@ import type { Page } from "@playwright/test";
 // The finish_scope_changed event is asserted in vitest (the harness runs
 // with analytics off): filters/filterAnalytics.test.tsx "fr4-03".
 
+interface FxVariant {
+  variant_id: number;
+  finish: string | null;
+  variant_type: string;
+  source_set_code: string;
+  card_number: string;
+}
 const CARDS = JSON.parse(readFileSync("e2e/mobile/fixtures/base-cards.json", "utf8")) as {
-  variants: { finish: string | null; variant_type: string }[];
+  id: number;
+  set_code: string;
+  base_card_number: string;
+  type: string;
+  variants: FxVariant[];
 }[];
 const withFinish = (f: string) =>
   CARDS.filter((c) => c.variants.some((v) => (v.finish ?? v.variant_type) === f)).length;
+
+/** The four extra finishes behind "Show all finishes…": raw value -> the
+ * text on its one chip (the chip repeats the row's label, as Showcase's). */
+const EXTRA_CHIP: Record<string, string> = {
+  "Convention Exclusive": "Convention Exclusive",
+  "Event Exclusive": "Event Exclusive",
+  "Prerelease Promo": "Prerelease Promo",
+  "Movie Promo": "Movie Promo",
+};
+/** Desktop's short names, as the status-row chip and the Finish facet show them. */
+const SHORT: Record<string, string> = {
+  "Convention Exclusive": "Conv. Excl.",
+  "Event Exclusive": "Event Excl.",
+  "Prerelease Promo": "Prerelease",
+  "Movie Promo": "Movie Promo",
+};
 
 /** Review screenshots, only when FR4_SHOTS names a directory. */
 const shot = async (page: Page, name: string) => {
@@ -166,21 +193,251 @@ test.describe("FR4-03 Showcase on the phone Finish scope sheet", () => {
     await shot(page, "phone-vault-showcase");
   });
 
-  test("fr4-03 the expanded tail keeps its four check-box rows", async ({ page }) => {
+  // REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+  // single-select chips): was "the expanded tail keeps its four check-box
+  // rows". The four extra finishes are now the same one-chip row as Showcase;
+  // their order, raw values and the expander are unchanged.
+  test("fr4-03 the expanded tail is four one-chip rows; no check-box row in the sheet", async ({
+    page,
+  }) => {
     await openVault(page, "#/vault?sheet=scope");
     await page.waitForTimeout(300);
     await page.locator(".m-scopemenu__more").click();
-    const tail = await page.evaluate(() =>
-      [...document.querySelectorAll(".m-sheet-layer--scope .m-check.m-ffin--plain")].map(
-        (e) => (e as HTMLElement).dataset.scope
-      )
+    await page.waitForTimeout(200);
+    const r = await page.evaluate(() => {
+      const layer = document.querySelector(".m-sheet-layer--scope")!;
+      const tree = layer.querySelector(".m-ftree")!;
+      const kids = [...tree.children] as HTMLElement[];
+      const more = kids.findIndex((k) => k.classList.contains("m-scopemenu__more"));
+      const show = tree.querySelector('[data-row="Showcase"]') as HTMLElement;
+      const showChip = show.querySelector("button")!.getBoundingClientRect();
+      const showH = show.getBoundingClientRect().height;
+      const body = tree.getBoundingClientRect();
+      return {
+        checks: layer.querySelectorAll(".m-check, .m-check__box, .m-ffin--plain").length,
+        expander: kids[more].getAttribute("aria-expanded"),
+        expanderText: kids[more].textContent,
+        tail: kids.slice(more + 1).map((row) => {
+          const label = row.querySelector(".m-ffin__label") as HTMLElement;
+          const chips = [...row.querySelectorAll("button")];
+          const b = chips[0].getBoundingClientRect();
+          const lb = label.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          return {
+            row: row.dataset.row,
+            cls: row.className,
+            label: label.textContent,
+            chips: chips.length,
+            chipClass: chips[0].className,
+            chip: chips[0].textContent,
+            scope: chips[0].dataset.scope,
+            aria: chips[0].getAttribute("aria-label"),
+            pressed: chips[0].getAttribute("aria-pressed"),
+            h: b.height,
+            w44: b.width >= 44,
+            // Same drawing as the Showcase row: row height, chip right edge;
+            // the label sits on one line and clears the chip; nothing spills.
+            sameRowH: row.getBoundingClientRect().height === showH,
+            sameRight: Math.abs(b.right - showChip.right) < 0.5,
+            oneLine: range.getClientRects().length === 1,
+            clear: range.getBoundingClientRect().right <= b.left,
+            inside: lb.left >= body.left - 0.5 && b.right <= body.right + 0.5,
+          };
+        }),
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    const tailRow = (row: string, chip: string) => ({
+      row,
+      cls: "m-ffin m-ffin--pair m-ffin--single",
+      label: row,
+      chips: 1,
+      chipClass: "m-chip m-ffin__chip",
+      chip,
+      scope: row,
+      aria: row,
+      pressed: "false",
+      h: 44,
+      w44: true,
+      sameRowH: true,
+      sameRight: true,
+      oneLine: true,
+      clear: true,
+      inside: true,
+    });
+    expect(r).toEqual({
+      checks: 0,
+      expander: "true",
+      expanderText: "Hide extra finishes",
+      tail: [
+        tailRow("Convention Exclusive", EXTRA_CHIP["Convention Exclusive"]),
+        tailRow("Event Exclusive", EXTRA_CHIP["Event Exclusive"]),
+        tailRow("Prerelease Promo", EXTRA_CHIP["Prerelease Promo"]),
+        tailRow("Movie Promo", EXTRA_CHIP["Movie Promo"]),
+      ],
+      overflow: false,
+    });
+    await shot(page, "fix-phone-sheet-expanded");
+  });
+
+  for (const raw of Object.keys(EXTRA_CHIP)) {
+    test(`fr4-03 picking ${raw} by its chip scopes the Vault`, async ({ page }) => {
+      await openVault(page);
+      await page.locator(".m-scopechip").click();
+      await page.waitForTimeout(300);
+      await page.locator(".m-scopemenu__more").click();
+      await page.locator(`.m-sheet-layer--scope button.m-chip[data-scope="${raw}"]`).click();
+      await page.waitForTimeout(400);
+      // A scope with no card in the fixture leaves the list empty (no .m-row).
+      const n = withFinish(raw);
+      const r = await page.evaluate(() => {
+        const c = document.querySelector(".m-scopechip")!;
+        return {
+          sheet: !!document.querySelector(".m-sheet-layer"),
+          on: c.classList.contains("m-scopechip--on"),
+          text: c.querySelector(".m-scopechip__t")!.textContent,
+          color: getComputedStyle(c).color,
+          rows: document.querySelectorAll(".m-row[data-card]").length,
+          badge: document.querySelector(".m-filterbtn__n")?.textContent,
+        };
+      });
+      expect(r).toEqual({
+        sheet: false,
+        on: true,
+        text: SHORT[raw],
+        color: "rgb(242, 193, 78)",
+        rows: n,
+        badge: "1",
+      });
+      // The Finish facet holds exactly the unchanged raw value.
+      await page.locator(".m-filterbtn").click();
+      const facet = page.locator('.m-sheet-layer--filters [data-facet="finish"] .m-fsel');
+      await expect(facet).toHaveCount(1);
+      await expect(facet).toHaveText(SHORT[raw]);
+      await expect(facet).toHaveClass(/m-fsel--scoped/);
+      await page.locator(".m-sheet-layer--filters .m-sheet__close").click();
+      await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+      // Reopened: the tail opens itself (a selected value is never hidden),
+      // that chip alone reads selected, the sub-title carries the raw value.
+      await page.locator(".m-scopechip").click();
+      await page.waitForTimeout(300);
+      const s = await page.evaluate((raw) => {
+        const layer = document.querySelector(".m-sheet-layer--scope")!;
+        const chip = layer.querySelector(`[data-scope="${raw}"]`);
+        return {
+          open: layer.querySelector(".m-scopemenu__more")!.getAttribute("aria-expanded"),
+          sub: layer.querySelector(".m-sheet__sub")?.textContent,
+          pressed: chip?.getAttribute("aria-pressed"),
+          on: chip?.classList.contains("m-chip--on"),
+          selected: layer.querySelectorAll('[aria-pressed="true"]').length,
+        };
+      }, raw);
+      expect(s).toEqual({
+        open: "true",
+        sub: "Scoped · " + raw,
+        pressed: "true",
+        on: true,
+        selected: 1,
+      });
+      if (raw === "Prerelease Promo") await shot(page, "fix-phone-sheet-prerelease");
+    });
+  }
+
+  // N6 (review): the ?finish= deep link scopes to Showcase like any value.
+  test("fr4-03 the ?finish=Showcase deep link scopes the Vault", async ({ page }) => {
+    await openVault(page, "#/vault?finish=Showcase");
+    const r = await page.evaluate(() => {
+      const c = document.querySelector(".m-scopechip")!;
+      return {
+        on: c.classList.contains("m-scopechip--on"),
+        text: c.querySelector(".m-scopechip__t")!.textContent,
+        count: document.querySelector(".m-count")!.textContent!.trim(),
+        badge: document.querySelector(".m-filterbtn__n")?.textContent,
+      };
+    });
+    expect(r).toEqual({
+      on: true,
+      text: "Showcase",
+      count: `${withFinish("Showcase")} cards`,
+      badge: "1",
+    });
+    await page.locator(".m-scopechip").click();
+    await expect(
+      page.locator('.m-sheet-layer--scope [data-scope="Showcase"][aria-pressed="true"]')
+    ).toHaveCount(1);
+  });
+
+  // N7 (review): a Showcase leader's row reads scoped against playset 1 --
+  // measured, not screenshot-only. The fixture owns no Showcase printing, so
+  // this test serves the fixture quantities plus one Showcase copy of ASH 5.
+  test("fr4-03 a Showcase leader's pips and count read scoped (playset 1)", async ({ page }) => {
+    const fin = (v: FxVariant) => v.finish ?? v.variant_type;
+    const byNum = (set: string, n: string) =>
+      CARDS.find((c) => c.set_code === set && c.base_card_number === n)!;
+    const luke = byNum("ASH", "5");
+    const mando = byNum("ASH", "14");
+    const sc = luke.variants.find((v) => fin(v) === "Showcase")!;
+    expect(luke.type).toBe("Leader");
+    expect(mando.type).toBe("Leader");
+    const base = JSON.parse(readFileSync("e2e/mobile/fixtures/quantities.json", "utf8")) as {
+      variant_id: number;
+      quantity: number;
+    }[];
+    const ownedBase = (c: (typeof CARDS)[number]) =>
+      c.variants.reduce(
+        (s, v) => s + (base.find((q) => q.variant_id === v.variant_id)?.quantity ?? 0),
+        0
+      );
+    expect(base.find((q) => q.variant_id === sc.variant_id)?.quantity ?? 0).toBe(0);
+    expect(ownedBase(luke)).toBe(1);
+    expect(ownedBase(mando)).toBe(0);
+    await page.route(
+      (u) => u.pathname === "/api/inventory/quantities",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            ...base.filter((q) => q.variant_id !== sc.variant_id),
+            { variant_id: sc.variant_id, quantity: 1 },
+          ]),
+        })
     );
-    expect(tail).toEqual([
-      "Convention Exclusive",
-      "Event Exclusive",
-      "Prerelease Promo",
-      "Movie Promo",
-    ]);
+    await openVault(page, "#/vault?finish=Showcase");
+    const read = (id: number) =>
+      page.evaluate((id) => {
+        const el = document.querySelector(`.m-row[data-card="${id}"]`)!;
+        const box = el.querySelector(".playset__pips")!;
+        const bs = getComputedStyle(box);
+        return {
+          chip: el.querySelector(".playset-chip")!.textContent,
+          pips: [...el.querySelectorAll(".playset__pip")].map(
+            (p) => getComputedStyle(p).backgroundColor
+          ),
+          plate: { border: bs.borderTopColor, bg: bs.backgroundColor },
+          num: el.querySelector(".m-row__num")!.textContent,
+          scoped: !!el.querySelector(".m-row__own--scoped"),
+        };
+      }, id);
+    await page.locator(`.m-row[data-card="${luke.id}"]`).scrollIntoViewIfNeeded();
+    // Owned leader: ONE pip (playset 1), filled green inside the amber plate
+    // (scoped-complete); the chip is the all-printings count (1 Standard + 1
+    // Showcase); the number is the Showcase printing's.
+    expect(await read(luke.id)).toEqual({
+      chip: "2",
+      pips: ["rgb(23, 138, 58)"],
+      plate: { border: "rgba(217, 154, 31, 0.6)", bg: "rgba(217, 154, 31, 0.08)" },
+      num: `${sc.source_set_code} ${sc.card_number}`,
+      scoped: true,
+    });
+    // Unowned Showcase leader: one empty pip, no amber plate.
+    await page.locator(`.m-row[data-card="${mando.id}"]`).scrollIntoViewIfNeeded();
+    const m = await read(mando.id);
+    expect(m.chip).toBe("0");
+    expect(m.pips).toEqual(["rgba(0, 0, 0, 0)"]);
+    expect(m.plate.border).not.toBe("rgba(217, 154, 31, 0.6)");
+    expect(m.scoped).toBe(true);
   });
 });
 
@@ -233,5 +490,84 @@ test.describe("FR4-02 Showcase in the desktop scope menu (real app)", () => {
     await expect(chip).toHaveClass(/ifp-finish-pair__chip--on/);
     await expect(page.locator('.vs-scope-menu [aria-pressed="true"]')).toHaveCount(1);
     await shot(page, "desktop-menu-showcase");
+  });
+
+  // BL-259 fix run (owner decision 2026-10-12: whole scope picker
+  // single-select chips): the four extra finishes are one-chip rows too.
+  test("fr4-02 the extra finishes are chip rows; no check-box in the menu; one scopes the table", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.locator("tbody tr").nth(5)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const trigger = page.locator(".vs-header-scope__trigger");
+    await trigger.click();
+    await page.locator(".vs-scope-menu__expander").click();
+    const r = await page.evaluate(() => {
+      const menu = document.querySelector(".vs-scope-menu")!;
+      const items = menu.querySelector(".vs-scope-menu__items")!;
+      const show = menu.querySelector('[data-scope="Showcase"]')!.getBoundingClientRect();
+      return {
+        checks: menu.querySelectorAll(".ifp-multi__check, .ifp-multi__item, [role=option]").length,
+        scopes: menu.querySelectorAll("button.ifp-finish-pair__chip[data-scope]").length,
+        tail: [...menu.querySelectorAll(".vs-scope-menu__expander ~ [data-row]")].map((row) => {
+          const label = row.querySelector(".vs-scope-menu__row-label") as HTMLElement;
+          const chip = row.querySelector("button")!;
+          const b = chip.getBoundingClientRect();
+          return {
+            row: (row as HTMLElement).dataset.row,
+            chip: chip.textContent,
+            // The label is not ellipsised; the chip is the Showcase chip's size and edge.
+            full: label.scrollWidth <= label.clientWidth,
+            sameH: b.height === show.height,
+            sameRight: Math.abs(b.right - show.right) < 0.5,
+          };
+        }),
+        // Expanded, the list is taller than the menu's shared 320 px cap and
+        // scrolls inside it (as it did with the old rows); never sideways.
+        scrollsY: items.scrollHeight > items.clientHeight,
+        overflowX: items.scrollWidth > items.clientWidth,
+      };
+    });
+    const tailRow = (row: string) => ({
+      row,
+      chip: EXTRA_CHIP[row],
+      full: true,
+      sameH: true,
+      sameRight: true,
+    });
+    expect(r).toEqual({
+      checks: 0,
+      scopes: 14,
+      tail: Object.keys(EXTRA_CHIP).map(tailRow),
+      scrollsY: true,
+      overflowX: false,
+    });
+    // The last row is reachable: scrolled into view it sits inside the list.
+    const last = page.locator('.vs-scope-menu button[data-scope="Movie Promo"]');
+    await last.scrollIntoViewIfNeeded();
+    const reach = await page.evaluate(() => {
+      const items = document.querySelector(".vs-scope-menu__items")!.getBoundingClientRect();
+      const b = document
+        .querySelector('.vs-scope-menu button[data-scope="Movie Promo"]')!
+        .getBoundingClientRect();
+      return b.top >= items.top && b.bottom <= items.bottom;
+    });
+    expect(reach).toBe(true);
+    await shot(page, "fix-desktop-menu-expanded");
+    // Keyboard pick of an extra finish (a native button).
+    const chip = page.locator('.vs-scope-menu button[data-scope="Prerelease Promo"]');
+    await chip.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".vs-scope-menu")).toHaveCount(0);
+    await expect(trigger).toHaveText(/PIPS · Prerelease/);
+    await expect(trigger).toHaveClass(/vs-header-scope__trigger--on/);
+    await expect(page.locator("tbody tr")).toHaveCount(withFinish("Prerelease Promo"));
+    await trigger.click();
+    await page.locator(".vs-scope-menu__expander").click();
+    await expect(chip).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('.vs-scope-menu [aria-pressed="true"]')).toHaveCount(1);
+    await chip.scrollIntoViewIfNeeded();
+    await shot(page, "fix-desktop-menu-prerelease");
   });
 });

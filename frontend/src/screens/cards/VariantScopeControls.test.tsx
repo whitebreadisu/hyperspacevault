@@ -35,7 +35,7 @@ describe("FR4-02 Showcase row in the desktop scope menu", () => {
     const row = pinned[pinned.length - 1];
     expect(row.classList.contains("vs-scope-menu__row--single")).toBe(true);
     expect(row.querySelector(".vs-scope-menu__row-label")?.textContent).toBe("Showcase");
-    // Not the check-box row the expanded plain rows use.
+    // Not a check-box row.
     expect(row.querySelector(".ifp-multi__check")).toBeNull();
     expect(row.classList.contains("ifp-multi__item")).toBe(false);
     expect(row.querySelector('[role="option"]')).toBeNull();
@@ -71,16 +71,67 @@ describe("FR4-02 Showcase row in the desktop scope menu", () => {
     expect((screen.getByText("All finishes") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("fr4-02 the expanded plain rows keep their check-box rows (not restyled)", () => {
-    const { menu } = openMenu(null);
+  // REPLACE (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+  // single-select chips): was "the expanded plain rows keep their check-box
+  // rows (not restyled)" -- four `.ifp-multi__item[role=option]` rows and four
+  // check glyphs. The four extra finishes are now the same one-chip row as
+  // Showcase; same four values, same order, behind the same expander.
+  const EXTRA = ["Convention Exclusive", "Event Exclusive", "Prerelease Promo", "Movie Promo"];
+
+  it("fr4-02 the four extra finishes are one-chip rows; no check-box anywhere in the menu", () => {
+    const { menu, items } = openMenu(null);
+    // Hidden until expanded.
+    expect(menu.querySelector('[data-scope="Convention Exclusive"]')).toBeNull();
     fireEvent.click(screen.getByText("Show all finishes…"));
-    const plain = menu.querySelectorAll('.ifp-multi__item[role="option"]');
-    expect([...plain].map((el) => el.textContent)).toEqual([
-      "Convention Exclusive",
-      "Event Exclusive",
-      "Prerelease Promo",
-      "Movie Promo",
-    ]);
-    expect(menu.querySelectorAll(".ifp-multi__check")).toHaveLength(4);
+    expect(screen.getByText("Hide extra finishes")).toBeTruthy();
+
+    const children = [...items.children] as HTMLElement[];
+    const expander = children.findIndex((el) => el.classList.contains("vs-scope-menu__expander"));
+    const tail = children.slice(expander + 1);
+    expect(tail.map((el) => el.dataset.row)).toEqual(EXTRA);
+    for (const row of tail) {
+      const raw = row.dataset.row!;
+      expect(row.classList.contains("vs-scope-menu__row--single")).toBe(true);
+      expect(row.querySelector(".vs-scope-menu__row-label")?.textContent).toBe(raw);
+      const chips = row.querySelectorAll("button.ifp-finish-pair__chip");
+      expect(chips).toHaveLength(1);
+      // The chip repeats the row's label (the Showcase precedent).
+      expect(chips[0].textContent).toBe(raw);
+      expect((chips[0] as HTMLButtonElement).dataset.scope).toBe(raw);
+      expect((chips[0] as HTMLButtonElement).type).toBe("button");
+      expect(chips[0].getAttribute("aria-pressed")).toBe("false");
+    }
+    // No check-box element, check-box row or option-role row in the whole menu.
+    expect(menu.querySelectorAll(".ifp-multi__check")).toHaveLength(0);
+    expect(menu.querySelectorAll(".ifp-multi__item")).toHaveLength(0);
+    expect(menu.querySelectorAll('[role="option"]')).toHaveLength(0);
+    expect(menu.querySelectorAll('input[type="checkbox"], [role="checkbox"]')).toHaveLength(0);
+    // 14 values, each offered by exactly one chip.
+    const scopes = [...menu.querySelectorAll("[data-scope]")].map(
+      (el) => (el as HTMLElement).dataset.scope
+    );
+    expect(scopes).toHaveLength(14);
+    expect(new Set(scopes).size).toBe(14);
+  });
+
+  it.each(EXTRA)("fr4-02 %s selects via its chip with the unchanged raw value", (raw) => {
+    const { menu, onScopeChange } = openMenu(null);
+    fireEvent.click(screen.getByText("Show all finishes…"));
+    fireEvent.click(menu.querySelector(`button[data-scope="${raw}"]`)!);
+    expect(onScopeChange).toHaveBeenCalledTimes(1);
+    expect(onScopeChange).toHaveBeenCalledWith(raw);
+    expect(document.querySelector(".vs-scope-menu")).toBeNull();
+  });
+
+  it("fr4-02 a selected extra finish reads pressed on its chip alone", () => {
+    const { menu } = openMenu("Prerelease Promo");
+    fireEvent.click(screen.getByText("Show all finishes…"));
+    const chip = menu.querySelector('[data-scope="Prerelease Promo"]')!;
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+    expect(chip.classList.contains("ifp-finish-pair__chip--on")).toBe(true);
+    expect(menu.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1);
+    expect(screen.getByTitle("Scope pips + Value to a single variant").textContent).toContain(
+      "PIPS · Prerelease"
+    );
   });
 });

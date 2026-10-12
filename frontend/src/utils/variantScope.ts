@@ -292,7 +292,7 @@ export function isFinishSetScopedTo(finish: Set<string>, scope: string): boolean
 // ── Scope menu -- Option set C (Definition §2, owner-locked) ────────────────
 // 14 scopes + "All finishes": the pinned section (3 pair rows, Prestige's
 // 3-chip group and the single-chip Showcase row) plus an expandable "Show
-// all finishes…" tail (4 plain rows). Values here
+// all finishes…" tail (4 more single-chip rows). Values here
 // are literal raw finish strings (== the exported variant_type values,
 // confirmed 1:1 against the feasibility analysis's per-value table) -- they
 // are NOT faceted against the live catalog (the option SET itself is
@@ -310,14 +310,6 @@ interface ScopePairRow {
   chips: [ScopeChip, ScopeChip];
 }
 
-interface ScopePlainRow {
-  kind: "plain";
-  key: string;
-  rawValue: string;
-  label: string;
-  note?: string;
-}
-
 interface ScopeGroupRow {
   kind: "group";
   key: string;
@@ -326,9 +318,9 @@ interface ScopeGroupRow {
 }
 
 /** A one-value row drawn in the picker's own single-select idiom: the
- * label column plus ONE chip (never the check-box glyph the plain rows
- * use). `chips` keeps the pair/group shape so every consumer that reads
- * `row.chips` handles it with no special case. */
+ * label column plus ONE chip. `chips` keeps the pair/group shape, so every
+ * row kind carries `chips` and no consumer needs a special case. The picker
+ * has no check-box row: it is single-select (owner decision 2026-10-12). */
 interface ScopeSingleRow {
   kind: "single";
   key: string;
@@ -336,14 +328,14 @@ interface ScopeSingleRow {
   chips: [ScopeChip];
 }
 
-export type ScopeMenuRow = ScopePairRow | ScopePlainRow | ScopeGroupRow | ScopeSingleRow;
+export type ScopeMenuRow = ScopePairRow | ScopeGroupRow | ScopeSingleRow;
 
 /* The pinned option set: Standard, Hyperspace, Prestige, Weekly Play, then
  * Showcase as the LAST pinned row -- visible without expanding, before the
  * divider and "Show all finishes…". Showcase is in the picker by owner
  * decision 2026-10-12 (BL-259, ADR-0030 amendment): he scopes to Showcase
- * leaders. It is a single-chip row, not a check-box row -- the picker is
- * single-select. Rows carry no "leaders · playset 1" annotations. */
+ * leaders. It is a single-chip row -- the picker is single-select and has
+ * no check-box row. Rows carry no "leaders · playset 1" annotations. */
 export const SCOPE_PINNED_ROWS: ScopeMenuRow[] = [
   {
     kind: "pair",
@@ -390,21 +382,22 @@ export const SCOPE_PINNED_ROWS: ScopeMenuRow[] = [
   },
 ];
 
+/* The four extra finishes behind "Show all finishes…": the same single-chip
+ * row as Showcase (owner decision 2026-10-12, BL-259). The chip repeats the
+ * row's full label, as Showcase's does: the longest ("Convention
+ * Exclusive") fits one line beside its label at 390 px, so no short name. */
+const singleRow = (rawValue: string): ScopeMenuRow => ({
+  kind: "single",
+  key: rawValue,
+  label: rawValue,
+  chips: [{ rawValue, label: rawValue }],
+});
+
 export const SCOPE_EXPANDED_ROWS: ScopeMenuRow[] = [
-  {
-    kind: "plain",
-    key: "Convention Exclusive",
-    rawValue: "Convention Exclusive",
-    label: "Convention Exclusive",
-  },
-  { kind: "plain", key: "Event Exclusive", rawValue: "Event Exclusive", label: "Event Exclusive" },
-  {
-    kind: "plain",
-    key: "Prerelease Promo",
-    rawValue: "Prerelease Promo",
-    label: "Prerelease Promo",
-  },
-  { kind: "plain", key: "Movie Promo", rawValue: "Movie Promo", label: "Movie Promo" },
+  singleRow("Convention Exclusive"),
+  singleRow("Event Exclusive"),
+  singleRow("Prerelease Promo"),
+  singleRow("Movie Promo"),
 ];
 
 /* (Round 4 owner call: the menu's footer coverage line -- "Set C — 14

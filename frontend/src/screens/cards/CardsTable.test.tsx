@@ -1000,7 +1000,11 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
     expect(onScopeChange).toHaveBeenCalledWith(null);
   });
 
-  it("'Show all finishes…' reveals the 4 extra plain rows (Prestige is pinned above the line); picking one scopes to it", () => {
+  // PORT (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+  // single-select chips): the extra rows are one-chip rows whose chip repeats
+  // the label, so the text now appears twice -- the reveal is asserted on the
+  // row label and the pick goes through the chip. Same behaviour asserted.
+  it("'Show all finishes…' reveals the 4 extra rows (Prestige is pinned above the line); picking one scopes to it", () => {
     const onScopeChange = vi.fn();
     render(
       <CardsTable
@@ -1018,9 +1022,20 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
     expect(screen.queryByText("Convention Exclusive")).toBeNull();
 
     fireEvent.click(screen.getByText("Show all finishes…"));
-    expect(screen.getByText("Convention Exclusive")).toBeTruthy();
+    const extra = [...document.querySelectorAll(".vs-scope-menu__expander ~ [data-row]")];
+    expect(extra.map((el) => (el as HTMLElement).dataset.row)).toEqual([
+      "Convention Exclusive",
+      "Event Exclusive",
+      "Prerelease Promo",
+      "Movie Promo",
+    ]);
+    expect(extra[0].querySelector(".vs-scope-menu__row-label")?.textContent).toBe(
+      "Convention Exclusive"
+    );
 
-    fireEvent.click(screen.getByText("Convention Exclusive"));
+    fireEvent.click(
+      document.querySelector('.vs-scope-menu button[data-scope="Convention Exclusive"]')!
+    );
     expect(onScopeChange).toHaveBeenCalledWith("Convention Exclusive");
   });
 
