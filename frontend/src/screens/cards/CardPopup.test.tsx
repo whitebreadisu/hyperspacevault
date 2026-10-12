@@ -1662,6 +1662,53 @@ describe("CardPopup cap_mode (PORT, BL-35)", () => {
     expect(count.className).toContain("cp-plate__count--over-limit");
   });
 
+  describe("FR1-05 the count is red only OVER the limit", () => {
+    const count = () => document.querySelector(".cp-plate__count") as HTMLElement;
+    const fill = () => document.querySelector(".cp-plate__bar-fill") as HTMLElement;
+    const inc = () => screen.getByRole("button", { name: /increment/i }) as HTMLButtonElement;
+    const open = (qty: number, mode: CapMode) =>
+      renderPopupWithLimits(
+        makeDetail({
+          type: "Unit",
+          variants: [makeVariant({ variant_id: 1, quantity: qty, card_number: "12" })],
+        }),
+        [makeLimitCell({ max_quantity: 3 })],
+        mode
+      );
+
+    it("hard, limit-1: normal colour, + enabled", async () => {
+      await open(2, "hard");
+      expect(count().className).not.toContain("--at-limit");
+      expect(fill().className).not.toContain("--at-limit");
+      expect(inc().disabled).toBe(false);
+    });
+    it("hard, at the limit: normal colour (no red class on count or bar), + disabled", async () => {
+      await open(3, "hard");
+      expect(count().className).not.toContain("--at-limit");
+      expect(count().className).not.toContain("--over-limit");
+      expect(fill().className).not.toContain("--at-limit");
+      expect(inc().disabled).toBe(true);
+    });
+    it("hard, past the limit (limit lowered under the count): red on count and bar", async () => {
+      await open(4, "hard");
+      expect(count().className).toContain("cp-plate__count--at-limit");
+      expect(fill().className).toContain("cp-plate__bar-fill--at-limit");
+      expect(screen.queryByText("Over limit")).not.toBeInTheDocument();
+    });
+    it("soft, at the limit: normal colour, no tag, + stays enabled", async () => {
+      await open(3, "soft");
+      expect(count().className).not.toContain("--at-limit");
+      expect(count().className).not.toContain("--over-limit");
+      expect(screen.queryByText("Over limit")).not.toBeInTheDocument();
+      expect(inc().disabled).toBe(false);
+    });
+    it("soft, past the limit: amber over-limit class + the Over limit tag", async () => {
+      await open(4, "soft");
+      expect(count().className).toContain("cp-plate__count--over-limit");
+      expect(screen.getByText("Over limit")).toBeInTheDocument();
+    });
+  });
+
   it("soft mode: no over-limit tag while at or below the effective limit", async () => {
     await renderPopupWithLimits(
       makeDetail({

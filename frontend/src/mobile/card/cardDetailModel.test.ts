@@ -137,11 +137,11 @@ describe("S2-02 region geometry (rev4 regionGeom)", () => {
 
 describe("S2-05 stepper limit rules (desktop InventoryPlate)", () => {
   const std = { finish: "Standard", channel: "Retail" };
-  it("hard mode: + stops at the cap, readout red at the limit", () => {
+  it("hard mode: + stops at the cap (the readout is NOT red at the limit, FR1-05)", () => {
     const s = stepperState(std, 3, "standard", null, "hard");
     expect(s.rawLimit).toBe(3);
     expect(s.incDisabled).toBe(true);
-    expect(s.atOrOverLimit).toBe(true);
+    expect(s.pastLimit).toBe(false);
     expect(s.softOverLimit).toBe(false);
   });
   it("soft mode: + continues, amber over the limit; − stops at 0", () => {
@@ -204,4 +204,26 @@ describe("S2-09 nav entry resolution (prev / next on the matching printing)", ()
       narrowed: false,
     });
   });
+});
+
+describe("FR1-05 count is red only OVER the limit (owner decision 2026-10-12)", () => {
+  const std = { finish: "Standard", channel: "Retail" };
+  // Standard default limit is 3. Boundary table: limit-1 / limit / limit+1.
+  it.each([
+    ["hard", 2, false, false, false],
+    ["hard", 3, false, false, true],
+    ["hard", 4, true, false, true],
+    ["soft", 2, false, false, false],
+    ["soft", 3, false, false, false],
+    ["soft", 4, true, true, false],
+  ] as const)(
+    "%s mode, qty %i: pastLimit=%s softOverLimit=%s incDisabled=%s",
+    (mode, qty, pastLimit, softOver, incDisabled) => {
+      const s = stepperState(std, qty, "standard", null, mode);
+      expect(s.rawLimit).toBe(3);
+      expect(s.pastLimit).toBe(pastLimit);
+      expect(s.softOverLimit).toBe(softOver);
+      expect(s.incDisabled).toBe(incDisabled);
+    }
+  );
 });

@@ -116,7 +116,7 @@ export function Printings({
                     isAuthenticated={isAuthenticated}
                     incDisabled={st.incDisabled}
                     decDisabled={st.decDisabled}
-                    atLimit={st.atOrOverLimit}
+                    pastLimit={st.pastLimit}
                     overLimit={st.softOverLimit}
                     pending={stepper.pending}
                     onInc={() => stepper.increment(v)}
@@ -152,7 +152,7 @@ function Step({
   isAuthenticated,
   incDisabled,
   decDisabled,
-  atLimit,
+  pastLimit,
   overLimit,
   pending,
   onInc,
@@ -164,7 +164,7 @@ function Step({
   isAuthenticated: boolean;
   incDisabled: boolean;
   decDisabled: boolean;
-  atLimit: boolean;
+  pastLimit: boolean;
   overLimit: boolean;
   pending: boolean;
   onInc: () => void;
@@ -214,7 +214,7 @@ function Step({
         className={
           "m-step__qty" +
           (qty > 0 ? " m-step__qty--on" : "") +
-          (atLimit ? " cp-plate__count--at-limit" : "") +
+          (pastLimit ? " cp-plate__count--at-limit" : "") +
           (overLimit ? " cp-plate__count--over-limit" : "")
         }
         aria-live="polite"

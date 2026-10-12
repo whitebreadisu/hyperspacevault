@@ -321,7 +321,7 @@ function FoundPanel({
         justAdded={hold ? phase.at : 0}
         inBatch={hold ? inBatch : undefined}
         hideAdd={hold}
-        addLabel="Add"
+        addLabel="Add to batch"
         canAdd={canAdd && isAuthenticated}
         onAdd={canAdd ? onAdd : () => {}}
         onDetails={

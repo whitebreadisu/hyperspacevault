@@ -26,9 +26,11 @@ test("s2-05-stepper-adjusts", async ({ page }) => {
   expect(recorderFor(page).adjust).toEqual([]);
   await page.waitForTimeout(700);
   expect(recorderFor(page).adjust).toEqual([{ variantId: std.variant_id, delta: 1 }]);
-  // Hard cap (Standard keep-limit 3): + stops, the readout is red at the limit.
+  // Hard cap (Standard keep-limit 3): + stops; AT the limit the readout keeps
+  // its normal owned colour -- red is for OVER the limit only (FR1-05,
+  // owner decision 2026-10-12; was asserted red here).
   await expect(inc).toBeDisabled();
-  expect(await qty.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(248, 113, 113)");
+  expect(await qty.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(255, 255, 255)");
   // Back on the Vault the row's chip carries the new total (2+1+1 -> 5).
   await page.locator(".m-hdr__close").click();
   await expect(page.locator(`.m-row[data-card="${c.id}"] .playset-chip`)).toHaveText("5");

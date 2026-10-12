@@ -598,6 +598,7 @@
   font-size: 12px;
 }
 .m-app .m-print {
+  position: relative;
   align-items: center;
   padding: 0 4px 0 0;
   gap: 8px;
@@ -617,6 +618,18 @@
   border: none;
   text-align: left;
   color: inherit;
+}
+/* FR1-06: the whole row selects. The main button's hit area is stretched over
+ * the row (price and x N included) without nesting interactive elements; the
+ * selected row's stepper sits above it so - / + keep their own action. */
+.m-app .m-print__main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.m-app .m-print .m-stepper {
+  position: relative;
+  z-index: 1;
 }
 .m-app .m-print__finish {
   max-width: 100%;
@@ -701,8 +714,9 @@
 .m-app .m-step__qty--on {
   color: #fff;
 }
-/* Desktop's plate readout colours (CardPopup.css:662-669): red at / past
- * the keep-limit, amber past it in soft mode. */
+/* Desktop's plate readout colours (CardPopup.css:662-669): red only PAST
+ * the keep-limit (FR1-05: at the limit is the normal colour), amber past it
+ * in soft mode (declared later, so it wins over the red class). */
 .m-app .m-step__qty.cp-plate__count--at-limit {
   color: var(--color-danger);
 }

@@ -73,15 +73,21 @@
   margin: 0;
   transform: translateY(50%);
 }
-/* C1: the deliberate pull -- a steel bar fills at the header's bottom edge. */
+/* C1 / FR1-02: the deliberate pull -- an app-blue bar at the header's bottom
+ * edge, shared by the vault and the card detail. Full width, filled by
+ * scaleX(--pull) from the left (transform + opacity only, so iOS Safari
+ * repaints it cleanly); no transition -- it tracks the finger. */
 .m-app .m-pullbar {
   position: absolute;
   left: 0;
+  right: 0;
   bottom: 0;
   z-index: 3;
   height: 2px;
-  width: calc(var(--pull, 0) * 100%);
-  background: #cfd6e4;
+  transform: scaleX(var(--pull, 0));
+  transform-origin: left center;
+  will-change: transform, opacity;
+  background: var(--color-primary);
   opacity: 0;
   pointer-events: none;
 }

@@ -160,13 +160,13 @@ function Rows({ kind, items, sets, onRemove }: RowsProps) {
               {onRemove ? (
                 <button
                   type="button"
-                  className="m-step m-vfyrow__remove"
+                  className="m-vfyrow__remove"
                   onClick={() => onRemove(r)}
                   aria-label={`Remove one ${r.name}, ${r.groupKey} ${r.cardNumber}${
                     r.finishText ? ", " + r.finishText : ""
                   }`}
                 >
-                  −
+                  ×
                 </button>
               ) : null}
             </div>

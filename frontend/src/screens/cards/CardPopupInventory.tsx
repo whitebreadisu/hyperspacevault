@@ -65,11 +65,13 @@ interface InventoryPlateProps {
  *     stops it -- and the readout carries a distinct amber "Over limit" tag
  *     (ported verbatim from CardInventoryPopup's cip-row--over-limit/
  *     cip-row__qty--over-limit) once quantity exceeds the raw effective
- *     limit. This is separate from atOrOverLimit below, which is a purely
- *     visual "you've reached the configured limit" cue (design handoff's
- *     "progress bar ... red at the limit") that applies in EITHER cap_mode
- *     once quantity >= the limit -- hard mode can only ever reach exactly
- *     that value (+ disables there), soft mode can sail past it. */
+ *     limit. This is separate from pastLimit below, which is a purely
+ *     visual "you are past the configured limit" cue (FR1-05, owner
+ *     decision 2026-10-12: red only OVER the limit, at the limit the count
+ *     keeps its normal colour) that applies in EITHER cap_mode once
+ *     quantity > the limit -- hard mode only gets there when the limit was
+ *     lowered below an existing count (+ disables at the limit), soft mode
+ *     can sail past it (and the amber over-limit class then wins). */
 function InventoryPlate({
   variant,
   typeCategory,
@@ -95,7 +97,8 @@ function InventoryPlate({
   const incDisabled = capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap;
   const decDisabled = qty <= 0;
 
-  const atOrOverLimit = rawLimit !== null && qty >= rawLimit;
+  // FR1-05: red only PAST the limit; at the limit the count is the normal colour.
+  const pastLimit = rawLimit !== null && qty > rawLimit;
   const softOverLimit = capMode === "soft" && rawLimit !== null && qty > rawLimit;
   const pctWidth =
     rawLimit !== null && rawLimit > 0
@@ -147,7 +150,7 @@ function InventoryPlate({
           <div className="cp-plate__readout-row">
             <span className="cp-plate__owned-label">OWNED — {label}</span>
             <span
-              className={`cp-plate__count${atOrOverLimit ? " cp-plate__count--at-limit" : ""}${
+              className={`cp-plate__count${pastLimit ? " cp-plate__count--at-limit" : ""}${
                 softOverLimit ? " cp-plate__count--over-limit" : ""
               }`}
             >
@@ -157,7 +160,7 @@ function InventoryPlate({
           {rawLimit !== null && (
             <div className="cp-plate__bar">
               <div
-                className={`cp-plate__bar-fill${atOrOverLimit ? " cp-plate__bar-fill--at-limit" : ""}`}
+                className={`cp-plate__bar-fill${pastLimit ? " cp-plate__bar-fill--at-limit" : ""}`}
                 style={{ width: pctWidth }}
               />
             </div>

@@ -183,8 +183,9 @@ export function regionGeom(
 
 /** The stepper's limit rules, ported from desktop CardPopupInventory.tsx
  * InventoryPlate: `+` stops at the enforcement cap (hard) or the 999 ceiling
- * (soft); `−` stops at 0; the readout is red at / past the keep-limit and
- * amber ("Over limit") past it in soft mode. */
+ * (soft); `−` stops at 0; the readout is red only PAST the keep-limit
+ * (FR1-05: at the limit it keeps the normal colour) and amber ("Over limit")
+ * past it in soft mode. */
 export function stepperState(
   variant: Pick<InventoryVariant, "finish" | "channel">,
   qty: number,
@@ -199,7 +200,8 @@ export function stepperState(
     rawLimit,
     incDisabled: capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap,
     decDisabled: qty <= 0,
-    atOrOverLimit: rawLimit !== null && qty >= rawLimit,
+    // FR1-05: red is for a count PAST its limit only (at the limit = normal).
+    pastLimit: rawLimit !== null && qty > rawLimit,
     softOverLimit: capMode === "soft" && rawLimit !== null && qty > rawLimit,
   };
 }
