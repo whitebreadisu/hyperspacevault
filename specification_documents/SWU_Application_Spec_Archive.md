@@ -318,3 +318,99 @@ Superseded by the consolidated §25 (25.0 overview, 25.1–25.7 de-duplicated, �
 > - **Not built / not ported.** The spike's research machinery (crop capture/export, review/truth screens, condition select, continuous mode, Photo, Setup, event log, `window.__bl238`), guide v1, the orientation toggle, the optional zoom / focus / torch / lens controls, and the `?debug=1` raw-text overlay.
 > - **Provisional copy.** The camera's stream-state sentences ("Camera access is off", "Camera stopped by the phone", "Camera paused", "No camera found") and the generic pick question for non-collision picks ("This code matches more than one card. Pick the card you have.") are accepted provisionally; the owner adjusts them in the LAN round.
 > - **Harness.** Playwright project `scan` (Chromium with `--use-fake-device-for-media-stream`; `e2e/mobile/clip-helpers.ts` launches one browser per clip with `--use-file-for-fake-video-capture`) drives the BL-238 spike's MJPEG clips (`e2e/mobile/clips/`, 9 files, 13 MB) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); the other phone projects ignore `s7-` specs. Vitest sits beside the code in `frontend/src/mobile/camera/`.
+
+## Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)
+
+**Disposition:** → ADR-0030 (mobile 2.0 owner finish round) + archive. The owner walked the phone build on his iPhone on 2026-10-12 and reversed two as-built choices: the card-detail plate now uses the gallery idiom, exactly as a gallery tile scoped to the selected printing's finish shows it, and a count is red only past its limit (phone and desktop). The verify sheet's remove control changed in the same round (a look change, no decision of its own; recorded here so the old wording is not lost).
+
+§25.2, plate sentence (R5-5), verbatim:
+
+> - The plate (steel frame, count chip + 10 px pips) describes the **selected printing** (R5-5): chip = that printing's count; pips amber while short of the playset, green inside the amber plate at a playset; no scope marker. Changing the printing in the rail updates the plate, art and price at once.
+
+§25.2, limit-colour sentence, verbatim (as built it applied the red from the limit upward — `qty >= limit` — on the phone stepper and in the desktop card popup, count and bar fill):
+
+> Over the limit, the quantity is red/amber with desktop's "Over limit" tag; no "n/m" on card surfaces.
+
+§25.3, verify quick-remove sentence, verbatim:
+
+> Each added row has a 44 px "−" quick remove that drops one copy.
+
+§24.2, camera decide-step sentence (the button label "Add"), verbatim:
+
+> - **Default: recognise, then decide.** On a successful read the scanner
+>   pauses and shows the card exactly as the keypad shows a resolved card
+>   (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
+>   AFTER ADD readout) with **Card details / Add / Wrong card**. Nothing is
+
+§25.7, Flow bullet (first sentences, the button label "Add"), verbatim:
+
+> - **Flow.** Searching -> found | pick -> hold. Found shows the keypad's `Identified` panel (shared numbers, BL-191 non-foil default, In vault / After add readout) with Card details (the card layer over the paused camera, same document), Add, and Wrong card (restart, no keypad prefill).
+
+§25.7, Hold and suppression bullet (first sentence), verbatim:
+
+> - **Hold and suppression.** An Add (prompt or Fast add) starts the 1.5 s hold ("Fast add · next card in 1.5 s", "In batch n", Add hidden);
+## Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)
+
+**Disposition:** → archive (clause-level). The owner decided 2026-10-12 that every set order, desktop and phone, runs main-release sets newest first (HMW … SOR) with IBH, TS26, Weekly Play and every other set keeping their place; the spec carries the new wording plus a dated tombstone per bullet. Each clause below is the exact superseded text, with its section as of the extraction date.
+
+### §5.4 locked-header logo derivation (BL-180)
+
+> …side by side in canonical release order — one logo when the container maps…
+
+### §5.13 completion panel (BL-163) — "by set" breakdown rows
+
+> …set-logo rows, plain release order)…
+
+### §5.13 Add Cards dropdowns (BL-164) — set list order
+
+> …canonical rail groups → divider → IBH/TS26;…
+
+### §5.16 scoped `#` column + row order (BL-187)
+
+> …the same set-release/tokens-last precedence as `sortBaseCards`…
+
+### §17.3 file order & reference quantity (dev-review round 2)
+
+> …curated set groups (base sets in release order through TS26 → Weekly Play in base-set order →…
+
+### §21 BL-213 column sorting
+
+> …Sets never interleave — `#`/Set sorts keep sets grouped (binder order);…
+
+### §23 Homeworlds set-grouping sentence
+
+> …its own group before Intro Battle: Hoth, with…
+
+### §25.1 Completion by set
+
+> …one row per base set (`buildSetBreakdown`…
+
+### §25.2 Set picker paragraph
+
+> …Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`).…
+
+### §25.2 Set picker paragraph (Weekly Play clause)
+
+> …lists each base set's Weekly Play set in base order, then a divider…
+
+## Archived 2026-10-12 — §5.13 / §25.1 scope option set superseded: Showcase returns to the scope picker (BL-259)
+
+**Disposition:** → merge into ADR-0030 (dated amendment "Showcase returns to the scope picker (BL-259)") + archive. The round-4 revision of the variant-scope picker (BL-173) removed Showcase from the option set. On 2026-10-12 the owner asked for it back as the last pinned choice, drawn as a non-check-box control, on desktop and phone. §25.1's Finish-scope bullet did not enumerate the option set, so nothing was removed from it; it gained the option-set sentence.
+
+§5.13, variant-scope control bullet, verbatim:
+
+> - **Variant-scope control** in the Playset header (trigger reads **ALL FINISHES** unscoped / `PIPS · <finish>` scoped): single-select menu built from the FinishFilter's control anatomy, order mirroring the sidebar Finish filter (pair chips; Prestige as a pinned chip row; expander rows for Convention/Event/Prerelease/Movie; **Showcase deliberately excluded** — a leaders-only playset-1 finish is not a pip scope; 13 scopes total).
+
+Code comment that carried the same decision (`frontend/src/utils/variantScope.ts`, above `SCOPE_PINNED_ROWS`), verbatim:
+
+> Round 4 owner revisions to the option set: (1) order mirrors the sidebar Finish filter's pinned order (Standard, Hyperspace, Prestige, Weekly Play -- FINISH_TOP_LEVEL_ORDER minus Showcase); (2) Prestige moved UP from the expander into the core rows; (3) Showcase REMOVED from the picker entirely (a leaders-only playset-1 finish never made sense as a pip scope -- it remains fully reachable via the sidebar Finish filter); (4) the "leaders · playset 1" annotations are dropped.
+
+**Follow-up, same day (2026-10-12).** **Disposition:** → merge into ADR-0030 (same amendment, "Follow-up decisions") + archive. The first BL-259 build left the four extra finishes as check-box rows and the spec said so. After the review the owner decided the whole picker is single-select chips: Convention Exclusive, Event Exclusive, Prerelease Promo and Movie Promo take the same one-chip row as Showcase, on desktop and phone. The two sentences below were written and superseded on the same day.
+
+§5.13, variant-scope control bullet, option-set parenthesis, verbatim:
+
+> order mirroring the sidebar Finish filter (pair chips for Standard, Hyperspace and Weekly Play; Prestige as a pinned chip row; **Showcase as the last pinned row** — a label plus one chip, the menu's single-select idiom, not a check-box row — then the divider and the expander rows for Convention/Event/Prerelease/Movie, which are check-box rows; 14 scopes total).
+
+§25.1, Finish-scope bullet, option-set sentence, verbatim:
+
+> The "Finish scope" sheet offers desktop's option set (§5.13, `utils/variantScope.ts`), 14 values: pinned chip rows for Standard, Hyperspace, Prestige and Weekly Play, then **Showcase as the last pinned row** — its label and one 44 px chip, the sheet's single-select idiom, not a check-box row — then a divider and "Show all finishes…" for the four check-box rows (Convention Exclusive, Event Exclusive, Prerelease Promo, Movie Promo).

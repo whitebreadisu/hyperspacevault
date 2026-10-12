@@ -79,9 +79,10 @@ test("s2-02-collapsed-row", async ({ page }) => {
   const std = c.variants.find((v) => fin(v) === "Standard")!;
   await scrollDetail(page, 300);
   expect(await isCollapsed(page)).toBe(true);
-  // card-unit-collapsed: plate + the selected printing's price + Market / Low.
+  // card-unit-collapsed: the gallery plate (FR1-07), the selected printing's
+  // price and Market / Low (FR1-09 covers the three-column arrangement).
   const mini = page.locator(".m-dreg3__mini");
-  await expect(mini.locator(".gallery-plate.m-plate--table .playset-chip")).toBeVisible();
+  await expect(mini.locator(".gallery-plate .gallery-plate__total")).toBeVisible();
   await expect(mini.locator(".m-dreg__pval")).toHaveText(`$${std.price!.market!.toFixed(2)}`);
   await expect(mini.locator(".m-seg .m-seg__btn")).toHaveCount(2);
   // The 80 px thumbnail sits left of the row.

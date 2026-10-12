@@ -21,14 +21,25 @@ test("s2-05-stepper-adjusts", async ({ page }) => {
   await expect(qty).toHaveText("2");
   await inc.click();
   // Optimistic: the readout and the plate move at once, before any call.
+  // Owner decision 2026-10-12 (plate exactly like the gallery, ADR-0030;
+  // REPLACES "plate number = the selected printing's 3"): the plate's pips
+  // carry the Standard count (2 -> 3, a playset), its number the card total
+  // (2 + 1 + 1 = 4 -> 5).
   await expect(qty).toHaveText("3");
-  await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText("3");
+  await expect(page.locator(".m-dreg3__own .m-plate-hit--btn")).toHaveAttribute(
+    "data-plate-scoped",
+    "3"
+  );
+  await expect(page.locator(".m-dreg3__own .gallery-plate--complete")).toHaveCount(1);
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText("5");
   expect(recorderFor(page).adjust).toEqual([]);
   await page.waitForTimeout(700);
   expect(recorderFor(page).adjust).toEqual([{ variantId: std.variant_id, delta: 1 }]);
-  // Hard cap (Standard keep-limit 3): + stops, the readout is red at the limit.
+  // Hard cap (Standard keep-limit 3): + stops; AT the limit the readout keeps
+  // its normal owned colour -- red is for OVER the limit only (FR1-05,
+  // owner decision 2026-10-12; was asserted red here).
   await expect(inc).toBeDisabled();
-  expect(await qty.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(248, 113, 113)");
+  expect(await qty.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(255, 255, 255)");
   // Back on the Vault the row's chip carries the new total (2+1+1 -> 5).
   await page.locator(".m-hdr__close").click();
   await expect(page.locator(`.m-row[data-card="${c.id}"] .playset-chip`)).toHaveText("5");
@@ -70,7 +81,9 @@ test.describe("signed out", () => {
     await expect(dec).toHaveAttribute("aria-disabled", "true");
     await expect(page.locator(`${ACTIVE} .m-step__qty`)).toHaveText("—");
     await expect(page.locator(".cp-rail__item-qty")).toHaveCount(0);
-    await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText("—");
+    await expect(page.locator(".m-dreg3__own .gallery-plate__sign-in")).toHaveText(
+      "SIGN IN TO TRACK"
+    );
     // aria-disabled keeps the control tappable (Playwright treats it as disabled).
     await dec.click({ force: true });
     await expect(page.getByRole("dialog", { name: "Log In" })).toBeVisible();

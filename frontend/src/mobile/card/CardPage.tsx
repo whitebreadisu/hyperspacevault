@@ -67,6 +67,12 @@ export function CardPage(p: CardPageProps) {
     "--d-delta": geom.delta + "px",
     ...(ghost ? null : p.pullStyle),
   } as CSSProperties;
+  // FR1-07: the plate counts across every printing, at the quantities the
+  // stepper shows (optimistic while a batch is open).
+  const shownVariants = card.variants.map((v) => {
+    const quantity = p.stepper.qtyOf(v);
+    return quantity === v.quantity ? v : { ...v, quantity };
+  });
   return (
     <div
       className={
@@ -92,7 +98,7 @@ export function CardPage(p: CardPageProps) {
           setShowBack={p.setShowBack}
           collapsed={p.collapsed}
           onExpand={p.onExpand ?? (() => {})}
-          qty={p.stepper.qtyOf(variant)}
+          shownVariants={shownVariants}
           isAuthenticated={p.isAuthenticated}
           priceKind={p.priceKind}
           onPriceKind={p.onPriceKind}

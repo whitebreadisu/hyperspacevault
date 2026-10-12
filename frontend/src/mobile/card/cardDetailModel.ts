@@ -1,4 +1,5 @@
 import type { CapMode, TypeCategory } from "../../api/settingsLimits";
+import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import {
   effectiveLimit,
@@ -7,6 +8,7 @@ import {
   QUANTITY_CEILING,
 } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
+import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
 import { pickRepresentative } from "../vault/cardImage";
 import type { NavPosition } from "./navList";
@@ -183,8 +185,9 @@ export function regionGeom(
 
 /** The stepper's limit rules, ported from desktop CardPopupInventory.tsx
  * InventoryPlate: `+` stops at the enforcement cap (hard) or the 999 ceiling
- * (soft); `−` stops at 0; the readout is red at / past the keep-limit and
- * amber ("Over limit") past it in soft mode. */
+ * (soft); `−` stops at 0; the readout is red only PAST the keep-limit
+ * (FR1-05: at the limit it keeps the normal colour) and amber ("Over limit")
+ * past it in soft mode. */
 export function stepperState(
   variant: Pick<InventoryVariant, "finish" | "channel">,
   qty: number,
@@ -199,8 +202,46 @@ export function stepperState(
     rawLimit,
     incDisabled: capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap,
     decDisabled: qty <= 0,
-    atOrOverLimit: rawLimit !== null && qty >= rawLimit,
+    // FR1-05: red is for a count PAST its limit only (at the limit = normal).
+    pastLimit: rawLimit !== null && qty > rawLimit,
     softOverLimit: capMode === "soft" && rawLimit !== null && qty > rawLimit,
+  };
+}
+
+/** BL-257 FR1-07 (owner decision 2026-10-12, ADR-0030): what the card-detail
+ * plate shows -- EXACTLY a finish-scoped gallery tile's numbers
+ * (vault/GalleryCell.tsx:43-51), with `scope` = the selected printing's raw
+ * finish. The same helpers the tile calls, in the same order, so the two
+ * cannot drift: `owned` / `complete` are the card's all-printings total
+ * (cardOwnedTotal / isPlaysetComplete over the variant_id -> quantity map);
+ * the pips fill from every printing of the scoped finish (scopedOwnedCount)
+ * and the plate's complete state is that scoped sum at a playset
+ * (scopedPlaysetComplete). `variants` carry the quantities to SHOW (the
+ * stepper's optimistic ones included). */
+export function plateState(
+  variants: Pick<InventoryVariant, "variant_id" | "variant_type" | "finish" | "quantity">[],
+  scope: string,
+  type: string,
+  isAuthenticated: boolean
+) {
+  const inventory: Record<number, number> = {};
+  for (const v of variants) inventory[v.variant_id] = v.quantity;
+  const size = getPlaysetSize(type);
+  const owned = cardOwnedTotal(inventory);
+  const complete = isAuthenticated && isPlaysetComplete(inventory, type);
+  const scopedOwned = scopedOwnedCount(variants, scope);
+  return {
+    size,
+    /** The number at the right: owned across ALL printings. */
+    owned,
+    /** Owned copies of the scoped finish, every printing of it summed. */
+    scopedOwned,
+    filled: isAuthenticated ? Math.min(size, scopedOwned) : 0,
+    scoped: isAuthenticated,
+    /** The plate's complete state: the SCOPED sum is a playset. */
+    pipsComplete: isAuthenticated && scopedPlaysetComplete(variants, scope, type),
+    /** The number is green: the card total is a playset. */
+    totalComplete: complete,
   };
 }
 

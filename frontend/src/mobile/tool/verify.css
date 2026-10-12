@@ -195,24 +195,32 @@
   font-style: italic;
   color: var(--color-warning);
 }
-/* Quick remove: the stepper's − (card.css .m-step), one copy per tap. */
+/* Quick remove (FR1-03): desktop's x (AddCardsModal.css .ac-chip__del) --
+ * transparent, muted, 3 px radius, hover/active aggression red -- in a 44 px
+ * hit box. One copy per tap. Not a stepper (no .m-step). */
 .m-app .m-vfyrow__remove {
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  background: var(--color-primary);
+  background: transparent;
   border: none;
-  color: #fff;
+  color: var(--color-text-muted);
   font-size: 22px;
   line-height: 1;
-  padding: 0 0 2px;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
-  transition: background 0.12s ease;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .m-app .m-vfyrow__remove:hover {
+    color: var(--aspect-aggression);
+    background: var(--bg-page);
+  }
 }
 .m-app .m-vfyrow__remove:active {
-  background: var(--color-primary-dim);
-  transform: translateY(1px);
+  color: var(--aspect-aggression);
+  background: var(--bg-page);
 }
 
 /* Footer (rev4 m-rev4-d2.css .m-d2-verify__*) + desktop's foot error. */

@@ -1,0 +1,452 @@
+[
+  {
+    "id": 1788,
+    "set_code": "SHD",
+    "base_card_number": "18",
+    "name": "The Mandalorian",
+    "subtitle": "Sworn To The Creed",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 4,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Heroism"],
+    "keywords": [],
+    "traits": ["Mandalorian", "Bounty Hunter"],
+    "variants": [
+      {
+        "variant_id": 5445,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SHD",
+        "card_number": "18",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_SWH_02_018_The_Mandalorian_Leader_39e96b9f94.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_SWH_02_018_The_Mandalorian_Leader_tnit_4088c46c4d.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1386,
+    "set_code": "SHD",
+    "base_card_number": "20",
+    "name": "Remote Village",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Common",
+    "cost": null,
+    "power": null,
+    "hp": 30,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 5503,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "SHD",
+        "card_number": "20",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_0201020_EN_Remote_Village_Base_70adda2d28.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1865,
+    "set_code": "TS26",
+    "base_card_number": "8",
+    "name": "Ahsoka Tano",
+    "subtitle": "I Have an Idea",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 3,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Heroism"],
+    "keywords": ["Raid"],
+    "traits": ["Force"],
+    "variants": [
+      {
+        "variant_id": 7339,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "8",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010008_EN_Ahsoka_Tano_Leader_c43b8949a5.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010008_EN_Ahsoka_Tano_Leader_Unit_bd80aa599e.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 238,
+    "set_code": "TS26",
+    "base_card_number": "6",
+    "name": "Rex",
+    "subtitle": "No Other Option",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 5,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Heroism"],
+    "keywords": [],
+    "traits": ["Clone", "Trooper"],
+    "variants": [
+      {
+        "variant_id": 7317,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "6",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010006_EN_Rex_Leader_4d80edc36b.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010006_EN_Rex_Leader_Unit_a2b51aa51a.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 49,
+    "set_code": "TS26",
+    "base_card_number": "9",
+    "name": "First Battle Memorial",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Rare",
+    "cost": null,
+    "power": null,
+    "hp": 27,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 7345,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "9",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010009_EN_First_Battle_Memorial_Base_b805aaed41.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 864,
+    "set_code": "TS26",
+    "base_card_number": "7",
+    "name": "Asajj Ventress",
+    "subtitle": "Ambitious Apprentice",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 3,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Cunning", "Villainy"],
+    "keywords": ["Hidden"],
+    "traits": ["Force", "Separatist", "Sith"],
+    "variants": [
+      {
+        "variant_id": 7328,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "7",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010007_EN_Asajj_Ventress_Leader_fea4e2d457.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010007_EN_Asajj_Ventress_Leader_Unit_b4cc18c531.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 697,
+    "set_code": "TS26",
+    "base_card_number": "3",
+    "name": "Maul",
+    "subtitle": "Collective Ambition",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 7,
+    "power": 5,
+    "hp": 9,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Villainy"],
+    "keywords": [],
+    "traits": ["Force", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 7282,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "3",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010003_EN_Maul_Leader_84fa7f0d90.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010003_EN_Maul_Leader_Unit_f066098d2a.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1704,
+    "set_code": "TS26",
+    "base_card_number": "5",
+    "name": "Savage Opress",
+    "subtitle": "You Must Have Your Revenge",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 3,
+    "hp": 7,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": ["Overwhelm", "Raid"],
+    "traits": ["Force", "Underworld"],
+    "variants": [
+      {
+        "variant_id": 7306,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "5",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010005_EN_Savage_Opress_Leader_65f566fc07.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010005_EN_Savage_Opress_Leader_Unit_b7c2ae93ad.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 2262,
+    "set_code": "TS26",
+    "base_card_number": "12",
+    "name": "Sundari Palace",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Rare",
+    "cost": null,
+    "power": null,
+    "hp": 27,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Cunning"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 7262,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "12",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010012_EN_Sundari_Palace_Base_8d3cfdf09d.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1550,
+    "set_code": "TS26",
+    "base_card_number": "2",
+    "name": "Anakin Skywalker",
+    "subtitle": "Protect Her At All Costs",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 5,
+    "power": 4,
+    "hp": 5,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Vigilance", "Heroism"],
+    "keywords": ["Sentinel"],
+    "traits": ["Force", "Jedi", "Republic"],
+    "variants": [
+      {
+        "variant_id": 7270,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010002_EN_Anakin_Skywalker_Leader_73947a5e2e.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010002_EN_Anakin_Skywalker_Leader_Unit_76945b9534.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1159,
+    "set_code": "TS26",
+    "base_card_number": "4",
+    "name": "Padmé Amidala",
+    "subtitle": "Follow My Lead",
+    "type": "Leader",
+    "rarity": "Rare",
+    "cost": 6,
+    "power": 5,
+    "hp": 6,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Command", "Heroism"],
+    "keywords": [],
+    "traits": ["Naboo", "Republic", "Official"],
+    "variants": [
+      {
+        "variant_id": 7294,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "4",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010004_EN_Padme_Amidala_Leader_5cb1f6aa4a.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010004_EN_Padme_Amidala_Leader_Unit_06f901ceb2.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1041,
+    "set_code": "TS26",
+    "base_card_number": "11",
+    "name": "Executioner's Arena",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Rare",
+    "cost": null,
+    "power": null,
+    "hp": 27,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Aggression"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 7261,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "TS26",
+        "card_number": "11",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_TS_26010011_EN_Executioner_s_Arena_Base_4be6e99be0.png",
+        "back_image_url": null,
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 1620,
+    "set_code": "IBH",
+    "base_card_number": "2",
+    "name": "Echo Caverns",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Special",
+    "cost": null,
+    "power": null,
+    "hp": 20,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Cunning"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 310,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "2",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010002_EN_Echo_Caverns_Base_ce71769ee1.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I010002_EN_Echo_Caverns_Base_30hp_d353325a7b.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 2243,
+    "set_code": "IBH",
+    "base_card_number": "53",
+    "name": "Darth Vader",
+    "subtitle": "Don't Fail Me Again",
+    "type": "Leader",
+    "rarity": "Special",
+    "cost": 6,
+    "power": 3,
+    "hp": 8,
+    "arena": "Ground",
+    "is_token": false,
+    "aspects": ["Aggression", "Villainy"],
+    "keywords": [],
+    "traits": ["Force", "Imperial", "Sith"],
+    "variants": [
+      {
+        "variant_id": 347,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "53",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010053_EN_Darth_Vader_Leader_3a38941d2c.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I01010053_EN_Darth_Vader_Leader_Unit_9f6a0193d6.png",
+        "price": null
+      }
+    ]
+  },
+  {
+    "id": 645,
+    "set_code": "IBH",
+    "base_card_number": "54",
+    "name": "Forward Command Post",
+    "subtitle": null,
+    "type": "Base",
+    "rarity": "Special",
+    "cost": null,
+    "power": null,
+    "hp": 20,
+    "arena": null,
+    "is_token": false,
+    "aspects": ["Vigilance"],
+    "keywords": [],
+    "traits": [],
+    "variants": [
+      {
+        "variant_id": 348,
+        "variant_type": "Standard",
+        "finish": "Standard",
+        "channel": "Retail",
+        "source_set_code": "IBH",
+        "card_number": "54",
+        "front_image_url": "https://cdn.starwarsunlimited.com//card_I01010054_EN_Forward_Command_Post_Base_2ab941045b.png",
+        "back_image_url": "https://cdn.starwarsunlimited.com//card_I010054_EN_Forward_Command_Post_Base_30hp_113dc49ed1.png",
+        "price": null
+      }
+    ]
+  }
+]

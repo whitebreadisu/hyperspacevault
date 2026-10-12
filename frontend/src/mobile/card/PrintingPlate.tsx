@@ -1,81 +1,76 @@
-import { getPlaysetSize } from "../../utils/inventory";
+import type { InventoryVariant } from "../../utils/inventory";
+import { scopeShortName } from "../../utils/variantScope";
+import { GalleryPlate } from "../vault/GalleryPlate";
+import { plateState } from "./cardDetailModel";
 
-// BL-248 S2-03 (R5-5): the card-detail plate = rev4 MPlate `table`
-// (MPrimitives.jsx:186-251; m-rev4.css:54-67) describing the SELECTED
-// printing. Inside the steel-ring console frame (cards.css .gallery-plate,
-// verbatim in vault.css): desktop's count chip + 10 px pips (PlaysetCell DOM
-// and cards.css literals). Chip = the selected printing's count (neutral;
-// --complete green at a playset; --empty muted at 0; --signed-out "—").
-// Pips = that count in desktop's scoped idiom: amber filled while short of
-// the playset (--scoped), green inside the amber-outlined plate at a
-// playset (--scoped-complete). Playset size per card (1 leader/base, 3
-// otherwise). No fraction, no scope marker.
+// BL-257 FR1-07 (owner decisions 2026-10-12, ADR-0030; supersedes the S2-03 /
+// R5-5 chip-and-pips hybrid): the card-detail plate IS the gallery plate
+// (vault/GalleryPlate, the markup the Vault's gallery cell draws) and it
+// behaves EXACTLY like a gallery tile while the Vault is scoped to one finish,
+// with the SELECTED printing's finish as that scope (cardDetailModel
+// plateState = the helpers vault/GalleryCell.tsx calls):
+//   pips   -- every owned printing of the selected printing's finish, summed,
+//             against the card's playset size, amber (scoped); at a playset
+//             of that finish the plate takes the complete state (green ring,
+//             green pips, amber inner wash);
+//   number -- the card's total owned across ALL printings (green when that
+//             total is a playset, muted at 0). It is not the selected
+//             printing's count, so it need not equal the stepper below it
+//             (owner-accepted).
+// Quantities are the shown ones, so a + / - tap moves the plate at once.
+// First built the same day with the selected printing's own quantity for
+// pips, ring and number; the owner changed it after the review (ADR-0030).
+// There is no all-finishes state here: a printing is always selected. Signed
+// out: the gallery's SIGN IN TO TRACK plate.
 
 export function PrintingPlate({
+  name,
   type,
-  qty,
+  variants,
+  scope,
   isAuthenticated,
   onClick,
-  label,
 }: {
+  /** The card's name (the button's label). */
+  name: string;
   /** The base card's type (playset size). */
   type: string;
-  /** The selected printing's (shown) quantity. */
-  qty: number;
+  /** Every printing of the card, with the quantity to SHOW for each. */
+  variants: InventoryVariant[];
+  /** The selected printing's raw finish (`finish ?? variant_type`). */
+  scope: string;
   isAuthenticated: boolean;
   /** S2-10: the plate opens Owned by finish (rev4 MPlate onClick). */
   onClick?: () => void;
-  label?: string;
 }) {
-  const size = getPlaysetSize(type);
-  const filled = isAuthenticated ? Math.min(size, qty) : 0;
-  const complete = isAuthenticated && qty >= size;
-  const empty = !isAuthenticated || qty === 0;
-  const chipMod = !isAuthenticated
-    ? " playset-chip--signed-out"
-    : complete
-      ? " playset-chip--complete"
-      : qty === 0
-        ? " playset-chip--empty"
-        : "";
+  const s = plateState(variants, scope, type, isAuthenticated);
   const frame = (
-    <span className="gallery-plate m-plate m-plate--table">
-      <span className="gallery-plate__inner">
-        <span
-          className={
-            "playset m-pips m-pips--chip" +
-            (complete ? " playset--complete" : "") +
-            (empty ? " playset--empty" : "")
-          }
-        >
-          <span className={"playset-chip" + chipMod}>{isAuthenticated ? qty : "—"}</span>
-          <span className={"playset__pips" + (complete ? " playset__pips--scoped-complete" : "")}>
-            {Array.from({ length: size }, (_, i) => (
-              <span
-                key={i}
-                className={
-                  "playset__pip" + (i < filled ? " playset__pip--filled playset__pip--scoped" : "")
-                }
-              />
-            ))}
-          </span>
-        </span>
-      </span>
-    </span>
+    <GalleryPlate
+      size={s.size}
+      filled={s.filled}
+      scoped={s.scoped}
+      complete={s.pipsComplete}
+      total={s.owned}
+      totalComplete={s.totalComplete}
+      isAuthenticated={isAuthenticated}
+    />
   );
-  const dataQty = isAuthenticated ? qty : undefined;
+  // The number drawn (the card total) and the pips' source (the finish sum).
+  const dataQty = isAuthenticated ? s.owned : undefined;
+  const dataScoped = isAuthenticated ? s.scopedOwned : undefined;
   return onClick ? (
     <button
       type="button"
       className="m-plate-hit m-plate-hit--btn"
       onClick={onClick}
-      aria-label={label}
+      aria-label={`${name}: ${s.owned} owned, ${s.scopedOwned} ${scopeShortName(scope)}. Show owned by finish`}
       data-plate-qty={dataQty}
+      data-plate-scoped={dataScoped}
     >
       {frame}
     </button>
   ) : (
-    <div className="m-plate-hit" data-plate-qty={dataQty}>
+    <div className="m-plate-hit" data-plate-qty={dataQty} data-plate-scoped={dataScoped}>
       {frame}
     </div>
   );

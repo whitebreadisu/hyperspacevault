@@ -198,13 +198,9 @@
   background: rgba(37, 99, 235, 0.14);
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
-.m-app .m-setrow__logo {
-  flex: none;
-  width: 104px;
-  height: 32px;
-  object-fit: contain;
-  object-position: left center;
-}
+/* BL-257 FR3-01: the row's logo is a SetLogo box (104 x 32, setLogoArt.ts
+ * SET_LOGO_BOX.sets) -- the PNG is placed by its artwork, centred, equal
+ * area; .m-setrow__logo is the <img> inside it (sheet.css .m-setlogo__img). */
 .m-app .m-bys__fact {
   display: flex;
   flex-direction: column;

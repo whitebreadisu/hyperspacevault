@@ -1,6 +1,8 @@
 import { expect, measureEach, swipe, test } from "./helpers";
 import type { Page } from "@playwright/test";
 import { openCard, scrollDetail } from "./card-helpers";
+import { inventoryCards, SETS } from "./fixture-cards";
+import { sortBaseCards } from "../../src/utils/catalog";
 
 // S2-08 (R5 switch swipe=body): the header stays fixed; the region and
 // everything below slide as one page with the neighbour's page one width
@@ -104,16 +106,18 @@ test("s2-08-snapback", async ({ page }) => {
 });
 
 test("s2-08-first-edge", async ({ page }) => {
+  // PORT (BL-258, review FR2 S2): open the list's actual first card directly
+  // (derived from the fixture catalogue with the app's own default order, so
+  // it follows any future set-order change) instead of walking ~45 prev taps
+  // from a mid-list card.
   // card-swipe-first-edge: the first card of the list -- a right swipe is
   // dampened (a quarter of the finger) and always snaps back.
-  await openCard(page, "SOR", 10);
+  const first = sortBaseCards(
+    inventoryCards(),
+    Object.fromEntries(SETS.map((s) => [s.code, s.release_date]))
+  )[0];
+  await openCard(page, first.set_code, first.base_card_number);
   await page.locator('[aria-label="Previous card"]').isVisible();
-  for (let i = 0; i < 60 && (await posNum(page)) > 1; i++) {
-    await page.evaluate(() =>
-      (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
-    );
-    await page.waitForTimeout(330);
-  }
   expect(await posNum(page)).toBe(1);
   await expect(page.locator('[aria-label="Previous card"]')).toBeDisabled();
   const hash0 = await page.evaluate(() => location.hash);

@@ -6,7 +6,8 @@ import { entryName, entryProduct } from "../../screens/inventory/AddCardsPreconB
 import { SWUButton } from "../../components/SWUButton";
 import { useVaultData } from "../vault/useVaultData";
 import { addDeck } from "./batch";
-import { preconFacts, setLogoUrl } from "./padModel";
+import { SetLogo } from "../SetLogo";
+import { preconFacts } from "./padModel";
 import { setPreconAdded, useToolState } from "./toolStore";
 
 // BL-249 S3-05 / S3-09: the result zone while a precon deck is chosen (rev4
@@ -63,7 +64,7 @@ export function PreconPanel({
   return (
     <div className="m-d2-precon" data-deck={entry.key}>
       <div className="m-d2-precon__head">
-        <img className="m-choice__logo m-d2-deck__logo" src={setLogoUrl(entry.setCode)} alt="" />
+        <SetLogo code={entry.setCode} box="precon" />
         <div className="m-d2-precon__titles">
           <span className="m-d2-deck__product">{entryProduct(entry)}</span>
           <span className="m-d2-precon__name">{entryName(entry, sets)}</span>

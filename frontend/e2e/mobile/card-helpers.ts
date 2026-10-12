@@ -50,6 +50,11 @@ export async function openVault(page: Page, hash = "#/vault") {
 /** Scroll the virtualised list until the card's row is rendered; tap it. */
 export async function tapRow(page: Page, id: number) {
   const sel = `.m-row[data-card="${id}"]`;
+  // PORT (BL-258): the list used to run oldest-set-first, so callers only
+  // ever needed to scroll DOWN; with newest first a card can sit above the
+  // scroll position left by an earlier open in the same test. Start at the top.
+  await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop = 0));
+  await page.waitForTimeout(100);
   for (let i = 0; i < 80 && !(await page.locator(sel).count()); i++) {
     await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop += 240));
     await page.waitForTimeout(60);

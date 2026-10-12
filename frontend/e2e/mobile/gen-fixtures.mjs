@@ -53,7 +53,15 @@ const slimCard = (c) => ({
 });
 
 const cards = M_CARDS.map(slimCard);
-const sets = M_SETS.map((s, i) => ({ id: i + 1, ...s }));
+// BL-258 (FR2-05): the prototype set list predates Homeworlds. Hand-added rows so the
+// e2e fixtures can observe HMW first (newest-first order); ids continue after the prototype ids.
+const EXTRA_SETS = [
+  { code: "HMW", name: "Homeworlds", is_base_set: true, release_date: null },
+  { code: "HMWP", name: "Homeworlds Weekly Play", is_base_set: false, release_date: null },
+];
+const sets = [...M_SETS, ...EXTRA_SETS.filter((e) => !M_SETS.some((s) => s.code === e.code))].map(
+  (s, i) => ({ id: i + 1, ...s })
+);
 
 const limitFor = (c) => (c.type === "Leader" || c.type === "Base" ? 1 : 3);
 const repVariant = (c) => c.variants.find((v) => v.variant_type === "Standard") ?? c.variants[0];

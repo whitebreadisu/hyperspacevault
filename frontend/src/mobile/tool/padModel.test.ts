@@ -12,6 +12,7 @@ import {
   SET_SECONDARY,
   weeklyPlayCodeFor,
 } from "../../utils/setGrouping";
+import { setPickerGroups } from "../filters/filterModel";
 import { mergeQuantities } from "../vault/useVaultData";
 import {
   PRECON_ENTRIES,
@@ -125,7 +126,9 @@ describe("S3-03 readout (desktop inventoryStatus numbers, F-1 colours)", () => {
 
 describe("S3-05 set / precon choosers = desktop constants", () => {
   const present = new Set(sets.map((s) => s.code));
-  it("Base sets only = canonical in release order, then secondary", () => {
+  // PORT (BL-258): same derivation from the shared constants; "release order"
+  // is now the newest-first display order (literal pinned by FR2-05 below).
+  it("Base sets only = canonical newest first, then secondary", () => {
     const g = setSheetGroups(sets);
     expect(g.base.canonical.map((x) => x.key)).toEqual(SET_CANONICAL.filter((c) => present.has(c)));
     expect(g.base.secondary.map((x) => x.key)).toEqual(SET_SECONDARY.filter((c) => present.has(c)));
@@ -156,5 +159,47 @@ describe("S3-05 set / precon choosers = desktop constants", () => {
     expect(PRECON_ENTRIES.filter((e) => e.kind === "ibhBox")).toHaveLength(1);
     expect(preconShort(PRECON_ENTRIES.find((e) => e.key === "SOR-VADER")!)).toBe("Vader");
     expect(preconShort(PRECON_ENTRIES.find((e) => e.key === "IBH")!)).toBe("Box");
+  });
+});
+
+// CREATE (BL-258): FR2-05 -- literal phone picker orders (the e2e fixture
+// now carries HMW and HMWP, so HMW is observable first).
+describe("FR2-05 phone set pickers newest first (BL-258)", () => {
+  it("fr2-05 keypad chooser: HMW is the first row, IBH and TS26 last in the base block", () => {
+    const g = setSheetGroups(sets);
+    expect(g.base.canonical.map((x) => x.key)).toEqual([
+      "HMW",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+    ]);
+    expect(g.base.secondary.map((x) => x.key)).toEqual(["IBH", "TS26"]);
+    expect(g.all.baseGroups.map((x) => x.key)).toEqual([
+      "HMW",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+      "IBH",
+      "TS26",
+    ]);
+    expect(g.all.baseGroups[0].memberCodes).toEqual(["HMW", "HMWP"]);
+  });
+
+  it("fr2-05 Set picker (Filters): HMW is the first logo chip; Weekly Play tail mirrors it", () => {
+    const g = setPickerGroups(sets);
+    expect(g.base[0]).toBe("HMW");
+    expect(g.base.slice(-3)).toEqual(["SOR", "IBH", "TS26"]);
+    expect(g.weekly[0]).toBe("HMWP");
+    expect(g.weekly.slice(-1)).toEqual(["SORP"]);
   });
 });

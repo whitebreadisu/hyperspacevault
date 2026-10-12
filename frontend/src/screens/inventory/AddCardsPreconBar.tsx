@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { SetMark, baseSetCodeFor } from "./AddCardsSetBar";
 import { PreconDropdown } from "./PreconDropdown";
-import { CURATED_SET_ORDER } from "../../utils/catalog";
+import { setSortRank } from "../../utils/setGrouping";
 import type { CardSet } from "../../api/sets";
 import type { PreconEntry } from "../../data/preconDecks";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
@@ -53,13 +53,10 @@ export function entryLabel(entry: PreconEntry, sets: CardSet[]): string {
   return `${entryProduct(entry)} — ${entryName(entry, sets)}`;
 }
 
-function setRank(code: string): number {
-  const i = CURATED_SET_ORDER.indexOf(code);
-  return i === -1 ? CURATED_SET_ORDER.length : i;
-}
+const setRank = setSortRank;
 
-// §4-REV: "21 entries ... in Vault set order" -- same CURATED_SET_ORDER the
-// rest of the app's set ordering already uses (utils/catalog.ts), borrowed
+// §4-REV: "21 entries ... in Vault set order" -- same BASE_SET_ORDER rank
+// (utils/setGrouping.ts, newest main set first, BL-258) the rest of the app uses, borrowed
 // rather than re-derived. Exported (BL-164) so PreconDropdown groups its
 // rail using the identical order/tiebreak, rather than re-sorting.
 export function sortedEntries(entries: PreconEntry[]): PreconEntry[] {

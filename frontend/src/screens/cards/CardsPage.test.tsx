@@ -999,12 +999,12 @@ describe("CardsPage popup wiring", () => {
 });
 
 // CREATE (BL-148): prev/next navigation through CardsPage's current
-// filtered+sorted result list. mockBaseCards' sort order (SOR release date
-// before SHD, ascending card_number within each set -- see catalog.ts's
-// sortBaseCards) already matches the fixture's array order 1,2,3,4 ("SOR
-// Card One", "SOR Card Two", "SHD Card One", "SHD Card Two"), so
-// mockGetBaseCardDetail is stubbed to look each id up directly out of that
-// same fixture rather than maintaining a parallel one.
+// filtered+sorted result list. PORT (BL-258): the table order is now newest
+// main set first -- SHD before SOR, ascending card_number within each set
+// (catalog.ts's sortBaseCards) -- i.e. fixture ids 3,4,1,2 ("SHD Card One",
+// "SHD Card Two", "SOR Card One", "SOR Card Two"). mockGetBaseCardDetail
+// is stubbed to look each id up directly out of the fixture rather than
+// maintaining a parallel one.
 describe("CardsPage popup navigation (BL-148, CREATE)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1026,30 +1026,30 @@ describe("CardsPage popup navigation (BL-148, CREATE)", () => {
     return document.querySelector(".cp-title")?.textContent ?? "";
   }
 
-  it("walks forward through the exact table order (1 -> 2 -> 3 -> 4), disabling prev at the start and next at the end", async () => {
+  it("walks forward through the exact table order (3 -> 4 -> 1 -> 2), disabling prev at the start and next at the end", async () => {
     await renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "SOR Card One" }));
+    fireEvent.click(screen.getByRole("button", { name: "SHD Card One" }));
     await act(async () => {});
-    expect(dialogTitle()).toBe("SOR Card One");
+    expect(dialogTitle()).toBe("SHD Card One");
     expect(navPrevBtn().disabled).toBe(true);
     expect(navNextBtn().disabled).toBe(false);
 
     fireEvent.click(navNextBtn());
     await act(async () => {});
-    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(2);
-    expect(dialogTitle()).toBe("SOR Card Two");
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(4);
+    expect(dialogTitle()).toBe("SHD Card Two");
     expect(navPrevBtn().disabled).toBe(false);
     expect(navNextBtn().disabled).toBe(false);
 
     fireEvent.click(navNextBtn());
     await act(async () => {});
-    expect(dialogTitle()).toBe("SHD Card One");
+    expect(dialogTitle()).toBe("SOR Card One");
 
     fireEvent.click(navNextBtn());
     await act(async () => {});
-    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(4);
-    expect(dialogTitle()).toBe("SHD Card Two");
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(2);
+    expect(dialogTitle()).toBe("SOR Card Two");
     expect(navNextBtn().disabled).toBe(true);
     expect(navPrevBtn().disabled).toBe(false);
   });
@@ -1057,55 +1057,58 @@ describe("CardsPage popup navigation (BL-148, CREATE)", () => {
   it("walks backward with the prev chevron, retracing the same order", async () => {
     await renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "SHD Card Two" }));
-    await act(async () => {});
-    expect(dialogTitle()).toBe("SHD Card Two");
-
-    fireEvent.click(navPrevBtn());
-    await act(async () => {});
-    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(3);
-    expect(dialogTitle()).toBe("SHD Card One");
-
-    fireEvent.click(navPrevBtn());
+    fireEvent.click(screen.getByRole("button", { name: "SOR Card Two" }));
     await act(async () => {});
     expect(dialogTitle()).toBe("SOR Card Two");
+
+    fireEvent.click(navPrevBtn());
+    await act(async () => {});
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(1);
+    expect(dialogTitle()).toBe("SOR Card One");
+
+    fireEvent.click(navPrevBtn());
+    await act(async () => {});
+    expect(dialogTitle()).toBe("SHD Card Two");
   });
 
   it("opening from the gallery grid gets the same navigation, in the same order", async () => {
     await renderPage();
     fireEvent.click(screen.getAllByRole("button", { name: "Gallery" })[0]);
 
-    fireEvent.click(screen.getByRole("button", { name: "SOR Card One" }));
+    fireEvent.click(screen.getByRole("button", { name: "SHD Card One" }));
     await act(async () => {});
-    expect(dialogTitle()).toBe("SOR Card One");
+    expect(dialogTitle()).toBe("SHD Card One");
     expect(navPrevBtn().disabled).toBe(true);
 
     fireEvent.click(navNextBtn());
     await act(async () => {});
-    expect(dialogTitle()).toBe("SOR Card Two");
+    expect(dialogTitle()).toBe("SHD Card Two");
   });
 
   it("the popup session's list is a snapshot taken at open time -- narrowing the filter afterward doesn't clip navigation to the new (smaller) filtered result", async () => {
     await renderPage();
 
-    // Open on card 2 (SOR Card Two) -- captures the full 4-card order.
-    fireEvent.click(screen.getByRole("button", { name: "SOR Card Two" }));
+    // Open on SOR Card One (id 1, third in the new order) -- captures the
+    // full 4-card order.
+    fireEvent.click(screen.getByRole("button", { name: "SOR Card One" }));
     await act(async () => {});
-    expect(dialogTitle()).toBe("SOR Card Two");
+    expect(dialogTitle()).toBe("SOR Card One");
 
     // Narrow to Set = SOR *while the popup is open* -- `filtered` now only
     // has 2 entries (cards 1 and 2), but the popup's own nav should still
-    // be able to reach cards 3 and 4 from the snapshot taken before this
-    // filter change, per the owner's explicit state model.
+    // be able to reach the SHD cards (ids 3 and 4, BEFORE it in the new
+    // order) from the snapshot taken before this filter change, per the
+    // owner's explicit state model. (PORT BL-258: was next -> SHD Card One;
+    // SHD now precedes SOR, so the out-of-filter neighbour is reached via prev.)
     const setButton = screen.getByRole("button", { name: "Set — All sets" });
     fireEvent.click(setButton);
     fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
 
-    expect(navNextBtn().disabled).toBe(false);
-    fireEvent.click(navNextBtn());
+    expect(navPrevBtn().disabled).toBe(false);
+    fireEvent.click(navPrevBtn());
     await act(async () => {});
-    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(3);
-    expect(dialogTitle()).toBe("SHD Card One");
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(4);
+    expect(dialogTitle()).toBe("SHD Card Two");
   });
 
   it("renders no nav controls for a caller path that (hypothetically) never opened a popup -- baseline sanity, no dialog present", async () => {
@@ -1117,20 +1120,20 @@ describe("CardsPage popup navigation (BL-148, CREATE)", () => {
   it("closing and reopening the popup on a different card starts a fresh session (prev disabled again at that card's own start-of-list position)", async () => {
     await renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "SOR Card Two" }));
+    fireEvent.click(screen.getByRole("button", { name: "SHD Card Two" }));
     await act(async () => {});
     fireEvent.click(navNextBtn());
     await act(async () => {});
-    expect(dialogTitle()).toBe("SHD Card One");
+    expect(dialogTitle()).toBe("SOR Card One");
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await act(async () => {});
 
     // Reopen directly on the first card in the list -- a fresh session,
     // prev disabled again (not carrying over any state from the closed one).
-    fireEvent.click(screen.getByRole("button", { name: "SOR Card One" }));
+    fireEvent.click(screen.getByRole("button", { name: "SHD Card One" }));
     await act(async () => {});
-    expect(dialogTitle()).toBe("SOR Card One");
+    expect(dialogTitle()).toBe("SHD Card One");
     expect(navPrevBtn().disabled).toBe(true);
   });
 });
@@ -1896,10 +1899,10 @@ describe("CardsPage docked filter sidebar layout (BL-129 R2, CREATE)", () => {
 // lives in CardsTable.test.tsx; this file only proves the CardsPage-owned
 // state machine that connects it to the rest of the filtering pipeline.
 describe("CardsPage variant scope (BL-173, CREATE)", () => {
-  // PORT (round 4 owner revisions): Showcase left the picker's option set,
-  // so these state-machine tests pick a Prestige chip instead --
-  // "Serialized" is the one chip face that's unique across the whole menu,
-  // keeping every pick a single unambiguous getByText.
+  // These state-machine tests pick a Prestige chip: "Serialized" is a chip
+  // face that's unique across the whole menu, keeping every pick a single
+  // unambiguous getByText. (Showcase, back in the picker since BL-259, has
+  // its own test below.)
   const scopeFixtureCards: BaseCardDetail[] = [
     makeBaseCardDetail({
       id: 50,
@@ -2033,6 +2036,53 @@ describe("CardsPage variant scope (BL-173, CREATE)", () => {
 
     await renderPage();
     expect(scopeTriggerBtn().textContent).toContain("ALL FINISHES");
+  });
+
+  // CREATE (BL-259 FR4-02/04, owner decision 2026-10-12): Showcase is a scope
+  // again; picking it runs the same state machine as every other value.
+  it("fr4-02 picking Showcase writes the Finish facet to Showcase and lists only cards with a Showcase printing", async () => {
+    mockGetBaseCardsList.mockResolvedValue([
+      ...scopeFixtureCards,
+      makeBaseCardDetail({
+        id: 52,
+        set_code: "SOR",
+        base_card_number: "5",
+        name: "Showcase Leader",
+        type: "Leader",
+        variants: [
+          makeVariant({
+            variant_id: 521,
+            variant_type: "Standard",
+            finish: "Standard",
+            source_set_code: "SOR",
+            card_number: "5",
+            quantity: 1,
+          }),
+          makeVariant({
+            variant_id: 522,
+            variant_type: "Showcase",
+            finish: "Showcase",
+            source_set_code: "SOR",
+            card_number: "771",
+            quantity: 1,
+          }),
+        ],
+      }),
+    ]);
+    await renderPage();
+    fireEvent.click(scopeTriggerBtn());
+    fireEvent.click(document.querySelector('.vs-scope-menu [data-scope="Showcase"]')!);
+
+    expect(screen.getByText("Showcase Leader")).toBeInTheDocument();
+    expect(screen.queryByText("Has Serialized")).toBeNull();
+    expect(screen.queryByText("Standard Only")).toBeNull();
+    expect(screen.getByRole("button", { name: "Finish — Showcase" })).toBeTruthy();
+    expect(scopeTriggerBtn().textContent).toContain("PIPS · Showcase");
+    expect(scopeTriggerBtn().className).toContain("vs-header-scope__trigger--on");
+    // Leader playset 1: the one owned Showcase copy fills the one scoped pip.
+    const cell = document.querySelector("td.td-playset")!;
+    expect(cell.querySelectorAll(".playset__pip--scoped")).toHaveLength(1);
+    expect(cell.querySelector(".playset__pips--scoped-complete")).not.toBeNull();
   });
 
   it("anonymous: scope still narrows the list (public catalog) and the Value column still renders", async () => {

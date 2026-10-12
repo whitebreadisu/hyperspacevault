@@ -1,13 +1,16 @@
 import { expect, measureEach, test } from "./helpers";
 import type { Page } from "@playwright/test";
 import { byNum, fin, openCard, openVault, QTY, tapRow } from "./card-helpers";
+import type { FxCard } from "./card-helpers";
 
-// S2-03 (R5-5): the card-detail plate follows the SELECTED printing --
-// REPLACES rev4 r4-7-detail-plate-states + b2-detail-scoped-printing (both
-// asserted the card-total / scoped plate R5-5 retired). Computed colours =
-// cards.css literals (rev4 r47Check table) for empty / short / complete
-// printings of SOR 87 Darth Vader and ASH 52 Chimaera, in the expanded and
-// the collapsed plate.
+// S2-03: the card-detail plate follows the SELECTED printing. BL-257 FR1-07
+// (owner decisions 2026-10-12, ADR-0030) REPLACED the R5-5 idiom this spec
+// first asserted (the vault-list count chip + 10 px pips inside the steel
+// frame): the plate is now the gallery plate, exactly as a gallery tile shows
+// it while the Vault is scoped to the selected printing's finish.
+// Computed colours = cards.css gallery-plate literals (the s1-20 table) for
+// empty / short / complete finishes of SOR 87 Darth Vader and ASH 52
+// Chimaera, in the expanded and the collapsed plate.
 test.afterEach(measureEach);
 test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone detail");
@@ -15,66 +18,85 @@ test.beforeEach(() => {
 
 const T = {
   text: "rgb(230, 230, 230)",
-  surf: "rgb(15, 21, 40)",
-  border: "rgb(30, 39, 72)",
   muted: "rgb(107, 122, 153)",
-  green: "rgb(23, 138, 58)",
-  greenRing: "rgba(23, 138, 58, 0.6)",
-  greenGlow: "rgba(23, 138, 58, 0.25) 0px 0px 6px 0px",
+  green: "rgb(31, 163, 71)",
+  ring: "rgba(211, 211, 212, 0.35)",
+  ringDone: "rgba(31, 163, 71, 0.55)",
+  inner: "rgb(11, 14, 24)",
   amber: "rgb(217, 154, 31)",
-  amberLine: "rgba(217, 154, 31, 0.6)",
   amberWash: "rgba(217, 154, 31, 0.08)",
+  pipLine: "rgba(230, 230, 230, 0.45)",
   none: "rgba(0, 0, 0, 0)",
 };
 
 const readPlate = (page: Page, root: string) =>
   page.evaluate((root) => {
     const el = document.querySelector(root)!;
-    const chip = el.querySelector(".playset-chip")!;
-    const cs = getComputedStyle(chip);
-    const box = el.querySelector(".playset__pips")!;
-    const bs = getComputedStyle(box);
     const frame = el.querySelector(".gallery-plate")!;
+    const inner = frame.querySelector(".gallery-plate__inner")!;
+    const tot = frame.querySelector(".gallery-plate__total")!;
+    const ts = getComputedStyle(tot);
+    const pipsBox = frame.querySelector(".gallery-plate__pips")!;
     return {
-      chip: {
-        text: chip.textContent,
-        russo12: /Russo One/.test(cs.fontFamily) && cs.fontSize === "12px",
-        color: cs.color,
-        bg: cs.backgroundColor,
-        border: cs.borderTopColor,
-        glow: cs.boxShadow,
+      total: {
+        text: tot.textContent,
+        russo13: /Russo One/.test(ts.fontFamily) && ts.fontSize === "13px",
+        color: ts.color,
       },
-      chipLeft: chip.getBoundingClientRect().right <= box.getBoundingClientRect().left + 0.5,
-      plate: { border: bs.borderTopColor, bg: bs.backgroundColor },
+      pipsLeft: pipsBox.getBoundingClientRect().right <= tot.getBoundingClientRect().left + 0.5,
       frameRing: getComputedStyle(frame).backgroundColor,
-      pips: [...el.querySelectorAll(".playset__pip")].map((p) => {
+      inner: getComputedStyle(inner).backgroundColor,
+      plateH: frame.getBoundingClientRect().height,
+      oldIdiom: el.querySelectorAll(".playset-chip, .playset__pips").length,
+      pips: [...frame.querySelectorAll(".gallery-plate__pip")].map((p) => {
         const ps = getComputedStyle(p);
         return { w: ps.width, fill: ps.backgroundColor, line: ps.borderTopColor };
       }),
-      text: el.textContent,
+      text: frame.textContent,
     };
   }, root);
 
+// Owner decision 2026-10-12 ("plate exactly like the gallery", ADR-0030): the
+// state `s` and the pips (`q`) are the SELECTED FINISH's owned count -- every
+// printing of that finish summed -- and the number is the card's total across
+// all printings (`total`), green when that total is a playset. (REPLACES the
+// first FR1-07 build's "number = the selected printing's count".)
 type State = "empty" | "short" | "complete";
-function expectState(r: Awaited<ReturnType<typeof readPlate>>, q: number, size: number, s: State) {
-  expect(r.chip.text).toBe(String(q));
-  expect(r.chip.russo12).toBe(true);
-  expect(r.chip.bg).toBe(T.surf);
-  expect(r.chip.color).toBe(s === "complete" ? T.green : s === "empty" ? T.muted : T.text);
-  expect(r.chip.border).toBe(s === "complete" ? T.greenRing : T.border);
-  expect(r.chip.glow).toBe(s === "complete" ? T.greenGlow : "none");
-  expect(r.chipLeft).toBe(true);
-  // The amber-outlined plate only at a playset (playset__pips--scoped-complete).
-  expect(r.plate.border === T.amberLine && r.plate.bg === T.amberWash).toBe(s === "complete");
-  // The steel frame never takes the gallery's green ring.
-  expect(r.frameRing).toBe("rgba(211, 211, 212, 0.35)");
+/** Fixture quantities: the card total and one finish's sum. */
+const ownedOf = (c: FxCard, finish?: string) =>
+  c.variants
+    .filter((v) => finish == null || fin(v) === finish)
+    .reduce((s, v) => s + (QTY.get(v.variant_id) ?? 0), 0);
+function expectState(
+  r: Awaited<ReturnType<typeof readPlate>>,
+  q: number,
+  size: number,
+  s: State,
+  total: number
+) {
+  // The pips' state really is the one the case names.
+  expect(q === 0 ? "empty" : q >= size ? "complete" : "short").toBe(s);
+  // The number = the card total, Russo One at the phone scale; green at a
+  // total playset, muted at 0 (the gallery tile's own classes).
+  expect(r.total.text).toBe(String(total));
+  expect(r.total.russo13).toBe(true);
+  expect(r.total.color).toBe(total >= size ? T.green : total === 0 ? T.muted : T.text);
+  expect(r.pipsLeft).toBe(true);
+  // The gallery's complete state at a playset of the finish: green ring +
+  // amber inner wash.
+  expect(r.frameRing).toBe(s === "complete" ? T.ringDone : T.ring);
+  expect(r.inner).toBe(s === "complete" ? T.amberWash : T.inner);
+  expect(r.plateH).toBe(28);
+  // The vault-list idiom is gone from the plate.
+  expect(r.oldIdiom).toBe(0);
   expect(r.pips.length).toBe(size);
   r.pips.forEach((p, i) => {
     const on = i < Math.min(q, size);
-    expect(p.w).toBe("10px");
+    expect(p.w).toBe("8px");
+    // Scoped idiom: amber while short, green at a playset.
     const want = !on ? T.none : s === "complete" ? T.green : T.amber;
     expect(p.fill).toBe(want);
-    expect(p.line).toBe(on ? want : s === "empty" ? T.border : T.muted);
+    expect(p.line).toBe(on ? want : T.pipLine);
   });
   // No fraction on the card surface.
   expect(r.text).not.toMatch(/\d\s*\/\s*\d/);
@@ -111,7 +133,8 @@ test("s2-03-plate-follows-printing", async ({ page }) => {
     const c = await openCard(page, set, n);
     for (const [finish, state] of cases) {
       const v = c.variants.find((x) => fin(x) === finish)!;
-      const q = QTY.get(v.variant_id) ?? 0;
+      const q = ownedOf(c, finish);
+      const total = ownedOf(c);
       await select(page, v.variant_id);
       // The rail's selection, the caption and both plates agree at once.
       await expect(page.locator(".m-print.cp-rail__item--active")).toHaveAttribute(
@@ -121,8 +144,8 @@ test("s2-03-plate-follows-printing", async ({ page }) => {
       await expect(page.locator(".m-dreg__num")).toHaveText(
         `${v.source_set_code} ${v.card_number}`
       );
-      expectState(await readPlate(page, OWN), q, 3, state);
-      expectState(await readPlate(page, MINI), q, 3, state);
+      expectState(await readPlate(page, OWN), q, 3, state, total);
+      expectState(await readPlate(page, MINI), q, 3, state, total);
     }
   }
 });
@@ -150,8 +173,13 @@ test("s2-03-no-scope-marker", async ({ page }) => {
     })
   );
   expect(amberInRail).toBe(false);
-  expectState(await readPlate(page, OWN), 1, 3, "short");
+  const total = ownedOf(c);
+  expect(ownedOf(c, "Hyperspace")).toBe(1);
+  expect(total).toBeGreaterThan(1);
+  expectState(await readPlate(page, OWN), 1, 3, "short", total);
   const foil = c.variants.find((v) => fin(v) === "Standard Foil")!;
   await select(page, foil.variant_id);
-  expectState(await readPlate(page, OWN), 0, 3, "empty");
+  // Pips re-read for the new finish (0 Standard Foil); the number stays the
+  // card total.
+  expectState(await readPlate(page, OWN), 0, 3, "empty", total);
 });

@@ -61,9 +61,18 @@ test("s2-04-rail-select-swaps-art-and-plate", async ({ page }) => {
   const after = await page.locator(".m-dreg__img").getAttribute("src");
   expect(after).not.toBe(before);
   await expect(page.locator(".m-dreg__fin")).toHaveText("Hyperspace");
-  await expect(page.locator(".m-dreg3__own .playset-chip")).toHaveText(
-    String(QTY.get(hs.variant_id) ?? 0)
+  // Owner decision 2026-10-12 (plate exactly like the gallery, ADR-0030;
+  // REPLACES "plate number = the selected printing's count"): the pips follow
+  // the selected printing's finish, the number is the card total.
+  const cardTotal = c.variants.reduce((s, v) => s + (QTY.get(v.variant_id) ?? 0), 0);
+  const hsOwned = QTY.get(hs.variant_id) ?? 0;
+  expect(cardTotal).toBeGreaterThan(hsOwned);
+  const plateBtn = page.locator(".m-dreg3__own .m-plate-hit--btn");
+  await expect(plateBtn).toHaveAttribute("data-plate-scoped", String(hsOwned));
+  await expect(page.locator(".m-dreg3__own .gallery-plate__pip--scoped")).toHaveCount(
+    Math.min(3, hsOwned)
   );
+  await expect(page.locator(".m-dreg3__own .gallery-plate__total")).toHaveText(String(cardTotal));
   await expect(page.locator(".m-dreg3__mini .m-dreg__pval")).toHaveText(
     `$${hs.price!.market!.toFixed(2)}`
   );

@@ -29,6 +29,9 @@ const T = {
 
 async function findRow(page: Page, id: number) {
   const sel = `.m-row[data-card="${id}"]`;
+  // PORT (BL-258): start from the top -- newest-first puts ASH above SOR.
+  await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop = 0));
+  await page.waitForTimeout(100);
   for (let i = 0; i < 80 && !(await page.locator(sel).count()); i++) {
     await page.locator(".m-vault__scroll").evaluate((e) => void (e.scrollTop += 240));
     await page.waitForTimeout(60);

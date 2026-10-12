@@ -78,14 +78,13 @@
   color: #d7dee9;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
+/* BL-257: a SetLogo box (setLogoArt.ts SET_LOGO_BOX.detail, 92 x 30) in the
+ * same corner; the artwork takes the common area and is held to the box's
+ * right edge, so every set's mark ends on the header's 16 px margin. */
 .m-app .m-hdr > .m-hdr__setlogo {
   position: absolute;
   right: 16px;
   bottom: 18px;
-  height: 30px;
-  max-width: 92px;
-  object-fit: contain;
-  object-position: right;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 
@@ -349,6 +348,9 @@
     transform var(--m-collapse) var(--m-collapse-ease),
     visibility 0s linear var(--m-collapse);
 }
+/* FR1-08: "finish - SET ###" as one left group (it takes the ellipsis when
+ * the line is tight), the selected printing's price at the right (never cut;
+ * the rail's price face). */
 .m-app .m-dreg__cap {
   display: flex;
   align-items: baseline;
@@ -356,24 +358,44 @@
   gap: 10px;
   min-width: 0;
 }
-.m-app .m-dreg__fin {
+.m-app .m-dreg__id {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-dreg__fin,
+.m-app .m-dreg__minilab {
   font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #cfd6e4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
+.m-app .m-dreg__sep,
 .m-app .m-dreg__num {
-  flex: none;
   font-family: var(--font-mono);
   font-size: 12px;
   color: #9fb0cc;
 }
-/* Collapsed row: plate at its natural width + price + Market / Low. */
+.m-app .m-dreg__sep {
+  white-space: pre;
+}
+.m-app .m-dreg__cprice {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.m-app .m-dreg__cprice--none {
+  color: var(--color-text-muted);
+}
+/* FR1-09 collapsed row, three columns beside the thumbnail: the finish label
+ * over the plate (natural width), then Market / Low over the price, right-
+ * aligned. Both stacks sit inside the row's 80 px; no set / number here. */
 .m-app .m-dreg3__mini {
   position: absolute;
   top: 10px;
@@ -401,8 +423,11 @@
     transform var(--m-collapse) var(--m-collapse-ease),
     visibility 0s linear;
 }
+/* Natural width, floored so a one-pip plate (leader / base) keeps a 44 px
+ * target and reads at the size of a three-pip one. */
 .m-app .m-dreg3__mini .m-plate-hit {
   width: auto;
+  min-width: 64px;
   flex: none;
 }
 .m-app .m-dreg3__mini .gallery-plate {
@@ -414,16 +439,35 @@
   height: 100%;
   gap: 10px;
 }
-.m-app .m-dreg__price {
-  margin-left: auto;
+.m-app .m-dreg__inv {
+  flex: 0 1 auto;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
+.m-app .m-dreg__minilab {
+  max-width: 100%;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-dreg__price {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+/* The segment is drawn 34 px inside its 44 px targets (5 px clear each side):
+ * the price tucks up under the drawn edge. */
 .m-app .m-dreg__pval {
+  margin-top: -3px;
   font-family: var(--font-mono);
   font-size: 15px;
+  line-height: 18px;
   color: var(--color-text);
   white-space: nowrap;
 }
@@ -480,14 +524,10 @@
   font-size: 12px;
 }
 
-/* ── The table plate (rev4 m-layout.css:209-211, m-rev4.css:67) ────────── */
+/* ── The plate's hit box (the plate itself is the gallery plate, FR1-07) ─ */
 .m-app .m-plate-hit {
   display: block;
   width: 100%;
-}
-.m-app .m-plate--table .gallery-plate__inner {
-  justify-content: center;
-  padding: 0 10px;
 }
 
 /* ── Body: under the 100 px box; expanded, a transform moves it down to
@@ -598,6 +638,7 @@
   font-size: 12px;
 }
 .m-app .m-print {
+  position: relative;
   align-items: center;
   padding: 0 4px 0 0;
   gap: 8px;
@@ -617,6 +658,18 @@
   border: none;
   text-align: left;
   color: inherit;
+}
+/* FR1-06: the whole row selects. The main button's hit area is stretched over
+ * the row (price and x N included) without nesting interactive elements; the
+ * selected row's stepper sits above it so - / + keep their own action. */
+.m-app .m-print__main::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.m-app .m-print .m-stepper {
+  position: relative;
+  z-index: 1;
 }
 .m-app .m-print__finish {
   max-width: 100%;
@@ -701,8 +754,9 @@
 .m-app .m-step__qty--on {
   color: #fff;
 }
-/* Desktop's plate readout colours (CardPopup.css:662-669): red at / past
- * the keep-limit, amber past it in soft mode. */
+/* Desktop's plate readout colours (CardPopup.css:662-669): red only PAST
+ * the keep-limit (FR1-05: at the limit is the normal colour), amber past it
+ * in soft mode (declared later, so it wins over the red class). */
 .m-app .m-step__qty.cp-plate__count--at-limit {
   color: var(--color-danger);
 }

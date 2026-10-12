@@ -956,10 +956,11 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
     expect(document.querySelector(".vs-scope-menu")).toBeNull();
   });
 
-  // REPLACE (round 4 owner revisions): the pinned plain row (Showcase) is
-  // REMOVED from the picker and the "leaders · playset 1" notes are dropped;
-  // Prestige moved up into the pinned rows as a chip group -- the pinned
-  // pick path is now asserted through a Prestige chip.
+  // Prestige is a pinned chip group and rows carry no "leaders · playset 1"
+  // notes. REPLACE (BL-259 FR4-02, owner decision 2026-10-12): this test also
+  // asserted "Showcase is gone from the picker"; Showcase is back as the last
+  // pinned row, so that line now asserts its one chip is offered. The
+  // Showcase row's own contract is VariantScopeControls.test.tsx (FR4-02).
   it("picking a pinned Prestige chip calls onScopeChange with its full raw value", () => {
     const onScopeChange = vi.fn();
     render(
@@ -973,8 +974,8 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
       />
     );
     fireEvent.click(triggerBtn());
-    // Showcase is gone from the picker; no annotation text remains.
-    expect(screen.queryByText("Showcase")).toBeNull();
+    // Showcase is offered once, as a chip; no annotation text remains.
+    expect(document.querySelectorAll('.vs-scope-menu [data-scope="Showcase"]')).toHaveLength(1);
     expect(screen.queryByText("leaders · playset 1")).toBeNull();
     fireEvent.click(screen.getByText("Serialized"));
     expect(onScopeChange).toHaveBeenCalledWith("Serialized Prestige");
@@ -999,7 +1000,11 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
     expect(onScopeChange).toHaveBeenCalledWith(null);
   });
 
-  it("'Show all finishes…' reveals the 4 extra plain rows (Prestige is pinned above the line); picking one scopes to it", () => {
+  // PORT (BL-259 fix run, owner decision 2026-10-12: whole scope picker
+  // single-select chips): the extra rows are one-chip rows whose chip repeats
+  // the label, so the text now appears twice -- the reveal is asserted on the
+  // row label and the pick goes through the chip. Same behaviour asserted.
+  it("'Show all finishes…' reveals the 4 extra rows (Prestige is pinned above the line); picking one scopes to it", () => {
     const onScopeChange = vi.fn();
     render(
       <CardsTable
@@ -1017,9 +1022,20 @@ describe("CardsTable variant-scope control (BL-173, CREATE)", () => {
     expect(screen.queryByText("Convention Exclusive")).toBeNull();
 
     fireEvent.click(screen.getByText("Show all finishes…"));
-    expect(screen.getByText("Convention Exclusive")).toBeTruthy();
+    const extra = [...document.querySelectorAll(".vs-scope-menu__expander ~ [data-row]")];
+    expect(extra.map((el) => (el as HTMLElement).dataset.row)).toEqual([
+      "Convention Exclusive",
+      "Event Exclusive",
+      "Prerelease Promo",
+      "Movie Promo",
+    ]);
+    expect(extra[0].querySelector(".vs-scope-menu__row-label")?.textContent).toBe(
+      "Convention Exclusive"
+    );
 
-    fireEvent.click(screen.getByText("Convention Exclusive"));
+    fireEvent.click(
+      document.querySelector('.vs-scope-menu button[data-scope="Convention Exclusive"]')!
+    );
     expect(onScopeChange).toHaveBeenCalledWith("Convention Exclusive");
   });
 
@@ -1336,8 +1352,8 @@ describe("CardsTable Playset cell -- scoped pips (BL-173, CREATE)", () => {
       type: "Leader",
       variants: [
         { ...scopedCard.variants[0], variant_type: "Standard", finish: "Standard", quantity: 1 },
-        // Round 4: Showcase left the picker's option set, so the leader
-        // playset-1 case runs on a finish the picker actually offers.
+        // The leader playset-1 case on an expanded-row finish (the Showcase
+        // leader case is CardsPage.test.tsx "fr4-02" and variantScope "fr4-04").
         {
           ...scopedCard.variants[1],
           variant_type: "Prerelease Promo",

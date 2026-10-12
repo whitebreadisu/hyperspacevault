@@ -663,7 +663,7 @@
   color: var(--color-danger);
 }
 /* BL-35 (ported): soft-mode "committed past your keep-limit" warning --
-   amber, distinct from the universal at-cap red above. */
+   amber, distinct from the past-limit red above (declared later, so it wins). */
 .cp-plate__count--over-limit {
   color: var(--color-warning);
 }

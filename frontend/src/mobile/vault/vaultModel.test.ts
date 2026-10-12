@@ -126,9 +126,47 @@ describe("S1-22 Filter model wiring", () => {
 });
 
 describe("S1-16 Finish scope", () => {
-  it("13 scope values, Showcase excluded", () => {
-    expect(SCOPE_VALUES).toHaveLength(13);
-    expect(SCOPE_VALUES).not.toContain("Showcase");
+  // REPLACE (BL-259 FR4-01, owner decision 2026-10-12): was "13 scope values,
+  // Showcase excluded" -- Showcase returned to the picker as the last pinned value.
+  it("14 scope values, Showcase the last pinned one", () => {
+    expect(SCOPE_VALUES).toHaveLength(14);
+    expect(SCOPE_VALUES.indexOf("Showcase")).toBe(9);
+    expect(SCOPE_VALUES.slice(10)).toEqual([
+      "Convention Exclusive",
+      "Event Exclusive",
+      "Prerelease Promo",
+      "Movie Promo",
+    ]);
+  });
+
+  it("fr4-04 a Showcase scope lists only the cards carrying a Showcase printing", () => {
+    const cards = toInventoryCards(
+      [
+        {
+          ...base(9, "ASH", "5", "Luke Skywalker", "I Can Save Him", [
+            v(91, "Standard", "5", 1, 4, "ASH"),
+            v(92, "Showcase", "771", 1, 360, "ASH"),
+          ]),
+          type: "Leader",
+        },
+        base(2, "SOR", "35", "Lieutenant Childsen", "Death Star Prison Warden", [
+          v(21, "Standard", "35", 3, 0.09),
+        ]),
+      ],
+      SET_ORDER
+    );
+    const s = withScope(freshFilterState(), "Showcase");
+    expect([...s.filters.finish]).toEqual(["Showcase"]);
+    const r = buildVaultList(cards, s, DEFAULT_SORT_STATE, CTX);
+    expect(r.list.map((c) => c.base_card_id)).toEqual([9]);
+    // The same narrowing any scope the common has no printing for produces.
+    const p = buildVaultList(
+      cards,
+      withScope(freshFilterState(), "Standard Prestige"),
+      DEFAULT_SORT_STATE,
+      CTX
+    );
+    expect(p.list).toEqual([]);
   });
 
   it("b2-scope-replaces-finish: a scope writes the Finish facet (replacing what it held)", () => {
@@ -196,6 +234,8 @@ describe("S1-17 Sort", () => {
   it("scoped default order reads the scoped printing's number", () => {
     const s = withScope(freshFilterState(), "Hyperspace");
     const r = buildVaultList(CARDS, s, DEFAULT_SORT_STATE, CTX);
-    expect(r.list.map((c) => c.base_card_id)).toEqual([2, 1, 3]);
+    // PORT (BL-258): same intent (scoped printing's number orders cards inside
+    // a set); the set order is now newest first, so ASH (3) leads SOR (2, 1).
+    expect(r.list.map((c) => c.base_card_id)).toEqual([3, 2, 1]);
   });
 });

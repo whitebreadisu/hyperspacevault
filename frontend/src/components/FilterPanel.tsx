@@ -315,9 +315,9 @@ export function FilterPanel({
   // the Set dropdown now orders its values with the SAME logic as the Add
   // Cards set picker (utils/setGrouping.ts's allSetsGroups /
   // Set_Grouping_Context_2026-07-26.md): base sets in canonical-then-
-  // secondary release order with each set's Weekly Play container
-  // IMMEDIATELY after it (SOR, SORP, SHD, SHDP, ...), then the Exclusives
-  // in their subgroup order (Convention → Judge → Promos → Other promos).
+  // secondary display order (newest main set first, BL-258) with each set's
+  // Weekly Play container IMMEDIATELY after it (HMW, HMWP, ASH, ...), then
+  // the Exclusives in their subgroup order (Convention → Judge → Promos → Other promos).
   // The whole base+WP block is `pinned`, so MultiSelect's existing divider
   // primitive draws the one boundary before the Exclusives. Base view
   // (show-all off) stays the base sets only. Any future set code the

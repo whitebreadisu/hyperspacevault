@@ -8,6 +8,7 @@ import {
   formatMoney,
   totalValue,
 } from "./completion";
+import { orderSetCodes } from "./catalog";
 import type { InventoryCard, InventoryVariant } from "./inventory";
 
 // BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): direct unit coverage
@@ -285,7 +286,7 @@ describe("computePanelMetrics (BL-163: one pass, all four metrics)", () => {
   });
 });
 
-describe("buildSetBreakdown (BL-163: per-set rows, release-ordered)", () => {
+describe("buildSetBreakdown (BL-163: per-set rows, display-ordered)", () => {
   const orderedBaseSets = [
     { code: "SOR", name: "Spark of Rebellion" },
     { code: "SHD", name: "Shadows of the Galaxy" },
@@ -372,5 +373,35 @@ describe("formatMoney", () => {
 
   it("adds thousands separators for large totals", () => {
     expect(formatMoney(1234.5)).toBe("$1,234.50");
+  });
+});
+
+// CREATE (BL-258): FR2-06 -- the "Completion by set" rows (desktop popover
+// and the phone sheet both feed buildSetBreakdown with orderSetCodes) read
+// newest first. Literal first/last rows, not derived. (The existing
+// "groups by each card's home set_code, in the given set order" test above
+// is UNCHANGED: it passes its own hand-ordered list in, so it never asserted
+// the global order.)
+describe("FR2-06 completion by set rows are newest first (BL-258)", () => {
+  it("fr2-06 first row HMW, last row TS26, IBH just before it", () => {
+    const codes = ["SOR", "TS26", "SHD", "HMW", "IBH", "TWI", "JTL", "LOF", "SEC", "LAW", "ASH"];
+    const ordered = orderSetCodes(codes).map((code) => ({ code, name: code }));
+    const rows = buildSetBreakdown([], ordered, "market");
+    expect(rows[0].code).toBe("HMW");
+    expect(rows[rows.length - 1].code).toBe("TS26");
+    expect(rows[rows.length - 2].code).toBe("IBH");
+    expect(rows.map((r) => r.code)).toEqual([
+      "HMW",
+      "ASH",
+      "LAW",
+      "SEC",
+      "LOF",
+      "JTL",
+      "TWI",
+      "SHD",
+      "SOR",
+      "IBH",
+      "TS26",
+    ]);
   });
 });

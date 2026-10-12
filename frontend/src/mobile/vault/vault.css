@@ -47,7 +47,7 @@
   width: 100%;
   height: 48px;
   font-size: 16px;
-  padding: 0 48px 0 40px;
+  padding: 0 48px 0 36px;
   border-radius: 2px;
   -webkit-appearance: none;
   appearance: none;
@@ -66,6 +66,20 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
+/* FR1-01: the clear button's 48 px slot is reserved only while there is a
+   value; an empty field keeps a 4 px right pad so the hint is not clipped
+   (FR1-01b: >= 6 px to spare at 390 px with a filter active). */
+.m-app .m-search__input:placeholder-shown {
+  padding-right: 4px;
+}
+/* FR1-01b (CI fix run): with Clear on the row the hint is 14 px. Where the
+   browser snaps glyph advances to whole pixels (Linux Chromium) FILTERS and
+   CLEAR draw about 7 px wider between them and the field loses that much;
+   at 15 px the hint then had 2 px to spare, at 14 px it has 8 (15 on
+   Windows). The typed text stays 16 px (iOS never zooms). */
+.m-app .m-search--narrowed .m-search__input::placeholder {
+  font-size: 14px;
+}
 /* Desktop .ac-input draws focus with its blue border only (outline: none). */
 .m-app .m-search__input:focus-visible {
   outline: none;
@@ -76,7 +90,7 @@
 }
 .m-app .m-search__glass {
   position: absolute;
-  left: 12px;
+  left: 8px;
   color: var(--color-text-muted);
   pointer-events: none;
 }
