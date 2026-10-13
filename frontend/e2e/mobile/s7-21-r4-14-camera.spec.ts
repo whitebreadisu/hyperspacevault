@@ -35,12 +35,27 @@ async function openCamera(page: Page) {
   await expect(cam(page)).toHaveAttribute("data-stream", "live", { timeout: 20000 });
 }
 
+/** REPLACE (owner decision 2026-10-13, BL-262 stage 2 -- "Ask foil or
+ * non-foil each time"): the clip's card is SOR 229, an early-set strip the
+ * foil and the non-foil share. Fast add used to add the non-foil the moment
+ * it was read; now the read stops on the Finish question with nothing in the
+ * batch, and the answer adds that finish and starts the hold. */
+async function readThenFinish(page: Page) {
+  await expect(cam(page)).toHaveAttribute("data-phase", "found", { timeout: 20000 });
+  await expect(page.locator(".m-cam__panel .m-ident__name")).toHaveText("Cell Block Guard");
+  await expect(page.locator(".m-cam__bar .m-logbtn")).toHaveClass(/m-logbtn--empty/);
+  const finish = page.locator('.m-cam__panel .m-ident__axis[data-axis="finish"] .m-chip');
+  await expect(finish).toHaveText(["Standard", "Standard Foil"]);
+  await finish.filter({ hasText: /^Standard$/ }).click();
+}
+
 test("s7-21-verify-guard-camera", async ({ page }) => {
   await fastAddOn(page);
   await openCamera(page);
   await expect(page.locator(".m-tool__fast")).toHaveAttribute("aria-checked", "true");
-  // A camera read leaves one copy in the batch (verify on).
-  await expect(n(page)).toHaveText("1", { timeout: 20000 });
+  // A camera read + its Finish answer leave one copy in the batch (verify on).
+  await readThenFinish(page);
+  await expect(n(page)).toHaveText("1");
   // The camera's X with a batch pending: desktop's close guard; camera stays.
   const x = page.locator(".m-tool__head [aria-label='Close camera']");
   await x.click();
@@ -70,9 +85,12 @@ test("s7-21-verify-guard-camera", async ({ page }) => {
 test("s7-21-verify-camera-hold", async ({ page }) => {
   await fastAddOn(page);
   await openCamera(page);
-  await expect(cam(page)).toHaveAttribute("data-phase", "hold", { timeout: 20000 });
+  await readThenFinish(page);
+  await expect(cam(page)).toHaveAttribute("data-phase", "hold");
   await expect(n(page)).toHaveText("1");
-  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1.5 s");
+  await expect(page.locator(".m-cam__panel .m-ident__meta")).toHaveText("SOR 229 · Standard");
+  // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
+  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
   await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
   await expect(page.locator(".m-ident__added")).not.toContainText("Added");
   await expect(page.locator(".m-cam__panel .m-ident__add .swu-btn")).toHaveCount(0);

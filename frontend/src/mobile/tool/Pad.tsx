@@ -10,6 +10,7 @@ import { cellImage } from "../vault/cardImage";
 import { useVaultData } from "../vault/useVaultData";
 import {
   entryRow,
+  padAddable,
   padReadout,
   padSetBase,
   padView,
@@ -140,12 +141,23 @@ export interface IdentProps {
    * printing waiting) and hides Add. */
   inBatch?: number;
   hideAdd?: boolean;
+  /** BL-262 (camera only): the art to show while `variant` is still being
+   * chosen among the read's printings. The keypad never passes it. */
+  artVariant?: InventoryVariant | null;
+  /** BL-262 (camera only): a chip tap goes here instead of straight to the
+   * pad's picks (the camera stores the pick, then may add). */
+  onPick?: (axis: PadChoice["axis"], value: string) => void;
+  /** BL-262 (camera only): a line in the hint's style with no choice under
+   * it -- why a recognised card cannot be added as read (a token; a read
+   * with a printing missing). The keypad never passes it. */
+  notice?: { text: string; attn: boolean } | null;
 }
 
 /** rev4 MIdentified (R4-6 compact variant), desktop's axes as chip groups.
  * BL-253 S7-14: exported -- the camera's prompt is this same panel. */
 export function Identified(p: IdentProps) {
-  const img = p.card && p.variant ? cellImage(p.card, p.variant, "thumb", "200px") : null;
+  const art = p.variant ?? p.artVariant ?? null;
+  const img = p.card && art ? cellImage(p.card, art, "thumb", "200px") : null;
   return (
     <div
       className={
@@ -226,7 +238,7 @@ export function Identified(p: IdentProps) {
                           : "")
                       }
                       aria-pressed={on}
-                      onClick={() => setPadPick(c.axis, o.value)}
+                      onClick={() => (p.onPick ?? setPadPick)(c.axis, o.value)}
                     >
                       {o.l2 ? (
                         <span className="m-chip__two">
@@ -242,6 +254,14 @@ export function Identified(p: IdentProps) {
               </div>
             </div>
           ))}
+        </div>
+      ) : p.notice ? (
+        <div className="m-ident__choices">
+          <div
+            className={"m-ident__choicehint" + (p.notice.attn ? " m-ident__choicehint--attn" : "")}
+          >
+            {p.notice.text}
+          </div>
         </div>
       ) : null}
       {p.note ? (
@@ -412,7 +432,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   } else if (view && view.kind === "card") {
     resultZone = true;
     const res = view.resolved;
-    const canAdd = res.status === "resolved" && !!view.variant;
+    const canAdd = padAddable(view) !== null;
     // S3-04: a number shared only by finishes keeps desktop's non-foil
     // default (BL-191) -- the cue + a Change link; Change unfolds the chips.
     const finishOnly =

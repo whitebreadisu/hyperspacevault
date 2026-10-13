@@ -454,7 +454,8 @@
   overflow: hidden;
   background: rgba(211, 211, 212, 0.16);
 }
-/* Transform-only fill (rev4 animated background-size; same 1.5 s, linear). */
+/* Transform-only fill (rev4 animated background-size; linear, for the hold's
+   length -- HOLD_MS, set inline as animation-duration). */
 .m-app .m-cam__holdbar::after {
   content: "";
   position: absolute;

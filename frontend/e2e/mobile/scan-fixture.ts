@@ -11,18 +11,35 @@ import { fileURLToPath } from "node:url";
 //    their neighbours also make the keys weak (3-of-4), as on the real
 //    catalogue;
 //  - the ASHP 16 printed-code collision pair (spike catalogue: Grogu P26 16
-//    "SS Top 8" vs Emperor's Messenger ASHP 16 "Weekly Play").
+//    "SS Top 8" vs Emperor's Messenger ASHP 16 "Weekly Play");
+//  - BL-262: three shared-number shapes the trim lacks, with the live
+//    catalogue's ids and fields (2026-10-13): Resupply's Weekly Play pair,
+//    printed "SOR 12/20" (the base-set card at SOR 12 is another card); the
+//    Experience token, printed "SOR T1"; and a Galactic Championship printing
+//    (P26 172) on the filler at SOR 172 -- one card, two events, as Cinta Kaz
+//    SEC 172 has. The trim already holds the others: SOR 74 (a base-set card
+//    and the P25 74 Darth Vader Showcase), SOR 2 and the SOR N/2 small series.
+//    Stage 2 adds Waylay's single Weekly Play printing, printed "SOR 3/20"
+//    (Resupply's pair is a foil / non-foil pair under one strip).
 // Used only by the scanner specs (`cardsFixture: "base-cards-scan"`).
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 type Slim = { id: number; set_code: string; base_card_number: string; [k: string]: unknown };
 
-const variant = (vid: number, vt: string, src: string, num: string) => ({
+const variant = (
+  vid: number,
+  vt: string,
+  src: string,
+  num: string,
+  /** BL-262: the catalogue's own channel + finish for a printing whose
+   * variant type is not a finish (omitted: the 7c shape, unchanged). */
+  as?: { channel: string; finish: string | null }
+) => ({
   variant_id: vid,
   variant_type: vt,
-  finish: vt,
-  channel: vt === "Standard" ? "Retail" : "Promo",
+  finish: as ? as.finish : vt,
+  channel: as ? as.channel : vt === "Standard" ? "Retail" : "Promo",
   source_set_code: src,
   card_number: num,
   front_image_url: null,
@@ -36,7 +53,8 @@ const card = (
   base: string,
   name: string,
   subtitle: string,
-  variants: ReturnType<typeof variant>[]
+  variants: ReturnType<typeof variant>[],
+  isToken = false
 ) => ({
   id,
   set_code: setCode,
@@ -49,7 +67,7 @@ const card = (
   power: 1,
   hp: 4,
   arena: "Ground",
-  is_token: false,
+  is_token: isToken,
   aspects: [],
   keywords: [],
   traits: [],
@@ -64,12 +82,31 @@ export function scanExtraCards(have: Slim[]): unknown[] {
   const out: unknown[] = [];
   for (let n = 1; n <= 252; n++) {
     if (sorHave.has(n)) continue;
-    out.push(
-      card(980000 + n, "SOR", String(n), `Scan Filler ${n}`, "", [
-        variant(970000 + n, "Standard", "SOR", String(n)),
-      ])
-    );
+    const variants = [variant(970000 + n, "Standard", "SOR", String(n))];
+    // BL-262: one card, two events under one set + number (see the header).
+    if (n === 172)
+      variants.push(
+        variant(922119, "GC Event Pack", "P26", "172", {
+          channel: "Promo / Tournament-tier",
+          finish: null,
+        })
+      );
+    out.push(card(980000 + n, "SOR", String(n), `Scan Filler ${n}`, "", variants));
   }
+  // BL-262: Resupply's Weekly Play printings carry the base set's own code and
+  // a number another card holds in the base set (SOR 12 = the filler here).
+  const wp = { channel: "Weekly Play", finish: null };
+  out.push(
+    card(1926, "SOR", "126", "Resupply", "", [
+      variant(6317, "Weekly Play", "SOR", "12", wp),
+      variant(6318, "Weekly Play Foil", "SOR", "12", wp),
+    ])
+  );
+  // BL-262 stage 2: a Weekly Play printing with no foil twin on a base-set
+  // number -- Waylay, printed "SOR 3/20" (live ids; SOR 3 is another card).
+  out.push(card(2053, "SOR", "222", "Waylay", "", [variant(6681, "Weekly Play", "SOR", "3", wp)]));
+  // BL-262: a token shares its number with a card (SOR T1 / SOR 1).
+  out.push(card(2146, "SOR", "1", "Experience", "", [variant(6267, "Standard", "SOR", "1")], true));
   // The ASHP 16 / P26 16 collision pair.
   out.push(
     card(991994, "ASH", "155", "Grogu", "Yes. Yes. Yes.", [

@@ -1,11 +1,10 @@
 import type { CardSet } from "../../api/sets";
 import type { InventoryCard } from "../../utils/inventory";
-import { removeCopy } from "../tool/batch";
+import { addCopy, removeCopy } from "../tool/batch";
 import { beep } from "../tool/cue";
-import { padView, toCatalog } from "../tool/padModel";
-import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import { getScanSettings } from "../tool/scanSettings";
-import { NO_PICKS, addPadEntry, getToolState, setToolState } from "../tool/toolStore";
+import { NO_PICKS, getToolState, setPadPick, setToolState } from "../tool/toolStore";
+import type { PadPicks } from "../tool/toolStore";
 import {
   CameraFlow,
   SETTLE_MS,
@@ -19,6 +18,7 @@ import type { Phase, PickRow, SettleState, SettleStatus } from "./cameraFlow";
 import { CameraStream } from "./cameraStream";
 import type { StreamLike, StreamState } from "./cameraStream";
 import { guideRectInVideo, layoutGuide } from "./guide";
+import { readAddable, readIdentity } from "./readIdentity";
 import { FramePipeline, gateValue, meterView } from "./imagePipeline";
 import type { Measure, MeterBand } from "./imagePipeline";
 import { scanDecision, scanPickShown, scanRecognised } from "./scanAnalytics";
@@ -70,7 +70,6 @@ export class CameraController {
     size: { w: 0, h: 0 },
   };
   private catalog: Catalog | null = null;
-  private padCatalog: AddCardsCatalogEntry[] = [];
   private catalogFor: InventoryCard[] | null = null;
   private video: HTMLVideoElement | null = null;
   private current: StreamLike | null = null;
@@ -141,24 +140,38 @@ export class CameraController {
           I.onRequestSignIn();
           return null;
         }
-        const picks = via === "camera" ? getToolState().picks : NO_PICKS;
-        const v = padView(target.setCode, target.cardNumber, picks, this.padCatalog, I.cards);
-        if (v.kind !== "card" || v.resolved.status !== "resolved" || !v.variant || !v.card)
-          return null;
-        addPadEntry({
+        // BL-262: every camera add is the printing the read identifies
+        // (readIdentity -- the one rule; the found panel renders the same
+        // call). The panel's choices count only while it is up: a read or a
+        // picked row starts with none. Fast add defaults nothing, so a read
+        // with more than one printing is not added until the user chooses. A
+        // token is never addable, and a read with a printing missing from the
+        // catalogue only by an Add tap (`camera`) -- both decided there.
+        const picks = this.flow.phase.kind === "found" ? getToolState().picks : NO_PICKS;
+        const a = readAddable(
+          readIdentity(target.vids, I.cards, picks, !getScanSettings().fastAdd),
+          via === "camera_fast_add"
+        );
+        if (!a) return null;
+        // The row is the printing's own set + number (as a deck copy's is):
+        // the Verify sheet and the commit go by `variantId`.
+        const row = addCopy({
           via,
           force: false,
-          setCode: target.setCode,
-          cardNumber: target.cardNumber,
+          setCode: a.variant.source_set_code,
+          cardNumber: a.variant.card_number,
           picks,
-          variantId: v.variant.variant_id,
-          baseCardId: v.card.base_card_id,
+          variantId: a.variant.variant_id,
+          baseCardId: a.card.base_card_id,
         });
-        return getToolState().lastAdded?.entryId ?? null;
+        // As the keypad's Add leaves the pad: no typed number, no choices --
+        // and no "In batch" cue there (it would name the row by its number).
+        setToolState({ num: "", picks: NO_PICKS, lastAdded: null });
+        return row.id;
       },
       remove: (id) => removeCopy(id),
-      resume: (key, holdUntilGone) => {
-        this.loop.resume(key, holdUntilGone);
+      resume: (key, after) => {
+        this.loop.resume(key, after);
         if (this.blocked) this.loop.pause();
       },
       setTimer: (fn, ms) => {
@@ -242,7 +255,6 @@ export class CameraController {
     if (i.cards !== this.catalogFor) {
       this.catalogFor = i.cards;
       this.catalog = i.cards.length ? new Catalog(buildScanCatalog(i.cards, i.sets)) : null;
-      this.padCatalog = toCatalog(i.cards);
     }
   }
 
@@ -292,6 +304,14 @@ export class CameraController {
   add = (): void => this.flow.add();
   wrongCard = (): void => this.flow.wrongCard();
   pick = (r: PickRow): void => this.flow.pick(r);
+  /** BL-262: a chip in the found panel -- which of the read's printings. The
+   * choice is stored where the panel reads it, then the flow hears of it
+   * (under Fast add it adds once the printing is settled). */
+  choose = (axis: keyof PadPicks, value: string): void => {
+    if (this.flow.phase.kind !== "found") return;
+    setPadPick(axis, value);
+    this.flow.chosen();
+  };
   details = (): void => this.flow.details();
 
   // ── Loop deps ──────────────────────────────────────────────────────────

@@ -444,3 +444,44 @@ Code comment that carried the same decision (`frontend/src/utils/variantScope.ts
 §25.1, Status-rows bullet, the Sort item of row two, verbatim:
 
 > icon-only Sort (desktop's sortable columns, `nextSortState`),
+
+## Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)
+
+**Disposition:** → merge into ADR-0029 (dated amendment "2026-10-13: the strip identifies the card; Fast add asks only for what the strip cannot say; hold 1 s; no timed wait after an add (BL-262)") + archive. Three owner decisions on his iPhone. (1) 2026-10-12: with Fast add on, a scanned card whose number is shared was added as the base-set card with no question — the read was right, but the add went through the keypad resolver on set + number, which settles a shared number on a default; the camera now shows and adds the printing the strip identified, and Fast add asks only when the strip is more than one printing (2026-10-13: "trust what the strip says"; early-set foil / non-foil asked each time). (2) 2026-10-12: the hold after an add drops from 1.5 s to 1 s. (3) 2026-10-13: the 3 s same-card wait after an add is removed ("the camera reset of 1 second should be enough friction"); it stays after Wrong card. The "early foils" clause of the Ambiguous read bullet is archived with them: as built, a number shared only by finishes was never an amber pick (the panel's Finish choice with the non-foil default, BL-191).
+
+§24.2, Fast add and Ambiguous read bullets, verbatim:
+
+> - **Fast add** (opt-in toggle in the tool header, remembered): a successful
+>   read adds immediately (one copy), then the scanner **holds ~1.5 s** with
+>   the card shown before reading again — the guard against double adds.
+> - **Ambiguous read** (a strip that maps to more than one printing — early
+>   foils, `N/2` tournament promos, printed-code collisions): amber two-way
+>   pick with the program names; never auto-resolved.
+
+§25.7, "Hold and suppression" bullet, verbatim:
+
+> - **Hold and suppression.** An Add (prompt or Fast add) starts the 1.5 s hold ("Fast add · next card in 1.5 s", "In batch n", Add to batch hidden); the 3 s same-key suppression is counted from the resume; after an automatic add the key is also held until the card leaves the frame; a Fast add read that needs a pick falls back to the prompt; Wrong card inside the hold takes that copy back out.
+
+ADR-0029, Decision 3, Fast add sentence, verbatim (the decision text stays in the ADR; the amendment supersedes this sentence):
+
+> **Fast add** (opt-in, remembered): a successful read
+> adds immediately and the scanner holds ~1.5 s before reading again — the
+> guard against double adds.
+
+Code comments that carried the same rules, verbatim (`frontend/src/mobile/camera/cameraFlow.ts` header; `scanLoop.ts` above `SUPPRESS_MS`):
+
+> // Wrong card restarts the scan -- no keypad prefill (owner 2026-10-10). After
+> // every decision the same key is suppressed for 3 s (scanLoop.resume); after
+> // an automatic add the Acceptor also holds the key until the card leaves.
+
+> /** After a decision the same key is not prompted again for 3 s (app.js:829). */
+
+§24.1, last sentence, verbatim (superseded 2026-10-13 by "trust what the strip says": the camera shows and adds the printings the strip identified and no longer passes the read's set + number back through the keypad resolver — ADR-0029 amendment, "Why the camera does not use the keypad's default"):
+
+> The reading fills
+> the same set + number the keypad resolver takes; finish stays a choice
+> (non-foil default rule, BL-191).
+
+§25.7, Flow bullet, the parenthesis after "Found shows the keypad's `Identified` panel", verbatim (superseded 2026-10-13 by the same decision: the panel is the card the strip identified, not the keypad's view of the set + number with its shared-number choice):
+
+> (shared numbers, BL-191 non-foil default, In vault / After add readout)

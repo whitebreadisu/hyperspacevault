@@ -1,28 +1,47 @@
 import type { CandidateCard, Evaluation } from "./scanCore";
-import type { Accepted } from "./scanLoop";
+import type { Accepted, ResumeAfter } from "./scanLoop";
 
 // BL-253 S7-14 / S7-15 / S7-17: the camera's decision state machine
 // (recognise -> prompt), pure and injectable. Phases (rev4 MCamera.jsx
 // M.cam.phase, with the spike's rules):
 //   searching -- the loop reads; the meter guides.
 //   found     -- an exact read reached agreement: the loop is paused and the
-//                keypad's resolved-card panel shows {setCode, cardNumber}
-//                with Card details / Add / Wrong card. Nothing is counted
-//                until Add (Spec 24.2, ADR-0029 Decision 3).
+//                keypad's card panel shows the card the strip identified
+//                (the target's printings -- readIdentity.ts) with Card
+//                details / Add / Wrong card. Nothing is counted until Add
+//                (Spec 24.2, ADR-0029 Decision 3).
 //   pick      -- an ambiguous read (printed-code collision, N/2 tiers, two
 //                cards, number / reading conflicts): amber rows, never
 //                auto-resolved; "Neither / scan again" = Wrong card.
 //   hold      -- after any add (Add, or the automatic add of Fast add): the
-//                card shown "In batch n", Add hidden, a 1.5 s bar; then the
+//                card shown "In batch n", Add hidden, a 1 s bar; then the
 //                loop resumes. Wrong card in the hold takes that copy back
 //                out (rev4 MCamera.jsx:134-139).
-// Wrong card restarts the scan -- no keypad prefill (owner 2026-10-10). After
-// every decision the same key is suppressed for 3 s (scanLoop.resume); after
-// an automatic add the Acceptor also holds the key until the card leaves.
+// Wrong card restarts the scan -- no keypad prefill (owner 2026-10-10).
 // Cue (beep + green flash) on every recognition: found, pick resolved, fast add.
+//
+// BL-262 (owner 2026-10-12 / 2026-10-13, "Trust what the strip says"):
+//   - A read carries the printings its strip identifies (`Target.vids`), and
+//     the add and the panel use them -- never the keypad's resolution of the
+//     set + number. What they identify is decided in ONE place,
+//     readIdentity.ts; this state machine only asks its effect to add.
+//   - Fast add adds on its own when the read is one printing. A read that is
+//     one card in several printings (an early set's foil and non-foil share a
+//     strip) lands in `found` with that choice, nothing added; the choice
+//     (`chosen`) then adds and holds. Several cards = the pick list, and the
+//     picked row follows the same two rules with its own printings.
+//   - What follows a decision (scanLoop.resume): after an add the same card
+//     may be read again as soon as the reader's own rules allow -- there is no
+//     timed wait; under Fast add the reader also ignores the card until it
+//     has left the frame; after Wrong card the same read stays quiet for 3 s
+//     (and, out of a hold with Fast add on, until the card has left too).
+//   - A token is recognised and named but never added (readIdentity's
+//     `token`): the effect returns null, so it lands in `found` in both modes.
 
-/** rev4 MCamera.jsx:29. */
-export const HOLD_MS = 1500;
+/** The hold after an add (owner 2026-10-12: 1 s; rev4 MCamera.jsx:29 had 1.5 s). */
+export const HOLD_MS = 1000;
+/** The hold's length as the panel prints it ("next card in 1 s"). */
+export const HOLD_LABEL = HOLD_MS / 1000 + " s";
 
 // ── BL-257 FR5-03 (F-16): the camera-start focusing state ─────────────────
 // A phone camera starts blurry and may switch lens as it focuses, which moves
@@ -80,11 +99,17 @@ export function settleFrame(
   return band === "red" ? s : settleEnd(s, "sharp", now);
 }
 
-/** What the keypad resolver takes (Spec 24.1: the read fills set + number). */
+/** What a read identified: the printings its strip names (an exact read's
+ * card, or the row picked from a pick list). `vids` IS the identity -- what
+ * may be shown and added is decided from it alone (readIdentity.ts, BL-262).
+ * `setCode` + `cardNumber` + `name` are the first printing's, kept for the
+ * strip's label and for the keypad prefill when the user leaves for the
+ * keypad (Spec 24.1); they never choose the card. */
 export interface Target {
   setCode: string;
   cardNumber: string;
   name: string;
+  vids: number[];
 }
 
 export interface PickRow {
@@ -116,13 +141,15 @@ export interface FlowEffects {
   fastAdd(): boolean;
   /** Beep + flash. */
   cue(): void;
-  /** One copy into the batch; returns the row id, or null when it could not
-   * be added (signed out, or the number needs a pick the panel must ask). */
+  /** One copy of the printing the target identifies into the batch; returns
+   * the row id, or null when nothing was added: signed out, or the target is
+   * not (yet) one printing (readIdentity.ts -- BL-262). `camera` = Add to
+   * batch in the found panel. `camera_fast_add` = an add with no Add tap
+   * (Fast add: at the read, after a pick, or after the panel's choice). */
   add(target: Target, via: "camera" | "camera_fast_add"): string | null;
   remove(entryId: string): void;
-  /** Resume the loop (suppressing `key` for 3 s; `holdUntilGone` after an
-   * automatic add). */
-  resume(key: string | null, holdUntilGone: boolean): void;
+  /** Resume the loop after a decision on `key` (scanLoop.ts ResumeAfter). */
+  resume(key: string | null, after: ResumeAfter): void;
   setTimer(fn: () => void, ms: number): () => void;
   /** scan_* analytics (S7-18). */
   recognised?(a: Accepted): void;
@@ -132,8 +159,9 @@ export interface FlowEffects {
 
 const ROW_SEP = "|";
 
-/** One row per (card, printed set, number): finishes of one printing stay
- * one row (the keypad panel keeps BL-191's non-foil default for them). */
+/** One row per (card, printed set, number): printings of one card under one
+ * set + number stay one row; picking it carries all of them, and the found
+ * panel asks which (readIdentity.ts). */
 export function pickRows(cards: CandidateCard[]): PickRow[] {
   const rows: PickRow[] = [];
   const seen = new Map<string, PickRow>();
@@ -145,12 +173,14 @@ export function pickRows(cards: CandidateCard[]): PickRow[] {
         have.vids.push(p.vid);
         continue;
       }
+      // One array: the row's printings are the target's (BL-262).
+      const vids = [p.vid];
       const row: PickRow = {
         id,
-        target: { setCode: p.src, cardNumber: String(p.num), name: c.name },
+        target: { setCode: p.src, cardNumber: String(p.num), name: c.name, vids },
         subtitle: c.subtitle,
         vt: p.vt,
-        vids: [p.vid],
+        vids,
       };
       seen.set(id, row);
       rows.push(row);
@@ -172,10 +202,16 @@ export function programName(variantType: string): string {
   return m ? PROGRAM[m[1]] + " · " + m[2] : variantType;
 }
 
-/** The exact read's target: its first printing's set + number. */
+/** The exact read's target: its first printing's set + number, with every
+ * printing the read named. */
 export function targetOf(card: CandidateCard): Target {
   const p = card.printings[0];
-  return { setCode: p.src, cardNumber: String(p.num), name: card.name };
+  return {
+    setCode: p.src,
+    cardNumber: String(p.num),
+    name: card.name,
+    vids: card.printings.map((x) => x.vid),
+  };
 }
 
 export class CameraFlow {
@@ -222,6 +258,10 @@ export class CameraFlow {
     this.recognise(this.phase.key, row.target, true);
   }
 
+  /** Under Fast add the add happens here with no Add tap -- when the target
+   * is one printing (the effect returns null otherwise: BL-262). Otherwise
+   * the found panel: in prompt mode always; under Fast add with the choice
+   * among the read's printings still to make. */
   private recognise(key: string, target: Target, fromPick: boolean): void {
     if (this.fx.fastAdd()) {
       const id = this.fx.add(target, "camera_fast_add");
@@ -233,14 +273,30 @@ export class CameraFlow {
     this.set({ kind: "found", key, target, fromPick });
   }
 
-  /** Add in the found panel: one copy, then the hold. */
+  /** BL-262: the user chose among the read's printings in the found panel
+   * (Finish, Stamp or Set). In prompt mode that only changes what the panel
+   * shows -- Add is still a tap. Under Fast add the choice was the one thing
+   * the strip could not say, so once it settles the printing the add and the
+   * hold follow at once, as after a pick-list row (no second cue: the read
+   * already gave it). */
+  chosen(): void {
+    if (this.phase.kind !== "found" || !this.fx.fastAdd()) return;
+    const { key, target } = this.phase;
+    const id = this.fx.add(target, "camera_fast_add");
+    if (id !== null) this.startHold(key, target, id, true);
+  }
+
+  /** Add in the found panel: one copy, then the hold. With Fast add on (the
+   * automatic add did not happen -- e.g. the user signed in from the prompt)
+   * it is the Fast add hold: the card must leave the frame before it is read
+   * again. */
   add(): void {
     if (this.phase.kind !== "found") return;
     const { key, target } = this.phase;
     const id = this.fx.add(target, "camera");
     if (id === null) return;
     this.fx.decision?.("add");
-    this.startHold(key, target, id, false);
+    this.startHold(key, target, id, this.fx.fastAdd());
   }
 
   /** Card details (the card layer opens over the paused camera). */
@@ -257,7 +313,13 @@ export class CameraFlow {
     this.cancelHold = null;
     if (p.kind === "hold" && p.entryId) this.fx.remove(p.entryId);
     this.set({ kind: "searching" });
-    this.fx.resume(p.key, false);
+    // BL-262 review S3: out of a hold with Fast add on, the 3 s quiet alone
+    // would let the same card, still in view, be added again on its own; the
+    // key is also held until the card has left the frame, as after the add.
+    // From the prompt or the pick list the quiet is enough: what returns is a
+    // question, never an add.
+    const fast = p.kind === "hold" && (p.fast || this.fx.fastAdd());
+    this.fx.resume(p.key, fast ? "fast_add_wrong_card" : "wrong_card");
   }
 
   private startHold(key: string, target: Target, entryId: string, fast: boolean): void {
@@ -267,7 +329,10 @@ export class CameraFlow {
       this.cancelHold = null;
       if (this.phase.kind !== "hold") return;
       this.set({ kind: "searching" });
-      this.fx.resume(key, fast);
+      // BL-262 review S4: Fast add may have been switched on during the hold;
+      // what matters is the mode the scan resumes in (a card still in view
+      // would otherwise be added a second time, on its own).
+      this.fx.resume(key, fast || this.fx.fastAdd() ? "fast_add" : "add");
     }, HOLD_MS);
   }
 

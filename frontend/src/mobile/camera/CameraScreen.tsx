@@ -12,17 +12,19 @@ import { cameraKeypadRoute, setCameraKeypadExit } from "../tool/cameraHop";
 import type { CameraScreenProps } from "../tool/cameraHop";
 import { audioUnlock } from "../tool/cue";
 import { Identified, VerifyButton } from "../tool/Pad";
-import { padReadout, padView, toCatalog } from "../tool/padModel";
+import { toCatalog } from "../tool/padModel";
 import { OFFSET_LIMIT_MM, setScanSettings, useScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, setToolMode, useToolState } from "../tool/toolStore";
+import type { PadPicks } from "../tool/toolStore";
 import { usePhoneSideways } from "../useIsPhone";
-import { HOLD_MS, programName } from "./cameraFlow";
+import { HOLD_LABEL, HOLD_MS, programName } from "./cameraFlow";
 import type { Phase, PickRow } from "./cameraFlow";
 import { CameraController } from "./cameraController";
 import { layoutGuide } from "./guide";
 import type { GuideLayout } from "./guide";
 import { Meter } from "./Meter";
 import type { MeterMode } from "./Meter";
+import { printingReadout, readAddable, readIdentity } from "./readIdentity";
 import { cameraScreenViewed, scanFallbackKeypad } from "./scanAnalytics";
 import type { ScanDebug } from "./scanBoot";
 import "./camera.css";
@@ -241,8 +243,12 @@ function PickPanel({
       </p>
       <div className="m-cam__picks" role="group" aria-label="Pick the card you have">
         {phase.rows.map((r) => {
-          const card = cards.find((c) => c.variants.some((v) => r.vids.includes(v.variant_id)));
-          const variant = card?.variants.find((v) => r.vids.includes(v.variant_id)) ?? null;
+          // The row's card is what its printings identify (BL-262: the same
+          // rule the found panel and the add use once the row is picked).
+          const id = readIdentity(r.vids, cards, NO_PICKS, true);
+          const one = id.kind === "card" || id.kind === "token" ? id : null;
+          const card = one ? one.card : null;
+          const variant = one ? one.printings[0] : null;
           const img = card && variant ? cellImage(card, variant, "thumb", "60px") : null;
           return (
             <button
@@ -296,54 +302,86 @@ function FoundPanel({
   onAdd,
   onWrong,
   onDetails,
+  onChoose,
 }: {
   phase: Extract<Phase, { kind: "found" | "hold" }>;
   onAdd: () => void;
   onWrong: () => void;
   onDetails: (variantId: number | null) => void;
+  onChoose: (axis: keyof PadPicks, value: string) => void;
 }) {
   const { cards, isAuthenticated } = useVaultData();
   const { limits, capMode } = useLimits();
   const st = useToolState();
+  const { fastAdd } = useScanSettings();
   const batch = useBatch();
   const catalog = useMemo(() => toCatalog(cards), [cards]);
   const hold = phase.kind === "hold";
   const t = phase.target;
   const entry = hold && phase.entryId ? (batch.find((e) => e.id === phase.entryId) ?? null) : null;
-  const picks = hold ? (entry?.picks ?? NO_PICKS) : st.picks;
-  const view = padView(t.setCode, t.cardNumber, picks, catalog, cards);
-  const readout =
-    view.kind === "card"
-      ? padReadout(t.setCode, t.cardNumber, picks, batch, catalog, limits, capMode)
-      : null;
+  // BL-262: the panel is the card the strip identified -- the read's printings
+  // with the choices made here (the controller's add makes the same call). In
+  // the hold it is the printing that went into the batch.
+  const id =
+    entry && entry.variantId !== null
+      ? readIdentity([entry.variantId], cards, NO_PICKS, true)
+      : readIdentity(t.vids, cards, hold ? NO_PICKS : st.picks, !fastAdd);
   const inBatch = entry ? batch.filter((b) => b.variantId === entry.variantId).length : 0;
   let body: ReactNode;
-  if (view.kind === "card") {
-    const res = view.resolved;
-    const canAdd = res.status === "resolved" && !!view.variant;
+  if (id.kind === "card") {
+    const add = readAddable(id);
+    const readout =
+      add && !hold
+        ? printingReadout(add.variant.variant_id, batch, catalog, limits, capMode)
+        : null;
+    const shown = id.variant ?? id.printings[0];
     body = (
       <Identified
-        name={res.card.needsPick ? "Which card is it?" : (res.name ?? t.name)}
-        subtitle={res.card.needsPick ? null : res.subtitle}
-        card={view.card}
-        variant={view.variant}
-        readout={hold ? null : readout}
+        name={id.card.name}
+        subtitle={id.card.subtitle}
+        card={id.card}
+        variant={id.variant}
+        artVariant={shown}
+        readout={readout}
         signedIn={isAuthenticated}
-        choices={hold ? [] : view.choices}
-        hint={hold ? null : view.hint}
+        choices={hold ? [] : id.choices}
+        hint={hold ? null : id.hint}
+        notice={hold || id.choices.length ? null : id.hint}
         note={null}
-        compact={!hold && view.choices.length > 0}
+        compact={!hold && id.choices.length > 0}
         justAdded={hold ? phase.at : 0}
         inBatch={hold ? inBatch : undefined}
         hideAdd={hold}
         addLabel="Add to batch"
-        canAdd={canAdd && isAuthenticated}
-        onAdd={canAdd ? onAdd : () => {}}
-        onDetails={
-          view.card && view.variant
-            ? () => onDetails(view.variant ? view.variant.variant_id : null)
-            : null
-        }
+        canAdd={add !== null && isAuthenticated}
+        onAdd={add ? onAdd : () => {}}
+        onPick={onChoose}
+        onDetails={() => onDetails(shown.variant_id)}
+      />
+    );
+  } else if (id.kind === "token") {
+    // A token is recognised and named, never added (owner 2026-10-13): the
+    // card panel on the token with Add to batch unavailable and one line
+    // saying why. Wrong card and the Keypad link stay as they are.
+    const shown = id.printings[0];
+    body = (
+      <Identified
+        name={id.card.name}
+        subtitle={id.card.subtitle}
+        card={id.card}
+        variant={shown}
+        readout={null}
+        signedIn={isAuthenticated}
+        choices={[]}
+        hint={null}
+        notice={id.hint}
+        note={null}
+        compact={false}
+        justAdded={0}
+        addLabel="Add to batch"
+        canAdd={false}
+        onAdd={() => {}}
+        onDetails={() => onDetails(shown.variant_id)}
       />
     );
   } else {
@@ -351,7 +389,9 @@ function FoundPanel({
       <div className="m-padmsg m-padmsg--error">
         <div className="m-padmsg__err">{t.name}</div>
         <div className="m-padmsg__rec">
-          {t.setCode} {t.cardNumber} is not in the catalogue this app loaded.
+          {id.kind === "cards"
+            ? "This read matches more than one card. Scan it again."
+            : `${t.setCode} ${t.cardNumber} is not in the catalogue this app loaded.`}
         </div>
       </div>
     );
@@ -382,7 +422,7 @@ function FoundPanel({
             style={{ animationDuration: HOLD_MS + "ms" }}
           />
           <span className="m-cam__holdtxt">
-            {phase.fast ? "Fast add · " : ""}next card in 1.5 s
+            {phase.fast ? "Fast add · " : ""}next card in {HOLD_LABEL}
           </span>
         </div>
       ) : null}
@@ -528,7 +568,13 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
   let panel: ReactNode = null;
   if (phase.kind === "found" || phase.kind === "hold")
     panel = (
-      <FoundPanel phase={phase} onAdd={ctl.add} onWrong={ctl.wrongCard} onDetails={details} />
+      <FoundPanel
+        phase={phase}
+        onAdd={ctl.add}
+        onWrong={ctl.wrongCard}
+        onDetails={details}
+        onChoose={ctl.choose}
+      />
     );
   else if (phase.kind === "pick")
     panel = <PickPanel phase={phase} onPick={ctl.pick} onNeither={ctl.wrongCard} />;

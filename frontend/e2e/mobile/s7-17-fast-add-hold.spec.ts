@@ -2,8 +2,8 @@ import { expect, measureEach, test } from "./helpers";
 import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 
 // S7-17: Fast add (header toggle, remembered in hsv.scan.v1): one read = one
-// batch copy at once, then the 1.5 s hold ("In batch 1", Add hidden, "Fast add
-// · next card in 1.5 s"); the same card staying in frame is never counted
+// batch copy at once, then the 1 s hold ("In batch 1", Add hidden, "Fast add
+// · next card in 1 s"); the same card staying in frame is never counted
 // twice (r4-14-verify-camera-hold). The cue on every recognition is one beep
 // attempt + the green flash (r4-12-cue-fires-on-hold), observed via the beep
 // counter and a MutationObserver on the flash's class; never a vibration.
@@ -25,16 +25,24 @@ test("s7-17-fast-add-hold", async ({ page }) => {
 
   const cam = page.locator(".m-cam");
   const n = page.locator(".m-cam__bar .m-logbtn__n");
+  // PORT (owner decision 2026-10-13, BL-262 stage 2): was SOR 229, an
+  // early-set strip the foil and the non-foil share -- Fast add now asks
+  // Finish for those (s7-26 covers it). A one-printing strip keeps what this
+  // step asserts: one read = one copy at once, the hold, never twice.
   await page.evaluate((t) => {
     window.__fakeRead = t; // the card stays in frame for the rest of the test
-  }, SOR_229);
+  }, "SOR • EN 100/252");
   await expect(cam).toHaveAttribute("data-phase", "hold");
   await expect(n).toHaveText("1");
-  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1.5 s");
+  // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
+  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
   await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
   await expect(page.locator(".m-cam__panel .m-ident__add .swu-btn")).toHaveCount(0);
   await expect(cam).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
-  // Same card still in frame: never a second copy.
+  // Same card still in frame: never a second copy. (BL-262, owner 2026-10-13:
+  // the 3 s same-card wait after an add is gone -- this now rests on the
+  // Fast add rule alone: the card must leave the frame before it is read
+  // again. Same wait, same assertion.)
   await page.waitForTimeout(4000);
   await expect(n).toHaveText("1");
 
