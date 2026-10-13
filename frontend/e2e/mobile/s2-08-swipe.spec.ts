@@ -150,85 +150,116 @@ test("s2-08-transform-only", async ({ page }) => {
   // card-arrow-slides: the chevron mounts the neighbour and slides first.
   // Wait for the slide itself to be under way (not a fixed delay), then
   // sample within its 200 ms.
-  // Hardened (S4 4b full-green flake): sample inside the poll itself, on the
-  // first frame the slide is under way AND both header layers exist -- a
+  // Hardened (S4 4b full-green flake): sample inside the page itself, on the
+  // first moment the slide is under way AND both header layers exist -- a
   // separate waitForFunction + evaluate round trip could land after the
   // 200 ms slide had ended under load.
-  type Handle = Awaited<ReturnType<typeof page.waitForFunction>>;
-  let midHandle!: Handle;
+  // BL-255 root cause (reproduced under CPU contention: the toPass guard
+  // failed with hash "#/card/873" != hash0, i.e. the slide had already
+  // finished): the sample was found by polling requestAnimationFrame, and a
+  // starved renderer can deliver its next frame only after the 200 ms slide
+  // is over, so the poll never saw the slide "in flight". The sample is now
+  // driven by the slide's own start events (transitionstart on the track,
+  // animationstart on the header layers). Both fire in the first frame of the
+  // animation, whose timeline begins at that frame however late it comes, so
+  // elapsed time is ~0 there. rAF stays only as a fallback.
   // A chevron tap before the card layer has its neighbour list is a no-op, so
   // retry the tap (only while no slide has happened) until a slide starts.
+  let mid!: MidSample;
   await expect(async () => {
     expect(await page.evaluate(() => location.hash)).toBe(hash0);
-    await page.evaluate(() =>
-      (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click()
-    );
-    midHandle = await page.waitForFunction(
-      (h) => {
-        const tr = (document.querySelector(".m-detail__track") as HTMLElement).style.transform;
-        if (
-          !/^translate3d\(-/.test(tr) ||
-          !document.querySelector(".m-hdr__titles.m-xfade--in") ||
-          !document.querySelector(".m-hdr__titles:not(.m-xfade--in)")
-        )
-          return null;
+    const sampled = await page.evaluate(
+      (h) =>
+        new Promise<MidSample | null>((resolve) => {
+          const sample = (): MidSample | null => {
+            const tr = (document.querySelector(".m-detail__track") as HTMLElement).style.transform;
+            if (
+              !/^translate3d\(-/.test(tr) ||
+              !document.querySelector(".m-hdr__titles.m-xfade--in") ||
+              !document.querySelector(".m-hdr__titles:not(.m-xfade--in)")
+            )
+              return null;
 
-        const bad: string[] = [];
-        for (const e of document.querySelectorAll(".m-detail *")) {
-          const cs = getComputedStyle(e);
-          if (!cs.transitionDuration.split(",").some((d) => parseFloat(d) > 0)) continue;
-          if (e.closest(".m-detail__bar, .swu-btn, .m-seg")) continue;
-          const props = cs.transitionProperty.split(",").map((s) => s.trim());
-          const ok = [
-            "transform",
-            "opacity",
-            "visibility",
-            "background",
-            "background-color",
-            "color",
-            "border-color",
-            "box-shadow",
-          ];
-          if (props.some((x) => !ok.includes(x))) out(e, cs.transitionProperty);
-          const kf = cs.animationName;
-          if (
-            kf &&
-            kf !== "none" &&
-            kf !== "m-xin" &&
-            kf !== "m-xout" &&
-            !/cp-image-flip|m-layer/.test(kf)
-          )
-            out(e, kf);
-        }
-        function out(e: Element, what: string) {
-          bad.push(String(e.className).slice(0, 40) + " :: " + what);
-        }
-        const t = document.querySelector(".m-detail__track") as HTMLElement;
-        return {
-          bad,
-          same: location.hash === h,
-          ghost: !!document.querySelector(".m-page--ghost.m-page--next"),
-          // F2: the neighbour's chart is not live -- it must not claim "no data".
-          ghostEmpty: /No price data/.test(
-            document.querySelector(".m-page--ghost")?.textContent ?? ""
-          ),
-          // F8: the section ids are unique while two pages are mounted.
-          dupIds: [...document.querySelectorAll('.m-detail [id^="sec-"]')]
-            .map((e) => e.id)
-            .filter((id, i, a) => a.indexOf(id) !== i),
-          track: t.style.transform,
-          trackTransition: t.style.transition,
-          xfade: getComputedStyle(document.querySelector(".m-hdr__titles.m-xfade--in")!)
-            .animationName,
-          xout: getComputedStyle(document.querySelector(".m-hdr__titles:not(.m-xfade--in)")!)
-            .animationName,
-        };
-      },
-      hash0,
-      { polling: "raf", timeout: 2500 }
+            const bad: string[] = [];
+            for (const e of document.querySelectorAll(".m-detail *")) {
+              const cs = getComputedStyle(e);
+              if (!cs.transitionDuration.split(",").some((d) => parseFloat(d) > 0)) continue;
+              if (e.closest(".m-detail__bar, .swu-btn, .m-seg")) continue;
+              const props = cs.transitionProperty.split(",").map((s) => s.trim());
+              const ok = [
+                "transform",
+                "opacity",
+                "visibility",
+                "background",
+                "background-color",
+                "color",
+                "border-color",
+                "box-shadow",
+              ];
+              if (props.some((x) => !ok.includes(x))) out(e, cs.transitionProperty);
+              const kf = cs.animationName;
+              if (
+                kf &&
+                kf !== "none" &&
+                kf !== "m-xin" &&
+                kf !== "m-xout" &&
+                !/cp-image-flip|m-layer/.test(kf)
+              )
+                out(e, kf);
+            }
+            function out(e: Element, what: string) {
+              bad.push(String(e.className).slice(0, 40) + " :: " + what);
+            }
+            const t = document.querySelector(".m-detail__track") as HTMLElement;
+            return {
+              bad,
+              same: location.hash === h,
+              ghost: !!document.querySelector(".m-page--ghost.m-page--next"),
+              // F2: the neighbour's chart is not live -- it must not claim "no data".
+              ghostEmpty: /No price data/.test(
+                document.querySelector(".m-page--ghost")?.textContent ?? ""
+              ),
+              // F8: the section ids are unique while two pages are mounted.
+              dupIds: [...document.querySelectorAll('.m-detail [id^="sec-"]')]
+                .map((e) => e.id)
+                .filter((id, i, a) => a.indexOf(id) !== i),
+              track: t.style.transform,
+              trackTransition: t.style.transition,
+              xfade: getComputedStyle(document.querySelector(".m-hdr__titles.m-xfade--in")!)
+                .animationName,
+              xout: getComputedStyle(document.querySelector(".m-hdr__titles:not(.m-xfade--in)")!)
+                .animationName,
+            };
+          };
+          const settle = (v: MidSample | null) => {
+            done = true;
+            window.clearTimeout(giveUp);
+            document.removeEventListener("transitionstart", attempt, true);
+            document.removeEventListener("animationstart", attempt, true);
+            resolve(v);
+          };
+          const attempt = () => {
+            const s = sample();
+            if (s) settle(s);
+          };
+          const poll = () => {
+            if (!done) {
+              attempt();
+              requestAnimationFrame(poll);
+            }
+          };
+          let done = false;
+          const giveUp = window.setTimeout(() => settle(null), 2500);
+          document.addEventListener("transitionstart", attempt, true);
+          document.addEventListener("animationstart", attempt, true);
+          (document.querySelector('[aria-label="Next card"]') as HTMLButtonElement).click();
+          poll();
+        }),
+      hash0
     );
+    expect(sampled, "no slide started within 2.5 s").not.toBeNull();
+    mid = sampled!;
   }).toPass({ timeout: 25000 });
-  const mid = (await midHandle.jsonValue()) as MidSample;
   expect(mid.bad).toEqual([]);
   expect(mid.same).toBe(true);
   expect(mid.ghost).toBe(true);
@@ -238,7 +269,10 @@ test("s2-08-transform-only", async ({ page }) => {
   expect(mid.trackTransition).toMatch(/^transform 200ms/);
   // The header's titles cross-dissolve (opacity only) to the neighbour's.
   expect([mid.xout, mid.xfade]).toEqual(["m-xout", "m-xin"]);
-  await page.waitForTimeout(450);
+  // BL-255: wait for the slide to FINISH (route changed, layers gone), not a
+  // fixed 450 ms -- a starved renderer can still be mid-slide at 450 ms.
+  await page.waitForFunction((h) => location.hash !== h, hash0);
+  await expect(page.locator(".m-xfade--in, .m-page--ghost")).toHaveCount(0);
   const hash1 = await page.evaluate(() => location.hash);
   expect(hash1).not.toBe(hash0);
   // Nothing fades after the move; the chevron runs the same slide back.
@@ -249,13 +283,26 @@ test("s2-08-transform-only", async ({ page }) => {
   expect(end).toEqual({ layers: 0, op: "1" });
   // Hardened: a chevron tap while the card layer is still settling from the
   // first slide is a no-op, so retry it (only while no slide has started).
-  await expect(async () => {
-    await page.evaluate(() =>
-      (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
+  // BL-255: the retry used to click again whenever its 1.5 s ghost check
+  // timed out, even if the slide had started and finished meanwhile -- under
+  // load that stepped back TWICE (hash two cards before hash0). Click only
+  // while no slide back has started or finished.
+  const slidBack = (h1: string) =>
+    page.evaluate(
+      (h1) => location.hash !== h1 || !!document.querySelector(".m-page--ghost.m-page--prev"),
+      h1
     );
-    await expect(page.locator(".m-page--ghost.m-page--prev")).toHaveCount(1, { timeout: 1500 });
+  await expect(async () => {
+    if (!(await slidBack(hash1))) {
+      await page.evaluate(() =>
+        (document.querySelector('[aria-label="Previous card"]') as HTMLButtonElement).click()
+      );
+    }
+    await expect.poll(() => slidBack(hash1), { timeout: 1500 }).toBe(true);
   }).toPass({ timeout: 20000 });
-  await page.waitForTimeout(450);
+  // BL-255: same as above -- wait for the slide back to finish.
+  await page.waitForFunction((h) => location.hash === h, hash0);
+  await expect(page.locator(".m-page--ghost")).toHaveCount(0);
   expect(await page.evaluate(() => location.hash)).toBe(hash0);
 });
 
