@@ -414,3 +414,11 @@ Code comment that carried the same decision (`frontend/src/utils/variantScope.ts
 §25.1, Finish-scope bullet, option-set sentence, verbatim:
 
 > The "Finish scope" sheet offers desktop's option set (§5.13, `utils/variantScope.ts`), 14 values: pinned chip rows for Standard, Hyperspace, Prestige and Weekly Play, then **Showcase as the last pinned row** — its label and one 44 px chip, the sheet's single-select idiom, not a check-box row — then a divider and "Show all finishes…" for the four check-box rows (Convention Exclusive, Event Exclusive, Prerelease Promo, Movie Promo).
+
+## Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)
+
+**Disposition:** → merge into ADR-0030 (dated round-2 amendment, F-17 line) + archive. The phone Sort sheet was built (BL-247 S1-17) as desktop's ten sortable columns under desktop's header names, in desktop's order (#, Name, Variants, Playset, Value, Rarity, Cost, Power, HP, Set), with a chevron on the active row for its direction. On 2026-10-12 the owner asked for the phone's own list: the sorts he uses most first, "#" named "Set | #", a "Cards Owned" sort (copies owned) where Variants stood, no Set row, and the direction as a word in a blue-bordered badge because the caret was too subtle to read. Desktop is unchanged. §25.1 described the Sort sheet only by the parenthesis below; it gained a Sort bullet.
+
+§25.1, Status-rows bullet, the Sort item of row two, verbatim:
+
+> icon-only Sort (desktop's sortable columns, `nextSortState`),

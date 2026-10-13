@@ -67,6 +67,22 @@ describe("S1-27 phone analytics events", () => {
     expect(calls("filters_cleared")).toEqual([{ layout: "phone" }]);
   });
 
+  it("FR5-05 sort_changed reports the applied column: owned; never set or variants", () => {
+    const { result } = renderHook(() => useVaultViewOver([], {}));
+    act(() => result.current.pickSort("owned"));
+    act(() => result.current.pickSort("owned"));
+    act(() => result.current.pickSort("set"));
+    act(() => result.current.pickSort("name"));
+    act(() => result.current.pickSort("variants"));
+    expect(calls("sort_changed")).toEqual([
+      { column: "owned", direction: "asc", layout: "phone" },
+      { column: "owned", direction: "desc", layout: "phone" },
+      { column: "number", direction: "asc", layout: "phone" },
+      { column: "name", direction: "asc", layout: "phone" },
+      { column: "number", direction: "asc", layout: "phone" },
+    ]);
+  });
+
   it("search_performed fires 400 ms after typing, with length + count only", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useVaultViewOver([], {}));

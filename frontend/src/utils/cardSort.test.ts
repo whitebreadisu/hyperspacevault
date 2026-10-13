@@ -313,6 +313,79 @@ describe("Variants column", () => {
   });
 });
 
+// BL-257 FR5-05 (owner 2026-10-12, F-17): the phone's "Cards Owned" sort.
+describe("owned sort (phone Sort sheet: Cards Owned)", () => {
+  const std = (id: number, quantity: number) => makeVariant({ variant_id: id, quantity });
+  const hs = (id: number, quantity: number) =>
+    makeVariant({ variant_id: id, variant_type: "Hyperspace", finish: "Hyperspace", quantity });
+  // Default order a, b, c, d. Totals: a 2, b 5, c 2, d 0. Hyperspace: a 2, b 1, c 0, d 0.
+  const a = makeCard({
+    base_card_id: 1,
+    variants: [std(1, 0), hs(2, 2)],
+    inventory: { 1: 0, 2: 2 },
+  });
+  const b = makeCard({
+    base_card_id: 2,
+    variants: [std(3, 4), hs(4, 1)],
+    inventory: { 3: 4, 4: 1 },
+  });
+  const c = makeCard({
+    base_card_id: 3,
+    variants: [std(5, 2), hs(6, 0)],
+    inventory: { 5: 2, 6: 0 },
+  });
+  const d = makeCard({
+    base_card_id: 4,
+    variants: [std(7, 0), hs(8, 0)],
+    inventory: { 7: 0, 8: 0 },
+  });
+  const cards = [a, b, c, d];
+
+  it("unscoped: total copies owned, fewest first; ties fall to the default order", () => {
+    const context = contextFor(cards);
+    expect(ids(sortCards([d, c, b, a], state("owned", "asc"), context))).toEqual([4, 1, 3, 2]);
+  });
+
+  it("descending: most first; ties stay in the default order (not reversed)", () => {
+    const context = contextFor(cards);
+    expect(ids(sortCards([d, c, b, a], state("owned", "desc"), context))).toEqual([2, 1, 3, 4]);
+  });
+
+  it("scoped: the scoped finish's copies, not the total", () => {
+    const context = contextFor(cards, { scope: "Hyperspace" });
+    expect(ids(sortCards(cards, state("owned", "asc"), context))).toEqual([3, 4, 2, 1]);
+    expect(ids(sortCards(cards, state("owned", "desc"), context))).toEqual([1, 2, 3, 4]);
+  });
+
+  it("nothing owned: every card ties at 0, so both directions are the default order", () => {
+    const none = cards.map((x) => ({
+      ...x,
+      inventory: {},
+      variants: x.variants.map((v) => ({ ...v, quantity: 0 })),
+    }));
+    const context = contextFor(none);
+    expect(ids(sortCards(none.slice().reverse(), state("owned", "asc"), context))).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(ids(sortCards(none.slice().reverse(), state("owned", "desc"), context))).toEqual([
+      1, 2, 3, 4,
+    ]);
+  });
+
+  it("is not the Variants sort (number of printings)", () => {
+    // One printing, 9 owned vs three printings, 1 owned.
+    const few = makeCard({ base_card_id: 1, variants: [std(1, 9)], inventory: { 1: 9 } });
+    const many = makeCard({
+      base_card_id: 2,
+      variants: [std(2, 1), hs(3, 0), makeVariant({ variant_id: 4, quantity: 0 })],
+      inventory: { 2: 1 },
+    });
+    const context = contextFor([few, many]);
+    expect(ids(sortCards([few, many], state("owned", "desc"), context))).toEqual([1, 2]);
+    expect(ids(sortCards([few, many], state("variants", "desc"), context))).toEqual([2, 1]);
+  });
+});
+
 describe("Playset column", () => {
   // A: Unit (size 3), owned 3 across variants -- complete, needed 0.
   const complete3 = makeCard({

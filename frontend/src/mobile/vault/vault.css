@@ -264,6 +264,27 @@
   border-radius: 3px;
   color: #cfd6e4;
 }
+/* BL-257 FR5-05 (F-17): the active sort row's direction, as a word. Border
+ * after the playset pip's (.playset__pip: 1.5 px solid, fully rounded,
+ * transparent fill), in the app blue with the text; the small UI label style
+ * (12 px / 700 / 0.12em, as .m-cam__holdtxt). One line, never taller than the
+ * row. */
+.m-app .m-sortdir {
+  flex: none;
+  box-sizing: border-box;
+  padding: 4px 10px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-primary);
+}
 
 /* ── Segmented control + the view toggle (m-layout.css:109-118, m-rev1.css
  * 118-123, m-rev2.css:51-57). Each side opens its sizes in place; the open

@@ -2,7 +2,7 @@ import { countActiveFilters } from "../../components/FilterPanel";
 import { parseCardDisplay } from "../../utils/catalog";
 import type { BaseCard, SetOrderMap } from "../../utils/catalog";
 import { sortCards } from "../../utils/cardSort";
-import type { SortState } from "../../utils/cardSort";
+import type { SortColumn, SortState } from "../../utils/cardSort";
 import { applyFilters, DEFAULT_FILTERS } from "../../utils/filters";
 import type { FilterState } from "../../utils/filters";
 import { cardOwnedTotal, isOwned, isPlaysetComplete } from "../../utils/inventory";
@@ -23,6 +23,26 @@ import type { PriceMode } from "../../utils/variantScope";
 // desktop's own types and utilities (filters.ts, variantScope.ts,
 // cardSort.ts, limits.ts). useVaultView.ts holds the state; everything that
 // decides what the list shows lives here so it is unit-testable.
+
+/** BL-257 FR5-05 (F-17): the sorts the phone offers -- the shared model's
+ * columns without `set` (the phone's "Set | #" sort, `number`, already orders
+ * by set and then number) and without `variants` (desktop's sort by number of
+ * printings; the phone's fifth row is `owned`, copies owned). */
+export type PhoneSortColumn = Exclude<SortColumn, "set" | "variants">;
+export interface PhoneSortState {
+  column: PhoneSortColumn;
+  direction: SortState["direction"];
+}
+
+/** The sort the phone shows and applies for `s`. A `set` or `variants` sort
+ * (not offered on the phone; the shared sort model keeps both for desktop)
+ * becomes the default order, `number` ascending -- which is what "Set
+ * ascending" was. Every other state is returned as it is (same object). */
+export function phoneSortState(s: SortState): PhoneSortState {
+  return s.column === "set" || s.column === "variants"
+    ? { column: "number", direction: "asc" }
+    : (s as PhoneSortState);
+}
 
 /** Desktop's four Collection toggles (CardsPage.tsx incompleteOnly /
  * ownedOnly / noInventoryOnly / overCapOnly): applied filters that live
@@ -179,7 +199,9 @@ export function buildVaultList(
   const all = sortCardsByScope(cards, ctx.setOrder, s.scope);
   const defaultIndex = new Map(all.map((c, i) => [c.base_card_id, i]));
   const filtered = filterCards(all, s, ctx.limits);
-  const list = sortCards(filtered, sort, {
+  // FR5-05: the list is ordered by the sort the phone shows (phoneSortState),
+  // whatever state it is handed.
+  const list = sortCards(filtered, phoneSortState(sort), {
     scope: s.scope,
     valueMode: ctx.priceKind,
     unitMode: "unit",
