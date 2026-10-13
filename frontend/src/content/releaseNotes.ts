@@ -39,6 +39,109 @@ export type ReleaseNotesEntry =
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
     kind: "release",
+    // BL-190 mobile 2.0: phone layout (App Spec §25) + camera scanning
+    // (§24), the owner finish rounds BL-257/258/259/262 and BL-245
+    // sw-unlimited-db Homeworlds import. Owner-approved copy 2026-10-13
+    // (draft: planning/ReleaseNotes_v2.0_Draft_2026-10-13.md); date
+    // finalized at promote time per the release-notes ritual.
+    key: "2.0",
+    version: "2.0",
+    date: "2026-10-13",
+    title: "Your Vault, in your pocket",
+    sections: [
+      {
+        heading: "A phone app, not a shrunken website",
+        items: [
+          {
+            title: "Open it on your phone",
+            body: "Same site, same account, nothing to install. Open hyperspacevault.com on a phone and you get an app laid out for one hand: big tap targets, no sideways scrolling, nothing popping up over the thing you were reading. Open it on a laptop and nothing changed.",
+          },
+          {
+            title: "Everything came along",
+            body: "The Vault with its filters, sort, search, gallery view, playset progress, prices and totals. Card details. Your sets. Sharing, imports and exports, settings, your account. Nothing is desktop-only anymore.",
+          },
+          {
+            title: "Shared Vaults, held up at the table",
+            body: "A share link opens as the phone app for whoever you send it to. Show someone your binder at the LGS without handing them your phone.",
+          },
+        ],
+      },
+      {
+        heading: "Point your phone at a card",
+        items: [
+          {
+            title: "The camera reads the strip",
+            body: "Flip the add tool to camera mode and aim at the bottom corner of a card. HSV reads the little SET • EN 123/264 line, matches it against the catalog and shows you the card: art, name, printing, how many you own. It reads text, not art, so promos, Hyperspace and foils all work as long as the strip is printed.",
+          },
+          {
+            title: "Nothing leaves your phone",
+            body: "The reading happens on the device. No frames are uploaded, nothing is stored. I am not building a database of your kitchen table.",
+          },
+          {
+            title: "You decide, it counts",
+            body: "A recognized card waits for Add to batch or Wrong card. Nothing is counted until you say so, and the batch goes through the same verify-and-commit step the keypad uses.",
+          },
+          {
+            title: "Fast add, for the box (or case)",
+            body: "Flip the toggle and a clean read adds one copy of the printing it saw, holds for a second so it cannot double-count, then looks for the next card. Deal them past the camera.",
+          },
+          {
+            title: "It asks when it genuinely cannot tell",
+            body: "Early-set cards where foil and non-foil share a number, tournament stamps that share a strip: the camera stops and asks which one, exactly as the keypad does. It never guesses.",
+          },
+          {
+            title: "Blurry? Too far?",
+            body: 'A small meter says "move closer" or "move back" instead of failing quietly. If a card still won\'t read, the keypad is one tap away, pre-filled with whatever the camera did get.',
+          },
+          {
+            title: "Align guide",
+            body: "Two sliders behind the \"Align guide\" button nudge the frame if your phone's camera sits differently from mine. You probably won't need them.",
+          },
+        ],
+      },
+      {
+        heading: "Straight from your feedback",
+        items: [
+          {
+            title: "Newest sets first",
+            body: "Every set list — your vault, filters, set pickers, precon decks and exports — now starts with the latest release and works back to Spark of Rebellion. Intro Battle: Hoth and Twin Suns stay at the end.",
+          },
+          {
+            title: "Showcase, on its own",
+            body: "Showcase is back in the finish scope picker, so you can see your Showcase leaders, their counts and their value by themselves.",
+          },
+          {
+            title: "sw-unlimited-db Homeworlds exports import cleanly",
+            body: "Every Homeworlds row now comes in, in every printing.",
+          },
+        ],
+      },
+      {
+        heading: "The fine print",
+        items: [
+          {
+            title: "Hold it upright",
+            body: "The phone app is portrait only. Turn your phone sideways and it asks you to turn it back rather than handing you the desktop layout, which never fit a phone.",
+          },
+          {
+            title: "Android: you are my test team",
+            body: "Built and tested on an iPhone. It should work in Chrome on Android, since it is all standard browser camera plumbing, but I have not held one. Tell me what happens.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "A pile of test and release-pipeline hardening so the phone app cannot ship broken without the robots noticing, and the usual round of security updates to the build tooling.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "release",
     // BL-240 SWUDB/HoloScan import maps for HMW + Weekly Play (PR #192) and
     // BL-242 Dependabot October batch (PR #194). Owner-approved copy
     // 2026-10-08; date finalized at promote time per the release-notes
