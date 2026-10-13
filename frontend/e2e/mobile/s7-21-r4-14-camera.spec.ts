@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, measureEach } from "./helpers";
+import { expect, holdFacts, measureEach, recordHolds } from "./helpers";
 import { test } from "./clip-helpers";
 
 // S7-21: the rev4 camera check steps ported onto the real camera + the
@@ -83,23 +83,28 @@ test("s7-21-verify-guard-camera", async ({ page }) => {
 });
 
 test("s7-21-verify-camera-hold", async ({ page }) => {
+  // PORT (BL-255 part 3): the 1 s hold is read at once by the recorder, and the
+  // "Wrong card in the hold" tap is made in that same callback (`wrongAt: 0`);
+  // a sequence of nine round trips can outlive the hold on a busy machine.
+  // Same facts, same values; the Wrong card tap is the same button.
+  await recordHolds(page, { wrongAt: 0 });
   await fastAddOn(page);
   await openCamera(page);
   await readThenFinish(page);
-  await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-  await expect(n(page)).toHaveText("1");
-  await expect(page.locator(".m-cam__panel .m-ident__meta")).toHaveText("SOR 229 · Standard");
+  const h = await holdFacts(page);
+  expect(h.phase).toBe("hold");
+  expect(h.count).toBe("1");
+  expect(h.meta).toBe("SOR 229 · Standard");
   // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
-  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
-  await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
-  await expect(page.locator(".m-ident__added")).not.toContainText("Added");
-  await expect(page.locator(".m-cam__panel .m-ident__add .swu-btn")).toHaveCount(0);
-  await expect(page.locator(".m-cam__bar .m-logbtn")).toContainText("Verify");
+  expect(h.holdtxt).toBe("Fast add · next card in 1 s");
+  expect(h.added).toContain("In batch 1");
+  expect(h.added).not.toContain("Added");
+  expect(h.addBtns).toBe(0);
+  expect(h.verifyBtn).toContain("Verify");
   // (rev4 also read "In batch 1" in .m-readout; as built the keypad's panel
   // shows it once, in .m-ident__added, asserted above, and drops the readout.)
-  await expect(page.locator(".m-cam__panel .m-readout")).toHaveCount(0);
+  expect(h.readouts).toBe(0);
   // Wrong card in the hold takes the batch row back out.
-  await page.locator(".m-cam__wrong").click();
   await expect(page.locator(".m-cam__bar .m-logbtn")).toHaveClass(/m-logbtn--empty/);
   await expect(cam(page)).toHaveAttribute("data-phase", "searching");
 });

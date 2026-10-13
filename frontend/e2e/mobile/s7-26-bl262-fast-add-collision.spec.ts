@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, measureEach, test, wideText } from "./helpers";
+import { expect, holdFacts, measureEach, recordHolds, test, wideText } from "./helpers";
 import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 
 // BL-262 (owner on his iPhone, 2026-10-12 / 2026-10-13). In an s7-* file: the
@@ -52,6 +52,7 @@ test.afterEach(measureEach);
 declare global {
   interface Window {
     __phases?: string[];
+    __phaseAt?: number[];
   }
 }
 
@@ -76,12 +77,16 @@ const show = (page: Page, text: string | null) =>
 async function logPhases(page: Page) {
   await page.addInitScript(() => {
     window.__phases = [];
+    window.__phaseAt = [];
     new MutationObserver((ms) => {
       for (const m of ms) {
         const el = m.target as HTMLElement;
         if (!el.classList?.contains("m-cam")) continue;
         const p = el.getAttribute("data-phase");
-        if (p && p !== m.oldValue) window.__phases!.push(p);
+        if (p && p !== m.oldValue) {
+          window.__phases!.push(p);
+          window.__phaseAt!.push(performance.now()); // the page clock, not the test runner's
+        }
       }
     }).observe(document, {
       subtree: true,
@@ -93,8 +98,22 @@ async function logPhases(page: Page) {
 }
 const phases = (page: Page) => page.evaluate(() => window.__phases ?? []);
 
-/** Open the camera with nothing in frame; Fast add on or off. */
-async function open(page: Page, fastAdd: boolean) {
+/** Open the camera with nothing in frame; Fast add on or off.
+ *
+ * Every hold is recorded atomically from before the page loads (`holdFacts`
+ * reads what the panel showed). Root cause (BL-255 part 3): the hold lasts
+ * only 1 s (HOLD_MS), and several sequential awaits against the live panel
+ * take longer than that when the machine is busy -- the scanner is back to
+ * `searching` and the panel is gone before the later checks run. The product
+ * is right; the tests now read the whole hold in one callback and assert on
+ * that. The `waitForTimeout`s below are NOT this race: they are deliberate
+ * observation windows ("nothing happens while the card stays in view"). */
+async function open(
+  page: Page,
+  fastAdd: boolean,
+  record: { fit?: boolean; wrongAt?: number } = {}
+) {
+  await recordHolds(page, record);
   await logPhases(page);
   await installFakeScanner(page, { read: null });
   await openScanCamera(page);
@@ -106,12 +125,14 @@ async function open(page: Page, fastAdd: boolean) {
 /** Fast add: `strip` is added at once as `card` / `printing` -- no prompt. */
 async function addedAtOnce(page: Page, strip: string, card: string, printing: string) {
   await show(page, strip);
-  await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-  await expect(count(page)).toHaveText("1");
-  await expect(name(page)).toHaveText(card);
-  await expect(meta(page)).toHaveText(printing);
-  await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
+  const h = await holdFacts(page); // everything the hold panel showed, read at once
+  expect(h.phase).toBe("hold");
+  expect(h.count).toBe("1");
+  expect(h.name).toBe(card);
+  expect(h.meta).toBe(printing);
+  expect(h.added).toContain("In batch 1");
   expect((await phases(page)).filter((p) => p === "found" || p === "pick")).toEqual([]);
+  return h;
 }
 
 /** The Verify sheet lists exactly these card names (one row per copy). */
@@ -132,8 +153,8 @@ test.describe("BL-262 Fast add adds the card the strip identified, with no promp
     page,
   }) => {
     await open(page, true);
-    await addedAtOnce(page, "SOR • EN C 74/252", "Scan Filler 74", "SOR 74 · Standard");
-    await expect(panel(page).locator(".m-cam__code")).toHaveText("SOR 74/252");
+    const h = await addedAtOnce(page, "SOR • EN C 74/252", "Scan Filler 74", "SOR 74 · Standard");
+    expect(h.code).toBe("SOR 74/252");
     await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     // Fast add is on and the card never left the frame: not read again.
     await page.waitForTimeout(3500);
@@ -276,11 +297,12 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
 
     // The choice is the last thing asked: it adds and holds.
     await chips(page, "finish").filter({ hasText: "Standard Foil" }).click();
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    await expect(meta(page)).toHaveText("SOR 229 · Standard Foil");
-    await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
-    await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
+    const h = await holdFacts(page);
+    expect(h.phase).toBe("hold");
+    expect(h.count).toBe("1");
+    expect(h.meta).toBe("SOR 229 · Standard Foil");
+    expect(h.holdtxt).toBe("Fast add · next card in 1 s");
+    expect(h.added).toContain("In batch 1");
     await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     // Still in frame: it is not asked or added again until it has left.
     await page.waitForTimeout(3500);
@@ -387,11 +409,12 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
     await chips(page, "finish")
       .filter({ hasText: /^Gold$/ })
       .click();
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    await expect(meta(page)).toHaveText("SEC 1127 · Serialized Prestige");
+    const h = await holdFacts(page);
+    expect(h.phase).toBe("hold");
+    expect(h.count).toBe("1");
+    expect(h.meta).toBe("SEC 1127 · Serialized Prestige");
     // The hold shows the printing that went in: the Gold printing's own art.
-    await expect(panel(page).locator(".m-ident__frame img")).toHaveAttribute("src", /Carb_C_Gold_/);
+    expect(h.frameSrc).toMatch(/Carb_C_Gold_/);
     await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     // Still in frame: not asked or added again until it has left.
     await page.waitForTimeout(3000);
@@ -424,8 +447,9 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/); // a chip is not an add
     await expect(addBtn(page)).not.toHaveAttribute("aria-disabled", "true");
     await addBtn(page).click();
-    await expect(count(page)).toHaveText("1");
-    await expect(page.locator(".m-cam__holdtxt")).toHaveText("next card in 1 s");
+    const h = await holdFacts(page);
+    expect(h.count).toBe("1");
+    expect(h.holdtxt).toBe("next card in 1 s");
     await verifyLists(page, ["Queen Amidala"]);
     await expect(verify(page)).toContainText("Serialized Prestige");
   });
@@ -450,11 +474,13 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
     await page.waitForTimeout(1500);
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
     await chips(page, "stamp").filter({ hasText: "Judge" }).click();
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    await expect(name(page)).toHaveText("Darth Vader");
-    await expect(meta(page)).toHaveText("SOR 1 · Prerelease Judge");
-    expect(await phases(page)).toEqual(["pick", "found", "hold"]);
+    const h = await holdFacts(page);
+    expect(h.phase).toBe("hold");
+    expect(h.count).toBe("1");
+    expect(h.name).toBe("Darth Vader");
+    expect(h.meta).toBe("SOR 1 · Prerelease Judge");
+    // (the log as of the hold: later phases would race the 1 s hold)
+    expect(h.phaseLog).toEqual(["pick", "found", "hold"]);
   });
 
   test("s7-26-bl262 a printed-code collision (ASHP 16): the pick list, then one copy of the chosen card", async ({
@@ -466,10 +492,11 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
     await page.waitForTimeout(1500);
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
     await page.locator(".m-cam__pick").filter({ hasText: "Grogu" }).click();
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    await expect(name(page)).toHaveText("Grogu");
-    await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
+    const h = await holdFacts(page);
+    expect(h.phase).toBe("hold");
+    expect(h.count).toBe("1");
+    expect(h.name).toBe("Grogu");
+    expect(h.holdtxt).toBe("Fast add · next card in 1 s");
     // The card is still in frame: whatever the camera shows next, it adds
     // nothing more without a tap (a pick is a question, never an add).
     await page.waitForTimeout(4500);
@@ -501,10 +528,11 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
     await show(page, null);
     await addBtn(page).click();
-    await expect(count(page)).toHaveText("1");
-    await expect(page.locator(".m-cam__holdtxt")).toHaveText("next card in 1 s");
-    await expect(name(page)).toHaveText("Resupply");
-    await expect(meta(page)).toHaveText("SOR 12 · Weekly Play Foil");
+    const h = await holdFacts(page);
+    expect(h.count).toBe("1");
+    expect(h.holdtxt).toBe("next card in 1 s");
+    expect(h.name).toBe("Resupply");
+    expect(h.meta).toBe("SOR 12 · Weekly Play Foil");
     await verifyLists(page, ["Resupply"]);
     await expect(verify(page)).not.toContainText("Scan Filler 12");
   });
@@ -522,7 +550,7 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
       ["SOR • EN 2", "Darth Vader", "SOR 2 · Hyperspace"],
       ["SOR • EN C 74/252", "Scan Filler 74", "SOR 74 · Standard"],
     ];
-    for (const [strip, card, printing] of reads) {
+    for (const [i, [strip, card, printing]] of reads.entries()) {
       await show(page, strip);
       await expect(cam(page)).toHaveAttribute("data-phase", "found");
       await expect(name(page)).toHaveText(card);
@@ -531,7 +559,7 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
       await expect(addBtn(page)).not.toHaveAttribute("aria-disabled", "true");
       await show(page, null);
       await addBtn(page).click();
-      await expect(name(page)).toHaveText(card); // the hold shows what was added
+      expect((await holdFacts(page, i)).name).toBe(card); // the hold shows what was added
       await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     }
     await expect(count(page)).toHaveText("3");
@@ -548,8 +576,9 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
     // As before BL-262: the non-foil default is shown and Add adds it.
     await expect(meta(page)).toHaveText("SOR 229 · Standard");
     await addBtn(page).click();
-    await expect(count(page)).toHaveText("1");
-    await expect(page.locator(".m-cam__holdtxt")).toHaveText("next card in 1 s");
+    const h = await holdFacts(page);
+    expect(h.count).toBe("1");
+    expect(h.holdtxt).toBe("next card in 1 s");
     // The same card is prompted again once the hold is over -- well inside the
     // 3 s the old wait took (the hold's 1 s + a few reads).
     const t0 = Date.now();
@@ -575,12 +604,17 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
     await expect(cam(page)).toHaveAttribute("data-phase", "found");
     await panel(page).locator(".m-cam__wrong").click();
     await expect(cam(page)).toHaveAttribute("data-phase", "searching");
-    // Still quiet 2.2 s later (without the wait it is back in under a second).
-    await page.waitForTimeout(2200);
-    await expect(cam(page)).toHaveAttribute("data-phase", "searching");
-    expect(await phases(page)).toEqual(["found", "searching"]);
-    // Past 3 s the card is read again.
-    await expect(cam(page)).toHaveAttribute("data-phase", "found", { timeout: 4000 });
+    // PORT (BL-255 part 3): was "still searching after waitForTimeout(2200)",
+    // which a stalled machine outlasts (the runner's 2.2 s can be > 3 s of
+    // page time, so the card is legitimately back). Same claim, measured on
+    // the page's clock: the card is not read again for at least 2.2 s after
+    // the tap (without the wait it is back in under a second), and past 3 s it
+    // is read again. (6200 = the old 2200 wait + 4000, the same total budget
+    // from the tap.)
+    await expect(cam(page)).toHaveAttribute("data-phase", "found", { timeout: 6200 });
+    expect(await phases(page)).toEqual(["found", "searching", "found"]);
+    const at = await page.evaluate(() => window.__phaseAt!);
+    expect(at[2] - at[1], "quiet after Wrong card, ms").toBeGreaterThanOrEqual(2200);
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
   });
 });
@@ -589,44 +623,26 @@ test.describe("BL-262 Fast add keeps its speed; the hold is 1 s", () => {
   test("s7-26-bl262 one card, one printing: added at once (no prompt), 1 s hold, label fits, never twice while it stays", async ({
     page,
   }) => {
-    await open(page, true);
+    // PORT: the fit measurements (normal text, then every glyph 0.7 px wider --
+    // wideText()'s rule) are taken by the hold recorder in the same callback as
+    // the other hold facts (`fit: true`), not by later round trips.
+    await open(page, true, { fit: true });
     await show(page, "SOR • EN 100/252"); // stays in frame
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    const txt = page.locator(".m-cam__holdtxt");
-    await expect(txt).toHaveText("Fast add · next card in 1 s");
+    const h = await holdFacts(page);
+    expect(h.phase).toBe("hold");
+    expect(h.count).toBe("1");
+    expect(h.holdtxt).toBe("Fast add · next card in 1 s");
     // The bar runs for the hold's length.
-    expect(
-      await page.locator(".m-cam__holdbar").evaluate((e) => getComputedStyle(e).animationDuration)
-    ).toBe("1s");
+    expect(h.barDuration).toBe("1s");
     // The label fits beside the bar: one line, inside the panel; and again
     // with every glyph 0.7 px wider (the CI text condition).
-    const fit = () =>
-      page.evaluate(() => {
-        const t = document.querySelector(".m-cam__holdtxt");
-        const bar = document.querySelector(".m-cam__holdbar");
-        const inner = document.querySelector(".m-cam__panelin");
-        if (!t || !bar || !inner) return null;
-        const range = document.createRange();
-        range.selectNodeContents(t);
-        const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
-        const cs = getComputedStyle(inner);
-        return {
-          lines: tops.size,
-          right: t.getBoundingClientRect().right,
-          limit: inner.getBoundingClientRect().right - parseFloat(cs.paddingRight),
-          bar: bar.getBoundingClientRect().width,
-        };
-      });
-    const check = (m: Awaited<ReturnType<typeof fit>>, label: string) => {
-      expect(m, label + ": the hold was still up").not.toBeNull();
-      expect(m!.lines, label).toBe(1);
-      expect(m!.right, label).toBeLessThanOrEqual(m!.limit + 0.5);
-      expect(m!.bar, label + ": the bar keeps its room").toBeGreaterThan(60);
-    };
-    check(await fit(), "normal text");
-    await wideText(page);
-    check(await fit(), "wide text");
+    for (const label of ["normal", "wide"] as const) {
+      const m = h.fit![label];
+      expect(m, label + " text: the hold was still up").not.toBeNull();
+      expect(m!.lines, label + " text").toBe(1);
+      expect(m!.right, label + " text").toBeLessThanOrEqual(m!.limit + 0.5);
+      expect(m!.bar, label + " text: the bar keeps its room").toBeGreaterThan(60);
+    }
 
     await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     // Left under the camera: never a second copy (the 3 s wait is gone; the
@@ -642,11 +658,14 @@ test.describe("BL-262 Fast add keeps its speed; the hold is 1 s", () => {
   test("s7-26-bl262 Fast add: Wrong card within the hold takes the copy out, and the card left in view is not added again; out and back, it is", async ({
     page,
   }) => {
-    await open(page, true);
+    // `wrongAt: 0`: the recorder taps Wrong card inside the first hold, in the
+    // same callback that reads the hold -- a tap sent from here could arrive
+    // after the 1 s hold is over.
+    await open(page, true, { wrongAt: 0 });
     await show(page, "SOR • EN 100/252"); // stays in frame
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
-    await expect(count(page)).toHaveText("1");
-    await panel(page).locator(".m-cam__wrong").click();
+    const h0 = await holdFacts(page);
+    expect(h0.phase).toBe("hold");
+    expect(h0.count).toBe("1");
     await expect(cam(page)).toHaveAttribute("data-phase", "searching");
     await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
     // Well past the 3 s quiet: still not read again while it stays.
@@ -656,8 +675,9 @@ test.describe("BL-262 Fast add keeps its speed; the hold is 1 s", () => {
     await show(page, null); // out of the frame
     await page.waitForTimeout(1500);
     await show(page, "SOR • EN 100/252"); // back
-    await expect(count(page)).toHaveText("1", { timeout: 4000 });
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
+    const h1 = await holdFacts(page, 1, 4000);
+    expect(h1.count).toBe("1");
+    expect(h1.phase).toBe("hold");
   });
 
   // PORT (owner decision 2026-10-13): was SOR 229, which now asks Finish; a
@@ -668,14 +688,15 @@ test.describe("BL-262 Fast add keeps its speed; the hold is 1 s", () => {
   }) => {
     await open(page, true);
     await show(page, "SOR • EN 100/252");
-    await expect(count(page)).toHaveText("1");
+    expect((await holdFacts(page)).count).toBe("1");
     await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     await show(page, null); // out of the frame
     await page.waitForTimeout(1500);
     await expect(count(page)).toHaveText("1");
     await show(page, "SOR • EN 100/252"); // back
-    await expect(count(page)).toHaveText("2", { timeout: 4000 });
-    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
+    const h1 = await holdFacts(page, 1, 4000);
+    expect(h1.count).toBe("2");
+    expect(h1.phase).toBe("hold");
     expect((await phases(page)).filter((p) => p === "found" || p === "pick")).toEqual([]);
   });
 });
