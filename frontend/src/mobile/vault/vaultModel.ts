@@ -1,7 +1,7 @@
 import { countActiveFilters } from "../../components/FilterPanel";
 import { parseCardDisplay } from "../../utils/catalog";
 import type { BaseCard, SetOrderMap } from "../../utils/catalog";
-import { sortCards } from "../../utils/cardSort";
+import { nextSortState, sortCards } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
 import { applyFilters, DEFAULT_FILTERS } from "../../utils/filters";
 import type { FilterState } from "../../utils/filters";
@@ -42,6 +42,26 @@ export function phoneSortState(s: SortState): PhoneSortState {
   return s.column === "set" || s.column === "variants"
     ? { column: "number", direction: "asc" }
     : (s as PhoneSortState);
+}
+
+/** The direction a phone sort lands on at its FIRST tap, where that is not
+ * ascending (owner decision 2026-10-12 after review): Cards Owned starts at
+ * the most owned. Every other sort starts ascending, as on desktop. */
+export const PHONE_FIRST_DIRECTION: Partial<Record<PhoneSortColumn, SortState["direction"]>> = {
+  owned: "desc",
+};
+
+/** A pick in the phone's Sort sheet. As desktop's `nextSortState` -- the
+ * active column flips, a `set` / `variants` pick becomes "Set | #" ascending
+ * (phoneSortState) -- except that a newly picked column lands on its own
+ * first direction (PHONE_FIRST_DIRECTION, else ascending). Phone only:
+ * desktop's headers keep calling `nextSortState`, which is unchanged. */
+export function nextPhoneSort(current: SortState, picked: SortColumn): PhoneSortState {
+  const next = phoneSortState(nextSortState(current, picked));
+  const fresh = picked !== current.column && next.column === picked;
+  return fresh
+    ? { column: next.column, direction: PHONE_FIRST_DIRECTION[next.column] ?? "asc" }
+    : next;
 }
 
 /** Desktop's four Collection toggles (CardsPage.tsx incompleteOnly /

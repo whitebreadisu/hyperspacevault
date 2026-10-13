@@ -77,7 +77,47 @@ const sortRows = (page: Page) =>
     probe.style.color = "var(--color-primary)";
     document.querySelector(".m-app")!.append(probe);
     const primary = getComputedStyle(probe).color;
+    probe.style.color = "var(--color-text)";
+    const textToken = getComputedStyle(probe).color;
     probe.remove();
+    // Contrast (WCAG 2 relative luminance) of a text colour on what is drawn
+    // behind an element: every ancestor's background colour painted in order,
+    // root first, on one canvas pixel (so the row's translucent blue wash
+    // lands on the sheet's own fill), then the text colour on top of that.
+    const px = document.createElement("canvas");
+    px.width = px.height = 1;
+    const g = px.getContext("2d", { willReadFrequently: true })!;
+    const read = () => [...g.getImageData(0, 0, 1, 1).data].slice(0, 3);
+    const behind = (el: Element) => {
+      const chain: string[] = [];
+      for (let e: Element | null = el; e; e = e.parentElement)
+        chain.unshift(getComputedStyle(e).backgroundColor);
+      g.fillStyle = "#000";
+      g.fillRect(0, 0, 1, 1);
+      for (const c of chain) {
+        g.fillStyle = c;
+        g.fillRect(0, 0, 1, 1);
+      }
+      return read();
+    };
+    const over = (bg: number[], color: string) => {
+      g.fillStyle = `rgb(${bg.join(",")})`;
+      g.fillRect(0, 0, 1, 1);
+      g.fillStyle = color;
+      g.fillRect(0, 0, 1, 1);
+      return read();
+    };
+    const lum = (c: number[]) => {
+      const [r, gr, b] = c.map((v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * gr + 0.0722 * b;
+    };
+    const ratio = (a: number[], b: number[]) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
     // The reference border: a playset pip drawn in the same document. A
     // fractional border width is snapped by the renderer (to whole device
     // pixels; this emulated 3x Chromium snaps 1.5 px to 1 px, an iPhone draws
@@ -108,6 +148,7 @@ const sortRows = (page: Page) =>
     const rows = [...document.querySelectorAll(".m-sheet-layer--sort .m-choice__row")];
     return {
       primary,
+      textToken,
       pipWidth,
       pipStyle,
       declaredBadge: declared(".m-app .m-sortdir"),
@@ -122,7 +163,9 @@ const sortRows = (page: Page) =>
         const rb = row.getBoundingClientRect();
         const cs = badge ? getComputedStyle(badge) : null;
         const bb = badge ? badge.getBoundingClientRect() : null;
+        const bg = badge ? behind(badge) : null;
         return {
+          rowBg: getComputedStyle(row).backgroundColor,
           sort: (row as HTMLElement).dataset.sort,
           label: label.textContent,
           pressed: row.getAttribute("aria-pressed"),
@@ -134,6 +177,11 @@ const sortRows = (page: Page) =>
             ? {
                 text: badge.textContent,
                 color: cs!.color,
+                behind: bg!,
+                // As drawn (the word), and as it was before the fix run (the
+                // app blue), both on this row's background.
+                contrast: ratio(over(bg!, cs!.color), bg!),
+                contrastPrimary: ratio(over(bg!, primary), bg!),
                 border: [cs!.borderTopColor, cs!.borderRightColor, cs!.borderBottomColor].join(),
                 borderLeft: cs!.borderLeftColor,
                 width: [cs!.borderTopWidth, cs!.borderLeftWidth].join(),
@@ -183,13 +231,18 @@ test("fr5-05 Sort sheet: nine rows in the owner's order, a text direction badge 
   expect(s.rows[4].aria).toBe("Cards Owned");
   const rowH = s.rows[1].h;
   const badgeLook = (b: NonNullable<(typeof s.rows)[number]["badge"]>) => {
-    // Text and border are the app blue (the computed --color-primary); the
-    // border is the playset pip's: 1.5 px solid (both rules say 1.5 px, and
-    // the badge draws at exactly the width a pip draws at), fully rounded, no
-    // fill.
+    // The border is the app blue (the computed --color-primary) and the
+    // playset pip's: 1.5 px solid (both rules say 1.5 px, and the badge draws
+    // at exactly the width a pip draws at), fully rounded, no fill.
     expect(s.declaredBadge).toBe("1.5px solid var(--color-primary)");
     expect(s.declaredPip).toBe("1.5px solid var(--color-text-muted)");
-    expect(b.color).toBe(s.primary);
+    // REPLACE (owner decision 2026-10-12 after review, T3 / N9): the WORD is
+    // the primary text colour (--color-text), not the app blue -- the blue on
+    // the active row's blue wash was under 4.5:1. The border stays blue.
+    expect(b.color).toBe(s.textToken);
+    expect(b.color).not.toBe(s.primary);
+    expect(b.contrast, "badge word on the active row").toBeGreaterThanOrEqual(4.5);
+    expect(b.contrastPrimary, "the app blue there (before)").toBeLessThan(4.5);
     expect(b.border).toBe([s.primary, s.primary, s.primary].join());
     expect(b.borderLeft).toBe(s.primary);
     expect(b.width).toBe([s.pipWidth, s.pipWidth].join());
@@ -202,26 +255,41 @@ test("fr5-05 Sort sheet: nine rows in the owner's order, a text direction badge 
     expect(b.cut).toBe(false);
   };
   expect(s.primary).toBe("rgb(37, 99, 235)");
+  expect(s.textToken).toBe("rgb(230, 230, 230)");
   badgeLook(s.rows[0].badge!);
+  // The active row is the blue-washed one the contrast is measured on.
+  expect(s.rows[0].rowBg).not.toBe("rgba(0, 0, 0, 0)");
+  console.log(
+    `fr5-05 ${test.info().project.name} badge word contrast on the active row (drawn behind it rgb(${s.rows[0].badge!.behind.join(", ")}); row wash ${s.rows[0].rowBg}): before ${s.primary} = ${s.rows[0].badge!.contrastPrimary.toFixed(2)}:1, after ${s.rows[0].badge!.color} = ${s.rows[0].badge!.contrast.toFixed(2)}:1`
+  );
   // The badge does not make its row taller than the others.
   for (const x of s.rows) expect(Math.abs(x.h - rowH)).toBeLessThanOrEqual(0.5);
   expect(rowH).toBeGreaterThanOrEqual(44);
 
-  // A new row sorts ascending and closes; the active row flips its direction.
   console.log(
     `fr5-05 ${test.info().project.name} border: declared ${s.declaredBadge} (pip ${s.declaredPip}), drawn ${s.rows[0].badge!.width} (pip ${s.pipWidth}) at devicePixelRatio ${s.dpr}`
   );
-  await page.locator('.m-choice__row[data-sort="owned"]').click();
-  await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
-  await expect(page.locator(".m-sortbtn")).toHaveAttribute(
-    "aria-label",
-    "Sort: Cards Owned, ascending"
-  );
-  await openSort(page);
-  s = await sortRows(page);
-  expect(s.rows.filter((x) => x.badge).map((x) => [x.label, x.badge!.text])).toEqual([
-    ["Cards Owned", "Ascending"],
-  ]);
+  // REPLACE (owner decision 2026-10-12 after review, T2): the FIRST tap on
+  // Cards Owned lands on descending -- most owned first (was ascending); the
+  // sheet closes; a second tap flips it to ascending, a third back. Every
+  // other row still lands ascending (end of this test; s1-17-sort-icon-only).
+  const tapOwned = async (direction: "ascending" | "descending") => {
+    await page.locator('.m-choice__row[data-sort="owned"]').click();
+    await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+    await expect(page.locator(".m-sortbtn")).toHaveAttribute(
+      "aria-label",
+      `Sort: Cards Owned, ${direction}`
+    );
+    await openSort(page);
+    const t = await sortRows(page);
+    // The badge, as drawn (upper-cased by CSS), and the row's accessible name.
+    expect(
+      t.rows.filter((x) => x.badge).map((x) => [x.label, x.badge!.text!.toUpperCase(), x.aria])
+    ).toEqual([["Cards Owned", direction.toUpperCase(), `Cards Owned, ${direction}`]]);
+    expect(t.rows[4].badge!.transform).toBe("uppercase");
+  };
+  await tapOwned("descending");
+  await tapOwned("ascending");
   await page.locator('.m-choice__row[data-sort="owned"]').click();
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
   await expect(page.locator(".m-sortbtn")).toHaveAttribute(
@@ -250,6 +318,22 @@ test("fr5-05 Sort sheet: nine rows in the owner's order, a text direction badge 
   await fit("normal text");
   const widened = await wideText(page);
   await fit(widened ? "wideText" : "wideText (browser already snaps: same run)");
+
+  // Another row's first tap is still ascending (from Cards Owned descending).
+  await page.locator('.m-choice__row[data-sort="value"]').click();
+  await expect(page.locator(".m-sheet-layer")).toHaveCount(0);
+  await expect(page.locator(".m-sortbtn")).toHaveAttribute("aria-label", "Sort: Value, ascending");
+  await openSort(page);
+  s = await sortRows(page);
+  expect(s.rows.filter((x) => x.badge).map((x) => [x.label, x.badge!.text, x.aria])).toEqual([
+    ["Value", "Ascending", "Value, ascending"],
+  ]);
+  // ... and coming back to Cards Owned is a first tap again: descending.
+  await page.locator('.m-choice__row[data-sort="owned"]').click();
+  await expect(page.locator(".m-sortbtn")).toHaveAttribute(
+    "aria-label",
+    "Sort: Cards Owned, descending"
+  );
 });
 
 /** Every Vault row top to bottom (the list is virtualised: scroll and collect). */
@@ -352,17 +436,10 @@ test("fr5-05 Cards Owned sorts by copies owned: most-owned card first when desce
   await openVault(page, "#/vault?size=none");
   const base = (await allRows(page)).map((r) => r.id);
 
-  await pick(page, "owned"); // a new row: ascending, fewest first
-  await expect(page.locator(".m-sortbtn")).toHaveAttribute(
-    "aria-label",
-    "Sort: Cards Owned, ascending"
-  );
-  const asc = (await allRows(page)).map((r) => r.id);
-  expect(asc.length).toBe(CARDS.length);
-  expect(owned.get(asc[0])).toBe(Math.min(...owned.values()));
-  expect(asc.every((id, i) => i === 0 || owned.get(id)! >= owned.get(asc[i - 1])!)).toBe(true);
-
-  await pick(page, "owned"); // the active row: descending, most first
+  // REPLACE (owner decision 2026-10-12 after review, T2): the first tap is
+  // descending -- most owned first -- and the second is ascending (was the
+  // other way round). The same order assertions, in the new sequence.
+  await pick(page, "owned"); // a new row: descending, most first
   await expect(page.locator(".m-sortbtn")).toHaveAttribute(
     "aria-label",
     "Sort: Cards Owned, descending"
@@ -373,6 +450,16 @@ test("fr5-05 Cards Owned sorts by copies owned: most-owned card first when desce
   // The first row is the most-owned card that comes first in the default order.
   expect(desc[0]).toBe(base.find((id) => owned.get(id) === most));
   expect(desc.every((id, i) => i === 0 || owned.get(id)! <= owned.get(desc[i - 1])!)).toBe(true);
+
+  await pick(page, "owned"); // the active row: ascending, fewest first
+  await expect(page.locator(".m-sortbtn")).toHaveAttribute(
+    "aria-label",
+    "Sort: Cards Owned, ascending"
+  );
+  const asc = (await allRows(page)).map((r) => r.id);
+  expect(asc.length).toBe(CARDS.length);
+  expect(owned.get(asc[0])).toBe(Math.min(...owned.values()));
+  expect(asc.every((id, i) => i === 0 || owned.get(id)! >= owned.get(asc[i - 1])!)).toBe(true);
   // Equal counts keep the default order, in both directions.
   const pos = new Map(base.map((id, i) => [id, i]));
   for (const order of [asc, desc])

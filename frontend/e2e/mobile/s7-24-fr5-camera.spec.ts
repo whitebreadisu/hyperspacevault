@@ -177,6 +177,13 @@ const settleState = (page: Page) =>
       cardOpacity: getComputedStyle(q(".m-guide__card")!).opacity,
       word: word.textContent,
       sub: sub.textContent,
+      // What the second line draws: its text nodes' width (0 = nothing).
+      subInk: (() => {
+        const r = document.createRange();
+        r.selectNodeContents(sub);
+        return r.getBoundingClientRect().width;
+      })(),
+      subChildren: sub.childNodes.length,
       label: status.getAttribute("aria-label"),
       live: status.getAttribute("aria-live"),
       statuses: document.querySelectorAll(".m-meter [role=status]").length,
@@ -187,6 +194,10 @@ const settleState = (page: Page) =>
         gbox: rect(".m-guide__box"),
         meter: rect(".m-meter"),
         words: rect(".m-meter__words"),
+        // The word and the (empty while focusing) line under it: same boxes
+        // before and after, so the word does not jump when the state clears.
+        word: rect(".m-meter__word"),
+        subLine: rect(".m-meter__sub"),
         keypad: rect(".m-meter__keypad"),
         align: rect(".m-cam__align"),
       },
@@ -218,7 +229,13 @@ function expectDim(s: Settle) {
   expect(s.cardOpacity).toBe("1");
   expect(s.shade).toContain("9999px");
   expect(s.word).toBe("Focusing…");
-  expect(s.sub).toBe("Wait to line up");
+  // REPLACE (owner decision 2026-10-12 after review, T1): just "Focusing…" --
+  // no second line (was "Wait to line up"). Nothing is drawn under the word,
+  // and the line keeps its height (expectSameLayout: `word`, `subLine`).
+  expect(s.sub).toBe("");
+  expect(s.subChildren).toBe(0);
+  expect(s.subInk).toBe(0);
+  expect(s.rects.subLine[3]).toBeGreaterThan(10);
   // Said once, in the meter's own live region.
   expect(s.label).toBe("Focusing…");
   expect(s.live).toBe("polite");

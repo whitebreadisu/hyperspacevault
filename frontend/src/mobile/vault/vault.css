@@ -266,9 +266,11 @@
 }
 /* BL-257 FR5-05 (F-17): the active sort row's direction, as a word. Border
  * after the playset pip's (.playset__pip: 1.5 px solid, fully rounded,
- * transparent fill), in the app blue with the text; the small UI label style
- * (12 px / 700 / 0.12em, as .m-cam__holdtxt). One line, never taller than the
- * row. */
+ * transparent fill), in the app blue; the small UI label style (12 px / 700 /
+ * 0.12em, as .m-cam__holdtxt). One line, never taller than the row. The word
+ * is the primary text colour (owner decision 2026-10-12 after review): the
+ * app blue on the active row's blue wash was about 3.3:1, and the app has no
+ * brighter-blue text token. */
 .m-app .m-sortdir {
   flex: none;
   box-sizing: border-box;
@@ -283,7 +285,7 @@
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 /* ── Segmented control + the view toggle (m-layout.css:109-118, m-rev1.css

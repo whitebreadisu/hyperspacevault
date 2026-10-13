@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { SCREEN_VIEWED_SCREENS, VIEW_MODE_CHANGED_MODES } from "../analytics/analytics";
 import { PICK_REASONS } from "./camera/scanAnalytics";
 import { ADJUST_METHODS } from "./tool/commit";
+import { SORT_ORDER } from "./vault/SortSheet";
 
 // BL-252 stage 6b: documentation guards for the phone layout. The App Spec is
 // the registry of record (§22 analytics, §25 mobile experience); these tests
@@ -209,6 +210,13 @@ describe("S6-10 App Spec §22 lists every phone event and property", () => {
       "no_inventory",
       "over_cap",
     ]);
+    // sort_changed.column: the phone's sorts (review FR5 S2). `owned` is the
+    // phone-only value; `set` and `variants` are named as never sent.
+    check("sort_changed", SORT_ORDER);
+    expect(SORT_ORDER as string[]).toContain("owned");
+    check("sort_changed", ["set", "variants", "asc", "desc"]);
+    expect(row("sort_changed")).toMatch(/phone-only value `owned`/);
+    expect(row("sort_changed")).toMatch(/never sends `set` or `variants`/);
     // Values of events without a single exported array (kept from the hand-picked list).
     for (const v of ["swipe", "detail"]) expect(s22, v).toContain(v);
   });

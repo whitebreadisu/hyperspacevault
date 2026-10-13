@@ -394,12 +394,15 @@ describe("FR5-03 camera-start focusing state (F-16)", () => {
     }
   });
 
-  it("the meter word: Focusing… with one fixed accessible label", () => {
+  // REPLACE (owner decision 2026-10-12 after review, T1): no hint line under
+  // "Focusing…" -- was sub "Wait to line up".
+  it("the meter word: Focusing… alone (no second line), one fixed accessible label", () => {
     expect(meterWords({ kind: "focusing" })).toEqual({
       word: "Focusing…",
-      sub: "Wait to line up",
+      sub: "",
       label: "Focusing…",
     });
+    expect(readFileSync("src/mobile/camera/Meter.tsx", "utf8")).not.toMatch(/Wait to line up/);
   });
 
   it("display only: no analytics event, toast or haptics in the settle code", () => {
@@ -487,5 +490,32 @@ describe("FR5-03 controller: every stream start begins the focusing state", () =
     ctl.flow.dispose();
     // ("off" first: the stream's "starting" notice arrives before it is live.)
     expect(seen).toEqual(["off", "settling", "timeout", "off", "settling", "read", "off"]);
+  });
+
+  // Review FR5 N2: the cover (a phone on its side is one) blocks reading in
+  // the same commit that shows it.
+  it("setBlocked pauses the loop at once; the screen applies it in a layout effect", () => {
+    const ctl = new CameraController(scan);
+    expect(ctl.loop.paused).toBe(false);
+    ctl.setBlocked(true);
+    // Synchronous: a read still in flight is dropped by the loop's paused check.
+    expect(ctl.loop.paused).toBe(true);
+    ctl.setBlocked(false);
+    expect(ctl.loop.paused).toBe(false);
+    ctl.loop.stop();
+    ctl.flow.dispose();
+    const src = readFileSync("src/mobile/camera/CameraScreen.tsx", "utf8");
+    const call = src.indexOf("ctl.setBlocked(blocked)");
+    expect(call).toBeGreaterThan(0);
+    const before = src.slice(0, call);
+    // The nearest effect opening before the call is the layout one.
+    expect(before.lastIndexOf("useLayoutEffect(")).toBeGreaterThan(
+      before.lastIndexOf("useEffect(")
+    );
+    expect(before.slice(before.lastIndexOf("const blocked ="))).toMatch(/\|\| sideways;/);
+    // ... and the loop drops a read that finishes while paused.
+    expect(readFileSync("src/mobile/camera/scanLoop.ts", "utf8")).toMatch(
+      /if \(this\.paused \|\| !this\.running\) return;/
+    );
   });
 });

@@ -5,7 +5,9 @@ import type { PhoneSortColumn } from "./vaultModel";
 
 // BL-247 S1-17: the sort sheet (rev4 MSheet.jsx:170-188). A pick follows
 // desktop nextSortState: a new column lands ascending, the active column
-// flips direction; a pick closes the sheet.
+// flips direction; a pick closes the sheet. One exception (owner decision
+// 2026-10-12 after review): Cards Owned lands on descending -- most owned
+// first -- at its first tap (vaultModel nextPhoneSort).
 // BL-257 FR5-05 (F-17, owner 2026-10-12): the phone has its own list -- the
 // sorts used most first, Cost / Power / HP last; "#" reads "Set | #" (the
 // default order is by set, then number); the fifth row is "Cards Owned", the
@@ -13,7 +15,8 @@ import type { PhoneSortColumn } from "./vaultModel";
 // Variants sort (number of printings), which the phone does not offer; there
 // is no Set row (the "Set | #" sort covers it). vaultModel phoneSortState
 // maps a `set` or `variants` sort onto "Set | #" ascending. The active row
-// carries its direction as a word in a blue-bordered badge, not a chevron.
+// carries its direction as a word in a blue-bordered badge, not a chevron;
+// the word is in the primary text colour so it reads on the blue-washed row.
 // Desktop's column headers and sorts are unchanged.
 
 export const SORT_LABELS: Record<PhoneSortColumn, string> = {

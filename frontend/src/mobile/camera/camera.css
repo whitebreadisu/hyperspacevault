@@ -226,6 +226,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* "Focusing…" has no second line: the empty line keeps its height, so the
+ * word does not move when the state clears. */
+.m-app .m-meter__sub:empty::before {
+  content: "\00a0";
+}
 .m-app .m-meter__read {
   font-family: var(--font-mono);
   font-size: 11.5px;

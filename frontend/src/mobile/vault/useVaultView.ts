@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLimits } from "../../context/LimitsContext";
-import { DEFAULT_SORT_STATE, nextSortState } from "../../utils/cardSort";
+import { DEFAULT_SORT_STATE } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
 import type { FilterState } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
@@ -12,7 +12,7 @@ import { useVaultData } from "./useVaultData";
 import {
   buildVaultList,
   freshFilterState,
-  phoneSortState,
+  nextPhoneSort,
   SCOPE_VALUES,
   withFilters,
   withScope,
@@ -204,9 +204,11 @@ export function useVaultViewOver(
       (column: SortColumn) => {
         // FR5-05: the phone has no Set or Variants sort; the only way in
         // (pickSort is the one writer of this state -- no URL parameter,
-        // nothing persisted) maps either onto "Set | #" ascending, and the
-        // event reports what was applied.
-        const next = phoneSortState(nextSortState(sort, column));
+        // nothing persisted) maps either onto "Set | #" ascending. A new
+        // column lands on its own first direction (Cards Owned: most owned
+        // first; the rest ascending) and the active one flips -- nextPhoneSort.
+        // The event reports what was applied.
+        const next = nextPhoneSort(sort, column);
         capturePhone("sort_changed", { column: next.column, direction: next.direction });
         setSort(next);
       },

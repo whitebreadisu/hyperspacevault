@@ -12,8 +12,9 @@ import "./rotate.css";
 // The panel is a child of <body>, beside the app root, for two reasons: the
 // whole app root can then be `inert` without the panel being inside it, and
 // it sits above the one phone layer that is not inside `.m-app` (the busy
-// overlay, a <body> child at z-index 300). Every other <body> child is made
-// inert while it shows and restored after.
+// overlay, a <body> child at z-index 300). Every other <body> child -- those
+// present when it appears and any added while it shows -- is made inert, and
+// restored when it goes (upright, or unmounted).
 
 /** The element focus was on before the app went inert (focus returns to it). */
 function focused(): HTMLElement | null {
@@ -30,13 +31,22 @@ export function RotateScreen() {
     if (!on || !panel) return undefined;
     // Before `inert` lands: the browser drops focus from an inert subtree.
     restore.current = focused();
-    const made: HTMLElement[] = [];
-    for (const el of Array.from(document.body.children)) {
-      if (el === panel || !(el instanceof HTMLElement) || el.hasAttribute("inert")) continue;
-      el.setAttribute("inert", "");
-      made.push(el);
-    }
+    const made = new Set<HTMLElement>();
+    const cover = () => {
+      for (const el of Array.from(document.body.children)) {
+        if (el === panel || !(el instanceof HTMLElement) || el.hasAttribute("inert")) continue;
+        el.setAttribute("inert", "");
+        made.add(el);
+      }
+    };
+    cover();
+    // Review FR5 N1: a <body> child added while the panel shows (a busy
+    // overlay portalled later) is covered too. Child list only: setting the
+    // attribute does not re-enter the observer.
+    const added = new MutationObserver(cover);
+    added.observe(document.body, { childList: true });
     return () => {
+      added.disconnect();
       for (const el of made) el.removeAttribute("inert");
       const back = restore.current;
       restore.current = null;

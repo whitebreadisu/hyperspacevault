@@ -7,6 +7,7 @@
 // riders) lives in the App Spec's analytics section; event names/properties
 // here must stay in lockstep with it.
 import posthog from "posthog-js";
+import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
 
 // The v1 event registry. Adding an event = extend this union AND the App
 // Spec section in the same PR. Names are permanent (renames orphan history);
@@ -104,27 +105,20 @@ export const VIEW_MODE_CHANGED_MODES = [
 ] as const;
 export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
 
-/** Same media query the phone gate uses (mobile/useIsPhone.ts PHONE_QUERY);
- * duplicated as a literal so the analytics seam imports nothing from the UI
- * (analytics.layout.test.ts pins the two equal). BL-257 FR5-06: narrow, OR a
- * short touch-first screen -- a phone held on its side reports `phone`. */
-export const PHONE_MEDIA_QUERY =
-  "(max-width: 767px), ((max-height: 500px) and (hover: none) and (pointer: coarse))";
-
+/** BL-257 FR5-06: `layout` is the phone gate itself -- the one function
+ * `isPhoneLayout()` (mobile/useIsPhone.ts), which is no longer a single media
+ * query (narrow viewport, OR a touch-primary device whose screen's short side
+ * is at most 500 px), so it cannot be mirrored as a literal here. A phone held
+ * on its side reports `phone`. */
 function currentLayout(): "phone" | "desktop" {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "desktop";
-  return window.matchMedia(PHONE_MEDIA_QUERY).matches ? "phone" : "desktop";
+  return isPhoneLayout() ? "phone" : "desktop";
 }
 
 /** Registers the `layout` super-property (rides every event) and keeps it
- * current when the viewport crosses the phone breakpoint. */
+ * current when the gate flips. */
 function registerLayout(): void {
   posthog.register({ layout: currentLayout() });
-  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-    window
-      .matchMedia(PHONE_MEDIA_QUERY)
-      .addEventListener("change", () => posthog.register({ layout: currentLayout() }));
-  }
+  watchPhoneLayout((phone) => posthog.register({ layout: phone ? "phone" : "desktop" }));
 }
 
 export function initAnalytics(): void {

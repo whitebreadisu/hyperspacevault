@@ -26,7 +26,6 @@ declare global {
   }
 }
 
-const SHOTS = "F:/Projects/SWU-wt/fr5-shots";
 const cam = (page: Page) => page.locator(".m-cam");
 const panel = (page: Page) => page.locator(".m-rotate");
 const ocrCalls = (page: Page) =>
@@ -106,7 +105,6 @@ test.describe("a phone on its side at the scanner", () => {
         );
       });
     expect(await fits(), "fits, normal text").toBe(true);
-    await page.screenshot({ path: `${SHOTS}/fr5-06-rotate-scan.png` });
     await wideText(page, ".m-rotate");
     expect(await fits(), "fits, wide text").toBe(true);
 

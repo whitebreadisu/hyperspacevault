@@ -14,9 +14,11 @@ import type { MeterBand } from "./imagePipeline";
 export const BLURRY_PHRASE = "Blurry — move back / closer";
 export const SMALL_PHRASE = "Too small — move closer";
 
-/** FR5-03 (F-16): the camera-start focusing state's word, with its hint. */
+/** FR5-03 (F-16): the camera-start focusing state's word. It stands alone:
+ * no hint line under it (owner decision 2026-10-12 after review). The sub
+ * line keeps its height while empty (camera.css `.m-meter__sub:empty`), so
+ * nothing moves when the state clears. */
 export const FOCUSING_WORD = "Focusing…";
-export const FOCUSING_SUB = "Wait to line up";
 
 export type MeterMode =
   | { kind: "focusing" }
@@ -33,8 +35,7 @@ function split(phrase: string): [string, string] {
 
 export function meterWords(mode: MeterMode): { word: string; sub: string; label: string } {
   // One fixed label for the whole focusing state: the live region says it once.
-  if (mode.kind === "focusing")
-    return { word: FOCUSING_WORD, sub: FOCUSING_SUB, label: FOCUSING_WORD };
+  if (mode.kind === "focusing") return { word: FOCUSING_WORD, sub: "", label: FOCUSING_WORD };
   if (mode.kind === "blurry") {
     const [word, sub] = split(BLURRY_PHRASE);
     return { word, sub, label: BLURRY_PHRASE };
@@ -74,8 +75,12 @@ export function Meter({
       <span className="m-meter__words" role="status" aria-live="polite" aria-label={w.label}>
         <span className="m-meter__word">{w.word}</span>
         <span className="m-meter__sub">
-          {w.sub}
-          {partial ? <span className="m-meter__read"> · read {partial}</span> : null}
+          {w.sub || null}
+          {partial ? (
+            <span className="m-meter__read">
+              {w.sub ? " · " : ""}read {partial}
+            </span>
+          ) : null}
         </span>
       </span>
       <button type="button" className="m-textbtn m-meter__keypad" onClick={onKeypad}>

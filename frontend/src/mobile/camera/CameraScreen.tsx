@@ -451,7 +451,11 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
   // the stream keeps running, so turning upright restarts nothing.
   const sideways = usePhoneSideways();
   const blocked = covered || busy || alignOpen || sideways;
-  useEffect(() => {
+  // Review FR5 N2: a layout effect -- the block lands in the commit that
+  // shows the cover, before the browser can deliver another frame's read (a
+  // passive effect ran a render later, and with Fast add a read accepted in
+  // that gap was an automatic add under the rotate screen).
+  useLayoutEffect(() => {
     ctl.setBlocked(blocked);
   }, [ctl, blocked, phase.kind]);
 

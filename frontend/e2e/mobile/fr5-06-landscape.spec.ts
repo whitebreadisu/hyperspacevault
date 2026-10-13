@@ -10,9 +10,18 @@ import { recorderFor } from "./mock-api";
 // How the harness turns the phone: the phone projects are `isMobile` +
 // `hasTouch`, so Chromium reports (hover: none) and (pointer: coarse), and
 // Playwright's device-metrics override sets `screen.orientation.type` from the
-// viewport it is given (landscape-primary when wider than tall). So
+// viewport it is given (landscape-primary when wider than tall) and reports
+// the SCREEN at the viewport's size (`screen.width` x `screen.height` =
+// the viewport, as on an Android phone, which swaps them on a turn). So
 // `page.setViewportSize` IS the turn -- each test asserts the screen
-// orientation it relies on rather than assuming it.
+// orientation and size it relies on rather than assuming them.
+//
+// Review FR5 S5 / N8 (fix run 2026-10-12): the gate's second arm is keyed to
+// the device -- touch-primary AND the screen's short side <= 500 CSS px --
+// not to the viewport's height. Where a case needs a screen that differs from
+// the viewport (a keyboard-shrunk viewport; an iPhone, whose screen sizes do
+// not swap) it sets both with CDP `Emulation.setDeviceMetricsOverride`
+// (`width` / `height` = viewport, `screenWidth` / `screenHeight` = screen).
 //   (a) fr5-06-panel-*      the panel, its two lines, no overflow
 //   (b) fr5-06-state-*      route, open sheet, scroll, typed search survive
 //   (c) fr5-06-covered      the covered app cannot be tapped or focused
@@ -22,7 +31,8 @@ import { recorderFor } from "./mock-api";
 const PHONE = (name: string) => name.startsWith("phone");
 const SIDE = { width: 874, height: 402 }; // iPhone 16 Pro on its side
 const SIDE_SMALL = { width: 667, height: 375 }; // iPhone SE on its side
-const SHOTS = "F:/Projects/SWU-wt/fr5-shots";
+const SIDE_LARGE = { width: 932, height: 430 }; // iPhone 16 Pro Max on its side
+const SIDE_LARGEST = { width: 960, height: 480 }; // a large Android phone on its side
 const PANEL = ".m-rotate";
 
 test.afterEach(async ({ page }, info) => {
@@ -40,7 +50,47 @@ const device = (page: Page) =>
     touchFirst: matchMedia("(hover: none) and (pointer: coarse)").matches,
     w: innerWidth,
     h: innerHeight,
+    sw: screen.width,
+    sh: screen.height,
   }));
+
+type Metrics = {
+  viewport: { width: number; height: number };
+  screen: { width: number; height: number };
+  landscape: boolean;
+};
+/** Viewport and screen set separately (CDP). Returns the session; undo with
+ * `restore`. */
+async function setDevice(page: Page, m: Metrics) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: m.viewport.width,
+    height: m.viewport.height,
+    deviceScaleFactor: 3,
+    mobile: true,
+    screenWidth: m.screen.width,
+    screenHeight: m.screen.height,
+    screenOrientation: m.landscape
+      ? { type: "landscapePrimary", angle: 90 }
+      : { type: "portraitPrimary", angle: 0 },
+  });
+  await expect.poll(async () => (await device(page)).h).toBe(m.viewport.height);
+  const d = await device(page);
+  expect([d.w, d.h, d.sw, d.sh], "harness: viewport and screen as set").toEqual([
+    m.viewport.width,
+    m.viewport.height,
+    m.screen.width,
+    m.screen.height,
+  ]);
+  expect(d.type).toMatch(m.landscape ? /^landscape/ : /^portrait/);
+  expect(d.touchFirst, "harness: touch-first").toBe(true);
+  return cdp;
+}
+/** Back to the project's own viewport (Playwright re-applies its override). */
+async function restore(page: Page, upright: { width: number; height: number }) {
+  await page.setViewportSize({ width: upright.width + 1, height: upright.height });
+  await page.setViewportSize(upright);
+}
 
 async function openVault(page: Page, hash = "#/vault") {
   await page.goto("/" + hash);
@@ -53,7 +103,10 @@ async function turn(page: Page, size: { width: number; height: number }) {
   await page.setViewportSize(size);
   const side = size.width > size.height;
   await expect(page.locator(PANEL)).toHaveCount(side ? 1 : 0);
-  expect((await device(page)).type).toMatch(side ? /^landscape/ : /^portrait/);
+  const d = await device(page);
+  expect(d.type).toMatch(side ? /^landscape/ : /^portrait/);
+  // The harness reports the screen at the viewport's size.
+  expect([d.sw, d.sh], "harness: screen = viewport").toEqual([size.width, size.height]);
 }
 
 /** The panel fills the viewport, both lines are inside it and not cut, and
@@ -95,7 +148,8 @@ async function panelFit(page: Page) {
 }
 
 // ── (a) the panel ──────────────────────────────────────────────────────────
-for (const size of [SIDE, SIDE_SMALL]) {
+// (SIDE_LARGE / SIDE_LARGEST: review FR5 S5 -- large phones on their side.)
+for (const size of [SIDE, SIDE_SMALL, SIDE_LARGE, SIDE_LARGEST]) {
   test(`fr5-06-panel-${size.width}x${size.height}`, async ({ page }, info) => {
     test.skip(!PHONE(info.project.name), "phone projects");
     await openVault(page);
@@ -124,8 +178,6 @@ for (const size of [SIDE, SIDE_SMALL]) {
     expect(await panel.evaluate((e) => getComputedStyle(e).opacity)).toBe("1");
 
     expect(await panelFit(page), "fits, normal text").toEqual([]);
-    if (size === SIDE)
-      await page.screenshot({ path: `${SHOTS}/fr5-06-rotate-${info.project.name}.png` });
     // The whole-pixel text condition (the panel is a <body> child).
     await wideText(page, PANEL);
     expect(await panelFit(page), "fits, wide text").toEqual([]);
@@ -350,38 +402,102 @@ test("fr5-06-tablet-touch-is-desktop", async ({ page }, info) => {
 // than tall is NOT on its side: the screen is still portrait.
 test("fr5-06-keyboard-shrunk-viewport-is-not-landscape", async ({ page }, info) => {
   test.skip(!PHONE(info.project.name), "phone projects");
+  // PORT (review FR5 S5, fix run 2026-10-12): same case and same expectations;
+  // the CDP call moved into `setDevice`, which also asserts the screen size.
   await openVault(page);
-  const cdp = await page.context().newCDPSession(page);
   // The viewport a 390-wide phone has left above its keyboard, with the
   // screen reported upright (Playwright alone would call 390 x 300 landscape).
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 390,
-    height: 300,
-    deviceScaleFactor: 3,
-    mobile: true,
-    screenWidth: 390,
-    screenHeight: 844,
-    screenOrientation: { type: "portraitPrimary", angle: 0 },
+  const cdp = await setDevice(page, {
+    viewport: { width: 390, height: 300 },
+    screen: { width: 390, height: 844 },
+    landscape: false,
   });
-  await expect.poll(async () => (await device(page)).h).toBe(300);
   const d = await device(page);
-  expect(d.type).toMatch(/^portrait/);
   expect(d.w).toBeGreaterThan(d.h);
   await page.waitForTimeout(250);
   await expect(page.locator(".m-app")).toBeVisible();
+  await expect(page.locator(".app-layout")).toHaveCount(0);
   await expect(page.locator(PANEL)).toHaveCount(0);
   // The same viewport with the screen on its side IS the rotate screen.
-  await cdp.send("Emulation.setDeviceMetricsOverride", {
-    width: 390,
-    height: 300,
-    deviceScaleFactor: 3,
-    mobile: true,
-    screenWidth: 844,
-    screenHeight: 390,
-    screenOrientation: { type: "landscapePrimary", angle: 90 },
+  await setDevice(page, {
+    viewport: { width: 390, height: 300 },
+    screen: { width: 844, height: 390 },
+    landscape: true,
   });
   await expect(page.locator(PANEL)).toHaveCount(1);
   await cdp.send("Emulation.clearDeviceMetricsOverride");
-  await page.setViewportSize({ width: 391, height: 844 });
+  await restore(page, info.project.use.viewport!);
+  await turn(page, info.project.use.viewport!);
+});
+
+// Review FR5 S5: a landscape TABLET whose on-screen keyboard shrinks the
+// layout viewport (1024 x 768 -> 1024 x 380). Under a viewport-height rule it
+// flipped to the phone app and showed the rotate screen mid-typing; the gate
+// reads the screen's short side (768), so nothing changes.
+test("fr5-06-tablet-keyboard-shrunk-viewport-stays-desktop", async ({ page }, info) => {
+  test.skip(!PHONE(info.project.name), "phone projects (touch)");
+  await openVault(page);
+  await page.setViewportSize({ width: 1024, height: 768 }); // tablet landscape
+  await expect(page.locator(".app-layout")).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { __fr506tab?: Element }).__fr506tab =
+      document.querySelector(".app-layout")!;
+  });
+  const cdp = await setDevice(page, {
+    viewport: { width: 1024, height: 380 },
+    screen: { width: 1024, height: 768 },
+    landscape: true,
+  });
+  await page.waitForTimeout(300); // long enough for a wrong gate to swap trees
+  await expect(page.locator(".app-layout")).toBeVisible();
+  await expect(page.locator(".m-app")).toHaveCount(0);
+  await expect(page.locator(PANEL)).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { __fr506tab?: Element }).__fr506tab ===
+        document.querySelector(".app-layout")
+    ),
+    "the same desktop tree: nothing re-mounted when the keyboard opened"
+  ).toBe(true);
+  await expect(page.locator("#root")).not.toHaveAttribute("inert", /.*/);
+  // A tablet upright with its keyboard up (768 x 420 of a 768 x 1024 screen).
+  await setDevice(page, {
+    viewport: { width: 768, height: 420 },
+    screen: { width: 768, height: 1024 },
+    landscape: false,
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator(".app-layout")).toBeVisible();
+  await expect(page.locator(".m-app")).toHaveCount(0);
+  await expect(page.locator(PANEL)).toHaveCount(0);
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await restore(page, info.project.use.viewport!);
+  await expect(page.locator(".m-row").first()).toBeVisible();
+  await expect(page.locator(PANEL)).toHaveCount(0);
+});
+
+// An iPhone does not swap screen.width / screen.height when it turns: on its
+// side the screen still reads 402 x 874. The short side is what the gate reads.
+test("fr5-06-iphone-screen-sizes-not-swapped-is-still-a-phone", async ({ page }, info) => {
+  test.skip(!PHONE(info.project.name), "phone projects");
+  await openVault(page);
+  const cdp = await setDevice(page, {
+    viewport: { width: 874, height: 402 },
+    screen: { width: 402, height: 874 },
+    landscape: true,
+  });
+  await expect(page.locator(PANEL)).toHaveCount(1);
+  await expect(page.locator(".m-app")).toHaveCount(1);
+  await expect(page.locator(".app-layout")).toHaveCount(0);
+  // Large phones: the viewport and screen 932 x 430, and 960 x 480.
+  for (const size of [SIDE_LARGE, SIDE_LARGEST]) {
+    await setDevice(page, { viewport: size, screen: size, landscape: true });
+    await expect(page.locator(PANEL), JSON.stringify(size)).toHaveCount(1);
+    await expect(page.locator(".m-app")).toHaveCount(1);
+    await expect(page.locator(".app-layout")).toHaveCount(0);
+  }
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await restore(page, info.project.use.viewport!);
   await turn(page, info.project.use.viewport!);
 });
