@@ -24,6 +24,62 @@ import type { Accepted } from "./scanLoop";
 /** rev4 MCamera.jsx:29. */
 export const HOLD_MS = 1500;
 
+// ── BL-257 FR5-03 (F-16): the camera-start focusing state ─────────────────
+// A phone camera starts blurry and may switch lens as it focuses, which moves
+// the picture; a card lined up before that is no longer on the guide. So from
+// every stream start the guide is drawn dim with "Focusing…" until the first
+// of: a frame the sharpness gate does not class as blurry (the meter's band is
+// not red), a card being read, or SETTLE_MS since the start (an empty table
+// never leaves the guide dim). It is display only: the loop reads throughout.
+// Once ended it stays ended until the next stream start -- a later blurry
+// frame is the meter's "Blurry" state, not this one. Pure: the controller
+// holds the state and supplies the clock.
+
+/** The longest the guide stays dim after a stream start. */
+export const SETTLE_MS = 3000;
+
+export interface SettleState {
+  /** Clock time of the stream start (null = no live stream). */
+  startedAt: number | null;
+  /** What ended it before the time limit, if anything did. */
+  endedBy: "sharp" | "read" | null;
+}
+
+export type SettleStatus = "off" | "settling" | "sharp" | "read" | "timeout";
+
+export const SETTLE_OFF: SettleState = { startedAt: null, endedBy: null };
+
+/** A stream went live at `now`: the state starts over. */
+export function settleStart(now: number): SettleState {
+  return { startedAt: now, endedBy: null };
+}
+
+/** Where the state stands at `now`. */
+export function settleStatus(s: SettleState, now: number): SettleStatus {
+  if (s.startedAt === null) return "off";
+  if (s.endedBy) return s.endedBy;
+  return now - s.startedAt >= SETTLE_MS ? "timeout" : "settling";
+}
+
+export function isSettling(s: SettleState, now: number): boolean {
+  return settleStatus(s, now) === "settling";
+}
+
+/** End it now for `by`; a no-op unless it is still settling at `now`. */
+export function settleEnd(s: SettleState, by: "sharp" | "read", now: number): SettleState {
+  return isSettling(s, now) ? { startedAt: s.startedAt, endedBy: by } : s;
+}
+
+/** A frame was measured at `now` with the meter's band: the first one that is
+ * not red ends the state; a red one never brings it back. */
+export function settleFrame(
+  s: SettleState,
+  band: "red" | "amber" | "green",
+  now: number
+): SettleState {
+  return band === "red" ? s : settleEnd(s, "sharp", now);
+}
+
 /** What the keypad resolver takes (Spec 24.1: the read fills set + number). */
 export interface Target {
   setCode: string;

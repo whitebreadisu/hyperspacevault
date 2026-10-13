@@ -97,6 +97,9 @@ test.describe("fake_v2_blur", () => {
   test.use({ clip: "fake_v2_blur" });
   test("s7-20-clips-resolve fake_v2_blur -> no read, Blurry", async ({ page }) => {
     await open(page);
+    // PORT (BL-257 FR5-03): a blurry picture reads "Focusing…" for the first
+    // 3 s after the stream starts; "Blurry" is what the meter says after it.
+    await expect(cam(page)).toHaveAttribute("data-settle", "timeout");
     await expect(page.locator(".m-meter .m-meter__word")).toHaveText("Blurry");
     await page.waitForTimeout(6000);
     expect(await ocrCalls(page), "a blurry frame is never read").toBe(0);

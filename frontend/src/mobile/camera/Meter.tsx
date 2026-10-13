@@ -14,7 +14,12 @@ import type { MeterBand } from "./imagePipeline";
 export const BLURRY_PHRASE = "Blurry — move back / closer";
 export const SMALL_PHRASE = "Too small — move closer";
 
+/** FR5-03 (F-16): the camera-start focusing state's word, with its hint. */
+export const FOCUSING_WORD = "Focusing…";
+export const FOCUSING_SUB = "Wait to line up";
+
 export type MeterMode =
+  | { kind: "focusing" }
   | { kind: "blurry" }
   | { kind: "small" }
   | { kind: "ok" }
@@ -27,6 +32,9 @@ function split(phrase: string): [string, string] {
 }
 
 export function meterWords(mode: MeterMode): { word: string; sub: string; label: string } {
+  // One fixed label for the whole focusing state: the live region says it once.
+  if (mode.kind === "focusing")
+    return { word: FOCUSING_WORD, sub: FOCUSING_SUB, label: FOCUSING_WORD };
   if (mode.kind === "blurry") {
     const [word, sub] = split(BLURRY_PHRASE);
     return { word, sub, label: BLURRY_PHRASE };

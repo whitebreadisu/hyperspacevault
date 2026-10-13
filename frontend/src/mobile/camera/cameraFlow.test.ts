@@ -2,8 +2,23 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import snapshot from "../../../e2e/mobile/fixtures/scan-catalog.snapshot.json";
 import { audioUnlock, beep, cueCounts, resetCueForTest } from "../tool/cue";
-import { CameraFlow, HOLD_MS, pickRows, programName, targetOf } from "./cameraFlow";
+import { CameraController } from "./cameraController";
+import {
+  CameraFlow,
+  HOLD_MS,
+  SETTLE_MS,
+  SETTLE_OFF,
+  isSettling,
+  pickRows,
+  programName,
+  settleEnd,
+  settleFrame,
+  settleStart,
+  settleStatus,
+  targetOf,
+} from "./cameraFlow";
 import type { FlowEffects } from "./cameraFlow";
+import { meterWords } from "./Meter";
 import { Catalog } from "./scanCore";
 import type { ScanCatalogData } from "./scanCore";
 import type { Accepted } from "./scanLoop";
@@ -299,5 +314,178 @@ describe("S7-17 cue + Fast add + hold", () => {
     expect(base).toMatch(/transition: opacity 0\.35s ease-out/);
     expect(on).toMatch(/opacity: 0\.45/);
     expect(on).toMatch(/transition: none/);
+  });
+});
+
+describe("FR5-03 camera-start focusing state (F-16)", () => {
+  const T0 = 10_000;
+
+  it("no stream: off", () => {
+    expect(settleStatus(SETTLE_OFF, T0)).toBe("off");
+    expect(isSettling(SETTLE_OFF, T0)).toBe(false);
+    // Nothing ends or frames a state that never started.
+    expect(settleFrame(SETTLE_OFF, "green", T0)).toBe(SETTLE_OFF);
+    expect(settleEnd(SETTLE_OFF, "read", T0)).toBe(SETTLE_OFF);
+  });
+
+  it("dim from the stream start, before either trigger; blurry frames keep it dim", () => {
+    let s = settleStart(T0);
+    expect(isSettling(s, T0)).toBe(true);
+    for (const t of [T0 + 80, T0 + 900, T0 + SETTLE_MS - 1]) {
+      s = settleFrame(s, "red", t);
+      expect(settleStatus(s, t)).toBe("settling");
+    }
+  });
+
+  it("clears at the first frame that is not blurry (amber or green)", () => {
+    for (const band of ["amber", "green"] as const) {
+      let s = settleStart(T0);
+      s = settleFrame(s, "red", T0 + 200);
+      expect(isSettling(s, T0 + 200)).toBe(true);
+      s = settleFrame(s, band, T0 + 640);
+      expect(settleStatus(s, T0 + 640)).toBe("sharp");
+      expect(isSettling(s, T0 + 640)).toBe(false);
+    }
+  });
+
+  it("clears at 3 s with no sharp frame", () => {
+    expect(SETTLE_MS).toBe(3000);
+    let s = settleStart(T0);
+    s = settleFrame(s, "red", T0 + 2990);
+    expect(settleStatus(s, T0 + 2999)).toBe("settling");
+    expect(settleStatus(s, T0 + 3000)).toBe("timeout");
+    expect(isSettling(s, T0 + 60_000)).toBe(false);
+    // A sharp frame after the limit does not rewrite how it ended.
+    expect(settleStatus(settleFrame(s, "green", T0 + 3500), T0 + 3500)).toBe("timeout");
+  });
+
+  it("a blurry frame after clearing does not dim it again", () => {
+    let s = settleFrame(settleStart(T0), "green", T0 + 300);
+    for (const t of [T0 + 400, T0 + 1000, T0 + 2500, T0 + 9000]) {
+      s = settleFrame(s, "red", t);
+      expect(isSettling(s, t)).toBe(false);
+      expect(settleStatus(s, t)).toBe("sharp");
+    }
+    // The same after the time limit.
+    let u = settleStart(T0);
+    u = settleFrame(u, "red", T0 + 3100);
+    expect(isSettling(u, T0 + 3100)).toBe(false);
+  });
+
+  it("a card read while dim ends it", () => {
+    const s = settleEnd(settleStart(T0), "read", T0 + 700);
+    expect(settleStatus(s, T0 + 700)).toBe("read");
+    // ... and a later sharp frame keeps that.
+    expect(settleStatus(settleFrame(s, "green", T0 + 800), T0 + 800)).toBe("read");
+  });
+
+  it("resets on a new stream start, whatever ended the last one", () => {
+    const ended = [
+      settleFrame(settleStart(T0), "green", T0 + 300),
+      settleEnd(settleStart(T0), "read", T0 + 300),
+      settleStart(T0), // times out
+    ];
+    for (const s of ended) {
+      expect(isSettling(s, T0 + 5000)).toBe(false);
+      const again = settleStart(T0 + 5000);
+      expect(isSettling(again, T0 + 5000)).toBe(true);
+      expect(isSettling(again, T0 + 7999)).toBe(true);
+      expect(settleStatus(again, T0 + 8000)).toBe("timeout");
+    }
+  });
+
+  it("the meter word: Focusing… with one fixed accessible label", () => {
+    expect(meterWords({ kind: "focusing" })).toEqual({
+      word: "Focusing…",
+      sub: "Wait to line up",
+      label: "Focusing…",
+    });
+  });
+
+  it("display only: no analytics event, toast or haptics in the settle code", () => {
+    const flow = readFileSync("src/mobile/camera/cameraFlow.ts", "utf8");
+    const settleSrc = flow.slice(flow.indexOf("FR5-03"), flow.indexOf("/** What the keypad"));
+    expect(settleSrc.length).toBeGreaterThan(500);
+    expect(settleSrc).not.toMatch(/scan[A-Z]\w*\(|capture\(|vibrate|toast/i);
+    const analytics = readFileSync("src/mobile/camera/scanAnalytics.ts", "utf8");
+    expect(analytics).not.toMatch(/settl|focusing/i);
+    // The read loop never looks at it: reading is not gated or delayed.
+    expect(readFileSync("src/mobile/camera/scanLoop.ts", "utf8")).not.toMatch(/settl/i);
+  });
+
+  it("the guide dims by opacity only and returns in 0.15 s; none under reduced motion (camera.css)", () => {
+    const css = readFileSync("src/mobile/camera/camera.css", "utf8");
+    const dim = /\.m-guide--settling \{([^}]*)\}/.exec(css)![1];
+    expect(dim.trim()).toBe("opacity: 0.45;");
+    const corner = /\.m-guide__corner \{([^}]*)\}/.exec(css)![1];
+    expect(corner).toMatch(/transition: opacity 0\.15s ease/);
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(/\.m-guide__corner \{([^}]*)\}/.exec(reduced)![1]).toMatch(/transition: none/);
+    expect(/\.m-guide__box \{([^}]*)\}/.exec(reduced)![1]).not.toMatch(/opacity/);
+  });
+});
+
+describe("FR5-03 controller: every stream start begins the focusing state", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const fakeStream = () => {
+    const track = { stop: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    return { getTracks: () => [track], getVideoTracks: () => [track] };
+  };
+  const scan = {
+    startReader: async () => ({ ok: true }),
+    reader: {},
+    fallback: {},
+  } as unknown as ConstructorParameters<typeof CameraController>[0];
+
+  it("settling on start, timeout at 3 s, off when stopped, settling again on Start", async () => {
+    vi.stubGlobal("navigator", {
+      mediaDevices: { getUserMedia: async () => fakeStream() },
+    });
+    const ctl = new CameraController(scan);
+    const seen: string[] = [];
+    ctl.subscribe(() => {
+      const s = ctl.getSnapshot().settle;
+      if (seen[seen.length - 1] !== s) seen.push(s);
+    });
+    expect(ctl.getSnapshot().settle).toBe("off");
+    ctl.startStream();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ctl.getSnapshot().stream.kind).toBe("live");
+    expect(ctl.getSnapshot().settle).toBe("settling");
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(ctl.getSnapshot().settle).toBe("settling");
+    await vi.advanceTimersByTimeAsync(200);
+    expect(ctl.getSnapshot().settle).toBe("timeout");
+    // The page hides: the stream pauses, the state is off.
+    ctl.stream.stop("paused");
+    expect(ctl.getSnapshot().settle).toBe("off");
+    // Start after "Camera paused": the state begins again.
+    ctl.startStream();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ctl.getSnapshot().settle).toBe("settling");
+    // A card read while dim ends it (the found prompt takes over).
+    ctl.flow.ambiguous(
+      {
+        best: { key: "K", cards: [], reason: "two_cards" },
+      } as unknown as Parameters<typeof ctl.flow.ambiguous>[0],
+      "two_cards"
+    );
+    expect(ctl.getSnapshot().phase.kind).toBe("pick");
+    expect(ctl.getSnapshot().settle).toBe("read");
+    // ... and no timer brings anything back later.
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(ctl.getSnapshot().settle).toBe("read");
+    ctl.stream.stop();
+    ctl.loop.stop();
+    ctl.flow.dispose();
+    // ("off" first: the stream's "starting" notice arrives before it is live.)
+    expect(seen).toEqual(["off", "settling", "timeout", "off", "settling", "read", "off"]);
   });
 });

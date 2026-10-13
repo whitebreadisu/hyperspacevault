@@ -235,6 +235,41 @@ export async function wideText(page: Page): Promise<boolean> {
   });
 }
 
+/** Rendered colours [r, g, b] at viewport points given in CSS px (FR5-02).
+ * One viewport screenshot at the device scale, decoded on a blank page of the
+ * same context (the page under test may forbid data: images), each point read
+ * from the device pixel that contains it. */
+export async function samplePixels(
+  page: Page,
+  points: { x: number; y: number }[]
+): Promise<[number, number, number][]> {
+  const png = (await page.screenshot({ type: "png", scale: "device" })).toString("base64");
+  const css = await page.evaluate(() => innerWidth);
+  const pad = await page.context().newPage();
+  try {
+    return await pad.evaluate(
+      async ({ png, points, css }) => {
+        const img = new Image();
+        img.src = "data:image/png;base64," + png;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        const g = c.getContext("2d")!;
+        g.drawImage(img, 0, 0);
+        const k = img.naturalWidth / css;
+        return points.map((p) => {
+          const d = g.getImageData(Math.floor(p.x * k), Math.floor(p.y * k), 1, 1).data;
+          return [d[0], d[1], d[2]] as [number, number, number];
+        });
+      },
+      { png, points, css }
+    );
+  } finally {
+    await pad.close();
+  }
+}
+
 /** Centre of the first element matching `sel` (rev4 check script `center`). */
 export async function center(page: Page, sel: string): Promise<{ x: number; y: number }> {
   const b = await page.locator(sel).first().boundingBox();
