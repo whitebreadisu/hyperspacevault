@@ -11,6 +11,7 @@ import { recorderFor } from "./mock-api";
 test.use({ storageState: "e2e/.auth/phone.json" });
 
 const LIMITS = "**/api/settings/limits";
+const LIMITS_ENTRY = /^GET .*\/api\/settings\/limits$/;
 const MSG = "Failed to fetch inventory limits: TypeError: Failed to fetch";
 
 /** Hold the first limits read until `release()`; later reads pass through. */
@@ -102,13 +103,16 @@ test.describe("health check ignores a read the test's own navigation aborted", (
     await page.goto("/?bl255=1#/vault"); // new document: aborts it
     release();
     const rec = recorderFor(page);
-    // The abort, and the app's log of it, both arrive after goto returns.
-    await expect.poll(() => rec.navAborted.length).toBe(2);
+    // The abort, and the app's log of it, both arrive after goto returns. The
+    // desktop tree starts more reads than the phone tree (sets, shared limits),
+    // and every one the navigation aborts is rightly excused: so assert on the
+    // read under test and its message, never on how many entries there are.
+    await expect.poll(() => rec.navAborted.some((e) => LIMITS_ENTRY.test(e))).toBe(true);
+    await expect.poll(() => rec.navAborted.includes("console: " + MSG)).toBe(true);
+    await page.waitForLoadState("networkidle"); // other aborted reads have settled
     await measure(page);
     expect(rec.consoleErrors).toEqual([]);
     expect(rec.failed).toEqual([]);
-    expect(rec.navAborted[0]).toMatch(/GET .*\/api\/settings\/limits/);
-    expect(rec.navAborted[1]).toBe("console: " + MSG);
   });
 
   test("one aborted read excuses one message, not two", async ({ page }) => {
@@ -118,10 +122,17 @@ test.describe("health check ignores a read the test's own navigation aborted", (
     await page.goto("/?bl255=2#/vault");
     release();
     const rec = recorderFor(page);
-    await expect.poll(() => rec.navAborted.length).toBe(2);
+    const limitsAborts = () => rec.navAborted.filter((e) => LIMITS_ENTRY.test(e)).length;
+    const limitsLogs = () => rec.navAborted.filter((e) => e === "console: " + MSG).length;
+    // The held read was aborted and its own message excused. Each aborted
+    // request excuses at most one message, and the app logs each one.
+    await expect.poll(limitsAborts).toBeGreaterThan(0);
+    await expect.poll(() => limitsLogs() - limitsAborts()).toBe(0);
+    expect(limitsLogs()).toBeLessThanOrEqual(limitsAborts());
     await page.waitForLoadState("networkidle");
-    await page.evaluate((m) => console.error(m), MSG); // a second, unexplained one
-    await expect.poll(() => rec.consoleErrors.length).toBe(1);
+    await page.evaluate((m) => console.error(m), MSG); // one more, unexplained
+    await expect.poll(() => rec.consoleErrors).toEqual([MSG]);
+    expect(limitsLogs()).toBeLessThanOrEqual(limitsAborts());
     await expect(measure(page)).rejects.toThrow(/console errors/);
   });
 });
