@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Page, Route } from "@playwright/test";
+import type { Page, Request, Route } from "@playwright/test";
 import { scanCards } from "./scan-fixture";
 
 // BL-247 S1-10: the API double for the mobile e2e suite. Every /api/** and
@@ -49,6 +49,9 @@ export interface Recorder {
    * the harness (stubExternal). Each one was aborted, and the shared `page`
    * fixture fails the test that made it. */
   external: string[];
+  /** BL-255 part 5: reads (and the app's log of them) that the page's own
+   * navigation aborted -- excused from `failed` / `consoleErrors`, kept here. */
+  navAborted: string[];
 }
 
 // ── BL-255 part 2: the suite never talks to the internet ───────────────────
@@ -126,6 +129,156 @@ export async function stubExternal(page: Page, external: string[]): Promise<void
   });
 }
 
+// ── BL-255 part 5: reads aborted by the test's own navigation ──────────────
+// Since the suite is hermetic (part 2) Firebase Auth resolves at once, so the
+// app starts its signed-in API reads (limits, sets, ...) the moment a document
+// loads. A test that navigates again straight away (page.goto / page.reload)
+// aborts those reads in the browser. Two things then reach the health check:
+//   1. the request ends `requestfailed` with net::ERR_ABORTED, same origin
+//      (counted in `failed`, which only excuses images / third parties), and
+//   2. the app's own catch logs console.error("Failed to fetch inventory
+//      limits:", TypeError: Failed to fetch) (LimitsContext, FilterPanel,
+//      CardsPage) -- counted in `consoleErrors`.
+// Both are artefacts of the test leaving the document, not of the app failing.
+//
+// The rule, deliberately narrow so it cannot hide a real failure:
+//  - A request is "navigation-aborted" only if ALL hold: it is a main-frame
+//    fetch / xhr to this machine and an /api/ path (or the Auth emulator's own
+//    token calls); it ended net::ERR_ABORTED; and a main-frame NAVIGATION
+//    request had been issued by then that had not yet committed its document
+//    (or committed after this request started). The comparison is on one
+//    event counter, not on clocks. (A request can START after the navigation
+//    request is issued: the old document keeps running until the new one
+//    commits -- seen on CI-like load.) A 4xx/5xx, route.abort() ("failed"), a
+//    refused connection, or an ERR_ABORTED with no navigation pending is not
+//    excused and is recorded as before.
+//  - A console error is excused only if it is one of the app's three
+//    read-failure messages, ends in "TypeError: Failed to fetch" (what fetch()
+//    throws for an abort), AND there is a navigation-aborted request for the
+//    path that message names, that started before the message, not already
+//    claimed by an earlier message (one request excuses one message). Any other
+//    console error text, or a second message for the same request, stays.
+// Excused entries move to `rec.navAborted`, so they stay visible to a test.
+const READ_LOG: { message: RegExp; path: RegExp }[] = [
+  {
+    message: /^Failed to fetch inventory limits: TypeError: Failed to fetch(\n|$)/,
+    path: /^\/api\/settings\/limits$/,
+  },
+  {
+    message: /^Failed to fetch shared vault limits: TypeError: Failed to fetch(\n|$)/,
+    path: /^\/api\/shared\/[^/]+\/limits$/,
+  },
+  {
+    message: /^Failed to load sets: TypeError: Failed to fetch(\n|$)/,
+    path: /^\/api\/sets$/,
+  },
+];
+
+interface Aborted {
+  path: string;
+  startSeq: number;
+  claimed: boolean;
+}
+
+/** A main-frame document request: issued at `req`, and not yet `done` (its
+ * document committed, or the request itself failed) until `commit` is set. */
+interface Nav {
+  req: number;
+  url: string;
+  commit: number | null;
+}
+
+const noFragment = (u: string): string => u.split("#")[0];
+
+class NavAbortLedger {
+  private seq = 0;
+  private started = new Map<Request, number>();
+  private navs: Nav[] = [];
+  private navOf = new Map<Request, Nav>();
+  private aborted: Aborted[] = [];
+  private consoleSeen: { text: string; seq: number }[] = [];
+
+  constructor(
+    private page: Page,
+    private rec: Recorder
+  ) {}
+
+  onRequest(r: Request): void {
+    const n = ++this.seq;
+    this.started.set(r, n);
+    if (r.isNavigationRequest() && this.isMain(r)) {
+      const nav = { req: n, url: noFragment(r.url()), commit: null };
+      this.navs.push(nav);
+      this.navOf.set(r, nav);
+    }
+  }
+
+  /** The main frame committed a document at `url` (a same-document hash change
+   * the app made itself has a different fragment-less URL, or none pending). */
+  onFrameNavigated(url: string): void {
+    const n = ++this.seq;
+    const nav = this.navs.find((x) => x.commit === null && x.url === noFragment(url));
+    if (nav) nav.commit = n;
+  }
+
+  /** True when `r` is a read the page's own navigation aborted. */
+  onRequestFailed(r: Request): boolean {
+    const end = ++this.seq;
+    const nav = this.navOf.get(r);
+    if (nav && nav.commit === null) nav.commit = end; // the navigation itself failed: no longer pending
+    const start = this.started.get(r);
+    if (start === undefined || r.failure()?.errorText !== "net::ERR_ABORTED") return false;
+    if (r.resourceType() !== "fetch" && r.resourceType() !== "xhr") return false;
+    const url = new URL(r.url());
+    if (!LOCAL_HOSTS.has(url.hostname) || !this.isMain(r)) return false;
+    const api = url.pathname.startsWith("/api/");
+    const authEmulator =
+      url.port === "9099" &&
+      /^\/(identitytoolkit|securetoken)\.googleapis\.com\//.test(url.pathname);
+    if (!api && !authEmulator) return false;
+    // Aborted by a navigation: one was requested before this failure and either
+    // had not committed yet, or committed after this request started.
+    if (!this.navs.some((x) => x.req < end && (x.commit === null || x.commit > start)))
+      return false;
+    if (api) this.aborted.push({ path: url.pathname, startSeq: start, claimed: false });
+    this.rec.navAborted.push(`${r.method()} ${r.url()}`);
+    this.reconcile();
+    return true;
+  }
+
+  onConsoleError(text: string): void {
+    this.consoleSeen.push({ text, seq: ++this.seq });
+    this.reconcile();
+  }
+
+  private isMain(r: Request): boolean {
+    try {
+      return r.frame() === this.page.mainFrame();
+    } catch {
+      return false; // a request with no frame (service worker): never excused
+    }
+  }
+
+  /** Move every console error that a navigation-aborted read explains out of
+   * `rec.consoleErrors`. Re-run on each event, because the console message can
+   * reach us before the `requestfailed` that explains it. */
+  private reconcile(): void {
+    for (const c of [...this.consoleSeen]) {
+      const rule = READ_LOG.find((l) => l.message.test(c.text));
+      if (!rule) continue;
+      const hit = this.aborted.find(
+        (a) => !a.claimed && a.startSeq < c.seq && rule.path.test(a.path)
+      );
+      if (!hit) continue;
+      hit.claimed = true;
+      this.consoleSeen.splice(this.consoleSeen.indexOf(c), 1);
+      const i = this.rec.consoleErrors.indexOf(c.text);
+      if (i >= 0) this.rec.consoleErrors.splice(i, 1);
+      this.rec.navAborted.push(`console: ${c.text.split("\n")[0]}`);
+    }
+  }
+}
+
 export interface ImportFile {
   format_version: string;
   cards: {
@@ -164,6 +317,7 @@ export const recorderFor = (page: Page): Recorder =>
     exports: [],
     sharedReads: [],
     external: [],
+    navAborted: [],
   };
 
 /** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
@@ -203,16 +357,24 @@ export async function installApiMocks(
     exports: [],
     sharedReads: [],
     external: [],
+    navAborted: [],
   };
   recorders.set(page, rec);
   await stubExternal(page, rec.external);
 
   page.on("pageerror", (e) => rec.pageErrors.push(String(e)));
+  // BL-255 part 5: reads the TEST's own navigation aborted are not failures
+  // (rule and limits: NavAbortLedger, above).
+  const ledger = new NavAbortLedger(page, rec);
+  page.on("request", (r) => ledger.onRequest(r));
+  page.on("framenavigated", (f) => f === page.mainFrame() && ledger.onFrameNavigated(f.url()));
   page.on("console", (m) => {
     // onnxruntime-web logs this CPU-detection line as console.error on every
     // load; the BL-238 spike filtered it too (smoke_test.js). Not an app error.
-    if (m.type() === "error" && !/Unknown CPU vendor/.test(m.text()))
+    if (m.type() === "error" && !/Unknown CPU vendor/.test(m.text())) {
       rec.consoleErrors.push(m.text());
+      ledger.onConsoleError(m.text());
+    }
   });
   page.on("requestfailed", (r) => {
     // S1-19: an image the virtualised list unmounts (or a navigation drops)
@@ -226,6 +388,8 @@ export async function installApiMocks(
     // BL-255: a request the hermetic catch-all aborted is reported once, by
     // name, through `rec.external` (not a second time as a failed request).
     if (r.failure()?.errorText === "net::ERR_BLOCKED_BY_CLIENT") return;
+    // BL-255 part 5: an /api/ read the page's own navigation aborted.
+    if (ledger.onRequestFailed(r)) return;
     // A reload/navigation aborts in-flight third-party pixels (e.g. google.com
     // cleardot.gif) -- noise. Only same-origin (the app's localhost) aborts count.
     if (r.failure()?.errorText === "net::ERR_ABORTED") {
