@@ -1,4 +1,4 @@
-import { expect, measureEach, test } from "./helpers";
+import { expect, holdFacts, measureEach, recordHolds, test } from "./helpers";
 import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 
 // S7-17: Fast add (header toggle, remembered in hsv.scan.v1): one read = one
@@ -13,6 +13,7 @@ test.afterEach(measureEach);
 type ScanWin = { __scan: { cues: { beeps: number } }; __flashes?: number; __vibrations?: number };
 
 test("s7-17-fast-add-hold", async ({ page }) => {
+  await recordHolds(page);
   await installFakeScanner(page, { read: null });
   await openScanCamera(page);
   const fast = page.locator(".m-tool__fast");
@@ -32,12 +33,16 @@ test("s7-17-fast-add-hold", async ({ page }) => {
   await page.evaluate((t) => {
     window.__fakeRead = t; // the card stays in frame for the rest of the test
   }, "SOR • EN 100/252");
-  await expect(cam).toHaveAttribute("data-phase", "hold");
-  await expect(n).toHaveText("1");
+  // PORT (BL-255 part 3): the hold panel is read at once by the recorder (the
+  // 1 s hold is shorter than five sequential round trips on a busy machine);
+  // the same five facts, the same values.
+  const h = await holdFacts(page);
+  expect(h.phase).toBe("hold");
+  expect(h.count).toBe("1");
   // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
-  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
-  await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
-  await expect(page.locator(".m-cam__panel .m-ident__add .swu-btn")).toHaveCount(0);
+  expect(h.holdtxt).toBe("Fast add · next card in 1 s");
+  expect(h.added).toContain("In batch 1");
+  expect(h.addBtns).toBe(0);
   await expect(cam).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
   // Same card still in frame: never a second copy. (BL-262, owner 2026-10-13:
   // the 3 s same-card wait after an add is gone -- this now rests on the

@@ -341,6 +341,157 @@ export async function wideText(page: Page, root = ".m-app"): Promise<boolean> {
   }, root);
 }
 
+/** Everything the camera panel shows during one Fast-add / prompt-mode HOLD,
+ * read in the one synchronous callback that sees the phase become `hold`. */
+export interface HoldFacts {
+  phase: string | null;
+  count: string | null;
+  name: string | null;
+  meta: string | null;
+  code: string | null;
+  added: string | null;
+  holdtxt: string | null;
+  addBtns: number;
+  readouts: number;
+  verifyBtn: string | null;
+  verifyEmpty: boolean;
+  /** Every phase entered so far, in order, as of this hold (ends with `hold`). */
+  phaseLog: string[];
+  frameSrc: string | null;
+  barDuration: string | null;
+  /** With `fit`: the label's fit before and after the CI text condition (+0.7 px letter-spacing). */
+  fit?: Record<
+    "normal" | "wide",
+    { lines: number; right: number; limit: number; bar: number } | null
+  >;
+}
+declare global {
+  interface Window {
+    __holds?: HoldFacts[];
+  }
+}
+
+/** Record the hold panel atomically, per hold. Call BEFORE the page loads.
+ *
+ * Root cause (BL-255 part 3): a hold lasts only HOLD_MS = 1 s, and a test that
+ * checks the panel with several sequential awaits (each a round trip to the
+ * browser) outlives it whenever the machine is busy -- the scanner is back to
+ * `searching`, the panel is gone, and a later check finds nothing. So the
+ * facts are read once, synchronously, in the MutationObserver callback that
+ * sees `data-phase` become `hold` (and again on the next frame, replacing the
+ * first when the hold is still up), and the test asserts on that object with
+ * `holdFacts`. `wrongAt: n` also taps "Wrong card" in the same callback of the
+ * n-th hold (0-based), for tests that must act INSIDE the hold. */
+export async function recordHolds(page: Page, opts: { fit?: boolean; wrongAt?: number } = {}) {
+  await page.addInitScript((o) => {
+    window.__holds = [];
+    const log: string[] = [];
+    const txt = (sel: string) => {
+      const e = document.querySelector(sel);
+      return e ? (e.textContent ?? "").replace(/\s+/g, " ").trim() : null;
+    };
+    const fitOf = () => {
+      const t = document.querySelector(".m-cam__holdtxt");
+      const bar = document.querySelector(".m-cam__holdbar");
+      const inner = document.querySelector(".m-cam__panelin");
+      if (!t || !bar || !inner) return null;
+      const range = document.createRange();
+      range.selectNodeContents(t);
+      const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+      const cs = getComputedStyle(inner);
+      return {
+        lines: tops.size,
+        right: t.getBoundingClientRect().right,
+        limit: inner.getBoundingClientRect().right - parseFloat(cs.paddingRight),
+        bar: bar.getBoundingClientRect().width,
+      };
+    };
+    // Same rule as wideText() above, for the elements inside the camera panel.
+    const widen = () => {
+      const c = document.createElement("canvas").getContext("2d")!;
+      const snapped = [13, 14, 15, 17].every((px) => {
+        c.font = `600 ${px}px "Barlow Condensed"`;
+        return Number.isInteger(c.measureText("Whole box 2 decks").width);
+      });
+      if (snapped) return;
+      for (const el of document.querySelectorAll<HTMLElement>(".m-app *")) {
+        if (el.dataset.wideText) continue;
+        const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim());
+        const cs = getComputedStyle(el);
+        if (!own || !cs.fontFamily.includes("Barlow Condensed")) continue;
+        const now = parseFloat(cs.letterSpacing) || 0;
+        el.style.setProperty("letter-spacing", `${now + 0.7}px`, "important");
+        el.dataset.wideText = "1";
+      }
+    };
+    const read = (): HoldFacts => {
+      const cam = document.querySelector(".m-cam");
+      const logbtn = document.querySelector(".m-cam__bar .m-logbtn");
+      const facts: HoldFacts = {
+        phase: cam?.getAttribute("data-phase") ?? null,
+        count: txt(".m-cam__bar .m-logbtn__n"),
+        name: txt(".m-cam__panel .m-ident__name"),
+        meta: txt(".m-cam__panel .m-ident__meta"),
+        code: txt(".m-cam__panel .m-cam__code"),
+        added: txt(".m-ident__added"),
+        holdtxt: txt(".m-cam__holdtxt"),
+        addBtns: document.querySelectorAll(".m-cam__panel .m-ident__add .swu-btn").length,
+        readouts: document.querySelectorAll(".m-cam__panel .m-readout").length,
+        verifyBtn: txt(".m-cam__bar .m-logbtn"),
+        verifyEmpty: !!logbtn?.classList.contains("m-logbtn--empty"),
+        phaseLog: log.slice(),
+        frameSrc:
+          document.querySelector(".m-cam__panel .m-ident__frame img")?.getAttribute("src") ?? null,
+        barDuration: (() => {
+          const b = document.querySelector(".m-cam__holdbar");
+          return b ? getComputedStyle(b).animationDuration : null;
+        })(),
+      };
+      if (o.fit) {
+        const normal = fitOf();
+        widen();
+        facts.fit = { normal, wide: fitOf() };
+      }
+      return facts;
+    };
+    new MutationObserver((ms) => {
+      for (const m of ms) {
+        const el = m.target as HTMLElement;
+        if (!el.classList?.contains("m-cam")) continue;
+        const ph = el.getAttribute("data-phase");
+        if (ph && ph !== m.oldValue) log.push(ph);
+        if (el.getAttribute("data-phase") !== "hold" || m.oldValue === "hold") continue;
+        const i = window.__holds!.length;
+        window.__holds!.push(read());
+        if (o.wrongAt === i)
+          (document.querySelector(".m-cam__wrong") as HTMLElement | null)?.click();
+        else if (!o.fit)
+          // (`fit` widens the glyphs once, so it is read once.)
+          requestAnimationFrame(() => {
+            if (document.querySelector(".m-cam")?.getAttribute("data-phase") === "hold")
+              window.__holds![i] = read();
+          });
+      }
+    }).observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-phase"],
+      attributeOldValue: true,
+    });
+  }, opts);
+}
+
+/** The facts of the n-th hold (0-based), waiting for it to have started. */
+export async function holdFacts(page: Page, n = 0, timeout?: number): Promise<HoldFacts> {
+  await expect
+    .poll(() => page.evaluate((i) => window.__holds?.[i] != null, n), {
+      message: `hold #${n} never started`,
+      timeout,
+    })
+    .toBe(true);
+  return page.evaluate((i) => window.__holds![i], n);
+}
+
 /** Rendered colours [r, g, b] at viewport points given in CSS px (FR5-02).
  * One viewport screenshot at the device scale, decoded on a blank page of the
  * same context (the page under test may forbid data: images), each point read
