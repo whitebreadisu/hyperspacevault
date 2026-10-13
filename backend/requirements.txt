@@ -2,10 +2,10 @@
 # Test/lint tooling lives in requirements-dev.txt; the Dockerfile's `runtime`
 # stage installs only this file.
 fastapi==0.141.1
-uvicorn[standard]==0.52.1
-sqlalchemy==2.0.51
+uvicorn[standard]==0.54.0
+sqlalchemy==2.0.54
 psycopg2-binary==2.9.12
-alembic==1.18.5
+alembic==1.20.0
 pydantic==2.13.4
 httpx==0.28.1
 # BL-54 S2 (§7.2): POST /api/inventory/import is multipart (file + form
@@ -21,7 +21,7 @@ firebase-admin==7.5.0
 # httpx above); adds ~15MB (Pillow) + ~5MB (google-cloud-storage + grpc/
 # protobuf deps) to the image.
 Pillow==12.3.0
-google-cloud-storage==3.13.0
+google-cloud-storage==3.17.0
 # BL-136 P3: tcgcsv's daily price-history archives are 7z containers using
 # the PPMd compression method (`prices-YYYY-MM-DD.ppmd.7z`) -- stdlib
 # `lzma`/`zipfile` cannot read the 7z container format at all, and PPMd
