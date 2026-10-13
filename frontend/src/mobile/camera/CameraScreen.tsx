@@ -15,6 +15,7 @@ import { Identified, VerifyButton } from "../tool/Pad";
 import { padReadout, padView, toCatalog } from "../tool/padModel";
 import { OFFSET_LIMIT_MM, setScanSettings, useScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, setToolMode, useToolState } from "../tool/toolStore";
+import { usePhoneSideways } from "../useIsPhone";
 import { HOLD_MS, programName } from "./cameraFlow";
 import type { Phase, PickRow } from "./cameraFlow";
 import { CameraController } from "./cameraController";
@@ -445,8 +446,11 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
     return () => document.removeEventListener("pointerdown", on, { capture: true });
   }, []);
 
-  // Reading pauses while anything is over the preview.
-  const blocked = covered || busy || alignOpen;
+  // Reading pauses while anything is over the preview. FR5-06: the rotate
+  // screen (a phone on its side) is one more cover -- the read loop pauses,
+  // the stream keeps running, so turning upright restarts nothing.
+  const sideways = usePhoneSideways();
+  const blocked = covered || busy || alignOpen || sideways;
   useEffect(() => {
     ctl.setBlocked(blocked);
   }, [ctl, blocked, phase.kind]);
@@ -531,6 +535,7 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
       data-phase={phase.kind}
       data-stream={streamState.kind}
       data-settle={snap.settle}
+      data-reading={blocked ? "paused" : "on"}
     >
       <div className={"m-camflash" + (flashOn ? " m-camflash--on" : "")} aria-hidden="true" />
       <div className="m-cam__stage">

@@ -31,6 +31,16 @@ describe("S1-11 layout super-property", () => {
     expect(posthog.register).toHaveBeenLastCalledWith({ layout: "desktop" });
   });
 
+  // BL-257 FR5-06: the mirrored literal IS the gate's query (a phone held on
+  // its side reports `phone`), and it is the string the brief names.
+  it("FR5-06: analytics uses the same media query as the phone gate", async () => {
+    const { PHONE_MEDIA_QUERY } = await import("./analytics");
+    expect(PHONE_MEDIA_QUERY).toBe(PHONE_QUERY);
+    expect(PHONE_QUERY).toBe(
+      "(max-width: 767px), ((max-height: 500px) and (hover: none) and (pointer: coarse))"
+    );
+  });
+
   it("registers layout: desktop by default", async () => {
     const { initAnalytics } = await import("./analytics");
     initAnalytics();

@@ -105,8 +105,11 @@ export const VIEW_MODE_CHANGED_MODES = [
 export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
 
 /** Same media query the phone gate uses (mobile/useIsPhone.ts PHONE_QUERY);
- * duplicated as a literal so the analytics seam imports nothing from the UI. */
-const PHONE_MEDIA_QUERY = "(max-width: 767px)";
+ * duplicated as a literal so the analytics seam imports nothing from the UI
+ * (analytics.layout.test.ts pins the two equal). BL-257 FR5-06: narrow, OR a
+ * short touch-first screen -- a phone held on its side reports `phone`. */
+export const PHONE_MEDIA_QUERY =
+  "(max-width: 767px), ((max-height: 500px) and (hover: none) and (pointer: coarse))";
 
 function currentLayout(): "phone" | "desktop" {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "desktop";

@@ -63,7 +63,8 @@ export function bootScan(): ScanDebug {
   // tool layer's camera slot (the main document never registers one).
   registerCameraScreen(bindCameraScreen(window.__scan ?? dbg));
   // The Paddle download starts when the camera screen mounts (the controller
-  // calls startReader), never from the route alone: at >= 768 px the camera
-  // route renders the desktop tree and nothing is fetched.
+  // calls startReader), never from the route alone: where the phone
+  // gate does not match (a desktop window or a tablet, useIsPhone.ts) the
+  // camera route renders the desktop tree and nothing is fetched.
   return dbg;
 }

@@ -19,7 +19,8 @@ const IPHONE_UA =
 
 export const PORTRAIT = { width: 390, height: 844 };
 export const LANDSCAPE = { width: 844, height: 390 };
-/** A landscape phone the S1 gate (max-width 767 px) still treats as a phone. */
+/** A small phone on its side. Both landscape sizes are the phone app behind
+ * the rotate screen (BL-257 FR5-06: the gate is narrow OR short + touch). */
 export const LANDSCAPE_PHONE = { width: 667, height: 375 };
 
 export const clipPath = (name: string) => resolve(CLIP_DIR, `${name}.mjpeg`);

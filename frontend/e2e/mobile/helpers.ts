@@ -214,15 +214,16 @@ export async function measureEach({ page }: { page: Page }): Promise<void> {
  * false: that run IS the condition. One shot -- call it again after the app
  * re-renders the elements under test. A text fit asserted before and after
  * this call holds on both kinds of platform, whichever one runs the suite. */
-export async function wideText(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
+export async function wideText(page: Page, root = ".m-app"): Promise<boolean> {
+  // `root`: FR5-06's rotate screen is a <body> child beside `.m-app`.
+  return page.evaluate((root) => {
     const c = document.createElement("canvas").getContext("2d")!;
     const snapped = [13, 14, 15, 17].every((px) => {
       c.font = `600 ${px}px "Barlow Condensed"`;
       return Number.isInteger(c.measureText("Whole box 2 decks").width);
     });
     if (snapped) return false;
-    for (const el of document.querySelectorAll<HTMLElement>(".m-app *")) {
+    for (const el of document.querySelectorAll<HTMLElement>(root + " *")) {
       if (el.dataset.wideText) continue;
       const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim());
       const cs = getComputedStyle(el);
@@ -232,7 +233,7 @@ export async function wideText(page: Page): Promise<boolean> {
       el.dataset.wideText = "1";
     }
     return true;
-  });
+  }, root);
 }
 
 /** Rendered colours [r, g, b] at viewport points given in CSS px (FR5-02).

@@ -1,0 +1,69 @@
+/* BL-257 FR5-06: the rotate screen (a phone held on its side). A <body>
+ * child, not inside .m-app, so nothing here is scoped to .m-app and the
+ * safe-area insets are read directly. Above every phone layer: the sheets and
+ * the title chooser (100), the discard confirm (120), the busy overlay (300).
+ * Page background = the app frame's (mobile.css .m-app). Title = the sheet
+ * title's label style (sheet.css .m-sheet__title). */
+
+.m-rotate {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  overflow: hidden;
+  background-color: var(--bg-page, #090b14);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+  color: var(--color-text);
+  text-align: center;
+  animation: m-rotate-in 0.15s ease;
+}
+
+.m-rotate__glyph {
+  flex: none;
+  margin-bottom: 6px;
+  color: rgba(211, 211, 212, 0.5);
+}
+
+.m-rotate__title {
+  margin: 0;
+  max-width: 100%;
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.m-rotate__sub {
+  margin: 0;
+  max-width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+@keyframes m-rotate-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-rotate {
+    animation: none;
+  }
+}

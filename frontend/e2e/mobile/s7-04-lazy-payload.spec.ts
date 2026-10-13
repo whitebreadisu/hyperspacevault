@@ -70,8 +70,10 @@ test("s7-04-lazy-payload", async ({ page }) => {
   expect(tess.some((p) => p.startsWith("core/tesseract-core"))).toBe(true);
 });
 
-// S7-F3: the route alone fetches nothing. At >= 768 px /scan/#/camera renders
-// the desktop tree (no camera screen mounts), so no reader payload is requested.
+// S7-F3: the route alone fetches nothing. At a desktop / tablet viewport
+// (>= 768 px wide and taller than 500 px: the phone gate does not match)
+// /scan/#/camera renders the desktop tree (no camera screen mounts), so no
+// reader payload is requested.
 test("s7-04-lazy-payload desktop width /scan/#/camera requests nothing", async ({ page }) => {
   const seen = watch(page);
   await page.setViewportSize({ width: 1280, height: 800 });

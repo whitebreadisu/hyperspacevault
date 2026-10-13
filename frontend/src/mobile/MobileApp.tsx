@@ -21,6 +21,7 @@ import { SharedStatus } from "./shared/SharedStatus";
 import { useShare } from "./shared/useShare";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
+import { RotateScreen } from "./RotateScreen";
 import { back, backOr, go, parseHash, setBgRoute, useRoute } from "./router";
 import type { Route } from "./router";
 import { rehydrateBatch } from "./tool/batch";
@@ -564,6 +565,8 @@ export function MobileApp() {
           ) : null}
         </SheetHost>
       </div>
+      {/* BL-257 FR5-06: a phone on its side -- the app above stays mounted. */}
+      <RotateScreen />
     </VaultDataProvider>
   );
 }
