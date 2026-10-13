@@ -17,6 +17,8 @@ test.beforeEach(() => {
 declare global {
   interface Window {
     __settleLog?: { v: string; t: number }[];
+    /** performance.now() each time getUserMedia resolved (the stream is live). */
+    __gumAt?: number[];
   }
 }
 
@@ -139,10 +141,30 @@ test("fr5-02 the camera message panel's ring follows its cut corners (and the me
 });
 
 // ── fr5-03 ────────────────────────────────────────────────────────────────
-/** Record every data-settle value the camera takes, with its time. */
+/** Record every data-settle value the camera takes, with its time -- and, as
+ * the lower reference for the 3 s limit, when each getUserMedia resolved. The
+ * product starts its clock only after that (stream subscriber ->
+ * settleStart(performance.now())), so "timeout" can never be committed less
+ * than 3000 ms after it; unlike the gap between two DOM commits it carries no
+ * render delay on the start side. Call BEFORE installFakeScanner: the wrapper
+ * is an accessor that wraps whatever getUserMedia is assigned afterwards. */
 async function logSettle(page: Page) {
   await page.addInitScript(() => {
     window.__settleLog = [];
+    window.__gumAt = [];
+    const md = navigator.mediaDevices;
+    if (md) {
+      let impl = md.getUserMedia.bind(md);
+      Object.defineProperty(md, "getUserMedia", {
+        configurable: true,
+        get: () => async (c?: MediaStreamConstraints) => {
+          const s = await impl(c);
+          window.__gumAt!.push(performance.now());
+          return s;
+        },
+        set: (f: typeof impl) => void (impl = f),
+      });
+    }
     const push = (v: string | null) => {
       const log = window.__settleLog!;
       if (v !== null && (!log.length || log[log.length - 1].v !== v))
@@ -158,6 +180,9 @@ async function logSettle(page: Page) {
     });
   });
 }
+
+/** The earliest getUserMedia resolve after `afterT` (a page-clock time). */
+const liveFrom = (gum: number[], afterT: number) => Math.min(...gum.filter((t) => t >= afterT));
 
 const settleState = (page: Page) =>
   page.evaluate(() => {
@@ -314,9 +339,23 @@ test("fr5-03 no sharp frame: the guide returns at 3 s; no layout moves; Start af
   await openScanCamera(page);
   // The whole-pixel text condition (helpers.ts wideText) from the start: the
   // label fits, and the layout is compared dim -> clear under it.
-  const widened = await wideText(page);
+  //
+  // PORT (BL-255 part 4): the dim state exists for only 3 s from the stream
+  // start, and reaching this snapshot is several runner round trips (the live
+  // poll, wideText, settleState) -- on a starved machine they outlast it (6 of
+  // 41 runs under load) and the screen is, correctly, already at "timeout".
+  // Not a product fault, so a snapshot that arrives too late is taken again on
+  // a fresh load of the camera (up to 3 tries); the state is still asserted
+  // in full on a real "settling" snapshot, and a run that never gets one fails.
+  let widened = await wideText(page);
+  let dim = await settleState(page);
+  for (let tries = 1; dim.settle === "timeout" && tries < 3; tries++) {
+    await page.reload();
+    await expect(page.locator(".m-cam")).toHaveAttribute("data-stream", "live");
+    widened = await wideText(page);
+    dim = await settleState(page);
+  }
   test.info().annotations.push({ type: "fr5-03", description: `wideText applied: ${widened}` });
-  const dim = await settleState(page);
   expectDim(dim);
   expectFits(dim);
   // An empty / blurry table: it clears by the time limit, the meter then says
@@ -326,8 +365,25 @@ test("fr5-03 no sharp frame: the guide returns at 3 s; no layout moves; Start af
   await expect(page.locator(".m-meter__word")).toHaveText("Blurry");
   let log = await page.evaluate(() => window.__settleLog!);
   expect(log.map((e) => e.v)).toEqual(["off", "settling", "timeout"]);
+  // REPLACE (BL-255 part 4): was `log[2].t - log[1].t >= 2990`, a gap between
+  // two DOM COMMITS. The product's clock starts at the stream start, before
+  // the "settling" commit (React render + commit, later on a busy machine),
+  // while the 3 s timer's own commit can be prompt -- so the observed gap is
+  // 3000 + 1 (timer slack) + d2 - d1 and fell to 2982.7 once (measured under
+  // load: min 2997.6 over 29 runs). Same claim, no allowance: from the moment
+  // getUserMedia resolved (always before the product's startedAt) the limit
+  // cannot commit sooner than 3000 ms. The exact boundary itself is pinned by
+  // cameraFlow.test.ts ("FR5-03": settleStatus at +2999 / +3000). The upper
+  // bound stays on the DOM gap: render delay only adds to it.
+  // (The camera screen may ask for the stream twice in a row, 0.3 ms apart,
+  // and the first is discarded; the EARLIEST resolve after the "off" commit is
+  // the sound reference, since the live one can only be at or after it.)
+  const gum = await page.evaluate(() => window.__gumAt!);
+  expect(
+    log[2].t - liveFrom(gum, log[0].t),
+    "ms from the stream going live to the guide returning"
+  ).toBeGreaterThanOrEqual(3000);
   const took = log[2].t - log[1].t;
-  expect(took).toBeGreaterThanOrEqual(2990);
   expect(took).toBeLessThanOrEqual(3500);
   // Nothing moved when the label went and the guide came back.
   const clear = await settleState(page);
@@ -350,6 +406,12 @@ test("fr5-03 no sharp frame: the guide returns at 3 s; no layout moves; Start af
   expectSameLayout(again, await settleState(page));
   log = await page.evaluate(() => window.__settleLog!);
   expect(log.map((e) => e.v)).toEqual(["off", "settling", "timeout", "off", "settling", "timeout"]);
+  // The second start runs the same 3 s from its own stream start.
+  const gum2 = await page.evaluate(() => window.__gumAt!);
+  expect(
+    log[5].t - liveFrom(gum2, log[3].t),
+    "ms from the restart going live to the guide returning"
+  ).toBeGreaterThanOrEqual(3000);
 });
 
 test("fr5-03 the default fake camera (Chromium's test pattern): the guide is back within 3.5 s", async ({
