@@ -778,7 +778,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenFeedback={vi.fn()}
       />
     );
-    expect(screen.getByRole("button", { name: /^v1.5/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^v2.0/ })).toBeInTheDocument();
   });
 
   it("fires onOpenNotes when the version label is clicked", () => {
@@ -795,7 +795,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenNotes={onOpenNotes}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /^v1.5/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^v2.0/ }));
     expect(onOpenNotes).toHaveBeenCalledTimes(1);
   });
 
@@ -847,7 +847,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).toContain(
       "nav-tab--cue"
     );
-    expect(screen.getByRole("button", { name: /^v1.5/ }).className).toContain(
+    expect(screen.getByRole("button", { name: /^v2.0/ }).className).toContain(
       "app-header__version--cue"
     );
   });
@@ -868,7 +868,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
       "nav-tab--cue"
     );
-    expect(screen.getByRole("button", { name: /^v1.5/ }).className).not.toContain(
+    expect(screen.getByRole("button", { name: /^v2.0/ }).className).not.toContain(
       "app-header__version--cue"
     );
   });
