@@ -33,7 +33,10 @@ import type { Accepted, ResumeAfter } from "./scanLoop";
 //   - What follows a decision (scanLoop.resume): after an add the same card
 //     may be read again as soon as the reader's own rules allow -- there is no
 //     timed wait; under Fast add the reader also ignores the card until it
-//     has left the frame; after Wrong card the same read stays quiet for 3 s.
+//     has left the frame; after Wrong card the same read stays quiet for 3 s
+//     (and, out of a hold with Fast add on, until the card has left too).
+//   - A token is recognised and named but never added (readIdentity's
+//     `token`): the effect returns null, so it lands in `found` in both modes.
 
 /** The hold after an add (owner 2026-10-12: 1 s; rev4 MCamera.jsx:29 had 1.5 s). */
 export const HOLD_MS = 1000;
@@ -310,7 +313,13 @@ export class CameraFlow {
     this.cancelHold = null;
     if (p.kind === "hold" && p.entryId) this.fx.remove(p.entryId);
     this.set({ kind: "searching" });
-    this.fx.resume(p.key, "wrong_card");
+    // BL-262 review S3: out of a hold with Fast add on, the 3 s quiet alone
+    // would let the same card, still in view, be added again on its own; the
+    // key is also held until the card has left the frame, as after the add.
+    // From the prompt or the pick list the quiet is enough: what returns is a
+    // question, never an add.
+    const fast = p.kind === "hold" && (p.fast || this.fx.fastAdd());
+    this.fx.resume(p.key, fast ? "fast_add_wrong_card" : "wrong_card");
   }
 
   private startHold(key: string, target: Target, entryId: string, fast: boolean): void {
@@ -320,7 +329,10 @@ export class CameraFlow {
       this.cancelHold = null;
       if (this.phase.kind !== "hold") return;
       this.set({ kind: "searching" });
-      this.fx.resume(key, fast ? "fast_add" : "add");
+      // BL-262 review S4: Fast add may have been switched on during the hold;
+      // what matters is the mode the scan resumes in (a card still in view
+      // would otherwise be added a second time, on its own).
+      this.fx.resume(key, fast || this.fx.fastAdd() ? "fast_add" : "add");
     }, HOLD_MS);
   }
 

@@ -35,6 +35,11 @@ import { installFakeScanner, openScanCamera, SOR_229 } from "./scan-helpers";
 // kept. New: the early-set Finish question, the prompt-mode panel tests and
 // the Verify sheet naming the read card.
 //
+// Fix run after the review (owner decisions 2026-10-13, marked in place): a
+// token is named but never added, in either mode (REPLACE: the Fast add token
+// test and the token row of the prompt-mode test); Serialized Prestige asks
+// which of its three printings in both modes (new; review S1).
+//
 // No committed fake-camera clip shows a shared number (the clips are SOR 229,
 // one card in two finishes, and ASHP 16, which the loop already classes as a
 // pick), so these drive the real frame pipeline, sharpness gate, scan core,
@@ -152,14 +157,66 @@ test.describe("BL-262 Fast add adds the card the strip identified, with no promp
     await addedAtOnce(page, "SOR • EN 2", "Darth Vader", "SOR 2 · Hyperspace");
   });
 
-  test("s7-26-bl262 a token (SOR T1): the token, never the card that holds its number", async ({
-    page,
-  }) => {
-    await open(page, true);
-    await addedAtOnce(page, "SOR • EN T1", "Experience", "SOR 1 · Standard");
-    await verifyLists(page, ["Experience"]);
-    await expect(verify(page)).not.toContainText("Scan Filler 1");
-  });
+  // REPLACE (owner decision 2026-10-13 after review: tokens are not added by
+  // scanning -- the keypad cannot enter one either). Was: the token added at
+  // once and listed by the Verify sheet. Kept: the read is named as the TOKEN,
+  // never the card that holds its number.
+  for (const fastAdd of [true, false])
+    test(`s7-26-bl262 a token (SOR T1), ${fastAdd ? "Fast add" : "prompt mode"}: named as the token, Add to batch unavailable, nothing added`, async ({
+      page,
+    }, testInfo) => {
+      await open(page, fastAdd);
+      await show(page, "SOR • EN T1"); // stays in frame
+      await expect(cam(page)).toHaveAttribute("data-phase", "found");
+      await expect(panel(page).locator(".m-cam__code")).toHaveText("SOR T1");
+      await expect(name(page)).toHaveText("Experience");
+      await expect(meta(page)).toHaveText("SOR 1 · Standard");
+      await expect(anyChips(page)).toHaveCount(0);
+      const hint = panel(page).locator(".m-ident__choicehint");
+      await expect(hint).toHaveText("Tokens can't be added from the camera.");
+      await expect(addBtn(page)).toHaveAttribute("aria-disabled", "true");
+      // Wrong card and the Keypad link are still there.
+      await expect(panel(page).locator(".m-cam__wrong")).toBeVisible();
+      await expect(page.locator(".m-meter__keypad")).toBeVisible();
+      // The line fits the panel, under normal text and with every glyph wider.
+      for (const label of ["normal text", "wide text"]) {
+        if (label === "wide text") await wideText(page);
+        const m = await hint.evaluate((e) => {
+          const inner = document.querySelector(".m-cam__panelin")!;
+          const pad = parseFloat(getComputedStyle(inner).paddingRight);
+          const range = document.createRange();
+          range.selectNodeContents(e);
+          return {
+            lines: new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size,
+            ink: Math.round(range.getBoundingClientRect().width * 10) / 10,
+            box: Math.round(e.getBoundingClientRect().width * 10) / 10,
+            right: e.getBoundingClientRect().right,
+            limit: inner.getBoundingClientRect().right - pad,
+            clipped: e.scrollWidth > e.clientWidth + 0.5,
+            add: document.querySelector(".m-cam__panel .m-ident__add")!.getBoundingClientRect()
+              .bottom,
+            view: window.innerHeight,
+          };
+        });
+        testInfo.annotations.push({ type: "fit " + label, description: JSON.stringify(m) });
+        expect(m.lines, label + ": the line is one line").toBe(1);
+        expect(m.ink, label + ": inside its box").toBeLessThanOrEqual(m.box + 0.5);
+        expect(m.right, label).toBeLessThanOrEqual(m.limit + 0.5);
+        expect(m.clipped, label).toBe(false);
+        expect(m.add, label + ": the buttons stay on screen").toBeLessThanOrEqual(m.view + 0.5);
+      }
+      // Nothing is added on its own, and the unavailable Add adds nothing.
+      await page.waitForTimeout(2000);
+      await addBtn(page).click({ force: true });
+      await expect(cam(page)).toHaveAttribute("data-phase", "found");
+      await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+      expect(await phases(page)).toEqual(["found"]);
+      // Wrong card restarts the scan; still nothing in the batch.
+      await show(page, null);
+      await panel(page).locator(".m-cam__wrong").click();
+      await expect(cam(page)).toHaveAttribute("data-phase", "searching");
+      await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+    });
 
   test("s7-26-bl262 a card with another event's printing under the same number (SOR 172/252): the printing the strip names", async ({
     page,
@@ -256,6 +313,123 @@ test.describe("BL-262 Fast add asks only when the strip is more than one printin
     await expect(verify(page)).not.toContainText("Scan Filler 12");
   });
 
+  // Review S1 (orchestrator call under the owner's rule "nothing is added
+  // until the user chooses"). Queen Amidala SEC 1127 is three printings under
+  // one number -- Carbonite, Gold, Rose Gold. Was: the first of the three was
+  // added at once with no question.
+  test("s7-26-bl262 Serialized Prestige (SEC 1127), Fast add: one chip per printing, none selected, nothing added until one is chosen; the chips fit", async ({
+    page,
+  }, testInfo) => {
+    await open(page, true);
+    await show(page, "SEC • EN 1127"); // stays in frame
+    await expect(cam(page)).toHaveAttribute("data-phase", "found");
+    await expect(name(page)).toHaveText("Queen Amidala");
+    await expect(chips(page, "finish")).toHaveText(["Carbonite", "Gold", "Rose Gold"]);
+    await expect(anyChips(page)).toHaveCount(3);
+    await expect(chips(page, "finish").and(page.locator("[aria-pressed='true']"))).toHaveCount(0);
+    await expect(meta(page)).toHaveCount(0); // no printing named before the choice
+    await expect(addBtn(page)).toHaveAttribute("aria-disabled", "true");
+    await expect(panel(page).locator(".m-ident__choicehint")).toHaveText(
+      "Carbonite, Gold and Rose Gold share this number. Pick the one you have."
+    );
+    // The three chips and the line fit the panel: normal text, then wider glyphs.
+    const fit = () =>
+      page.evaluate(() => {
+        const inner = document.querySelector(".m-cam__panelin")!;
+        const lim = inner.getBoundingClientRect();
+        const pad = parseFloat(getComputedStyle(inner).paddingRight);
+        const els = [...inner.querySelectorAll(".m-ident__choicehint, .m-chip, .m-ident__name")];
+        const over = els
+          .map((e) => ({ r: e.getBoundingClientRect(), e: e as HTMLElement }))
+          .filter(
+            ({ r, e }) => r.right > lim.right - pad + 0.5 || e.scrollWidth > e.clientWidth + 0.5
+          );
+        const range = document.createRange();
+        return {
+          over: over.length,
+          limit: lim.right - pad,
+          chips: [...inner.querySelectorAll<HTMLElement>(".m-chip")].map((e) => {
+            range.selectNodeContents(e);
+            const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+            return {
+              text: e.textContent,
+              box: Math.round(e.getBoundingClientRect().width * 10) / 10,
+              ink: Math.round(range.getBoundingClientRect().width * 10) / 10,
+              right: Math.round(e.getBoundingClientRect().right * 10) / 10,
+              lines: lines.size,
+              h: e.getBoundingClientRect().height,
+            };
+          }),
+          view: window.innerHeight,
+          add: document.querySelector(".m-cam__panel .m-ident__add")!.getBoundingClientRect()
+            .bottom,
+        };
+      });
+    for (const label of ["normal text", "wide text"]) {
+      if (label === "wide text") await wideText(page);
+      const m = await fit();
+      testInfo.annotations.push({ type: "fit " + label, description: JSON.stringify(m) });
+      expect(m.over, label + ": nothing clipped or past the panel").toBe(0);
+      for (const c of m.chips) {
+        expect(c.lines, label + ": " + c.text + " on one line").toBe(1);
+        expect(c.ink, label + ": " + c.text + " inside its chip").toBeLessThanOrEqual(c.box + 0.5);
+        expect(c.h, label + ": " + c.text + " is a 44 px target").toBeGreaterThanOrEqual(43.5);
+      }
+      expect(m.add, label + ": the buttons stay on screen").toBeLessThanOrEqual(m.view + 0.5);
+    }
+    // Never resolved on its own; the unavailable Add adds nothing.
+    await page.waitForTimeout(2000);
+    await addBtn(page).click({ force: true });
+    await expect(cam(page)).toHaveAttribute("data-phase", "found");
+    await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+    expect(await phases(page)).toEqual(["found"]);
+    // The choice adds exactly that printing and holds.
+    await chips(page, "finish")
+      .filter({ hasText: /^Gold$/ })
+      .click();
+    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
+    await expect(count(page)).toHaveText("1");
+    await expect(meta(page)).toHaveText("SEC 1127 · Serialized Prestige");
+    // The hold shows the printing that went in: the Gold printing's own art.
+    await expect(panel(page).locator(".m-ident__frame img")).toHaveAttribute("src", /Carb_C_Gold_/);
+    await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
+    // Still in frame: not asked or added again until it has left.
+    await page.waitForTimeout(3000);
+    await expect(count(page)).toHaveText("1");
+    expect(await phases(page)).toEqual(["found", "hold", "searching"]);
+  });
+
+  test("s7-26-bl262 Serialized Prestige (SEC 1127), prompt mode: no printing selected, Add unavailable until one is chosen; the chip alone adds nothing", async ({
+    page,
+  }) => {
+    await open(page, false);
+    await show(page, "SEC • EN 1127");
+    await expect(cam(page)).toHaveAttribute("data-phase", "found");
+    await expect(name(page)).toHaveText("Queen Amidala");
+    await expect(chips(page, "finish")).toHaveText(["Carbonite", "Gold", "Rose Gold"]);
+    await expect(chips(page, "finish").and(page.locator("[aria-pressed='true']"))).toHaveCount(0);
+    await expect(addBtn(page)).toHaveAttribute("aria-disabled", "true");
+    await show(page, null);
+    await addBtn(page).click({ force: true });
+    await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+    await chips(page, "finish").filter({ hasText: "Rose Gold" }).click();
+    await expect(chips(page, "finish").and(page.locator("[aria-pressed='true']"))).toHaveText(
+      "Rose Gold"
+    );
+    await expect(panel(page).locator(".m-ident__frame img")).toHaveAttribute(
+      "src",
+      /Carb_C_Rose_Gold_/
+    );
+    await expect(cam(page)).toHaveAttribute("data-phase", "found");
+    await expect(badge(page)).toHaveClass(/m-logbtn--empty/); // a chip is not an add
+    await expect(addBtn(page)).not.toHaveAttribute("aria-disabled", "true");
+    await addBtn(page).click();
+    await expect(count(page)).toHaveText("1");
+    await expect(page.locator(".m-cam__holdtxt")).toHaveText("next card in 1 s");
+    await verifyLists(page, ["Queen Amidala"]);
+    await expect(verify(page)).toContainText("Serialized Prestige");
+  });
+
   test("s7-26-bl262 N/2 tournament stamps (SOR 1/2): the pick list, then the picked card's own printings -- never another card on that number", async ({
     page,
   }) => {
@@ -335,13 +509,16 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
     await expect(verify(page)).not.toContainText("Scan Filler 12");
   });
 
-  test("s7-26-bl262 a Weekly Play strip, a token strip and a no-denominator strip each open on the card read, with no card question", async ({
+  // REPLACE (owner decision 2026-10-13 after review: tokens are not added by
+  // scanning). Was four reads, the second a token strip ("SOR • EN T1" ->
+  // Experience, Add enabled, added): the token's prompt-mode panel is asserted
+  // in "a token (SOR T1), prompt mode" above; the other three are unchanged.
+  test("s7-26-bl262 a Weekly Play strip, a no-denominator strip and a shared-number strip each open on the card read, with no card question", async ({
     page,
   }) => {
     await open(page, false);
     const reads: [string, string, string][] = [
       ["SOR • EN 3/20", "Waylay", "SOR 3 · Weekly Play"],
-      ["SOR • EN T1", "Experience", "SOR 1 · Standard"],
       ["SOR • EN 2", "Darth Vader", "SOR 2 · Hyperspace"],
       ["SOR • EN C 74/252", "Scan Filler 74", "SOR 74 · Standard"],
     ];
@@ -357,8 +534,8 @@ test.describe("BL-262 prompt mode: the panel opens on the card that was read", (
       await expect(name(page)).toHaveText(card); // the hold shows what was added
       await expect(cam(page)).toHaveAttribute("data-phase", "searching", { timeout: 2500 });
     }
-    await expect(count(page)).toHaveText("4");
-    await verifyLists(page, ["Waylay", "Experience", "Darth Vader", "Scan Filler 74"]);
+    await expect(count(page)).toHaveText("3");
+    await verifyLists(page, ["Waylay", "Darth Vader", "Scan Filler 74"]);
   });
 
   test("s7-26-bl262 prompt mode: Add, the 1 s hold, the card still in view -> the prompt returns; nothing is added without a tap", async ({
@@ -457,6 +634,30 @@ test.describe("BL-262 Fast add keeps its speed; the hold is 1 s", () => {
     await page.waitForTimeout(5000);
     await expect(count(page)).toHaveText("1");
     expect(await phases(page)).toEqual(["hold", "searching"]);
+  });
+
+  // Review S3 (orchestrator call under the owner's rule). Was: Wrong card in
+  // the Fast add hold took the copy out, and 3 s later the same card, still
+  // under the camera, was added again on its own.
+  test("s7-26-bl262 Fast add: Wrong card within the hold takes the copy out, and the card left in view is not added again; out and back, it is", async ({
+    page,
+  }) => {
+    await open(page, true);
+    await show(page, "SOR • EN 100/252"); // stays in frame
+    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
+    await expect(count(page)).toHaveText("1");
+    await panel(page).locator(".m-cam__wrong").click();
+    await expect(cam(page)).toHaveAttribute("data-phase", "searching");
+    await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+    // Well past the 3 s quiet: still not read again while it stays.
+    await page.waitForTimeout(5500);
+    await expect(badge(page)).toHaveClass(/m-logbtn--empty/);
+    expect(await phases(page)).toEqual(["hold", "searching"]);
+    await show(page, null); // out of the frame
+    await page.waitForTimeout(1500);
+    await show(page, "SOR • EN 100/252"); // back
+    await expect(count(page)).toHaveText("1", { timeout: 4000 });
+    await expect(cam(page)).toHaveAttribute("data-phase", "hold");
   });
 
   // PORT (owner decision 2026-10-13): was SOR 229, which now asks Finish; a

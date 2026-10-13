@@ -17,12 +17,21 @@ import type { PadPicks } from "../tool/toolStore";
 //   none   -- none of the printings is in the catalogue the app loaded.
 //   cards  -- the printings belong to more than one card: the pick list's
 //             case; nothing is addable until one card's printings are chosen.
+//   token  -- one card, and it is a token. It is named as that token (never
+//             as the card that holds its number) and is never addable: tokens
+//             are not added by scanning, as the keypad cannot enter one
+//             (owner 2026-10-13).
 //   card   -- one card. One printing: it IS the read (`variant` set, nothing
 //             asked). Several printings (an early set's foil and non-foil
 //             under one strip; tournament stamps on one row; two events on
-//             one number): the choice is among exactly those printings, by
-//             the axes that tell them apart (Set, Stamp, Finish -- the
-//             keypad's own vocabulary, utils/addCardsResolver decompose).
+//             one number; the three Serialized Prestige printings of one
+//             number): the choice is among exactly those printings, by what
+//             tells them apart (Set, Stamp, Finish -- the keypad's own
+//             vocabulary, utils/addCardsResolver decompose -- then, for
+//             printings that vocabulary cannot separate, the tier their image
+//             file names: Carbonite / Gold / Rose Gold). `partial` = some of
+//             the strip's printings are not in the loaded catalogue: such a
+//             read is never added without an Add tap (readAddable).
 //
 // The keypad resolves a TYPED set + number, where the base-set card is the
 // right default for a shared number. A strip says more than a typed number
@@ -35,7 +44,8 @@ import type { PadPicks } from "../tool/toolStore";
 // non-foil among finishes (BL-191), both printings the strip identified. Fast
 // add (false): nothing is defaulted, so a read with more than one printing is
 // never added until the user says which (owner: "Ask foil or non-foil each
-// time").
+// time"). Stamps and the Serialized Prestige tiers are defaulted in neither
+// mode: there is no sensible default among them.
 //
 // Users (there is no second rule): the controller's add effect (the automatic
 // add of Fast add, the add after a choice, and Add to batch), the found panel,
@@ -44,6 +54,14 @@ import type { PadPicks } from "../tool/toolStore";
 export type ReadIdentity =
   | { kind: "none" }
   | { kind: "cards"; cards: InventoryCard[] }
+  | {
+      /** A token: recognised and named, never addable by scanning. */
+      kind: "token";
+      card: InventoryCard;
+      /** The token's printings the strip identified (the first is shown). */
+      printings: InventoryVariant[];
+      hint: { text: string; attn: boolean };
+    }
   | {
       kind: "card";
       card: InventoryCard;
@@ -54,6 +72,8 @@ export type ReadIdentity =
       /** The printing settled on; null while a choice is still needed. */
       variant: InventoryVariant | null;
       hint: { text: string; attn: boolean } | null;
+      /** Some of the strip's printings are not in the loaded catalogue. */
+      partial: boolean;
     };
 
 interface Dec extends Decomposition {
@@ -64,6 +84,31 @@ const HINT_FINISH = "Foil and non-foil share this number. Pick the one you have.
 const HINT_PICK = "This code is on more than one printing. Pick the one you have.";
 /** The keypad's cue for a defaulted finish (tool/padModel.ts), same words. */
 const HINT_DEFAULTED = "Card number is shared across variants. Verify selection.";
+const HINT_TOKEN = "Tokens can't be added from the camera.";
+const HINT_PARTIAL =
+  "Part of this read is not in the catalogue this app loaded. Check the card before adding.";
+const HINT_TWINS =
+  "This number has printings the app cannot tell apart. It is not added by scanning.";
+
+/** The Serialized Prestige tiers, in the order their chips are shown. The 21
+ * SEC senator cards are three printings under one number with one variant
+ * type and one finish; the catalogue tells them apart by the image file name
+ * alone (App Spec 10.5: `..._Carb_C_<hash>` = Carbonite, `..._Carb_C_Gold_`,
+ * `..._Carb_C_Rose_Gold_`). The keypad and desktop collapse them to the first
+ * (BL-31/40, deferred); the camera asks (BL-262 review S1). */
+const TIERS = ["Carbonite", "Gold", "Rose Gold"];
+
+/** A printing's tier from its image file name, or null when it has none. */
+function tierOf(v: InventoryVariant): string | null {
+  const m = /_Carb_C(_Rose_Gold|_Gold)?_[0-9a-f]+\.[a-z]+$/i.exec(v.front_image_url ?? "");
+  if (!m) return null;
+  return m[1] === "_Rose_Gold" ? "Rose Gold" : m[1] === "_Gold" ? "Gold" : "Carbonite";
+}
+
+/** "A, B and C". */
+function listed(xs: string[]): string {
+  return xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+}
 
 function uniq<T>(xs: T[]): T[] {
   return [...new Set(xs)];
@@ -106,6 +151,15 @@ export function readIdentity(
   const printings = hits
     .map((h) => h.v)
     .sort((a, b) => (order.get(a.variant_id) ?? 0) - (order.get(b.variant_id) ?? 0));
+
+  // A token: named, never addable (no choice is offered -- there is no add).
+  if (card.is_token)
+    return { kind: "token", card, printings, hint: { text: HINT_TOKEN, attn: false } };
+
+  // Review N1: a printing the strip names is missing from the catalogue. The
+  // read is not narrowed to the ones found without saying so.
+  const partial = new Set(hits.map((h) => h.v.variant_id)).size < want.size;
+  const PARTIAL = { text: HINT_PARTIAL, attn: true };
   const choices: PadChoice[] = [];
   const asking = (hint: string): ReadIdentity => ({
     kind: "card",
@@ -113,7 +167,8 @@ export function readIdentity(
     printings,
     choices,
     variant: null,
-    hint: { text: hint, attn: false },
+    hint: partial ? PARTIAL : { text: hint, attn: false },
+    partial,
   });
 
   let left: Dec[] = printings.map((v) => ({ v, ...decompose(v.variant_type, v.channel) }));
@@ -159,25 +214,48 @@ export function readIdentity(
     left = left.filter((d) => d.finish === value);
   }
 
-  // Printings no axis tells apart (the Serialized Prestige image twins): the
-  // first, as the keypad resolves them -- every one is a printing of the read.
+  // Printings no axis tells apart (the Serialized Prestige three): one chip
+  // per printing, labelled by its tier, defaulted in neither mode -- nothing
+  // is added until the user says which (BL-262 review S1; was: the first, as
+  // the keypad resolves them). The tiers are a Finish (owner 2026-07-05).
+  if (left.length > 1) {
+    const tiers = left.map((d) => tierOf(d.v));
+    const told =
+      finishes.length === 1 && tiers.every((t) => t !== null) && uniq(tiers).length === left.length;
+    // Nothing tells them apart: nothing is offered and nothing is addable.
+    if (!told) return asking(HINT_TWINS);
+    const options = TIERS.filter((t) => tiers.includes(t));
+    const value = picks.finish !== null && options.includes(picks.finish) ? picks.finish : null;
+    choices.push(choice("finish", "Finish", options, value, false));
+    if (value === null)
+      return asking(listed(options) + " share this number. Pick the one you have.");
+    left = left.filter((_, i) => tiers[i] === value);
+  }
+
   return {
     kind: "card",
     card,
     printings,
     choices,
     variant: left[0].v,
-    hint: defaulted ? { text: HINT_DEFAULTED, attn: true } : null,
+    hint: partial ? PARTIAL : defaulted ? { text: HINT_DEFAULTED, attn: true } : null,
+    partial,
   };
 }
 
 /** What may be added for this identity: one card and one printing the strip
- * identified, or null while there is none or a choice is still needed. The
- * found panel's Add condition and every camera add. */
+ * identified, or null while there is none, a choice is still needed, or the
+ * read is a token. The found panel's Add condition and every camera add.
+ * `auto` = an add with no Add tap (Fast add: at the read, after a pick, after
+ * a chip): a partial read is never added that way -- only by the Add button,
+ * under the panel's line that says part of the read is missing. */
 export function readAddable(
-  id: ReadIdentity
+  id: ReadIdentity,
+  auto = false
 ): { card: InventoryCard; variant: InventoryVariant } | null {
-  return id.kind === "card" && id.variant ? { card: id.card, variant: id.variant } : null;
+  if (id.kind !== "card" || !id.variant) return null;
+  if (auto && id.partial) return null;
+  return { card: id.card, variant: id.variant };
 }
 
 /** The keep-limit readout for one printing (the keypad computes the same

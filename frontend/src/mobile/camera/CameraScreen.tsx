@@ -246,8 +246,9 @@ function PickPanel({
           // The row's card is what its printings identify (BL-262: the same
           // rule the found panel and the add use once the row is picked).
           const id = readIdentity(r.vids, cards, NO_PICKS, true);
-          const card = id.kind === "card" ? id.card : null;
-          const variant = id.kind === "card" ? id.printings[0] : null;
+          const one = id.kind === "card" || id.kind === "token" ? id : null;
+          const card = one ? one.card : null;
+          const variant = one ? one.printings[0] : null;
           const img = card && variant ? cellImage(card, variant, "thumb", "60px") : null;
           return (
             <button
@@ -345,6 +346,7 @@ function FoundPanel({
         signedIn={isAuthenticated}
         choices={hold ? [] : id.choices}
         hint={hold ? null : id.hint}
+        notice={hold || id.choices.length ? null : id.hint}
         note={null}
         compact={!hold && id.choices.length > 0}
         justAdded={hold ? phase.at : 0}
@@ -354,6 +356,31 @@ function FoundPanel({
         canAdd={add !== null && isAuthenticated}
         onAdd={add ? onAdd : () => {}}
         onPick={onChoose}
+        onDetails={() => onDetails(shown.variant_id)}
+      />
+    );
+  } else if (id.kind === "token") {
+    // A token is recognised and named, never added (owner 2026-10-13): the
+    // card panel on the token with Add to batch unavailable and one line
+    // saying why. Wrong card and the Keypad link stay as they are.
+    const shown = id.printings[0];
+    body = (
+      <Identified
+        name={id.card.name}
+        subtitle={id.card.subtitle}
+        card={id.card}
+        variant={shown}
+        readout={null}
+        signedIn={isAuthenticated}
+        choices={[]}
+        hint={null}
+        notice={id.hint}
+        note={null}
+        compact={false}
+        justAdded={0}
+        addLabel="Add to batch"
+        canAdd={false}
+        onAdd={() => {}}
         onDetails={() => onDetails(shown.variant_id)}
       />
     );

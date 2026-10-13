@@ -144,10 +144,13 @@ export class CameraController {
         // (readIdentity -- the one rule; the found panel renders the same
         // call). The panel's choices count only while it is up: a read or a
         // picked row starts with none. Fast add defaults nothing, so a read
-        // with more than one printing is not added until the user chooses.
+        // with more than one printing is not added until the user chooses. A
+        // token is never addable, and a read with a printing missing from the
+        // catalogue only by an Add tap (`camera`) -- both decided there.
         const picks = this.flow.phase.kind === "found" ? getToolState().picks : NO_PICKS;
         const a = readAddable(
-          readIdentity(target.vids, I.cards, picks, !getScanSettings().fastAdd)
+          readIdentity(target.vids, I.cards, picks, !getScanSettings().fastAdd),
+          via === "camera_fast_add"
         );
         if (!a) return null;
         // The row is the printing's own set + number (as a deck copy's is):

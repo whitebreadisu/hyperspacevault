@@ -43,10 +43,11 @@ function accepted(text: string): Accepted {
 
 function rig(fast = false, addOk = true) {
   let seq = 0;
+  let on = fast;
   const log: string[] = [];
   const fx: FlowEffects = {
     now: () => 1000,
-    fastAdd: () => fast,
+    fastAdd: () => on,
     cue: vi.fn(() => log.push("cue")),
     add: vi.fn((t, via) => {
       log.push("add:" + via + ":" + t.setCode + " " + t.cardNumber);
@@ -64,7 +65,11 @@ function rig(fast = false, addOk = true) {
     recognised: vi.fn(),
     pickShown: vi.fn(),
   };
-  return { flow: new CameraFlow(fx), fx, log };
+  /** The Fast add toggle in the tool header, switched mid-flow. */
+  const setFast = (v: boolean) => {
+    on = v;
+  };
+  return { flow: new CameraFlow(fx), fx, log, setFast };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -246,9 +251,13 @@ describe("S7-17 cue + Fast add + hold", () => {
     expect(log).toEqual(["cue", "add:camera_fast_add:SOR 229", "resume:SOR 229/252:fast_add"]);
   });
 
-  // PORT (BL-262): the resume names what it follows -- Wrong card, even from
-  // inside a Fast add hold.
-  it("Wrong card during the hold takes that copy back out (and cancels the timer)", () => {
+  // REPLACE (review S3, orchestrator call under the owner's rule; 2026-10-13).
+  // Was: the resume after Wrong card inside a Fast add hold was plain
+  // "wrong_card" -- 3 s later the same card, still in view, was added again on
+  // its own. Now it is "fast_add_wrong_card": the 3 s quiet AND the key held
+  // until the card has left the frame (what the loop does with it is asserted
+  // in scanLoop.test.ts). Kept: the copy leaves, the timer is cancelled.
+  it("Wrong card during a Fast add hold takes that copy back out, cancels the timer, and resumes holding the key until the card leaves", () => {
     const { flow, log } = rig(true);
     flow.accepted(accepted("SOR • EN R 229/252"));
     flow.wrongCard();
@@ -257,10 +266,63 @@ describe("S7-17 cue + Fast add + hold", () => {
       "add:camera_fast_add:SOR 229",
       "decision:wrong_card",
       "remove:b-1",
-      "resume:SOR 229/252:wrong_card",
+      "resume:SOR 229/252:fast_add_wrong_card",
     ]);
     vi.advanceTimersByTime(HOLD_MS * 2);
     expect(log.filter((l) => l.startsWith("resume"))).toHaveLength(1);
+  });
+
+  it("BL-262 S3: Wrong card in a prompt-mode hold, and in the prompt itself, stays the plain 3 s quiet", () => {
+    const hold = rig(false);
+    hold.flow.accepted(accepted("SOR • EN R 229/252"));
+    hold.flow.add();
+    hold.flow.wrongCard();
+    expect(hold.log.slice(-2)).toEqual(["remove:b-1", "resume:SOR 229/252:wrong_card"]);
+    // Fast add on, the panel asking (nothing was added): a question returns
+    // after the quiet -- it is never an add, so the key is not held.
+    const asking = rig(true, false);
+    asking.flow.accepted(accepted("SOR • EN R 229/252"));
+    expect(asking.flow.phase.kind).toBe("found");
+    asking.flow.wrongCard();
+    expect(asking.log.slice(-1)).toEqual(["resume:SOR 229/252:wrong_card"]);
+  });
+
+  it("BL-262 S3: Fast add switched on during a prompt-mode hold, then Wrong card: the key is held too", () => {
+    const { flow, log, setFast } = rig(false);
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    flow.add();
+    setFast(true);
+    flow.wrongCard();
+    expect(log.slice(-1)).toEqual(["resume:SOR 229/252:fast_add_wrong_card"]);
+  });
+
+  // Review S4 (orchestrator call). Was: `fast` was fixed when the hold
+  // started, so Fast add switched on during a prompt-mode hold resumed with
+  // "add" -- and the card still in view was then added a second time on its
+  // own. The reason is read when the timer fires.
+  it("BL-262 S4: Fast add switched on during a prompt-mode hold -> the hold ends with the Fast add resume (the card in view is not added again)", () => {
+    const { flow, log, setFast } = rig(false);
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    flow.add();
+    expect(flow.phase).toMatchObject({ kind: "hold", fast: false });
+    vi.advanceTimersByTime(HOLD_MS / 2);
+    setFast(true); // the toggle in the tool header
+    vi.advanceTimersByTime(HOLD_MS / 2);
+    expect(flow.phase.kind).toBe("searching");
+    expect(log).toEqual([
+      "cue",
+      "add:camera:SOR 229",
+      "decision:add",
+      "resume:SOR 229/252:fast_add",
+    ]);
+  });
+
+  it("BL-262 S4: Fast add switched OFF during a Fast add hold keeps the Fast add resume (the add was automatic)", () => {
+    const { flow, log, setFast } = rig(true);
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    setFast(false);
+    vi.advanceTimersByTime(HOLD_MS);
+    expect(log.slice(-1)).toEqual(["resume:SOR 229/252:fast_add"]);
   });
 
   it("Fast add on a number that needs a pick falls back to the prompt", () => {

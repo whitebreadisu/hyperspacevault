@@ -29,8 +29,12 @@ export const WRONG_CARD_QUIET_MS = 3000;
  *                 read (and prompted) again by the reader's own rules.
  *   fast_add   -- an add under Fast add: the Acceptor ignores the key until
  *                 the card has left the frame (the spike's auto-accept rule).
- *   wrong_card -- the key stays quiet for WRONG_CARD_QUIET_MS. */
-export type ResumeAfter = "add" | "fast_add" | "wrong_card";
+ *   wrong_card -- the key stays quiet for WRONG_CARD_QUIET_MS.
+ *   fast_add_wrong_card -- Wrong card inside a hold with Fast add on: both.
+ *                 The quiet alone would let the same card, still in view, be
+ *                 accepted -- and so added -- again 3 s later (BL-262 review
+ *                 S3); it must leave the frame first, as after the add. */
+export type ResumeAfter = "add" | "fast_add" | "wrong_card" | "fast_add_wrong_card";
 /** The partial-read window for the keypad prefill (app.js:1017-1022). */
 export const PARTIAL_WINDOW = 8;
 
@@ -185,12 +189,15 @@ export class ScanLoop {
    *   fast_add:   the Acceptor holds the key until the card leaves (the
    *               spike's auto-accept rule, ACC.markAccepted), so a card
    *               left in frame is never counted twice.
-   *   add:        neither (BL-262: no timed wait after an add). */
+   *   add:        neither (BL-262: no timed wait after an add).
+   *   fast_add_wrong_card: both (Wrong card inside a Fast add hold). */
   resume(key: string | null, after: ResumeAfter): void {
     const t = this.deps.now();
-    if (key && after === "wrong_card") this.suppress = { key, until: t + WRONG_CARD_QUIET_MS };
+    const quiet = after === "wrong_card" || after === "fast_add_wrong_card";
+    const held = after === "fast_add" || after === "fast_add_wrong_card";
+    if (key && quiet) this.suppress = { key, until: t + WRONG_CARD_QUIET_MS };
     this.deps.acceptor.reset();
-    if (key && after === "fast_add") this.deps.acceptor.markAccepted(key, t);
+    if (key && held) this.deps.acceptor.markAccepted(key, t);
     this.resetCycle();
     this.ambiguousKey = null;
     this.paused = false;

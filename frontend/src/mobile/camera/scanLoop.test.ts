@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import snapshot from "../../../e2e/mobile/fixtures/scan-catalog.snapshot.json";
+import { CameraFlow } from "./cameraFlow";
 import { Acceptor, Catalog } from "./scanCore";
 import type { ScanCatalogData } from "./scanCore";
 import { ScanLoop, WRONG_CARD_QUIET_MS, partialRead, timeBucket } from "./scanLoop";
@@ -334,6 +335,103 @@ describe("S7-13 read loop + agreement (stub reader)", () => {
     await run(4);
     expect(ambig).toHaveLength(3);
     expect(ambig[2] - resumed).toBeGreaterThanOrEqual(3000);
+  });
+
+  // Review S3 (orchestrator call under the owner's rule, 2026-10-13). Wrong
+  // card inside a Fast add hold used to resume "wrong_card" only: 3 s later
+  // the same card, still in view, was accepted -- and so added -- again.
+  it("BL-262 S3 Wrong card under Fast add: the read stays quiet for 3 s AND is held until the card leaves", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "fast_add_wrong_card");
+    await r.run(100); // 10 s in view: never accepted again
+    expect(r.accepts).toEqual([]);
+    expect(new Set(r.statuses)).toEqual(new Set(["held"]));
+    r.show(""); // taken out
+    await r.run(12);
+    r.show(CARD); // and brought back
+    r.mark();
+    await r.run(3);
+    expect(r.accepts).toEqual([300]);
+  });
+
+  it("BL-262 S3 Wrong card under Fast add: out and back inside the 3 s is still quiet until the 3 s is over", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "fast_add_wrong_card");
+    r.show("");
+    await r.run(12); // 1.2 s away: the hold on the key is released
+    r.show(CARD);
+    await r.run(16); // up to 2.8 s since the resume
+    expect(r.accepts).toEqual([]);
+    expect(r.statuses).toContain("suppressed");
+    await r.run(8);
+    expect(r.accepts).toHaveLength(1);
+    expect(r.accepts[0]).toBeGreaterThanOrEqual(3000);
+  });
+
+  // The same at the flow level: the real decision flow driving the real loop
+  // (stub reader, virtual clock; the batch is a list).
+  it("BL-262 S3 flow + loop: Fast add -> automatic add -> Wrong card within the hold -> the card left in view for 10 s is not added again; removed and returned -> added", async () => {
+    let text = CARD;
+    let t = 0;
+    let seq = 0;
+    const batch: string[] = [];
+    const timers: { at: number; fn: () => void }[] = [];
+    const ref: { flow?: CameraFlow } = {};
+    const { loop, at } = rig(
+      { primary: async () => ok(text, text ? 92 : null, text ? 30 : null) },
+      { onAccept: (a) => ref.flow!.accepted(a) }
+    );
+    const flow = new CameraFlow({
+      now: () => t,
+      fastAdd: () => true,
+      cue: () => {},
+      add: () => {
+        const id = "b-" + ++seq;
+        batch.push(id);
+        return id;
+      },
+      remove: (id) => {
+        batch.splice(batch.indexOf(id), 1);
+      },
+      resume: (key, after) => loop.resume(key, after),
+      setTimer: (fn, ms) => {
+        const x = { at: t + ms, fn };
+        timers.push(x);
+        return () => {
+          const i = timers.indexOf(x);
+          if (i >= 0) timers.splice(i, 1);
+        };
+      },
+    });
+    ref.flow = flow;
+    const run = async (n: number) => {
+      for (let k = 0; k < n; k++) {
+        at((t += 100));
+        for (const x of timers.filter((y) => y.at <= t)) {
+          timers.splice(timers.indexOf(x), 1);
+          x.fn();
+        }
+        await loop.readOnce();
+      }
+    };
+    await run(3);
+    expect(batch).toEqual(["b-1"]); // the automatic add
+    expect(flow.phase).toMatchObject({ kind: "hold", fast: true });
+    await run(4); // 0.4 s into the 1 s hold
+    flow.wrongCard();
+    expect(batch).toEqual([]); // that copy is taken back out
+    expect(flow.phase.kind).toBe("searching");
+    await run(100); // the card stays under the camera for 10 s
+    expect(batch).toEqual([]);
+    expect(flow.phase.kind).toBe("searching");
+    text = ""; // removed
+    await run(12);
+    text = CARD; // returned
+    await run(4);
+    expect(batch).toEqual(["b-2"]);
+    expect(flow.phase).toMatchObject({ kind: "hold", fast: true });
   });
 
   it("S7-F1 one number_conflict frame between clean frames does not open a pick", async () => {

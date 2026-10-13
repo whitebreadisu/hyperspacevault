@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { BaseCardCatalog } from "../../api/baseCards";
 import { scanCards } from "../../../e2e/mobile/scan-fixture";
@@ -47,10 +47,120 @@ describe("BL-262 readIdentity: what a read identifies", () => {
     expect(readAddable(r)?.variant.variant_id).toBe(6681);
   });
 
-  it("a token is a card like any other", () => {
-    const r = readIdentity([6267], cards, NO_PICKS, false);
-    expect(r).toMatchObject({ kind: "card", card: { name: "Experience", is_token: true } });
-    expect(readAddable(r)?.variant.variant_id).toBe(6267);
+  // REPLACE (owner decision 2026-10-13 after review, Q4). Was: "a token is a
+  // card like any other" -- addable as variant 6267. Tokens are not added by
+  // scanning (the keypad cannot enter one either): the read is still named as
+  // that token, never as the card that holds its number, and it is its own
+  // outcome of the one decision function -- not a check in the screen.
+  it("a token is named as that token and is never addable -- in either mode, whatever is picked", () => {
+    for (const defaults of [true, false]) {
+      const r = readIdentity([6267], cards, NO_PICKS, defaults);
+      expect(r).toMatchObject({
+        kind: "token",
+        card: { name: "Experience", is_token: true },
+        hint: { text: "Tokens can't be added from the camera.", attn: false },
+      });
+      expect(r.kind === "token" && r.printings.map((v) => v.variant_id)).toEqual([6267]);
+      expect(readAddable(r)).toBeNull();
+      expect(readAddable(r, true)).toBeNull();
+    }
+    const picked = readIdentity([6267], cards, picks({ finish: "Standard" }), true);
+    expect(picked.kind).toBe("token");
+    expect(readAddable(picked)).toBeNull();
+  });
+
+  // Review S1 (orchestrator call under the owner's rule "nothing is added
+  // until the user chooses"). Queen Amidala SEC 1127 is three printings under
+  // one number and one variant type: 4170 Carbonite, 4171 Rose Gold, 4172
+  // Gold -- the catalogue tells them apart by the image file name only
+  // (App Spec 10.5). Was: the first of the three, with no question.
+  it("Serialized Prestige (SEC 1127, three printings): one chip per printing, nothing defaulted in either mode", () => {
+    for (const defaults of [true, false]) {
+      const r = readIdentity([4170, 4171, 4172], cards, NO_PICKS, defaults);
+      expect(r.kind).toBe("card");
+      if (r.kind !== "card") continue;
+      expect(r.card.name).toBe("Queen Amidala");
+      expect(r.variant).toBeNull();
+      expect(readAddable(r)).toBeNull();
+      expect(r.choices).toEqual([
+        {
+          axis: "finish",
+          label: "Finish",
+          options: [
+            { value: "Carbonite", l1: "Carbonite", l2: null },
+            { value: "Gold", l1: "Gold", l2: null },
+            { value: "Rose Gold", l1: "Rose Gold", l2: null },
+          ],
+          value: null,
+          needsPick: true,
+          defaulted: false,
+        },
+      ]);
+      expect(r.hint).toEqual({
+        text: "Carbonite, Gold and Rose Gold share this number. Pick the one you have.",
+        attn: false,
+      });
+    }
+    const by = (finish: string, defaults: boolean) =>
+      readAddable(readIdentity([4172, 4170, 4171], cards, picks({ finish }), defaults))?.variant
+        .variant_id;
+    for (const defaults of [true, false]) {
+      expect(by("Carbonite", defaults)).toBe(4170);
+      expect(by("Rose Gold", defaults)).toBe(4171);
+      expect(by("Gold", defaults)).toBe(4172);
+      // A finish that is none of the three settles nothing.
+      expect(by("Serialized Prestige", defaults)).toBeUndefined();
+      expect(by("Standard", defaults)).toBeUndefined();
+    }
+  });
+
+  it("printings nothing tells apart (no image name to read): nothing is addable and nothing is offered", () => {
+    const blind = cards.map((c) => ({
+      ...c,
+      variants: c.variants.map((v) => ({ ...v, front_image_url: null })),
+    }));
+    for (const defaults of [true, false]) {
+      const r = readIdentity([4170, 4171, 4172], blind, picks({ finish: "Gold" }), defaults);
+      expect(r).toMatchObject({
+        kind: "card",
+        card: { name: "Queen Amidala" },
+        variant: null,
+        choices: [],
+        hint: {
+          text: "This number has printings the app cannot tell apart. It is not added by scanning.",
+          attn: false,
+        },
+      });
+      expect(readAddable(r)).toBeNull();
+      expect(readAddable(r, true)).toBeNull();
+    }
+  });
+
+  // Review N1: some of the strip's printings are not in the loaded catalogue.
+  // Was: the read silently narrowed to the ones found (a foil pair with one
+  // printing absent became "one printing" and Fast add added it).
+  it("a partial miss (a printing the strip names is not loaded): never added without an Add tap, and the panel says so", () => {
+    const pair = readIdentity([6571, -5], cards, NO_PICKS, false);
+    expect(pair).toMatchObject({
+      kind: "card",
+      card: { name: "Cell Block Guard" },
+      partial: true,
+      variant: { variant_id: 6571 },
+      hint: {
+        text: "Part of this read is not in the catalogue this app loaded. Check the card before adding.",
+        attn: true,
+      },
+    });
+    expect(readAddable(pair, true)).toBeNull(); // no automatic add (Fast add)
+    expect(readAddable(pair)?.variant.variant_id).toBe(6571); // an Add tap may
+    // The same with a choice left among the ones found: a chip is not an Add tap.
+    const three = readIdentity([6571, 6572, -5], cards, picks({ finish: "Standard Foil" }), false);
+    expect(three).toMatchObject({ kind: "card", partial: true, variant: { variant_id: 6572 } });
+    expect(readAddable(three, true)).toBeNull();
+    // A whole read is not partial.
+    expect(readIdentity([6571, 6572], cards, NO_PICKS, false)).toMatchObject({ partial: false });
+    expect(readIdentity([970100], cards, NO_PICKS, false)).toMatchObject({ partial: false });
+    expect(readAddable(readIdentity([970100], cards, NO_PICKS, false), true)).not.toBeNull();
   });
 
   it("one card, foil + non-foil, no defaults (Fast add): Finish must be picked; the pick settles it", () => {
@@ -165,8 +275,26 @@ describe("BL-262 readIdentity: what a read identifies", () => {
   });
 
   it("the choice never leaves the read's printings, whatever is picked", () => {
-    const sets: number[][] = [[6571, 6572], [6317, 6318], [6269, 6273], [970172, 922119], [6681]];
-    const values = [null, "Standard", "Standard Foil", "Hyperspace", "Judge", "Promo", "Base Set"];
+    const sets: number[][] = [
+      [6571, 6572],
+      [6317, 6318],
+      [6269, 6273],
+      [970172, 922119],
+      [6681],
+      [4170, 4171, 4172], // review S1: the Serialized Prestige three
+      [6267], // a token: never addable
+    ];
+    const values = [
+      null,
+      "Standard",
+      "Standard Foil",
+      "Hyperspace",
+      "Judge",
+      "Promo",
+      "Base Set",
+      "Gold",
+      "Rose Gold",
+    ];
     for (const vids of sets)
       for (const defaults of [true, false])
         for (const setKey of values)
@@ -180,6 +308,7 @@ describe("BL-262 readIdentity: what a read identifies", () => {
               );
               const a = readAddable(r);
               if (a) expect(vids).toContain(a.variant.variant_id);
+              if (vids[0] === 6267) expect(a).toBeNull();
             }
   });
 });
@@ -222,16 +351,70 @@ describe("BL-262 printingReadout: the keep-limit readout for the printing itself
 });
 
 describe("BL-262 one rule: the camera never asks the keypad resolver which card", () => {
-  it("no camera source resolves set + number (padView / padReadout / resolveRow / padAddable)", () => {
-    for (const f of [
-      "cameraFlow.ts",
-      "cameraController.ts",
-      "CameraScreen.tsx",
-      "readIdentity.ts",
-    ]) {
-      const src = readFileSync("src/mobile/camera/" + f, "utf8");
-      expect(src, f).not.toMatch(/\b(padView|padReadout|resolveRow|padAddable|fastAddTarget)\b/);
+  // REPLACE (review N2). Was: a regex over four named files. Now every source
+  // file in the camera directory, and the import itself is what is forbidden.
+  // What this cannot catch: a helper OUTSIDE this directory (in tool/ or
+  // utils/) that wraps one of these functions under another name and is then
+  // imported here; a dynamic import; and a re-implementation of the keypad's
+  // default written inline. It is a tripwire for the stage 1 calls coming
+  // back -- the behaviour tests (fastAddCollision.test.ts, by variant id over
+  // every strip) are the protection.
+  const WHICH_CARD =
+    /\b(padView|padReadout|padAddable|resolveRow|rowFor|entryRow|inventoryStatus|fastAddTarget)\b/;
+  /** Why a source text breaks the rule, or null. Comments do not count. */
+  function offence(src: string): string | null {
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    // No mention at all (an import, a call, a re-export).
+    const named = WHICH_CARD.exec(code);
+    if (named) return "names " + named[1];
+    if (/import\s+\*\s+as\s+\w+\s+from\s+"[^"]*(addCardsResolver|padModel)"/.test(code))
+      return "imports a whole resolver module";
+    // From the resolver module itself only `decompose` (a printing's Set /
+    // Stamp / Finish words) and types may be imported.
+    for (const m of code.matchAll(
+      /import\s+(type\s+)?\{([^}]*)\}\s+from\s+"[^"]*addCardsResolver"/g
+    )) {
+      if (m[1]) continue; // a type-only import decides nothing
+      const extra = m[2]
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s && !s.startsWith("type ") && s !== "decompose");
+      if (extra.length) return "imports " + extra.join(", ") + " from the resolver";
     }
+    return null;
+  }
+
+  it("no file under camera/ imports or names the keypad resolver's which-card functions", () => {
+    const dir = "src/mobile/camera/";
+    const files = readdirSync(dir).filter(
+      (f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !f.endsWith(".d.ts")
+    );
+    // The directory was really read (the four files the old guard named are in it).
+    for (const f of ["cameraFlow.ts", "cameraController.ts", "CameraScreen.tsx", "readIdentity.ts"])
+      expect(files).toContain(f);
+    expect(files.length).toBeGreaterThan(15);
+    for (const f of files) expect(offence(readFileSync(dir + f, "utf8")), f).toBeNull();
+  });
+
+  it("the guard fails on the calls it is there for, and not on a comment or on decompose", () => {
+    expect(offence('import { padView } from "../tool/padModel";')).toBe("names padView");
+    expect(offence("const a = padAddable(view);")).toBe("names padAddable");
+    expect(offence('import { resolveRow } from "../../utils/addCardsResolver";')).toBe(
+      "names resolveRow"
+    );
+    expect(offence('import { decompose, groupBy } from "../../utils/addCardsResolver";')).toBe(
+      "imports groupBy from the resolver"
+    );
+    expect(offence('import * as R from "../../utils/addCardsResolver";')).toBe(
+      "imports a whole resolver module"
+    );
+    expect(offence("// the keypad's padView is not used here\nconst a = 1;")).toBeNull();
+    expect(
+      offence(
+        'import { decompose } from "../../utils/addCardsResolver";\n' +
+          'import type { Decomposition, Row } from "../../utils/addCardsResolver";'
+      )
+    ).toBeNull();
   });
 
   it("the three users of the rule call readIdentity", () => {

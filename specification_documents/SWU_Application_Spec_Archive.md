@@ -481,3 +481,7 @@ Code comments that carried the same rules, verbatim (`frontend/src/mobile/camera
 > The reading fills
 > the same set + number the keypad resolver takes; finish stays a choice
 > (non-foil default rule, BL-191).
+
+§25.7, Flow bullet, the parenthesis after "Found shows the keypad's `Identified` panel", verbatim (superseded 2026-10-13 by the same decision: the panel is the card the strip identified, not the keypad's view of the set + number with its shared-number choice):
+
+> (shared numbers, BL-191 non-foil default, In vault / After add readout)
