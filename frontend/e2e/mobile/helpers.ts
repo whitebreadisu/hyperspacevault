@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test as base } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { installApiMocks, recorderFor } from "./mock-api";
@@ -20,14 +21,118 @@ export function hideEmulatorBanner() {
   else document.addEventListener("DOMContentLoaded", add);
 }
 
+/** True when a Playwright storageState (a file path or the object) carries a
+ * Firebase Auth session (auth.setup.ts saves one in IndexedDB). */
+export function hasStoredSession(state: unknown): boolean {
+  if (!state) return false;
+  const text = typeof state === "string" ? readFileSync(state, "utf8") : JSON.stringify(state);
+  return text.includes("firebase:authUser:");
+}
+
+/** BL-255 part 2: how the app document now in `page` came up -- "in" / "out"
+ * once Firebase Auth has finished restoring the stored session (the SDK's own
+ * `authStateReady()`, reached through the dev server's module for
+ * src/firebase.ts, the instance the app itself uses), or "not-app" for a
+ * document that does not load src/ (only index.html and scan.html do). The
+ * app shows nothing but "Loading…" until then (App.tsx), so this is not a
+ * wait the tests need -- it is what lets the harness say WHY a page is signed
+ * out. With `keys`, also what the SDK's IndexedDB store holds at that moment. */
+export async function authState(
+  page: Page
+): Promise<{ state: "in" | "out" | "not-app"; keys: string }> {
+  for (;;) {
+    try {
+      return await page.evaluate(async (path) => {
+        if (!document.querySelector('script[type="module"][src^="/src/"]'))
+          return { state: "not-app" as const, keys: "" };
+        const mod = (await import(/* @vite-ignore */ path)) as {
+          auth: { authStateReady(): Promise<void>; currentUser: object | null };
+        };
+        await mod.auth.authStateReady();
+        const keys = await new Promise<string>((resolve) => {
+          const open = indexedDB.open("firebaseLocalStorageDb");
+          open.onerror = () => resolve("open failed: " + String(open.error));
+          open.onsuccess = () => {
+            const db = open.result;
+            if (!db.objectStoreNames.contains("firebaseLocalStorage")) {
+              db.close();
+              return resolve("no firebaseLocalStorage store");
+            }
+            const req = db
+              .transaction("firebaseLocalStorage")
+              .objectStore("firebaseLocalStorage")
+              .getAllKeys();
+            req.onsuccess = () => (db.close(), resolve(JSON.stringify(req.result)));
+            req.onerror = () => (db.close(), resolve("read failed: " + String(req.error)));
+          };
+        });
+        return { state: mod.auth.currentUser ? ("in" as const) : ("out" as const), keys };
+      }, "/src/firebase.ts");
+    } catch (e) {
+      // The document navigated under the question (e.g. the hop to /scan/):
+      // ask the document that replaced it. Anything else is a real error.
+      if (page.isClosed()) return { state: "not-app", keys: "" };
+      if (!/Execution context was destroyed|because of a navigation/.test(String(e))) throw e;
+      await page.waitForLoadState("load");
+    }
+  }
+}
+
+/** Everything a page of the suite gets, in one place (the `page` fixture
+ * below and clip-helpers.ts's own-browser fixture both call it): the API
+ * double and the no-internet stubs (mock-api.ts), the emulator banner hidden,
+ * and one check. `session`: the context was created with a signed-in
+ * storageState, so the first app document it opens must come up signed in.
+ * If it does not (CI run 38387701220: a page signed out from its first frame,
+ * cause not found), the test fails at that `page.goto`, saying so and what
+ * the SDK's store held, instead of timing out 30 s later on a control that
+ * only a signed-in page shows. Only the first app document is checked: a
+ * test may sign out afterwards. */
+export async function harnessPage(
+  page: Page,
+  opts: { fixture?: CardsFixture; session: boolean }
+): Promise<Recorder> {
+  const rec = await installApiMocks(page, { fixture: opts.fixture });
+  await page.addInitScript(hideEmulatorBanner);
+  if (opts.session) {
+    const goto = page.goto.bind(page);
+    page.goto = (async (url, options) => {
+      const res = await goto(url, options);
+      const { state, keys } = await authState(page);
+      if (state === "not-app") return res;
+      page.goto = goto;
+      if (state === "out")
+        throw new Error(
+          "BL-255: the stored session was not restored -- this context was created with a " +
+            "signed-in storageState, but Firebase Auth came up signed out on its first app " +
+            `document (${page.url()}). IndexedDB firebaseLocalStorage keys: ${keys}`
+        );
+      return res;
+    }) as Page["goto"];
+  }
+  return rec;
+}
+
+/** BL-255 part 2: the suite is hermetic -- a page that asked a host other
+ * than this machine for something the harness does not answer fails its test. */
+export function expectNoInternet(rec: Recorder): void {
+  expect(
+    rec.external,
+    "requests to the internet (answer the host in mock-api.ts stubExternal, or drop the request)"
+  ).toEqual([]);
+}
+
 /** `test` with the API mocks installed on every page; pick the catalogue with
  * `test.use({ cardsFixture: "base-cards-600" })`. */
 export const test = base.extend<{ cardsFixture: CardsFixture }>({
   cardsFixture: ["base-cards", { option: true }],
-  page: async ({ page, cardsFixture }, provide) => {
-    await installApiMocks(page, { fixture: cardsFixture });
-    await page.addInitScript(hideEmulatorBanner);
+  page: async ({ page, cardsFixture, storageState }, provide) => {
+    const rec = await harnessPage(page, {
+      fixture: cardsFixture,
+      session: hasStoredSession(storageState),
+    });
     await provide(page);
+    expectNoInternet(rec);
   },
 });
 export { expect };

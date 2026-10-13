@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page, Route } from "@playwright/test";
@@ -45,6 +45,85 @@ export interface Recorder {
   exports: string[];
   /** BL-252 S6: GET /api/shared/{token}[/quantities|/limits] paths, in order. */
   sharedReads: string[];
+  /** BL-255: requests to a host that is neither this machine nor answered by
+   * the harness (stubExternal). Each one was aborted, and the shared `page`
+   * fixture fails the test that made it. */
+  external: string[];
+}
+
+// ── BL-255 part 2: the suite never talks to the internet ───────────────────
+// The app under test asks three internet hosts for things at start-up. Each
+// is answered here, in the one place every page of the suite goes through:
+//
+//  - https://apis.google.com/js/api.js (+ its gapi module) -- the Firebase
+//    Auth SDK's helper for popup / redirect sign-in. On a phone user agent the
+//    SDK waits for it BEFORE it restores the stored session
+//    (`_shouldInitProactively`), so the signed-in state of every phone test
+//    hung on a live Google request; a dropped one also logged a console error
+//    (`net::ERR_CONNECTION_CLOSED`) that failed whichever test was running.
+//    Answered with "loader present, gapi.load unavailable": the SDK takes its
+//    own "could not load" branch (the error is swallowed by design -- "if
+//    this fails, don't halt auth loading"), restores the session at once and
+//    never asks for the helper iframe. Email / password sign-in and session
+//    restore -- everything the suite uses -- do not need it.
+//  - https://fonts.googleapis.com/css2 + https://fonts.gstatic.com/** -- the
+//    web fonts (src/index.css). Served from fixtures/fonts (the stylesheet
+//    and the 21 files it names), so the text-fit assertions always measure
+//    Barlow / Barlow Condensed / Russo One, never a fallback face.
+//  - https://cdn.starwarsunlimited.com/** card art: the 1 px image below.
+//
+// Anything else that is not this machine is aborted and recorded in
+// `rec.external`; helpers.ts fails the test on a non-empty list.
+const FONT_DIR = join(here, "fixtures", "fonts");
+const FONT_CSS = readFileSync(join(FONT_DIR, "google-fonts.css"));
+const FONT_FILES = new Map(
+  readdirSync(FONT_DIR)
+    .filter((f) => f.endsWith(".woff2"))
+    .map((f) => [f, readFileSync(join(FONT_DIR, f))] as const)
+);
+const CORS = { "access-control-allow-origin": "*" };
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** The gapi loader's answer: `gapi` exists, `gapi.load` does not, and the
+ * SDK's `?onload=` callback is called so its promise settles (an answer that
+ * never calls it would leave Auth initialisation waiting for ever). */
+function gapiStub(url: URL): string {
+  const cb = url.searchParams.get("onload") ?? "";
+  return (
+    "window.gapi = window.gapi || {};\n" +
+    (/^[\w$]+$/.test(cb) ? `if (typeof window.${cb} === "function") window.${cb}();\n` : "")
+  );
+}
+
+/** Answer the app's internet requests locally and abort every other
+ * non-local request, recording it in `external`. Installed by
+ * installApiMocks; a spec that opens a page of its own calls it directly. */
+export async function stubExternal(page: Page, external: string[]): Promise<void> {
+  // Registered first, so every route added after it (below, in
+  // installApiMocks, or by a spec) is asked before this catch-all.
+  await page.route(
+    (u) => /^https?:$/.test(u.protocol) && !LOCAL_HOSTS.has(u.hostname),
+    (route) => {
+      external.push(`${route.request().method()} ${route.request().url()}`);
+      return route.abort("blockedbyclient");
+    }
+  );
+  await page.route("https://apis.google.com/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/javascript",
+      body: gapiStub(new URL(route.request().url())),
+    })
+  );
+  await page.route("https://fonts.googleapis.com/css2**", (route) =>
+    route.fulfill({ status: 200, contentType: "text/css", headers: CORS, body: FONT_CSS })
+  );
+  await page.route("https://fonts.gstatic.com/**", (route) => {
+    const body = FONT_FILES.get(new URL(route.request().url()).pathname.split("/").pop() ?? "");
+    // A file the stylesheet fixture does not name: let the catch-all record it.
+    if (!body) return route.fallback();
+    return route.fulfill({ status: 200, contentType: "font/woff2", headers: CORS, body });
+  });
 }
 
 export interface ImportFile {
@@ -84,6 +163,7 @@ export const recorderFor = (page: Page): Recorder =>
     imports: [],
     exports: [],
     sharedReads: [],
+    external: [],
   };
 
 /** S2-07: the price-history double -- daily points ending at PRICE_AS_OF, a
@@ -122,8 +202,10 @@ export async function installApiMocks(
     imports: [],
     exports: [],
     sharedReads: [],
+    external: [],
   };
   recorders.set(page, rec);
+  await stubExternal(page, rec.external);
 
   page.on("pageerror", (e) => rec.pageErrors.push(String(e)));
   page.on("console", (m) => {
@@ -141,6 +223,9 @@ export async function installApiMocks(
     // loading -- the navigation did it, not a failed request.
     if (r.failure()?.errorText === "net::ERR_ABORTED" && r.url().includes("/emulator/auth/iframe"))
       return;
+    // BL-255: a request the hermetic catch-all aborted is reported once, by
+    // name, through `rec.external` (not a second time as a failed request).
+    if (r.failure()?.errorText === "net::ERR_BLOCKED_BY_CLIENT") return;
     // A reload/navigation aborts in-flight third-party pixels (e.g. google.com
     // cleardot.gif) -- noise. Only same-origin (the app's localhost) aborts count.
     if (r.failure()?.errorText === "net::ERR_ABORTED") {

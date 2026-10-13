@@ -1,0 +1,19 @@
+BL-255 part 2: the web fonts the app loads from Google Fonts (src/index.css),
+kept here so the phone e2e suite never fetches them from the internet
+(e2e/mobile/mock-api.ts answers fonts.googleapis.com / fonts.gstatic.com from
+this folder). Test fixtures only -- the app itself still loads Google Fonts.
+
+google-fonts.css   the css2 stylesheet as served on 2026-10-13 for
+                   family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&family=Russo+One&display=swap
+*.woff2            the 21 files that stylesheet names, byte-exact, under their
+                   fonts.gstatic.com file names
+
+Barlow and Barlow Condensed: Copyright 2017 The Barlow Project Authors
+(https://github.com/jpt/barlow). Russo One: Copyright (c) 2011-2012, Jovanny
+Lemonad (jovanny.ru), with Reserved Font Name "Russo".
+All three are licensed under the SIL Open Font License, Version 1.1
+(https://openfontlicense.org), which permits redistribution with this notice.
+
+To refresh: download the stylesheet again with a current browser user agent,
+replace google-fonts.css, and fetch every fonts.gstatic.com URL it names into
+this folder.

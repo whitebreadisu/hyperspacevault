@@ -164,6 +164,9 @@ test("s1-25-feedback-auto-close", async ({ page }) => {
   await page.locator(".m-fb__close").click();
   await expect(page.locator(".m-fb")).toHaveCount(0);
   await page.locator(".m-vh__fb").click();
+  // BL-255: the screen (and its Escape listener) mounts a task after the tap;
+  // a key pressed before it exists is heard by nothing (CI run 38347653389).
+  await expect(page.locator(".m-fb")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator(".m-fb")).toHaveCount(0);
   expect(new URL(page.url()).hash.startsWith("#/vault")).toBe(true);

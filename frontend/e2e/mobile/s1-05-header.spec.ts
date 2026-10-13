@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { formatVersionLabel } from "../../src/utils/version";
 import { expect, measureEach, test } from "./helpers";
+import { recorderFor, stubExternal } from "./mock-api";
 import type { Page } from "@playwright/test";
 
 // S1-05: the expanded Vault header (rev4 `vault-rest`, `vault-fb-text`,
@@ -114,6 +115,9 @@ test("s1-05-header-same-height", async ({ page, browser }, info) => {
     storageState: { cookies: [], origins: [] },
   });
   const out = await ctx.newPage();
+  // BL-255: this page is outside the fixture; give it the same no-internet
+  // stubs (its strays land in the fixture page's list, checked at teardown).
+  await stubExternal(out, recorderFor(page).external);
   await out.route(
     (u) => u.pathname.startsWith("/api/"),
     (r) => r.fulfill({ status: 200, contentType: "application/json", body: "[]" })

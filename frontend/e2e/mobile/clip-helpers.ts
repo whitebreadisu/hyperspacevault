@@ -1,7 +1,5 @@
 import { resolve } from "node:path";
-import { test as base } from "./helpers";
-import { hideEmulatorBanner } from "./helpers";
-import { installApiMocks } from "./mock-api";
+import { expectNoInternet, harnessPage, test as base } from "./helpers";
 import type { CardsFixture } from "./mock-api";
 
 // BL-253 S7-19: the fake-camera harness. The BL-238 spike's smoke_test.js ran
@@ -61,12 +59,14 @@ export const test = base.extend<{
       permissions: ["camera"],
     });
     const page = await context.newPage();
-    await installApiMocks(page, { fixture: cardsFixture });
-    await page.addInitScript(hideEmulatorBanner);
+    // BL-255: the same harness as every other page of the suite (API double,
+    // no internet, sign-in state settled after each goto).
+    const rec = await harnessPage(page, { fixture: cardsFixture, session: true });
     await countReads(page);
     await provide(page);
     await context.close();
     await browser.close();
+    expectNoInternet(rec);
   },
 });
 
