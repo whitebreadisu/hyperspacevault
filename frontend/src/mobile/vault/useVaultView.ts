@@ -12,6 +12,7 @@ import { useVaultData } from "./useVaultData";
 import {
   buildVaultList,
   freshFilterState,
+  phoneSortState,
   SCOPE_VALUES,
   withFilters,
   withScope,
@@ -201,8 +202,12 @@ export function useVaultViewOver(
     }, []),
     pickSort: useCallback(
       (column: SortColumn) => {
-        const next = nextSortState(sort, column);
-        capturePhone("sort_changed", { column, direction: next.direction });
+        // FR5-05: the phone has no Set or Variants sort; the only way in
+        // (pickSort is the one writer of this state -- no URL parameter,
+        // nothing persisted) maps either onto "Set | #" ascending, and the
+        // event reports what was applied.
+        const next = phoneSortState(nextSortState(sort, column));
+        capturePhone("sort_changed", { column: next.column, direction: next.direction });
         setSort(next);
       },
       [sort]

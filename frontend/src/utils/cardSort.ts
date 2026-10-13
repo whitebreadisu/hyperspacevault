@@ -28,8 +28,21 @@ import {
 import type { PriceMode, ValueDisplayMode } from "./variantScope";
 import { getRarityLabel } from "./variants";
 
+// `owned` (BL-257 FR5-05, owner 2026-10-12, F-17) is the phone Sort sheet's
+// "Cards Owned": copies owned, fewest first. Desktop has no header for it --
+// it is not in SORTABLE_COLUMNS and no desktop control can pick it.
 export type SortColumn =
-  "number" | "name" | "variants" | "playset" | "value" | "rarity" | "cost" | "power" | "hp" | "set";
+  | "number"
+  | "name"
+  | "variants"
+  | "playset"
+  | "value"
+  | "rarity"
+  | "cost"
+  | "power"
+  | "hp"
+  | "set"
+  | "owned";
 
 export type SortDirection = "asc" | "desc";
 
@@ -40,7 +53,8 @@ export interface SortState {
 
 /** The columns the locked design makes sortable -- Aspect, Type, Trait,
  * Keyword, Arena deliberately carry no sort affordance at all (their headers
- * render with no button/aria-sort). */
+ * render with no button/aria-sort). Desktop's list: the phone-only `owned`
+ * sort is deliberately absent. */
 export const SORTABLE_COLUMNS: ReadonlySet<SortColumn> = new Set([
   "number",
   "name",
@@ -265,6 +279,12 @@ function ascendingCompareFor(
       return compareName;
     case "variants":
       return (a, b) => compareNumeric(a.variants.length, b.variants.length);
+    case "owned":
+      // Copies owned, fewest first: the scoped finish's copies while a finish
+      // scope is on, else the card's total -- the count the Playset sort and
+      // the pips already use (ownedCountFor). Nothing owned anywhere = every
+      // card ties at 0 and the default-order tiebreak gives the default list.
+      return (a, b) => compareNumeric(ownedCountFor(a, context), ownedCountFor(b, context));
     case "playset":
       return (a, b) => -comparePlaysetDescending(a, b, context);
     case "rarity":
