@@ -190,6 +190,19 @@ function makeDetail(overrides: Partial<BaseCardDetail> = {}): BaseCardDetail {
   };
 }
 
+// BL-255 root cause (flaky "forced flush ... prev/next", CI run 38335630895):
+// the dialog shell (role="dialog") mounts immediately in the loading state,
+// but its content (stepper, rail, ...) renders only after the mocked
+// getBaseCardDetail promise resolves and React commits the detail. Waiting
+// for the dialog alone and then reading content synchronously races that
+// commit; under load the read won. Wait for the load to finish instead.
+async function waitForPopupLoaded() {
+  await waitFor(() => {
+    screen.getByRole("dialog");
+    if (screen.queryByText("Loading…")) throw new Error("popup still loading");
+  });
+}
+
 async function renderPopup(
   detail: BaseCardDetail,
   opts: {
@@ -220,7 +233,7 @@ async function renderPopup(
       />
     );
   });
-  await waitFor(() => screen.getByRole("dialog"));
+  await waitForPopupLoaded();
   return { onClose, onChanged };
 }
 
@@ -898,7 +911,7 @@ describe("CardPopup signed-out (BL-56/BL-111 F5)", () => {
         />
       );
     });
-    await waitFor(() => screen.getByRole("dialog"));
+    await waitForPopupLoaded();
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(onRequestSignIn).toHaveBeenCalledOnce();
   });
@@ -1390,7 +1403,7 @@ describe("CardPopup stepper forced flush (BL-219, CREATE)", () => {
       );
       unmount = result.unmount;
     });
-    await waitFor(() => screen.getByRole("dialog"));
+    await waitForPopupLoaded();
 
     fireEvent.click(screen.getByRole("button", { name: /increment/i }));
     expect(adjustCard).not.toHaveBeenCalled();
@@ -1450,7 +1463,7 @@ describe("CardPopup stepper forced flush (BL-219, CREATE)", () => {
         navigation={nav}
       />
     );
-    await waitFor(() => screen.getByRole("dialog"));
+    await waitForPopupLoaded();
 
     fireEvent.click(screen.getByRole("button", { name: /increment/i }));
     expect(adjustCard).not.toHaveBeenCalled();
@@ -1510,7 +1523,7 @@ async function renderPopupWithLimits(
       </LimitsProvider>
     );
   });
-  await waitFor(() => screen.getByRole("dialog"));
+  await waitForPopupLoaded();
 }
 
 describe("CardPopup effective limits (PORT, BL-25)", () => {
@@ -2131,7 +2144,7 @@ describe("CardPopup prev/next navigation (BL-148, CREATE)", () => {
         navigation={makeNav()}
       />
     );
-    await waitFor(() => screen.getByRole("dialog"));
+    await waitForPopupLoaded();
     await waitFor(() => expect(getPriceHistory).toHaveBeenCalledWith(1, 1, "90d"));
 
     // Select the non-default printing and expand the full history panel.
