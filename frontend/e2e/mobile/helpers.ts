@@ -181,18 +181,24 @@ export async function scrollBy(page: Page, sel: string, total: number) {
   await page.waitForTimeout(420);
 }
 
-/** Synthetic wheel events (deltaY) on a container, `gap` ms apart. */
-export async function wheel(page: Page, sel: string, deltas: number[], gap: number) {
-  for (const d of deltas) {
-    await page
-      .locator(sel)
-      .first()
-      .evaluate((e, dy) => {
+/** ONE wheel gesture: synthetic wheel events (deltaY) on a container, all
+ * dispatched from inside the page in a single task, each preceded by the scroll
+ * the browser would have done. The app reads a wheel event more than 250 ms
+ * after the previous one as a FRESH gesture (useCollapse onWheel), so the
+ * spacing must not depend on the runner: here it is ~0 ms by construction.
+ * A second, genuinely fresh gesture is a second call: the 400 ms settle below
+ * is a page-clock timer, which cannot fire early, so the next call's first
+ * event always lands > 250 ms after this one's last. */
+export async function wheel(page: Page, sel: string, deltas: number[]) {
+  await page
+    .locator(sel)
+    .first()
+    .evaluate((e, dys) => {
+      for (const dy of dys) {
         e.scrollTop += dy;
         e.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, bubbles: true }));
-      }, d);
-    await page.waitForTimeout(gap);
-  }
+      }
+    }, deltas);
   await page.waitForTimeout(400);
 }
 

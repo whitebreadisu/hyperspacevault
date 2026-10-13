@@ -118,7 +118,7 @@ test("s1-06-back-top-stays-collapsed", async ({ page }) => {
   await page.reload();
   await openVault(page);
   await collapse(page);
-  await wheel(page, SCROLL, Array(12).fill(-80), 40);
+  await wheel(page, SCROLL, Array(12).fill(-80));
   expect(await isCollapsed(page)).toBe(true);
   expect(await page.locator(SCROLL).evaluate((e) => e.scrollTop)).toBe(0);
 });
