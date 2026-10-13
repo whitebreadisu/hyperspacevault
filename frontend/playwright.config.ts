@@ -18,8 +18,13 @@ const phone = (width: number, height: number) => ({
 
 export default defineConfig({
   testDir: "e2e",
-  retries: 0,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  // BL-255 / #214: one retry in CI only. A test that fails and then passes is
+  // reported as flaky (e2e/report-flaky.mjs reads the JSON report) rather than
+  // blocking; a test that fails twice still fails the leg. Local runs: none.
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI
+    ? [["list"], ["html", { open: "never" }], ["json", { outputFile: "e2e-results/report.json" }]]
+    : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",

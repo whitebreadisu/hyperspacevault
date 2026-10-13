@@ -310,12 +310,33 @@ jobs:
         working-directory: frontend
         run: npm run e2e:mobile -- ${{ matrix.args }}
 
+      # BL-255 / #214: playwright.config.ts gives CI one retry and writes a
+      # JSON report. A test that fails then passes leaves the leg green; this
+      # step lists it in the job summary and as a ::warning:: annotation so a
+      # pass-on-retry is never hidden (a test failing twice already failed the
+      # step above). Always exits 0, including when the report is missing.
+      - name: Report flaky tests
+        id: flaky
+        if: ${{ always() }}
+        working-directory: frontend
+        env:
+          LEG_NAME: ${{ matrix.name }}
+        run: node e2e/report-flaky.mjs e2e-results/report.json
+
       - name: Upload Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.id }}
           path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload flaky-test JSON report
+        if: ${{ always() && steps.flaky.outputs.flaky == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-flaky-${{ matrix.id }}
+          path: frontend/e2e-results/report.json
           retention-days: 7
 
   frontend-e2e-mobile:

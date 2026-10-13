@@ -198,6 +198,7 @@ BL-ids.
 - `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (PR #218)
 - `2026-10-12` **BL-256** — Mobile e2e gates every deploy; promote-prod verifies the promoted SHA's own checks (ADR-0007 amendment)
 - `2026-10-12` **BL-260** — Mobile e2e sharded into five project-split legs behind the unchanged `frontend-e2e-mobile` aggregator; CI wall time ~25 → ~7 min (ADR-0007 amendment)
+- `2026-10-13` **BL-255** — Phone e2e gets one CI retry; a pass-on-retry test is listed as flaky in the leg summary and as a warning, a double failure still fails the leg (ADR-0007 amendment)
 
 ---
 
