@@ -15,6 +15,7 @@ import { Identified, VerifyButton } from "../tool/Pad";
 import { padReadout, padView, toCatalog } from "../tool/padModel";
 import { OFFSET_LIMIT_MM, setScanSettings, useScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, setToolMode, useToolState } from "../tool/toolStore";
+import { usePhoneSideways } from "../useIsPhone";
 import { HOLD_MS, programName } from "./cameraFlow";
 import type { Phase, PickRow } from "./cameraFlow";
 import { CameraController } from "./cameraController";
@@ -61,13 +62,25 @@ function useSize(el: HTMLElement | null): { w: number; h: number } {
   return s;
 }
 
-function Guide({ g, phase }: { g: GuideLayout; phase: Phase["kind"] }) {
+/** FR5-03 (F-16): `settling` draws the guide's lines dim (the corner outline
+ * and the group box with its markers) until the picture first sharpens. The
+ * shade around the card is the card span's own shadow and does not change. */
+function Guide({
+  g,
+  phase,
+  settling,
+}: {
+  g: GuideLayout;
+  phase: Phase["kind"];
+  settling: boolean;
+}) {
   const tone =
     phase === "pick"
       ? " m-guide__box--amber"
       : phase === "found" || phase === "hold"
         ? " m-guide__box--read"
         : "";
+  const dim = settling ? " m-guide--settling" : "";
   return (
     <>
       <span
@@ -79,9 +92,11 @@ function Guide({ g, phase }: { g: GuideLayout; phase: Phase["kind"] }) {
           height: g.card.h,
           borderBottomRightRadius: g.card.radius,
         }}
-      />
+      >
+        <span className={"m-guide__corner" + dim} />
+      </span>
       <span
-        className={"m-guide__box" + tone}
+        className={"m-guide__box" + tone + dim}
         style={{ left: g.box.x, top: g.box.y, width: g.box.w, height: g.box.h }}
       >
         <span
@@ -431,9 +446,16 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
     return () => document.removeEventListener("pointerdown", on, { capture: true });
   }, []);
 
-  // Reading pauses while anything is over the preview.
-  const blocked = covered || busy || alignOpen;
-  useEffect(() => {
+  // Reading pauses while anything is over the preview. FR5-06: the rotate
+  // screen (a phone on its side) is one more cover -- the read loop pauses,
+  // the stream keeps running, so turning upright restarts nothing.
+  const sideways = usePhoneSideways();
+  const blocked = covered || busy || alignOpen || sideways;
+  // Review FR5 N2: a layout effect -- the block lands in the commit that
+  // shows the cover, before the browser can deliver another frame's read (a
+  // passive effect ran a render later, and with Fast add a read accepted in
+  // that gap was an automatic add under the rotate screen).
+  useLayoutEffect(() => {
     ctl.setBlocked(blocked);
   }, [ctl, blocked, phase.kind]);
 
@@ -469,11 +491,15 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
 
   const g = size.w ? layoutGuide(size.w, size.h, vdim.w, vdim.h, live.h, live.v) : null;
 
+  // FR5-03: from a stream start until the picture first sharpens (or 3 s).
+  const settling = snap.settle === "settling";
+
   // Meter words.
   let mode: MeterMode;
   if (phase.kind === "found") mode = { kind: "paused", sub: "Choose below" };
   else if (phase.kind === "pick") mode = { kind: "paused", sub: "Pick the card" };
   else if (phase.kind === "hold") mode = { kind: "paused", sub: "Next card shortly" };
+  else if (settling) mode = { kind: "focusing" };
   else if (gate.band === "red") mode = { kind: "blurry" };
   else if (status?.kind === "small") mode = { kind: "small" };
   else mode = { kind: gate.band === "amber" ? "ok" : "sharp" };
@@ -512,6 +538,8 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
       className={"m-cam" + (paused ? " m-cam--paused" : "")}
       data-phase={phase.kind}
       data-stream={streamState.kind}
+      data-settle={snap.settle}
+      data-reading={blocked ? "paused" : "on"}
     >
       <div className={"m-camflash" + (flashOn ? " m-camflash--on" : "")} aria-hidden="true" />
       <div className="m-cam__stage">
@@ -529,7 +557,9 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
               setVdim({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })
             }
           />
-          {g && streamState.kind === "live" ? <Guide g={g} phase={phase.kind} /> : null}
+          {g && streamState.kind === "live" ? (
+            <Guide g={g} phase={phase.kind} settling={settling} />
+          ) : null}
           {readerFail ? (
             <div className="m-cam__msg" role="alert">
               <p className="m-cam__msgline">The card reader could not start</p>

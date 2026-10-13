@@ -461,10 +461,12 @@
   flex-direction: column;
   align-items: flex-end;
 }
-/* The segment is drawn 34 px inside its 44 px targets (5 px clear each side):
- * the price tucks up under the drawn edge. */
+/* The segment is drawn 34 px inside its 44 px targets (5 px clear each side).
+ * BL-257 FR5-01 (F-14): the price sits 7 px under the drawn edge (was 2 px,
+ * margin-top -3px). The pair is 64 px (44 + 2 + 18) and stays centred in the
+ * row's 80 px by the row's align-items, so only the space between them grew. */
 .m-app .m-dreg__pval {
-  margin-top: -3px;
+  margin-top: 2px;
   font-family: var(--font-mono);
   font-size: 15px;
   line-height: 18px;

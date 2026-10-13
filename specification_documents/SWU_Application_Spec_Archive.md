@@ -414,3 +414,33 @@ Code comment that carried the same decision (`frontend/src/utils/variantScope.ts
 §25.1, Finish-scope bullet, option-set sentence, verbatim:
 
 > The "Finish scope" sheet offers desktop's option set (§5.13, `utils/variantScope.ts`), 14 values: pinned chip rows for Standard, Hyperspace, Prestige and Weekly Play, then **Showcase as the last pinned row** — its label and one 44 px chip, the sheet's single-select idiom, not a check-box row — then a divider and "Show all finishes…" for the four check-box rows (Convention Exclusive, Event Exclusive, Prerelease Promo, Movie Promo).
+
+## Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)
+
+**Disposition:** → merge into ADR-0030 (dated amendment "Round 2 (2026-10-12)", F-18 line) + archive. The phone gate was width only, so a phone held on its side (874 px wide on an iPhone 16 Pro) fell into the desktop tree, and rotating swapped whole app trees. On 2026-10-12 the owner asked for portrait only on phones; a browser tab cannot lock the orientation, so the gate gained a short, touch-first arm and a phone on its side keeps the phone app behind a rotate screen. Four passages stated the width-only gate as built.
+
+§25.0, Gate bullet, first and third sentences, verbatim:
+
+> - **Gate.** `useIsPhone()` = `matchMedia("(max-width: 767px)")`, live.
+
+> Tablets and any viewport >= 768 px — including a phone held in landscape at 768 px or wider — get desktop.
+
+§25.0, Known limits, first bullet, verbatim:
+
+>   - A landscape viewport >= 768 px (large phones in landscape) is served the desktop tree by the width-only gate; the desktop tree has no camera, so the camera is unreachable there. The camera guide is portrait only.
+
+§25.7, Guide bullet, opening parenthesis, verbatim:
+
+> - **Guide.** Portrait only (the landscape constants are ported and unused; a viewport wider than 767 px is served the desktop tree by the gate (§25.0), which has no camera).
+
+§22, Super properties, the `layout` clause, verbatim:
+
+> registered at init from the same `max-width: 767px` query as the phone gate and updated when the viewport crosses it).
+
+## Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)
+
+**Disposition:** → merge into ADR-0030 (dated round-2 amendment, F-17 line) + archive. The phone Sort sheet was built (BL-247 S1-17) as desktop's ten sortable columns under desktop's header names, in desktop's order (#, Name, Variants, Playset, Value, Rarity, Cost, Power, HP, Set), with a chevron on the active row for its direction. On 2026-10-12 the owner asked for the phone's own list: the sorts he uses most first, "#" named "Set | #", a "Cards Owned" sort (copies owned) where Variants stood, no Set row, and the direction as a word in a blue-bordered badge because the caret was too subtle to read. Desktop is unchanged. §25.1 described the Sort sheet only by the parenthesis below; it gained a Sort bullet.
+
+§25.1, Status-rows bullet, the Sort item of row two, verbatim:
+
+> icon-only Sort (desktop's sortable columns, `nextSortState`),

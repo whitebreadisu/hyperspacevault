@@ -1,48 +1,60 @@
 import type { SortColumn, SortState } from "../../utils/cardSort";
-import { MIcon } from "../icons";
 import { Sheet, useSheetClose } from "../Sheet";
+import { phoneSortState } from "./vaultModel";
+import type { PhoneSortColumn } from "./vaultModel";
 
-// BL-247 S1-17: the sort sheet (rev4 MSheet.jsx:170-188). One row per desktop
-// sortable column (cardSort.ts SORTABLE_COLUMNS) named as desktop's table
-// headers (CardsTable.tsx:446-616). A pick follows desktop nextSortState: a
-// new column lands ascending, the active column flips direction. The active
-// row shows its direction; a pick closes the sheet.
+// BL-247 S1-17: the sort sheet (rev4 MSheet.jsx:170-188). A pick follows
+// desktop nextSortState: a new column lands ascending, the active column
+// flips direction; a pick closes the sheet. One exception (owner decision
+// 2026-10-12 after review): Cards Owned lands on descending -- most owned
+// first -- at its first tap (vaultModel nextPhoneSort).
+// BL-257 FR5-05 (F-17, owner 2026-10-12): the phone has its own list -- the
+// sorts used most first, Cost / Power / HP last; "#" reads "Set | #" (the
+// default order is by set, then number); the fifth row is "Cards Owned", the
+// `owned` sort (copies owned -- cardSort.ts), in the place of desktop's
+// Variants sort (number of printings), which the phone does not offer; there
+// is no Set row (the "Set | #" sort covers it). vaultModel phoneSortState
+// maps a `set` or `variants` sort onto "Set | #" ascending. The active row
+// carries its direction as a word in a blue-bordered badge, not a chevron;
+// the word is in the primary text colour so it reads on the blue-washed row.
+// Desktop's column headers and sorts are unchanged.
 
-export const SORT_LABELS: Record<SortColumn, string> = {
-  number: "#",
-  name: "Name",
-  variants: "Variants",
-  playset: "Playset",
+export const SORT_LABELS: Record<PhoneSortColumn, string> = {
+  number: "Set | #",
   value: "Value",
+  playset: "Playset",
+  name: "Name",
+  owned: "Cards Owned",
   rarity: "Rarity",
   cost: "Cost",
   power: "Power",
   hp: "HP",
-  set: "Set",
 };
-const ORDER: SortColumn[] = [
+export const SORT_ORDER: PhoneSortColumn[] = [
   "number",
-  "name",
-  "variants",
-  "playset",
   "value",
+  "playset",
+  "name",
+  "owned",
   "rarity",
   "cost",
   "power",
   "hp",
-  "set",
 ];
 
 export function sortLabel(sort: SortState): string {
-  return `Sort: ${SORT_LABELS[sort.column]}, ${sort.direction === "asc" ? "ascending" : "descending"}`;
+  const s = phoneSortState(sort);
+  return `Sort: ${SORT_LABELS[s.column]}, ${s.direction === "asc" ? "ascending" : "descending"}`;
 }
 
 function Rows({ sort, onPick }: { sort: SortState; onPick: (c: SortColumn) => void }) {
   const close = useSheetClose();
+  const current = phoneSortState(sort);
   return (
     <div className="m-choice">
-      {ORDER.map((c) => {
-        const on = sort.column === c;
+      {SORT_ORDER.map((c) => {
+        const on = current.column === c;
+        const word = current.direction === "asc" ? "Ascending" : "Descending";
         return (
           <button
             key={c}
@@ -50,19 +62,14 @@ function Rows({ sort, onPick }: { sort: SortState; onPick: (c: SortColumn) => vo
             className={"m-choice__row" + (on ? " m-choice__row--on" : "")}
             aria-pressed={on}
             data-sort={c}
-            aria-label={
-              SORT_LABELS[c] +
-              (on ? (sort.direction === "asc" ? ", ascending" : ", descending") : "")
-            }
+            aria-label={SORT_LABELS[c] + (on ? ", " + word.toLowerCase() : "")}
             onClick={() => {
               onPick(c);
               close();
             }}
           >
             <span>{SORT_LABELS[c]}</span>
-            {on ? (
-              <MIcon name={sort.direction === "asc" ? "chevup" : "chevdown"} size={20} />
-            ) : null}
+            {on ? <span className="m-sortdir">{word}</span> : null}
           </button>
         );
       })}

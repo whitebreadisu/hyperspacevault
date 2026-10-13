@@ -487,3 +487,54 @@ test("fr1-09 collapsed row: thumbnail, finish label over the plate, Market / Low
   await page.waitForTimeout(150);
   check(await miniGeom(page), "Ser. Prestige", "—");
 });
+
+// ── FR5-01 (F-14): more space between Market / Low and the price ──
+/** The gap between the segment's drawn bottom edge and the price's line box
+ * before FR5-01 (card.css `.m-dreg__pval { margin-top: -3px }` under a 44 px
+ * segment drawn 5 px in: 5 - 3 = 2 px; the pair was 59 px tall). */
+const FR5_01_OLD_GAP = 2;
+test("fr5-01 collapsed row: the price sits further under Market / Low, the pair still centred", async ({
+  page,
+}) => {
+  const c = await openCard(page, "ASH", 112);
+  const std = c.variants.find((v) => fin(v) === "Standard")!;
+  await scrollDetail(page, 300);
+  await expect(page.locator(".m-dreg3--collapsed")).toBeVisible();
+  await page.waitForTimeout(350);
+  const check = (g: Awaited<ReturnType<typeof miniGeom>>, price: string) => {
+    expect(g.pvalText).toBe(price);
+    // The gap, measured from the segment's DRAWN bottom (5 px inside its box).
+    const gap = g.pval.top - (g.seg.bottom - 5);
+    expect(gap).toBeGreaterThanOrEqual(FR5_01_OLD_GAP + 4 - 0.5);
+    expect(gap).toBeLessThanOrEqual(FR5_01_OLD_GAP + 6 + 0.5);
+    // The pair (segment box top to price bottom) is centred in the row.
+    const pairMid = (g.seg.top + g.pval.bottom) / 2;
+    const rowMid = (g.mini.top + g.mini.bottom) / 2;
+    expect(Math.abs(pairMid - rowMid)).toBeLessThanOrEqual(0.5);
+    // The row, the region and the targets are what they were.
+    expect(g.regionH).toBe(100);
+    expect(Math.abs(g.mini.height - 80)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(g.mini.top - g.regionTop - 10)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(g.art.height - 80)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(g.segDrawn - 34)).toBeLessThanOrEqual(0.5);
+    for (const h of g.segBtns) expect(h).toBeGreaterThanOrEqual(43.5);
+    // Nothing leaves the 80 px band, and the price stays under the segment.
+    expect(g.pval.bottom).toBeLessThanOrEqual(g.mini.bottom + 0.5);
+    expect(g.seg.top).toBeGreaterThanOrEqual(g.mini.top - 0.5);
+    expect(Math.abs(g.pval.right - g.seg.right)).toBeLessThan(1);
+  };
+  const market = `$${std.price!.market!.toFixed(2)}`;
+  check(await miniGeom(page), market);
+  // The whole-pixel text condition (helpers.ts wideText): the segment's
+  // condensed labels draw wider; the vertical arrangement must not change.
+  await wideText(page);
+  check(await miniGeom(page), market);
+  // The no-price dash, the other content the price slot can hold.
+  const ser = c.variants.find((v) => fin(v) === "Serialized Prestige")!;
+  await page.locator(`.m-print[data-variant="${ser.variant_id}"] .m-print__main`).click();
+  await expect(page.locator(".m-dreg3--collapsed")).toBeVisible();
+  await page.waitForTimeout(350);
+  check(await miniGeom(page), "—");
+  await wideText(page);
+  check(await miniGeom(page), "—");
+});

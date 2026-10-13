@@ -4,6 +4,7 @@ import type { BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import { nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
 import { DEFAULT_FILTERS } from "../../utils/filters";
 import { toInventoryCards } from "../../utils/inventory";
+import { SORT_LABELS, SORT_ORDER, sortLabel } from "./SortSheet";
 import { useVaultViewOver } from "./useVaultView";
 import {
   activeFilterCount,
@@ -11,6 +12,9 @@ import {
   freshFilterState,
   isNarrowed,
   matchesQuery,
+  nextPhoneSort,
+  PHONE_FIRST_DIRECTION,
+  phoneSortState,
   SCOPE_VALUES,
   withFilters,
   withScope,
@@ -213,6 +217,172 @@ describe("S1-16 Finish scope", () => {
     act(() => h.result.current.clearAll());
     expect(h.result.current.state).toEqual(freshFilterState());
     expect(h.result.current.narrowed).toBe(false);
+  });
+});
+
+describe("FR5-05 phone sort list (F-17)", () => {
+  it("nine rows in the owner's order, with the two phone labels and no Set row", () => {
+    expect(SORT_ORDER.map((c) => SORT_LABELS[c])).toEqual([
+      "Set | #",
+      "Value",
+      "Playset",
+      "Name",
+      "Cards Owned",
+      "Rarity",
+      "Cost",
+      "Power",
+      "HP",
+    ]);
+    expect(SORT_ORDER).toEqual([
+      "number",
+      "value",
+      "playset",
+      "name",
+      "owned",
+      "rarity",
+      "cost",
+      "power",
+      "hp",
+    ]);
+    expect(SORT_ORDER as string[]).not.toContain("set");
+    expect(SORT_ORDER as string[]).not.toContain("variants");
+    // The Sort button's accessible name uses the same labels.
+    expect(sortLabel({ column: "number", direction: "asc" })).toBe("Sort: Set | #, ascending");
+    expect(sortLabel({ column: "owned", direction: "desc" })).toBe("Sort: Cards Owned, descending");
+  });
+
+  it("a set or variants sort is shown as Set | # ascending (the default order); others pass through", () => {
+    for (const column of ["set", "variants"] as const) {
+      expect(phoneSortState({ column, direction: "asc" })).toEqual(DEFAULT_SORT_STATE);
+      expect(phoneSortState({ column, direction: "desc" })).toEqual(DEFAULT_SORT_STATE);
+      expect(sortLabel({ column, direction: "desc" })).toBe("Sort: Set | #, ascending");
+    }
+    for (const column of SORT_ORDER)
+      for (const direction of ["asc", "desc"] as const) {
+        const s = { column, direction };
+        expect(phoneSortState(s)).toBe(s);
+      }
+  });
+
+  it("the Vault's state never holds a set or variants sort: such a pick lands on Set | # ascending", () => {
+    const h = renderHook(() => useVaultViewOver(CARDS, SET_ORDER));
+    const base = h.result.current.list.map((c) => c.base_card_id);
+    for (const column of ["set", "variants"] as const) {
+      act(() => h.result.current.pickSort("name"));
+      act(() => h.result.current.pickSort(column));
+      expect(h.result.current.sort).toEqual({ column: "number", direction: "asc" });
+      expect(h.result.current.list.map((c) => c.base_card_id)).toEqual(base);
+      // ... from the default order too, and twice (desc would be the flip).
+      act(() => h.result.current.pickSort(column));
+      act(() => h.result.current.pickSort(column));
+      expect(h.result.current.sort).toEqual({ column: "number", direction: "asc" });
+      expect(h.result.current.list.map((c) => c.base_card_id)).toEqual(base);
+    }
+  });
+
+  it("a list handed a set or variants sort is built in the default order, both directions", () => {
+    const base = buildVaultList(CARDS, freshFilterState(), DEFAULT_SORT_STATE, CTX).list.map(
+      (c) => c.base_card_id
+    );
+    expect(base).toEqual([3, 4, 2, 1]);
+    for (const column of ["set", "variants"] as const)
+      for (const direction of ["asc", "desc"] as const)
+        expect(
+          buildVaultList(CARDS, freshFilterState(), { column, direction }, CTX).list.map(
+            (c) => c.base_card_id
+          )
+        ).toEqual(base);
+  });
+
+  it("Cards Owned sorts by copies owned: total unscoped, the finish's copies when scoped", () => {
+    // Owned: Vader 1+1 = 2, Childsen 3, Chimaera 3 (all Hyperspace), Luke 0.
+    // Default order: Chimaera (ASH), then SOR by number: Luke, Childsen, Vader.
+    const h = renderHook(() => useVaultViewOver(CARDS, SET_ORDER));
+    // REPLACE (owner decision 2026-10-12 after review, T2): the first tap on
+    // Cards Owned lands on most owned first (was ascending); the second flips.
+    // Same four orders asserted as before, reached in the new sequence.
+    act(() => h.result.current.pickSort("owned"));
+    expect(h.result.current.sort).toEqual({ column: "owned", direction: "desc" });
+    // Most first; the 3-3 tie falls to the default order (Chimaera, Childsen).
+    expect(h.result.current.list.map((c) => c.base_card_id)).toEqual([3, 2, 1, 4]);
+    act(() => h.result.current.pickSort("owned"));
+    expect(h.result.current.sort).toEqual({ column: "owned", direction: "asc" });
+    // Fewest first; the tie is STILL in the default order (not reversed).
+    expect(h.result.current.list.map((c) => c.base_card_id)).toEqual([4, 1, 3, 2]);
+    // Scoped to Hyperspace: Chimaera 3, Vader 1, Childsen 0 (Luke has none).
+    act(() => h.result.current.setScope("Hyperspace"));
+    expect(h.result.current.list.map((c) => c.base_card_id)).toEqual([2, 1, 3]);
+    act(() => h.result.current.pickSort("owned"));
+    expect(h.result.current.list.map((c) => c.base_card_id)).toEqual([3, 1, 2]);
+  });
+
+  // Owner decision 2026-10-12 after review: a per-column first direction, in
+  // the phone's pick logic only.
+  it("nextPhoneSort: Cards Owned first lands descending; every other sort ascending; active flips", () => {
+    expect(PHONE_FIRST_DIRECTION).toEqual({ owned: "desc" });
+    for (const from of [
+      DEFAULT_SORT_STATE,
+      { column: "name", direction: "desc" },
+      { column: "value", direction: "asc" },
+    ] as const) {
+      expect(nextPhoneSort(from, "owned")).toEqual({ column: "owned", direction: "desc" });
+      for (const column of SORT_ORDER) {
+        if (column === "owned" || column === from.column) continue;
+        expect(nextPhoneSort(from, column), column).toEqual({ column, direction: "asc" });
+      }
+    }
+    // The active column flips, Cards Owned included, both ways.
+    for (const column of SORT_ORDER) {
+      expect(nextPhoneSort({ column, direction: "asc" }, column)).toEqual({
+        column,
+        direction: "desc",
+      });
+      expect(nextPhoneSort({ column, direction: "desc" }, column)).toEqual({
+        column,
+        direction: "asc",
+      });
+    }
+    // A set / variants pick is still "Set | #" ascending, from anywhere.
+    for (const column of ["set", "variants"] as const) {
+      expect(nextPhoneSort({ column: "owned", direction: "desc" }, column)).toEqual(
+        DEFAULT_SORT_STATE
+      );
+      expect(nextPhoneSort(DEFAULT_SORT_STATE, column)).toEqual(DEFAULT_SORT_STATE);
+    }
+    // Desktop's shared rule is untouched: a new column there is ascending.
+    expect(nextSortState(DEFAULT_SORT_STATE, "owned")).toEqual({
+      column: "owned",
+      direction: "asc",
+    });
+  });
+
+  it("the badge, the button's name and the list all follow the applied direction", () => {
+    const h = renderHook(() => useVaultViewOver(CARDS, SET_ORDER));
+    act(() => h.result.current.pickSort("owned"));
+    expect(sortLabel(h.result.current.sort)).toBe("Sort: Cards Owned, descending");
+    act(() => h.result.current.pickSort("owned"));
+    expect(sortLabel(h.result.current.sort)).toBe("Sort: Cards Owned, ascending");
+    act(() => h.result.current.pickSort("name"));
+    expect(sortLabel(h.result.current.sort)).toBe("Sort: Name, ascending");
+    act(() => h.result.current.pickSort("owned"));
+    expect(sortLabel(h.result.current.sort)).toBe("Sort: Cards Owned, descending");
+  });
+
+  it("Cards Owned with nothing owned is the default order, both directions", () => {
+    const empty = CARDS.map((c) => ({
+      ...c,
+      inventory: {},
+      variants: c.variants.map((x) => ({ ...x, quantity: 0 })),
+    }));
+    const base = buildVaultList(empty, freshFilterState(), DEFAULT_SORT_STATE, CTX).list.map(
+      (c) => c.base_card_id
+    );
+    for (const direction of ["asc", "desc"] as const)
+      expect(
+        buildVaultList(empty, freshFilterState(), { column: "owned", direction }, CTX).list.map(
+          (c) => c.base_card_id
+        )
+      ).toEqual(base);
   });
 });
 

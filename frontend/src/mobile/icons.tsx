@@ -133,6 +133,17 @@ const P: Record<string, ReactElement> = {
       <path d="M3.5 5.5h7.5v13H3.5zM13 5.5h7.5v13H13z" />
     </g>
   ),
+  // BL-257 FR5-06: the rotate screen -- a phone on its side (left), the turn
+  // arrow, the phone upright (right).
+  rotate: (
+    <g>
+      <path d="M2.5 13.5h8v6h-8z" />
+      <path d="M5 4.5h2.5a4 4 0 0 1 4 4V10" />
+      <path d="M9.3 8.2 11.5 10.4l2.2-2.2" />
+      <path d="M14.5 4.5h7v15h-7z" />
+      <path d="M17.2 16.8h1.6" />
+    </g>
+  ),
   g3: (
     <g>
       <path d="M2.5 7h5.2v10H2.5zM9.4 7h5.2v10H9.4zM16.3 7h5.2v10h-5.2z" />

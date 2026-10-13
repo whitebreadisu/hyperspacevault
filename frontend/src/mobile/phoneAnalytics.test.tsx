@@ -67,6 +67,26 @@ describe("S1-27 phone analytics events", () => {
     expect(calls("filters_cleared")).toEqual([{ layout: "phone" }]);
   });
 
+  // REPLACE (owner decision 2026-10-12 after review, T2): Cards Owned's first
+  // tap is descending and the event says so (was asc, then desc).
+  it("FR5-05 sort_changed reports the applied column and direction: owned desc first; never set or variants", () => {
+    const { result } = renderHook(() => useVaultViewOver([], {}));
+    act(() => result.current.pickSort("owned"));
+    act(() => result.current.pickSort("owned"));
+    act(() => result.current.pickSort("set"));
+    act(() => result.current.pickSort("name"));
+    act(() => result.current.pickSort("variants"));
+    act(() => result.current.pickSort("owned"));
+    expect(calls("sort_changed")).toEqual([
+      { column: "owned", direction: "desc", layout: "phone" },
+      { column: "owned", direction: "asc", layout: "phone" },
+      { column: "number", direction: "asc", layout: "phone" },
+      { column: "name", direction: "asc", layout: "phone" },
+      { column: "number", direction: "asc", layout: "phone" },
+      { column: "owned", direction: "desc", layout: "phone" },
+    ]);
+  });
+
   it("search_performed fires 400 ms after typing, with length + count only", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useVaultViewOver([], {}));

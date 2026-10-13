@@ -6,8 +6,16 @@ import { padView, toCatalog } from "../tool/padModel";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import { getScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, addPadEntry, getToolState, setToolState } from "../tool/toolStore";
-import { CameraFlow } from "./cameraFlow";
-import type { Phase, PickRow } from "./cameraFlow";
+import {
+  CameraFlow,
+  SETTLE_MS,
+  SETTLE_OFF,
+  settleEnd,
+  settleFrame,
+  settleStart,
+  settleStatus,
+} from "./cameraFlow";
+import type { Phase, PickRow, SettleState, SettleStatus } from "./cameraFlow";
 import { CameraStream } from "./cameraStream";
 import type { StreamLike, StreamState } from "./cameraStream";
 import { guideRectInVideo, layoutGuide } from "./guide";
@@ -46,6 +54,8 @@ export interface CameraSnapshot {
   flashAt: number;
   /** The newest partial read (S7-16), or null. */
   partial: PartialRead | null;
+  /** FR5-03: the camera-start focusing state ("settling" = the guide is dim). */
+  settle: SettleStatus;
 }
 
 const now = () => performance.now();
@@ -68,6 +78,9 @@ export class CameraController {
   private measured: Measure | null = null;
   private prepared = false;
   private blocked = false;
+  private settle: SettleState = SETTLE_OFF;
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
+  private wasLive = false;
   private subs = new Set<() => void>();
   private snap: CameraSnapshot;
   readonly stream: CameraStream;
@@ -106,6 +119,8 @@ export class CameraController {
           const g = this.snap.gate;
           if (g.band !== mv.band || Math.abs(g.pct - mv.pct) >= 0.01)
             this.patch({ gate: { pct: mv.pct, band: mv.band } });
+          // FR5-03: the first frame that is not blurry ends the focusing state.
+          this.setSettle(settleFrame(this.settle, mv.band, now()));
         },
         onStatus: (s) => this.patch({ status: s, partial: partialRead(this.loop.reads) }),
         onAccept: (a) => this.flow.accepted(a),
@@ -162,17 +177,44 @@ export class CameraController {
       readerFail: null,
       flashAt: 0,
       partial: null,
+      settle: "off",
     };
     this.flow.subscribe(() => {
       const p = this.flow.phase;
       // A new prompt starts with no axis picks (the keypad's chips are shared).
       if (p.kind === "found" && this.snap.phase !== p) setToolState({ picks: NO_PICKS });
       this.patch({ phase: p, partial: partialRead(this.loop.reads) });
+      // FR5-03: a card read while the guide is dim ends the focusing state.
+      if (p.kind !== "searching") this.setSettle(settleEnd(this.settle, "read", now()));
     });
     this.stream.subscribe(() => {
       this.patch({ stream: this.stream.state });
+      // FR5-03: every stream start begins the focusing state; no stream, none.
+      const live = this.stream.live;
+      if (live && !this.wasLive) this.setSettle(settleStart(now()));
+      else if (!live) this.setSettle(SETTLE_OFF);
+      this.wasLive = live;
       this.syncLoop();
     });
+  }
+
+  /** FR5-03: hold the focusing state, publish its status when it changes, and
+   * keep one timer for the SETTLE_MS limit while it is settling. */
+  private setSettle(s: SettleState): void {
+    this.settle = s;
+    const status = settleStatus(s, now());
+    if (this.settleTimer !== null && status !== "settling") {
+      clearTimeout(this.settleTimer);
+      this.settleTimer = null;
+    }
+    if (status === "settling" && this.settleTimer === null && s.startedAt !== null) {
+      const left = Math.max(0, s.startedAt + SETTLE_MS - now());
+      this.settleTimer = setTimeout(() => {
+        this.settleTimer = null;
+        this.setSettle(this.settle); // re-arms if the timer fired early
+      }, left + 1);
+    }
+    if (status !== this.snap.settle) this.patch({ settle: status });
   }
 
   subscribe = (f: () => void): (() => void) => {

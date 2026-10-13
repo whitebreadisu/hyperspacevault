@@ -14,6 +14,9 @@ test("s7-12-blur-guidance", async ({ page }) => {
   await openScanCamera(page);
   const meter = page.locator(".m-meter");
   await expect(meter).toHaveAttribute("data-band", "red");
+  // PORT (BL-257 FR5-03): a blurry picture reads "Focusing…" for the first 3 s
+  // after the stream starts; "Blurry" is what the meter says after it.
+  await expect(page.locator(".m-cam")).toHaveAttribute("data-settle", "timeout");
   await expect(meter.locator(".m-meter__word")).toHaveText("Blurry");
   await expect(meter.locator(".m-meter__sub")).toContainText("Move back / closer");
   await expect(meter.locator("[role=status]")).toHaveAttribute(
