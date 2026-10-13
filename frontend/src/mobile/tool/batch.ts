@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { CapMode } from "../../api/settingsLimits";
 import type { PreconDeckCard, PreconEntry } from "../../data/preconDecks";
-import { resolveRow, toVerificationRow } from "../../utils/addCardsResolver";
+import { decompose, resolveRow, toVerificationRow } from "../../utils/addCardsResolver";
 import type {
   AddCardsCatalogEntry,
   InventoryStatus,
@@ -49,9 +49,12 @@ import type { PadPicks } from "./toolStore";
 //     starts empty.
 
 /** BL-253 S7-14 / S7-17: camera rows (`camera` = Add in the prompt,
- * `camera_fast_add` = the automatic add of Fast add) are keypad rows in every
- * respect (set + number + picks, one adjust per printing at commit); the via
- * only feeds add_cards_committed.method (S7-18). */
+ * `camera_fast_add` = an add with no Add tap under Fast add) are stored as
+ * keypad rows (set + number + picks, one adjust per printing at commit); the
+ * via feeds add_cards_committed.method (S7-18). BL-262: a camera row's
+ * `variantId` is the printing its strip identified and its set + number are
+ * that printing's own -- the Verify view describes it by the printing when
+ * the keypad resolver would name another (verificationRowOf). */
 export type BatchVia = "keypad" | "precon" | "camera" | "camera_fast_add";
 
 /** One copy waiting in the batch. */
@@ -309,13 +312,37 @@ function verificationRowOf(
   inv: InventoryStatus,
   catalog: AddCardsCatalogEntry[]
 ): VerificationRow {
+  const camera = r.via === "camera" || r.via === "camera_fast_add";
   if (r.via !== "precon") {
     const row = keypadRowOf(r);
     const resolved = resolveRow(row, catalog);
-    if (resolved.status === "resolved") {
+    // BL-262: a camera row is the printing its strip identified, which the
+    // resolver may not reach from the row's set + number (a Weekly Play
+    // printing on a base-set number resolves to the base-set card; a token
+    // does not resolve at all). The row is described as a keypad row only
+    // when the resolver names that same printing.
+    if (resolved.status === "resolved" && (!camera || resolved.variantId === r.variantId)) {
       const item: VerificationItem = { row, resolved, inv };
       return { ...toVerificationRow(item), id: r.id };
     }
+  }
+  if (camera) {
+    // The same columns toVerificationRow fills, from the printing itself.
+    const d = decompose(entry.variant_type, entry.channel);
+    return {
+      id: r.id,
+      groupKey: r.setCode,
+      cardNumber: r.cardNumber,
+      name: entry.name,
+      subtitle: entry.subtitle,
+      setText: [d.event, d.stamp].filter(Boolean).join(" · "),
+      isOP: entry.channel !== "Retail",
+      finishText: d.finish,
+      inventoryText: `${inv.owned} → ${inv.color === "red" ? inv.owned : inv.afterAdd}`,
+      dotColor: inv.color,
+      overLimitNote: inv.color === "amber" ? "Over your keep-limit — will still be added" : null,
+      skipReason: null,
+    };
   }
   // Precon copies (and a keypad row whose number no longer resolves): the
   // precon flow's mapping (utils/preconImport.ts verificationRowsFromReport)

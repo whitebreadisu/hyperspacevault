@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 //    (P26 172) on the filler at SOR 172 -- one card, two events, as Cinta Kaz
 //    SEC 172 has. The trim already holds the others: SOR 74 (a base-set card
 //    and the P25 74 Darth Vader Showcase), SOR 2 and the SOR N/2 small series.
+//    Stage 2 adds Waylay's single Weekly Play printing, printed "SOR 3/20"
+//    (Resupply's pair is a foil / non-foil pair under one strip).
 // Used only by the scanner specs (`cardsFixture: "base-cards-scan"`).
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -100,6 +102,9 @@ export function scanExtraCards(have: Slim[]): unknown[] {
       variant(6318, "Weekly Play Foil", "SOR", "12", wp),
     ])
   );
+  // BL-262 stage 2: a Weekly Play printing with no foil twin on a base-set
+  // number -- Waylay, printed "SOR 3/20" (live ids; SOR 3 is another card).
+  out.push(card(2053, "SOR", "222", "Waylay", "", [variant(6681, "Weekly Play", "SOR", "3", wp)]));
   // BL-262: a token shares its number with a card (SOR T1 / SOR 1).
   out.push(card(2146, "SOR", "1", "Experience", "", [variant(6267, "Standard", "SOR", "1")], true));
   // The ASHP 16 / P26 16 collision pair.

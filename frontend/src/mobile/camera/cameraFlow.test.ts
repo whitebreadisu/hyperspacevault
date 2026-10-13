@@ -269,9 +269,47 @@ describe("S7-17 cue + Fast add + hold", () => {
     expect(flow.phase.kind).toBe("found");
   });
 
-  // BL-262: the read needed a choice, so Fast add fell back to the prompt.
-  // Add there is still a tap (via "camera", decision "add" -- no new
-  // analytics value), and with Fast add on it starts the Fast add hold.
+  // BL-262 stage 2: the read is one card in several printings, so Fast add
+  // shows the panel with that choice and adds nothing. The choice (chosen) is
+  // the last thing asked: the effect adds once it settles the printing -- via
+  // camera_fast_add, no scan_decision (as every add with no Add tap) -- and
+  // the Fast add hold starts. No second cue.
+  it("BL-262 Fast add, a choice in the found panel: adds when it settles the printing, then the Fast add hold", () => {
+    const { flow, fx, log } = rig(true);
+    vi.mocked(fx.add).mockImplementationOnce(() => null); // more than one printing: nothing added at the read
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    expect(flow.phase.kind).toBe("found");
+    vi.mocked(fx.add).mockImplementationOnce(() => null); // a choice that does not settle it yet
+    flow.chosen();
+    expect(flow.phase.kind).toBe("found");
+    flow.chosen();
+    expect(flow.phase).toMatchObject({ kind: "hold", fast: true, entryId: "b-1" });
+    expect(vi.mocked(fx.add).mock.calls.map((c) => c[1])).toEqual([
+      "camera_fast_add",
+      "camera_fast_add",
+      "camera_fast_add",
+    ]);
+    vi.advanceTimersByTime(HOLD_MS);
+    expect(log).toEqual(["cue", "add:camera_fast_add:SOR 229", "resume:SOR 229/252:fast_add"]);
+    expect(fx.decision).not.toHaveBeenCalled();
+  });
+
+  it("BL-262 prompt mode: a choice in the found panel adds nothing (Add is still a tap); nor does one outside found", () => {
+    const { flow, fx } = rig(false);
+    flow.chosen(); // searching
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    flow.chosen();
+    expect(flow.phase.kind).toBe("found");
+    expect(fx.add).not.toHaveBeenCalled();
+    const fast = rig(true);
+    fast.flow.chosen(); // searching: nothing to choose
+    expect(fast.fx.add).not.toHaveBeenCalled();
+  });
+
+  // Stage 1 (kept): Add in the found panel with Fast add on -- reached when
+  // the automatic add did not happen for another reason (signed out, then
+  // signed in). Still a tap (via "camera", decision "add" -- no new analytics
+  // value), and it starts the Fast add hold.
   it("BL-262 Add in the prompt with Fast add on: via camera, the Fast add hold, resume holding the key", () => {
     const { flow, fx, log } = rig(true);
     vi.mocked(fx.add).mockImplementationOnce(() => null); // the automatic add is refused
@@ -457,7 +495,10 @@ describe("FR5-03 camera-start focusing state (F-16)", () => {
 
   it("display only: no analytics event, toast or haptics in the settle code", () => {
     const flow = readFileSync("src/mobile/camera/cameraFlow.ts", "utf8");
-    const settleSrc = flow.slice(flow.indexOf("FR5-03"), flow.indexOf("/** What the keypad"));
+    // PORT (BL-262 stage 2): the section ends at the Target doc, reworded.
+    const end = flow.indexOf("/** What a read identified");
+    expect(end).toBeGreaterThan(0);
+    const settleSrc = flow.slice(flow.indexOf("FR5-03"), end);
     expect(settleSrc.length).toBeGreaterThan(500);
     expect(settleSrc).not.toMatch(/scan[A-Z]\w*\(|capture\(|vibrate|toast/i);
     const analytics = readFileSync("src/mobile/camera/scanAnalytics.ts", "utf8");

@@ -25,9 +25,13 @@ test("s7-17-fast-add-hold", async ({ page }) => {
 
   const cam = page.locator(".m-cam");
   const n = page.locator(".m-cam__bar .m-logbtn__n");
+  // PORT (owner decision 2026-10-13, BL-262 stage 2): was SOR 229, an
+  // early-set strip the foil and the non-foil share -- Fast add now asks
+  // Finish for those (s7-26 covers it). A one-printing strip keeps what this
+  // step asserts: one read = one copy at once, the hold, never twice.
   await page.evaluate((t) => {
     window.__fakeRead = t; // the card stays in frame for the rest of the test
-  }, SOR_229);
+  }, "SOR • EN 100/252");
   await expect(cam).toHaveAttribute("data-phase", "hold");
   await expect(n).toHaveText("1");
   // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
