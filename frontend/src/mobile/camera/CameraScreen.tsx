@@ -12,11 +12,11 @@ import { cameraKeypadRoute, setCameraKeypadExit } from "../tool/cameraHop";
 import type { CameraScreenProps } from "../tool/cameraHop";
 import { audioUnlock } from "../tool/cue";
 import { Identified, VerifyButton } from "../tool/Pad";
-import { padReadout, padView, toCatalog } from "../tool/padModel";
+import { padAddable, padReadout, padView, toCatalog } from "../tool/padModel";
 import { OFFSET_LIMIT_MM, setScanSettings, useScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, setToolMode, useToolState } from "../tool/toolStore";
 import { usePhoneSideways } from "../useIsPhone";
-import { HOLD_MS, programName } from "./cameraFlow";
+import { HOLD_LABEL, HOLD_MS, programName } from "./cameraFlow";
 import type { Phase, PickRow } from "./cameraFlow";
 import { CameraController } from "./cameraController";
 import { layoutGuide } from "./guide";
@@ -320,7 +320,8 @@ function FoundPanel({
   let body: ReactNode;
   if (view.kind === "card") {
     const res = view.resolved;
-    const canAdd = res.status === "resolved" && !!view.variant;
+    // The Add condition Fast add's rule starts from (BL-262, fastAddTarget).
+    const canAdd = padAddable(view) !== null;
     body = (
       <Identified
         name={res.card.needsPick ? "Which card is it?" : (res.name ?? t.name)}
@@ -382,7 +383,7 @@ function FoundPanel({
             style={{ animationDuration: HOLD_MS + "ms" }}
           />
           <span className="m-cam__holdtxt">
-            {phase.fast ? "Fast add · " : ""}next card in 1.5 s
+            {phase.fast ? "Fast add · " : ""}next card in {HOLD_LABEL}
           </span>
         </div>
       ) : null}

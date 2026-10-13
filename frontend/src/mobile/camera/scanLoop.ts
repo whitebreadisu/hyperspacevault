@@ -16,8 +16,21 @@ import { BLUR_THRESHOLD, isBlurry, isSmall } from "./imagePipeline";
 // injected, so the loop is testable with a stub reader.
 
 export const READ_BUDGET_MS = 700;
-/** After a decision the same key is not prompted again for 3 s (app.js:829). */
-export const SUPPRESS_MS = 3000;
+/** After WRONG CARD (or "Neither / scan again") the same key is not prompted
+ * again for 3 s, so the read the user just rejected does not pop straight
+ * back when the scan restarts. It is not a double-add guard: BL-262 (owner
+ * 2026-10-13) removed this wait after an ADD -- the hold, the Fast add
+ * "until the card leaves the frame" rule and the Acceptor's own duplicate
+ * window cover that (app.js:829 applied it after every decision). */
+export const WRONG_CARD_QUIET_MS = 3000;
+
+/** What the loop is resumed after:
+ *   add       -- Add in the prompt: nothing is held back; the same card is
+ *                 read (and prompted) again by the reader's own rules.
+ *   fast_add   -- an add under Fast add: the Acceptor ignores the key until
+ *                 the card has left the frame (the spike's auto-accept rule).
+ *   wrong_card -- the key stays quiet for WRONG_CARD_QUIET_MS. */
+export type ResumeAfter = "add" | "fast_add" | "wrong_card";
 /** The partial-read window for the keypad prefill (app.js:1017-1022). */
 export const PARTIAL_WINDOW = 8;
 
@@ -131,6 +144,7 @@ export class ScanLoop {
   private busy = false;
   private fb = { frame: 0, last: -99 };
   private firstTextT: number | null = null;
+  /** The key Wrong card rejected, and until when it stays quiet. */
   private suppress: { key: string; until: number } | null = null;
   /** The key of the previous ambiguous read (cleared by any other read):
    * a pick opens only on a second consecutive read of the same key. */
@@ -166,15 +180,17 @@ export class ScanLoop {
     this.paused = true;
   }
 
-  /** app.js:271-273 decide(): resume; the same key is not prompted again for
-   * 3 s since the resume. `holdUntilGone` (fast add) also makes the Acceptor
-   * hold the key until the card leaves (the spike's auto-accept rule,
-   * ACC.markAccepted) so a card left in frame is never counted twice. */
-  resume(key: string | null, holdUntilGone = false): void {
+  /** app.js:271-273 decide(): resume after a decision on `key`.
+   *   wrong_card: the key is not prompted again for 3 s since the resume.
+   *   fast_add:   the Acceptor holds the key until the card leaves (the
+   *               spike's auto-accept rule, ACC.markAccepted), so a card
+   *               left in frame is never counted twice.
+   *   add:        neither (BL-262: no timed wait after an add). */
+  resume(key: string | null, after: ResumeAfter): void {
     const t = this.deps.now();
-    if (key) this.suppress = { key, until: t + SUPPRESS_MS };
+    if (key && after === "wrong_card") this.suppress = { key, until: t + WRONG_CARD_QUIET_MS };
     this.deps.acceptor.reset();
-    if (key && holdUntilGone) this.deps.acceptor.markAccepted(key, t);
+    if (key && after === "fast_add") this.deps.acceptor.markAccepted(key, t);
     this.resetCycle();
     this.ambiguousKey = null;
     this.paused = false;
@@ -384,6 +400,7 @@ export class ScanLoop {
         return;
       }
       if (dcs.accept) {
+        // Wrong card on this key less than 3 s ago: not prompted again yet.
         if (this.suppress && this.suppress.key === key && tNow < this.suppress.until) {
           acc.reset();
           this.events.onStatus?.({ kind: "suppressed", key });
@@ -406,8 +423,8 @@ export class ScanLoop {
       return;
     }
     if (full.result === "ambiguous" && full.best) {
-      // "Neither / scan again" is a decision too: the same pick is not shown
-      // again for 3 s (the spike re-showed choices only on a new key).
+      // "Neither / scan again" is Wrong card for a pick: the same pick is not
+      // shown again for 3 s (the spike re-showed choices only on a new key).
       if (this.suppress && this.suppress.key === full.best.key && tNow < this.suppress.until) {
         this.events.onStatus?.({ kind: "suppressed", key: full.best.key });
         return;

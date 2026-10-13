@@ -10,6 +10,7 @@ import { cellImage } from "../vault/cardImage";
 import { useVaultData } from "../vault/useVaultData";
 import {
   entryRow,
+  padAddable,
   padReadout,
   padSetBase,
   padView,
@@ -412,7 +413,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   } else if (view && view.kind === "card") {
     resultZone = true;
     const res = view.resolved;
-    const canAdd = res.status === "resolved" && !!view.variant;
+    const canAdd = padAddable(view) !== null;
     // S3-04: a number shared only by finishes keeps desktop's non-foil
     // default (BL-191) -- the cue + a Change link; Change unfolds the chips.
     const finishOnly =

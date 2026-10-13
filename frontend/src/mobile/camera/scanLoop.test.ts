@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import snapshot from "../../../e2e/mobile/fixtures/scan-catalog.snapshot.json";
 import { Acceptor, Catalog } from "./scanCore";
 import type { ScanCatalogData } from "./scanCore";
-import { ScanLoop, partialRead, timeBucket } from "./scanLoop";
+import { ScanLoop, WRONG_CARD_QUIET_MS, partialRead, timeBucket } from "./scanLoop";
 import type { LoopDeps, LoopEvents, ReaderResult } from "./scanLoop";
 
 // BL-253 S7-13: the read loop with a stub reader. The test_core.js run_1
@@ -181,24 +181,159 @@ describe("S7-13 read loop + agreement (stub reader)", () => {
     expect(dead.loop.running).toBe(false);
   });
 
-  it("after a decision the same key is suppressed for 3 s (then prompts again)", async () => {
+  // REPLACE (owner decision 2026-10-13, BL-262). Was one test: "after a
+  // decision the same key is suppressed for 3 s (then prompts again)" -- the
+  // 3 s applied after EVERY decision, an add included. The owner removed it
+  // after an add ("the camera reset of 1 second should be enough friction");
+  // it stays after Wrong card. The seven tests below replace it, one per rule,
+  // on a virtual clock (a read every 100 ms).
+  const KEY = "SOR 229/252";
+  const CARD = "SOR • EN R 229/252";
+
+  /** A loop that has accepted CARD once and is paused on it. `show` swaps
+   * what the camera sees; `run(n)` reads n frames; times are since `mark()`. */
+  async function accepted() {
+    let text = CARD;
+    let t = 0;
+    let t0 = 0;
+    const accepts: number[] = [];
+    const ambig: number[] = [];
+    const statuses: string[] = [];
+    const { loop, at } = rig(
+      { primary: async () => ok(text, text ? 92 : null, text ? 30 : null) },
+      {
+        onAccept: () => accepts.push(t - t0),
+        onAmbiguous: () => ambig.push(t - t0),
+        onStatus: (s) => statuses.push(s.kind),
+      }
+    );
+    const run = async (n: number) => {
+      for (let k = 0; k < n; k++) {
+        at((t += 100));
+        await loop.readOnce();
+      }
+    };
+    await run(3);
+    expect(accepts).toHaveLength(1);
+    expect(loop.paused).toBe(true);
+    accepts.length = 0;
+    statuses.length = 0;
+    return {
+      loop,
+      run,
+      accepts,
+      ambig,
+      statuses,
+      show: (s: string) => (text = s),
+      mark: () => (t0 = t),
+    };
+  }
+
+  it("BL-262 Wrong card: the same read stays quiet for 3 s, then prompts again", async () => {
+    expect(WRONG_CARD_QUIET_MS).toBe(3000);
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "wrong_card");
+    await r.run(29); // 2.9 s: agreed again and again, never prompted
+    expect(r.accepts).toEqual([]);
+    expect(r.statuses).toContain("suppressed");
+    await r.run(6);
+    expect(r.accepts).toHaveLength(1);
+    expect(r.accepts[0]).toBeGreaterThanOrEqual(3000);
+  });
+
+  it("BL-262 after an Add (prompt mode) there is no timed wait: the card still in view is prompted again on the next agreement", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "add");
+    await r.run(3); // three agreeing reads = the agreement rule, nothing more
+    expect(r.accepts).toEqual([300]);
+    expect(r.statuses).not.toContain("suppressed");
+    expect(r.loop.paused).toBe(true); // a prompt: the loop waits for the user
+  });
+
+  it("BL-262 after a Fast add the card left under the camera is never accepted again (no 3 s wait needed)", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "fast_add");
+    await r.run(120); // 12 s in view
+    expect(r.accepts).toEqual([]);
+    expect(new Set(r.statuses)).toEqual(new Set(["held"]));
+  });
+
+  it("BL-262 after a Fast add, under a second of lost reads is not 'left the frame': still not accepted again", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "fast_add");
+    await r.run(5);
+    for (let round = 0; round < 6; round++) {
+      r.show(""); // 0.9 s with nothing readable (a hand over the card)
+      await r.run(9);
+      r.show(CARD);
+      await r.run(20);
+    }
+    expect(r.accepts).toEqual([]);
+  });
+
+  it("BL-262 after a Fast add, a card taken out for a second and returned is accepted again -- before the old 3 s", async () => {
+    const r = await accepted();
+    r.mark();
+    r.loop.resume(KEY, "fast_add");
+    r.show(""); // out of the frame at once
+    await r.run(12); // 1.2 s away (the reader's re-arm: >= 1 s without it)
+    expect(r.accepts).toEqual([]);
+    r.show(CARD); // back
+    await r.run(18);
+    // The reader's own duplicate window (2 s since the resume, scanCore
+    // DUP_MS -- untouched) is the only wait left; the 3 s is gone.
+    expect(r.accepts).toHaveLength(1);
+    expect(r.accepts[0]).toBeGreaterThanOrEqual(2000);
+    expect(r.accepts[0]).toBeLessThan(3000);
+  });
+
+  it("BL-262 after a Fast add the same card returned later is accepted on plain agreement", async () => {
+    const r = await accepted();
+    r.loop.resume(KEY, "fast_add");
+    r.show("");
+    await r.run(30); // 3 s away
+    r.show(CARD);
+    r.mark();
+    await r.run(3);
+    expect(r.accepts).toEqual([300]);
+  });
+
+  // A pick's key is an ambiguous read, which the Acceptor cannot hold "until
+  // it leaves" (it only matches exact reads). With the 3 s gone, a card left
+  // in view after a pick + add is ASKED again -- a question, never an add.
+  it("BL-262 after a pick + add the card still in view opens the pick again; nothing is accepted", async () => {
+    let t = 0;
+    const ambig: number[] = [];
     const accepts: number[] = [];
     const { loop, at } = rig(
-      { primary: async () => ok("SOR • EN R 229/252", 92) },
-      { onAccept: () => accepts.push(1) }
+      { primary: async () => ok("ASHP • EN 16", 92) },
+      { onAmbiguous: () => ambig.push(t), onAccept: () => accepts.push(t) }
     );
-    let t = 0;
-    const step = async () => {
-      at((t += 100));
-      await loop.readOnce();
+    const run = async (n: number) => {
+      for (let k = 0; k < n; k++) {
+        at((t += 100));
+        await loop.readOnce();
+      }
     };
-    for (let k = 0; k < 3; k++) await step();
-    expect(accepts).toHaveLength(1);
-    loop.resume("SOR 229/252");
-    for (let k = 0; k < 25; k++) await step(); // 2.5 s: suppressed
-    expect(accepts).toHaveLength(1);
-    for (let k = 0; k < 10; k++) await step(); // past 3 s
-    expect(accepts).toHaveLength(2);
+    await run(2);
+    expect(ambig).toEqual([200]);
+    loop.resume("ASHP 16", "fast_add");
+    await run(30);
+    expect(accepts).toEqual([]);
+    expect(ambig).toHaveLength(2);
+    expect(loop.paused).toBe(true);
+    // ... while "Neither / scan again" keeps it quiet for 3 s.
+    const resumed = t;
+    loop.resume("ASHP 16", "wrong_card");
+    await run(29);
+    expect(ambig).toHaveLength(2);
+    await run(4);
+    expect(ambig).toHaveLength(3);
+    expect(ambig[2] - resumed).toBeGreaterThanOrEqual(3000);
   });
 
   it("S7-F1 one number_conflict frame between clean frames does not open a pick", async () => {

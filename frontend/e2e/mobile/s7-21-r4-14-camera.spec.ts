@@ -72,7 +72,8 @@ test("s7-21-verify-camera-hold", async ({ page }) => {
   await openCamera(page);
   await expect(cam(page)).toHaveAttribute("data-phase", "hold", { timeout: 20000 });
   await expect(n(page)).toHaveText("1");
-  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1.5 s");
+  // PORT (owner decision 2026-10-12, BL-262): the hold is 1 s (was 1.5 s).
+  await expect(page.locator(".m-cam__holdtxt")).toHaveText("Fast add · next card in 1 s");
   await expect(page.locator(".m-ident__added")).toContainText("In batch 1");
   await expect(page.locator(".m-ident__added")).not.toContainText("Added");
   await expect(page.locator(".m-cam__panel .m-ident__add .swu-btn")).toHaveCount(0);

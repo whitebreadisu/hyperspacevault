@@ -5,6 +5,7 @@ import { audioUnlock, beep, cueCounts, resetCueForTest } from "../tool/cue";
 import { CameraController } from "./cameraController";
 import {
   CameraFlow,
+  HOLD_LABEL,
   HOLD_MS,
   SETTLE_MS,
   SETTLE_OFF,
@@ -52,7 +53,9 @@ function rig(fast = false, addOk = true) {
       return addOk ? "b-" + ++seq : null;
     }),
     remove: vi.fn((id) => log.push("remove:" + id)),
-    resume: vi.fn((key, hold) => log.push("resume:" + key + (hold ? ":hold" : ""))),
+    // PORT (BL-262): resume now names what it follows (add | fast_add |
+    // wrong_card) instead of a hold-until-gone flag; the log carries it.
+    resume: vi.fn((key, after) => log.push("resume:" + key + ":" + after)),
     setTimer: (fn, ms) => {
       const t = setTimeout(fn, ms);
       return () => clearTimeout(t);
@@ -81,7 +84,12 @@ describe("S7-14 recognise-then-prompt (decision state machine)", () => {
     expect(fx.recognised).toHaveBeenCalledTimes(1);
   });
 
-  it("Add -> one copy (via camera), the 1.5 s hold, then resume with the key suppressed", () => {
+  // REPLACE (owner decisions 2026-10-12 + 2026-10-13, BL-262). Was: "the
+  // 1.5 s hold, then resume with the key suppressed" (3 s). Now the hold is
+  // 1 s and the resume after an add asks for no wait at all ("add"); what the
+  // loop does with each kind of resume is asserted in scanLoop.test.ts.
+  it("Add -> one copy (via camera), the 1 s hold, then resume after an add (no timed wait)", () => {
+    expect(HOLD_MS).toBe(1000);
     const { flow, log } = rig();
     flow.accepted(accepted("SOR • EN R 229/252"));
     flow.add();
@@ -90,16 +98,18 @@ describe("S7-14 recognise-then-prompt (decision state machine)", () => {
     expect(flow.phase.kind).toBe("hold");
     vi.advanceTimersByTime(1);
     expect(flow.phase.kind).toBe("searching");
-    expect(log).toEqual(["cue", "add:camera:SOR 229", "decision:add", "resume:SOR 229/252"]);
+    expect(log).toEqual(["cue", "add:camera:SOR 229", "decision:add", "resume:SOR 229/252:add"]);
   });
 
+  // PORT (BL-262): Wrong card keeps its 3 s quiet on the key -- the resume
+  // now says so by name ("wrong_card").
   it("Wrong card = restart the scan: no add, no keypad, suppression of that key", () => {
     const { flow, fx, log } = rig();
     flow.accepted(accepted("SOR • EN R 229/252"));
     flow.wrongCard();
     expect(flow.phase.kind).toBe("searching");
     expect(fx.add).not.toHaveBeenCalled();
-    expect(log).toEqual(["cue", "decision:wrong_card", "resume:SOR 229/252"]);
+    expect(log).toEqual(["cue", "decision:wrong_card", "resume:SOR 229/252:wrong_card"]);
   });
 
   it("Card details is a decision that leaves the prompt up; Add signed out keeps the prompt", () => {
@@ -112,13 +122,16 @@ describe("S7-14 recognise-then-prompt (decision state machine)", () => {
     expect(log).toEqual(["cue", "decision:details", "add:camera:SOR 229"]);
   });
 
-  it("targetOf: the first printing's set + number", () => {
+  // PORT (BL-262): the target also carries the printings the read named.
+  it("targetOf: the first printing's set + number, with the read's printings", () => {
     const a = accepted("SOR • EN R 229/252");
     expect(targetOf(a.card)).toEqual({
       setCode: "SOR",
       cardNumber: "229",
       name: "Cell Block Guard",
+      vids: a.card.printings.map((p) => p.vid),
     });
+    expect(a.card.printings.length).toBeGreaterThan(0);
   });
 });
 
@@ -193,7 +206,8 @@ describe("S7-15 ambiguous -> amber pick", () => {
     flow.ambiguous(ev, ev.reason);
     flow.wrongCard();
     expect(flow.phase.kind).toBe("searching");
-    expect(log).toEqual(["decision:wrong_card", "resume:ASHP 16"]);
+    // PORT (BL-262): the resume names what it follows.
+    expect(log).toEqual(["decision:wrong_card", "resume:ASHP 16:wrong_card"]);
   });
 
   it("pickRows folds finishes of one printing into one row", () => {
@@ -212,21 +226,28 @@ describe("S7-15 ambiguous -> amber pick", () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].vids).toEqual([10, 11]);
+    // BL-262: the row's target carries the same printings.
+    expect(rows[0].target.vids).toEqual([10, 11]);
   });
 });
 
 describe("S7-17 cue + Fast add + hold", () => {
-  it("Fast add: a read adds one copy at once (camera_fast_add), hold 1500 ms, resume holding the key until it leaves", () => {
+  // PORT (owner decision 2026-10-12, BL-262): the hold is 1000 ms (was 1500);
+  // the resume after a Fast add is "fast_add" (the key held until the card
+  // leaves -- was the `:hold` flag).
+  it("Fast add: a read adds one copy at once (camera_fast_add), hold 1000 ms, resume holding the key until it leaves", () => {
     const { flow, log } = rig(true);
     flow.accepted(accepted("SOR • EN R 229/252"));
     expect(flow.phase).toMatchObject({ kind: "hold", fast: true, entryId: "b-1" });
-    vi.advanceTimersByTime(1499);
+    vi.advanceTimersByTime(999);
     expect(flow.phase.kind).toBe("hold");
     vi.advanceTimersByTime(1);
     expect(flow.phase.kind).toBe("searching");
-    expect(log).toEqual(["cue", "add:camera_fast_add:SOR 229", "resume:SOR 229/252:hold"]);
+    expect(log).toEqual(["cue", "add:camera_fast_add:SOR 229", "resume:SOR 229/252:fast_add"]);
   });
 
+  // PORT (BL-262): the resume names what it follows -- Wrong card, even from
+  // inside a Fast add hold.
   it("Wrong card during the hold takes that copy back out (and cancels the timer)", () => {
     const { flow, log } = rig(true);
     flow.accepted(accepted("SOR • EN R 229/252"));
@@ -236,7 +257,7 @@ describe("S7-17 cue + Fast add + hold", () => {
       "add:camera_fast_add:SOR 229",
       "decision:wrong_card",
       "remove:b-1",
-      "resume:SOR 229/252",
+      "resume:SOR 229/252:wrong_card",
     ]);
     vi.advanceTimersByTime(HOLD_MS * 2);
     expect(log.filter((l) => l.startsWith("resume"))).toHaveLength(1);
@@ -246,6 +267,35 @@ describe("S7-17 cue + Fast add + hold", () => {
     const { flow } = rig(true, false);
     flow.accepted(accepted("SOR • EN R 229/252"));
     expect(flow.phase.kind).toBe("found");
+  });
+
+  // BL-262: the read needed a choice, so Fast add fell back to the prompt.
+  // Add there is still a tap (via "camera", decision "add" -- no new
+  // analytics value), and with Fast add on it starts the Fast add hold.
+  it("BL-262 Add in the prompt with Fast add on: via camera, the Fast add hold, resume holding the key", () => {
+    const { flow, fx, log } = rig(true);
+    vi.mocked(fx.add).mockImplementationOnce(() => null); // the automatic add is refused
+    flow.accepted(accepted("SOR • EN R 229/252"));
+    expect(flow.phase.kind).toBe("found");
+    flow.add();
+    expect(flow.phase).toMatchObject({ kind: "hold", fast: true, entryId: "b-1" });
+    expect(vi.mocked(fx.add).mock.calls.map((c) => c[1])).toEqual(["camera_fast_add", "camera"]);
+    vi.advanceTimersByTime(HOLD_MS);
+    expect(log).toEqual([
+      "cue",
+      "add:camera:SOR 229",
+      "decision:add",
+      "resume:SOR 229/252:fast_add",
+    ]);
+  });
+
+  it("BL-262 the hold's label is derived from HOLD_MS (no second literal in the screen)", () => {
+    expect(HOLD_LABEL).toBe("1 s");
+    const src = readFileSync("src/mobile/camera/CameraScreen.tsx", "utf8");
+    expect(src).toMatch(/next card in \{HOLD_LABEL\}/);
+    expect(src).toMatch(/animationDuration: HOLD_MS \+ "ms"/);
+    expect(src).not.toMatch(/next card in \d/);
+    expect(src).not.toMatch(/1\.5 s/);
   });
 
   it("the cue is a beep (1320 Hz, 0.0001 -> 0.2 -> 0.0001, stop +90 ms) + flash; never navigator.vibrate", () => {

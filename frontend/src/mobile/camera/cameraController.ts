@@ -2,7 +2,7 @@ import type { CardSet } from "../../api/sets";
 import type { InventoryCard } from "../../utils/inventory";
 import { removeCopy } from "../tool/batch";
 import { beep } from "../tool/cue";
-import { padView, toCatalog } from "../tool/padModel";
+import { padAddable, padView, toCatalog } from "../tool/padModel";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import { getScanSettings } from "../tool/scanSettings";
 import { NO_PICKS, addPadEntry, getToolState, setToolState } from "../tool/toolStore";
@@ -10,6 +10,7 @@ import {
   CameraFlow,
   SETTLE_MS,
   SETTLE_OFF,
+  fastAddTarget,
   settleEnd,
   settleFrame,
   settleStart,
@@ -141,24 +142,27 @@ export class CameraController {
           I.onRequestSignIn();
           return null;
         }
+        // `camera` = Add in the found panel: what the panel shows, with the
+        // user's choices. `camera_fast_add` = no Add tap, so no choices -- and
+        // (BL-262) only when nothing is left to choose (fastAddTarget).
         const picks = via === "camera" ? getToolState().picks : NO_PICKS;
         const v = padView(target.setCode, target.cardNumber, picks, this.padCatalog, I.cards);
-        if (v.kind !== "card" || v.resolved.status !== "resolved" || !v.variant || !v.card)
-          return null;
+        const a = via === "camera" ? padAddable(v) : fastAddTarget(v, target.vids);
+        if (!a) return null;
         addPadEntry({
           via,
           force: false,
           setCode: target.setCode,
           cardNumber: target.cardNumber,
           picks,
-          variantId: v.variant.variant_id,
-          baseCardId: v.card.base_card_id,
+          variantId: a.variant.variant_id,
+          baseCardId: a.card.base_card_id,
         });
         return getToolState().lastAdded?.entryId ?? null;
       },
       remove: (id) => removeCopy(id),
-      resume: (key, holdUntilGone) => {
-        this.loop.resume(key, holdUntilGone);
+      resume: (key, after) => {
+        this.loop.resume(key, after);
         if (this.blocked) this.loop.pause();
       },
       setTimer: (fn, ms) => {

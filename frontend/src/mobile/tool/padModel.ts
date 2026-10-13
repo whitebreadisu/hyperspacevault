@@ -177,6 +177,19 @@ export function padView(
   return { kind: "card", resolved: res, variant, card, choices, hint };
 }
 
+/** What Add would add for this view: its card and printing, or null while the
+ * view is not one resolved printing. This is the Add button's condition -- the
+ * keypad's, the camera's found panel's and (BL-262) the first half of the
+ * camera's Fast add rule (cameraFlow.ts fastAddTarget), so the three cannot
+ * drift. Note a shared number IS addable: the resolver settles it on a default
+ * (the base-set card, Base Set, the non-foil finish) and leaves the chips up. */
+export function padAddable(
+  view: PadView
+): { card: InventoryCard; variant: InventoryVariant } | null {
+  if (view.kind !== "card" || view.resolved.status !== "resolved") return null;
+  return view.card && view.variant ? { card: view.card, variant: view.variant } : null;
+}
+
 /** S3-03 (F-1 / R4-7): the readout, desktop's numbers (inventoryStatus:
  * the printing's owned count, its effective keep-limit, and After add =
  * owned + this printing's copies already entered + this one) in rev4's
