@@ -46,7 +46,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     // finalized at promote time per the release-notes ritual.
     key: "2.0",
     version: "2.0",
-    date: "2026-10-13",
+    date: "2026-10-14",
     title: "Your Vault, in your pocket",
     sections: [
       {
