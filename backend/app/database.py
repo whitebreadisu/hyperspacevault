@@ -221,14 +221,15 @@ def get_shared_db(token: str, request: Request):
     the share row itself stops being visible past resolution.
 
     Per-IP rate limiting runs BEFORE any DB work (cheap-tier reuse of the
-    BL-53 sliding-window limiter; the key is the client IP, not a tenant
+    BL-53 sliding-window limiter; the key is the client IP -- an IPv6
+    address collapsed to its /64 (BL-266, `client_ip_key`) -- not a tenant
     -- same per-instance caveats). request.client reflects
     X-Forwarded-For via uvicorn's proxy-headers middleware, so this keys
     on the real viewer behind the Firebase Hosting proxy.
     """
-    from app.rate_limit import check_tenant_rate_limit
+    from app.rate_limit import check_tenant_rate_limit, client_ip_key
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = client_ip_key(request.client.host if request.client else None)
     retry_after = check_tenant_rate_limit(
         "shared_read", client_ip, max_calls=300, window_seconds=3600
     )
