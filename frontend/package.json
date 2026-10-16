@@ -1,7 +1,7 @@
 {
   "name": "swu-inventory-frontend",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.9",
-    "firebase": "^12.17.0",
+    "firebase": "^12.19.0",
     "posthog-js": "^1.421.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
