@@ -8,6 +8,7 @@ import {
   reauthenticateWithPopup,
 } from "firebase/auth";
 import { useAuth } from "../../context/AuthContext";
+import { googleResolver } from "../../firebase";
 import { deleteAccount } from "../../api/account";
 import { describeGoogleAuthError, hasPasswordProvider } from "../../utils/googleAuth";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
@@ -94,7 +95,7 @@ export function DeleteAccountModal({ onClose }: Props) {
           const credential = EmailAuthProvider.credential(user.email, currentPassword);
           await reauthenticateWithCredential(user, credential);
         } else {
-          await reauthenticateWithPopup(user, new GoogleAuthProvider());
+          await reauthenticateWithPopup(user, new GoogleAuthProvider(), googleResolver);
         }
       } catch (err) {
         // BL-118: a Google reauth popup the user closed themselves

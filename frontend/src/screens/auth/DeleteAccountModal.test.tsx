@@ -23,7 +23,13 @@ const {
 }));
 
 vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
+  // BL-263: src/firebase.ts calls initializeAuth (no resolver) and exports
+  // browserPopupRedirectResolver as googleResolver.
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+  browserPopupRedirectResolver: { resolver: "popup-redirect" },
   connectAuthEmulator: vi.fn(),
   EmailAuthProvider: { credential: mockCredential },
   GoogleAuthProvider: mockGoogleAuthProvider,
@@ -293,7 +299,9 @@ describe("DeleteAccountModal Google-only account reauth (BL-118 / ADR-0016 §3)"
     });
 
     expect(mockGoogleAuthProvider).toHaveBeenCalledTimes(1);
-    expect(mockReauthenticateWithPopup).toHaveBeenCalledWith(fakeGoogleUser, expect.anything());
+    expect(mockReauthenticateWithPopup).toHaveBeenCalledWith(fakeGoogleUser, expect.anything(), {
+      resolver: "popup-redirect",
+    });
     expect(mockCredential).not.toHaveBeenCalled();
     expect(mockReauthenticate).not.toHaveBeenCalled();
     expect(mockDeleteAccount).toHaveBeenCalledTimes(1);

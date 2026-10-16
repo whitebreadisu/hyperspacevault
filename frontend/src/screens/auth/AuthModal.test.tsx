@@ -25,7 +25,13 @@ const {
 }));
 
 vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
+  // BL-263: src/firebase.ts calls initializeAuth (no resolver) and exports
+  // browserPopupRedirectResolver as googleResolver.
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+  browserPopupRedirectResolver: { resolver: "popup-redirect" },
   connectAuthEmulator: vi.fn(),
   signInWithEmailAndPassword: mockSignIn,
   createUserWithEmailAndPassword: mockSignUp,
@@ -426,7 +432,10 @@ describe("AuthModal Google sign-in (BL-118 / ADR-0016)", () => {
     });
 
     expect(mockGoogleAuthProvider).toHaveBeenCalledTimes(1);
-    expect(mockSignInWithPopup).toHaveBeenCalledWith({}, expect.anything());
+    // BL-263: the resolver is passed per call (Auth starts without one).
+    expect(mockSignInWithPopup).toHaveBeenCalledWith({}, expect.anything(), {
+      resolver: "popup-redirect",
+    });
   });
 
   it("falls back to signInWithRedirect when the popup is blocked", async () => {
@@ -440,7 +449,11 @@ describe("AuthModal Google sign-in (BL-118 / ADR-0016)", () => {
       fireEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
     });
 
-    expect(mockSignInWithRedirect).toHaveBeenCalledWith({}, expect.anything());
+    expect(mockSignInWithRedirect).toHaveBeenCalledWith({}, expect.anything(), {
+      resolver: "popup-redirect",
+    });
+    // BL-263: marked so AuthContext completes it on the way back.
+    expect(sessionStorage.getItem("hsv:google-redirect-pending")).toBe("1");
   });
 
   it("does not fall back to redirect for a plain closed-popup cancellation, and shows no error", async () => {
