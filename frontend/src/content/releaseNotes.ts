@@ -38,24 +38,20 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
-    // BL-263 + BL-212 (+ BL-266 rider). DRAFT copy pending owner approval;
-    // date finalized at promote time per the release-notes ritual.
+    // BL-263 + BL-212 (+ BL-266 rider). Owner copy 2026-10-15; date
+    // finalized at promote time per the release-notes ritual.
     kind: "release",
     key: "2.0.1",
     version: "2.0.1",
     date: "2026-10-16",
-    title: "Straight in, no waiting",
+    title: "No more stuck Loading…",
     sections: [
       {
         heading: "Fixes",
         items: [
           {
-            title: "The Vault opens without waiting on Google",
-            body: "On phones and in Safari, the Vault waited for Google's sign-in helper to load before it showed you anything, even if you never sign in with Google. On a slow connection, or with a blocker that holds that request, you could sit on Loading… for a long time. Now the Vault opens straight away and only talks to Google when you tap Sign in with Google.",
-          },
-          {
-            title: "No more stuck Loading… after switching apps",
-            body: "If you opened the Vault and switched away before it finished loading (Reddit's built-in browser makes this easy), it could come back stuck on Loading… until you refreshed. A fix in the sign-in library we use takes care of it.",
+            title: "Stuck on Loading…",
+            body: "There were a few situations where the screen would get stuck at Loading… until you refreshed. We got rid of that.",
           },
         ],
       },
@@ -64,7 +60,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
         items: [
           {
             title: "The boring stuff",
-            body: "Tighter housekeeping in the server's abuse protection. Nothing you'll notice, which is the point.",
+            body: "Routine housekeeping behind the scenes. Nothing you'll notice.",
           },
         ],
       },
