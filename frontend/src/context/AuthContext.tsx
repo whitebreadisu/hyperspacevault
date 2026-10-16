@@ -7,7 +7,8 @@ import {
   getAdditionalUserInfo,
   type User,
 } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, googleResolver } from "../firebase";
+import { takeGoogleRedirectPending } from "../utils/googleAuth";
 import { createAuthChannel, TAB_ID, type AuthChannelMessage } from "../utils/authChannel";
 import { capture } from "../analytics/analytics";
 
@@ -61,14 +62,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // of signInWithRedirect in this app). A blocked-popup redirect navigates
   // the whole browser away and back -- AuthModal itself doesn't survive that
   // round trip (the SPA reloads from scratch), so nothing left over there
-  // can pick up the result; this runs unconditionally from AuthProvider,
-  // which always mounts on load, instead. onAuthStateChanged above already
-  // picks up the resulting sign-in on its own once Firebase resolves the
-  // pending redirect internally -- calling getRedirectResult here exists
-  // only to *surface any error* the redirect completion hit (e.g. a
-  // collision) and to let Firebase clear the pending-redirect state; nothing
-  // reads its resolved value. On every normal (non-redirect-return) load
-  // this resolves to `null` and is a no-op. A known gap (see BL-118 PR
+  // can pick up the result; this runs from AuthProvider, which always mounts
+  // on load, instead. BL-263 (2.0.1): Auth now starts without the
+  // popup/redirect resolver (src/firebase.ts), so Auth's own start-up no
+  // longer completes a pending redirect -- this call, given googleResolver,
+  // is what completes it, and onAuthStateChanged above then reports the
+  // signed-in user. It runs only when AuthModal marked a redirect as pending
+  // (takeGoogleRedirectPending), so a normal load never fetches the resolver
+  // from apis.google.com. Its resolved value is otherwise unused beyond the
+  // analytics below; errors (e.g. a collision) are swallowed. A known gap (see BL-118 PR
   // description): unlike the popup path, there's no modal left mounted here
   // to show the ADR-0016 "linked to an existing account" notice for a
   // redirect completion -- the error is swallowed rather than surfaced,
@@ -80,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // immediately after a redirect returns; every other load, including
     // ordinary session-restore rehydration, resolves null here and this
     // never fires). Mirrors AuthModal's popup-path isNewUser check.
-    getRedirectResult(auth)
+    if (!takeGoogleRedirectPending()) return;
+    getRedirectResult(auth, googleResolver)
       .then((result) => {
         if (!result) return;
         const info = getAdditionalUserInfo(result);

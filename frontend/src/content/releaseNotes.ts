@@ -38,6 +38,35 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-263 + BL-212 (+ BL-266 rider). Owner copy 2026-10-15; date
+    // finalized at promote time per the release-notes ritual.
+    kind: "release",
+    key: "2.0.1",
+    version: "2.0.1",
+    date: "2026-10-16",
+    title: "No more stuck Loading…",
+    sections: [
+      {
+        heading: "Fixes",
+        items: [
+          {
+            title: "Stuck on Loading…",
+            body: "There were a few situations where the screen would get stuck at Loading… until you refreshed. We got rid of that.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Routine housekeeping behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     kind: "release",
     // BL-190 mobile 2.0: phone layout (App Spec §25) + camera scanning
     // (§24), the owner finish rounds BL-257/258/259/262 and BL-245

@@ -45,3 +45,36 @@ export function hasPasswordProvider(
   if (!user?.providerData) return true;
   return user.providerData.some((p) => p.providerId === "password");
 }
+
+// BL-263: the main document initialises Auth without the popup/redirect
+// resolver, so a Google redirect sign-in (the blocked-popup fallback) is no
+// longer completed by Auth's own start-up -- AuthContext completes it with
+// getRedirectResult(auth, googleResolver). Calling that on every load would
+// fetch apis.google.com on every page view, so AuthModal marks a redirect as
+// pending just before it navigates away, and AuthContext reads (and clears)
+// the mark on the way back. sessionStorage survives the same-tab round trip
+// to Google and back.
+const REDIRECT_PENDING_KEY = "hsv:google-redirect-pending";
+
+/** Record that a Google redirect sign-in is about to leave the page. */
+export function markGoogleRedirectPending(): void {
+  try {
+    sessionStorage.setItem(REDIRECT_PENDING_KEY, "1");
+  } catch {
+    // Storage unavailable: takeGoogleRedirectPending() then answers true.
+  }
+}
+
+/** True when this load may be a Google redirect returning, and clears the
+ * mark. Answers true when storage cannot be read, so a redirect result is
+ * never dropped -- the cost of a wrong true is one background fetch of the
+ * resolver, never a wait. */
+export function takeGoogleRedirectPending(): boolean {
+  try {
+    const pending = sessionStorage.getItem(REDIRECT_PENDING_KEY) !== null;
+    sessionStorage.removeItem(REDIRECT_PENDING_KEY);
+    return pending;
+  } catch {
+    return true;
+  }
+}

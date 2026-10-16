@@ -10,7 +10,13 @@ const { mockCredential, mockReauthenticate, mockUpdatePassword, mockUseAuth } = 
 }));
 
 vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
+  // BL-263: src/firebase.ts calls initializeAuth (no resolver) and exports
+  // browserPopupRedirectResolver as googleResolver.
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+  browserPopupRedirectResolver: { resolver: "popup-redirect" },
   connectAuthEmulator: vi.fn(),
   EmailAuthProvider: { credential: mockCredential },
   reauthenticateWithCredential: mockReauthenticate,

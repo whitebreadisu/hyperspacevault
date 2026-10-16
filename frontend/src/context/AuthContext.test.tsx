@@ -11,7 +11,13 @@ const { authStateCallbacks, mockSignOut, mockGetRedirectResult } = vi.hoisted(()
 }));
 
 vi.mock("firebase/auth", () => ({
-  getAuth: vi.fn(() => ({})),
+  // BL-263: src/firebase.ts calls initializeAuth (no resolver) and exports
+  // browserPopupRedirectResolver as googleResolver.
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+  browserPopupRedirectResolver: { resolver: "popup-redirect" },
   connectAuthEmulator: vi.fn(),
   onAuthStateChanged: vi.fn((_auth: unknown, cb: (user: unknown) => void) => {
     authStateCallbacks.push(cb);
@@ -133,13 +139,30 @@ describe("AuthContext", () => {
   // that fell back to a redirect actually gets picked up on the page that
   // reloads after the browser navigates back.
   describe("Google redirect-result completion (BL-118)", () => {
-    it("calls getRedirectResult on mount", () => {
+    // BL-263 (2.0.1) replaces "calls getRedirectResult on mount": Auth now
+    // starts without the popup/redirect resolver, so the call is what
+    // completes a returning redirect -- and it must run only then, or every
+    // page load would fetch the resolver from apis.google.com.
+    it("completes a pending Google redirect on mount, with the resolver, and clears the mark", () => {
+      sessionStorage.setItem("hsv:google-redirect-pending", "1");
       render(
         <AuthProvider>
           <Consumer />
         </AuthProvider>
       );
       expect(mockGetRedirectResult).toHaveBeenCalledTimes(1);
+      expect(mockGetRedirectResult).toHaveBeenCalledWith(auth, { resolver: "popup-redirect" });
+      expect(sessionStorage.getItem("hsv:google-redirect-pending")).toBeNull();
+    });
+
+    it("does not call getRedirectResult on a normal load (no redirect pending)", () => {
+      sessionStorage.removeItem("hsv:google-redirect-pending");
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+      expect(mockGetRedirectResult).not.toHaveBeenCalled();
     });
 
     it("does not throw or leave the provider in a broken state when getRedirectResult rejects", async () => {
@@ -148,6 +171,7 @@ describe("AuthContext", () => {
           code: "auth/account-exists-with-different-credential",
         })
       );
+      sessionStorage.setItem("hsv:google-redirect-pending", "1");
       expect(() =>
         render(
           <AuthProvider>

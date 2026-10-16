@@ -10,9 +10,9 @@ import {
   signInWithRedirect,
   getAdditionalUserInfo,
 } from "firebase/auth";
-import { auth } from "../../firebase";
+import { auth, googleResolver } from "../../firebase";
 import { GoogleAuthButton } from "../../components/GoogleAuthButton";
-import { describeGoogleAuthError } from "../../utils/googleAuth";
+import { describeGoogleAuthError, markGoogleRedirectPending } from "../../utils/googleAuth";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { capture } from "../../analytics/analytics";
 import "./AuthModal.css";
@@ -186,11 +186,12 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     try {
       let result;
       try {
-        result = await signInWithPopup(auth, provider);
+        result = await signInWithPopup(auth, provider, googleResolver);
       } catch (err) {
         const code = err instanceof Error ? (err as { code?: string }).code : undefined;
         if (code === "auth/popup-blocked") {
-          await signInWithRedirect(auth, provider);
+          markGoogleRedirectPending();
+          await signInWithRedirect(auth, provider, googleResolver);
           return;
         }
         throw err;

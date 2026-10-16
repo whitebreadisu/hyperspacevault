@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_optional_db
-from app.rate_limit import is_rate_limited
+from app.rate_limit import client_ip_key, is_rate_limited
 from app.schemas.feedback_schema import FeedbackSubmitRequest, FeedbackSubmitResponse
 from app.services import feedback as feedback_service
 
@@ -28,7 +28,7 @@ def submit_feedback(
     retrying past the honeypot is exactly the traffic this limiter exists
     to blunt too.
     """
-    client_key = request.client.host if request.client else "unknown"
+    client_key = client_ip_key(request.client.host if request.client else None)
     if is_rate_limited(client_key):
         raise HTTPException(
             status_code=429, detail="Too many submissions -- please try again later"
