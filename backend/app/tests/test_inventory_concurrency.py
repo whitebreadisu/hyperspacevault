@@ -19,6 +19,7 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from app.db_url import sa_url
 from app.repositories import inventory as inventory_repo
 
 pytestmark = pytest.mark.skipif(
@@ -80,7 +81,7 @@ def test_concurrent_increments_are_not_lost(concurrency_tenant, db):
         text("SELECT id FROM card_variants ORDER BY id LIMIT 1")
     ).scalar()
 
-    app_engine = create_engine(os.environ["APP_DATABASE_URL"])
+    app_engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
     AppSession = sessionmaker(bind=app_engine)
 
     ready = threading.Barrier(NUM_WORKERS)
@@ -128,7 +129,7 @@ def test_concurrent_decrements_clamp_at_zero(concurrency_tenant, db):
         text("SELECT id FROM card_variants ORDER BY id DESC LIMIT 1")
     ).scalar()
 
-    app_engine = create_engine(os.environ["APP_DATABASE_URL"])
+    app_engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
     AppSession = sessionmaker(bind=app_engine)
 
     ready = threading.Barrier(NUM_WORKERS)

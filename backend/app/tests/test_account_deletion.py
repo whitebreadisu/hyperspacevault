@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from app.db_url import sa_url
+
 pytestmark = pytest.mark.skipif(
     "DATABASE_URL" not in os.environ or "APP_DATABASE_URL" not in os.environ,
     reason="requires DATABASE_URL and APP_DATABASE_URL -- run inside the backend container",
@@ -514,7 +516,7 @@ class TestRequireRecentAuthIntegration:
 @pytest.fixture
 def app_db():
     """Raw swu_app connection -- the role migration 0024's grants target."""
-    engine = create_engine(os.environ["APP_DATABASE_URL"])
+    engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
     Session = sessionmaker(bind=engine)
     session = Session()
     try:

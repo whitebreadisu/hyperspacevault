@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 import httpx
 from sqlalchemy import create_engine, text
 
+from app.db_url import sa_url
 from app.ingestion.image_mirror import MirrorResult, get_bucket, mirror_image
 
 logger = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ class ConservationReport:
 
 
 def fetch_distinct_urls(database_url: str) -> list[str]:
-    engine = create_engine(database_url)
+    engine = create_engine(sa_url(database_url))
     with engine.connect() as conn:
         rows = conn.execute(
             text(
