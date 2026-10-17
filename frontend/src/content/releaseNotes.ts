@@ -43,7 +43,7 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     kind: "release",
     key: "2.0.1",
     version: "2.0.1",
-    date: "2026-10-16",
+    date: "2026-10-17",
     title: "No more stuck Loading…",
     sections: [
       {
