@@ -22,6 +22,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from app.db_url import sa_url
+
 pytestmark = pytest.mark.skipif(
     "DATABASE_URL" not in os.environ or "APP_DATABASE_URL" not in os.environ,
     reason="requires DATABASE_URL and APP_DATABASE_URL -- run inside the backend container",
@@ -198,7 +200,7 @@ class TestTenantLessSessionRlsFailSafe:
         rather than incidental.
         """
         engine = create_engine(
-            os.environ["APP_DATABASE_URL"], pool_size=1, max_overflow=0
+            sa_url(os.environ["APP_DATABASE_URL"]), pool_size=1, max_overflow=0
         )
         Session = sessionmaker(bind=engine)
         try:
@@ -276,7 +278,7 @@ class TestTenantIsolationMigrationReversibility:
         from alembic.runtime.migration import MigrationContext
 
         module = self._load_migration_module()
-        engine = create_engine(os.environ["DATABASE_URL"])
+        engine = create_engine(sa_url(os.environ["DATABASE_URL"]))
         try:
             with engine.connect() as connection:
                 migration_context = MigrationContext.configure(connection)
@@ -299,7 +301,7 @@ class TestTenantIsolationMigrationReversibility:
         the test's finally so the rest of the suite (which assumes the fixed
         policy) is never left running against the old, leaky one, even if
         an assertion above failed mid-way through the up/down cycle."""
-        engine = create_engine(os.environ["DATABASE_URL"])
+        engine = create_engine(sa_url(os.environ["DATABASE_URL"]))
         try:
             with engine.connect() as connection:
                 connection.execute(
@@ -319,7 +321,7 @@ class TestTenantIsolationMigrationReversibility:
             db.rollback()
             assert "COALESCE" in self._policy_qual(db)
 
-            engine = create_engine(os.environ["APP_DATABASE_URL"])
+            engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
             Session = sessionmaker(bind=engine)
             app_db = Session()
             try:

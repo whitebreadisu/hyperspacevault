@@ -11,6 +11,8 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from app.db_url import sa_url
+
 pytestmark = pytest.mark.skipif(
     "DATABASE_URL" not in os.environ or "APP_DATABASE_URL" not in os.environ,
     reason="requires DATABASE_URL and APP_DATABASE_URL -- run inside the backend container",
@@ -20,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def app_db():
     """SQLAlchemy session connected as swu_app -- the role tenant_isolation actually applies to."""
-    engine = create_engine(os.environ["APP_DATABASE_URL"])
+    engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
     Session = sessionmaker(bind=engine)
     session = Session()
     try:

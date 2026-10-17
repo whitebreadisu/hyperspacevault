@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
+from app.db_url import sa_url
 from app.models.base import Base
 import app.models  # noqa: F401 — registers all models with Base.metadata
 
@@ -15,7 +16,7 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return os.environ["DATABASE_URL"]
+    return sa_url(os.environ["DATABASE_URL"])
 
 
 def run_migrations_offline() -> None:

@@ -512,7 +512,7 @@ Derived from the `type` field containing **"Token"** — `Token Unit` (21), `Tok
 - `tests/` — pytest suite mirroring the structure.
 
 **Tech stack** (code-verified versions as of 2026-07-24; full table + local setup in `README.md`):
-- Backend — Python 3.12, FastAPI 0.138, SQLAlchemy 2.0, Alembic, Pydantic 2.13, `psycopg2`, `firebase-admin` 6.5, uvicorn; pytest. PostgreSQL 16.
+- Backend — Python 3.12, FastAPI 0.141, SQLAlchemy 2.1 (engines name the `psycopg2` driver explicitly via `app/db_url.py` — 2.1 maps a bare `postgresql://` URL to psycopg 3), Alembic, Pydantic 2.13, `psycopg2`, `firebase-admin` 7.5, uvicorn; pytest. PostgreSQL 16.
 - Frontend — React 19.2 + Vite 8, TypeScript, Firebase JS SDK 12; Vitest 4, ESLint 9 + Prettier.
 - Platform (GCP / Cloud Run / Cloud SQL / Terraform / CI) — authoritative in `SWU_Platform_Spec.md`.
 

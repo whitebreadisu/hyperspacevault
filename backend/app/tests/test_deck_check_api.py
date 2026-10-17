@@ -27,6 +27,7 @@ from datetime import date
 import pytest
 from sqlalchemy import text
 
+from app.db_url import sa_url
 from app.repositories.pricing import upsert_latest_price
 from app.services import deck_fetch
 
@@ -1005,7 +1006,7 @@ class TestTenantIsolation:
 
         from app.repositories import deck_check as deck_check_repo
 
-        engine = create_engine(os.environ["APP_DATABASE_URL"])
+        engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
         Session = sessionmaker(bind=engine)
         app_db = Session()
         try:

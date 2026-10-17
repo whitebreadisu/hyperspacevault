@@ -50,6 +50,10 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text
 
+# Standalone script: put backend/ on the path for the shared URL helper.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.db_url import sa_url  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_JSON_PATH = REPO_ROOT / "frontend" / "src" / "data" / "preconDecks.json"
 
@@ -198,7 +202,7 @@ def main() -> int:
         print("ABORT: DATABASE_URL is not set", file=sys.stderr)
         return 2
 
-    engine = create_engine(database_url)
+    engine = create_engine(sa_url(database_url))
     known_uuids = load_known_uuids(engine)
     ibh_catalog_uuids = load_ibh_catalog_uuids(engine)
 

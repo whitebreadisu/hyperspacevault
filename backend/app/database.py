@@ -6,6 +6,7 @@ from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth import get_current_identity, get_optional_identity
+from app.db_url import sa_url
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 APP_DATABASE_URL = os.environ["APP_DATABASE_URL"]
@@ -31,12 +32,14 @@ APP_DATABASE_URL = os.environ["APP_DATABASE_URL"]
 # Migration-running admin connection (swu_user). Used by ingestion scripts
 # (bootstrap/catalog ingestion) which need write access to the catalog
 # tables that swu_app can only read. Not on the request path: minimal pool.
-engine = create_engine(DATABASE_URL, pool_size=1, max_overflow=1, pool_pre_ping=True)
+engine = create_engine(
+    sa_url(DATABASE_URL), pool_size=1, max_overflow=1, pool_pre_ping=True
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Request-serving connection (swu_app) -- the RLS-aware role from P4 stage 2.
 app_engine = create_engine(
-    APP_DATABASE_URL, pool_size=3, max_overflow=3, pool_pre_ping=True
+    sa_url(APP_DATABASE_URL), pool_size=3, max_overflow=3, pool_pre_ping=True
 )
 AppSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=app_engine)
 

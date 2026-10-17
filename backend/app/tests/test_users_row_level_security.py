@@ -17,6 +17,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
 
+from app.db_url import sa_url
+
 from .conftest import DEFAULT_TEST_UID
 
 pytestmark = pytest.mark.skipif(
@@ -32,7 +34,7 @@ def app_db():
     module-scoped app_db) because SET (without LOCAL) on app.current_firebase_uid
     persists for the life of the connection, and tests below set conflicting
     values -- each test needs its own connection."""
-    engine = create_engine(os.environ["APP_DATABASE_URL"])
+    engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]))
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
