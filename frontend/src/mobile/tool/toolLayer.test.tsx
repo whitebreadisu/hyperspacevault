@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,12 +36,13 @@ import { resetMediaMatches, setMediaMatches } from "../../test/setup";
 import { resetRouterForTest } from "../router";
 import { PHONE_QUERY } from "../useIsPhone";
 import { setNavForTest } from "./cameraHop";
-import { toolAddCardsAbandoned, toolAddCardsCommitted } from "./toolAnalytics";
+import { toolAddCardsAbandoned, toolAddCardsCommitted, toolKeypadToggled } from "./toolAnalytics";
 import {
   getToolState,
   openTool,
   padKey,
   resetToolForTest,
+  setPadCompact,
   setToolMode,
   toolRouteFor,
 } from "./toolStore";
@@ -228,5 +229,58 @@ describe("S3 F2 / F3 tool layer focus + Escape", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(container.querySelector(".m-d2-confirm-layer")).not.toBeNull();
+  });
+});
+
+describe("BL-270 keypad fold tab (user-chosen deck size)", () => {
+  beforeEach(() => {
+    resetRouterForTest();
+    resetToolForTest();
+    setMediaMatches(PHONE_QUERY, true);
+    spy.mockClear();
+  });
+  afterEach(() => resetMediaMatches());
+
+  it("the compact choice sticks across keys and clears; it is never persisted", () => {
+    expect(getToolState().padCompact).toBe(false);
+    setPadCompact(true);
+    padKey("8");
+    padKey("7");
+    padKey("clr");
+    expect(getToolState().padCompact).toBe(true);
+    // Not mirrored to storage: a fresh load starts at full size.
+    const stored = JSON.stringify({ ...sessionStorage }) + JSON.stringify({ ...localStorage });
+    expect(stored).not.toMatch(/padCompact/);
+    resetToolForTest();
+    expect(getToolState().padCompact).toBe(false);
+  });
+
+  it("pad_keypad_toggled carries the state after the tap + layout", () => {
+    toolKeypadToggled("compact");
+    toolKeypadToggled("full");
+    expect(calls("pad_keypad_toggled")).toEqual([
+      { state: "compact", layout: "phone" },
+      { state: "full", layout: "phone" },
+    ]);
+  });
+
+  it("no tab while the zone fits; while shrunk the tab shows and restores the deck", async () => {
+    window.location.hash = "#/pad";
+    render(<App />);
+    await act(async () => {});
+    // jsdom has no layout, so the zone always fits: no tab at full size.
+    expect(screen.queryByRole("button", { name: "Shrink keypad" })).toBeNull();
+    expect(document.querySelector(".m-pad--compact")).toBeNull();
+    await act(async () => setPadCompact(true));
+    expect(document.querySelector(".m-pad--compact")).not.toBeNull();
+    const tab = screen.getByRole("button", { name: "Restore keypad" });
+    expect(tab.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => fireEvent.click(tab));
+    expect(getToolState().padCompact).toBe(false);
+    expect(document.querySelector(".m-pad--compact")).toBeNull();
+    expect(calls("pad_keypad_toggled")).toEqual([{ state: "full", layout: "phone" }]);
+    // Back at full size with content that fits, the tab is gone again.
+    expect(screen.queryByRole("button", { name: "Shrink keypad" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore keypad" })).toBeNull();
   });
 });

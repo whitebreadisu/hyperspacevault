@@ -26,6 +26,9 @@ import { getScanSettings, resetScanSettingsForTest, setScanSettings } from "./sc
 //     lives in batch.ts (S3-08); this store keeps only the keypad's own state:
 //     `lastAdded` names the batch row the "In batch" panel shows and
 //     `preconAdded` the deck-add confirmation line (S3-09).
+//   - padCompact (BL-270): the user shrank the key deck with the fold tab.
+//     Sticks from card to card for the session; never persisted, so a fresh
+//     load (or the hop back from /scan/) starts at full size.
 
 export type ToolMode = "keypad" | "camera";
 
@@ -49,6 +52,8 @@ export interface ToolState {
   /** S3-09: the last "Add deck to batch" (n copies written), shown in the
    * precon panel until the deck or set changes. */
   preconAdded: { key: string; n: number; at: number } | null;
+  /** BL-270: the key deck is shrunk by the user's choice (the fold tab). */
+  padCompact: boolean;
 }
 
 const INITIAL: ToolState = {
@@ -59,6 +64,7 @@ const INITIAL: ToolState = {
   picks: NO_PICKS,
   lastAdded: null,
   preconAdded: null,
+  padCompact: false,
 };
 
 /** S7-08: the stored tool fields (session mirror first, then the remembered
@@ -190,6 +196,11 @@ export function addPadEntry(e: NewBatchRow): void {
     picks: NO_PICKS,
     lastAdded: { entryId: row.id, at: Date.now() },
   });
+}
+
+/** BL-270: the fold tab -- shrink or restore the key deck. */
+export function setPadCompact(padCompact: boolean): void {
+  if (state.padCompact !== padCompact) emit({ ...state, padCompact });
 }
 
 /** S3-09: the precon panel's confirmation line. */

@@ -2,7 +2,7 @@
  * Consolidated from rev4 m-layout.css:516-655 (pad, keys, entry row, resolved
  * panel, readout, messages, idle, layer), m-rev1.css:149-153 (tool head),
  * m-rev2.css:159-168 (r2 entry row), m-rev4-c.css (R4-4 set picker, R4-6
- * collide=deck: deck shrink, pinned Add row, compact panel; the ?collide=sheet
+ * collide=deck: deck shrink (user-driven since BL-270), pinned Add row, compact panel; the ?collide=sheet
  * rules are not ported -- that switch was retired), m-rev4-d2.css:24-62
  * (Verify button, keypad while a deck is chosen, deck rows, precon panel
  * head), m-layout.css:42-46 / 248 / 285-287 (text button, sheet foot, set
@@ -83,13 +83,72 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* BL-270: the zone's bottom padding; the pinned rows below match it. It
+   * grows by the fold tab's band (28 px, Pad.tsx FOLD_BAND) while the tab
+   * shows, so the tab sits over padding and never over the Add row. */
+  --m-zpb: 10px;
+}
+.m-app .m-pad--fold {
+  --m-zpb: 38px;
 }
 .m-app .m-pad__zone {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 16px 10px;
+  padding: 12px 16px var(--m-zpb);
   scrollbar-width: none;
+}
+
+/* ── BL-270: the fold tab on the deck's top edge ──────────────────────────
+ * A small steel-ring tab growing out of the deck (the deck's own steel and
+ * circuit interior), chevron only: down = shrink the deck, up = restore. A
+ * 76 x 44 tap area: 38 px over the zone's padding band plus 6 px over the
+ * deck's own top padding (the entry row starts 8-10 px below the edge); the
+ * drawn tab is 76 x 22, standing on the deck's top edge. */
+.m-app .m-padfold {
+  flex: none;
+  position: relative;
+  height: 0;
+  z-index: 3;
+}
+.m-app .m-padfold__tab {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  width: 76px;
+  height: 44px;
+  padding: 0 0 6px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-app .m-padfold__face {
+  position: relative;
+  width: 76px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: #cfd6e4;
+  background: rgba(211, 211, 212, 0.3);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 100%, 0 100%);
+}
+.m-app .m-padfold__face::before {
+  content: "";
+  position: absolute;
+  inset: 1.5px 1.5px 0;
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 100%, 0 100%);
+  background: #0b0e18 url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+}
+.m-app .m-padfold__face > * {
+  position: relative;
+}
+.m-app .m-padfold__tab:active .m-padfold__face {
+  transform: translateY(1px);
 }
 .m-app .m-pad__deck {
   flex: none;
@@ -305,34 +364,34 @@
   opacity: 0.32;
 }
 
-/* ── R4-6 collide=deck: the deck shrinks while a result shows ────────────
- * A class flip on resolve, never a transition: keys drop to the 44 px floor,
- * the entry row tightens from 56 to 48 px (m-rev4-c.css:41-49). */
-.m-app .m-pad--result .m-pad__deck {
+/* ── The compact deck (R4-6 sizes; user-chosen with the fold tab, BL-270) ──
+ * A class flip, never a transition: keys drop to the 44 px floor, the entry
+ * row tightens from 56 to 48 px (m-rev4-c.css:41-49). */
+.m-app .m-pad--compact .m-pad__deck {
   padding: 8px 12px calc(8px + var(--sab));
 }
-.m-app .m-pad--result .m-pad__entry {
+.m-app .m-pad--compact .m-pad__entry {
   margin-bottom: 6px;
 }
-.m-app .m-pad--result .m-padset,
-.m-app .m-pad--result .m-padnum,
-.m-app .m-pad--result .m-logbtn {
+.m-app .m-pad--compact .m-padset,
+.m-app .m-pad--compact .m-padnum,
+.m-app .m-pad--compact .m-logbtn {
   height: 48px;
 }
-.m-app .m-pad--result .m-padnum__val {
+.m-app .m-pad--compact .m-padnum__val {
   font-size: 26px;
 }
-.m-app .m-pad--result .m-padnum__caret {
+.m-app .m-pad--compact .m-padnum__caret {
   height: 24px;
 }
-.m-app .m-pad--result .m-keys {
+.m-app .m-pad--compact .m-keys {
   gap: 6px;
 }
-.m-app .m-pad--result .m-key {
+.m-app .m-pad--compact .m-key {
   height: 44px;
   font-size: 22px;
 }
-.m-app .m-pad--result .m-key--fn {
+.m-app .m-pad--compact .m-key--fn {
   font-size: 14px;
 }
 
@@ -610,9 +669,9 @@
 }
 .m-app .m-pad__zone--result .m-ident__add {
   position: sticky;
-  bottom: -10px;
+  bottom: calc(-1 * var(--m-zpb));
   z-index: 2;
-  padding: 12px 0 10px;
+  padding: 12px 0 var(--m-zpb);
   margin-top: -6px;
   background: linear-gradient(to bottom, rgba(9, 11, 20, 0), rgba(9, 11, 20, 0.94) 12px);
 }
@@ -1087,9 +1146,9 @@
  * bottom, as the keypad's Add row does (R4-6). */
 .m-app .m-pad__zone--precon .m-d2-precon__actions {
   position: sticky;
-  bottom: -10px;
+  bottom: calc(-1 * var(--m-zpb));
   z-index: 2;
-  padding: 10px 0;
+  padding: 10px 0 var(--m-zpb);
   background: linear-gradient(to bottom, rgba(9, 11, 20, 0), rgba(9, 11, 20, 0.94) 12px);
 }
 .m-app .m-d2-precon__actions .swu-btn {

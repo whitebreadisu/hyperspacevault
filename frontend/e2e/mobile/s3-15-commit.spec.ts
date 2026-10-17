@@ -26,10 +26,15 @@ test("s3-15-commit-adjusts-quantities", async ({ page }) => {
   // One adjust per printing with the folded delta; the blocked copy is not sent.
   expect(rec.adjust).toEqual([{ variantId: 7221, delta: 2 }]);
   expect(rec.imports).toEqual([]);
-  // ... then the sheet closes on its own; only the written copies left the
-  // batch (F1) -- the not-added SOR 35 copy is still there.
+  // ... then the sheet closes on its own and the whole batch is gone, the
+  // not-added SOR 35 copy included (BL-268: desktop's modal clears on commit;
+  // replaces the F1-era "not-added copy stays" assertion).
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0, { timeout: 3000 });
-  await expect(page.locator(".m-logbtn__n")).toHaveText("1");
+  await expect(page.locator(".m-logbtn__n")).toHaveCount(0);
+  await expect(page.locator(".m-logbtn")).toHaveAttribute(
+    "aria-label",
+    "Verify cards, batch empty"
+  );
   // The quantities refreshed: SOR 87 now reads 3 of 3 (at limit, red).
   await key(page, "Clear number");
   await typeNum(page, 87);
@@ -69,6 +74,8 @@ test("s3-15-commit-mixed-batch-precon-import", async ({ page }) => {
   expect(imp.file.cards.reduce((n, c) => n + c.quantity, 0)).toBe(adds - 1);
   expect(new Set(imp.file.cards.map((c) => c.swuapi_uuid)).size).toBe(imp.file.cards.length);
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0, { timeout: 3000 });
+  // BL-268: the unresolved and not-added deck copies leave with the rest.
+  await expect(page.locator(".m-logbtn__n")).toHaveCount(0);
 });
 
 test("s3-15-commit-error-inline", async ({ page }) => {
@@ -98,10 +105,10 @@ test("s3-15-commit-error-inline", async ({ page }) => {
   );
 });
 
-test("s3-15-commit-escape-locked-and-keeps-not-added", async ({ page }) => {
-  // F1: while the commit is in flight Escape does not close the sheet, and
-  // on success only the written copies leave the batch -- the not-added copy
-  // stays for the user to act on.
+test("s3-15-commit-escape-locked-and-clears-batch", async ({ page }) => {
+  // F1: while the commit is in flight Escape does not close the sheet.
+  // BL-268 (replaces F1's "only the written copies leave"): on success the
+  // whole batch the sheet showed leaves, the not-added copy included.
   const rec = recorderFor(page);
   let release: () => void = () => {};
   const gate = new Promise<void>((res) => (release = res));
@@ -125,6 +132,6 @@ test("s3-15-commit-escape-locked-and-keeps-not-added", async ({ page }) => {
   await expect(s.locator(".m-d2-verify__success")).toHaveText("1 card added.");
   await expect(page.locator(".m-sheet-layer")).toHaveCount(0, { timeout: 3000 });
   expect(rec.adjust).toEqual([{ variantId: 7221, delta: 1 }]);
-  // The not-added copy is still in the batch.
-  await expect(page.locator(".m-logbtn__n")).toHaveText("1");
+  // The batch is empty -- the not-added copy left with the added one.
+  await expect(page.locator(".m-logbtn__n")).toHaveCount(0);
 });

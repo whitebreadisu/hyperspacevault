@@ -485,3 +485,11 @@ Code comments that carried the same rules, verbatim (`frontend/src/mobile/camera
 §25.7, Flow bullet, the parenthesis after "Found shows the keypad's `Identified` panel", verbatim (superseded 2026-10-13 by the same decision: the panel is the card the strip identified, not the keypad's view of the set + number with its shared-number choice):
 
 > (shared numbers, BL-191 non-foil default, In vault / After add readout)
+
+## Archived 2026-10-17 — phone keypad keeps its size (BL-270)
+
+**Disposition:** → new ADR-0032 ("Phone keypad keeps its size; the user folds it") + archive. Owner decision 2026-10-17 after using 2.0 on his phone: the automatic deck shrink (R4-6 part 1) changed the keys' shape mid-entry; the deck now stays full size, the zone scrolls, and a fold tab lets the user shrink it. R4-6 parts 2 (pinned Add row) and 3 (compact collision panel) stand.
+
+§25.3, "Result layout" bullet, verbatim:
+
+> - **Result layout.** While a card shows, the deck shrinks (44 px keys, 48 px entry row; one class flip, no animation). Card details / Add to batch stays pinned at the bottom of the result zone. A shared number compacts the panel. A finish-only share keeps desktop's non-foil default (BL-191) with the amber cue and a Change link. The deck restores on Clear and after Add.

@@ -22,7 +22,8 @@ export async function typeNum(page: Page, n: number | string) {
   for (const d of String(n)) await key(page, d);
 }
 
-/** Heights of a key and the number field, and whether the deck is shrunk. */
+/** Heights of a key and the number field, whether the deck is shrunk
+ * (BL-270: only by the user, with the fold tab) and whether the tab shows. */
 export async function deckMetrics(page: Page) {
   return page.evaluate(() => {
     const k = document.querySelector(".m-key")!;
@@ -30,10 +31,16 @@ export async function deckMetrics(page: Page) {
       key: Math.round(k.getBoundingClientRect().height),
       num: Math.round(document.querySelector(".m-padnum")!.getBoundingClientRect().height),
       deck: Math.round(document.querySelector(".m-pad__deck")!.getBoundingClientRect().height),
-      result: !!document.querySelector(".m-pad--result"),
+      compact: !!document.querySelector(".m-pad--compact"),
+      tab: !!document.querySelector(".m-padfold__tab"),
       tr: getComputedStyle(k).transitionProperty,
     };
   });
+}
+
+/** BL-270: the fold tab ("Shrink keypad" / "Restore keypad"). */
+export function foldTab(page: Page) {
+  return page.locator(".m-padfold__tab");
 }
 
 /** Choose a set through the "Choose a set" sheet (opens the Set chooser,
