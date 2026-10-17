@@ -38,6 +38,45 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-270 (keypad keeps its size + fold tab, ADR-0032), BL-268 (batch
+    // clears fully after add), BL-265 (SQLAlchemy 2.1, firebase 13) and
+    // BL-267 (Dependabot batch). Owner-approved copy 2026-10-17 (draft:
+    // planning/ReleaseNotes_v2.1_Draft_2026-10-17.md); date finalized at
+    // promote time per the release-notes ritual.
+    kind: "release",
+    key: "2.1",
+    version: "2.1",
+    // Placeholder: 2.0.1 shipped 2026-10-17 and the list is strictly
+    // newest-first, so 2.1 promotes on 10-18 or later; the gate wants the
+    // promote day here.
+    date: "2026-10-18",
+    title: "A steadier keypad",
+    sections: [
+      {
+        heading: "Improvements",
+        items: [
+          {
+            title: "Keypad stays put",
+            body: "The number keys no longer shrink when a card comes up. If the card details don't fit, scroll them, or tap the small tab on top of the keypad to shorten the keys. Tap it again to bring them back.",
+          },
+          {
+            title: "Batches clear completely",
+            body: "After you add cards to your vault, the whole batch clears, including any cards that weren't added.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Routine housekeeping behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-263 + BL-212 (+ BL-266 rider). Owner copy 2026-10-15; date
     // finalized at promote time per the release-notes ritual.
     kind: "release",
