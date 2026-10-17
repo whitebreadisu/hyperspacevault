@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLimits } from "../../context/LimitsContext";
 import { getPlaysetSize } from "../../utils/inventory";
@@ -24,7 +24,8 @@ import { PreconPanel } from "./PreconPanel";
 import { SetChooserSheet } from "./SetChooserSheet";
 import { useBatch } from "./batch";
 import type { BatchRow } from "./batch";
-import { addPadEntry, padKey, setPadPick, useToolState } from "./toolStore";
+import { addPadEntry, padKey, setPadCompact, setPadPick, useToolState } from "./toolStore";
+import { toolKeypadToggled } from "./toolAnalytics";
 import { resolveRow } from "../../utils/addCardsResolver";
 
 // BL-249 S3-02 .. S3-05: the keypad (rev4 MPad.jsx, R4-6 collide=deck, D2
@@ -33,8 +34,16 @@ import { resolveRow } from "../../utils/addCardsResolver";
 // grid. Upper part = the result zone: idle text, the resolved card panel
 // (art, name / subtitle, set · number · printing, pips + readout, desktop's
 // axis choices as chips, Card details / Add to batch pinned at the bottom),
-// "Not in this set", or the card just added ("In batch"). While a number
-// resolves the deck shrinks by one class flip (no transition).
+// "Not in this set", or the card just added ("In batch"). BL-270: the deck
+// keeps its size while a number resolves (R4-6's automatic shrink is gone);
+// the zone scrolls, and when its content does not fit a fold tab on the
+// deck's top edge lets the user shrink the deck (one class flip, no
+// transition) and restore it. The choice sticks for the session.
+
+/** BL-270: the band the fold tab takes at the zone's bottom (px) -- the
+ * zone's bottom padding grows by this while the tab shows, so the tab never
+ * covers the pinned Add row. Kept in step with tool.css `--m-fold`. */
+const FOLD_BAND = 28;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clr", "0", "del"];
 
@@ -514,8 +523,39 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   }
   if (!zone) zone = <IdleZone setName={setNameByCode[st.setCode] ?? st.setCode} />;
 
+  // ── BL-270: does the zone's content fit above the deck? ──
+  const zoneRef = useRef<HTMLDivElement>(null);
+  const zoneInRef = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  const fold = overflow || st.padCompact;
+  const measure = () => {
+    const z = zoneRef.current;
+    if (!z) return;
+    // The tab's band is not content: measure as if it were absent, so the
+    // tab does not keep itself on screen. (Runs after commit, so the pad's
+    // class is the rendered fold state.)
+    const band = z.parentElement?.classList.contains("m-pad--fold") ? FOLD_BAND : 0;
+    setOverflow(z.scrollHeight - band > z.clientHeight + 1);
+  };
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const z = zoneRef.current;
+    if (!z || typeof ResizeObserver === "undefined") return undefined;
+    // The zone (viewport and deck size changes) and its inner wrapper
+    // (content changes: art loading, chips unfolding, a new card).
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(z);
+    if (zoneInRef.current) ro.observe(zoneInRef.current);
+    return () => ro.disconnect();
+  }, []);
+  const toggleFold = () => {
+    const next = !st.padCompact;
+    setPadCompact(next);
+    toolKeypadToggled(next ? "compact" : "full");
+  };
+
   // ── Entry row ──
-  const shrink = !!view && view.kind === "card";
+  const shrink = st.padCompact;
   const btnCode = precon ? precon.setCode : st.setCode;
   const base = padSetBase(btnCode);
   const sub = !precon && base !== null && base !== btnCode;
@@ -527,11 +567,13 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
     <div
       className={
         "m-pad m-pad--r2 m-pad--big" +
-        (shrink ? " m-pad--result" : "") +
+        (shrink ? " m-pad--compact" : "") +
+        (fold ? " m-pad--fold" : "") +
         (precon ? " m-pad--precon" : "")
       }
     >
       <div
+        ref={zoneRef}
         className={
           "m-pad__zone" +
           (resultZone ? " m-pad__zone--result" : "") +
@@ -539,8 +581,25 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
         }
         aria-live="polite"
       >
-        {zone}
+        <div ref={zoneInRef} className="m-pad__zonein">
+          {zone}
+        </div>
       </div>
+      {fold ? (
+        <div className="m-padfold">
+          <button
+            type="button"
+            className="m-padfold__tab"
+            onClick={toggleFold}
+            aria-label={shrink ? "Restore keypad" : "Shrink keypad"}
+            aria-pressed={shrink}
+          >
+            <span className="m-padfold__face" aria-hidden="true">
+              <MIcon name={shrink ? "chevup" : "chevdown"} size={18} />
+            </span>
+          </button>
+        </div>
+      ) : null}
       <div className="m-pad__deck">
         <div className="m-pad__entry m-pad__entry--r2">
           <button

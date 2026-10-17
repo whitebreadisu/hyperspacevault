@@ -30,6 +30,14 @@ export function toolAddCardsCommitted(
   });
 }
 
+/** BL-270: the fold tab's two states, the `state` values of
+ * pad_keypad_toggled (the state the deck is in after the tap). */
+export const PAD_KEYPAD_STATES = ["compact", "full"] as const;
+
+export function toolKeypadToggled(state: (typeof PAD_KEYPAD_STATES)[number]): void {
+  capturePhone("pad_keypad_toggled", { state });
+}
+
 export function toolAddCardsAbandoned(pendingEntries: number): void {
   capturePhone("add_cards_abandoned", { pending_entries: pendingEntries });
 }

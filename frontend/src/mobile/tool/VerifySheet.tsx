@@ -335,6 +335,10 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
     if (!adds || committing) return;
     setCommitting(true);
     setError(null);
+    // BL-268: the copies this commit is about -- every row the sheet shows
+    // (added, not added, unresolved). A copy added while the commit is in
+    // flight is not in the snapshot and survives (S3 review F1).
+    const shown = new Set(batch.map((r) => r.id));
     const plan = commitPlan(batch, view, capMode);
     try {
       await overlay.run(
@@ -360,8 +364,9 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
       return;
     }
     setCommitting(false);
-    // F1: only the copies that were written leave; not-added rows stay.
-    removeCopies(new Set(view.added.map((v) => v.id)));
+    // BL-268: a successful add clears the whole batch it showed, as desktop's
+    // modal does on commit -- the not-added and unresolved rows go too.
+    removeCopies(shown);
     setToolState({ lastAdded: null });
     setDone(plan.total);
   };

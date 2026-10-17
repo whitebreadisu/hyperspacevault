@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { SCREEN_VIEWED_SCREENS, VIEW_MODE_CHANGED_MODES } from "../analytics/analytics";
 import { PICK_REASONS } from "./camera/scanAnalytics";
 import { ADJUST_METHODS } from "./tool/commit";
+import { PAD_KEYPAD_STATES } from "./tool/toolAnalytics";
 import { SORT_ORDER } from "./vault/SortSheet";
 
 // BL-252 stage 6b: documentation guards for the phone layout. The App Spec is
@@ -188,6 +189,7 @@ describe("S6-10 App Spec §22 lists every phone event and property", () => {
     check("view_mode_changed", VIEW_MODE_CHANGED_MODES);
     check("scan_pick_shown", PICK_REASONS);
     check("add_cards_committed", ADJUST_METHODS);
+    check("pad_keypad_toggled", PAD_KEYPAD_STATES);
     // No exported array for these: listed beside the test.
     check("scan_decision", ["add", "details", "wrong_card", "pick"]);
     check("scan_recognised", ["paddle", "tesseract", "weak", "strong"]);

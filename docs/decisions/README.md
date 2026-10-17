@@ -44,3 +44,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0029](0029-card-scanning-on-device-reader-recognise-then-prompt.md) | Card scanning — on-device reader, recognise-then-prompt, printed-code collisions as picks | Accepted |
 | [0030](0030-mobile-2-0-owner-finish-round.md) | Mobile 2.0 owner finish round — the gallery plate on card detail; red only past the limit | Accepted |
 | [0031](0031-set-order-newest-first.md) | Set order — main-release sets newest first, everywhere | Accepted |
+| [0032](0032-phone-keypad-keeps-its-size.md) | Phone keypad keeps its size; the user folds it | Accepted |

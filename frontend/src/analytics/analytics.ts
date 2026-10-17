@@ -45,7 +45,9 @@ export type AnalyticsEvent =
   | "scan_recognised"
   | "scan_decision"
   | "scan_pick_shown"
-  | "scan_fallback_keypad";
+  | "scan_fallback_keypad"
+  // BL-270: the phone keypad's fold tab (user-chosen deck size)
+  | "pad_keypad_toggled";
 
 // Property values are enums/counts only -- no raw user-typed text, no PII
 // (taxonomy property standard). The type can't prove "no free text", but it

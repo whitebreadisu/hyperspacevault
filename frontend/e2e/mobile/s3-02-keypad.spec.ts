@@ -63,7 +63,8 @@ test("s3-02-not-in-set", async ({ page }) => {
   expect(await page.locator(".m-padnum").evaluate((e) => getComputedStyle(e).borderTopColor)).toBe(
     "rgb(192, 32, 46)"
   );
-  await expect(page.locator(".m-pad--result")).toHaveCount(0);
+  // BL-270: a miss never shrinks the deck either (only the user does).
+  await expect(page.locator(".m-pad--compact")).toHaveCount(0);
 });
 
 const RED = "rgb(239, 68, 68)";
