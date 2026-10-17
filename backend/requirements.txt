@@ -1,19 +1,19 @@
 # Runtime dependencies — everything the shipped container imports (RR-11).
 # Test/lint tooling lives in requirements-dev.txt; the Dockerfile's `runtime`
 # stage installs only this file.
-fastapi==0.141.1
+fastapi==0.143.0
 uvicorn[standard]==0.54.0
 sqlalchemy==2.1.4
-psycopg2-binary==2.9.12
+psycopg2-binary==2.9.13
 alembic==1.20.0
-pydantic==2.13.4
+pydantic==2.14.1
 httpx==0.28.1
 # BL-54 S2 (§7.2): POST /api/inventory/import is multipart (file + form
 # fields) -- FastAPI's Form()/File() params require python-multipart
 # installed at runtime, or the route registration itself raises at import
 # time (not just at request time).
 python-multipart==0.0.32
-firebase-admin==7.5.0
+firebase-admin==7.7.0
 # BL-76 Phase 2 (ADR-0012): card-image mirror/backfill. Pillow stays
 # ingestion-only; google-cloud-storage gained a request-path use in Phase 3
 # (app/routers/images.py streams GCS objects at serve time) -- both already
