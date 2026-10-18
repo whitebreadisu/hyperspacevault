@@ -36,7 +36,9 @@ name: CI
 # matches ROOT-level .md only, same as the case-arm — deliberately NOT
 # `**/*.md`). detect-changes is RETAINED as belt-and-braces for
 # deploy-skipping: if this trigger gate and a mixed push ever disagree,
-# deploys still gate on the job-level check.
+# deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
+# every push to main with deliberately NO path filter -- it is not a fourth
+# copy of this list.)
 #
 # BL-178: pull_request deliberately has NO paths-ignore. Branch protection
 # on main requires the `ci-ok` check, and a required check must be able to
@@ -384,7 +386,8 @@ jobs:
   # docs-only PRs. No node_modules, no cache -- plain Node, well under a
   # minute. Feeds ci-ok as a required input in BOTH branches (code and
   # docs-only). Docs-only PUSHES to main trigger no ci.yml run (BL-167
-  # paths-ignore above); .github/workflows/docs-check.yml covers those.
+  # paths-ignore above); .github/workflows/docs-check.yml (no path filter)
+  # covers those.
   docs-check:
     runs-on: ubuntu-latest
 
@@ -400,6 +403,7 @@ jobs:
 
       - name: Docs-check on the tree
         run: node .github/scripts/docs_check.mjs
+
   # ── BL-178: the single required status check ────────────────────────────
   # Branch protection on main requires exactly this check ("ci-ok"), not the
   # heavy jobs individually — that's what lets docs-only PRs merge cleanly

@@ -340,8 +340,26 @@ function checkHistoryCurrent(ctx) {
   }
 }
 
+const defaultGit = (root, args) =>
+  execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "ignore"] })
+    .toString()
+    .trim();
+
+/** Days the file's last commit is after the banner date. */
+export function daysLate(banner, commit) {
+  return (Date.parse(commit) - Date.parse(banner)) / 86400000;
+}
+
 function checkLastUpdated(ctx) {
-  const { root, add } = ctx;
+  const { root, add, notes, git } = ctx;
+  // A shallow checkout (CI) makes `git log -1` return the tip commit for every file,
+  // so the comparison is meaningless there; so is a tree without git (fixtures).
+  try {
+    if (git(root, ["rev-parse", "--is-shallow-repository"]) !== "false") throw new Error("shallow");
+  } catch {
+    notes.push("last-updated: skipped (shallow checkout)");
+    return;
+  }
   for (const [spec] of SPECS) {
     if (!exists(root, spec)) continue;
     const lines = read(root, spec).split("\n");
@@ -350,18 +368,15 @@ function checkLastUpdated(ctx) {
     const banner = /\*\*Last updated:\*\*\s*(\d{4}-\d{2}-\d{2})/.exec(lines[idx])[1];
     let commit;
     try {
-      commit = execFileSync("git", ["log", "-1", "--format=%cs", "--", spec], { cwd: root, stdio: ["ignore", "pipe", "ignore"] })
-        .toString()
-        .trim();
+      commit = git(root, ["log", "-1", "--format=%cs", "--", spec]);
     } catch {
-      return; // version control unavailable (fixtures): skip silently
+      continue; // no history for this file: skip it
     }
     if (!commit) continue;
-    const days = (Date.parse(commit) - Date.parse(banner)) / 86400000;
+    const days = daysLate(banner, commit);
     if (days > 14) add("last-updated", spec, idx + 1, `banner says ${banner} but the file last changed ${commit} (${Math.round(days)} days later)`);
   }
 }
-
 function checkPrivateMode(ctx) {
   const { root, add, notes } = ctx;
   const active = "specification_documents/SWU_Backlog.md";
@@ -383,7 +398,7 @@ function checkPrivateMode(ctx) {
         cur = m[1];
         full.set(cur, i + 1);
       } else if (/^#{1,3}\s/.test(l)) cur = null;
-      else if (cur && /^\**Status:?\**:?\s*(✅|⤴️)/.test(l.trim()) || /Status.*✅\s*Resolved/.test(l)) {
+      else if (cur && (/^\**Status:?\**:?\s*(✅|⤴️)/.test(l.trim()) || /Status.*✅\s*Resolved/.test(l))) {
         add("private-mode", active, i + 1, `BL-${cur} is a full active entry with a ✅ Resolved status (should be archived + tombstoned)`);
       }
     });
@@ -406,13 +421,13 @@ function checkPrivateMode(ctx) {
 }
 
 // ── runner ─────────────────────────────────────────────────────────────────
-export function runChecks({ root, privateMode = false, levels = {} } = {}) {
+export function runChecks({ root, privateMode = false, levels = {}, git = defaultGit } = {}) {
   const table = { ...LEVELS, ...levels };
   const findings = [];
   const notes = [];
   const add = (check, file, line, message) => findings.push({ level: table[check], check, file, line, message });
   // Files in the private allowlist (present only in the main tree) are not public docs.
-  const ctx = { root, docs: listDocFiles(root).filter((f) => !isPrivatePath(f)), add, notes };
+  const ctx = { root, docs: listDocFiles(root).filter((f) => !isPrivatePath(f)), add, notes, git };
   checkLinks(ctx);
   checkAdrIndex(ctx);
   checkSpecTombstones(ctx);

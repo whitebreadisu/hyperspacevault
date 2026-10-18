@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runChecks, parseLinks, slugify, newestReleaseDate, isPrivatePath, LEVELS } from "./docs_check.mjs";
+import { runChecks, parseLinks, slugify, newestReleaseDate, isPrivatePath, daysLate, LEVELS } from "./docs_check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fx = (name) => join(here, "fixtures", "docs_check", name);
@@ -127,4 +127,42 @@ test("level table: initial levels per the brief", () => {
   assert.equal(LEVELS["private-marker"], "warn");
   assert.equal(LEVELS["history-current"], "warn");
   assert.equal(LEVELS["adr-index"], "fail");
+});
+
+test("link-anchors: a missing heading is a warning, exit 0", () => {
+  const f = run("anchor_missing");
+  assert.equal(only(f, "link-anchors").length, 1);
+  assert.equal(only(f, "link-anchors")[0].level, "warn");
+  assert.equal(only(f, "links").length, 0);
+  assert.equal(exitCode("anchor_missing").status, 0);
+});
+
+test("spec-tombstones-loose: bare archive pointer warns, exit 0", () => {
+  const f = only(run("tomb_bare_pointer"), "spec-tombstones-loose");
+  assert.equal(f.length, 1);
+  assert.match(f[0].message, /bare archive pointer/);
+  assert.equal(exitCode("tomb_bare_pointer").status, 0);
+});
+
+test("private mode: stray tombstone-style line in the archive fails", () => {
+  const f = only(run("private_stray", { privateMode: true }), "private-mode");
+  assert.equal(f.length, 1);
+  assert.match(f[0].message, /stray/);
+  assert.equal(exitCode("private_stray", ["--private"]).status, 1);
+});
+
+test("last-updated: skipped on a shallow checkout, flags a late banner otherwise", () => {
+  const shallow = runChecks({ root: fx("pass"), git: () => "true" });
+  assert.ok(shallow.notes.includes("last-updated: skipped (shallow checkout)"));
+  assert.equal(only(shallow.findings, "last-updated").length, 0);
+  const unavailable = runChecks({ root: fx("pass"), git: () => { throw new Error("no git"); } });
+  assert.ok(unavailable.notes.includes("last-updated: skipped (shallow checkout)"));
+  const full = runChecks({ root: fx("pass"), git: (_r, a) => (a[0] === "rev-parse" ? "false" : "2026-12-31") });
+  assert.ok(!full.notes.includes("last-updated: skipped (shallow checkout)"));
+  const git = (date) => (_r, a) => (a[0] === "rev-parse" ? "false" : date);
+  assert.equal(only(runChecks({ root: fx("banner_late"), git: git("2026-10-17") }).findings, "last-updated").length, 1);
+  assert.equal(only(runChecks({ root: fx("banner_late"), git: git("2026-10-16") }).findings, "last-updated").length, 0);
+  assert.equal(only(runChecks({ root: fx("banner_late"), git: () => "true" }).findings, "last-updated").length, 0);
+  assert.equal(daysLate("2026-10-02", "2026-10-17"), 15);
+  assert.equal(daysLate("2026-10-02", "2026-10-16"), 14);
 });
