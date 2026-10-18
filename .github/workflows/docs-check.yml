@@ -1,0 +1,31 @@
+name: Docs check
+
+# BL-271 Phase B: ci.yml's `docs-check` job covers every PR (it feeds ci-ok) and every
+# main push that triggers ci.yml. A docs-only push to main triggers NO ci.yml run
+# (BL-167 paths-ignore), so this workflow runs the same check on EVERY push to main
+# -- deliberately no path filter (one list fewer to keep in sync; ~10 s, and the
+# duplicate run on code pushes is harmless). No node_modules, no secrets.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-check:
+    name: docs-check (docs-only push)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Docs-check tests
+        run: node .github/scripts/docs_check.test.mjs
+
+      - name: Docs-check on the tree
+        run: node .github/scripts/docs_check.mjs

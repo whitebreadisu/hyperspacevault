@@ -36,7 +36,9 @@ name: CI
 # matches ROOT-level .md only, same as the case-arm — deliberately NOT
 # `**/*.md`). detect-changes is RETAINED as belt-and-braces for
 # deploy-skipping: if this trigger gate and a mixed push ever disagree,
-# deploys still gate on the job-level check.
+# deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
+# every push to main with deliberately NO path filter -- it is not a fourth
+# copy of this list.)
 #
 # BL-178: pull_request deliberately has NO paths-ignore. Branch protection
 # on main requires the `ci-ok` check, and a required check must be able to
@@ -379,6 +381,29 @@ jobs:
       - name: Terraform format check
         run: terraform fmt -check -recursive terraform/
 
+  # ── BL-271 Phase B: documentation integrity (docs_check.mjs) ───────────
+  # Deliberately UNGATED by classify-pr: the whole point is to run on
+  # docs-only PRs. No node_modules, no cache -- plain Node, well under a
+  # minute. Feeds ci-ok as a required input in BOTH branches (code and
+  # docs-only). Docs-only PUSHES to main trigger no ci.yml run (BL-167
+  # paths-ignore above); .github/workflows/docs-check.yml (no path filter)
+  # covers those.
+  docs-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Docs-check tests
+        run: node .github/scripts/docs_check.test.mjs
+
+      - name: Docs-check on the tree
+        run: node .github/scripts/docs_check.mjs
+
   # ── BL-178: the single required status check ────────────────────────────
   # Branch protection on main requires exactly this check ("ci-ok"), not the
   # heavy jobs individually — that's what lets docs-only PRs merge cleanly
@@ -389,7 +414,7 @@ jobs:
   # existing pipeline unchanged.
 
   ci-ok:
-    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt]
+    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt, docs-check]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
@@ -402,12 +427,19 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           FRONTEND_E2E_MOBILE_RESULT: ${{ needs.frontend-e2e-mobile.result }}
           TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
+          DOCS_CHECK_RESULT: ${{ needs.docs-check.result }}
         run: |
           echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED"
-          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
             echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
+            exit 1
+          fi
+
+          # BL-271: docs-check is required in BOTH branches (never skipped).
+          if [ "$DOCS_CHECK_RESULT" != "success" ]; then
+            echo "::error::docs-check did not succeed (run node .github/scripts/docs_check.mjs locally)."
             exit 1
           fi
 
