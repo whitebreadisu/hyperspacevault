@@ -41,6 +41,9 @@ export const PRIVATE_ALLOWLIST = [
   "docs/decisions/0017-*.md",
   "docs/decisions/agentic-platform-concepts.md",
   "CLAUDE.md",
+  // frozen/historical specs, private layer (ADR-0020 Tier 3)
+  "specification_documents/SWU_ClaudeCode_Spec.md",
+  "specification_documents/SWU_Platform_Roadmap.md",
 ];
 
 const PUBLIC_DOC_GLOBS = [
@@ -373,7 +376,7 @@ function checkPrivateMode(ctx) {
   read(root, active)
     .split("\n")
     .forEach((l, i) => {
-      let m = /^- \*\*BL-(\d+)\b.*✅.*→ \[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l);
+      let m = /^- \*\*BL-(\d+)\b.*→ \[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l);
       if (m) tomb.set(m[1], i + 1);
       m = /^#{3,4} BL-(\d+):/.exec(l);
       if (m) {
