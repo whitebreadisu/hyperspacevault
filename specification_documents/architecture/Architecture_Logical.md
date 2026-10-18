@@ -2,9 +2,9 @@
 
 *HyperspaceVault · Architecture · View 2 of 3 — Logical*
 
-A React single-page app talks to one FastAPI service over REST; PostgreSQL holds both the shared catalog and per-tenant vaults, with tenant isolation enforced by the database itself. Around that core sit the ingestion pipelines that keep catalog, images, and prices current.
+A React single-page app — rendered as a desktop shell or a phone app from the same bundle, plus a second, isolated document for the camera scanner — talks to one FastAPI service over REST; PostgreSQL holds both the shared catalog and per-tenant vaults, with tenant isolation enforced by the database itself. Around that core sit the ingestion pipelines that keep catalog, images, and prices current.
 
-*Prepared 2026-07-28 · Updated 2026-08-16 (v1.4: collection sharing) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
+*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
 
 ## Component layering
 
@@ -14,17 +14,32 @@ Both sides of the wire enforce a strict internal layering. The frontend keeps al
 
 ```mermaid
 flowchart TB
-  subgraph browser["Browser — React 19 + Vite SPA (TypeScript)"]
-    views["Views (state-driven, no router):<br/>Vault (cards) · Deck Check · Settings · Import/Export"]
-    comps["Screen components: CardsTable / GalleryGrid /<br/>CardPopup · AddCardsModal · FilterPanel · DeckCheck"]
+  subgraph browser["Browser — React 19 + Vite SPA (TypeScript); two documents: index.html (the app) and scan.html (the scanner)"]
+    desktop["Desktop shell (state-driven, no URL router):<br/>Vault (cards) · Deck Check · Settings · Import/Export"]
+    phone["Phone app (own in-app router, MobileApp + MobileNav):<br/>vault · keypad tool + batch · card · shared vault · more / account · feedback"]
+    comps["Screen components — desktop: CardsTable / GalleryGrid / CardPopup /<br/>AddCardsModal / FilterPanel / DeckCheck;<br/>phone: Sheet · Pad · CardPage · SettingsScreen · ImportExportScreen"]
     ctx["Contexts: Auth · Limits<br/>(client pre-checks; server is enforcer of record)"]
+    analytics["Analytics client (posthog-js)<br/>api_host = /api/relay — anonymous events, masked replay"]
     api["api/* fetch wrappers → authedFetch<br/>(attaches Firebase ID token when signed in)"]
-    views --> comps --> ctx --> api
+    desktop --> comps
+    phone --> comps
+    comps --> ctx --> api
+    phone -.-> analytics
+    desktop -.-> analytics
   end
+
+  subgraph scan["Scanner — isolated /scan/ document (COOP same-origin + COEP require-corp; camera=(self))"]
+    stream["camera stream → image pipeline<br/>(frame crop, contrast, guide box)"]
+    reader["PaddleOCR reader in a worker<br/>(onnxruntime-web WASM; tesseract.js fallback)"]
+    match["scan catalog match<br/>set code + number → printing"]
+    stream --> reader --> match
+  end
+  phone -->|"hop to /scan"| stream
+  match -->|"confirmed card → back<br/>to the keypad batch"| phone
 
   subgraph backend["FastAPI service — Python 3.12, REST/JSON"]
     mw["Middleware: gzip · CORS (dev only) · structured JSON logging<br/>· security headers · proxy headers"]
-    routers["Routers (no logic):<br/>sets · base-cards · catalog · images · inventory<br/>· settings · deck-check · feedback · account<br/>· shares (owner) · shared (anonymous viewer)"]
+    routers["Routers (no logic):<br/>sets · base-cards · catalog · images · inventory<br/>· settings · deck-check · feedback · account<br/>· shares (owner) · shared (anonymous viewer) · relay (analytics)"]
     services["Services (domain logic:<br/>resolution, limits, pricing modes, import/export)"]
     repos["Repositories (SQL) → SQLAlchemy models"]
     mw --> routers --> services --> repos
@@ -36,15 +51,24 @@ flowchart TB
   end
 
   firebase["Firebase Auth"]
+  posthog["PostHog Cloud (US)"]
 
   api -->|"REST /api/**, /images/**"| mw
+  analytics -->|"/api/relay/**"| mw
   repos --> pg
   routers -->|"image streaming"| gcs
+  routers -.->|"relay: forward, no secrets"| posthog
   mw -.->|"verify ID token"| firebase
 
   classDef store fill:#F3E9D4,stroke:#8A6116;
   class pg,gcs store;
+  classDef ext fill:#EFF1F4,stroke:#9AA8B6;
+  class firebase,posthog ext;
 ```
+
+**Which client you get** is decided once at load by one shared predicate: a viewport under 768 px, or a touch-first device whose screen's short side is at most 500 px, renders the phone app (`MobileApp`) instead of the desktop shell; a phone turned on its side shows a "turn your phone upright" screen over the mounted app. The desktop shell is still state-driven with no URL router (it parses only `/shared/{token}`); the phone app has its own in-app router because its screens are navigated back and forth with the browser's history.
+
+**The scanner is a separate document on purpose.** On-device OCR needs `SharedArrayBuffer`, which browsers grant only to cross-origin-isolated pages. Rather than isolate the whole app (and lose embedded third-party content), the scanner lives in its own `/scan/` document that Hosting serves with COOP `same-origin` + COEP `require-corp` and `Permissions-Policy: camera=(self)`; the reader bundle, its WASM runtime and the OCR models are vendored under `/vendor/scan/` (fetched on first use, cached immutable), and the worker bundles under `/scan-workers/`, both served with `Cross-Origin-Resource-Policy: same-origin`. The phone app hops to `/scan` and back; nothing about the main document's headers changes.
 
 ## API surface
 
@@ -54,15 +78,16 @@ flowchart TB
 | `/api/base-cards` | Catalog list & card detail, price history; detail merges in your quantities when signed in | `PUBLIC` `(OPTIONAL AUTH)` |
 | `/images/cards/*` | Card image streaming (3 renditions) | `PUBLIC · 1-YEAR IMMUTABLE CACHE` |
 | `/api/catalog/reference.csv` | Resolution-key reference for importers | `PUBLIC` |
-| `/api/inventory` | Quantities, increment / decrement, import / export | `AUTH · MUTATIONS + EXPORT NEED VERIFIED EMAIL` |
+| `/api/inventory` | Quantities, increment / decrement / adjust, import / export | `AUTH · MUTATIONS + IMPORT/EXPORT NEED VERIFIED EMAIL` |
 | `/api/deck-check` | Ephemeral three-scope deck diff with pricing | `AUTH` |
 | `/api/settings/limits` | Keep-limit matrix, hard/soft cap mode | `AUTH` |
 | `/api/feedback` | Feedback → GitHub issue (best-effort) | `OPTIONAL AUTH · RATE-LIMITED` |
 | `/api/account` | Idempotent full-tenant delete | `AUTH + 5-MIN RECENT RE-AUTH` |
 | `/api/shares` | Create / rename / rotate / revoke view-only collection shares | `AUTH` |
 | `/api/shared/{token}` | Anonymous read-only vault view — the token *is* the credential | `PUBLIC · TOKEN-SCOPED · RATE-LIMITED · NEVER LOGGED` |
+| `/api/relay/*` | First-party reverse proxy for PostHog (event ingestion, config, replay assets) — forwards to `us.i.posthog.com` / `us-assets.i.posthog.com` | `PUBLIC · UNAUTHENTICATED BY DESIGN · HOLDS NO SECRETS · TOUCHES NO APP STATE` |
 
-Auth requirements are expressed as a ladder of FastAPI dependencies — each endpoint declares exactly the trust level it needs: tenant-less catalog access, token-scoped anonymous share reads (a 256-bit secret link resolves, via RLS itself, to one tenant's read-only view), optional auth, required auth (which auto-provisions the user and tenant on first contact), verified email, and finally recent re-authentication for account deletion.
+Auth requirements are expressed as a ladder of FastAPI dependencies — each endpoint declares exactly the trust level it needs: no database at all (the relay, image streaming, health), tenant-less catalog access, token-scoped anonymous share reads (a 256-bit secret link resolves, via RLS itself, to one tenant's read-only view), optional auth, required auth (which auto-provisions the user and tenant on first contact), verified email, and finally recent re-authentication for account deletion. Since 2026-10-18 the ladder is **machine-checked**: a backend test introspects every route's dependencies and fails CI unless the route-registry table in the Platform Spec (§1.3) records the same session dependency and gates — a new or changed route cannot ship undocumented.
 
 ## Identity and tenant isolation
 
@@ -92,7 +117,7 @@ sequenceDiagram
 - **Two database roles by design:** a privileged role (may bypass RLS) used only by migrations and ingestion pipelines; an application role (cannot bypass RLS) used by every request. The session is pinned to one pooled connection for the request's life so the identity variables can't leak across requests.
 - **Fail-closed policies:** the tenant-matching expression was hardened so a missing or cleared tenant matches *no* rows — there is no default-tenant fallback.
 - **One user = one tenant**, auto-provisioned; the tenants table itself is scoped by server-derived filters (deletes only), everything tenant-owned is under forced RLS.
-- **Sharing rides the same rails (v1.4):** a share link's secret token resolves — through an RLS policy, not application code — to its owner's tenant, and the anonymous viewer then reads *identical rows through identical queries* as the owner would; there is no share-specific read path to audit. No write endpoint exists on the viewer surface, revocation is immediate, and invalid and revoked tokens are deliberately indistinguishable (both 404).
+- **Sharing rides the same rails (v1.4):** a share link's secret token resolves — through an RLS policy, not application code — to its owner's tenant, and the anonymous viewer then reads *identical rows through identical queries* as the owner would; there is no share-specific read path to audit. No write endpoint exists on the viewer surface, revocation is immediate, and invalid and revoked tokens are deliberately indistinguishable (both 404). Viewer responses are cacheable for 30 s, privately.
 
 ## Data model
 
@@ -113,8 +138,8 @@ flowchart LR
 
   subgraph pricing["Pricing — global"]
     products["tcgplayer_products<br/>variant ↔ TCGplayer product mapping"]
-    prices["variant_prices<br/>one row per variant per day (~3.4M rows)"]
-    latest["variant_latest_prices<br/>hot-path snapshot (~7.5k rows)"]
+    prices["variant_prices<br/>one row per variant per day<br/>(~3.4M rows as of 2026-08-16)"]
+    latest["variant_latest_prices<br/>hot-path snapshot<br/>(~7.5k rows as of 2026-08-16)"]
     card_variants --> products
     products --> prices
     products --> latest
@@ -140,7 +165,7 @@ flowchart LR
   class users,inventory,limits,feedback,shares rls;
 ```
 
-- **History vs. hot path:** daily prices append to a history table (866 days of depth for charts); a separate latest-price snapshot keeps list-view reads flat regardless of history size.
+- **History vs. hot path:** daily prices append to a history table (866 days of depth for charts as of 2026-08-16, growing by one day per sync); a separate latest-price snapshot keeps list-view reads flat regardless of history size.
 - **Idempotent catalog writes:** ingestion upserts on the source system's stable ID, so a re-run of the same export is a no-op — additive, single-transaction, safe to retry.
 - **Variant classification is derived, not stored:** the raw source label is kept verbatim; finish and channel are computed on read by the same classifier ingestion uses — one source of truth, no denormalization drift.
 
@@ -170,11 +195,11 @@ flowchart LR
 | Price sync (daily builds) | Daily, 20:30 UTC | `AUTOMATED` — scheduler |
 | Catalog refresh + image backfill | Per new set / content change | `OPERATOR RUNBOOK` — verified end-to-end, prod gated |
 | Price mapping | With every catalog refresh | `OPERATOR` — new printings never price without it |
-| Price history backfill | One-time (complete) | `OPERATOR` — resumable archive walk, 3.4M rows |
-| Inventory import / export | On demand | `COLLECTOR` — dry-run preview, then one-transaction commit |
+| Price history backfill | One-time (complete) | `OPERATOR` — resumable archive walk, 3.4M rows (2026-07) |
+| Inventory import / export | On demand | `COLLECTOR` — dry-run preview, then one-transaction commit (desktop and phone) |
 
 > **Honest caveat baked into the design:** catalog *currency detection* is manual today — there is no automated "new set appeared" watcher. That is a documented operating decision (runbook-driven content), not an accident; automating detection is tracked backlog work.
 
 ---
 
-*Prepared 2026-07-28, updated 2026-08-16 from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*
+*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`), from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*
