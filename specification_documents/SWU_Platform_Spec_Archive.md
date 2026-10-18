@@ -108,7 +108,7 @@ extraction batch. Section numbers refer to the spec as of the extraction date.
 >
 > **What tipped it:** zero new account/SDK/secret, composes directly with 4.1's logging and 4.3's alerting — one "pane of glass." **Revisit if:** error volume/team size grows enough that *triage quality* ("which of these 200 similar errors is new") becomes the bottleneck — Sentry's SDK can run *alongside* continued Cloud Logging as a pure addition, not a migration.
 
-## Superseded 2026-10-12 (BL-260, mobile e2e sharding)
+## Archived 2026-10-12 — mobile e2e sharding (BL-260)
 
 ### §2.1 job count and pipeline diagram (pre-BL-260)
 

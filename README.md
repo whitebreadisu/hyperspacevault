@@ -23,11 +23,13 @@ implementation; [HISTORY.md](HISTORY.md) chronicles the arc.*
   isolation enforced in the database by Postgres Row-Level Security
 - **Deck check** — price any decklist against the market and against what you already own
 - **Collection value** — market/low valuation with per-finish and unit-value breakdowns
-- **Import/export** — full-collection portability in and out
+- **Import/export** — full-collection portability in and out, including direct import of SWUDB, HoloScan and sw-unlimited-db collection exports
 - **Collection sharing** — a secret view-only link to your vault: rename, rotate, or revoke
   it at will; viewers need no account and can change nothing
 - **A Vault built for volume** — batch quantity entry, selectable table width tiers,
   over-limit discovery filters, and an in-app release-notes feed (`[HSV] Updates`)
+- **A phone app, not a shrunken site** — below 768 px (and on a phone held on its side) the app is a separate, one-handed layout; shared Vault links open there too (see "Phone layout" below)
+- **Card scanning** — on a phone, the camera reads a card's set code and number on the device and adds the printing you pick; nothing is uploaded
 
 ## Architecture
 
@@ -110,7 +112,7 @@ Stop with `docker compose down`. Local auth-emulator accounts persist across res
 
 ## Phone layout
 
-At viewport widths up to 767 px — and on a phone held on its side — the app renders a separate phone UI (`frontend/src/mobile/`) instead of the desktop tree: `App.tsx` switches on `useIsPhone()` (live: the viewport matches `(max-width: 767px)`, or the device is a phone — touch as its primary input and a screen whose short side is at most 500 px), so tablets and desktop windows of 768 px or wider keep the desktop layout. The phone UI is portrait only: a phone on its side shows a "Turn your phone upright" screen over the app, which stays as it was beneath. The phone UI includes shared-vault links (`/shared/{token}`) and a card scanner: the camera runs in a second, cross-origin-isolated document served at `/scan/` (`frontend/scan.html`; only `/scan/**`, `/scan-workers/**` and `/vendor/scan/**` carry the COOP/COEP headers, set in `frontend/firebase.json`; the on-device reader payload lives in `frontend/public/vendor/scan/` with its licence notices). Everything about it is described in **`specification_documents/SWU_Application_Spec.md` §25** (the analytics events it sends are in §22, the scanner's design in §24).
+At viewport widths up to 767 px — and on a phone held on its side — the app renders a separate phone UI (`frontend/src/mobile/`) instead of the desktop tree: `App.tsx` switches on `useIsPhone()` (live: the viewport matches `(max-width: 767px)`, or the device is a phone — touch as its primary input and a screen whose short side is at most 500 px), so tablets and desktop windows of 768 px or wider keep the desktop layout. The phone UI is portrait only: a phone on its side shows a "Turn your phone upright" screen over the app, which stays as it was beneath. The phone UI includes shared-vault links (`/shared/{token}`) and a card scanner: the camera runs in a second, cross-origin-isolated document served at `/scan/` (`frontend/scan.html`; only `/scan`, `/scan/**` and `/scan.html` are served cross-origin isolated (COOP + COEP), and `/scan-workers/**` and `/vendor/scan/**` carry the matching COEP/CORP headers — all set in `frontend/firebase.json`; the on-device reader payload lives in `frontend/public/vendor/scan/` with its licence notices). Everything about it is described in **`specification_documents/SWU_Application_Spec.md` §25** (the analytics events it sends are in §22, the scanner's design in §24).
 
 Tests: phone logic runs in the normal vitest suite (`npx vitest run src/mobile`); layout runs in Playwright against the dev server with the API mocked from committed fixtures and sign-in on the Auth emulator. From `frontend/`: `npm run e2e:mobile` runs every project (phone-390, phone-430, the fake-camera `scan` project, and a desktop-1440 smoke); pass Playwright arguments through, e.g. `node e2e/run-mobile.mjs --project=scan` or `--grep "s6-"`. CI runs the same suite as the required `frontend-e2e-mobile` job.
 
@@ -166,9 +168,10 @@ Public design documentation — one authoritative home per domain:
 | `specification_documents/architecture/` | The three architecture views (conceptual / logical / physical) |
 | `specification_documents/SWU_Application_Spec.md` | The application — data model, variant model, UX (as-built) |
 | `specification_documents/SWU_Standard_Variant_Mapping_Spec.md` | The variant-resolution mechanism; current exceptions in `swuapi_standard_variant_exceptions.md` |
-| `specification_documents/CARD_RULES.md` | Card-catalog domain rules (frozen; enforced by tests) |
+| `specification_documents/CARD_RULES.md` | Historical — the retired CSV-era card-catalog rules (frozen 2026-07-24; no longer enforced by tests). Current card-domain rules: `SWU_Application_Spec.md` §10 |
 | `specification_documents/SWU_Platform_Spec.md` | Platform — auth/tenancy, CI/CD, Terraform, observability, security (as-built) |
 | `specification_documents/SWU_Platform_Security_Review.md` | Full security walkthrough (OWASP Top 10, secrets, network) |
+| `specification_documents/SWU_Application_Spec_Archive.md`, `SWU_Platform_Spec_Archive.md` | Tier-3 history — superseded spec text moved verbatim, with dated tombstones left in the specs (see ADR-0020) |
 | `docs/decisions/` | Architecture Decision Records — why the key decisions were made |
 | [HISTORY.md](HISTORY.md) | The development chronicle |
 
