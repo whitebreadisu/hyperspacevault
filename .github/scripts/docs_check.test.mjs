@@ -222,7 +222,13 @@ test("adr-status-inline: contradicting status word fails; matching, 'Superseded 
   assert.equal(f[0].level, "fail");
   assert.equal(exitCode("adr_inline_fail").status, 1);
   assert.equal(inlineAdrStatuses("## Status\nADR-0001 Superseded\n").length, 0);
-  assert.equal(inlineAdrStatuses("ADR-0003: Superseded (2026-10-08, BL-1). Accepted by nobody; see ADR-0004.").length, 0);
+  // subject-before-word: "ADR-N: Superseded (date, ...)" IS a claim about ADR-N (S1) ...
+  assert.deepEqual(inlineAdrStatuses("ADR-0003: Superseded (2026-10-08, BL-1). Accepted by nobody; see ADR-0004."), [{ line: 1, adr: "0003", word: "Superseded" }]);
+  assert.deepEqual(inlineAdrStatuses("ADR-0010 (Superseded by ADR-0020)").map((x) => x.adr), ["0010"]);
+  // ... but a banner whose only ADR mention is inside the parenthetical / "by" clause is not
+  assert.equal(inlineAdrStatuses("> **Superseded (2026-10-08, BL-241 / ADR-0028):** old text moved.").length, 0);
+  assert.equal(inlineAdrStatuses("Superseded by ADR-0020 in 2026.").length, 0);
+  assert.equal(only(run("adr_inline_by_fail"), "adr-status-inline").length, 1);
 });
 
 test("number-snapshot: undated counts warn (never fail); dated / as-of / command counts pass", () => {
@@ -254,7 +260,7 @@ test("gap 2: double-backtick spans containing a single backtick are masked", () 
 test("gap 3: doc set comes from the tracked-file list at a repo toplevel, static list otherwise", () => {
   const root = fx("git_listing");
   const vcs = (files) => (_r, a) => {
-    if (a[0] === "rev-parse" && a[1] === "--show-toplevel") return root;
+    if (a[0] === "rev-parse" && a[1] === "--show-prefix") return "";
     if (a[0] === "rev-parse") return "true"; // shallow: last-updated skips
     if (a[0] === "ls-files") return files.join("\n");
     throw new Error("unexpected " + a.join(" "));
@@ -265,7 +271,7 @@ test("gap 3: doc set comes from the tracked-file list at a repo toplevel, static
   assert.equal(onlyReadme.length, 1);
   assert.equal(onlyReadme[0].file, "README.md");
   // toplevel elsewhere (fixture inside a bigger repo) or no VCS at all: static list
-  assert.equal(only(runChecks({ root, git: () => "/somewhere/else" }).findings, "links").length, 2);
+  assert.equal(only(runChecks({ root, git: () => "sub/dir/" }).findings, "links").length, 2);
   assert.equal(only(runChecks({ root, git: () => { throw new Error("unavailable"); } }).findings, "links").length, 2);
 });
 

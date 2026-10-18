@@ -111,8 +111,8 @@ const globRe = (pattern) => {
 /** Tracked files via git, only when `root` is itself a git toplevel (never for fixtures). null if unavailable. */
 function trackedFiles(root, git) {
   try {
-    const top = git(root, ["rev-parse", "--show-toplevel"]);
-    if (!top || resolve(top) !== resolve(root)) return null;
+    // Empty --show-prefix = root is the repo toplevel (no path/drive-letter-case comparison needed).
+    if (git(root, ["rev-parse", "--show-prefix"]) !== "") return null;
     const out = git(root, ["ls-files"]);
     return out ? out.split("\n").filter(Boolean) : null;
   } catch {
@@ -523,7 +523,8 @@ function citedExists(root, rel) {
   if (/\.[A-Za-z0-9]+$/.test(posix.basename(rel))) return false;
   const abs = join(root, posix.dirname(rel));
   if (!existsSync(abs) || !statSync(abs).isDirectory()) return false;
-  return readdirSync(abs).some((f) => f.startsWith(posix.basename(rel) + "."));
+  const sibling = new RegExp("^" + escRe(posix.basename(rel)) + "\\.[A-Za-z0-9]+$");
+  return readdirSync(abs).some((f) => sibling.test(f));
 }
 
 /**
@@ -551,8 +552,11 @@ const fileLineCount = (root, rel) => {
   return t.endsWith("\n") ? t.split("\n").length - 1 : t.split("\n").length;
 };
 
+// NOTE: cite-path / cite-line check the filesystem, not the git index: an untracked local file
+// passes a local run but fails in CI. CI (a clean checkout) is the authority.
 function checkCitations(ctx) {
-  const { root, docs, add } = ctx;
+  const { root, docs, add, notes } = ctx;
+  notes.push(`cite-path: CITE_PATH_IGNORE has ${CITE_PATH_IGNORE.length} entries`);
   for (const file of docs) {
     for (const c of parseCitations(read(root, file))) {
       if (isPrivatePath(c.path) || ignoredCite(c.path)) continue;
@@ -598,11 +602,11 @@ export function jobMentions(lines) {
         const before = l.text.slice(0, m.index).trimEnd();
         const after = l.text.slice(m.index + m[0].length).trimStart();
         // box-drawing / arrows on either side; an em dash only AFTER the token ("name - annotation")
-        const flow = /[─-╿►→]/;
+        const flow = /[─-╿►▼▲→]/;
         const prevGlyph = before.length > 0 && flow.test(before.at(-1));
         const nextGlyph = after.length > 0 && (flow.test(after[0]) || after[0] === "—");
         const bracket = before.endsWith("[") || before.endsWith("/") || after.startsWith("/");
-        if (prevGlyph || nextGlyph || bracket || (before === "" && after !== "" && /^[─-╿►—→(]/.test(after))) out.push({ line: l.n, name: m[1] });
+        if (prevGlyph || nextGlyph || bracket || (before === "" && after !== "" && /^[─-╿►▼▲—→(]/.test(after))) out.push({ line: l.n, name: m[1] });
       }
       continue;
     }
@@ -657,10 +661,14 @@ export function inlineAdrStatuses(text) {
       const wEnd = w.index + w[0].length;
       const tail = l.text.slice(wEnd);
       const head = l.text.slice(0, w.index);
-      // "Superseded by ADR-N", "supersedes/superseded by" and "Accepted risk" describe something else.
-      if (/^\s*\(?(by|in favou?r of|risk|trade-?off|deviation|text|sentence|wording|section|paragraph)\b/i.test(tail) || /^\s*\(\s*\d{4}-\d\d-\d\d/.test(tail) || /(supersed(?:es|ed)|replac(?:es|ed))\s+(by\s+)?$/i.test(head)) continue;
+      // Words that describe something else entirely ("Accepted risk", "Superseded text"): skip.
+      if (/^\s*\(?(in favou?r of|risk|trade-?off|deviation|text|sentence|wording|section|paragraph)\b/i.test(tail) || /(supersed(?:es|ed)|replac(?:es|ed))\s+(by\s+)?$/i.test(head)) continue;
+      // "ADR-X (Superseded by ADR-Y)" / "ADR-X: Superseded (2026-10-08, ... ADR-Y)": the claim is about the
+      // ADR mentioned BEFORE the word; a mention that only sits in the "by"/parenthetical is not the subject.
+      const subjectOnly = /^\s*\(?by\b/i.test(tail) || /^\s*\(\s*\d{4}-\d\d-\d\d/.test(tail);
       let best = null;
       for (const men of mentions) {
+        if (subjectOnly && men.end > w.index) continue;
         const dist = men.start >= wEnd ? men.start - wEnd : w.index >= men.end ? w.index - men.end : 0;
         if (dist <= 60 && sent(men.start) === sent(w.index) && (!best || dist < best.dist)) best = { id: men.id, dist };
       }
