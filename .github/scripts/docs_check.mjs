@@ -26,7 +26,23 @@ export const LEVELS = {
   "history-current": "warn", // Phase D -> fail
   "last-updated": "warn",
   "private-mode": "fail", // only evaluated with --private
+  // round 2 (BL-271 Phase B ext)
+  "cite-path": "warn", // backticked repo-shaped path that does not exist (3 real findings 2026-10-18: Phase C fixes, then -> fail)
+  "cite-line": "fail", // `path:line` citation whose file does not exist
+  "cite-line-range": "warn", // `path:line` where line > the file's length
+  "ci-job-name": "warn", // Platform Spec section 2 names a CI job that no workflow defines (2 real findings 2026-10-18: Phase C fixes, then -> fail)
+  "adr-status-inline": "fail", // inline status word contradicts the ADR's own ## Status
+  "number-snapshot": "warn", // bare count with no date / "as of" / backticked command
 };
+
+// Documented-as-historical paths that cite-path must not flag (none yet; ADR-0020 Tier 3 text).
+export const CITE_PATH_IGNORE = [];
+
+// Build outputs / runtime locations that are cited as paths but are never tracked (not defects).
+const CITE_RUNTIME_PATHS = ["frontend/dist", "frontend/coverage", "frontend/e2e-results", "frontend/node_modules", "terraform/state", "terraform/.terraform"];
+
+// Top-level directories a backticked path must start with to count as a repo path citation.
+const CITE_ROOTS = ["backend", "frontend", "terraform", ".github", "docs", "specification_documents", "scripts", "claude_design", ".design-sync", "tcgcsv_files"];
 
 // Links into the private companion repo (ADR-0020, BL-271): public docs may
 // reference these without a dangling-link failure, but should say "(private)".
@@ -85,27 +101,98 @@ function globFiles(root, pattern) {
     .map((f) => (dir ? `${dir}/${f}` : f));
 }
 
-/** The public doc set, repo-relative POSIX paths. */
-export function listDocFiles(root) {
+const globRe = (pattern) => {
+  const slash = pattern.lastIndexOf("/");
+  const dir = slash < 0 ? "" : pattern.slice(0, slash);
+  const filePat = pattern.slice(slash + 1);
+  return { dir, re: new RegExp("^" + escRe(filePat).replace(/\*/g, ".*") + "$") };
+};
+
+/** Tracked files via git, only when `root` is itself a git toplevel (never for fixtures). null if unavailable. */
+function trackedFiles(root, git) {
+  try {
+    const top = git(root, ["rev-parse", "--show-toplevel"]);
+    if (!top || resolve(top) !== resolve(root)) return null;
+    const out = git(root, ["ls-files"]);
+    return out ? out.split("\n").filter(Boolean) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The public doc set, repo-relative POSIX paths. Built from `git ls-files` when `root` is a git
+ * toplevel (so a local run in the main tree does not scan untracked private specs); otherwise from
+ * the static glob list (fixtures, tarball checkouts).
+ */
+export function listDocFiles(root, git = defaultGit) {
+  const tracked = trackedFiles(root, git);
+  if (tracked) {
+    const pats = PUBLIC_DOC_GLOBS.map(globRe);
+    return tracked
+      .filter((f) => existsSync(join(root, f)) && pats.some((p) => (posix.dirname(f) === "." ? "" : posix.dirname(f)) === p.dir && p.re.test(posix.basename(f))))
+      .sort();
+  }
   const out = new Set();
   for (const g of PUBLIC_DOC_GLOBS) for (const f of globFiles(root, g)) out.add(f);
   return [...out];
 }
 
+/** Inline code spans on one line, CommonMark-style: a run of n backticks closes at the next run of exactly n. */
+export function codeSpans(line) {
+  const spans = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] !== "`") {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (line[j] === "`") j++;
+    const n = j - i;
+    let k = j;
+    let found = -1;
+    while (k < line.length) {
+      if (line[k] === "`") {
+        let m = k;
+        while (line[m] === "`") m++;
+        if (m - k === n) {
+          found = k;
+          break;
+        }
+        k = m;
+      } else k++;
+    }
+    if (found >= 0) {
+      spans.push({ start: i, end: found + n, content: line.slice(j, found) });
+      i = found + n;
+    } else i = j;
+  }
+  return spans;
+}
+
+/** Lines of `text` as {n, text, fenced}; fence delimiter lines and fenced content have fenced=true. */
+export function fencedLines(text) {
+  let fence = null;
+  return text.split("\n").map((line, i) => {
+    const m = /^\s*(```+|~~~+)/.exec(line);
+    if (m) {
+      if (fence === null) fence = m[1][0];
+      else if (m[1][0] === fence) fence = null;
+      return { n: i + 1, text: line, fenced: true };
+    }
+    return { n: i + 1, text: line, fenced: fence !== null };
+  });
+}
+
 /** Blank out fenced code blocks and inline code so links inside them are not parsed. Keeps line numbers. */
 function maskCode(text) {
-  let fence = null;
-  return text
-    .split("\n")
-    .map((line) => {
-      const m = /^\s*(```+|~~~+)/.exec(line);
-      if (m) {
-        if (fence === null) fence = m[1][0];
-        else if (m[1][0] === fence) fence = null;
-        return "";
-      }
-      if (fence) return "";
-      return line.replace(/(`+)[^`]*?\1/g, (s) => " ".repeat(s.length));
+  return fencedLines(text)
+    .map((l) => {
+      if (l.fenced) return "";
+      let out = l.text;
+      for (const sp of codeSpans(l.text)) out = out.slice(0, sp.start) + " ".repeat(sp.end - sp.start) + out.slice(sp.end);
+      return out;
     })
     .join("\n");
 }
@@ -186,7 +273,13 @@ function checkLinks(ctx) {
     for (const l of parseLinks(read(root, file))) {
       const [pathPart, rawAnchor] = splitHash(l.target);
       const anchor = rawAnchor === undefined ? undefined : safeDecode(rawAnchor);
-      const rel = pathPart === "" ? file : posix.normalize(posix.join(posix.dirname(file), safeDecode(pathPart)));
+      // Root-relative ("/docs/x.md") resolves from the repo root, not the file's folder.
+      const rel =
+        pathPart === ""
+          ? file
+          : pathPart.startsWith("/")
+            ? posix.normalize(safeDecode(pathPart).replace(/^\/+/, ""))
+            : posix.normalize(posix.join(posix.dirname(file), safeDecode(pathPart)));
       if (rel.startsWith("../")) {
         add("links", file, l.line, `link escapes the repository: ${l.target}`);
         continue;
@@ -420,6 +513,210 @@ function checkPrivateMode(ctx) {
   }
 }
 
+// ── round 2 checks (BL-271 Phase B ext) ────────────────────────────────────
+const ignoredCite = (p) =>
+  [...CITE_PATH_IGNORE, ...CITE_RUNTIME_PATHS].some((i) => (i.endsWith("/") ? p.startsWith(i) : p === i || p.startsWith(i + "/")));
+
+/** True when `rel` exists, or (extensionless citation) a sibling file `rel.<ext>` does, e.g. `.../MobileApp` -> MobileApp.tsx. */
+function citedExists(root, rel) {
+  if (exists(root, rel)) return true;
+  if (/\.[A-Za-z0-9]+$/.test(posix.basename(rel))) return false;
+  const abs = join(root, posix.dirname(rel));
+  if (!existsSync(abs) || !statSync(abs).isDirectory()) return false;
+  return readdirSync(abs).some((f) => f.startsWith(posix.basename(rel) + "."));
+}
+
+/**
+ * Backticked repo-shaped citations in a doc: [{line, path, lines?}] where `path` starts with a known
+ * repo root and `lines` (when the token is `path:12` / `path:12-30` / `path:12,14`) is the largest line number.
+ * Globs, placeholders, ellipses and URLs are skipped.
+ */
+export function parseCitations(text) {
+  const out = [];
+  for (const l of fencedLines(text)) {
+    if (l.fenced) continue;
+    for (const sp of codeSpans(l.text)) {
+      const tok = sp.content.trim();
+      const m = /^([A-Za-z0-9_.][\w.@-]*(?:\/[\w.@-]+)+\/?)(?::(\d+(?:[-,]\d+)*))?$/.exec(tok);
+      if (!m || !CITE_ROOTS.includes(m[1].split("/")[0])) continue;
+      const lines = m[2] ? Math.max(...m[2].split(/[-,]/).map(Number)) : undefined;
+      out.push({ line: l.n, path: m[1].replace(/\/$/, ""), lines });
+    }
+  }
+  return out;
+}
+
+const fileLineCount = (root, rel) => {
+  const t = read(root, rel);
+  return t.endsWith("\n") ? t.split("\n").length - 1 : t.split("\n").length;
+};
+
+function checkCitations(ctx) {
+  const { root, docs, add } = ctx;
+  for (const file of docs) {
+    for (const c of parseCitations(read(root, file))) {
+      if (isPrivatePath(c.path) || ignoredCite(c.path)) continue;
+      if (!citedExists(root, c.path)) {
+        add(c.lines === undefined ? "cite-path" : "cite-line", file, c.line, `cited path does not exist: ${c.path}${c.lines === undefined ? "" : ":" + c.lines}`);
+        continue;
+      }
+      if (c.lines !== undefined && statSync(join(root, c.path)).isFile()) {
+        const len = fileLineCount(root, c.path);
+        if (c.lines > len) add("cite-line-range", file, c.line, `cited line ${c.lines} is beyond the end of ${c.path} (${len} lines)`);
+      }
+    }
+  }
+}
+
+/** Job ids (and display names) defined in the repo's workflow files. */
+export function workflowJobNames(root) {
+  const names = new Set();
+  for (const f of globFiles(root, ".github/workflows/*.yml")) {
+    let inJobs = false;
+    for (const line of read(root, f).split("\n")) {
+      if (/^jobs:\s*$/.test(line)) inJobs = true;
+      else if (/^\S/.test(line)) inJobs = false;
+      else if (inJobs) {
+        let m = /^ {2}([A-Za-z0-9_-]+):\s*(?:#.*)?$/.exec(line);
+        if (m) names.add(m[1]);
+        m = /^ {4}name:\s*["']?([A-Za-z0-9_-]+)["']?\s*$/.exec(line);
+        if (m) names.add(m[1]);
+      }
+    }
+  }
+  return names;
+}
+
+/** Job-name-shaped tokens a Platform Spec section 2 line asserts: diagram nodes in a fence, and backticked "X job" / "job X" tokens. */
+export function jobMentions(lines) {
+  const out = [];
+  const shape = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+  for (const l of lines) {
+    if (l.fenced) {
+      // diagram: a token counts when it touches a flow glyph or opens/precedes a dash-annotation
+      for (const m of l.text.matchAll(/(?<![\w-])([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?![\w-])/g)) {
+        const before = l.text.slice(0, m.index).trimEnd();
+        const after = l.text.slice(m.index + m[0].length).trimStart();
+        // box-drawing / arrows on either side; an em dash only AFTER the token ("name - annotation")
+        const flow = /[─-╿►→]/;
+        const prevGlyph = before.length > 0 && flow.test(before.at(-1));
+        const nextGlyph = after.length > 0 && (flow.test(after[0]) || after[0] === "—");
+        const bracket = before.endsWith("[") || before.endsWith("/") || after.startsWith("/");
+        if (prevGlyph || nextGlyph || bracket || (before === "" && after !== "" && /^[─-╿►—→(]/.test(after))) out.push({ line: l.n, name: m[1] });
+      }
+      continue;
+    }
+    for (const sp of codeSpans(l.text)) {
+      if (!shape.test(sp.content)) continue;
+      const before = l.text.slice(0, sp.start);
+      const after = l.text.slice(sp.end);
+      if (/\bjobs?\s*(?:named\s*)?$/i.test(before) || /^\s*(?:[,/+&]\s*`[^`]+`\s*)*(?:and\s+`[^`]+`\s*)?(?:\(\w+\)\s*)?\bjobs?\b/i.test(after)) out.push({ line: l.n, name: sp.content });
+    }
+  }
+  return out;
+}
+
+function checkCiJobNames(ctx) {
+  const { root, add } = ctx;
+  const spec = "specification_documents/SWU_Platform_Spec.md";
+  if (!exists(root, spec)) return;
+  const jobs = workflowJobNames(root);
+  if (jobs.size === 0) return;
+  const all = fencedLines(read(root, spec));
+  const start = all.findIndex((l) => !l.fenced && /^##\s+2[.\s]/.test(l.text));
+  if (start < 0) return;
+  let end = all.findIndex((l, i) => i > start && !l.fenced && /^##\s+(?!#)/.test(l.text));
+  if (end < 0) end = all.length;
+  const seen = new Set();
+  for (const m of jobMentions(all.slice(start, end))) {
+    if (jobs.has(m.name) || seen.has(m.name)) continue;
+    seen.add(m.name);
+    add("ci-job-name", spec, m.line, `section 2 names job "${m.name}" which no workflow in .github/workflows defines`);
+  }
+}
+
+const ADR_STATUS_WORDS = ["Proposed", "Accepted", "Superseded", "Deprecated"];
+
+/** Status words within 60 chars of an ADR mention, nearest mention wins: [{line, adr, word}]. */
+export function inlineAdrStatuses(text) {
+  const out = [];
+  let inStatusSection = false;
+  for (const l of fencedLines(text)) {
+    if (l.fenced) continue;
+    const h = /^#{1,6}\s+(.*)$/.exec(l.text);
+    if (h) inStatusSection = /^Status\b/i.test(h[1]);
+    if (inStatusSection) continue;
+    const mentions = [];
+    for (const m of l.text.matchAll(/ADR[- ]?(\d{4})\b/g)) mentions.push({ id: m[1], start: m.index, end: m.index + m[0].length });
+    for (const m of l.text.matchAll(/\]\(([^)\s]*\/)?(\d{4})-[^)\s]*\.md[^)]*\)/g)) mentions.push({ id: m[2], start: m.index, end: m.index + m[0].length });
+    if (mentions.length === 0) continue;
+    // sentence segmentation: a mention only qualifies a status word in the same sentence
+    const cuts = [...l.text.matchAll(/[.!?]\s+(?=[A-Z*(`\[])/g)].map((m) => m.index + 1);
+    const sent = (pos) => cuts.filter((c) => c <= pos).length;
+    for (const w of l.text.matchAll(new RegExp(`\\b(${ADR_STATUS_WORDS.join("|")})\\b`, "g"))) {
+      const wEnd = w.index + w[0].length;
+      const tail = l.text.slice(wEnd);
+      const head = l.text.slice(0, w.index);
+      // "Superseded by ADR-N", "supersedes/superseded by" and "Accepted risk" describe something else.
+      if (/^\s*\(?(by|in favou?r of|risk|trade-?off|deviation|text|sentence|wording|section|paragraph)\b/i.test(tail) || /^\s*\(\s*\d{4}-\d\d-\d\d/.test(tail) || /(supersed(?:es|ed)|replac(?:es|ed))\s+(by\s+)?$/i.test(head)) continue;
+      let best = null;
+      for (const men of mentions) {
+        const dist = men.start >= wEnd ? men.start - wEnd : w.index >= men.end ? w.index - men.end : 0;
+        if (dist <= 60 && sent(men.start) === sent(w.index) && (!best || dist < best.dist)) best = { id: men.id, dist };
+      }
+      if (best) out.push({ line: l.n, adr: best.id, word: w[0] });
+    }
+  }
+  return out;
+}
+
+function checkAdrStatusInline(ctx) {
+  const { root, docs, add } = ctx;
+  const statusOf = new Map();
+  for (const f of globFiles(root, "docs/decisions/*.md")) {
+    const id = /^(\d{4})-/.exec(posix.basename(f))?.[1];
+    if (id) statusOf.set(id, adrStatusWord(read(root, f)));
+  }
+  for (const file of docs) {
+    if (/_Archive\.md$/.test(file)) continue; // Tier 3 history legitimately describes past states
+    for (const s of inlineAdrStatuses(read(root, file))) {
+      const want = statusOf.get(s.adr);
+      if (want && want.toLowerCase() !== s.word.toLowerCase()) {
+        add("adr-status-inline", file, s.line, `says ADR-${s.adr} is ${s.word} but its "## Status" is ${want}`);
+      }
+    }
+  }
+}
+
+const COUNT_RE = /\b\d{1,3}(?:,\d{3})*\s+(?:files|bytes|routes|occurrences|variants|objects|alert policies)\b/;
+
+/** Sentences carrying a bare count with no date, "as of", or backticked command: [{line, sentence}]. */
+export function undatedCounts(text) {
+  const out = [];
+  for (const l of fencedLines(text)) {
+    if (l.fenced) continue;
+    for (const sentence of l.text.split(/(?<=[.!?])\s+(?=[A-Z*(`|\[])/)) {
+      const bare = sentence.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+      if (!COUNT_RE.test(bare)) continue;
+      const hasDate = /\b20\d\d-\d\d-\d\d\b/.test(sentence) || /\bas of\b/i.test(sentence);
+      const hasCommand = codeSpans(sentence).some((sp) => /\s/.test(sp.content.trim()));
+      if (!hasDate && !hasCommand) out.push({ line: l.n, sentence: bare.trim() });
+    }
+  }
+  return out;
+}
+
+function checkNumberSnapshots(ctx) {
+  const { root, docs, add } = ctx;
+  for (const file of docs) {
+    // Archives (Tier 3) and ADRs (Tier 2, dated by their own Status line) are snapshots by nature.
+    if (/_Archive\.md$/.test(file) || file.startsWith("docs/decisions/")) continue;
+    for (const u of undatedCounts(read(root, file))) {
+      add("number-snapshot", file, u.line, `count with no date / "as of" / command: ${u.sentence.slice(0, 90)}${u.sentence.length > 90 ? "…" : ""}`);
+    }
+  }
+}
+
 // ── runner ─────────────────────────────────────────────────────────────────
 export function runChecks({ root, privateMode = false, levels = {}, git = defaultGit } = {}) {
   const table = { ...LEVELS, ...levels };
@@ -427,12 +724,16 @@ export function runChecks({ root, privateMode = false, levels = {}, git = defaul
   const notes = [];
   const add = (check, file, line, message) => findings.push({ level: table[check], check, file, line, message });
   // Files in the private allowlist (present only in the main tree) are not public docs.
-  const ctx = { root, docs: listDocFiles(root).filter((f) => !isPrivatePath(f)), add, notes, git };
+  const ctx = { root, docs: listDocFiles(root, git).filter((f) => !isPrivatePath(f)), add, notes, git };
   checkLinks(ctx);
   checkAdrIndex(ctx);
   checkSpecTombstones(ctx);
   checkHistoryCurrent(ctx);
   checkLastUpdated(ctx);
+  checkCitations(ctx);
+  checkCiJobNames(ctx);
+  checkAdrStatusInline(ctx);
+  checkNumberSnapshots(ctx);
   if (privateMode) checkPrivateMode(ctx);
   return { findings, notes };
 }

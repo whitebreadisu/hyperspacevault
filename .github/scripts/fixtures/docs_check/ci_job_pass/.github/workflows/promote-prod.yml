@@ -1,0 +1,5 @@
+name: Promote
+on: workflow_dispatch
+jobs:
+  promote:
+    runs-on: x
