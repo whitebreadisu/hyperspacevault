@@ -145,7 +145,12 @@ export function headingSlugs(text) {
     if (fence) continue;
     const m = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
     if (!m) continue;
-    const base = slugify(m[1].replace(/<[^>]+>/g, ""));
+    let h = m[1];
+    for (let prev = ""; prev !== h; ) {
+      prev = h;
+      h = h.replace(/<[^<>]*>/g, "");
+    }
+    const base = slugify(h);
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
     slugs.add(n === 0 ? base : `${base}-${n}`);
@@ -282,6 +287,9 @@ function checkSpecTombstones(ctx) {
           add("spec-tombstones", spec, i + 1, `tombstone quotes an archive heading not found in ${posix.basename(archive)}: "${t}"`);
         }
       }
+      if (/\u2014 archive\.\)\*/.test(line)) {
+        add("spec-tombstones-loose", spec, i + 1, "bare archive pointer names no heading or file (canonical: *(Archived YYYY-MM-DD \u2014 label: see ..._Archive.md.)*)");
+      }
       const unquoted = line.replace(/"[^"]*"/g, "");
       for (const m of unquoted.matchAll(/(?:archived|extracted|superseded)\b[^.\n]{0,15}?(\d{4}-\d{2}-\d{2})|(\d{4}-\d{2}-\d{2}) batch/gi)) {
         const d = m[1] ?? m[2];
@@ -372,7 +380,7 @@ function checkPrivateMode(ctx) {
         cur = m[1];
         full.set(cur, i + 1);
       } else if (/^#{1,3}\s/.test(l)) cur = null;
-      else if (cur && /Status.*✅\s*Resolved/.test(l)) {
+      else if (cur && /^\**Status:?\**:?\s*(✅|⤴️)/.test(l.trim()) || /Status.*✅\s*Resolved/.test(l)) {
         add("private-mode", active, i + 1, `BL-${cur} is a full active entry with a ✅ Resolved status (should be archived + tombstoned)`);
       }
     });
@@ -381,7 +389,9 @@ function checkPrivateMode(ctx) {
     .split("\n")
     .forEach((l, i) => {
       const m = /^#{3,4} BL-(\d+):/.exec(l);
-      if (m) archived.set(m[1], i + 1);
+      if (m && archived.has(m[1])) add("private-mode", arch, i + 1, `duplicate archive heading for BL-${m[1]} (first at line ${archived.get(m[1])})`);
+      else if (m) archived.set(m[1], i + 1);
+      if (/^- \*\*BL-\d+/.test(l)) add("private-mode", arch, i + 1, "stray tombstone-style line in the archive");
     });
   for (const [id, line] of tomb) {
     if (!archived.has(id)) add("private-mode", active, line, `tombstone BL-${id} has no "### BL-${id}:" (or ####) heading in the archive`);
