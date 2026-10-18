@@ -28,7 +28,8 @@ name: CI
 #
 # BL-167: docs-only PUSHES to main trigger NO run at all (`paths` with
 # negations on the push event; was paths-ignore until the BL-271 B2
-# follow-on, which needed an exception paths-ignore cannot express) — originally a private-repo cost control (every job billed
+# follow-on, which needed an exception paths-ignore cannot express) —
+# originally a private-repo cost control (every job billed
 # a rounded-up minute and docs-only runs dominated), kept on public because
 # a docs-only merge deploys nothing and needs no pipeline. TWO lists, one
 # difference. The `paths` list (last matching pattern wins) and the
@@ -115,7 +116,8 @@ jobs:
   # anyway — fail-closed is correct.)
   #
   # This job runs on PUSH events too, as a ~3s no-checkout constant
-  # (code_changed=true — docs-only pushes never trigger the workflow, so a
+  # (code_changed=true — docs-only pushes (in the trigger's sense: the docs set
+  # minus the two machine-checked specs) never trigger the workflow, so a
   # push that got here has code by definition). It CANNOT be PR-only:
   # GitHub's implicit success() condition looks at the FULL transitive
   # needs chain, so a skipped classify-pr would silently skip
@@ -179,8 +181,8 @@ jobs:
 
   backend:
     # BL-178: runs whenever classify-pr says the change set touches
-    # deployed files — always true on push (docs-only pushes never trigger
-    # the workflow at all), computed per-PR otherwise. `!cancelled()` lets
+    # deployed files — always true on push (docs-only pushes — docs set minus
+    # the two machine-checked specs — never trigger the workflow at all), computed per-PR otherwise. `!cancelled()` lets
     # the condition evaluate even if classify-pr failed (heavy jobs then
     # skip and ci-ok fails on the classify result).
     needs: [classify-pr]
