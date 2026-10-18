@@ -87,9 +87,45 @@ def get_db(
 
 `identity`'s default value is itself `Depends(get_current_identity)`. FastAPI's dependency resolution is **transitive**: when a router declares `Depends(get_db)`, FastAPI inspects `get_db`'s own signature, finds the nested `Depends(get_current_identity)`, and resolves it *first* — before `get_db`'s body runs at all. The router function never mentions `get_current_identity`; it doesn't need to.
 
-Confirmed by grep, refreshed 2026-10-18 (BL-271 sweep): **15** route declarations of `Depends(get_db)` across `app/routers/`: `account.py` (1; a second textual hit is the BL-87 comment), `deck_check.py` (1), `inventory.py` (6), `settings.py` (2), `shares.py` (5, the BL-205 owner-side share management). No router declares a separate auth dependency. `get_catalog_db` (5): `sets.py` (2), `base_cards.py` list + `/{id}/price-history` (2), `catalog.py` `/reference.csv` (1). `get_optional_db` (2): `base_cards.py` `/{id}`, `feedback.py` `POST`. `get_shared_db` (3): `shares.py`'s viewer router `/api/shared/{token}[/quantities|/limits]`. No DB dependency: `images.py` (GCS bucket via `get_images_bucket`) and `relay.py` (BL-235 analytics relay). The mechanism below is unchanged; only which routers exercise it.
+The registry below is machine-checked (`backend/app/tests/test_route_registry.py`); the counts here are derived from it and the per-router breakdown is as of 2026-10-18: **15** route declarations of `Depends(get_db)` across `app/routers/`: `account.py` (1), `deck_check.py` (1), `inventory.py` (6), `settings.py` (2), `shares.py` (5, the BL-205 owner-side share management). No router declares a separate auth dependency. `get_catalog_db` (5): `sets.py` (2), `base_cards.py` list + `/{id}/price-history` (2), `catalog.py` `/reference.csv` (1). `get_optional_db` (2): `base_cards.py` `/{id}`, `feedback.py` `POST`. `get_shared_db` (3): `shares.py`'s viewer router `/api/shared/{token}[/quantities|/limits]`. No DB dependency: `images.py` (GCS bucket via `get_images_bucket`) and `relay.py` (BL-235 analytics relay). The mechanism below is unchanged; only which routers exercise it.
 
 **For a future reviewer:** if you're checking "is auth actually enforced on route X," the check is "does X declare `Depends(get_db)`?" — not "does X (or its router) mention auth/identity anywhere." The auth check is a side effect of acquiring a database session, by design (Section 1.6 explains why a *second*, RLS-scoped session is the right place for it). If you're checking "is route X also gated on a verified email (BL-16)," the check is "does X declare `dependencies=[Depends(require_verified_email)]`?" — as of this writing, `POST /api/inventory/{id}/increment`, `.../decrement`, `.../adjust` (BL-219), `POST /api/inventory/import` and `GET /api/inventory/export` (BL-54 S1).
+
+#### Route registry (machine-checked)
+
+One row per FastAPI route, generated from the app's dependency graph. `backend/app/tests/test_route_registry.py` fails CI if a route exists that is not listed here, a row has no route, or a row's session dependency or extra gates differ from the code. Session `none` means no database session (public or non-DB). `Since` is informational: the BL id that added the route, or `baseline` for routes already present at the public repo's initial commit (2026-07-28).
+
+| Method | Path | Session | Gates | Since |
+|---|---|---|---|---|
+| DELETE | `/api/account` | get_db | require_recent_auth | BL-87 |
+| GET | `/api/base-cards` | get_catalog_db | none | baseline |
+| GET | `/api/base-cards/{base_card_id}` | get_optional_db | none | baseline |
+| GET | `/api/base-cards/{base_card_id}/price-history` | get_catalog_db | none | baseline |
+| GET | `/api/catalog/reference.csv` | get_catalog_db | none | BL-54 |
+| POST | `/api/deck-check` | get_db | none | baseline |
+| POST | `/api/feedback` | get_optional_db | none | BL-126 |
+| GET | `/api/inventory/export` | get_db | require_verified_email | BL-54 |
+| POST | `/api/inventory/import` | get_db | require_verified_email | BL-54 |
+| GET | `/api/inventory/quantities` | get_db | none | baseline |
+| POST | `/api/inventory/{variant_id}/adjust` | get_db | require_verified_email | BL-219 |
+| POST | `/api/inventory/{variant_id}/decrement` | get_db | require_verified_email | baseline |
+| POST | `/api/inventory/{variant_id}/increment` | get_db | require_verified_email | baseline |
+| GET | `/api/relay/{path:path}` | none | none | BL-235 |
+| POST | `/api/relay/{path:path}` | none | none | BL-235 |
+| GET | `/api/sets` | get_catalog_db | none | baseline |
+| GET | `/api/sets/{set_code}` | get_catalog_db | none | baseline |
+| GET | `/api/settings/limits` | get_db | none | baseline |
+| PUT | `/api/settings/limits` | get_db | none | baseline |
+| GET | `/api/shared/{token}` | get_shared_db | none | BL-205 |
+| GET | `/api/shared/{token}/limits` | get_shared_db | none | BL-205 |
+| GET | `/api/shared/{token}/quantities` | get_shared_db | none | BL-205 |
+| GET | `/api/shares` | get_db | none | BL-205 |
+| POST | `/api/shares` | get_db | none | BL-205 |
+| DELETE | `/api/shares/{share_id}` | get_db | none | BL-205 |
+| PATCH | `/api/shares/{share_id}` | get_db | none | BL-205 |
+| POST | `/api/shares/{share_id}/rotate` | get_db | none | BL-205 |
+| GET | `/health` | none | none | baseline |
+| GET | `/images/cards/{filename}` | none | none | baseline |
 
 ### 1.4 `get_db` step by step — `app/database.py` (`get_db` :159-185 → `_open_authenticated_session` :47-132)
 
