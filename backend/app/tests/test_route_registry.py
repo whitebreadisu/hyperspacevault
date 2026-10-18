@@ -1,5 +1,8 @@
 """BL-271 phase B2: the Platform Spec's route registry is machine-checked.
 
+NOTE: ci.yml classifies SWU_Platform_Spec.md as code (not docs-only),
+so a spec-only PR still runs this test; keep that carve-out if the spec moves.
+
 SWU_Platform_Spec.md section 1.3 carries a table under the heading
 "Route registry (machine-checked)" with one row per FastAPI route: method,
 path, session dependency, extra gates, and the BL id that added it.  This
