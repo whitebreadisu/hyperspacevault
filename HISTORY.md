@@ -27,12 +27,18 @@ BL-ids.
 | 2026-08-07 | **v1.3 shipped** — in-app release notes (`[HSV] Updates`), SWUDB + sw-unlimited-db collection import presets, playset-scoped finish filter |
 | 2026-08-11 | v1.3.1 hotfix — large-collection imports (1,500+ cards) fixed within hours of a prod incident |
 | 2026-08-16 | **v1.4 shipped + public announcement** — collection sharing links, column sorting, table width tiers; Reddit launch draws 134 users / ~193k cards tracked day one |
+| 2026-08-17 | v1.4.1 — share links made extra private (noindex headers; link secret kept out of logs) · three-tier documentation regime adopted (ADR-0020) |
+| 2026-08-27 | **v1.4.2 shipped** — "Guided by real use": anonymous product analytics (PostHog behind a first-party proxy) with an off switch in Settings |
+| 2026-09-03 | v1.4.3 — "Steadier sessions": database connections are checked before use, ending rare long-session errors |
 | 2026-10-02 | **v1.5 shipped** — Homeworlds, the ninth set: 954 printings plus Weekly Play and promos ingested, key art and Spotlight Decks added, live for prerelease weekend |
+| 2026-10-08 | v1.5.1 — Homeworlds imports from SWUDB and HoloScan exports |
+| 2026-10-14 | **v2.0 shipped** — "Your Vault, in your pocket": a purpose-built phone layout, shared Vaults on the phone, and camera card scanning; newest-sets-first ordering and Showcase back in the scope picker |
+| 2026-10-17 | v2.0.1 — "No more stuck Loading…": phone and Safari sign-in start-up fixed |
 
 ## Resolution ledger
 
 
-### June 2026 — 27 items resolved
+### June 2026 — 28 items resolved
 
 - `2026-06-14` **BL-1** — Create `specification_documents/SWU_Platform_Spec.md`
 - `2026-06-15` **BL-12** — Spec-vs-implementation reconciliation for `SWU_ClaudeCode_Spec.md`
@@ -46,6 +52,7 @@ BL-ids.
 - `2026-06-17` **BL-18** — Frontend tab switching — keep pages mounted
 - `2026-06-21` **BL-27** — Additional card variant types (Judge, Showcase, Prerelease Promo, etc.)
 - `2026-06-21` **BL-31** — Card detail popup — consolidated representation for stamp-only variants
+- `2026-06-21` **BL-29** — Replace CSV-based catalog seed with swuapi.com
 - `2026-06-24` **BL-47** — Documentation reconnaissance & cleanup
 - `2026-06-24` **BL-49** — Absorb API/ingestion/architecture into the Application Spec
 - `2026-06-27` **BL-10** — `card_keywords` / `sub_text` / `is_unique` data gaps
@@ -62,9 +69,15 @@ BL-ids.
 - `2026-06-28` **BL-71** — Per-filter AND/OR toggle for multi-select filters (keywords, traits)
 - `2026-06-28` **BL-72** — Filter layout — stop unnecessary elongation; wrap only when content won't fit
 
-### July 2026 — 86 items resolved
+### July 2026 — 116 items resolved
 
 - `2026-07-05` **BL-56** — Unify Catalog & Inventory into one list (supersedes BL-17)
+- `2026-07-05` **BL-44** — Catalog performance at full scale
+- `2026-07-05` **BL-46** — Add Cards experience — rethink with real-card exploration
+- `2026-07-05` **BL-79** — CI concurrency group — auto-cancel superseded `main` deploy runs
+- `2026-07-06` **BL-60** — "Show only cards I own" toggle (+ anonymous teaser)
+- `2026-07-06` **BL-70** — Cascading / faceted filters
+- `2026-07-07` **BL-42** — Upgrade local Node to ≥20.19 (vite 8 / vitest 4 requirement)
 - `2026-07-10` **BL-100** — `/api/base-cards` response-generation latency (~3.2 s TTFB)
 - `2026-07-10` **BL-101** — Catalog/quantity split — CDN-cacheable `/api/base-cards`
 - `2026-07-10` **BL-102** — Retire runtime-dead read endpoints (`GET /api/cards*`, `GET /api/inventory`)
@@ -79,7 +92,11 @@ BL-ids.
 - `2026-07-11` **BL-61** — Add Cards — preserve batch across set changes (cross-set batch)
 - `2026-07-11` **BL-62** — Add Cards — live card-image preview on entry
 - `2026-07-11` **BL-92** — One-time tenant purge — v1.0 clean slate
+- `2026-07-11` **BL-78** — CI path filter — skip deploy jobs for docs-only changes
 - `2026-07-12` **BL-76** — Card image hosting strategy / DR (self-host vs. hotlink official CDN)
+- `2026-07-12` **BL-105** — Multi-session worktree isolation — session-ownership lock (hooks)
+- `2026-07-12` **BL-24** — Per-tenant, per-variant inventory limit overrides (data model)
+- `2026-07-12` **BL-25** — Settings UI for inventory limit overrides
 - `2026-07-13` **BL-114** — vite dev proxy intercepts `/images/*` statics — dev-only 404s for set logos/starfields/tile
 - `2026-07-13` **BL-115** — Wire (or drop) the sidebar's "Only cards with no inventory" checkbox
 - `2026-07-13` **BL-68** — SWU-styled banner / section-separator image
@@ -87,13 +104,27 @@ BL-ids.
 - `2026-07-13` **BL-73** — Gallery view — toggle table ↔ grid of card images
 - `2026-07-13` **BL-74** — Card detail popup — layout for many-variant cards
 - `2026-07-13` **BL-75** — Card detail popup — "Base Set (Sub-set)" display for non-base-set variants
+- `2026-07-13` **BL-111** — Screens restyle arc — Claude Design "console" visual system (7 features)
+- `2026-07-13` **BL-112** — Session-lock hook launched by relative path — breaks (and blocks prompts) when session cwd drifts
+- `2026-07-13` **BL-116** — Password reset ("Forgot password?") flow
+- `2026-07-13` **BL-121** — Filter sidebar vertical behavior — three-tier responsive model (Option B)
+- `2026-07-13` **BL-122** — Dark `color-scheme` + console-toned internal scrollbars
+- `2026-07-13` **BL-123** — StatBadge numerals invisible/oversized in Safari — `foreignObject` CSS-pixel-scale bug
+- `2026-07-13` **BL-35** — Hard/soft inventory keep-limit mode (user override)
 - `2026-07-14` **BL-104** — Privacy note — what's stored, where, and how to leave
 - `2026-07-14` **BL-113** — Research: swuapi content delta check + durable new-content runbook
+- `2026-07-14` **BL-125** — About & Legal surface — IP disclaimer (RR-13) + privacy note (absorbs BL-104 delivery)
+- `2026-07-14` **BL-126** — User feedback — header button + modal + DB record + GitHub-issue notification
+- `2026-07-14` **BL-129** — v1.0 polish batch — labels, table density, feedback-button prominence, delete-account relocation, finish-filter order
+- `2026-07-14` **BL-130** — Aspect filter matching modes — Any / Within / Exact three-way toggle, Exact default
+- `2026-07-15` **BL-107** — Session lock is never released on session end (BL-105 follow-up)
+- `2026-07-15` **BL-131** — Prod promote gate rework — workflow_dispatch promotion (private repo lost environment gate)
 - `2026-07-16` **BL-132** — UI polish batch #2 — name-cell click target, absent-stat badge suppression, leader flip animation
 - `2026-07-16` **BL-133** — Two-tier finish filter — grouped finishes with expandable subgroups
 - `2026-07-20` **BL-117** — Auth provider strategy + account-linking design (keystone spike)
 - `2026-07-20` **BL-118** — Google sign-in
 - `2026-07-21` **BL-138** — In-app rebrand to HyperspaceVault — name-surface sweep
+- `2026-07-21` **BL-135** — Orphan tenant rows from the auto-provisioning race
 - `2026-07-22` **BL-109** — Research: inventory import/export landscape + canonical format proposal
 - `2026-07-24` **BL-106** — Decide prod `min_instances = 1` vs. scale-to-zero cold start on first image view
 - `2026-07-24` **BL-108** — Decide verified-email gate on settings mutations
@@ -115,6 +146,11 @@ BL-ids.
 - `2026-07-24` **BL-32** — Inline inventory editing — consolidated entry for tournament-tier variants
 - `2026-07-24` **BL-57** — "Create an account & here's what you get" value-prop popup
 - `2026-07-24` **BL-58** — Revisit default column widths
+- `2026-07-24` **BL-153** — Shared modal scaffolding — `useModalDismiss` + one overlay class
+- `2026-07-24` **BL-157** — Security headers on API/image responses
+- `2026-07-24` **BL-158** — Import-surface hardening (abuse tests, CSV formula-escape, stream guard)
+- `2026-07-24` **BL-53** — API rate limiting on `/api/*`
+- `2026-07-24` **BL-88** — Server-side recent-auth check on destructive account operations
 - `2026-07-25` **BL-103** — Extend the BL-78 docs-only CI filter to `.design-sync/**`
 - `2026-07-25` **BL-149** — Dev pricing-data reconciliation + mapping-run papercuts
 - `2026-07-25` **BL-154** — Frontend API error-shape convention
@@ -124,6 +160,7 @@ BL-ids.
 - `2026-07-25` **BL-93** — Retire inventory seed/snapshot machinery
 - `2026-07-25` **BL-96** — Risk-gate semantics gap: merged-label check vs. whole-build promotion
 - `2026-07-25` **BL-98** — Programmatic risk-tiering & autonomy rubric
+- `2026-07-25` **BL-8** — Backend Dockerfile / Cloud Run startup review
 - `2026-07-26` **BL-155** — CardPopup decomposition
 - `2026-07-26` **BL-161** — Rarity image everywhere rarity displays
 - `2026-07-26` **BL-162** — Card-list inventory column → full removal (playset merge + hover dossier)
@@ -151,7 +188,7 @@ BL-ids.
 - `2026-07-31` **BL-128** — Feedback notification email — bot-collaborator author
 - `2026-07-31` **BL-181** — Unit/Collection value toggle + app-wide Market/Low switches
 
-### August 2026 — 33 items resolved
+### August 2026 — 37 items resolved
 
 - `2026-08-01` **BL-21** — Disaster recovery — automated DB backup (prod restore drill executed)
 - `2026-08-01` **BL-182** — User-defined inventory caps — category-level keep-limit steppers in Settings
@@ -186,9 +223,21 @@ BL-ids.
 - `2026-08-16` **BL-225** — Gallery header — full table-header parity
 - `2026-08-16` **BL-226** — Table width tiers — Compact / Standard / Full with auto-selection
 - `2026-08-16` **BL-227** — Header links — white at rest, button-blue hover with glow
+- `2026-08-16` **BL-231** — Documentation accuracy & reconciliation sweep (post-v1.4)
+- `2026-08-16` **BL-232** — Security review — v1.4-era surfaces (sharing, notes, public repo, live traffic)
+- `2026-08-17` **BL-233** — Documentation regime redesign — three-tier model (ADR-0020; PR #158)
+- `2026-08-28` **BL-236** — Stale pooled DB connections → user-facing 500s (pool_pre_ping; PR #170)
 
-### October 2026 — phone layout (BL-190), slice by slice
+### September 2026 — 2 items resolved
 
+- `2026-09-03` **BL-235** — Product analytics — PostHog Cloud via first-party proxy (PRs #167, #168)
+- `2026-09-27` **BL-237** — Dependabot security alerts — September 2026 batch (PR #178)
+
+### October 2026 — 24 items resolved
+
+- `2026-10-02` **BL-239** — Homeworlds (HMW) set onboarding + 2026-10-02 swuapi content refresh (PRs #183, #184, #187, #188, #189)
+- `2026-10-08` **BL-241** — New-set runbook — import-preset set-code maps as a release-day onboarding step (ADR-0028; PR #196)
+- `2026-10-08` **BL-242** — Dependabot security alerts — October 2026 batch (PR #194)
 - `2026-10-11` **BL-247** — Phone shell + Vault + Playwright harness (PR #210)
 - `2026-10-11` **BL-248** — Phone card detail + Filters sheet (PR #212)
 - `2026-10-11` **BL-249** — Phone keypad tool, choosers, verify batch, commit (PR #213)
@@ -196,11 +245,22 @@ BL-ids.
 - `2026-10-11` **BL-251** — Phone Settings, Change Password, Delete Account, Sharing, verify banner (PR #216)
 - `2026-10-11` **BL-252** — Phone shared vault (PR #217); the closing integration sweep rides the camera PR
 - `2026-10-11` **BL-253** — Phone card scanner: isolated `/scan/` document, on-device reader, recognise-then-prompt (PR #218)
-- `2026-10-12` **BL-256** — Mobile e2e gates every deploy; promote-prod verifies the promoted SHA's own checks (ADR-0007 amendment)
 - `2026-10-12` **BL-260** — Mobile e2e sharded into five project-split legs behind the unchanged `frontend-e2e-mobile` aggregator; CI wall time ~25 → ~7 min (ADR-0007 amendment)
+- `2026-10-12` **BL-258** — Reverse the main-release set order everywhere (newest first; ADR-0031; PR #226)
+- `2026-10-12` **BL-259** — Showcase returns to the scope picker as its last choice (ADR-0030; PR #226)
 - `2026-10-13` **BL-255** — Phone e2e gets one CI retry; a pass-on-retry test is listed as flaky in the leg summary and as a warning, a double failure still fails the leg (ADR-0007 amendment)
+- `2026-10-13` **BL-257** — Mobile 2.0 finish round — owner phone-walk items (PRs #226, #230)
+- `2026-10-13` **BL-262** — Camera Fast add must not auto-pick on a collision; hold 1 s (PR #233)
+- `2026-10-13` **BL-264** — Dependabot version batch — October 2026 (PR #240)
+- `2026-10-14` **BL-256** — Mobile e2e gates every deploy; promote-prod verifies the promoted SHA's own checks (ADR-0007 amendment)
+- `2026-10-17` **BL-212** — Safari Google sign-in fails when window hidden during slow flows (firebase auth regression; v2.0.1, PR #255)
+- `2026-10-17` **BL-240** — Homeworlds post-release follow-ups — price-mapping re-runs, import preset set maps (PR #192)
+- `2026-10-17` **BL-245** — sw-unlimited-db import refuses Homeworlds rows — user report (PR #220)
+- `2026-10-17` **BL-263** — On phones and Safari the app waited on Google's sign-in script before leaving "Loading…" (v2.0.1, PR #255)
+- `2026-10-17` **BL-266** — Rate-limit stores grow without bound; IPv6 rotation bypassed the share limiter (v2.0.1, PR #255)
+- `2026-10-17` **BL-267** — Dependabot version batch — mid-October 2026 (PR #259)
 
 ---
 
-*146 resolved items as of 2026-08-16. Generated from the backlog ledger;
+*207 resolved items as of 2026-10-18. Generated from the backlog ledger;
 regenerated at each release-notes cycle.*
