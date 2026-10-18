@@ -1,0 +1,10 @@
+name: CI
+on: push
+jobs:
+  backend:
+    runs-on: x
+  frontend:
+    runs-on: x
+  ci-ok:
+    name: ci-ok
+    runs-on: x
