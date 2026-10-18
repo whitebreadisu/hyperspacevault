@@ -14,7 +14,7 @@ Both sides of the wire enforce a strict internal layering. The frontend keeps al
 
 ```mermaid
 flowchart TB
-  subgraph browser["Browser — React 19 + Vite SPA (TypeScript)"]
+  subgraph browser["Browser — React 19 SPA"]
     desktop["Desktop shell (state-driven, no URL router):<br/>Vault (cards) · Deck Check · Settings · Import/Export"]
     phone["Phone app (own in-app router, MobileApp + MobileNav):<br/>vault · keypad tool + batch · card · shared vault · more / account · feedback"]
     comps["Screen components — desktop: CardsTable / GalleryGrid / CardPopup /<br/>AddCardsModal / FilterPanel / DeckCheck;<br/>phone: Sheet · Pad · CardPage · SettingsScreen · ImportExportScreen"]
@@ -37,7 +37,7 @@ flowchart TB
   phone -->|"hop to /scan"| stream
   match -->|"confirmed card → back<br/>to the keypad batch"| phone
 
-  subgraph backend["FastAPI service — Python 3.12, REST/JSON"]
+  subgraph backend["FastAPI service — Python 3.12"]
     mw["Middleware: gzip · CORS (dev only) · structured JSON logging<br/>· security headers · proxy headers"]
     routers["Routers (no logic):<br/>sets · base-cards · catalog · images · inventory<br/>· settings · deck-check · feedback · account<br/>· shares (owner) · shared (anonymous viewer) · relay (analytics)"]
     services["Services (domain logic:<br/>resolution, limits, pricing modes, import/export)"]
@@ -53,8 +53,8 @@ flowchart TB
   firebase["Firebase Auth"]
   posthog["PostHog Cloud (US)"]
 
-  api -->|"REST /api/**, /images/**"| mw
-  analytics -->|"/api/relay/**"| mw
+  api -->|"REST/JSON under /api and /images"| mw
+  analytics -->|"/api/relay/*"| mw
   repos --> pg
   routers -->|"image streaming"| gcs
   routers -.->|"relay: forward, no secrets"| posthog
@@ -68,7 +68,7 @@ flowchart TB
 
 **Which client you get** is decided once at load by one shared predicate: a viewport under 768 px, or a touch-first device whose screen's short side is at most 500 px, renders the phone app (`MobileApp`) instead of the desktop shell; a phone turned on its side shows a "turn your phone upright" screen over the mounted app. The desktop shell is still state-driven with no URL router (it parses only `/shared/{token}`); the phone app has its own in-app router because its screens are navigated back and forth with the browser's history.
 
-**The scanner is a separate document on purpose.** On-device OCR needs `SharedArrayBuffer`, which browsers grant only to cross-origin-isolated pages. Rather than isolate the whole app (and lose embedded third-party content), the scanner lives in its own `/scan/` document that Hosting serves with COOP `same-origin` + COEP `require-corp` and `Permissions-Policy: camera=(self)`; the reader bundle, its WASM runtime and the OCR models are vendored under `/vendor/scan/` (fetched on first use, cached immutable), and the worker bundles under `/scan-workers/`, both served with `Cross-Origin-Resource-Policy: same-origin`. The phone app hops to `/scan` and back; nothing about the main document's headers changes.
+**The scanner is a separate document on purpose.** The reader runs its four OCR threads only on a cross-origin-isolated page (that is what grants `SharedArrayBuffer`; without isolation it still works, single-threaded), and a site-wide COEP would break the Google sign-in popup (ADR-0029). So the scanner lives in its own `/scan/` document that Hosting serves with COOP `same-origin` + COEP `require-corp` and `Permissions-Policy: camera=(self)`; the reader bundle, its WASM runtime and the OCR models are vendored under `/vendor/scan/` (fetched on first use, cached immutable), and the worker bundles under `/scan-workers/`, both served with `Cross-Origin-Resource-Policy: same-origin`. The phone app hops to `/scan` and back; nothing about the main document's headers changes.
 
 ## API surface
 

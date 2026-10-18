@@ -72,7 +72,7 @@ Everything in the system divides into two worlds: a **shared catalog** — one c
 
 ```mermaid
 flowchart TB
-  subgraph catalog["Shared catalog — one copy, everyone sees it"]
+  subgraph catalog["Shared catalog (global)"]
     set["Set<br/>e.g. Spark of Rebellion"]
     card["Base card<br/>one card design per base set"]
     variant["Variant<br/>a physical printing"]
@@ -84,7 +84,7 @@ flowchart TB
     variant -->|"resolves to the card's<br/>standard printing"| card
   end
 
-  subgraph vault["Each collector's vault — isolated per tenant"]
+  subgraph vault["Collector's vault (per tenant)"]
     inv["Inventory<br/>quantity owned, per variant"]
     completion["Completion<br/>playset progress per card (3, or 1 for Leader/Base)"]
     limits["Keep-limits<br/>advisory 'how many I keep' targets, hard or soft"]
@@ -139,7 +139,7 @@ The catalog is an open storefront window — browsing requires nothing. Progress
 - **Isolation lives in the database, not the application.** Tenant separation is enforced by Postgres row-level security — application bugs cannot leak one vault into another.
 - **Guests are first-class.** The entire catalog experience works with no account, which sets the caching, cost, and abuse-control posture of the whole platform — and is why the analytics relay accepts events from logged-out visitors.
 - **Honest numbers.** Prices always attributed and dated; missing data shown as missing, never as zero.
-- **The phone is a full client, not a cut-down one.** The phone app has its own navigation, a fast-add keypad and the scanner; recognition stays on the device, so the privacy posture of the catalog ("we never see your cards") holds for the camera too.
+- **The phone is a full client, not a cut-down one.** The phone app has its own navigation, a fast-add keypad and the scanner; recognition stays on the device — no camera frame or read text is sent anywhere — so the camera adds nothing to what the system holds about a collector beyond the inventory rows themselves.
 - **Telemetry is anonymous and never load-bearing.** Usage events go through a first-party relay that holds no secrets; if analytics fails, the app does not notice.
 - **Production is a decision.** Every change reaches the dev environment automatically; reaching collectors requires an explicit owner action — or a release where every commit was pre-declared low-risk.
 
