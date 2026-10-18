@@ -15,8 +15,6 @@ flowchart LR
   user["Browser"] --> dns["Cloud DNS<br/>www.hyperspacevault.com<br/>(apex 301 → www)"]
   dns --> hosting["Firebase Hosting<br/>CDN + TLS<br/>serves two documents: index.html (app)<br/>and scan.html (isolated scanner)"]
   hosting -->|"rewrites /api/** and /images/**<br/>(same-origin — no CORS in prod)"| run["Cloud Run: backend<br/>FastAPI · scale-to-zero · max 3 instances"]
-  hosting -->|"/scan, /scan/** → scan.html<br/>COOP same-origin · COEP require-corp · camera=(self)"| scandoc["Scanner document (cross-origin isolated)<br/>+ /vendor/scan/** reader assets and /scan-workers/**<br/>served CORP same-origin, immutable"]
-
   run -->|"Unix socket via Cloud SQL connector<br/>(public IP unused — no authorized networks)"| sql[("Cloud SQL<br/>Postgres 16 · zonal · PITR 7d")]
   run -->|"runtime SA, viewer-only"| gcs[("GCS card-images bucket<br/>not public — served only via the backend")]
   run --> sm["Secret Manager<br/>DB URLs/passwords · feedback PAT"]
@@ -30,6 +28,8 @@ flowchart LR
   mon["Cloud Monitoring<br/>9 alert policies · 2 uptime checks<br/>dashboard + Error Reporting"] -.->|"email alerts"| owner["Operator"]
   mon -.->|"probes /health on the direct Run URL<br/>(bypasses CDN cache on purpose)"| run
   mon -.->|"probes www.hyperspacevault.com"| hosting
+
+  hosting -->|"/scan, /scan/** → scan.html<br/>COOP same-origin · COEP require-corp · camera=(self)"| scandoc["Scanner document (cross-origin isolated)<br/>reader assets + workers served CORP same-origin"]
 
   classDef store fill:#F3E9D4,stroke:#8A6116;
   class sql,gcs store;
@@ -58,7 +58,7 @@ Delivery is **build-once, promote-many**: one Docker image is built per merge an
 **CI/CD — GitHub Actions**
 
 ```mermaid
-flowchart LR
+flowchart TB
   pr["Pull request"] --> checks["CI checks<br/>pytest ≥75% cov (incl. the route-registry test)<br/>vitest (lines ≥75 / statements ≥74) · ruff · eslint · prettier<br/>terraform fmt · docs-check (links, ADR index, tombstones, citations)"]
   pr --> e2e["Phone e2e — 5 Playwright legs<br/>phone-390 ×2 · phone-430 ×2 · scan + desktop-1440<br/>one retry per leg → frontend-e2e-mobile aggregator"]
   checks --> ciok{"ci-ok<br/>required branch-protection check<br/>needs classify-pr · backend · frontend ·<br/>frontend-e2e-mobile · terraform-fmt · docs-check<br/>(docs-only PRs skip the heavy jobs, still report)"}

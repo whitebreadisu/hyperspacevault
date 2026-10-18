@@ -14,7 +14,7 @@ Both sides of the wire enforce a strict internal layering. The frontend keeps al
 
 ```mermaid
 flowchart TB
-  subgraph browser["Browser — React 19 + Vite SPA (TypeScript); two documents: index.html (the app) and scan.html (the scanner)"]
+  subgraph browser["Browser — React 19 + Vite SPA (TypeScript)"]
     desktop["Desktop shell (state-driven, no URL router):<br/>Vault (cards) · Deck Check · Settings · Import/Export"]
     phone["Phone app (own in-app router, MobileApp + MobileNav):<br/>vault · keypad tool + batch · card · shared vault · more / account · feedback"]
     comps["Screen components — desktop: CardsTable / GalleryGrid / CardPopup /<br/>AddCardsModal / FilterPanel / DeckCheck;<br/>phone: Sheet · Pad · CardPage · SettingsScreen · ImportExportScreen"]
@@ -28,7 +28,7 @@ flowchart TB
     desktop -.-> analytics
   end
 
-  subgraph scan["Scanner — isolated /scan/ document (COOP same-origin + COEP require-corp; camera=(self))"]
+  subgraph scan["Scanner — isolated /scan/ document"]
     stream["camera stream → image pipeline<br/>(frame crop, contrast, guide box)"]
     reader["PaddleOCR reader in a worker<br/>(onnxruntime-web WASM; tesseract.js fallback)"]
     match["scan catalog match<br/>set code + number → printing"]
