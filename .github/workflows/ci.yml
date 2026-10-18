@@ -26,21 +26,28 @@ name: CI
 # instead of twice (push + pull_request). Branch pushes without an open PR get
 # no CI — open a PR (even draft) to get checks.
 #
-# BL-167: docs-only PUSHES to main trigger NO run at all (paths-ignore on
-# the push event) — originally a private-repo cost control (every job billed
+# BL-167: docs-only PUSHES to main trigger NO run at all (`paths` with
+# negations on the push event; was paths-ignore until the BL-271 B2
+# follow-on, which needed an exception paths-ignore cannot express) —
+# originally a private-repo cost control (every job billed
 # a rounded-up minute and docs-only runs dominated), kept on public because
-# a docs-only merge deploys nothing and needs no pipeline. The ignore list
-# MUST mirror the classification case-arm shared by classify-pr/
-# detect-changes below (specification_documents/docs/learning_guide/
-# claude_design/.design-sync dirs + root *.md/LICENSE; note `*.md` here
-# matches ROOT-level .md only, same as the case-arm — deliberately NOT
-# `**/*.md`). detect-changes is RETAINED as belt-and-braces for
-# deploy-skipping: if this trigger gate and a mixed push ever disagree,
-# deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
+# a docs-only merge deploys nothing and needs no pipeline. TWO lists, one
+# difference. The `paths` list (last matching pattern wins) and the
+# classify-pr case-arm below MUST be identical to each other: the docs set
+# (specification_documents/docs/learning_guide/claude_design/.design-sync
+# dirs + root *.md/LICENSE) MINUS the two machine-checked specs
+# SWU_Application_Spec.md and SWU_Platform_Spec.md, because the tests read the
+# specs (frontend/src/mobile/docs.test.ts, backend/app/tests/test_route_registry.py)
+# and the deploys do not. detect-changes is the DEPLOY gate and keeps the FULL
+# docs set (no carve-out): a spec-only PR or push runs the tests, deploys
+# nothing. Note `!*.md` here matches ROOT-level .md only, same as the
+# case-arms — deliberately NOT `**/*.md`. detect-changes is also
+# belt-and-braces for deploy-skipping: if this trigger gate and a mixed push
+# ever disagree, deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
 # every push to main with deliberately NO path filter -- it is not a fourth
 # copy of this list.)
 #
-# BL-178: pull_request deliberately has NO paths-ignore. Branch protection
+# BL-178: pull_request deliberately has NO paths filter. Branch protection
 # on main requires the `ci-ok` check, and a required check must be able to
 # report on EVERY PR — a docs-only PR whose workflow never triggered would
 # hang forever as "Expected — waiting". So every PR runs classify-pr +
@@ -51,14 +58,20 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "specification_documents/**"
-      - "docs/**"
-      - "learning_guide/**"
-      - "claude_design/**"
-      - ".design-sync/**"
-      - "*.md"
-      - "LICENSE"
+    # Identical to classify-pr's case-arm (docs set minus the two
+    # machine-checked specs); detect-changes deliberately keeps the full docs
+    # set. Order matters: last match wins.
+    paths:
+      - "**"
+      - "!specification_documents/**"
+      - "!docs/**"
+      - "!learning_guide/**"
+      - "!claude_design/**"
+      - "!.design-sync/**"
+      - "!*.md"
+      - "!LICENSE"
+      - "specification_documents/SWU_Application_Spec.md"
+      - "specification_documents/SWU_Platform_Spec.md"
   pull_request:
 
 # RR-6/F28 (supersedes BL-79's cancel-in-progress for main, keeps its goal):
@@ -91,8 +104,10 @@ jobs:
   # branch protection needs a check that reports on every PR, but docs-only
   # PRs shouldn't pay for the heavy jobs. Classifies the PR's effective
   # change set and the heavy jobs skip when it's docs-only. The case-arm
-  # MUST stay identical to detect-changes' and to the push paths-ignore
-  # list above.
+  # MUST stay identical to the push `paths` list above, including the
+  # carve-out: the two machine-checked specs (SWU_Application_Spec.md,
+  # SWU_Platform_Spec.md) are code HERE because tests read them. It differs
+  # from detect-changes (the deploy gate) in exactly that carve-out.
   #
   # actions/checkout on pull_request checks out the PR *merge commit*, whose
   # first parent is the current base tip — so `git diff HEAD^1 HEAD` is
@@ -101,7 +116,8 @@ jobs:
   # anyway — fail-closed is correct.)
   #
   # This job runs on PUSH events too, as a ~3s no-checkout constant
-  # (code_changed=true — docs-only pushes never trigger the workflow, so a
+  # (code_changed=true — docs-only pushes (in the trigger's sense: the docs set
+  # minus the two machine-checked specs) never trigger the workflow, so a
   # push that got here has code by definition). It CANNOT be PR-only:
   # GitHub's implicit success() condition looks at the FULL transitive
   # needs chain, so a skipped classify-pr would silently skip
@@ -125,7 +141,7 @@ jobs:
         id: check
         run: |
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            echo "Push event — the trigger's paths-ignore already filtered docs-only; code_changed=true by definition."
+            echo "Push event — the trigger's paths filter already filtered docs-only; code_changed=true by definition."
             echo "code_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -144,6 +160,7 @@ jobs:
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
+              specification_documents/SWU_Application_Spec.md|specification_documents/SWU_Platform_Spec.md) code_changed=true ;; # machine-checked specs: docs.test.ts / test_route_registry.py read them
               */*)
                 case "$f" in
                   specification_documents/*|docs/*|learning_guide/*|claude_design/*|.design-sync/*) ;;
@@ -164,8 +181,8 @@ jobs:
 
   backend:
     # BL-178: runs whenever classify-pr says the change set touches
-    # deployed files — always true on push (docs-only pushes never trigger
-    # the workflow at all), computed per-PR otherwise. `!cancelled()` lets
+    # deployed files — always true on push (docs-only pushes — docs set minus
+    # the two machine-checked specs — never trigger the workflow at all), computed per-PR otherwise. `!cancelled()` lets
     # the condition evaluate even if classify-pr failed (heavy jobs then
     # skip and ci-ok fails on the classify result).
     needs: [classify-pr]
@@ -386,7 +403,7 @@ jobs:
   # docs-only PRs. No node_modules, no cache -- plain Node, well under a
   # minute. Feeds ci-ok as a required input in BOTH branches (code and
   # docs-only). Docs-only PUSHES to main trigger no ci.yml run (BL-167
-  # paths-ignore above); .github/workflows/docs-check.yml (no path filter)
+  # `paths` filter above); .github/workflows/docs-check.yml (no path filter)
   # covers those.
   docs-check:
     runs-on: ubuntu-latest
@@ -463,8 +480,10 @@ jobs:
 
   # ── docs-only fast-skip (BL-78) ─────────────────────────────────────────
   # Pushes to main that touch only non-deployed files (root markdown,
-  # LICENSE, specification_documents/, docs/, learning_guide/,
-  # claude_design/, .design-sync/) don't need an image build or a deploy.
+  # LICENSE, specification_documents/ (INCLUDING the two machine-checked
+  # specs, which run tests via classify-pr but deploy nothing), docs/,
+  # learning_guide/, claude_design/, .design-sync/) don't need an image build
+  # or a deploy.
   # This job classifies the push; build-and-push below adds its output to
   # its own `if`. Everything downstream of build-and-push (check-risk-level,
   # deploy-dev, promote-prod-fast) already `needs` it
