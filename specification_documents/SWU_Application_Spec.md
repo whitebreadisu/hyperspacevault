@@ -3,26 +3,25 @@
 > **Status:** Authoritative — current as-built reference for the application domain (catalog, variants, inventory, and their UX).
 > **Supersedes:** `SWU_ClaudeCode_Spec.md` (frozen — original V1 design) for **all application domains** — data model, UX, API, ingestion, architecture, and environment.
 > **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24; foreign-format imports + release-notes system shipped in v1.3 (2026-08-07); **sharing + the v1.4 Vault batch shipped in v1.4 (2026-08-16, §19–§21)**; product analytics in v1.4.2 (2026-08-27, §22); Homeworlds in v1.5 (2026-10-02, §23); **the phone layout and camera scanning in v2.0 (2026-10-14, §24–§25)**; v2.0.1 2026-10-17.
-> **Last updated:** 2026-10-17 (§25.3 keypad keeps its size with a fold tab — BL-270, ADR-0032 — and the batch clears fully after an add — BL-268; §22 `pad_keypad_toggled`; §11 SQLAlchemy 2.1 — BL-265; on dev for v2.1). Earlier passes: 2026-10-15 (§25.7 Auth clause, BL-263, v2.0.1); 2026-10-13 (§24/§25.7 the camera adds what the strip identifies, BL-262); 2026-10-12 (§5.1 set order newest first — BL-258, ADR-0031; §5.13/§25.1 Showcase back in the scope picker — BL-259, ADR-0030; §25 finish rounds 1–2 — BL-257); 2026-10-11 (§25 Mobile experience as built — BL-247…BL-253; §23 sw-unlimited-db HMW — BL-245); 2026-10-09 (§24 Card scanning — ADR-0029); 2026-10-08 (§23 SWUDB maps — BL-240; ADR-0028); 2026-10-02 (v1.5: §23, §3.3/§10.6, §16); 2026-08-27 (§22 Product analytics — BL-235). No as-built passes outstanding. Previously 2026-08-16 (v1.4 as-builts: §19 sharing shipped-status, §20 release-notes system, §21 v1.4 Vault batch, §12 adjust + shares endpoints; same-day follow-up: §5.16 v1.3 scoped-affordance cluster + §5.15 supersession note — no as-built passes outstanding).
+> **Last updated:** 2026-10-18 (BL-271 Phase C tier purity — disposition log `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md`, private: head/§1/§2/§4/§9/§21 narrative and the §24 spike flow moved to the archive; §15 and §19.2–19.4 to the private design shelf; §24 reduced to rules and geometry; §11 versions; §24/§25.0 device record). Previous pass 2026-10-17 (§25.3 keypad fold tab — BL-270, ADR-0032; batch clears after an add — BL-268; §22 `pad_keypad_toggled`; §11 SQLAlchemy 2.1 — BL-265; on dev for v2.1).
 > **Consumer-facing name:** renamed to **HyperspaceVault** 2026-07-20 (BL-138). This document, the repo, and other `SWU_*` artifacts keep the historical internal naming.
 
 **Scope & authority.** The authoritative as-built reference for the **application**: the catalog/variant/inventory **data model** (§4, §10), the **UX / interaction model** (§5), **completion, limits, and currency** (§6, §7), the **backend architecture & tech stack** (§11), the **API surface** (§12), the **ingestion pipeline** (§13), and the **environment** (§14). For the variant *mechanism* (`variant_of_uuid`) see `SWU_Standard_Variant_Mapping_Spec.md`; for **platform / auth / CI / infra** see `SWU_Platform_Spec.md`; for **local setup & the full env-var table** see `README.md`. The original V1 design lives in the frozen `SWU_ClaudeCode_Spec.md` (historical only).
 
-**Origin.** Produced in the Opus design session for `SWU_Backlog.md` Open Question E (the "swuapi-first counterfactual") and built + deployed to prod 2026-06-21 (commits `e1832c0`..`8d33e86`). Originally written as a forward-looking *target-design* spec ("the redesign"); the system it describes is now deployed, so it serves as the as-built reference. The variant-identity layer converged on BL-33's `base_cards`/`card_variants` split; user-experience intent drove the finish-vs-provenance separation and base-set anchoring. Remaining sequenced work and post-ship follow-ups are tracked in `SWU_Backlog.md` (BL-33 step 4; BL-44/45/46; BL-32/39/40).
+*(Origin paragraph — the 2026-06 design-session narrative — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 **Related:**
 - [`SWU_Standard_Variant_Mapping_Spec.md`](SWU_Standard_Variant_Mapping_Spec.md) — the data mechanism (`variant_of_uuid`) this design rests on.
 - [`swuapi_standard_variant_exceptions.md`](swuapi_standard_variant_exceptions.md) — current standard-anchor exceptions.
-- [`SWU_Backlog.md`](SWU_Backlog.md) — BL-33 (execution/sequencing), BL-24/27/29/31/32/35/36/37 (discrete work), Open Questions D/E.
-- [`SWU_ClaudeCode_Spec.md`](SWU_ClaudeCode_Spec.md) — **frozen** original V1 design spec; historical only (all application domains now absorbed into this document — BL-49).
+- [`SWU_Platform_Spec.md`](SWU_Platform_Spec.md) — auth, CI/CD, infrastructure, observability, security.
+- [`SWU_Application_Spec_Archive.md`](SWU_Application_Spec_Archive.md) — superseded text, verbatim, under dated headings; [`docs/decisions/`](../docs/decisions/README.md) — the ADR series (rationale).
+- [`SWU_Backlog.md`](SWU_Backlog.md) (private) — the work registry; [`SWU_ClaudeCode_Spec.md`](SWU_ClaudeCode_Spec.md) (private) — the frozen original V1 design, historical only.
 
 ---
 
-## 1. Why this document exists
+## 1. Status under the documentation regime
 
-BL-28's analysis found swuapi.com substantially richer than the original TCGPlayer CSV pipeline assumed. Open Question E asked whether designing *swuapi-first* — from the data source's real shape plus the application's actual goals — would land on a different system than the one retrofitted onto a CSV-shaped schema.
-
-This session ran that question, **app-goals first**. The net finding matches Open Question E's hypothesis: the **variant-identity layer converges** on BL-33's `base_cards`/`card_variants` split, but **user-experience intent drove real refinements** that pure data analysis hadn't surfaced — chiefly the separation of *finish* from *provenance* and the *base-set anchoring* of the whole UX. This document is the consolidated target design those decisions produced.
+*(§1's two narrative paragraphs (BL-28 analysis, Open Question E) — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 Under the three-tier documentation regime ([ADR-0020](../docs/decisions/0020-three-tier-documentation-regime.md)) this is a **Tier-1 current-state** document: decision rationale lives in `docs/decisions/` (ADRs), and superseded text moves verbatim — with a dated tombstone here — to `SWU_Application_Spec_Archive.md`.
 
@@ -30,15 +29,15 @@ Under the three-tier documentation regime ([ADR-0020](../docs/decisions/0020-thr
 
 ## 2. Product frame (requirements that drive the design)
 
-Decisions made this session, treated here as fixed requirements:
+Requirements the design rests on (present tense; the session-era wording is in the archive):
 
-- **Multi-user inventory tracker** — many isolated collectors over one shared catalog. No decks, trading/sharing, or valuation (explicitly scoped out). [Open Q E] **Superseded in part:** Pricing (§16) and Deck Check (§5.11) shipped 2026-07-22 — this framing records the session's original decisions, not a current scope boundary.
+- **Multi-user inventory tracker** — many isolated collectors over one shared catalog. Decks are served by Deck Check (§5.11), sharing by secret links (§19.1), valuation by the pricing surfaces (§16); none of the three was in the original frame.
 - **Full long-tail variant tracking** — every variant swuapi exposes (~58 types), not just the original 8.
 - **Base-set anchoring** — the experience is organized around the base sets (11 as of Homeworlds); long-tail provenance is a secondary, toggleable dimension.
-- **Completion is base-card-level and variant-agnostic** (playset / owned) — already built; unchanged. [§6]
-- **Per-variant, per-tenant configurable keep-limits** — advisory policy, never DB constraints. [BL-24, BL-35]
-- **Approximately-current catalog** — daily detection + operator-gated apply. [BL-33 step 7, BL-36, BL-37]
-- **Public catalog, auth-gated inventory.** [Open Q D, BL-17]
+- **Completion is base-card-level and variant-agnostic** (playset / owned). [§6]
+- **Per-variant, per-tenant configurable keep-limits** — advisory policy, never DB constraints. [§4.5, §6]
+- **Approximately-current catalog** — refreshed by the operator per `SWU_SWUAPI_Content_Runbook.md` (private); no automated detection exists (BL-36/BL-37 remain open).
+- **Public catalog, auth-gated inventory.** [ADR-0008; §7]
 - **One user per tenant — permanent** (owner decision 2026-07-30, public-release review; retired BL-89). Every account is the sole member of its own auto-provisioned tenant; shared/household tenants, invitations, and ownership transfer are permanently out of scope. `DELETE /api/account`'s whole-tenant purge semantics are correct by construction under this model.
 
 ---
@@ -70,9 +69,9 @@ Generic token cards (Battle Droid, Clone Trooper, Experience, Shield, etc.) recu
 
 ---
 
-## 4. Target schema
+## 4. Schema (as built)
 
-Table-level model below. Exact column types, constraints, and indexes are settled at BL-33 implementation time; this section is authoritative for *shape and intent*.
+Table-level model below; exact column types, constraints and indexes are the Alembic migrations (`backend/alembic/versions/`). This section is authoritative for *shape and intent*.
 
 ### 4.1 `sets` — all sets, base and container
 
@@ -150,6 +149,7 @@ Everywhere a set is chosen (FilterPanel's Set multiselect; `AddCardsSetBar`), th
 
 - **Variants always travel with their base card.** Selecting a base set shows that set's base cards, each displaying *all* of its variants (including OP/Judge/Convention/etc.), regardless of which source set those variants came from.
 - **Selecting a long-tail set is a provenance filter layered on top** — "show base cards that have a printing from that source." It is *not* a separate flat list of loose variants.
+- **Every table header sorts (BL-213, v1.4).** Value sorts follow the live MARKET/LOW and UNIT/COLLECTION switches; name, rarity, cost, power, HP and playset progress sort as expected. Sets never interleave: the `#`/Set sorts keep sets grouped in the §5.1 order (newest first), numbers ascending within a set. The gallery reuses the same comparators through the shared sort spine (`utils/cardSort.ts`).
 
 ### 5.3 Card detail / inventory popup (S6)
 
@@ -158,6 +158,7 @@ Everywhere a set is chosen (FilterPanel's Set multiselect; `AddCardsSetBar`), th
 - Variant buttons span the **full long tail** (all provenance × finish combinations that exist for the card), not just the 8. Default to the Standard variant image; leaders get a front/back flip.
 - **Initial selection defaults to the Standard/base variant** (shipped 2026-07-11, rider on BL-76 Phase 3 / PR #211) — previously first-in-array order, which felt random. Same representative rule as the gallery.
 - Because the long tail includes many near-identical **stamp-only tournament tiers** (e.g. Rey's 6 RQ tiers), `stamp_group` consolidation (BL-31) is **load-bearing here**, not optional polish: group look-alikes under one representative image, with per-variant inventory tracking preserved underneath. See `SWU_ClaudeCode_Spec.md` §9.2 and BL-31/BL-32.
+- **Stepper responsiveness (BL-219, v1.4):** the popup's `+`/`−` are decoupled from server round trips via the debounced-delta `adjust` endpoint (§12); Add Cards batch commits ride the same path.
 
 ### 5.4 Add Cards — four-axis, ambiguity-gated resolver
 
@@ -187,7 +188,7 @@ Everywhere a set is chosen (FilterPanel's Set multiselect; `AddCardsSetBar`), th
 
 **Console restyle + inventory readout + close guard (BL-111 F7, 2026-07-13, PR #263).** The modal adopts the arc's console shell (angled clip, steel ring, tile body); after set selection the set bar backgrounds with that set's starfield (weekly-play codes borrow their base set's art, e.g. SORP→SOR). The old green/red resolution dot and the "Headroom:" hint are replaced by a **two-line inventory readout** beside the number input — `IN INVENTORY x/y` and `AFTER ADD a/y` (a = owned + earlier same-printing batch copies + 1; reaching y exactly is green — playset completed; at/over limit collapses to a single red `(AT LIMIT)` line). `y` is the printing's configured keep-limit (`effectiveLimit`); a "No limit" cell shows owned-only lines with no `/y` and no red states; enforcement behavior itself (hard-block vs soft-commit) is unchanged. Leaders preview their **portrait back side**. New behavior: a **close guard** — Cancel/X/Escape/backdrop-click with a non-empty batch raises a confirm ("Return to Batch" / "Discard & Close"); a close right after a successful commit skips it.
 
-**Locked-header base-set logo derivation (BL-180, 2026-07-30).** The locked set bar's logo is always a **base set's** mark (logo assets exist per base set only — previously any non-base selection rendered a broken image): a base set shows itself; a Weekly Play companion shows its base set (categorical base+"P" convention, mirroring the starfield borrow above); any other non-base set (Exclusives) shows the distinct **home base sets** (`set_code`) of the printings it released (`source_set_code = selected`), side by side in canonical display order (newest main set first) — one logo when the container maps to a single base set (e.g. MV26→ASH), several when it spans base sets (e.g. C24→SOR SHD TWI; P25 spans six). A printing whose home is not a base set (some C26/GG/G25 items root in the exclusive itself) contributes no logo; a selection mapping to nothing (G25) shows no logo at all — the code+name text beside it already identifies the set. Derivation: `headerLogoCodesFor` (`utils/setGrouping.ts`, unit-tested), wired in `AddCardsSetBar`. *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+**Locked-header base-set logo derivation (BL-180, 2026-07-30).** The locked set bar's logo is always a **base set's** mark (logo assets exist per base set only — previously any non-base selection rendered a broken image): a base set shows itself; a Weekly Play companion shows its base set (categorical base+"P" convention, mirroring the starfield borrow above); any other non-base set (Exclusives) shows the distinct **home base sets** (`set_code`) of the printings it released (`source_set_code = selected`), side by side in canonical display order (newest main set first) — one logo when the container maps to a single base set (e.g. MV26→ASH), several when it spans base sets (e.g. C24→SOR SHD TWI; P25 spans six). A printing whose home is not a base set (some C26/GG/G25 items root in the exclusive itself) contributes no logo; a selection mapping to nothing (G25) shows no logo at all — the code+name text beside it already identifies the set. Derivation: `headerLogoCodesFor` (`utils/setGrouping.ts`, unit-tested), wired in `AddCardsSetBar`. *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 
 The separate Catalog and Inventory tabs collapse into a single **Cards** list (nav relabeled "Inventory" as of BL-129 R3 — owner-decided, low-cement, may rename again as features grow; the tab bar collapses to one entry regardless of label). **Superseded — see §5.11:** the nav item was renamed again to "Vault" with the BL-142/BL-143 arc (shipped prod 2026-07-22); this paragraph's "Inventory" label is historical. Catalog and inventory are the *same* base-card list viewed with or without ownership data — one table structure, inventory data layered on by auth state, not a second view.
 
@@ -224,6 +225,7 @@ FilterPanel's dropdowns (Set, Type, Rarity, Finish, Keywords, Traits, Arenas, **
 - **Toggles fold in before faceting.** CardsPage computes a `toggleNarrowed` card list (the `ownedOnly`/`incompleteOnly` toggles applied, but not the FilterPanel filters) and passes *that* to `FilterPanel` as its `cards` prop — the same list `applyFilters` then narrows further into `filtered`. This is why BL-60 shipped first: without it, "show only cards I own" would narrow the table but leave the dropdowns offering values from unowned cards.
 - **Scope.** Applies to the seven dropdown fields plus Aspects; the three range sliders (Cost/Power/HP) remain unchanged — continuous controls don't fit the same "hide unreachable values" model and weren't part of BL-70's ask.
 - **Empty-data guard.** If the (toggle-narrowed) card list is empty, faceting is skipped entirely (treated as "no restriction") rather than hiding every option — an empty list usually means data hasn't loaded yet, not that every value is invalid.
+- **Over-keep-limit filter (BL-217, v1.4).** A Vault filter surfaces every card held past the tenant's effective cap (the "trade pile"); it follows the playset finish scope like the other ownership filters.
 
 ---
 
@@ -236,6 +238,7 @@ A **Table ↔ Gallery toggle** (since BL-111 F3/F6 it lives in InventorySummary'
 - **Orientation rule — no card displays landscape:** Leaders show their **back image** (the portrait deployed side); Bases — and any Leader without a back image — show the front **rotated 90° counter-clockwise** (a 196×140 absolutely-centered box, so the landscape 3.5:2.5 art fills the portrait cell with no letterboxing); all other types show the front unrotated. Cards with no usable image keep a placeholder cell so sort positions stay stable.
 - **Performance:** rows-of-N virtualization (`@tanstack/react-virtual`, the CardsTable pattern; N derived from measured container width and reused for both row-slicing and CSS columns), native lazy-loading, and `srcset` renditions (320/640 WebP via ADR-0012's self-hosted serving — see `docs/decisions/0012-card-image-self-hosting.md`; graceful fallbacks: stale-cached API shapes fall back to the hotlinked URL, and every card `<img>` carries a one-shot `onError` swap to its stored URL).
 - **Stage 2 (BL-111 F4, 2026-07-13, PR #260 — Option D "Plate + hover dossier"):** each cell carries a 24px corner-cut **console plate** under the art — playset pips + an `owned/playset` readout (completion semantics, fixed 1/3, deliberately *not* the configurable keep-limits — the two systems stay separate by doctrine) — and, signed-in on hover, a **dossier tooltip** listing owned copies per finish. Signed-out plates read "SIGN IN TO TRACK" (no dossier); touch devices rely on tap-through to the popup. From the original stage-2 sketch, fields-under-images was superseded by the plate, and toggle persistence remains unbuilt (no design support — file separately if wanted).
+- **Header parity (BL-222/BL-225, v1.4):** the gallery carries the table's full sort header, playset finish filter, value switches and scoped-amber treatment; plate pips follow the finish scope, completed plates light their outline, and the count chip has no "/3".
 
 *(Component: `frontend/src/screens/cards/GalleryGrid.tsx`; view-mode state lives in CardsPage; the toggle control renders in InventorySummary since BL-111 F3/F6.)*
 
@@ -251,7 +254,7 @@ Visually a compact ~520px console panel following the `CardPopup` steel-ring idi
 
 Three sections, copy owner-approved verbatim:
 - **Disclaimer** — non-affiliation with Disney, Lucasfilm Ltd., Fantasy Flight Games, or the Asmodee Group.
-- **Privacy** — the four BL-104/RR-12 points (what's stored: account email + card collection; where it lives: GCP `us-central1`; leaving: self-service via Delete Account; tracking — originally "none", superseded 2026-08-26 by BL-235's usage-analytics disclosure bullet: anonymous, inputs masked, opt-out in Settings, processed by PostHog, see §22), plus a fifth point BL-126 added the same session: feedback messages are stored, and email only when contact is opted in.
+- **Privacy** — the four BL-104/RR-12 points (what's stored: account email + card collection; where it lives: GCP `us-central1`; leaving: self-service via Delete Account; tracking: anonymous usage analytics — inputs masked, opt-out in Settings, processed by PostHog (BL-235, §22)), plus a fifth point BL-126 added the same session: feedback messages are stored, and email only when contact is opted in.
 - **Attribution** — swuapi.com sourcing of catalog data and images.
 
 This is the shipped resolution of **RR-13** (IP/affiliation disclaimer) and completes the privacy floor **RR-12/BL-104** first argued for — both close out via this one modal (`SWU_Backlog.md`/archive has the full BL-104/BL-125 disposition).
@@ -273,7 +276,7 @@ Backend + data model: §4.6. API contract: §12. Platform-level secret/env wirin
 
 ### 5.10 Pricing surfaces (BL-140, shipped prod 2026-07-22)
 
-**Scope decision (Jeremy, 2026-07-21): popups ONLY in v1** — the card detail/inventory popup (§5.3) is the only surface that renders prices. No table column, no gallery badge, no completion-header integration; those designed-but-deferred surfaces are BL-141 (the `list-gallery-price` prototype exists in Claude Design). **Partially superseded (2026-07-26, BL-163 — §5.13):** the completion panel now renders **Collection value**; the table-column and gallery-badge surfaces remain deferred under BL-141.
+**Price surfaces (owner scope decision 2026-07-21, extended 2026-07-26):** the card detail/inventory popup (§5.3) renders per-card prices and the completion panel (§5.13, BL-163) renders **Collection value**. No table column, no gallery badge, no further completion-header integration; those designed-but-deferred surfaces are BL-141 (the `list-gallery-price` prototype exists in Claude Design).
 
 On the popup, for the **selected printing**:
 - A **price block** showing Market and Low (from the variant's `price: PriceInfo` — §12/§16). Unpriced variants (unmapped, or mapped-but-never-synced) degrade gracefully — no price block, never a zero or a blank shell.
@@ -294,6 +297,7 @@ Two screens (Claude Design templates, Jeremy's saved defaults authoritative):
 - **Global 125% scale (BL-147):** the default view now renders at what was previously 125% zoom (owner finding: the app was only comfortable zoomed). Systemic change, not a font bump — every viewport-conditional breakpoint was rescaled ×1.25 in the same pass (docked-filter threshold now 2833px, BL-121 sidebar tiers, phone passes), and the JS twin constants are pinned to their CSS values by tests.
 - **FilterPanel collapsed by default (BL-144)** below the side-by-side breakpoint — the filter no longer eats the first screenful on smaller viewports.
 - **Popup prev/next navigation (BL-148):** from the card popup, navigate to the previous/next card **in the current filtered+sorted result list** without closing — the filter-then-browse loop. Deliberately subtle chevron affordances (owner-explicit: not the standard SWUButton). Works from both table and gallery; per-card popup state (selected printing, history panel) resets on navigation.
+- **Header polish (BL-227, v1.4):** the header's version and fan-project links are white at rest with the buttons' blue hover glow; nav-tab hover is unified; `.inv-summary__actions` wraps at narrow widths like the summary blocks (PR #148).
 
 ### 5.13 Cosmetics batch (BL-155/161/162/163/164, merged 2026-07-26)
 
@@ -302,9 +306,9 @@ Full decision record: `planning/Definition_CosmeticsBatch_2026-07-26.md` (+ `pla
 - **CardPopup decomposed (BL-155):** the 1,124-line monolith split along its recorded seams into `CardPopupRail` / `CardPopupPriceHistory` / `CardPopupNav` / `CardPopupInventory` + a `cardPopupShared` formatter module, `CardPopup.tsx` remaining as the composition shell. Zero behavior change; the 1,599-line test file needed zero edits (DOM-only assertions).
 - **Rarity renders as image + colored label (BL-161):** shared `RarityBadge` component (raw 20px webp symbol + 14px `--font-ui` label colored per rarity; assets bundler-owned under `frontend/src/assets/rarity/`) in the table's Rarity column AND the popup's info row. Rarity code `S` relabeled **"Special"** (was "Starter" — owner correction 2026-07-26); catalog codes and faceting untouched.
 - **Inventory column removed (BL-162):** the table is **14 columns** — `# · Name · Variants · Playset · Rarity · Aspect · Type · Cost · Power · HP · Trait · Keyword · Arena · Set`. The Playset cell absorbs the always-on count chip (Russo One, left of pips, green at complete), the click-to-edit affordance, and a hover per-finish dossier (shares `ownedFinishBreakdown` + `.gallery-dossier` visuals with the gallery — single source). Signed-out: em-dash chip, empty pips, click/hover disabled.
-- **Completion panel rebuilt (BL-163):** four clipped-corner blocks — Playset complete %, Set complete %, Cards (+unique), **Collection value** — with blue tick progress, per-block click "by set" breakdown popovers (set-logo rows, newest main set first, then Intro Battle: Hoth and Twin Suns), and a **Filtered/All scope toggle** rendered only when the visible list is narrowed. Calc rules (§6 token exclusion preserved; universe = the ten base sets; any-variant ownership; orphan roots out of %s, in Cards/Value; value = per-variant price × qty with Standard-price fallback, Market default + Market/Low toggle in the popup rail's idiom) are locked in the Definition doc §3–§4. To feed the value calc, per-variant `price` was **re-attached to the list endpoint** (see §8 API note). *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Completion panel rebuilt (BL-163):** four clipped-corner blocks — Playset complete %, Set complete %, Cards (+unique), **Collection value** — with blue tick progress, per-block click "by set" breakdown popovers (set-logo rows, newest main set first, then Intro Battle: Hoth and Twin Suns), and a **Filtered/All scope toggle** rendered only when the visible list is narrowed. Calc rules (§6 token exclusion preserved; universe = the ten base sets; any-variant ownership; orphan roots out of %s, in Cards/Value; value = per-variant price × qty with Standard-price fallback, Market default + Market/Low toggle in the popup rail's idiom) are locked in the Definition doc §3–§4. To feed the value calc, per-variant `price` was **re-attached to the list endpoint** (see §8 API note). *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Owner dev-review rounds 1–8 (same day, PRs #490–#497):** the arc's polish pass, all dev-verified. Notables that refine the above: aspect icons 24px with console-styled name tooltips (opt-in `AspectIcon` prop; table + popup only); stat-badge numerals recalibrated (anchor bracket 44–52.5 recorded in `StatBadge.tsx`; settled via visible-step tuning); popup rarity plate = 34px symbol left of the set/rarity text stack (`RarityBadge` `iconOnly`/`labelOnly` modes); hover dossiers trigger on the count chip (table) / inventory plate (gallery) only; completion blocks uniform height, popovers enlarged with fixed two-column count/sub alignment and green ticks at 100%; summary strip at a constant 20px inset; table/gallery capped at the table's natural **1526px** (columns never stretch; the three synced values carry a `COLUMN_WIDTHS` sync rule); expanded filter pins to the layout's left edge with centering compensation so the table never moves; **all header labels white** (BL-165's rotating starfields); verify screens unified further (precon rows show subtitles; manual rows show `current → resulting` inventory); plus two BL-153 overlay stragglers fixed (sign-in/change-password primary renders).
-- **Add Cards dropdowns (BL-164):** both pickers replaced by portaled logo-rail custom listboxes (`SetDropdown` / `PreconDropdown`; `aria-label="Set"` / `"Precon Deck"` contract preserved on trigger and listbox). Set list per the locked grouping model (`frontend/src/utils/setGrouping.ts`): canonical rail groups, **newest main set first** (HMW … SOR) → divider → IBH/TS26; all-sets adds weekly-play rows per group + labeled Exclusives subgroups; "Show all sets" lives in the panel footer. Precon rows hover a **preview panel (beside-left)**: leader front full with the deck's base title-bar-peeking behind (Twin Suns: both leaders side by side, one base centered behind; IBH box: both halves, each with its own base), text block beneath; leaders/bases resolved from the live catalog (`utils/preconPreview.ts` — structural dual-leader detection, unresolved rows reported never dropped). FilterPanel's Set field gains the same guaranteed ordering + canonical/secondary divider (labeled headers deferred). *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Add Cards dropdowns (BL-164):** both pickers replaced by portaled logo-rail custom listboxes (`SetDropdown` / `PreconDropdown`; `aria-label="Set"` / `"Precon Deck"` contract preserved on trigger and listbox). Set list per the locked grouping model (`frontend/src/utils/setGrouping.ts`): canonical rail groups, **newest main set first** (HMW … SOR) → divider → IBH/TS26; all-sets adds weekly-play rows per group + labeled Exclusives subgroups; "Show all sets" lives in the panel footer. Precon rows hover a **preview panel (beside-left)**: leader front full with the deck's base title-bar-peeking behind (Twin Suns: both leaders side by side, one base centered behind; IBH box: both halves, each with its own base), text block beneath; leaders/bases resolved from the live catalog (`utils/preconPreview.ts` — structural dual-leader detection, unresolved rows reported never dropped). FilterPanel's Set field gains the same guaranteed ordering + canonical/secondary divider (labeled headers deferred). *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 
 ### 5.14 Variant scope + the Value column (BL-173/BL-181 — build record archived 2026-08-17, BL-233)
 
@@ -335,7 +339,7 @@ Full decision record: `planning/Definition_CosmeticsBatch_2026-07-26.md` (+ `pla
 
 The v1.3 scoped-affordance cluster: six features completing §5.14's finish scope into a whole-Vault lens, plus the busy overlay. Feedback-sourced (announcement-thread requests from u/EmanantVolition and u/soccerholic1816) and owner-filed refinements; execution detail in the archived BL entries + PRs hyperspacevault#52/#53/#54/#57/#61/#69. As-built:
 
-- **Scoped `#` column + row order (BL-187):** while a scope is active, the `#` column shows the **scoped variant's own card number** (early sets number finishes independently) and the list re-orders by base-set order → scoped number — the Vault mirrors how a physical single-finish collection is sorted. Mechanics: `scopedCardNumber`/`sortCardsByScope` (`utils/variantScope.ts`) — the same set-order (newest main set first)/tokens-last precedence as `sortBaseCards`, with the final tiebreak swapped to the scoped variant's `card_number`; a card without the scoped finish falls back to its `base_card_number` (comparator stays total even though such cards are normally filtered out while scoped). *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Scoped `#` column + row order (BL-187):** while a scope is active, the `#` column shows the **scoped variant's own card number** (early sets number finishes independently) and the list re-orders by base-set order → scoped number — the Vault mirrors how a physical single-finish collection is sorted. Mechanics: `scopedCardNumber`/`sortCardsByScope` (`utils/variantScope.ts`) — the same set-order (newest main set first)/tokens-last precedence as `sortBaseCards`, with the final tiebreak swapped to the scoped variant's `card_number`; a card without the scoped finish falls back to its `base_card_number` (comparator stays total even though such cards are normally filtered out while scoped). *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Scoped click-through (BL-193):** opening a card popup while scoped selects the **scoped printing** in the rail (not the Standard-representative pick), and prev/next card navigation keeps landing on each card's scoped printing; a card without the finish keeps the representative pick. Companion rails: **up/down arrows cycle the printings with wrap-around (BL-192)** — a deliberate asymmetry vs. BL-148's left/right disable-at-boundary (cards are a list with edges; a card's printings are a closed loop).
 - **Scoped collection filters (BL-195):** own / don't own / incomplete-playsets evaluate against the **scoped finish alone** while scoped (`scopedOwnedCount`; completeness via `scopedPlaysetComplete` — the SAME helper the scoped pips use, single source by construction). **Owner ruling (test-pinned):** keep-limits stay entirely out of playset completeness — "the playset complete flag only cares about playset"; the owner's worked example (3 Standard Vader + 0 Hyperspace, scope=Hyperspace ⇒ "cards I don't own" includes Vader) is the integration test verbatim. Scope null = pre-cluster behavior, unchanged. The three toggles carry the scope control's amber family while scoped, and the **`#` header takes the full scope-control treatment (BL-194)** — amber outline via inset box-shadow (no width change, SYNC RULE), amber text, subtle wash.
 - **Add Cards shared-number default (BL-191):** early-set numbers shared across finishes (SOR/SHD/TWI) default the finish dropdown to the **non-foil member of the resolver's natural option set** (Standard or Hyperspace — foils exist at far lower quantities, so non-foil is the probable intent), with the dropdown highlighted + "shared across variants — verify selection" helper text; Enter accepts the default. No number-band math: the option set is naturally Std/Std-Foil OR HS/HS-Foil for these cards, and a conservative guard keeps required-pick whenever a set lacks that pair. Explicit selection unchanged.
@@ -378,7 +382,7 @@ The only forbidden path is the fourth: deleting or `skip`ping a red test because
 
 **Tests encode hard-won bug knowledge — carry the intent, not just the shape.** Where a legacy test guards a specific past bug (the F4 ingestion fixes, diacritic migrations 0007/0009, the RLS `WITH CHECK` bug, OP card-number collisions), record which — so a *port* preserves it and a *retire* is a conscious "this bug class no longer exists," not an accidental loss.
 
-**Deliverable — the disposition log.** The rewrite produces a log mapping each legacy test area to its disposition (port / replace / retire) + reason. This is the auditable record that coverage was *preserved or deliberately reduced*, never silently eroded — produced during BL-33, not as a deferred cleanup item. **Step 1's log:** [`BL33_Step1_Test_Disposition_Log.md`](analysis/BL33_Step1_Test_Disposition_Log.md).
+**Deliverable — the disposition log.** The rewrite produces a log mapping each legacy test area to its disposition (port / replace / retire) + reason. This is the auditable record that coverage was *preserved or deliberately reduced*, never silently eroded — produced during BL-33, not as a deferred cleanup item. **Step 1's log:** [`BL33_Step1_Test_Disposition_Log.md`](analysis/BL33_Step1_Test_Disposition_Log.md) (private).
 
 ### 8.2 New invariants the redesign introduces (must have tests)
 
@@ -412,19 +416,7 @@ Write the variant-graph invariant and the resolver tests against captured fixtur
 
 ## 9. Relationship to backlog (which items execute which parts)
 
-| Item | Role in this design |
-|------|---------------------|
-| **BL-33** | Master execution + sequencing: schema migration (§4), ingestion ordering, snapshot regeneration, cutover. Points here for the design. |
-| **BL-27** | ✅ Resolved 2026-06-21 — census + classification (§10): vocabulary frozen, finish/channel/stamp rules, exception resolution, `is_token`, keying. |
-| **BL-29** | Ingestion from swuapi, upsert-keyed on `swuapi_id`. |
-| **BL-24 / BL-25 / BL-35 / BL-22** | Keep-limits, settings UI, hard/soft mode, settings page (§4.5, §6). |
-| **BL-31 / BL-32** | `stamp_group` consolidation — popup (§5.3) and inline editing. |
-| **BL-36 / BL-37** | New-set onboarding considerations; gated → full auto-apply (§7). |
-| **BL-34** | Mapping-spec test suite (validates §3 mechanism). |
-| **BL-30** | Bulk-add precon products (independent; blocked on a decklist source). |
-| **BL-136 / BL-139 / BL-146** | ✅ Pricing: backend + jobs + snapshot + full history, prod 2026-07-22 (§16, §12). Dev-side reconciliation tail → BL-149. |
-| **BL-137 / BL-142 / BL-143** | ✅ Deck check: API + UI + top-level nav ("Vault" rename), prod 2026-07-22 (§5.11, §12); ephemeral precursor of §15. |
-| **BL-140 / BL-144 / BL-147 / BL-148** | ✅ Pricing UI (popups-only scope — deferred surfaces → BL-141) + filter default + 125% scale + popup prev/next, prod 2026-07-22 (§5.10, §5.12). |
+*(The BL-33-era execution map, every row resolved — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 ---
 
@@ -513,7 +505,7 @@ Derived from the `type` field containing **"Token"** — `Token Unit` (21), `Tok
 
 **Tech stack** (code-verified versions as of 2026-07-24; full table + local setup in `README.md`):
 - Backend — Python 3.12, FastAPI 0.141, SQLAlchemy 2.1 (engines name the `psycopg2` driver explicitly via `app/db_url.py` — 2.1 maps a bare `postgresql://` URL to psycopg 3), Alembic, Pydantic 2.13, `psycopg2`, `firebase-admin` 7.5, uvicorn; pytest. PostgreSQL 16.
-- Frontend — React 19.2 + Vite 8, TypeScript, Firebase JS SDK 12; Vitest 4, ESLint 9 + Prettier.
+- Frontend — React 19.3 + Vite 8, TypeScript, Firebase JS SDK 13 (main; prod v2.0.1 runs 12.19.0), posthog-js; Vitest 4, Playwright 1.61 (phone e2e), ESLint 9 + Prettier.
 - Platform (GCP / Cloud Run / Cloud SQL / Terraform / CI) — authoritative in `SWU_Platform_Spec.md`.
 
 ---
@@ -668,72 +660,9 @@ Unauthenticated by design (anonymous visitors send analytics, §22, ADR-0027). `
 
 ---
 
-## 15. Decks (v1 design — 2026-07-13; UI/UX deferred to Claude Design)
+## 15. Decks (design-stage — not built)
 
-*Designed from the BL-110 research report (`analysis/BL110_Deck_Format_Research_2026-07-13.md`) plus a same-day empirical resolution pass against the live catalog. Scope decisions (Jeremy, 2026-07-13): full feature spec minus UI; clipboard-JSON interop (not provider status); read-only inventory overlay; bidirectional paste-JSON import. Structural calls recorded in [ADR-0014](../docs/decisions/0014-deck-card-level-references.md) and [ADR-0015](../docs/decisions/0015-deck-interop-de-facto-json.md).*
-
-***Shipped precursor (2026-07-22):*** *Deck Check (§5.11, `/api/deck-check` in §12) is live in prod as a deliberately **ephemeral** slice of this design — it consumes §15.3's resolution rule and §15.5's interchange shape, and its parsed-deck shape matches what the `decks` table here will need, but nothing described in §15.2/§15.8 (persistence, CRUD) is built yet. This section remains the design of record for the future persisted deck builder.*
-
-**Confidence labels used below:** `[verified-live]` raw bytes captured; `[verified-source]` read from a platform's open-source code; `[secondary]` credible description, no raw bytes; `[gated]` unverifiable without an account — awaiting Jeremy's capture.
-
-### 15.1 Product frame & non-goals
-
-A deck is a **gameplay list linked to the catalog**, and this app's differentiator is that it is *inventory-aware*: the deck view can show what you own toward the deck. Non-goals for v1: gameplay/simulation, meta statistics, deck sharing between tenants, public deck pages, tournament submission (Melee/official builder are programmatically closed today — BL-110 §2c/2d), and being a Karabast *provider* (public deck URLs + their registry; recorded as a deliberate later-option in ADR-0015).
-
-### 15.2 Data model
-
-- **`decks`** — `id`, `tenant_id` (FK, RLS + FORCE per the 0025/0026 pattern), `name` (req), `author` (nullable — populated from import metadata, not an FK), `format` (`premier` default | `twin_suns`), `created_at`/`updated_at`. Tenant-scoped private objects; **added to `purge_tenant` + its regression test on creation day** (the BL-24/35 lesson, spec'd here so it cannot be missed).
-- **`deck_cards`** — `deck_id` (FK, cascade on deck delete), `base_card_id` (FK → `base_cards`; **card-level, never a variant reference** — ADR-0014), `slot` (`leader` | `secondleader` | `base` | `main` | `sideboard`), `count` (≥1; CHECK), PK `(deck_id, base_card_id, slot)`.
-- `secondleader` exists in the model because Twin Suns is a real official format (min. 80 cards, two aspect-sharing leaders — `[verified-live]` starwarsunlimited.com/articles/twin-suns) and the de facto interchange carries it; whether v1 *UI* exposes Twin Suns is a Claude Design decision. The model costs nothing now; retrofitting a slot later costs a migration.
-
-### 15.3 Card-reference semantics (the load-bearing design)
-
-Deck rows reference the **card design** (`base_cards` row), never a printing — every external deck format inspected identifies cards as `"SET_NUM"` strings with no finish/variant field anywhere (`[verified-live]` ×2 + `[verified-source]` Karabast's `IDeckCard`).
-
-**Inbound resolution rule (`SET_NUM` → `base_cards`), established empirically 2026-07-13 against the full live catalog:**
-1. Parse `SET_CODE` + integer number (accept unpadded and zero-padded).
-2. Match against **non-token base cards' root numbers** (`base_cards.base_card_number`). Evidence: zero collisions exist among non-token Standard roots (query over all 8,3xx variants — collision groups: 83 total, 45 non-token, **0 non-token-Standard-root**); every residual collision lives in variant number ranges (Prestige/foil high numbers) or judge/promo stamps, which deck lists never reference. Foil pairs share the root's printed number; distinct finishes (Hyperspace etc.) carry their own numbers — this resolves BL-110 §2e's flagged swuapi-docs "contradiction": both claims were true of different variant classes.
-3. No match → try the exceptions-list roots (`swuapi_standard_variant_exceptions.md`, **1** entry — the 14 other structural roots re-anchor via step 2's fallback and never reach this file, §3.3/§10.6).
-4. Still no match → the row is **reported unresolved, never guessed** (same discipline as Add Cards §5.4).
-
-**Outbound id generation:** `set_code + "_" + zero-padded-3 base_card_number` (matches observed convention, e.g. `SOR_024` `[verified-live]`).
-
-### 15.4 Validation & legality (advisory, computed — never a save constraint)
-
-Same philosophy as keep-limits (§6): users must be able to save work-in-progress decks, so legality is a **computed status**, not a write gate. v1 rules: exactly 1 leader + 1 base (2 aspect-sharing leaders in `twin_suns`); main deck minimum 50 (`premier`) / 80 (`twin_suns`); per-card copy maximum 3 across main+sideboard; sideboard ≤ 10. *(Rule values to be confirmed against current official comprehensive rules during build — flagged, not `[verified-live]` in this pass.)* The deck view surfaces a legality badge + itemized violations.
-
-### 15.5 Import (paste JSON — bidirectional with §15.6)
-
-- Accepts the **de facto interchange shape**: `{metadata?, leader, base, secondleader?, deck[], sideboard[]}` of `{id: "SET_NUM", count}` (`[verified-live]` SWUBase + sw-unlimited-db.com; `[verified-source]` Karabast normalizes 14 providers to exactly this). Unknown keys ignored (observed in the wild: sw-unlimited-db's extra per-card `unit` tag).
-- This one shape covers: decks copied from **SWUDB** (its clipboard export is this shape — `[secondary]`; exact affordance `[gated]`, on Jeremy's capture list), **SWUBase**, **sw-unlimited-db.com**, and anything else in the Karabast provider family.
-- Resolution per §15.3 runs **client-side against the loaded catalog** (the established S3/S4/Add-Cards pattern — no new lookup endpoints); unresolved rows render in a verification view (resolved / unresolved split, same interaction grammar as Add Cards) before the deck is committed via the CRUD API. The server independently validates every `base_card_id` FK on write.
-- URL-fetch import (SWUBase/sw-unlimited-db public APIs) is deliberately out of v1 (owning third-party fetch surface — ADR-0015); the paste path serves the same decks.
-
-### 15.6 Export
-
-1. **Deck JSON (primary):** the de facto shape, composed client-side, copy-to-clipboard. This is the Karabast and Force Table interop in its entirety — both are *consumers* whose paste flows accept this shape (`[verified-source]` / `[secondary]` respectively), and it round-trips into SWUDB-family tools.
-2. **Plain text (fallback):** `COUNT NAME (SET) NUMBER` lines grouped by slot — the convention swuapi's own deck-image tooling consumes (`[verified-live]` swuapi.com/docs), and the human-readable/tournament-form answer.
-
-Export requires no versioning of our own — the shape is the community's, not ours; our *canonical inventory* format (BL-109 §5) remains a separate, versioned concern.
-
-### 15.7 Inventory overlay (read-only, v1)
-
-Per deck card: `owned = Σ quantity across ALL variants of that base card` (any printing counts — a deck slot doesn't care which finish you own), rendered as owned/needed against `count`. Pure client-side join of the deck against the already-loaded quantities (§7 catalog/quantity split) — no new endpoints, no writes, anonymous-safe (overlay simply absent when signed out). Explicit non-goal in v1: copy-assignment ("this physical Showcase fills slot 3") — recorded as the natural v2 if wanted.
-
-### 15.8 API surface
-
-Standard tenant-scoped CRUD, nothing exotic: `GET /api/decks` (list, lean), `POST /api/decks`, `GET /api/decks/{id}`, `PUT /api/decks/{id}` (full replacement incl. cards — the settled full-replacement idiom), `DELETE /api/decks/{id}`. Auth via `Depends(get_db)`; mutations follow the BL-16 verified-email posture *decision pending in BL-108* (whichever way BL-108 lands, decks follow the same rule as settings). Import/export have **no endpoints** — they're client-side transforms (§15.5/15.6).
-
-### 15.9 Test strategy hooks (§8 discipline applies)
-
-Unit: SET_NUM parse/resolve incl. exceptions + collision-adjacent fixtures (a token-colliding number, a Prestige-range number, an unpadded id); legality computation per format; JSON round-trip (import → export byte-equivalent modulo key order). Integration: CRUD + RLS isolation (two-tenant), purge_tenant coverage (day-one), FK validation on write. The §15.3 zero-collision claim gets a **catalog invariant test** (fails if a future set introduces a non-token root-number collision — turning today's empirical fact into a monitored assumption).
-
-### 15.10 Open items for review
-
-1. `[gated]` SWUDB deck-import affordance — Jeremy's capture (does its builder accept pasted JSON, exact shape?).
-2. Legality rule values vs. current official comprehensive rules (build-time verification task).
-3. Twin Suns in v1 UI — Claude Design decision (model supports it either way).
-4. Deck limit per tenant (none spec'd; revisit only if abuse surfaces — 999-ceiling philosophy).
+A persisted deck builder is designed but not built. Deck Check (§5.11, `/api/deck-check` in §12) is the shipped, deliberately ephemeral precursor: it consumes the design's card-reference resolution rule and interchange shape, and nothing described for persistence or CRUD exists. The structural decisions are recorded in [ADR-0014](../docs/decisions/0014-deck-card-level-references.md) (card-level references) and [ADR-0015](../docs/decisions/0015-deck-interop-de-facto-json.md) (de facto JSON interop). The full v1 design (2026-07-13: product frame, data model, resolution rule, validation, import/export, inventory overlay, API, test hooks, open items) lives on the private design shelf — `specification_documents/planning/design/AppSpec_15_Decks_design_2026-07-13.md` (private) — moved there 2026-10-18 (BL-271 Phase C, ADR-0020 amendment: design-stage content leaves the Tier-1 spec).
 
 ---
 
@@ -800,7 +729,7 @@ Prod's history was **not** re-extracted from tcgcsv (6–10h of degraded db-f1-m
 ### 17.3 Surface & gates
 
 - **Entry:** Import / Export button right of Add Cards on the Vault tab (standard SWU button); opens an app-state pane (`AppView "import-export"`) with a transient header tab that exists only while active (no in-pane heading — the tab names the view, dev-review round 2). Screen: Export downloads (JSON/CSV) · the import stepper (file → mode/cap options → preview → confirm → success), problem-rows-first report with a client-generated reject CSV. The public **catalog reference CSV** (the resolution key space, for hand-authoring) lives inside the Import section's top-right callout behind a standard SWU button; the file-picker is an SWU button fronting a visually-hidden native input (dev-review round 2, 2026-07-23).
-- **File order & reference quantity (dev-review round 2, 2026-07-23):** both downloadable files (export §7.1, reference §6) are ordered to read like the Vault — curated set groups (base sets newest first, HMW … SOR, then IBH and TS26 → Weekly Play mirroring that order, HMWP … SORP → Judge/Promo/Convention/Gift Box/Gamegenic/MV26 → unknown future sets last, alphabetically), card_number compared **numerically** within a set, variant_type tiebreak (`app/services/set_order.py`; supersedes the definition package's alphabetical `set_code, card_number, variant_type` order — new sets need the curated list extended, see the content runbook). The reference CSV carries a `quantity` column prefilled `0` in the export's column position — fill in quantities and import the file as-is (untouched 0-rows are no-ops under merge). *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **File order & reference quantity (dev-review round 2, 2026-07-23):** both downloadable files (export §7.1, reference §6) are ordered to read like the Vault — curated set groups (base sets newest first, HMW … SOR, then IBH and TS26 → Weekly Play mirroring that order, HMWP … SORP → Judge/Promo/Convention/Gift Box/Gamegenic/MV26 → unknown future sets last, alphabetically), card_number compared **numerically** within a set, variant_type tiebreak (`app/services/set_order.py`; supersedes the definition package's alphabetical `set_code, card_number, variant_type` order — new sets need the curated list extended, see the content runbook). The reference CSV carries a `quantity` column prefilled `0` in the export's column position — fill in quantities and import the file as-is (untouched 0-rows are no-ops under merge). *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Gate:** `require_verified_email` on export AND import (P9 — the whole surface; first gated read in the app). Anonymous click → sign-in nudge; unverified → verify-email nudge. Catalog reference stays public (ADR-0008 class). Gate-boundary doctrine (what's deliberately ungated and why) is recorded in the Platform Spec's BL-54 as-built note + `app/routers/settings.py`.
 
 ### 17.4 Status & tail
@@ -817,7 +746,7 @@ Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md`
 - **Placement (both adapters):** backend parse paths (`app/services/swudb_import.py` / `swunlimiteddb_import.py`) on the router's format-detection seam. Foreign rows are resolved against the live catalog **at parse time**; verdicts ride three additive `ParsedRow` fields (`preresolved_*`) that are inert for canonical parses — **`compute_import`'s merge/cap/report engine (§17.2) is unchanged**, and a resolved foreign row is indistinguishable from a canonical one downstream.
 - **The refusal posture (locked):** all mapping tables are **deliberately partial** — an unmapped set code (`unmapped_set`) or quantity column (`unmapped_column`) becomes an itemized problem row, **never a guess** (a wrong set/column guess silently attributes the wrong printing — the one failure mode worse than refusing). The tables map only swuapi-sourced catalog content.
 - **Admission rule (ADR-0028, 2026-10-08):** a set's *printed* codes — the base code and its Weekly Play `<CODE>P` — enter both tables **at onboarding** (runbook Scenario C) behind a 2–3-card `(code, number)` spot-check per tool against the catalog; a tool still carrying pre-release numbering is held until street date and re-checked. Every other code (SWUDB's synthetic/renamed containers, convention/judge/gift-box series) still waits for a real export from that tool. The problem-row copy names an unrecognised set code and asks the user to report it; it does not claim the set is missing from the catalog.
-  > **Superseded (2026-10-08, BL-241 / ADR-0028):** the previous evidence-only admission sentence moved verbatim to `SWU_Application_Spec_Archive.md`.
+  > **Superseded (2026-10-08, BL-241 / ADR-0028):** the previous evidence-only admission sentence moved verbatim to `SWU_Application_Spec_Archive.md`, under "Archived 2026-10-08 — §17.5 refusal-posture admission sentence (BL-241, ADR-0028)".
 - **SWUDB CSV specifics:** `CardNumber` is swuapi's own zero-padded collector suffix (int-cast strip → our unpadded `card_number`); resolution = set+number candidate lookup, then `IsFoil` foilishness split (Prestige-aware family check — "Serialized Prestige" is foil without saying so), then `Stamp` keyword match where a **blank Stamp itself means "the plain printing"** (the SORPR prerelease pair is separated solely by this). Set table renames: `CE25`→`C25`, `GGTS`→`GG`, synthetic `SORPR`→`SOR`. Irreducible collisions (the SEC Serialized Prestige color trio — which SWUDB cannot even hold two of at entry) land in §17.2's existing `ambiguous` bucket with candidates.
 - **sw-unlimited-db XLSX specifics:** only the "Grouped" export exists in practice (their "Detailed" export has 500'd for over a year — the 21-column ceiling is the design target). The wide sheet (one row per base card × fixed quantity columns) is **melted** into candidates; resolution is **base-card-first** (base card by set+de-padded/de-`T`-prefixed number → variant by column family, home-set printing preferred) because promo printings live on the base card's row while carrying different own-numbers/source-sets. Column table: direct 1:1 for Normal/Foil/Hyperspace/HS-Foil/Showcase/Prestige tiers; `Organized Play` → the Weekly Play family (incl. early-era `<set>P` containers); `Event Exclusive` deliberately unmapped in v1 (single observed use is a card-level anomaly). **Positive-only semantics (owner-locked):** blank cells assert nothing — a foreign import can only add/set what it positively claims, never remove.
 - **Reason codes:** `unmapped_set` (generalized from the briefly-lived `unmapped_swudb_set`), `unmapped_column`, `unknown_set_and_number`, `unknown_variant_for_column` join the §17.2 taxonomy; the report UI renders unlisted codes via its raw-string fallback (friendly copy = open polish item).
@@ -833,9 +762,9 @@ Evidence + definition trail: `analysis/BL185_SWUDB_Import_Mapping_2026-08-02.md`
 - **BL-152 (same session):** app-wide SWU button hover animation, owner-designed in Claude Design (option C deep-navy rest `#1e3a8a` + warm edge flare on hover) — CSS-only in `index.css`, `@property`-registered transitions scoped to `.swu-btn`, `aria-disabled` teasers excluded. Owner-validated on dev 2026-07-24.
 - **Status:** shipped to prod 2026-07-24 — built via parallel Sonnet agents (data prep + frontend) under orchestrator review, then revised through two owner dev-review rounds (S2b/S2c, above); PRs #406/#407/#408/#410/#411 + #404 (issue #402 closed).
 
-## 19. Collection Lists & Sharing (BL-204 design — 2026-08-11; **§19.1 sharing SHIPPED in v1.4, 2026-08-16**)
+## 19. Collection Lists & Sharing (§19.1 sharing as built, v1.4; lists and binders design-stage)
 
-Design converged with the owner across the 2026-08-10/11 feature-exploration and work-planning sessions (field log `Session_Notes_Feature_Exploration_2026-08-10.md`); supersedes BL-188's deferred surplus/needs concept. Execution: **BL-205 (sharing) shipped to prod in v1.4 (2026-08-16)** — §19.1 is now as-built (endpoint reference: §12 "Shares"); BL-206 (wanted — deferred from 1.4, pull-forward candidate) and BL-207/208/209 (binders core / lent+surplus / list-scope sharing) remain design-stage. This section stays build-authoritative for BL-206; §19.3 is directional and gets firmed to full resolution before BL-207 starts.
+Sharing (§19.1) has been as built since v1.4 (BL-205, 2026-08-16; endpoint reference: §12 "Shares"). The wanted list (BL-206) and binders (BL-207/208/209: binders core, lent + surplus, list-scope sharing) are designed and not built; their designs moved 2026-10-18 to the private design shelf — `specification_documents/planning/design/AppSpec_19_Lists_Binders_design_2026-08-11.md` (private) — per the ADR-0020 amendment (BL-271 Phase C). The sharing trust model is [ADR-0019](../docs/decisions/0019-sharing-secret-link-trust-model.md).
 
 ### 19.1 Sharing model (BL-205 — as-built, v1.4)
 
@@ -849,31 +778,9 @@ Design converged with the owner across the 2026-08-10/11 feature-exploration and
 - **Security posture:** invalid and revoked tokens are indistinguishable (404); per-IP rate limiting on the token-scoped endpoints (reusing the BL-53 sliding-window limiter, `check_tenant_rate_limit` — not BL-126's feedback-only `is_rate_limited`); short-lived private cache headers on shared reads (live data, no CDN persistence); revocation is immediate; no token appears in any log line. **This is the platform's first unauthenticated read of tenant data:** BL-205's definition of done includes the security review checkpoint (owner reads the token design before merge) and the CLAUDE.md enforcement-behavior **doc grep sweep** (every "requires auth"/"401"/"all /api" claim re-audited).
 - **Deliberately out (recorded):** QR delivery (owner 2026-08-11 — revisits with mobile, BL-190); view analytics; share persistence for viewers; viewer accounts; snapshot shares (shares are live views, not point-in-time exports).
 
-### 19.2 Wanted list (BL-206 — full resolution, deferred from v1.4)
-
-- **Entity:** `wanted_items(tenant_id, base_card_id, variant_id NULLABLE, quantity_wanted)`. Two first-class want shapes (owner 2026-08-11): **any printing** (`variant_id NULL` — "I need one more for the playset") and **specific variant** (`variant_id` set — "the Prestige one"). Not a state on inventory: wants reference cards the user does not own.
-- **UI:** owner CRUD from catalog/card-detail surfaces ("want this"), a wanted-list view using the shared list-rendering spine; exact affordances are build-time HMR-round territory.
-- **Sharing:** `scope = wanted` on the §19.1 platform — additive, no platform rework (this is why deferral from v1.4 costs nothing technically).
-
-### 19.3 Binders & allocations (BL-207/208/209 — directional; firm before BL-207)
-
-- **One allocation model, type-driven skins (owner):** quantity allocations split a variant's copies across storage and named lists — `N copies: 2 storage, 1 in "Sabine deck", 1 lent`. List types `binder | deck | lent | surplus` are **presentation skins over one schema**, not separate features. **"Binders"** is the product name (owner 2026-08-11).
-- **Deck = skin only in v1** (a named list; no leader/base/50-card rules awareness — future deck-check integration is explicitly out of v1 scope).
-- **Lent = per-loan lists** (counterparty/date, optional free-form note, return flow); track-by-friend accumulation deliberately unsettled.
-- **Surplus = single bucket per tenant** with a Settings **eligibility matrix** (rarity × standard/non-standard variant) governing auto-overflow marking — defaults (owner-confirmed): **Rare/Legendary ON, Common/Uncommon OFF, non-standard variants ON regardless of rarity**; manual add always allowed. Surplus copies are exempt from keep-limit warnings (surplus IS the sanctioned overflow home).
-- **Math rules (owner-ruled, test-bearing):** lent and deck-pulled copies **still count** in collection totals and Deck Check (they're owned); collection totals/value gain an **include/exclude-surplus toggle rendered only when surplus is non-empty**. Touches the 3-scope pricing math — BL-208 carries its own disposition-logged test pass.
-- **List-scope sharing (BL-209):** any binder (including surplus — the "trade binder at the table" payoff) shareable via `scope = list`; same viewer-mode principle, list-scoped instead of whole-vault.
-
 ### 19.4 Decisions record
 
-Sharing-model decisions (2026-08-10/11) are recorded in [ADR-0019](../docs/decisions/0019-sharing-secret-link-trust-model.md); the original full ledger is preserved verbatim in `SWU_Application_Spec_Archive.md` (extracted 2026-08-17, BL-233). Design-stage rulings for the unshipped list features:
-
-| Decision | Ruling | Owner date |
-|---|---|---|
-| Product name for lists | **Binders** | 2026-08-11 |
-| Wanted granularity | Any-printing OR specific-variant, both first-class | 2026-08-11 |
-| Surplus defaults | R/L auto-overflow ON, C/UC OFF, non-standard ON | 2026-08-11 |
-| Deck lists | Skin only in v1 | 2026-08-10 |
+Sharing-model decisions (2026-08-10/11) are recorded in [ADR-0019](../docs/decisions/0019-sharing-secret-link-trust-model.md); the original full ledger is preserved verbatim in `SWU_Application_Spec_Archive.md` (extracted 2026-08-17, BL-233).
 
 ## 20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)
 
@@ -886,17 +793,7 @@ As-built summary; content lives in code, process detail in the Platform Spec.
 
 ## 21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")
 
-As-built summaries; each item's build-authoritative detail lives in its PR + the 2026-08-15/16 field logs. All are feedback-sourced (📣 backlog convention) unless noted.
-
-- **BL-213 — column sorting (PR #133):** every Vault table header sorts (value follows the live MARKET/LOW + UNIT/COLLECTION switches; name, rarity, cost, power, HP, playset progress, …). Sets never interleave — `#`/Set sorts keep sets grouped (binder order; the default and `Set` ascending are newest main set first, `Set` descending shows the main sets oldest first, each Weekly Play set still after its base, with Hoth, Twin Suns and all other sets keeping their place, numbers still ascending); `#` restores the classic order. Gallery reuses the same comparators via §5's shared sort spine. *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
-- **BL-217 — over-keep-limit filter (PR #131):** a Vault filter surfacing every card held past the tenant's effective cap ("trade pile"); follows the playset finish scope like the other ownership filters.
-- **BL-219 — stepper responsiveness (PR #132):** popup `+`/`−` decoupled from server round trips via the debounced-delta `adjust` endpoint (§12); Add Cards batch commits ride the same path.
-- **BL-222/BL-225 — gallery header parity (PRs #137, rode #139):** the gallery gained the table's full sort header, playset finish filter, value switches, and scoped-amber treatment; card plates' pips follow the finish scope, completed plates light their outline, count chip dropped the "/3".
-- **BL-223 — Totals switch (PR #139):** the completion panel's scope control is a FILTERED/ALL `ValueSwitch` beside the fourth block; narrowed-FILTERED carries the amber signal on the switch and all four blocks. (Post-merge polish: the switch top-aligns with the block labels — PR #147.)
-- **BL-224 — set-dimension unification (PR #139):** the completion-panel popover set rows and the sidebar set facet are ONE selection (`filters.set` is the single source of truth); BL-179's parallel "home base set" third scope is retired outright.
-- **BL-226 — table width tiers (PR #146):** Compact/Standard/Full column sets with live auto-selection (column-at-a-time ladder, Name as slack absorber); override lives inside the Table button as a hover flyout (plain click = Auto). Supersedes BL-214 (customizable views declined).
-- **BL-227 — header polish (PR #142):** header version/fan-project links white at rest with the buttons' blue hover glow; nav-tab hover unified. (Related rider, PR #148: `.inv-summary__actions` wraps at narrow widths like the summary blocks.)
-- **Catalog:** the P26 2026 tournament-promo wave (+134 variants across 82 base cards) ingested to all envs the same day per `SWU_SWUAPI_Content_Runbook.md` — zero new base cards, zero mapping exceptions.
+*(The v1.4 batch's per-item summaries — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)* The as-built facts live in their owning sections: sorting §5.2, popup stepper §5.3, over-limit filter §5.6, gallery header parity §5.7, header polish §5.12, completion panel and table tiers §5.13.
 
 ## 22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)
 
@@ -943,9 +840,9 @@ Decision + riders: ADR-0027. Tooling comparison + taxonomy definition record: in
 
 ## 23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)
 
-The ninth main-line set, onboarded by the content runbook's new-base-set path. Catalog after the refresh: **31 sets / 2,582 base cards / 10,193 variants**, zero standard-anchor exceptions.
+The ninth main-line set, onboarded by the content runbook's new-base-set path. Catalog after the refresh (as of 2026-10-02): **31 sets / 2,582 base cards / 10,193 variants**, zero standard-anchor exceptions.
 
-- **Sets.** `HMW` Homeworlds is a canonical base set (`is_base_set = true`; set-grouping model: the first group of the main block (newest first), ahead of Intro Battle: Hoth, with `HMWP` Homeworlds Weekly Play nested under it). `CST` Costco Exclusive is a two-card container set in the "Other promos" Exclusives subgroup. *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Sets.** `HMW` Homeworlds is a canonical base set (`is_base_set = true`; set-grouping model: the first group of the main block (newest first), ahead of Intro Battle: Hoth, with `HMWP` Homeworlds Weekly Play nested under it). `CST` Costco Exclusive is a two-card container set in the "Other promos" Exclusives subgroup. *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Classification.** The `Costco Exclusive` variant type has no frozen finish and classifies to the **Retail** channel and limit bucket (owner decision 2026-10-02; pinned by `test_costco_exclusive_is_retail`).
 - **Key art.** `set_HMW.png` ships in `frontend/public/images/` and `starfield_HMW.jpg` in `frontend/public/images/starfields/`; HMW is in the card popup's art roster and the header starfield pool (ten starfields).
 - **Precon bulk add (§18).** The two Homeworlds Spotlight Decks (Chewbacca, Grand Moff Tarkin) are in `preconDecks.json` — 24 decks in all. Reprint rows reference the original set's Standard printing.
@@ -954,9 +851,9 @@ The ninth main-line set, onboarded by the content runbook's new-base-set path. C
 - **Not ingested.** swuapi now carries `upgrade_power` / `upgrade_hp`, `slug` and `art_metadata` on card records; none has a column.
 
 
-## 24. Card scanning (BL-238 spike — specified 2026-10-10; **built in BL-253, 2026-10-11** — as-built facts in §25.7)
+## 24. Card scanning — rules and geometry (as built; mechanics in §25.7)
 
-**Status.** Built on the phone behind the centre button's camera mode (ADR-0029, amended 2026-10-11): the isolated `/scan/` document (§25.7) reads the card's strip on-device and feeds the keypad's resolved-card panel. Not build gates, collected on the real app in the owner's LAN rounds: the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final rules, printed-code collision evidence from the community, a second phone. *2026-10-11: the spike-era heading ("NOT BUILT") and Status paragraph (including the "static mock" sentence) are superseded — verbatim in SWU_Application_Spec_Archive.md.*
+**Status.** Built on the phone behind the centre button's camera mode (ADR-0029, amended 2026-10-11): the isolated `/scan/` document (§25.7) reads the card's strip on-device and feeds the keypad's resolved-card panel. **Device record (owner, 2026-10-18):** the iPhone and desktop LAN walks of 2026-10-12/13 are the formal record; one Android phone was used informally (a few scans and a walk of the app, no defects found); no Android-specific user reports have arrived since the 2026-10-14 release. The spike's four follow-ups — the timed pile against the keypad, ≥ 110 attempts under the final rules, the community check of printed-code collisions, a second phone — were not run rigorously and stay tracked in BL-238 (private backlog), where the owner will revisit their value before committing to any of them. *2026-10-11: the spike-era heading ("NOT BUILT") and Status paragraph (including the "static mock" sentence) are superseded — verbatim in SWU_Application_Spec_Archive.md.*
 
 ### 24.1 What it is
 Browser camera entry on the phone (no app, no install). The page reads the
@@ -968,52 +865,19 @@ and adds from those (§24.2); where one strip is on a foil and a non-foil
 printing, finish stays a choice.
 *(2026-10-13: the earlier sentence — the reading "fills the same set + number the keypad resolver takes" — is in SWU_Application_Spec_Archive.md, under "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)".)*
 
-### 24.2 Flow
-- **Default: recognise, then decide.** On a successful read the scanner
-  pauses and shows the card exactly as the keypad shows a resolved card
-  (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
-  AFTER ADD readout) with **Card details / Add to batch / Wrong card**. Nothing is
-  counted until Add. **Wrong card restarts the scan** (owner, 2026-10-10 —
-  the error rate is assumed very low); the Keypad stays one tap away via
-  the tool's mode toggle.
-  *(2026-10-12: the earlier "Add" button label is in SWU_Application_Spec_Archive.md, under "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)".)*
-- **The strip identifies the card.** In both flows the card shown and added
-  is the one the strip names — its denominator, token prefix and printed code
-  say which printing — never the keypad's default for that set and number
-  (owner, 2026-10-13: "trust what the strip says"; §25.7). **A token is
-  recognised and named, and is not added by scanning** in either flow (owner,
-  2026-10-13; the keypad cannot enter a token either).
-- **Fast add** (opt-in toggle in the tool header, remembered): a read adds
-  immediately (one copy) **when its strip identifies one printing**. A strip
-  that is more than one printing of one card stops for that one choice and
-  the answer adds it: SOR, SHD and TWI print the same strip on the foil and
-  the non-foil, so those cards ask **Finish every time** (owner, 2026-10-13),
-  and the three Serialized Prestige printings of one number ask which
-  (Carbonite, Gold or Rose Gold) in both flows.
-  After an add the scanner **holds ~1 s** with the card shown, and under
-  Fast add the card must leave the frame before it is read again — the
-  guards against double adds (§25.7, ADR-0029 amendment 2026-10-13).
-- **Ambiguous read** (a strip that maps to more than one card, or to a
-  tournament tier — `N/2` tournament promos, printed-code collisions, two
-  cards under one code and number): amber pick with the program names; never
-  auto-resolved, Fast add included; the picked card then follows the same
-  rule with its own printings. A strip shared only by finishes (an early-set
-  foil and non-foil) is not a pick: the default flow shows the Finish choice
-  on the non-foil default (BL-191) and adds what is shown on Add to batch;
-  Fast add asks Finish and adds the answer.
-  *(2026-10-13: the earlier Fast add and Ambiguous read bullets — "adds immediately", "holds ~1.5 s", "early foils" as a pick — are in SWU_Application_Spec_Archive.md, under "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)".)*
-- **No read**: Keypad is one tap away, prefilled where partly read.
-- **Cue:** a short beep plus a brief full-screen green flash. No haptics
-  on iPhone (no Vibration API; the switch-control trick is not felt).
-- **Guidance:** a live sharpness meter with one-word guidance ("Blurry —
-  move back / closer", "Too small — move closer"). **No automatic zoom**;
-  distance is the user's control. The optional explicit controls (zoom, focus
-  distance, torch, lens) are **not built** in v1; the stream is set back to
-  zoom 1.0 at start if it did not start there, and is left there. *(2026-10-11: "may exist but default untouched" superseded — SWU_Application_Spec_Archive.md, under "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)".)*
-- **Camera start:** at every stream start the guide is drawn dim and the
-  meter reads "Focusing…" until the picture first sharpens or 3 s pass, so
-  the card is lined up once, after the phone has settled its focus and lens
-  (§25.7, ADR-0030 Round 2). Reading is not held back.
+### 24.2 Rules
+The flow as built — searching, found, pick, hold; Fast add; the no-read fallback to the keypad; the camera-start focusing state — is §25.7. The rules the flow obeys:
+- **The strip identifies the printing.** The card shown and added is the one the strip names — its denominator, token prefix and printed code say which printing — never the keypad's default for that set and number (owner, 2026-10-13: "trust what the strip says").
+- **Tokens are recognised and named, never added by scanning** (owner, 2026-10-13); the keypad cannot enter a token either.
+- **Nothing is counted until Add.** In the default flow a successful read pauses the scanner and shows the card exactly as the keypad shows a resolved card, with Card details / Add to batch / Wrong card; Wrong card restarts the scan (owner, 2026-10-10 — the error rate is assumed very low).
+- **A strip that is more than one card, or a tournament tier, is always a pick** — amber, with the program names — never auto-resolved, Fast add included; the picked card then follows the same rules with its own printings (`N/2` tournament promos, printed-code collisions, two cards under one code and number).
+- **A strip that is several printings of one card asks only for what it cannot say.** SOR, SHD and TWI print the same strip on the foil and the non-foil, so those cards ask Finish every time (owner, 2026-10-13); the three Serialized Prestige printings of one number ask which (Carbonite, Gold or Rose Gold). A strip shared only by finishes is not a pick: the default flow shows the Finish choice on the non-foil default (BL-191) and adds what is shown; Fast add asks Finish and adds the answer.
+- **Fast add** (opt-in toggle in the tool header, remembered) adds one copy at once when the strip identifies one printing; after an add the scanner holds ~1 s with the card shown and, under Fast add, the card must leave the frame before it is read again (ADR-0029 amendment 2026-10-13).
+- **No automatic zoom**; distance is the user's control. The optional explicit controls (zoom, focus distance, torch, lens) are not built; the stream is set back to zoom 1.0 at start if it did not start there, and is left there.
+- **Cue:** a short beep plus a brief full-screen green flash; no haptics on iPhone (no Vibration API).
+- **No cloud reader** (ADR-0029): no frame leaves the phone.
+
+*(§24.2 Flow — the spike's flow bullets, since built as §25.7 — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 ### 24.3 Guide geometry (measured on official card images; fractions of card width W / height H)
 | Feature | Portrait card (63 × 88 mm) | Landscape leader/base (88 × 63 mm) |
@@ -1033,11 +897,8 @@ The guide draws the card's **bottom-right corner outline** (corner radius
 lower-middle, drawn 15% larger than the group on every side and dimming
 the surroundings ~35% for the user only. The OCR crop is the group plus
 3.15 mm of padding on every side (as built; no start offset at `©FFG`).
-*(2026-10-11: the "starting 0.6 mm right of `©FFG`" clause is superseded by the shipped code — SWU_Application_Spec_Archive.md, under "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)".)* **Tuned offsets from the owner's live runs:** box and crop sit
-2.2 mm left and 2.1 mm above the nominal position relative to the outline
-(his promo card and his holding distance, ~1.15× the assumed 45 px text);
-two ±4 mm sliders (step 0.1) sit behind the camera screen's "Align guide" button for on-phone calibration and persist on release (§25.7). The owner expects to keep
-refining these values.
+*(2026-10-11: the "starting 0.6 mm right of `©FFG`" clause is superseded by the shipped code — SWU_Application_Spec_Archive.md, under "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)".)*
+The live offsets (box and crop sit 2.2 mm left and 2.1 mm above the nominal position) and the two ±4 mm "Align guide" sliders are §25.7 Guide. *(The tuned-offsets paragraph — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 ### 24.4 Readers and acceptance
 - **PaddleOCR** (PP-OCR tiny det + rec on onnxruntime-web, wasm, four
@@ -1075,12 +936,7 @@ Weekly Play code is unknown — the mobile-release Reddit post will ask the
 community to check. This is also a hazard for direct printed-code import
 mapping (§17.5, ADR-0028).
 
-### 24.6 Evidence (2026-10-09/10, iPhone 16 Pro, owner's mixed cards)
-Six runs of the spike page: median first-text → recognition 10.3 s →
-0.8 s, p90 52 s → 2.3 s; 0 wrong cards offered under the final rules
-(48 prompts/picks); Safari grants a 4K stream, zoom 0.5–10, torch and
-focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
-(private layer).
+*(§24.6 Evidence — the 2026-10-09/10 spike measurements — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 ## 25. Mobile experience (BL-190 — as built)
 
@@ -1126,21 +982,22 @@ The phone layout (BL-190, built as BL-247 … BL-253) is a second UI tree beside
   - A touch device whose screen's short side is over 500 CSS px is a tablet to the gate: the desktop tree at 768 px or wider, the phone app (no rotate screen) below that.
   - A phone is a phone to the gate whatever viewport its browser gives the page: in a browser's "Desktop site" mode, which lays the page out about 980 px wide, it still gets the phone app (reasoned from the rule; not checked on a device).
   - Google sign-in cannot run inside `/scan/` (it bounces to `/`, §25.7). The Auth emulator cannot sign in with Google, so Google-only account branches are covered by vitest only.
-  - Verified in Chromium and jsdom, owed a real-phone pass: the iOS keyboard in search mode, Safari's camera permission prompt on each hop between documents, the deployed `/scan-workers/**` and `/vendor/scan/**` headers, session restore and Google sign-in on a real Firebase project, and cross-origin isolation with threads and SIMD on a phone.
-  - The camera's stream-state sentences and the generic pick question are accepted copy (§25.7; v2.0 shipped with them).
+  - Not individually verified on a real phone (each exercised in Chromium and jsdom): the iOS keyboard in search mode, Safari's camera permission prompt on each hop between documents, the deployed `/scan-workers/**` and `/vendor/scan/**` headers, session restore and Google sign-in on a real Firebase project, and cross-origin isolation with threads and SIMD. The real-phone record (owner, 2026-10-18) is the iPhone and desktop LAN walks of 2026-10-12/13 and an informal Android walk with no defects; no related user reports have arrived since the 2026-10-14 release.
+
 
 
 ### 25.1 Shell + Vault (BL-247)
 
 - **Shell.** Three-item bottom bar (Vault, centre SWUButton showing a keypad and a camera glyph, lit for the mode used last, More). Header: `[HSV] Hyperspace Vault` over `Unofficial Fan Project [v#.#.#]`, text Feedback button, account slot (Sign in / avatar menu: Settings, Change Password with a password provider only, About & Legal, Log Out). Title / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the title (badge when collapsed), never on More.
 - **Collapse.** The header collapses as the list scrolls; back at the top it stays collapsed; a tap on the strip or a deliberate pull from the top expands. Motion is transform + opacity only; the starfield is clipped, never moved. While the pull is in progress a 2 px bar on the header's bottom edge shows how far it has come: one full-width element (`.m-pullbar`) in the app blue (`--color-primary`), filled by `transform: scaleX(--pull)` from the left and shown at 0.9 opacity only while pulling, so showing and hiding it is a compositor update and never depends on a repaint; card detail (§25.2) uses the same rule. Strip: badge, amber funnel while the totals are filtered, %, ten ticks, "n cards", value without cents.
-- **Completion panel.** Desktop `computePanelMetrics` over the narrowed list (or every card under Totals = All). Totals Filtered / All shows only while narrowed and signed in; Filtered draws the amber ring. Market / Low = desktop's persisted price kind (shared with the rows). Signed out: em dashes, empty ticks, no breakdown. Tapping the body opens **Completion by set**: one row per base set, newest first (`buildSetBreakdown` over every narrowing except the Set facet); a row tap sets the Set facet to that set. Each row's set logo is centred and sized by its artwork in a 104 × 32 box (the rule, shared by every phone surface that draws a set logo, is in 25.3, "Set logos"; BL-257, 2026-10-12). *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Completion panel.** Desktop `computePanelMetrics` over the narrowed list (or every card under Totals = All). Totals Filtered / All shows only while narrowed and signed in; Filtered draws the amber ring. Market / Low = desktop's persisted price kind (shared with the rows). Signed out: em dashes, empty ticks, no breakdown. Tapping the body opens **Completion by set**: one row per base set, newest first (`buildSetBreakdown` over every narrowing except the Set facet); a row tap sets the Set facet to that set. Each row's set logo is centred and sized by its artwork in a 104 × 32 box (the rule, shared by every phone surface that draws a set logo, is in 25.3, "Set logos"; BL-257, 2026-10-12). *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Status rows.** Row one: search ("Search the vault"; name, subtitle, card number), Clear (only while narrowed, amber), Filters + active count. The search field reserves the 48 px slot of its clear (×) button only while it holds text; empty, its right pad is 4 px (left pad 36 px, the glass at 8 px), and while Clear is on the row the hint text is 14 px (15 px otherwise; typed text is always 16 px), so the hint text is whole beside Clear and Filters at 390 px with at least 6 px to spare, both with sub-pixel text and where the browser snaps glyph advances to whole pixels (measured: 15 px and 8 px to spare). Row two: count ("n cards", amber when narrowed, no "of m"), finish-scope chip, icon-only Sort (the Sort bullet below), List / Gallery toggle (List → 4 row sizes incl. no image; Gallery → 1 / 2 / 3 across; remembered per browser session).
-- **Sort.** The Sort sheet is the phone's own list of nine sorts, the most used first: **Set | #**, Value, Playset, Name, **Cards Owned**, Rarity, then Cost, Power, HP — one plain list, no divider. "Set | #" is desktop's `#` sort (`number`) and the default; Value, Playset, Name, Rarity, Cost, Power and HP are desktop's sorts under desktop's names. "Cards Owned" is a phone-only sort, `owned` in the shared sort model (`utils/cardSort.ts`; no desktop header lists it): copies owned (ascending is fewest first) — the card's total across its printings, or the scoped finish's copies while a finish scope is on (the count the pips show); ties, and a vault with nothing owned, fall to the default order; a shared vault sorts by the share owner's copies. The phone has no Set sort and no Variants sort (desktop keeps both); a `set` or `variants` sort handed to the phone's list is shown and applied as "Set | #" ascending, and the Vault reads no sort parameter from its link — the sort is session state written only by the sheet. **Sets stay newest first in both directions of "Set | #"** (Intro Battle: Hoth and Twin Suns last): ascending starts at the newest main set's lowest card number, descending at the same set's highest; only the card numbers reverse. A tap on another row sorts ascending and closes the sheet — except **Cards Owned, whose first tap lands on descending, most owned first** — and a tap on the active row flips its direction. The first direction is per column in the phone's pick logic (`nextPhoneSort` and `PHONE_FIRST_DIRECTION` in `vault/vaultModel.ts`); desktop's shared `nextSortState` is unchanged, so every desktop header still starts ascending. The active row shows its direction as a word, "Ascending" or "Descending" (drawn in upper case), in a badge — the border in the app blue (`--color-primary`) after the playset pip's (1.5 px solid, fully rounded ends, no fill), the word in the primary text colour (`--color-text`: 13.59:1 on the active row's blue wash, where the app blue was 3.28:1), 12 px / 700 UI label type; there is no caret, and other rows carry no badge. The badge does not change the row's height (52 px), and "Cards Owned" with "Descending" keeps over 150 px clear between them at 390 px under both text conditions. The Sort button's accessible name reads "Sort: Set | #, ascending" in the same words; the badge, the row's and the button's accessible names and `sort_changed` all report the column and direction that were applied (`owned` for Cards Owned, `desc` at its first tap; the phone never sends `set` or `variants`). *(Sort list, labels and direction mark superseded 2026-10-12, BL-257 F-17 — prior wording in the Archive.)*
+- **Sort.** The Sort sheet is the phone's own list of nine sorts, the most used first: **Set | #**, Value, Playset, Name, **Cards Owned**, Rarity, then Cost, Power, HP — one plain list, no divider. "Set | #" is desktop's `#` sort (`number`) and the default; Value, Playset, Name, Rarity, Cost, Power and HP are desktop's sorts under desktop's names. "Cards Owned" is a phone-only sort, `owned` in the shared sort model (`utils/cardSort.ts`; no desktop header lists it): copies owned (ascending is fewest first) — the card's total across its printings, or the scoped finish's copies while a finish scope is on (the count the pips show); ties, and a vault with nothing owned, fall to the default order; a shared vault sorts by the share owner's copies. The phone has no Set sort and no Variants sort (desktop keeps both); a `set` or `variants` sort handed to the phone's list is shown and applied as "Set | #" ascending, and the Vault reads no sort parameter from its link — the sort is session state written only by the sheet. **Sets stay newest first in both directions of "Set | #"** (Intro Battle: Hoth and Twin Suns last): ascending starts at the newest main set's lowest card number, descending at the same set's highest; only the card numbers reverse. A tap on another row sorts ascending and closes the sheet — except **Cards Owned, whose first tap lands on descending, most owned first** — and a tap on the active row flips its direction. The first direction is per column in the phone's pick logic (`nextPhoneSort` and `PHONE_FIRST_DIRECTION` in `vault/vaultModel.ts`); desktop's shared `nextSortState` is unchanged, so every desktop header still starts ascending. The active row shows its direction as a word, "Ascending" or "Descending" (drawn in upper case), in a badge — the border in the app blue (`--color-primary`) after the playset pip's (1.5 px solid, fully rounded ends, no fill), the word in the primary text colour (`--color-text`: 13.59:1 on the active row's blue wash, where the app blue was 3.28:1), 12 px / 700 UI label type; there is no caret, and other rows carry no badge. The badge does not change the row's height (52 px), and "Cards Owned" with "Descending" keeps over 150 px clear between them at 390 px under both text conditions. The Sort button's accessible name reads "Sort: Set | #, ascending" in the same words; the badge, the row's and the button's accessible names and `sort_changed` all report the column and direction that were applied (`owned` for Cards Owned, `desc` at its first tap; the phone never sends `set` or `variants`). *(Superseded 2026-10-12, BL-257 F-17 — see "Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)" in `SWU_Application_Spec_Archive.md`.)*
 - **Search mode.** Focus collapses both headers, the status row and the bottom bar (separators stay); blur restores; clearing the query does not.
 - **Finish scope.** Picking a scope writes the Finish facet (so Clear appears); editing the Finish facet disengages it; "All finishes" clears; never persisted. The scope drives row pips, number, price and art, and the sort. The "Finish scope" sheet offers desktop's option set (§5.13, `utils/variantScope.ts`), 14 values, every one a 44 px chip beside its row label — the sheet is single-select and has no check-box row: pinned chip rows for Standard, Hyperspace, Prestige and Weekly Play, then **Showcase as the last pinned row** (its label and one chip), then a divider and "Show all finishes…" for Convention Exclusive, Event Exclusive, Prerelease Promo and Movie Promo, each the same one-chip row whose chip repeats the row's label. An expanded-only scope opens that tail, so a selected value is never hidden. A pick closes the sheet; the status-row chip reads the scope's short name ("Showcase", "Conv. Excl.") and the sheet's sub-title its full name ([ADR-0030](../docs/decisions/0030-mobile-2-0-owner-finish-round.md), amendment 2026-10-12).
 - **Card surfaces.** Rows and gallery plates use desktop's count chip + pips (`cards.css` literals); no "n/m" on any card surface; missing price = "—". Lists are virtualised. Empty state: "No cards match the current filters."
 - **Leave Feedback** (`#/more/feedback`): desktop FeedbackModal copy and rules in a steel-ring screen; auto-closes 1.5 s after "Thanks for the feedback!".
+- *(Pre-slice-6 share-links sentence — see "Archived 2026-10-11 — §25.1 shared-link interim sentence superseded by slice 6" in `SWU_Application_Spec_Archive.md`.)*
 
 ### 25.2 Card detail + Filters (BL-248)
 
@@ -1167,7 +1024,7 @@ The phone layout (BL-190, built as BL-247 … BL-253) is a second UI tree beside
 - **Badge.** The Filters button badge and the sheet's "n active" use desktop `countActiveFilters` plus the four Collection toggles. Each group counts once, search counts as its own group, and a mode-only Aspects change counts 1 (desktop quirk).
 - **Footer.** Reset filters (amber outline; inert and grey at default) = desktop Reset: every facet, the search, the four toggles and the scope. "Show N cards" is live and closes the sheet.
 - **Dead ends.** Every facet value is faceted against the other active filters (desktop `facetValidValues` over the toggle-narrowed, searched list). Pickers show their whole universe (`showAllValues` on): a 0-match value reads "(0)", is greyed and cannot be added. A selected value is never hidden and stays removable.
-- **Set picker.** Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`: HMW first … SOR, then IBH, TS26). The chips are one width (106 px, three to a row), each logo centred and sized by its artwork in an 80 × 24 box; a selected base set's chip on the Filters sheet's Set row draws its logo the same way in a 54 × 18 box (the rule is in 25.3, "Set logos"; BL-257). The top bar holds "Show all sets" / "Base sets only" and Clear (no All, as desktop). The long tail (`allSetsGroups`) lists each base set's Weekly Play set in base order (HMWP first), then a divider, then the Exclusives. A selected long-tail set stays visible in base-only view. *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+- **Set picker.** Base sets appear as logo chips in desktop order (`BASE_SET_ORDER`: HMW first … SOR, then IBH, TS26). The chips are one width (106 px, three to a row), each logo centred and sized by its artwork in an 80 × 24 box; a selected base set's chip on the Filters sheet's Set row draws its logo the same way in a 54 × 18 box (the rule is in 25.3, "Set logos"; BL-257). The top bar holds "Show all sets" / "Base sets only" and Clear (no All, as desktop). The long tail (`allSetsGroups`) lists each base set's Weekly Play set in base order (HMWP first), then a divider, then the Exclusives. A selected long-tail set stays visible in base-only view. *(Order superseded 2026-10-12, BL-258 — see "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" in `SWU_Application_Spec_Archive.md`.)*
 - **Collection picker.** Four switches in desktop's order (Only incomplete playsets / Only cards I own / Only cards I don't own / Over my keep limit), with desktop's exclusions applied as a toggle turns on. While scoped, the toggles are amber with a "Scoped: these read your <finish> copies only." note. Signed out, the Collection row reads "Sign in to filter" and a tap opens sign-in (MobileApp `openSignIn`).
 - **Finish picker** = desktop FinishFilter's two-tier tree (`buildFinishTree` / `shapeFinishTree`): pair rows (Non-foil / Foil chips), the Prestige row (Std / Foil / Serialized), plain rows, and tournament families. A family header only expands it; a collapsed family with selections shows "· n". A divider follows the pinned block. The top bar holds All + Clear. The value the scope wrote shows amber on the Finish row. Any Finish edit other than exactly the scoped value disengages the scope; edits to other facets keep it.
 - **Gameplay** (desktop's Gameplay group, Aspects first). The collapsed head shows "· n active" (one per group). Inside, in order:
@@ -1219,6 +1076,7 @@ Code: `frontend/src/mobile/more/`. Routes `#/more`, `#/about`, `#/more/about`, `
 - **Configure.** The notes (blue [HSV] format, amber "Coming from another tracker?"), the file field, Merge mode and Keep-limits radios, Preview import. The real `<input type=file>` (16 px) lies invisibly over a 44 px button. Radios are whole-row 48 px `role=radio` buttons with a drawn dot; neither group has a default; "Replace All (destructive)" is in `--color-danger` and outlines red when picked. Preview import is `aria-disabled` until a file and both picks exist.
 - **Preview + commit.** `runImport(file, mode, capHandling, "dry_run")` under the busy overlay "Checking your file…". The report is a phone list with desktop's information: totals, ignored columns, the always-visible "Will be removed" section, Problem | Resolved tabs, error + recommendation + possible printings, resolved "n → m" with trim / fallback / mismatch notes, and Download problem rows (CSV). Lists render 100 rows at a time with a 44 px "Show more". Replace All shows "I understand this will permanently remove N cards not in this file." on this preview step (desktop parity); Confirm import stays `aria-disabled` until it is ticked. Confirm runs `runImport(…, "commit")` with the same file under "Applying N cards…" → "Refreshing your Vault…" (`refreshQuantities`), then "Import complete — N rows written." with Import another file and Back to Vault. Errors show inline as on desktop.
 - **Report forks.** Reason copy, `cardLabel`, `candidateLabel`, `problemRowsCsv`, the mode / cap option lists and `fileFormat` are module-private on desktop and copied unchanged into `importFork.ts` (BL-254).
+- *(Slice-4 interim wording — see "Archived 2026-10-11 — §25.4 slice-4 interim wording superseded by slice 5 (§25.5)" in `SWU_Application_Spec_Archive.md`.)*
 
 ### 25.5 Account: Settings, Change Password, Delete Account, Sharing, verify banner (BL-251)
 
@@ -1253,7 +1111,7 @@ Code: `frontend/src/mobile/camera/` (scanner) and `frontend/src/mobile/tool/{cam
 - **Auth inside `/scan/`.** An isolated document calls `initializeAuth` with the same persistence stack (IndexedDB, local, session) **without** the popup/redirect resolver, because the auth helper iframe is blocked under COEP (since 2.0.1 every document starts Auth this way — Platform Spec §1, BL-263); the signed-in session is shared with `/`. Google sign-in cannot run there: any sign-in request inside `/scan/` bounces to `/#/vault` (return URL in `sessionStorage` `hsv.scan.signin`) and returns once signed in.
 - **The hop.** Camera mode on `/` navigates (`location.assign`) to `/scan/#/camera`; the entry beneath the tool is first rewritten to the screen under it, so Back never re-hops. Inside `/scan/` the keypad side of the mode toggle switches **in place** (`/scan/#/pad`); closing a hop-entered camera at navigation depth 0 walks back to the screen beneath it; a cold `/scan/` tab closes onto its own Vault. The camera stream is released on leaving the camera mode.
 - **State across documents.** The batch, `mode`, set code and precon deck are mirrored to `sessionStorage` `hsv.tool.v1` (versioned, every access guarded); a reload in the same tab therefore keeps the batch, a new tab starts empty, and a bfcache-restored page re-reads the mirror. Camera settings live in `localStorage` `hsv.scan.v1` = `{boxOffsetMm, boxOffsetVMm, fastAdd, mode}` (offsets clamped to ±4 mm, rounded to 0.1; unreadable storage -> defaults).
-- **Payload.** `frontend/public/vendor/scan/`, 16 files, 33,336,629 bytes, plain git (no LFS), including `THIRD_PARTY_NOTICES.txt` and the three licence files (ppu-paddle-ocr 6.6.1 is **MIT** as shipped; onnxruntime-web 1.23.2 MIT; Tesseract.js, core and `eng.traineddata` Apache-2.0; the PP-OCRv6 tiny models and dictionary are credited to the PaddleOCR project; the notice states Apache-2.0 per the upstream repository, not independently verified for the converted `.ort` files). Lazy: nothing under `/vendor/scan/` is requested on `/`, the Vault, the keypad or `/scan/` off the camera route; the Paddle group loads when the camera screen mounts (the route alone fetches nothing: at >= 768 px `/scan/#/camera` renders the desktop tree) and the Tesseract group only at the first fallback need (it fetches one core file).
+- **Payload.** `frontend/public/vendor/scan/`, 16 files, 33,336,629 bytes as of 2026-10-18, plain git (no LFS), including `THIRD_PARTY_NOTICES.txt` and the three licence files (ppu-paddle-ocr 6.6.1 is **MIT** as shipped; onnxruntime-web 1.23.2 MIT; Tesseract.js, core and `eng.traineddata` Apache-2.0; the PP-OCRv6 tiny models and dictionary are credited to the PaddleOCR project; the notice states Apache-2.0 per the upstream repository, not independently verified for the converted `.ort` files). Lazy: nothing under `/vendor/scan/` is requested on `/`, the Vault, the keypad or `/scan/` off the camera route; the Paddle group loads when the camera screen mounts (the route alone fetches nothing: at >= 768 px `/scan/#/camera` renders the desktop tree) and the Tesseract group only at the first fallback need (it fetches one core file).
 - **Reader.** Paddle runs in a module worker (`paddleWorker.ts`): ort `wasmPaths`, the threads rule above, EP `wasm`, the vendored bundle imported (not rebuilt) with `self.window = self`; frames travel as transferable `ImageBitmap`s and the UI thread never waits on OCR; init is bounded at 60 s. Measured on the dev server in Chromium: init 549-608 ms, a synthetic strip reads in 84-89 ms. A failed or timed-out reader never throws into the UI: the screen says "The card reader could not start", gives the reason and offers "Use the keypad".
 - **Catalogue and parser.** The scan catalogue is derived at load from the app's own catalogue (`scanCatalog.ts`, a port of the spike's `build_catalog.py`), so it cannot go stale; vitest proves it equals the spike's `catalog.json` (round trip; and, one-off, from the spike's raw API cache: 2,582 cards / 10,193 printings). The parser and Acceptor are the spike's `scan-core.js` v0.5.5 unchanged (the port's vitest suite passes 52 parser cases, 16 replay scenarios and 2 number-conflict cases).
 - **Thresholds as built.** Sharpness gate: Laplacian variance of the text band >= 14 (meter fill = value / 42; red < 14, amber < 21, green above); glyph floor 22 processed px ("Too small — move closer"); 3 agreeing reads of the last 4 with bars Tesseract 30 / Paddle 60; Paddle first, Tesseract only when Paddle gave no code or number, at most 1 per 2 frames, PSM 6 then 7 inside 700 ms plus a digits pass; no zoom control: the only zoom code puts a stream that did not start at 1.0 back to 1.0 (`cameraStream.ts` `resetZoom`).
@@ -1267,4 +1125,4 @@ Code: `frontend/src/mobile/camera/` (scanner) and `frontend/src/mobile/tool/{cam
 - **Cue.** One beep (1320 Hz, gain 0.0001 -> 0.2 in 10 ms -> 0.0001 at 80 ms) plus a full-screen green flash (`#178a3a`, .45, 180 ms on, .35 s fade) on every recognition; the `AudioContext` is created inside a user gesture (camera-mode tap, Start, any pointerdown on the screen); `navigator.vibrate` is never called.
 - **Not built / not ported.** The spike's research machinery (crop capture/export, review/truth screens, condition select, continuous mode, Photo, Setup, event log, `window.__bl238`), guide v1, the orientation toggle, the optional zoom / focus / torch / lens controls, and the `?debug=1` raw-text overlay.
 - **Accepted copy.** The camera's stream-state sentences ("Camera access is off", "Camera stopped by the phone", "Camera paused", "No camera found") and the generic pick question for non-collision picks ("This code matches more than one card. Pick the card you have.") are accepted: v2.0 shipped with them (2026-10-14).
-- **Camera test fixtures.** The `scan` project drives the BL-238 spike clips (`e2e/mobile/clips/`, 9 files, 13 MB) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); vitest sits beside the code in `frontend/src/mobile/camera/`.
+- **Camera test fixtures.** The `scan` project drives the BL-238 spike clips (`e2e/mobile/clips/`, 9 files, 13 MB as of 2026-10-11) through the **real** reader on a scan catalogue extended to a SOR main size of 252 (`e2e/mobile/scan-fixture.ts`); vitest sits beside the code in `frontend/src/mobile/camera/`.
