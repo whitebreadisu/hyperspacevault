@@ -43,7 +43,10 @@ NEUTRAL_DEPS = {
 
 HEADING = "#### Route registry (machine-checked)"
 # FastAPI's built-in docs/schema routes are plain Starlette routes (not
-# APIRoute); they are excluded by only considering API routes.
+# APIRoute).  They are the ONLY routes allowed to bypass the registry; any
+# other non-API route (a future app.mount, a WebSocket route) fails loudly
+# instead of being skipped in silence.
+UNCHECKED_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
 
 def _spec_path() -> Path:
@@ -60,7 +63,9 @@ def _spec_path() -> Path:
 
 def _walk(dependant, out: set) -> None:
     for sub in dependant.dependencies:
-        out.add(sub.call.__name__)
+        # A class instance or functools.partial has no __name__; fall back to
+        # repr so the failure reads "unknown dependency", not AttributeError.
+        out.add(getattr(sub.call, "__name__", repr(sub.call)))
         _walk(sub, out)
 
 
@@ -78,7 +83,14 @@ def _iter_routes(routes):
         elif hasattr(route, "effective_route_contexts"):
             for ctx in route.effective_route_contexts():
                 yield ctx.methods, ctx.path, ctx.dependant
-        # anything else is a Starlette Route (/docs, /openapi.json, /redoc)
+        else:
+            path = getattr(route, "path", repr(route))
+            assert path in UNCHECKED_PATHS, (
+                f"route {path} ({type(route).__name__}) is neither an APIRoute "
+                "nor an included router, so the registry cannot check it -- "
+                "either register its auth posture another way or add it to "
+                "UNCHECKED_PATHS deliberately"
+            )
 
 
 def _introspect() -> dict:
@@ -89,7 +101,8 @@ def _introspect() -> dict:
         _walk(dependant, names)
         unknown = names - SESSION_DEPS - GATE_DEPS - NEUTRAL_DEPS
         assert not unknown, (
-            f"unknown dependency {sorted(unknown)} on route {path} -- "
+            f"unknown dependency {sorted(unknown)} on route "
+            f"{'/'.join(sorted(methods))} {path} -- "
             "register it in the test's classifier (SESSION_DEPS / GATE_DEPS "
             "/ NEUTRAL_DEPS in test_route_registry.py) and in the Platform "
             "Spec section 1.3 route registry"
