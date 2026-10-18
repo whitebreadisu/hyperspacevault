@@ -30,17 +30,19 @@ name: CI
 # negations on the push event; was paths-ignore until the BL-271 B2
 # follow-on, which needed an exception paths-ignore cannot express) — originally a private-repo cost control (every job billed
 # a rounded-up minute and docs-only runs dominated), kept on public because
-# a docs-only merge deploys nothing and needs no pipeline. The `paths`
-# list (last matching pattern wins) MUST mirror the classification case-arm
-# shared by classify-pr/detect-changes below (specification_documents/docs/
-# learning_guide/claude_design/.design-sync dirs + root *.md/LICENSE, EXCEPT
-# the two machine-checked specs SWU_Application_Spec.md and
-# SWU_Platform_Spec.md, which are CODE because frontend/src/mobile/docs.test.ts
-# and backend/app/tests/test_route_registry.py read them — a spec-only PR
-# must run those tests; note `!*.md` here matches ROOT-level .md only, same
-# as the case-arm — deliberately NOT `**/*.md`). detect-changes is RETAINED as belt-and-braces for
-# deploy-skipping: if this trigger gate and a mixed push ever disagree,
-# deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
+# a docs-only merge deploys nothing and needs no pipeline. TWO lists, one
+# difference. The `paths` list (last matching pattern wins) and the
+# classify-pr case-arm below MUST be identical to each other: the docs set
+# (specification_documents/docs/learning_guide/claude_design/.design-sync
+# dirs + root *.md/LICENSE) MINUS the two machine-checked specs
+# SWU_Application_Spec.md and SWU_Platform_Spec.md, because the tests read the
+# specs (frontend/src/mobile/docs.test.ts, backend/app/tests/test_route_registry.py)
+# and the deploys do not. detect-changes is the DEPLOY gate and keeps the FULL
+# docs set (no carve-out): a spec-only PR or push runs the tests, deploys
+# nothing. Note `!*.md` here matches ROOT-level .md only, same as the
+# case-arms — deliberately NOT `**/*.md`. detect-changes is also
+# belt-and-braces for deploy-skipping: if this trigger gate and a mixed push
+# ever disagree, deploys still gate on the job-level check. (docs-check.yml, BL-271, runs on
 # every push to main with deliberately NO path filter -- it is not a fourth
 # copy of this list.)
 #
@@ -55,8 +57,9 @@ name: CI
 on:
   push:
     branches: [main]
-    # Mirror of the case-arms in classify-pr / detect-changes (keep all
-    # three identical, incl. the spec carve-out). Order matters: last match wins.
+    # Identical to classify-pr's case-arm (docs set minus the two
+    # machine-checked specs); detect-changes deliberately keeps the full docs
+    # set. Order matters: last match wins.
     paths:
       - "**"
       - "!specification_documents/**"
@@ -100,9 +103,10 @@ jobs:
   # branch protection needs a check that reports on every PR, but docs-only
   # PRs shouldn't pay for the heavy jobs. Classifies the PR's effective
   # change set and the heavy jobs skip when it's docs-only. The case-arm
-  # MUST stay identical to detect-changes' and to the push `paths` list
-  # above, including the carve-out: the two machine-checked specs
-  # (SWU_Application_Spec.md, SWU_Platform_Spec.md) are code.
+  # MUST stay identical to the push `paths` list above, including the
+  # carve-out: the two machine-checked specs (SWU_Application_Spec.md,
+  # SWU_Platform_Spec.md) are code HERE because tests read them. It differs
+  # from detect-changes (the deploy gate) in exactly that carve-out.
   #
   # actions/checkout on pull_request checks out the PR *merge commit*, whose
   # first parent is the current base tip — so `git diff HEAD^1 HEAD` is
@@ -474,8 +478,10 @@ jobs:
 
   # ── docs-only fast-skip (BL-78) ─────────────────────────────────────────
   # Pushes to main that touch only non-deployed files (root markdown,
-  # LICENSE, specification_documents/ except the two machine-checked specs,
-  # docs/, learning_guide/, claude_design/, .design-sync/) don't need an image build or a deploy.
+  # LICENSE, specification_documents/ (INCLUDING the two machine-checked
+  # specs, which run tests via classify-pr but deploy nothing), docs/,
+  # learning_guide/, claude_design/, .design-sync/) don't need an image build
+  # or a deploy.
   # This job classifies the push; build-and-push below adds its output to
   # its own `if`. Everything downstream of build-and-push (check-risk-level,
   # deploy-dev, promote-prod-fast) already `needs` it
@@ -520,7 +526,6 @@ jobs:
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
-              specification_documents/SWU_Application_Spec.md|specification_documents/SWU_Platform_Spec.md) docs_only=false ;; # machine-checked specs: docs.test.ts / test_route_registry.py read them
               */*)
                 case "$f" in
                   specification_documents/*|docs/*|learning_guide/*|claude_design/*|.design-sync/*) ;;
