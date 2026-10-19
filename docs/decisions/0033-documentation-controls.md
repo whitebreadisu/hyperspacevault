@@ -1,7 +1,7 @@
 # ADR-0033: Documentation controls — gate at release, test at the enforcement surface, audit on a schedule
 
 ## Status
-Proposed — 2026-10-19 (BL-271 Phase E; drafted from the owner's direction of 2026-10-18 and the Phase A evidence; awaiting owner ratification). Complements [ADR-0020](0020-three-tier-documentation-regime.md), which decided *where* documentation lives; this ADR decides *what stops it rotting*.
+Accepted — 2026-10-19 (owner ratified on PR #281; BL-271 Phase E; drafted from the owner's direction of 2026-10-18 and the Phase A evidence, corrected by independent review before ratification). Complements [ADR-0020](0020-three-tier-documentation-regime.md), which decided *where* documentation lives; this ADR decides *what stops it rotting*.
 
 ## Context
 Every documentation audit in this project's history (BL-47 in June, the 2026-07-11 audit, BL-231 in August, BL-271 in October) was triggered the same way: the owner asked. BL-271 Phase A then measured what that trigger model had let through in the eight weeks since the previous sweep: HISTORY.md missing six releases; the Application Spec's milestone and "Last updated" banners stale; the architecture views two months behind; `/api/relay/*` absent from the Platform Spec's enforcement-surface lists after a feature PR that documented the relay in Application Spec §22 and ADR-0027 but not in the Platform Spec; `database.py` line citations drifted by twelve lines; phantom CI job names; hand-counted numbers wrong by one; an ADR shown as Proposed in the spec and Accepted on disk; a resolved backlog item still active (BL-73), a tombstone with no archive entry (BL-155) and an archived spec section with no tombstone (BL-260).
