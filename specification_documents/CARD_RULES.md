@@ -1,5 +1,7 @@
 # SWU Card Catalog Rules
 
+> ✅ **SALVAGED 2026-10-19 (BL-160, BL-271 Phase C).** The durable product-structure facts below (LAW's no-standalone-foil rule — which also holds for ASH and HMW; the Special-rarity reprint convention; the SEC printed-number collision, which is Willrow Hood **#61**, not #66) now live in `SWU_Application_Spec.md` **§10.11**, re-expressed in the current finish/channel vocabulary and verified against the live catalogue; the CSV-era quirks are retired with the CSV pipeline (ADR-0002). This file is historical and unchanged below this banner.
+>
 > ⚠️ **FROZEN 2026-07-24 (BL-150 Phase B, decision D7).** Describes the retired CSV-era boolean-flag variant model; its enforcing test, `test_card_domain_rules.py`, was **retired** in BL-33 step 1 (see [`BL33_Step1_Test_Disposition_Log.md`](analysis/BL33_Step1_Test_Disposition_Log.md) (private), line 36) and no longer exists — nothing enforces the rules below today. **Current card-domain authority is `SWU_Application_Spec.md` §10.** The durable domain gotchas here (LAW's no-standalone-foil rule, S-rarity reprint conventions, the manufacturer-error card collisions) remain valuable and may be salvaged into App Spec §10 in a later, separate pass. Nothing below this banner has been changed.
 
 Rules governing which variant records are expected in the card catalog for each
