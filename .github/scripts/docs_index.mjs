@@ -114,9 +114,13 @@ export function adrs(text) {
   return [...set].sort();
 }
 
+// Repo root for resolving repo-relative citations (`app/auth.py` -> `backend/app/auth.py`, BL-271 Phase E);
+// null (unit tests on bare text) keeps the Phase D behaviour of rooted paths only.
+let CITE_ROOT = null;
+
 export function codePaths(text, docPath) {
   const set = new Set();
-  for (const c of parseCitations(text)) {
+  for (const c of parseCitations(text, CITE_ROOT)) {
     if (CITE_PATH_IGNORE.some((e) => e.doc === docPath && e.path === c.path)) continue;
     set.add(c.path);
   }
@@ -184,6 +188,7 @@ function headSha(root) {
 
 /** The index body (everything after the informational header line), plus notes for skipped specs. */
 export function generateBody(root) {
+  CITE_ROOT = root;
   const specs = [];
   const notes = [];
   for (const name of SPEC_FILES) {

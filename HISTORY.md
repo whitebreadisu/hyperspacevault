@@ -4,7 +4,33 @@ The shape of this project's development, distilled from the engineering backlog'
 resolution ledger. Each line is a completed work item (title and resolution date);
 the full working records — analysis docs, decision definitions, session logs —
 live in a private engineering archive, referenced from public docs by their
-BL-ids.
+BL-ids. The **Releases** table below is generated from the app's own release notes
+(`node .github/scripts/docs_history.mjs --write`; CI fails when it is stale, and the
+prod promote refuses a commit whose table does not carry the version being shipped);
+the **Milestones** table is hand-written narrative.
+
+## Releases
+
+<!-- generated:releases start — from frontend/src/content/releaseNotes.ts by `node .github/scripts/docs_history.mjs --write`; do not hand-edit -->
+
+| Date | Version | Release |
+|---|---|---|
+| 2026-10-18 | v2.1 | A steadier keypad |
+| 2026-10-17 | v2.0.1 | No more stuck Loading… |
+| 2026-10-14 | v2.0 | Your Vault, in your pocket |
+| 2026-10-08 | v1.5.1 | Bring your Homeworlds in |
+| 2026-10-02 | v1.5 | Homeworlds |
+| 2026-09-03 | v1.4.3 | Steadier sessions |
+| 2026-08-27 | v1.4.2 | Guided by real use |
+| 2026-08-17 | v1.4.1 | Share links, extra private |
+| 2026-08-16 | v1.4 | Your Vault, shareable |
+| 2026-08-11 | v1.3.1 | Big collections welcome |
+| 2026-08-07 | v1.3 | Imports and Reddit feedback |
+| 2026-07-31 | v1.2 | The Public Launch |
+| 2026-07-20 | v1.1 | A New Home |
+| 2026-07-14 | v1.0 | Initial Release |
+
+<!-- generated:releases end -->
 
 ## Milestones
 

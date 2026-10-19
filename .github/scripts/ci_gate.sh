@@ -6,14 +6,18 @@
 # SWU_Platform_Spec.md 2.1 / 2.6). Waits for in-progress runs up to
 # CI_GATE_TIMEOUT_SECONDS (default 1800), fails on any non-success
 # conclusion or on a missing run (a docs-only commit has no main run and
-# no image -- promote the last code commit instead).
+# no image -- promote the last code commit instead). Since BL-271 Phase E
+# the set includes build-and-push, so a spec-only SHA (tests ran, image
+# skipped) is refused here too.
 #
 # Usage: ci_gate.sh <full-sha>   (needs gh + GH_TOKEN with checks:read)
 set -euo pipefail
 
 sha="${1:?usage: ci_gate.sh <sha>}"
 repo="${GITHUB_REPOSITORY:-whitebreadisu/hyperspacevault}"
-required=(backend frontend frontend-e2e-mobile)
+# BL-271 Phase E: build-and-push joins the set -- a docs-only SHA (skipped build, no image) is refused
+# here with a readable message instead of at `terraform apply` (the pre-E failure mode).
+required=(backend frontend frontend-e2e-mobile build-and-push)
 deadline=$(( $(date +%s) + ${CI_GATE_TIMEOUT_SECONDS:-1800} ))
 
 while :; do
@@ -33,7 +37,7 @@ while :; do
     fi
   done
   if [ "${#failed[@]}" -gt 0 ]; then
-    echo "::error::CI gate: required check(s) not green for ${sha}: ${failed[*]}"
+    echo "::error::CI gate: required check(s) not green for ${sha}: ${failed[*]} -- a 'skipped' build-and-push means a docs-only commit with no image; promote the last code commit instead"
     exit 1
   fi
   if [ "${#missing[@]}" -gt 0 ]; then

@@ -21,8 +21,13 @@ name: Promote to prod
 # which replaces the old reject-the-stale-gate / newest-run-gate dance.
 #
 # Failure modes: a SHA whose image was never built (e.g. a docs-only push)
-# fails at `terraform apply` when Cloud Run can't resolve the tag — the
-# existing prod revision keeps serving; re-run with a correct SHA.
+# is refused by the CI gate (BL-271 Phase E added `build-and-push` to its
+# required set) before anything runs; a stale HISTORY / spec / architecture
+# banner is refused by the docs gate (same phase, ADR-0033) before terraform.
+# Both gates run from MAIN's copy of the scripts against the promoted SHA's
+# tree, so neither can be edited away in the promoted commit and a rollback
+# to an older tree is judged by today's gate logic (never by today's content
+# rules). `allow_stale_notes` waives the docs gate as well as the notes date.
 
 on:
   workflow_dispatch:
@@ -107,6 +112,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/ci_gate.sh "${{ steps.resolve.outputs.sha }}"
 
+      # BL-271 Phase E: keep main's copy of the docs-gate scripts so the gate
+      # below judges the promoted tree with today's logic (like ci_gate.sh).
+      - name: Stage the docs-gate scripts from main
+        run: |
+          mkdir -p /tmp/gate
+          cp .github/scripts/docs_check.mjs .github/scripts/docs_index.mjs /tmp/gate/
+
       - name: Check out the promoted commit
         run: git checkout --quiet "${{ steps.resolve.outputs.sha }}"
 
@@ -122,6 +134,25 @@ jobs:
         env:
           ALLOW_STALE_NOTES: ${{ inputs.allow_stale_notes }}
         run: node --experimental-strip-types .github/scripts/release_notes.mjs gate
+
+      # BL-271 Phase E (ADR-0033): the release-event doc checks, at the
+      # promoted SHA -- HISTORY.md's generated Releases block carries the
+      # version being shipped, the spec "Last updated" banners are current,
+      # the architecture views are as of this minor, the App Spec milestone
+      # banner names the version -- plus INDEX.md freshness. Content checks
+      # (links, citations, ...) are the PR job's business, not the gate's.
+      # `allow_stale_notes` waives all of it (rollback / re-promote path).
+      - name: Docs gate (BL-271 Phase E)
+        env:
+          ALLOW_STALE_NOTES: ${{ inputs.allow_stale_notes }}
+        run: |
+          if [ "$ALLOW_STALE_NOTES" = "true" ]; then
+            node /tmp/gate/docs_check.mjs --gate --waive --root .
+            echo "docs-gate: INDEX.md freshness skipped (allow_stale_notes)"
+          else
+            node /tmp/gate/docs_check.mjs --gate --root .
+            node /tmp/gate/docs_index.mjs --check --root .
+          fi
 
       - uses: ./.github/actions/promote-prod
         with:

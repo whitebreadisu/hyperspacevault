@@ -35,3 +35,8 @@ jobs:
 
       - name: Docs-index freshness
         run: node .github/scripts/docs_index.mjs --check
+
+      - name: Docs-history + docs-audit tests
+        run: |
+          node .github/scripts/docs_history.test.mjs
+          node .github/scripts/docs_audit.test.mjs
