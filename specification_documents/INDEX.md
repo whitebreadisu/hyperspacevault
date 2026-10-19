@@ -1,11 +1,11 @@
-<!-- generated 2026-10-19 by .github/scripts/docs_index.mjs from 094fdc8 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-19 by .github/scripts/docs_index.mjs from 2793b5e — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 249,618 B (LF) · 25 h2 · 77 h3
+Total 249,619 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -48,70 +48,70 @@ Total 249,618 B (LF) · 25 h2 · 77 h3
 | h3 | [§8.3 Levels & fixtures](SWU_Application_Spec.md#83-levels--fixtures) | 401 | 510 |  |  |  |  |
 | h3 | [§8.4 Test-first where it pays](SWU_Application_Spec.md#84-test-first-where-it-pays) | 408 | 271 |  |  |  |  |
 | h3 | [§8.5 Cutover safety (historical — retired 2026-07-25, replaced by §17 import/export, BL-93)](SWU_Application_Spec.md#85-cutover-safety-historical--retired-2026-07-25-replaced-by-17-importexport-bl-93) | 412 | 1,366 | 2026-07-25 Retired (BL-93) |  |  |  |
-| h2 | [§9. Relationship to backlog (which items execute which parts)](SWU_Application_Spec.md#9-relationship-to-backlog-which-items-execute-which-parts) | 420 | 355 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§10. Variant Census & Classification (BL-27 — resolved 2026-06-21; §10.11 product-structure facts — BL-160, 2026-10-19)](SWU_Application_Spec.md#10-variant-census--classification-bl-27--resolved-2026-06-21-1011-product-structure-facts--bl-160-2026-10-19) | 427 | 10,788 |  |  |  |  |
-| h3 | [§10.1 The graph (base_cards count + resolution)](SWU_Application_Spec.md#101-the-graph-base_cards-count--resolution) | 431 | 354 |  |  |  |  |
-| h3 | [§10.2 Variant model — raw + curated classification](SWU_Application_Spec.md#102-variant-model--raw--curated-classification) | 435 | 500 |  |  |  |  |
-| h3 | [§10.3 Finish vocabulary (8, frozen)](SWU_Application_Spec.md#103-finish-vocabulary-8-frozen) | 440 | 271 |  |  |  |  |
-| h3 | [§10.4 Channel (provenance) — derived from `variant_type` + `source_set_code`](SWU_Application_Spec.md#104-channel-provenance--derived-from-variant_type--source_set_code) | 444 | 734 |  |  |  |  |
-| h3 | [§10.5 `stamp_group` — finish + stamp](SWU_Application_Spec.md#105-stamp_group--finish--stamp) | 455 | 1,523 |  |  |  |  |
-| h3 | [§10.6 Exceptions — structural 15 → fallback → genuine exceptions](SWU_Application_Spec.md#106-exceptions--structural-15--fallback--genuine-exceptions) | 464 | 1,399 |  | 0004 |  |  |
-| h3 | [§10.7 `is_token`](SWU_Application_Spec.md#107-is_token) | 471 | 221 |  |  |  |  |
-| h3 | [§10.8 Keying & data-quality](SWU_Application_Spec.md#108-keying--data-quality) | 475 | 521 |  |  |  |  |
-| h3 | [§10.9 Aspect multiplicity — confirmed flattened](SWU_Application_Spec.md#109-aspect-multiplicity--confirmed-flattened) | 480 | 297 |  |  |  |  |
-| h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 484 | 626 |  |  | `backend/alembic/versions` |  |
-| h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 492 | 3,833 |  | 0002, 0014 |  |  |
-| h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 505 | 2,833 |  |  | `backend/app` |  |
-| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 528 | 21,902 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
-| h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 542 | 256 |  |  |  |  |
-| h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 550 | 5,563 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` |  |
-| h3 | [§Inventory — `/api/inventory`](SWU_Application_Spec.md#inventory--apiinventory) | 563 | 3,261 |  |  |  |  |
-| h3 | [§Settings — `/api/settings`](SWU_Application_Spec.md#settings--apisettings) | 586 | 664 |  |  |  |  |
-| h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 594 | 1,739 |  |  |  |  |
-| h3 | [§Deck check — `/api/deck-check`](SWU_Application_Spec.md#deck-check--apideck-check) | 611 | 2,910 |  | 0015 |  |  |
-| h3 | [§Account — `/api/account`](SWU_Application_Spec.md#account--apiaccount) | 626 | 1,860 |  |  |  |  |
-| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 633 | 2,496 |  | 0008 |  |  |
-| h3 | [§Analytics relay — `/api/relay` (BL-235, v1.4.2)](SWU_Application_Spec.md#analytics-relay--apirelay-bl-235-v142) | 644 | 602 |  | 0027 |  |  |
-| h2 | [§13. Ingestion pipeline](SWU_Application_Spec.md#13-ingestion-pipeline) | 653 | 3,108 | 2026-07-25 Inventory snapshot — retired , replaced | 0002, 0004 | `backend/app/ingestion` |  |
-| h2 | [§14. Environment](SWU_Application_Spec.md#14-environment) | 669 | 663 |  |  |  |  |
-| h2 | [§15. Decks (design-stage — not built)](SWU_Application_Spec.md#15-decks-design-stage--not-built) | 678 | 944 |  | 0014, 0015, 0020 | `specification_documents/planning/design/AppSpec_15_Decks_design_2026-07-13.md` |  |
-| h2 | [§16. Pricing (BL-136/BL-139/BL-146 — shipped prod 2026-07-22)](SWU_Application_Spec.md#16-pricing-bl-136bl-139bl-146--shipped-prod-2026-07-22) | 684 | 9,440 |  |  |  |  |
-| h3 | [§16.1 Source & mapping](SWU_Application_Spec.md#161-source--mapping) | 688 | 1,229 |  |  |  |  |
-| h3 | [§16.2 Data model](SWU_Application_Spec.md#162-data-model) | 694 | 1,075 |  |  |  |  |
-| h3 | [§16.3 Jobs](SWU_Application_Spec.md#163-jobs) | 700 | 1,103 |  |  |  |  |
-| h3 | [§16.3b Mapping scope (BL-174, shipped prod 2026-07-27)](SWU_Application_Spec.md#163b-mapping-scope-bl-174-shipped-prod-2026-07-27) | 705 | 2,737 | 2026-08-01 BL-183 : early-era Weekly Play joins the |  |  |  |
-| h3 | [§16.4 Display & aggregation policy (owner-decided)](SWU_Application_Spec.md#164-display--aggregation-policy-owner-decided) | 713 | 879 |  |  |  |  |
-| h3 | [§16.5 The BL-146 lesson (load-bearing invariant)](SWU_Application_Spec.md#165-the-bl-146-lesson-load-bearing-invariant) | 719 | 852 |  |  |  |  |
-| h3 | [§16.6 History provenance & the prod transfer (BL-139)](SWU_Application_Spec.md#166-history-provenance--the-prod-transfer-bl-139) | 723 | 1,196 |  |  |  |  |
-| h2 | [§17. Inventory Import/Export (BL-54 — shipped to prod 2026-07-24)](SWU_Application_Spec.md#17-inventory-importexport-bl-54--shipped-to-prod-2026-07-24) | 727 | 11,218 | 2026-07-22 Build-authoritative detail lives in `pla |  |  |  |
-| h3 | [§17.1 Canonical format — `swu-inv/1`](SWU_Application_Spec.md#171-canonical-format--swu-inv1) | 731 | 984 |  |  |  |  |
-| h3 | [§17.2 Resolution & import semantics](SWU_Application_Spec.md#172-resolution--import-semantics) | 737 | 1,420 |  |  |  |  |
-| h3 | [§17.3 Surface & gates](SWU_Application_Spec.md#173-surface--gates) | 744 | 2,157 |  | 0008, 0031 |  | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
-| h3 | [§17.4 Status & tail](SWU_Application_Spec.md#174-status--tail) | 750 | 1,489 | 2026-07-27 Format guidance notes |  |  |  |
-| h3 | [§17.5 Foreign-format adapters (BL-185 SWUDB · BL-186 sw-unlimited-db — merged to dev 2026-08-03; prod 2026-08-07, v1.3)](SWU_Application_Spec.md#175-foreign-format-adapters-bl-185-swudb--bl-186-sw-unlimited-db--merged-to-dev-2026-08-03-prod-2026-08-07-v13) | 756 | 4,793 | 2026-10-08 Superseded | 0028 |  | "Archived 2026-10-08 — §17.5 refusal-posture admission sentence (BL-241, ADR-0028)" |
-| h2 | [§18. Precon Bulk Add (BL-151 — shipped to prod 2026-07-24) + BL-152 button glow](SWU_Application_Spec.md#18-precon-bulk-add-bl-151--shipped-to-prod-2026-07-24--bl-152-button-glow) | 769 | 3,358 | 2026-07-24 Build-authoritative detail lives in `pla |  | `backend/scripts/verify_precon_decks.py`, `frontend/src/data/preconDecks.json` |  |
-| h2 | [§19. Collection Lists & Sharing (§19.1 sharing as built, v1.4; lists and binders design-stage)](SWU_Application_Spec.md#19-collection-lists--sharing-191-sharing-as-built-v14-lists-and-binders-design-stage) | 780 | 5,783 |  | 0019, 0020 | `specification_documents/planning/design/AppSpec_19_Lists_Binders_design_2026-08-11.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§19.1 Sharing model (BL-205 — as-built, v1.4)](SWU_Application_Spec.md#191-sharing-model-bl-205--as-built-v14) | 784 | 4,693 |  | 0008, 0019 |  |  |
-| h3 | [§19.4 Decisions record](SWU_Application_Spec.md#194-decisions-record) | 796 | 271 |  | 0019 |  |  |
-| h2 | [§20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)](SWU_Application_Spec.md#20-release-notes-system-bl-184-v13--promote-gate--releases-mirror-bl-210-v14) | 800 | 1,722 |  |  | `frontend/package.json`, `frontend/src/content/releaseNotes.ts` |  |
-| h2 | [§21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")](SWU_Application_Spec.md#21-v14-vault-batch-shipped-prod-2026-08-16--your-vault-shareable) | 809 | 483 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)](SWU_Application_Spec.md#22-product-analytics-bl-235-2026-08-26--posthog-via-first-party-relay) | 813 | 6,540 |  | 0027, 0030 | `backend/app/routers/relay.py`, `frontend/src/analytics/analytics.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
-| h2 | [§23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)](SWU_Application_Spec.md#23-homeworlds-onboarding-bl-239-v15--shipped-prod-2026-10-02) | 856 | 2,705 |  | 0031 | `frontend/public/images`, `frontend/public/images/starfields` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
-| h2 | [§24. Card scanning — rules and geometry (as built; mechanics in §25.7)](SWU_Application_Spec.md#24-card-scanning--rules-and-geometry-as-built-mechanics-in-257) | 869 | 8,667 |  | 0029 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§24.1 What it is](SWU_Application_Spec.md#241-what-it-is) | 873 | 734 |  |  |  | "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)" |
-| h3 | [§24.2 Rules](SWU_Application_Spec.md#242-rules) | 883 | 2,562 |  | 0029 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§24.3 Guide geometry (measured on official card images; fractions of card width W / height H)](SWU_Application_Spec.md#243-guide-geometry-measured-on-official-card-images-fractions-of-card-width-w--height-h) | 897 | 1,796 |  |  |  | "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)", "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§24.4 Readers and acceptance](SWU_Application_Spec.md#244-readers-and-acceptance) | 918 | 1,642 |  | 0029 |  |  |
-| h3 | [§24.5 Printed-code collisions](SWU_Application_Spec.md#245-printed-code-collisions) | 945 | 700 |  | 0028 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§25. Mobile experience (BL-190 — as built)](SWU_Application_Spec.md#25-mobile-experience-bl-190--as-built) | 956 | 76,252 |  |  |  | "Archived 2026-10-11 — §25 slice-by-slice text superseded by the closing consolidation (BL-252 S6-09)" |
-| h3 | [§25.0 Overview](SWU_Application_Spec.md#250-overview) | 962 | 13,176 |  | 0030 | `frontend/e2e/mobile`, `frontend/src/mobile`, `frontend/src/mobile/MobileApp`, `frontend/src/mobile/useIsPhone.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
-| h3 | [§25.1 Shell + Vault (BL-247)](SWU_Application_Spec.md#251-shell--vault-bl-247) | 1003 | 7,481 |  | 0030, 0031 |  | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)", "Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)", "Archived 2026-10-11 — §25.1 shared-link interim sentence superseded by slice 6" |
-| h3 | [§25.2 Card detail + Filters (BL-248)](SWU_Application_Spec.md#252-card-detail--filters-bl-248) | 1016 | 9,462 |  | 0030, 0031 | `frontend/src/mobile/card`, `frontend/src/mobile/filters` | "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)", "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
-| h3 | [§25.3 Keypad, choosers, verify batch, commit (BL-249)](SWU_Application_Spec.md#253-keypad-choosers-verify-batch-commit-bl-249) | 1053 | 12,323 |  | 0030, 0032 | `frontend/scripts/measure-set-logos.mjs`, `frontend/src/mobile/setLogoArt.ts`, `frontend/src/mobile/tool` | "Archived 2026-10-17 — phone keypad keeps its size (BL-270)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
-| h3 | [§25.4 More, About & Legal, [HSV] Updates, Import & Export (BL-250)](SWU_Application_Spec.md#254-more-about--legal-hsv-updates-import--export-bl-250) | 1077 | 5,786 |  |  | `frontend/src/mobile/more` | "Archived 2026-10-11 — §25.4 slice-4 interim wording superseded by slice 5 (§25.5)" |
-| h3 | [§25.5 Account: Settings, Change Password, Delete Account, Sharing, verify banner (BL-251)](SWU_Application_Spec.md#255-account-settings-change-password-delete-account-sharing-verify-banner-bl-251) | 1095 | 4,156 |  |  | `frontend/src/mobile/account` |  |
-| h3 | [§25.6 Shared vault (BL-252)](SWU_Application_Spec.md#256-shared-vault-bl-252) | 1107 | 5,515 |  |  | `frontend/src/mobile/shared` |  |
-| h3 | [§25.7 Camera (BL-253)](SWU_Application_Spec.md#257-camera-bl-253) | 1119 | 17,699 |  | 0030 | `frontend/public/vendor/scan`, `frontend/scan.html`, `frontend/src/mobile/camera` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)", "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
+| h2 | [§9. Relationship to backlog (which items execute which parts)](SWU_Application_Spec.md#9-relationship-to-backlog-which-items-execute-which-parts) | 420 | 356 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h2 | [§10. Variant Census & Classification (BL-27 — resolved 2026-06-21; §10.11 product-structure facts — BL-160, 2026-10-19)](SWU_Application_Spec.md#10-variant-census--classification-bl-27--resolved-2026-06-21-1011-product-structure-facts--bl-160-2026-10-19) | 428 | 10,788 |  |  |  |  |
+| h3 | [§10.1 The graph (base_cards count + resolution)](SWU_Application_Spec.md#101-the-graph-base_cards-count--resolution) | 432 | 354 |  |  |  |  |
+| h3 | [§10.2 Variant model — raw + curated classification](SWU_Application_Spec.md#102-variant-model--raw--curated-classification) | 436 | 500 |  |  |  |  |
+| h3 | [§10.3 Finish vocabulary (8, frozen)](SWU_Application_Spec.md#103-finish-vocabulary-8-frozen) | 441 | 271 |  |  |  |  |
+| h3 | [§10.4 Channel (provenance) — derived from `variant_type` + `source_set_code`](SWU_Application_Spec.md#104-channel-provenance--derived-from-variant_type--source_set_code) | 445 | 734 |  |  |  |  |
+| h3 | [§10.5 `stamp_group` — finish + stamp](SWU_Application_Spec.md#105-stamp_group--finish--stamp) | 456 | 1,523 |  |  |  |  |
+| h3 | [§10.6 Exceptions — structural 15 → fallback → genuine exceptions](SWU_Application_Spec.md#106-exceptions--structural-15--fallback--genuine-exceptions) | 465 | 1,399 |  | 0004 |  |  |
+| h3 | [§10.7 `is_token`](SWU_Application_Spec.md#107-is_token) | 472 | 221 |  |  |  |  |
+| h3 | [§10.8 Keying & data-quality](SWU_Application_Spec.md#108-keying--data-quality) | 476 | 521 |  |  |  |  |
+| h3 | [§10.9 Aspect multiplicity — confirmed flattened](SWU_Application_Spec.md#109-aspect-multiplicity--confirmed-flattened) | 481 | 297 |  |  |  |  |
+| h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 485 | 626 |  |  | `backend/alembic/versions` |  |
+| h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 493 | 3,833 |  | 0002, 0014 |  |  |
+| h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 506 | 2,833 |  |  | `backend/app` |  |
+| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 529 | 21,902 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
+| h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 543 | 256 |  |  |  |  |
+| h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 551 | 5,563 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` |  |
+| h3 | [§Inventory — `/api/inventory`](SWU_Application_Spec.md#inventory--apiinventory) | 564 | 3,261 |  |  |  |  |
+| h3 | [§Settings — `/api/settings`](SWU_Application_Spec.md#settings--apisettings) | 587 | 664 |  |  |  |  |
+| h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 595 | 1,739 |  |  |  |  |
+| h3 | [§Deck check — `/api/deck-check`](SWU_Application_Spec.md#deck-check--apideck-check) | 612 | 2,910 |  | 0015 |  |  |
+| h3 | [§Account — `/api/account`](SWU_Application_Spec.md#account--apiaccount) | 627 | 1,860 |  |  |  |  |
+| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 634 | 2,496 |  | 0008 |  |  |
+| h3 | [§Analytics relay — `/api/relay` (BL-235, v1.4.2)](SWU_Application_Spec.md#analytics-relay--apirelay-bl-235-v142) | 645 | 602 |  | 0027 |  |  |
+| h2 | [§13. Ingestion pipeline](SWU_Application_Spec.md#13-ingestion-pipeline) | 654 | 3,108 | 2026-07-25 Inventory snapshot — retired , replaced | 0002, 0004 | `backend/app/ingestion` |  |
+| h2 | [§14. Environment](SWU_Application_Spec.md#14-environment) | 670 | 663 |  |  |  |  |
+| h2 | [§15. Decks (design-stage — not built)](SWU_Application_Spec.md#15-decks-design-stage--not-built) | 679 | 944 |  | 0014, 0015, 0020 | `specification_documents/planning/design/AppSpec_15_Decks_design_2026-07-13.md` |  |
+| h2 | [§16. Pricing (BL-136/BL-139/BL-146 — shipped prod 2026-07-22)](SWU_Application_Spec.md#16-pricing-bl-136bl-139bl-146--shipped-prod-2026-07-22) | 685 | 9,440 |  |  |  |  |
+| h3 | [§16.1 Source & mapping](SWU_Application_Spec.md#161-source--mapping) | 689 | 1,229 |  |  |  |  |
+| h3 | [§16.2 Data model](SWU_Application_Spec.md#162-data-model) | 695 | 1,075 |  |  |  |  |
+| h3 | [§16.3 Jobs](SWU_Application_Spec.md#163-jobs) | 701 | 1,103 |  |  |  |  |
+| h3 | [§16.3b Mapping scope (BL-174, shipped prod 2026-07-27)](SWU_Application_Spec.md#163b-mapping-scope-bl-174-shipped-prod-2026-07-27) | 706 | 2,737 | 2026-08-01 BL-183 : early-era Weekly Play joins the |  |  |  |
+| h3 | [§16.4 Display & aggregation policy (owner-decided)](SWU_Application_Spec.md#164-display--aggregation-policy-owner-decided) | 714 | 879 |  |  |  |  |
+| h3 | [§16.5 The BL-146 lesson (load-bearing invariant)](SWU_Application_Spec.md#165-the-bl-146-lesson-load-bearing-invariant) | 720 | 852 |  |  |  |  |
+| h3 | [§16.6 History provenance & the prod transfer (BL-139)](SWU_Application_Spec.md#166-history-provenance--the-prod-transfer-bl-139) | 724 | 1,196 |  |  |  |  |
+| h2 | [§17. Inventory Import/Export (BL-54 — shipped to prod 2026-07-24)](SWU_Application_Spec.md#17-inventory-importexport-bl-54--shipped-to-prod-2026-07-24) | 728 | 11,218 | 2026-07-22 Build-authoritative detail lives in `pla |  |  |  |
+| h3 | [§17.1 Canonical format — `swu-inv/1`](SWU_Application_Spec.md#171-canonical-format--swu-inv1) | 732 | 984 |  |  |  |  |
+| h3 | [§17.2 Resolution & import semantics](SWU_Application_Spec.md#172-resolution--import-semantics) | 738 | 1,420 |  |  |  |  |
+| h3 | [§17.3 Surface & gates](SWU_Application_Spec.md#173-surface--gates) | 745 | 2,157 |  | 0008, 0031 |  | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
+| h3 | [§17.4 Status & tail](SWU_Application_Spec.md#174-status--tail) | 751 | 1,489 | 2026-07-27 Format guidance notes |  |  |  |
+| h3 | [§17.5 Foreign-format adapters (BL-185 SWUDB · BL-186 sw-unlimited-db — merged to dev 2026-08-03; prod 2026-08-07, v1.3)](SWU_Application_Spec.md#175-foreign-format-adapters-bl-185-swudb--bl-186-sw-unlimited-db--merged-to-dev-2026-08-03-prod-2026-08-07-v13) | 757 | 4,793 | 2026-10-08 Superseded | 0028 |  | "Archived 2026-10-08 — §17.5 refusal-posture admission sentence (BL-241, ADR-0028)" |
+| h2 | [§18. Precon Bulk Add (BL-151 — shipped to prod 2026-07-24) + BL-152 button glow](SWU_Application_Spec.md#18-precon-bulk-add-bl-151--shipped-to-prod-2026-07-24--bl-152-button-glow) | 770 | 3,358 | 2026-07-24 Build-authoritative detail lives in `pla |  | `backend/scripts/verify_precon_decks.py`, `frontend/src/data/preconDecks.json` |  |
+| h2 | [§19. Collection Lists & Sharing (§19.1 sharing as built, v1.4; lists and binders design-stage)](SWU_Application_Spec.md#19-collection-lists--sharing-191-sharing-as-built-v14-lists-and-binders-design-stage) | 781 | 5,783 |  | 0019, 0020 | `specification_documents/planning/design/AppSpec_19_Lists_Binders_design_2026-08-11.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§19.1 Sharing model (BL-205 — as-built, v1.4)](SWU_Application_Spec.md#191-sharing-model-bl-205--as-built-v14) | 785 | 4,693 |  | 0008, 0019 |  |  |
+| h3 | [§19.4 Decisions record](SWU_Application_Spec.md#194-decisions-record) | 797 | 271 |  | 0019 |  |  |
+| h2 | [§20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)](SWU_Application_Spec.md#20-release-notes-system-bl-184-v13--promote-gate--releases-mirror-bl-210-v14) | 801 | 1,722 |  |  | `frontend/package.json`, `frontend/src/content/releaseNotes.ts` |  |
+| h2 | [§21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")](SWU_Application_Spec.md#21-v14-vault-batch-shipped-prod-2026-08-16--your-vault-shareable) | 810 | 483 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h2 | [§22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)](SWU_Application_Spec.md#22-product-analytics-bl-235-2026-08-26--posthog-via-first-party-relay) | 814 | 6,540 |  | 0027, 0030 | `backend/app/routers/relay.py`, `frontend/src/analytics/analytics.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
+| h2 | [§23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)](SWU_Application_Spec.md#23-homeworlds-onboarding-bl-239-v15--shipped-prod-2026-10-02) | 857 | 2,705 |  | 0031 | `frontend/public/images`, `frontend/public/images/starfields` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
+| h2 | [§24. Card scanning — rules and geometry (as built; mechanics in §25.7)](SWU_Application_Spec.md#24-card-scanning--rules-and-geometry-as-built-mechanics-in-257) | 870 | 8,667 |  | 0029 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§24.1 What it is](SWU_Application_Spec.md#241-what-it-is) | 874 | 734 |  |  |  | "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)" |
+| h3 | [§24.2 Rules](SWU_Application_Spec.md#242-rules) | 884 | 2,562 |  | 0029 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§24.3 Guide geometry (measured on official card images; fractions of card width W / height H)](SWU_Application_Spec.md#243-guide-geometry-measured-on-official-card-images-fractions-of-card-width-w--height-h) | 898 | 1,796 |  |  |  | "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)", "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§24.4 Readers and acceptance](SWU_Application_Spec.md#244-readers-and-acceptance) | 919 | 1,642 |  | 0029 |  |  |
+| h3 | [§24.5 Printed-code collisions](SWU_Application_Spec.md#245-printed-code-collisions) | 946 | 700 |  | 0028 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h2 | [§25. Mobile experience (BL-190 — as built)](SWU_Application_Spec.md#25-mobile-experience-bl-190--as-built) | 957 | 76,252 |  |  |  | "Archived 2026-10-11 — §25 slice-by-slice text superseded by the closing consolidation (BL-252 S6-09)" |
+| h3 | [§25.0 Overview](SWU_Application_Spec.md#250-overview) | 963 | 13,176 |  | 0030 | `frontend/e2e/mobile`, `frontend/src/mobile`, `frontend/src/mobile/MobileApp`, `frontend/src/mobile/useIsPhone.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
+| h3 | [§25.1 Shell + Vault (BL-247)](SWU_Application_Spec.md#251-shell--vault-bl-247) | 1004 | 7,481 |  | 0030, 0031 |  | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)", "Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)", "Archived 2026-10-11 — §25.1 shared-link interim sentence superseded by slice 6" |
+| h3 | [§25.2 Card detail + Filters (BL-248)](SWU_Application_Spec.md#252-card-detail--filters-bl-248) | 1017 | 9,462 |  | 0030, 0031 | `frontend/src/mobile/card`, `frontend/src/mobile/filters` | "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)", "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
+| h3 | [§25.3 Keypad, choosers, verify batch, commit (BL-249)](SWU_Application_Spec.md#253-keypad-choosers-verify-batch-commit-bl-249) | 1054 | 12,323 |  | 0030, 0032 | `frontend/scripts/measure-set-logos.mjs`, `frontend/src/mobile/setLogoArt.ts`, `frontend/src/mobile/tool` | "Archived 2026-10-17 — phone keypad keeps its size (BL-270)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
+| h3 | [§25.4 More, About & Legal, [HSV] Updates, Import & Export (BL-250)](SWU_Application_Spec.md#254-more-about--legal-hsv-updates-import--export-bl-250) | 1078 | 5,786 |  |  | `frontend/src/mobile/more` | "Archived 2026-10-11 — §25.4 slice-4 interim wording superseded by slice 5 (§25.5)" |
+| h3 | [§25.5 Account: Settings, Change Password, Delete Account, Sharing, verify banner (BL-251)](SWU_Application_Spec.md#255-account-settings-change-password-delete-account-sharing-verify-banner-bl-251) | 1096 | 4,156 |  |  | `frontend/src/mobile/account` |  |
+| h3 | [§25.6 Shared vault (BL-252)](SWU_Application_Spec.md#256-shared-vault-bl-252) | 1108 | 5,515 |  |  | `frontend/src/mobile/shared` |  |
+| h3 | [§25.7 Camera (BL-253)](SWU_Application_Spec.md#257-camera-bl-253) | 1120 | 17,699 |  | 0030 | `frontend/public/vendor/scan`, `frontend/scan.html`, `frontend/src/mobile/camera` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)", "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
 
 ## SWU_Platform_Spec.md
 
