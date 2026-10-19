@@ -5,7 +5,7 @@ Accepted — 2026-06-21 (BL-27/BL-29; recorded retroactively 2026-06-23)
 **Expected to evolve** — see BL-40 (revisit grouping model). When revised, this ADR will be *superseded* by a new one, not edited.
 
 ## Context
-The original schema represented variants with ~eight independent boolean flags (`is_foil`, `is_hyperspace`, `is_organized_play`, …). That design conflated two genuinely orthogonal ideas into one flat namespace and could not represent the real variant space — a census of the actual data found roughly 58 distinct variant types, far more than a handful of booleans can express without ambiguous combinations. The census is recorded in [`BL27_Variant_Census_2026-06-21.md`](../../specification_documents/analysis/BL27_Variant_Census_2026-06-21.md).
+The original schema represented variants with ~eight independent boolean flags (`is_foil`, `is_hyperspace`, `is_organized_play`, …). That design conflated two genuinely orthogonal ideas into one flat namespace and could not represent the real variant space — a census of the actual data found roughly 58 distinct variant types, far more than a handful of booleans can express without ambiguous combinations. The census is recorded in [`BL27_Variant_Census_2026-06-21.md`](../../specification_documents/analysis/BL27_Variant_Census_2026-06-21.md) (private).
 
 ## Decision
 Model every variant along **two orthogonal axes**:

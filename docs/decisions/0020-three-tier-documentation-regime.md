@@ -108,3 +108,32 @@ App Spec §19.4 as the record; at-resolution backlog archiving.
 Execution of the migration this ADR authorizes (backlog catch-up sweep, both
 spec extractions, ADR-0019) is BL-233; the per-section disposition log lives
 in `specification_documents/analysis/` (private layer).
+
+## Amendment 2026-10-18 — round 2 dispositions (BL-271 Phase C)
+
+Owner decisions of 2026-10-18, executed in BL-271 Phase C (disposition log
+`specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md`, private):
+
+1. **Design-stage content leaves Tier 1 — a fifth disposition value, "→ design
+   shelf".** Text that describes something designed but not built (App Spec §15
+   Decks; §19.2–19.4 wanted list, binders, design-stage rulings) is neither
+   current state nor superseded history. It moves verbatim to the private
+   planning shelf `specification_documents/planning/design/`, and the spec keeps
+   the section heading with a one-paragraph pointer carrying the "(private)"
+   marker. Rationale: this matches how designs were actually produced (planning
+   docs → spec on ship), and the "one file per domain" guardrail was about
+   current-state domains. Cost accepted: public readers lose the design text;
+   git history retains it.
+2. **Active-backlog tombstones are one table.** The per-tier one-line tombstones
+   (201 lines, 57.8 KB, 26.7 % of the active file on 2026-10-18) collapse into a
+   single `Resolved items — tombstone index` table at the end of the active
+   backlog (id · title · resolved date · tier · archive anchor). Same
+   resolvability at roughly a third of the bytes; the tier column preserves
+   where each item lived.
+3. **Canonical archive forms, machine-checked.** Archive heading
+   `## Archived YYYY-MM-DD — <label> (BL-n)`; a spec tombstone quotes the heading
+   in double quotes (`… see "Archived YYYY-MM-DD — <label> (BL-n)" in
+   <Spec>_Archive.md.`). `docs-check` (`.github/scripts/docs_check.mjs`) fails a
+   tombstone that quotes a heading the archive lacks and flags an archive heading
+   no tombstone quotes. Verbatim archived text is exempt from the private-link
+   marker rule, since it cannot be edited.

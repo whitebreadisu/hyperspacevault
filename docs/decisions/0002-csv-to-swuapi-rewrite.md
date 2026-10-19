@@ -4,7 +4,7 @@
 Accepted — 2026-06-21 (BL-28/BL-29; recorded retroactively 2026-06-23)
 
 ## Context
-The original card catalog was ingested from TCGPlayer CSV exports (`tcgcsv_files/`, one base + one promo file per set). Those files are *pricing*-oriented, not catalog-oriented: variant identity had to be reverse-engineered from product-name strings with heavy heuristics, set/variant numbering was inconsistent across sets, and the data didn't map cleanly onto the real variant space the game has. The source-data investigation behind this is recorded in [`CSV_Analysis.md`](../../specification_documents/analysis/CSV_Analysis.md).
+The original card catalog was ingested from TCGPlayer CSV exports (`tcgcsv_files/`, one base + one promo file per set). Those files are *pricing*-oriented, not catalog-oriented: variant identity had to be reverse-engineered from product-name strings with heavy heuristics, set/variant numbering was inconsistent across sets, and the data didn't map cleanly onto the real variant space the game has. The source-data investigation behind this is recorded in [`CSV_Analysis.md`](../../specification_documents/analysis/CSV_Analysis.md) (private).
 
 The `swuapi` card data source provides structured, card-centric data (cards, variants, set membership) instead of pricing rows. Because adopting it changed the catalog schema, it was a decision worth recording rather than a routine swap.
 

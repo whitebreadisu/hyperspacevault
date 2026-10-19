@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 export const LEVELS = {
   links: "fail", // relative link whose target file is missing
   "link-anchors": "warn", // #anchor that no heading slug matches
-  "private-marker": "warn", // allowlisted private link lacking "(private)" (Phase C -> fail)
+  "private-marker": "fail", // allowlisted private link lacking "(private)" (fail since Phase C, 2026-10-19; verbatim spec archives exempt)
   "adr-index": "fail",
   "spec-tombstones": "fail", // strict: quoted heading <-> archive heading
   "spec-tombstones-loose": "warn", // date-only mentions / unquoted headings
@@ -27,16 +27,30 @@ export const LEVELS = {
   "last-updated": "warn",
   "private-mode": "fail", // only evaluated with --private
   // round 2 (BL-271 Phase B ext)
-  "cite-path": "warn", // backticked repo-shaped path that does not exist (3 real findings 2026-10-18: Phase C fixes, then -> fail)
+  "cite-path": "fail", // backticked repo-shaped path that does not exist (fail since Phase C, 2026-10-19; historical citations on CITE_PATH_IGNORE)
   "cite-line": "fail", // `path:line` citation whose file does not exist
   "cite-line-range": "warn", // `path:line` where line > the file's length
-  "ci-job-name": "warn", // Platform Spec section 2 names a CI job that no workflow defines (2 real findings 2026-10-18: Phase C fixes, then -> fail)
+  "ci-job-name": "fail", // Platform Spec section 2 names a CI job that no workflow defines (fail since Phase C, 2026-10-19)
   "adr-status-inline": "fail", // inline status word contradicts the ADR's own ## Status
   "number-snapshot": "warn", // bare count with no date / "as of" / backticked command
 };
 
-// Documented-as-historical paths that cite-path must not flag (none yet; ADR-0020 Tier 3 text).
-export const CITE_PATH_IGNORE = [];
+// Documented-as-historical citations that cite-path must not flag: scoped to ONE doc each, with the reason
+// and the date the entry was added (BL-271 Phase C). A path is ignored only inside its named doc.
+export const CITE_PATH_IGNORE = [
+  {
+    doc: "docs/decisions/0004-catalog-bootstrap-from-swuapi-export.md",
+    path: "backend/app/tests/fixtures/swuapi_export_2026-06-21.json",
+    reason: "ADR text is immutable; the 2026-06-21 fixture was retired from the repo to the private repo-assets bucket (BL-170)",
+    date: "2026-10-19",
+  },
+  {
+    doc: "specification_documents/CARD_RULES.md",
+    path: "backend/app/tests/test_card_domain_rules.py",
+    reason: "frozen document (2026-07-24) cites its own retired test; historical by its banner",
+    date: "2026-10-19",
+  },
+];
 
 // Build outputs / runtime locations that are cited as paths but are never tracked (not defects).
 const CITE_RUNTIME_PATHS = ["frontend/dist", "frontend/coverage", "frontend/e2e-results", "frontend/node_modules", "terraform/state", "terraform/.terraform"];
@@ -87,6 +101,8 @@ export function isPrivatePath(rel) {
     return rel === pat;
   });
 }
+
+const isSpecArchive = (file) => /^specification_documents\/[^/]+_Archive\.md$/.test(file);
 
 function globFiles(root, pattern) {
   const slash = pattern.lastIndexOf("/");
@@ -286,7 +302,8 @@ function checkLinks(ctx) {
       }
       const relNoSlash = rel.replace(/\/$/, "");
       if (isPrivatePath(relNoSlash)) {
-        if (!/\(private\)/i.test(l.text) && !/\(private\)/i.test(l.after)) {
+        // Verbatim spec archives (ADR-0020 Tier 3) cannot carry markers; their links are history.
+        if (!isSpecArchive(file) && !/\(private\)/i.test(l.text) && !/\(private\)/i.test(l.after)) {
           add("private-marker", file, l.line, `link to private-layer path ${relNoSlash} lacks a "(private)" marker`);
         }
         continue;
@@ -319,7 +336,7 @@ function checkAdrIndex(ctx) {
   read(root, idx)
     .split("\n")
     .forEach((line, i) => {
-      const m = /^\|\s*\[(\d{4})\]\(([^)]+)\)\s*\|.*\|\s*([^|]*?)\s*\|\s*$/.exec(line);
+      const m = /^\|\s*\[(\d{4})\]\(([^)]+)\)(?:\s*\(private\))?\s*\|.*\|\s*([^|]*?)\s*\|\s*$/.exec(line); // "(private)" after the link marks a private ADR (BL-271 C)
       if (m && m[1] !== "0000") rows.set(m[1], { file: m[2], status: m[3], line: i + 1 });
     });
   const files = globFiles(root, "docs/decisions/*.md")
@@ -484,7 +501,9 @@ function checkPrivateMode(ctx) {
   read(root, active)
     .split("\n")
     .forEach((l, i) => {
-      let m = /^- \*\*BL-(\d+)\b.*→ \[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l);
+      // A tombstone is a one-line `- **BL-n — …** … → [archive](…)` or, since Phase C (ADR-0020 amendment
+      // 2026-10-18), a row of the tombstone-index table: `| BL-n | … | [archive](SWU_Backlog_Archive.md) |`.
+      let m = /^- \*\*BL-(\d+)\b.*→ \[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l) || /^\| \**BL-(\d+)\**\s*\|.*\[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l);
       if (m) tomb.set(m[1], i + 1);
       m = /^#{3,4} BL-(\d+):/.exec(l);
       if (m) {
@@ -514,8 +533,9 @@ function checkPrivateMode(ctx) {
 }
 
 // ── round 2 checks (BL-271 Phase B ext) ────────────────────────────────────
-const ignoredCite = (p) =>
-  [...CITE_PATH_IGNORE, ...CITE_RUNTIME_PATHS].some((i) => (i.endsWith("/") ? p.startsWith(i) : p === i || p.startsWith(i + "/")));
+const ignoredCite = (file, p) =>
+  CITE_PATH_IGNORE.some((e) => e.doc === file && e.path === p) ||
+  CITE_RUNTIME_PATHS.some((i) => (i.endsWith("/") ? p.startsWith(i) : p === i || p.startsWith(i + "/")));
 
 /** True when `rel` exists, or (extensionless citation) a sibling file `rel.<ext>` does, e.g. `.../MobileApp` -> MobileApp.tsx. */
 function citedExists(root, rel) {
@@ -559,7 +579,7 @@ function checkCitations(ctx) {
   notes.push(`cite-path: CITE_PATH_IGNORE has ${CITE_PATH_IGNORE.length} entries`);
   for (const file of docs) {
     for (const c of parseCitations(read(root, file))) {
-      if (isPrivatePath(c.path) || ignoredCite(c.path)) continue;
+      if (isPrivatePath(c.path) || ignoredCite(file, c.path)) continue;
       if (!citedExists(root, c.path)) {
         add(c.lines === undefined ? "cite-path" : "cite-line", file, c.line, `cited path does not exist: ${c.path}${c.lines === undefined ? "" : ":" + c.lines}`);
         continue;
