@@ -117,7 +117,11 @@ The variant-mapping spec and the exceptions report have no archive file of their
 > |-----|--------|------|----------|---------------|-------|
 > | C26 | 3 | Zam Wesell | Not What She Seems | Convention Exclusive | The sole true orphan — no Standard `(name, subtitle)` match anywhere in the corpus. C26 is an in-development preview set (no release date, 6 total cards); likely previews a printing not yet revealed. |
 
-### App Spec §17.5 — refusal-posture bullet, admission sentence (archived 2026-10-08, BL-241)
+## Archived 2026-10-08 — §17.5 refusal-posture admission sentence (BL-241, ADR-0028)
+
+*Was a child of the 2026-10-02 batch; given its own dated heading 2026-10-18 (BL-271 Phase C) so the §17.5 tombstone can quote it. Text unchanged.*
+
+### App Spec §17.5 — refusal-posture bullet, admission sentence
 
 **Disposition:** → ADR-0028 (printed codes map direct at onboarding) + archive. The "never a guess" refusal stays in §17.5; only the admission rule changed.
 
@@ -493,3 +497,210 @@ Code comments that carried the same rules, verbatim (`frontend/src/mobile/camera
 §25.3, "Result layout" bullet, verbatim:
 
 > - **Result layout.** While a card shows, the deck shrinks (44 px keys, 48 px entry row; one class flip, no animation). Card details / Add to batch stays pinned at the bottom of the result zone. A shared number compacts the panel. A finish-only share keeps desktop's non-foil default (BL-191) with the amber cue and a Change link. The deck restores on Clear and after Add.
+
+## Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)
+
+Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). Narrative, design-session framing, changelog blocks and the spike-era camera flow left the Tier-1 spec; the §15 and §19.2–19.4 design-stage text went to the private design shelf (`planning/design/`, ADR-0020 amendment 2026-10-18) and is not repeated here. Each child names its source and disposition; text is verbatim.
+
+### Head banner — `Last updated` line before Phase C
+
+**Disposition:** → archive (banner changelog tail; the banner now names only the current and previous pass)
+
+> > **Last updated:** 2026-10-17 (§25.3 keypad keeps its size with a fold tab — BL-270, ADR-0032 — and the batch clears fully after an add — BL-268; §22 `pad_keypad_toggled`; §11 SQLAlchemy 2.1 — BL-265; on dev for v2.1). Earlier passes: 2026-10-15 (§25.7 Auth clause, BL-263, v2.0.1); 2026-10-13 (§24/§25.7 the camera adds what the strip identifies, BL-262); 2026-10-12 (§5.1 set order newest first — BL-258, ADR-0031; §5.13/§25.1 Showcase back in the scope picker — BL-259, ADR-0030; §25 finish rounds 1–2 — BL-257); 2026-10-11 (§25 Mobile experience as built — BL-247…BL-253; §23 sw-unlimited-db HMW — BL-245); 2026-10-09 (§24 Card scanning — ADR-0029); 2026-10-08 (§23 SWUDB maps — BL-240; ADR-0028); 2026-10-02 (v1.5: §23, §3.3/§10.6, §16); 2026-08-27 (§22 Product analytics — BL-235). No as-built passes outstanding. Previously 2026-08-16 (v1.4 as-builts: §19 sharing shipped-status, §20 release-notes system, §21 v1.4 Vault batch, §12 adjust + shares endpoints; same-day follow-up: §5.16 v1.3 scoped-affordance cluster + §5.15 supersession note — no as-built passes outstanding).
+
+### Head — `Origin` paragraph
+
+**Disposition:** → archive (2026-06 design-session narrative; rationale is ADR-0002/0003)
+
+> **Origin.** Produced in the Opus design session for `SWU_Backlog.md` Open Question E (the "swuapi-first counterfactual") and built + deployed to prod 2026-06-21 (commits `e1832c0`..`8d33e86`). Originally written as a forward-looking *target-design* spec ("the redesign"); the system it describes is now deployed, so it serves as the as-built reference. The variant-identity layer converged on BL-33's `base_cards`/`card_variants` split; user-experience intent drove the finish-vs-provenance separation and base-set anchoring. Remaining sequenced work and post-ship follow-ups are tracked in `SWU_Backlog.md` (BL-33 step 4; BL-44/45/46; BL-32/39/40).
+
+### Head — `Related` list
+
+**Disposition:** → archive; rewritten to current pointers (R1)
+
+> **Related:**
+> - [`SWU_Standard_Variant_Mapping_Spec.md`](SWU_Standard_Variant_Mapping_Spec.md) — the data mechanism (`variant_of_uuid`) this design rests on.
+> - [`swuapi_standard_variant_exceptions.md`](swuapi_standard_variant_exceptions.md) — current standard-anchor exceptions.
+> - [`SWU_Backlog.md`](SWU_Backlog.md) — BL-33 (execution/sequencing), BL-24/27/29/31/32/35/36/37 (discrete work), Open Questions D/E.
+> - [`SWU_ClaudeCode_Spec.md`](SWU_ClaudeCode_Spec.md) — **frozen** original V1 design spec; historical only (all application domains now absorbed into this document — BL-49).
+
+### §1 `Why this document exists` — narrative paragraphs
+
+**Disposition:** → archive (BL-28 / Open Question E narrative); §1 retitled, the ADR-0020 sentence stays
+
+> ## 1. Why this document exists
+>
+> BL-28's analysis found swuapi.com substantially richer than the original TCGPlayer CSV pipeline assumed. Open Question E asked whether designing *swuapi-first* — from the data source's real shape plus the application's actual goals — would land on a different system than the one retrofitted onto a CSV-shaped schema.
+>
+> This session ran that question, **app-goals first**. The net finding matches Open Question E's hypothesis: the **variant-identity layer converges** on BL-33's `base_cards`/`card_variants` split, but **user-experience intent drove real refinements** that pure data analysis hadn't surfaced — chiefly the separation of *finish* from *provenance* and the *base-set anchoring* of the whole UX. This document is the consolidated target design those decisions produced.
+
+### §2 Product frame — session-record form
+
+**Disposition:** → archive; rewritten as present-tense requirements (R2); bullet 6's 'daily detection' was never built (runbook: no automation exists)
+
+> Decisions made this session, treated here as fixed requirements:
+>
+> - **Multi-user inventory tracker** — many isolated collectors over one shared catalog. No decks, trading/sharing, or valuation (explicitly scoped out). [Open Q E] **Superseded in part:** Pricing (§16) and Deck Check (§5.11) shipped 2026-07-22 — this framing records the session's original decisions, not a current scope boundary.
+> - **Full long-tail variant tracking** — every variant swuapi exposes (~58 types), not just the original 8.
+> - **Base-set anchoring** — the experience is organized around the base sets (11 as of Homeworlds); long-tail provenance is a secondary, toggleable dimension.
+> - **Completion is base-card-level and variant-agnostic** (playset / owned) — already built; unchanged. [§6]
+> - **Per-variant, per-tenant configurable keep-limits** — advisory policy, never DB constraints. [BL-24, BL-35]
+> - **Approximately-current catalog** — daily detection + operator-gated apply. [BL-33 step 7, BL-36, BL-37]
+> - **Public catalog, auth-gated inventory.** [Open Q D, BL-17]
+> - **One user per tenant — permanent** (owner decision 2026-07-30, public-release review; retired BL-89). Every account is the sole member of its own auto-provisioned tenant; shared/household tenants, invitations, and ownership transfer are permanently out of scope. `DELETE /api/account`'s whole-tenant purge semantics are correct by construction under this model.
+
+### §4 — intro sentence (`Target schema`)
+
+**Disposition:** → archive; rewritten (R3)
+
+> Table-level model below. Exact column types, constraints, and indexes are settled at BL-33 implementation time; this section is authoritative for *shape and intent*.
+
+### §9 `Relationship to backlog` — execution map table
+
+**Disposition:** → archive (BL-33-era execution map; every row resolved); the heading stays over a tombstone
+
+> | Item | Role in this design |
+> |------|---------------------|
+> | **BL-33** | Master execution + sequencing: schema migration (§4), ingestion ordering, snapshot regeneration, cutover. Points here for the design. |
+> | **BL-27** | ✅ Resolved 2026-06-21 — census + classification (§10): vocabulary frozen, finish/channel/stamp rules, exception resolution, `is_token`, keying. |
+> | **BL-29** | Ingestion from swuapi, upsert-keyed on `swuapi_id`. |
+> | **BL-24 / BL-25 / BL-35 / BL-22** | Keep-limits, settings UI, hard/soft mode, settings page (§4.5, §6). |
+> | **BL-31 / BL-32** | `stamp_group` consolidation — popup (§5.3) and inline editing. |
+> | **BL-36 / BL-37** | New-set onboarding considerations; gated → full auto-apply (§7). |
+> | **BL-34** | Mapping-spec test suite (validates §3 mechanism). |
+> | **BL-30** | Bulk-add precon products (independent; blocked on a decklist source). |
+> | **BL-136 / BL-139 / BL-146** | ✅ Pricing: backend + jobs + snapshot + full history, prod 2026-07-22 (§16, §12). Dev-side reconciliation tail → BL-149. |
+> | **BL-137 / BL-142 / BL-143** | ✅ Deck check: API + UI + top-level nav ("Vault" rename), prod 2026-07-22 (§5.11, §12); ephemeral precursor of §15. |
+> | **BL-140 / BL-144 / BL-147 / BL-148** | ✅ Pricing UI (popups-only scope — deferred surfaces → BL-141) + filter default + 125% scale + popup prev/next, prod 2026-07-22 (§5.10, §5.12). |
+
+### §21 v1.4 Vault batch — per-item summaries
+
+**Disposition:** → archive (changelog-shaped); five facts absent from §5 merged into their owning sections (R6); BL-223/224/226 → §5.15 (reviewer fold-in; their §21 pointers re-pointed); the P26 line archive-only — the current counts are §23
+
+> As-built summaries; each item's build-authoritative detail lives in its PR + the 2026-08-15/16 field logs. All are feedback-sourced (📣 backlog convention) unless noted.
+>
+> - **BL-213 — column sorting (PR #133):** every Vault table header sorts (value follows the live MARKET/LOW + UNIT/COLLECTION switches; name, rarity, cost, power, HP, playset progress, …). Sets never interleave — `#`/Set sorts keep sets grouped (binder order; the default and `Set` ascending are newest main set first, `Set` descending shows the main sets oldest first, each Weekly Play set still after its base, with Hoth, Twin Suns and all other sets keeping their place, numbers still ascending); `#` restores the classic order. Gallery reuses the same comparators via §5's shared sort spine. *(Order superseded 2026-10-12, BL-258 — prior wording in the Archive.)*
+> - **BL-217 — over-keep-limit filter (PR #131):** a Vault filter surfacing every card held past the tenant's effective cap ("trade pile"); follows the playset finish scope like the other ownership filters.
+> - **BL-219 — stepper responsiveness (PR #132):** popup `+`/`−` decoupled from server round trips via the debounced-delta `adjust` endpoint (§12); Add Cards batch commits ride the same path.
+> - **BL-222/BL-225 — gallery header parity (PRs #137, rode #139):** the gallery gained the table's full sort header, playset finish filter, value switches, and scoped-amber treatment; card plates' pips follow the finish scope, completed plates light their outline, count chip dropped the "/3".
+> - **BL-223 — Totals switch (PR #139):** the completion panel's scope control is a FILTERED/ALL `ValueSwitch` beside the fourth block; narrowed-FILTERED carries the amber signal on the switch and all four blocks. (Post-merge polish: the switch top-aligns with the block labels — PR #147.)
+> - **BL-224 — set-dimension unification (PR #139):** the completion-panel popover set rows and the sidebar set facet are ONE selection (`filters.set` is the single source of truth); BL-179's parallel "home base set" third scope is retired outright.
+> - **BL-226 — table width tiers (PR #146):** Compact/Standard/Full column sets with live auto-selection (column-at-a-time ladder, Name as slack absorber); override lives inside the Table button as a hover flyout (plain click = Auto). Supersedes BL-214 (customizable views declined).
+> - **BL-227 — header polish (PR #142):** header version/fan-project links white at rest with the buttons' blue hover glow; nav-tab hover unified. (Related rider, PR #148: `.inv-summary__actions` wraps at narrow widths like the summary blocks.)
+> - **Catalog:** the P26 2026 tournament-promo wave (+134 variants across 82 base cards) ingested to all envs the same day per `SWU_SWUAPI_Content_Runbook.md` — zero new base cards, zero mapping exceptions.
+
+### §19 — heading and intro paragraph (design-history form)
+
+**Disposition:** → archive; rewritten (R5)
+
+> ## 19. Collection Lists & Sharing (BL-204 design — 2026-08-11; **§19.1 sharing SHIPPED in v1.4, 2026-08-16**)
+>
+> Design converged with the owner across the 2026-08-10/11 feature-exploration and work-planning sessions (field log `Session_Notes_Feature_Exploration_2026-08-10.md`); supersedes BL-188's deferred surplus/needs concept. Execution: **BL-205 (sharing) shipped to prod in v1.4 (2026-08-16)** — §19.1 is now as-built (endpoint reference: §12 "Shares"); BL-206 (wanted — deferred from 1.4, pull-forward candidate) and BL-207/208/209 (binders core / lent+surplus / list-scope sharing) remain design-stage. This section stays build-authoritative for BL-206; §19.3 is directional and gets firmed to full resolution before BL-207 starts.
+
+### §24 Status paragraph (`owed` list)
+
+**Disposition:** → archive; rewritten to the owner's device record (R9, sweep J12)
+
+> **Status.** Built on the phone behind the centre button's camera mode (ADR-0029, amended 2026-10-11): the isolated `/scan/` document (§25.7) reads the card's strip on-device and feeds the keypad's resolved-card panel. Not build gates, collected on the real app in the owner's LAN rounds: the Stage 3 timed pile against the keypad, ≥ 110 attempts under the final rules, printed-code collision evidence from the community, a second phone. *2026-10-11: the spike-era heading ("NOT BUILT") and Status paragraph (including the "static mock" sentence) are superseded — verbatim in SWU_Application_Spec_Archive.md.*
+
+### §24.2 Flow (spike flow bullets)
+
+**Disposition:** → archive (the as-built flow is §25.7, A3 D1–D16 agree); replaced by the rules the flow obeys (R7), each lifted from these bullets
+
+> ### 24.2 Flow
+> - **Default: recognise, then decide.** On a successful read the scanner
+>   pauses and shows the card exactly as the keypad shows a resolved card
+>   (art, name/subtitle, set + number, printing, ownership line / IN VAULT ·
+>   AFTER ADD readout) with **Card details / Add to batch / Wrong card**. Nothing is
+>   counted until Add. **Wrong card restarts the scan** (owner, 2026-10-10 —
+>   the error rate is assumed very low); the Keypad stays one tap away via
+>   the tool's mode toggle.
+>   *(2026-10-12: the earlier "Add" button label is in SWU_Application_Spec_Archive.md, under "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)".)*
+> - **The strip identifies the card.** In both flows the card shown and added
+>   is the one the strip names — its denominator, token prefix and printed code
+>   say which printing — never the keypad's default for that set and number
+>   (owner, 2026-10-13: "trust what the strip says"; §25.7). **A token is
+>   recognised and named, and is not added by scanning** in either flow (owner,
+>   2026-10-13; the keypad cannot enter a token either).
+> - **Fast add** (opt-in toggle in the tool header, remembered): a read adds
+>   immediately (one copy) **when its strip identifies one printing**. A strip
+>   that is more than one printing of one card stops for that one choice and
+>   the answer adds it: SOR, SHD and TWI print the same strip on the foil and
+>   the non-foil, so those cards ask **Finish every time** (owner, 2026-10-13),
+>   and the three Serialized Prestige printings of one number ask which
+>   (Carbonite, Gold or Rose Gold) in both flows.
+>   After an add the scanner **holds ~1 s** with the card shown, and under
+>   Fast add the card must leave the frame before it is read again — the
+>   guards against double adds (§25.7, ADR-0029 amendment 2026-10-13).
+> - **Ambiguous read** (a strip that maps to more than one card, or to a
+>   tournament tier — `N/2` tournament promos, printed-code collisions, two
+>   cards under one code and number): amber pick with the program names; never
+>   auto-resolved, Fast add included; the picked card then follows the same
+>   rule with its own printings. A strip shared only by finishes (an early-set
+>   foil and non-foil) is not a pick: the default flow shows the Finish choice
+>   on the non-foil default (BL-191) and adds what is shown on Add to batch;
+>   Fast add asks Finish and adds the answer.
+>   *(2026-10-13: the earlier Fast add and Ambiguous read bullets — "adds immediately", "holds ~1.5 s", "early foils" as a pick — are in SWU_Application_Spec_Archive.md, under "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)".)*
+> - **No read**: Keypad is one tap away, prefilled where partly read.
+> - **Cue:** a short beep plus a brief full-screen green flash. No haptics
+>   on iPhone (no Vibration API; the switch-control trick is not felt).
+> - **Guidance:** a live sharpness meter with one-word guidance ("Blurry —
+>   move back / closer", "Too small — move closer"). **No automatic zoom**;
+>   distance is the user's control. The optional explicit controls (zoom, focus
+>   distance, torch, lens) are **not built** in v1; the stream is set back to
+>   zoom 1.0 at start if it did not start there, and is left there. *(2026-10-11: "may exist but default untouched" superseded — SWU_Application_Spec_Archive.md, under "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)".)*
+> - **Camera start:** at every stream start the guide is drawn dim and the
+>   meter reads "Focusing…" until the picture first sharpens or 3 s pass, so
+>   the card is lined up once, after the phone has settled its focus and lens
+>   (§25.7, ADR-0030 Round 2). Reading is not held back.
+
+### §24.3 — tuned-offsets paragraph
+
+**Disposition:** → archive (as-built offsets and sliders are §25.7 Guide, A3 D13)
+
+> **Tuned offsets from the owner's live runs:** box and crop sit
+> 2.2 mm left and 2.1 mm above the nominal position relative to the outline
+> (his promo card and his holding distance, ~1.15× the assumed 45 px text);
+> two ±4 mm sliders (step 0.1) sit behind the camera screen's "Align guide" button for on-phone calibration and persist on release (§25.7). The owner expects to keep
+> refining these values.
+
+### §24.6 Evidence (2026-10-09/10 spike runs)
+
+**Disposition:** → archive (dated spike evidence; the decision is ADR-0029; the full table is private `planning/BL238_Results_2026-10-09.md`)
+
+> ### 24.6 Evidence (2026-10-09/10, iPhone 16 Pro, owner's mixed cards)
+> Six runs of the spike page: median first-text → recognition 10.3 s →
+> 0.8 s, p90 52 s → 2.3 s; 0 wrong cards offered under the final rules
+> (48 prompts/picks); Safari grants a 4K stream, zoom 0.5–10, torch and
+> focus distance. Full table: `planning/BL238_Results_2026-10-09.md`
+> (private layer).
+
+### §25.0 known limits — `owed a real-phone pass` bullet
+
+**Disposition:** → archive; rewritten to the device record (R9, sweep J12)
+
+>   - Verified in Chromium and jsdom, owed a real-phone pass: the iOS keyboard in search mode, Safari's camera permission prompt on each hop between documents, the deployed `/scan-workers/**` and `/vendor/scan/**` headers, session restore and Google sign-in on a real Firebase project, and cross-origin isolation with threads and SIMD on a phone.
+
+### §25.0 known limits — `accepted copy` bullet
+
+**Disposition:** → archive (duplicate of §25.7 `Accepted copy`, sweep J11)
+
+>   - The camera's stream-state sentences and the generic pick question are accepted copy (§25.7; v2.0 shipped with them).
+
+### §5.8 Privacy bullet — tracking clause
+
+**Disposition:** → archive; present tense (R8)
+
+> tracking — originally "none", superseded 2026-08-26 by BL-235's usage-analytics disclosure bullet: anonymous, inputs masked, opt-out in Settings, processed by PostHog, see §22
+
+### §5.10 — `popups ONLY in v1` scope paragraph
+
+**Disposition:** → archive; present tense (R8): 'the only surface that renders prices' stopped being true at BL-163
+
+> **Scope decision (Jeremy, 2026-07-21): popups ONLY in v1** — the card detail/inventory popup (§5.3) is the only surface that renders prices. No table column, no gallery badge, no completion-header integration; those designed-but-deferred surfaces are BL-141 (the `list-gallery-price` prototype exists in Claude Design). **Partially superseded (2026-07-26, BL-163 — §5.13):** the completion panel now renders **Collection value**; the table-column and gallery-badge surfaces remain deferred under BL-141.
+
+### §7 Access & currency — `Currency` bullet (target-state sync design)
+
+**Disposition:** → archive (described the unbuilt BL-33 step 7 / BL-36 / BL-37 scheduled detection as current; rewritten to the runbook mechanism — reviewer finding, PR #276)
+
+> - **Currency** — Cloud Scheduler → Cloud Run, daily detection, operator-gated apply (later full auto-apply, BL-37); public catalog shows pre-release/preview content with the gate as the quality check. New-set onboarding in BL-36. **Deletions:** the sync consumes swuapi `/deletions` tombstones (not just upserts) via the documented `since` + `after`/`next_cursor` cursor contract; deletions are surfaced in the operator gating review before apply, with explicit attention to deleting a card that already has inventory rows (rare, must not silently orphan a tenant's inventory). swuapi "card merges never emit," so no card-merge handling is needed. (BL-33 step 7; BL-36.)
