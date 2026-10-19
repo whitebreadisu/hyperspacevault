@@ -521,7 +521,7 @@ Durable facts about how the printed product is structured, re-expressed in the �
 
 **Tech stack** (code-verified versions as of 2026-07-24; full table + local setup in `README.md`):
 - Backend — Python 3.12, FastAPI 0.141, SQLAlchemy 2.1 (engines name the `psycopg2` driver explicitly via `app/db_url.py` — 2.1 maps a bare `postgresql://` URL to psycopg 3), Alembic, Pydantic 2.13, `psycopg2`, `firebase-admin` 7.5, uvicorn; pytest. PostgreSQL 16.
-- Frontend — React 19.3 + Vite 8, TypeScript, Firebase JS SDK 13 (main; prod v2.0.1 runs 12.19.0), posthog-js; Vitest 4, Playwright 1.61 (phone e2e), ESLint 9 + Prettier.
+- Frontend — React 19.3 + Vite 8, TypeScript, Firebase JS SDK 13 (prod since v2.1, 2026-10-19), posthog-js; Vitest 4, Playwright 1.61 (phone e2e), ESLint 9 + Prettier.
 - Platform (GCP / Cloud Run / Cloud SQL / Terraform / CI) — authoritative in `SWU_Platform_Spec.md`.
 
 ---

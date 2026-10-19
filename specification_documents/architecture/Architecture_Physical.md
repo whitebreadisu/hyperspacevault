@@ -92,7 +92,7 @@ flowchart TB
 |---|---|---|
 | Deploys | Automatic on merge to main | Owner-gated promote (or all-risk:low auto) |
 | Front door | `swu-dev-jbapps.web.app` | `www.hyperspacevault.com` (apex 301; legacy domain a permanent 301 since 2026-07-30) |
-| Running | v2.1 candidate (main `d3118c5`) | v2.0.1 (`c65cf87`) |
+| Running | main (v2.1 and later) | v2.1 (promoted 2026-10-19) |
 | Cloud Run max instances | 1 | 3 — bounds worst-case cost of flooding the anonymous catalog endpoints |
 | Cloud SQL tier | db-f1-micro | db-g1-small (applied and live-verified 2026-08-01) |
 | Deletion protection | Off | On |

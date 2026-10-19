@@ -1,11 +1,11 @@
-<!-- generated 2026-10-19 by .github/scripts/docs_index.mjs from 4ed3277 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-19 by .github/scripts/docs_index.mjs from 5d012e1 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 249,751 B (LF) · 25 h2 · 77 h3
+Total 249,748 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -61,7 +61,7 @@ Total 249,751 B (LF) · 25 h2 · 77 h3
 | h3 | [§10.9 Aspect multiplicity — confirmed flattened](SWU_Application_Spec.md#109-aspect-multiplicity--confirmed-flattened) | 481 | 297 |  |  |  |  |
 | h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 485 | 626 |  |  | `backend/alembic/versions` |  |
 | h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 493 | 3,833 |  | 0002, 0014 |  |  |
-| h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 506 | 2,833 |  |  | `backend/app`, `backend/app/db_url.py` |  |
+| h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 506 | 2,830 |  |  | `backend/app`, `backend/app/db_url.py` |  |
 | h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 529 | 21,902 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
 | h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 543 | 256 |  |  |  |  |
 | h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 551 | 5,563 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` |  |
@@ -115,13 +115,13 @@ Total 249,751 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 115,767 B (LF) · 6 h2 · 43 h3
+Total 115,766 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
 | — | (preamble: title and front matter) | 1 | 96 | 2026-06-14 Version 1.0 \| Created |  |  |  |
 | h2 | [§Purpose & How to Use This Document](SWU_Platform_Spec.md#purpose--how-to-use-this-document) | 7 | 2,337 |  | 0020 | `backend/app/tests/test_route_registry.py`, `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§1. Auth & Tenancy Architecture](SWU_Platform_Spec.md#1-auth--tenancy-architecture) | 30 | 24,538 |  |  |  |  |
+| h2 | [§1. Auth & Tenancy Architecture](SWU_Platform_Spec.md#1-auth--tenancy-architecture) | 30 | 24,537 |  |  |  |  |
 | h3 | [§1.1 Overview](SWU_Platform_Spec.md#11-overview) | 32 | 4,860 |  | 0008, 0019, 0027 | `backend/app/auth.py`, `backend/app/database.py`, `backend/app/routers/relay.py`, `backend/app/services/feedback.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§1.2 Where the token is verified — `app/auth.py`](SWU_Platform_Spec.md#12-where-the-token-is-verified--appauthpy) | 64 | 4,325 |  | 0034 | `backend/app/auth.py`, `frontend/src/components/VerifyEmailBanner.tsx` |  |
 | h3 | [§1.3 The `Depends` chain and the route registry](SWU_Platform_Spec.md#13-the-depends-chain-and-the-route-registry) | 72 | 3,992 |  |  | `backend/app/database.py`, `backend/app/tests/test_route_registry.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
@@ -129,7 +129,7 @@ Total 115,767 B (LF) · 6 h2 · 43 h3
 | h3 | [§1.5 Row-Level Security policies](SWU_Platform_Spec.md#15-row-level-security-policies) | 139 | 5,377 |  |  |  |  |
 | h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 155 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
 | h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 168 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
-| h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 177 | 1,576 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
+| h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 177 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
 | h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 183 | 28,195 |  |  |  |  |
 | h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 185 | 13,269 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
 | h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 217 | 559 |  |  | `backend/requirements.txt` |  |
