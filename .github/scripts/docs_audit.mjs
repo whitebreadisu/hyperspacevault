@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs
 import { dirname, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { LEVELS, GATE_CHECKS, runChecks, runGate } from "./docs_check.mjs";
+import { LEVELS, GATE_CHECKS, runChecks, runGate, cellEscape } from "./docs_check.mjs";
 import { generateBody, bodyOf } from "./docs_index.mjs";
 import { historyState } from "./docs_history.mjs";
 
@@ -82,9 +82,7 @@ export function audit(root) {
   if (dc.findings.length) {
     parts.push("| Check | Where | Finding |", "|---|---|---|");
     for (const f of dc.findings)
-      parts.push(
-        `| \`${f.check}\` | \`${f.file}:${f.line}\` | ${f.message.replace(/\|/g, "\\|")} |`
-      );
+      parts.push(`| \`${f.check}\` | \`${f.file}:${f.line}\` | ${cellEscape(f.message)} |`);
   } else parts.push("None.");
 
   // 2. generated artefacts
@@ -108,7 +106,7 @@ export function audit(root) {
   parts.push(
     `- HISTORY.md Releases block: ${hist.status === "fresh" ? "fresh" : `**${hist.status.toUpperCase()}** — \`node .github/scripts/docs_history.mjs --write\``}`
   );
-  if (hist.status !== "fresh") findings++;
+  // Not counted here: a stale/missing block is already a `history-releases` finding in the strict run.
 
   // 3. sections whose cited code changed since the section's banner
   h("Spec sections whose cited code changed after the section's dated banner");
@@ -132,7 +130,7 @@ export function audit(root) {
         );
         for (const r of rows)
           parts.push(
-            `| ${r.spec} | ${r.section.replace(/\|/g, "\\|")} (L${r.line}) | ${r.banner} | ${r.changed.map((c) => `\`${c.path}\` ${c.date}`).join("<br/>")} |`
+            `| ${r.spec} | ${cellEscape(r.section)} (L${r.line}) | ${r.banner} | ${r.changed.map((c) => `\`${c.path}\` ${c.date}`).join("<br/>")} |`
           );
       } else parts.push("None.");
     }
@@ -149,7 +147,7 @@ export function audit(root) {
     for (const f of gate.findings)
       parts.push(`- \`${f.check}\` \`${f.file}:${f.line}\` — ${f.message}`);
   } else parts.push("Would pass.");
-  findings += gate.findings.length;
+  // Not added to the total: every gate finding is already counted by the strict docs-check run above.
 
   const sha = git(root, ["rev-parse", "--short", "HEAD"]) || "unknown";
   const head = [

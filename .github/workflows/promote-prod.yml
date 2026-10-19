@@ -112,12 +112,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/ci_gate.sh "${{ steps.resolve.outputs.sha }}"
 
-      # BL-271 Phase E: keep main's copy of the docs-gate scripts so the gate
+      # BL-271 Phase E: keep main's copy of the docs-gate script so the gate
       # below judges the promoted tree with today's logic (like ci_gate.sh).
-      - name: Stage the docs-gate scripts from main
+      - name: Stage the docs-gate script from main
         run: |
           mkdir -p /tmp/gate
-          cp .github/scripts/docs_check.mjs .github/scripts/docs_index.mjs /tmp/gate/
+          cp .github/scripts/docs_check.mjs /tmp/gate/
 
       - name: Check out the promoted commit
         run: git checkout --quiet "${{ steps.resolve.outputs.sha }}"
@@ -151,7 +151,13 @@ jobs:
             echo "docs-gate: INDEX.md freshness skipped (allow_stale_notes)"
           else
             node /tmp/gate/docs_check.mjs --gate --root .
-            node /tmp/gate/docs_index.mjs --check --root .
+            # INDEX.md is judged by the promoted tree's OWN generator (the one its PR was checked with);
+            # main's generator may render differently and would make every earlier SHA unpromotable.
+            if [ -f .github/scripts/docs_index.mjs ]; then
+              node .github/scripts/docs_index.mjs --check
+            else
+              echo "docs-gate: no docs_index.mjs in the promoted tree (pre-Phase D) -- INDEX.md check skipped"
+            fi
           fi
 
       - uses: ./.github/actions/promote-prod

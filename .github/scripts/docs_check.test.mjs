@@ -155,6 +155,37 @@ test("release entries: regex parse ignores comments, keeps file order, falls bac
   assert.equal(spliceReleasesBlock("# H\nno markers\n", block).had, false);
 });
 
+test("release entries: a URL in a title survives, a trailing inline comment is harmless, and a reordered entry throws instead of vanishing", () => {
+  const ok = parseReleaseEntries(`[
+    { kind: "release", key: "2.2", version: "2.2", date: "2026-11-01", // placeholder date
+      title: "See https://example.com/notes", sections: [{ items: [{ title: "nested", body: "b" }] }] },
+  ]`);
+  assert.deepEqual(
+    ok.map((e) => [e.version, e.date, e.title]),
+    [["2.2", "2026-11-01", "See https://example.com/notes"]]
+  );
+  assert.throws(
+    () =>
+      parseReleaseEntries(
+        `[{ key: "2.9", date: "2026-11-01", title: "t", kind: "release", }, { kind: "release", key: "2.8", date: "2026-10-01", title: "u" }]`
+      ),
+    /entry 1 .*missing key\/date\/title/
+  );
+  assert.throws(
+    () =>
+      parseReleaseEntries(
+        `[{ kind: "release", key: "2.9", date: "2026-11-01", sections: [{ items: [{ title: "nested" }] }], title: "top" }]`
+      ),
+    /title after `sections:`/
+  );
+  assert.equal(
+    renderReleasesBlock([
+      { kind: "release", version: "1", date: "2026-01-01", title: "a\\b|c" },
+    ]).split("\n")[4],
+    "| 2026-01-01 | v1 | a\\\\b\\|c |"
+  );
+});
+
 test("arch-as-of: a view behind the newest minor warns, a missing banner warns, current or newer passes", () => {
   const f = only(run("arch_asof_old"), "arch-as-of");
   assert.deepEqual(
@@ -235,6 +266,14 @@ test("--gate: only the release-event checks, at fail; --waive demotes them; cont
   assert.equal(exitCode("history_stale", ["--gate"]).status, 1);
   assert.equal(exitCode("history_stale", ["--gate", "--waive"]).status, 0);
   assert.equal(exitCode("link_broken", ["--gate"]).status, 0);
+  // last-updated inside the gate: fail with a late banner (git injected), nothing on a shallow checkout
+  const git = (date) => (_r, a) => (a[0] === "rev-parse" ? "false" : date);
+  const late = runGate({ root: fx("banner_late"), git: git("2026-12-31") });
+  assert.deepEqual(
+    late.findings.map((f) => [f.check, f.level]),
+    [["last-updated", "fail"]]
+  );
+  assert.equal(runGate({ root: fx("banner_late"), git: () => "true" }).findings.length, 0);
 });
 
 test("parseLinks: one level of balanced brackets inside the link text", () => {

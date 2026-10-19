@@ -548,27 +548,47 @@ export const HISTORY_BLOCK_END = "<!-- generated:releases end -->";
  * "announcement" and no version. Fields are read in any order up to the next `kind:`.
  */
 export function parseReleaseEntries(tsText) {
-  const text = tsText.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Whole-line `//` comments and block comments are stripped; a `//` inside a string (a URL in a title)
+  // is left alone. Shape contract (the module is hand-written data): `kind` leads each entry and the
+  // entry's own `title` precedes its nested `sections[].title`s — both guarded below, so a reordered
+  // entry throws instead of silently vanishing or borrowing a neighbour's fields.
+  const text = tsText.replace(/^\s*\/\/[^\n]*/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
   const out = [];
-  const kinds = [...text.matchAll(/\bkind:\s*"(release|announcement)"/g)];
+  // An entry's `kind` is followed by a comma; the TypeScript union type's `kind: "release";` is not.
+  const kinds = [...text.matchAll(/\bkind:\s*"(release|announcement)"\s*,/g)];
   kinds.forEach((m, i) => {
     const chunk = text.slice(m.index, i + 1 < kinds.length ? kinds[i + 1].index : undefined);
     const field = (name) =>
       new RegExp(`\\b${name}:\\s*"((?:[^"\\\\]|\\\\.)*)"`)
         .exec(chunk)?.[1]
         ?.replace(/\\(.)/g, "$1");
+    const sectionsAt = chunk.search(/\bsections:/);
+    const titleAt = chunk.search(/\btitle:/);
+    if (sectionsAt >= 0 && titleAt > sectionsAt) {
+      throw new Error(
+        `releaseNotes.ts: entry ${i + 1} (kind ${m[1]}) has its title after \`sections:\` — move the entry's title above its sections`
+      );
+    }
     const e = { kind: m[1], key: field("key"), date: field("date"), title: field("title") };
     if (e.kind === "release") e.version = field("version") ?? e.key;
-    if (e.key && e.date && e.title) out.push(e);
+    if (!e.key || !e.date || !e.title) {
+      throw new Error(
+        `releaseNotes.ts: entry ${i + 1} (kind ${m[1]}) is missing key/date/title after its \`kind:\` — \`kind\` must lead each entry`
+      );
+    }
+    out.push(e);
   });
   return out;
 }
+
+/** Markdown table cell text: backslashes first, then pipes (CodeQL js/incomplete-sanitization otherwise). */
+export const cellEscape = (s) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 
 /** The Releases table (releases only, newest first, as the notes module orders them). */
 export function renderReleasesBlock(entries) {
   const rows = entries
     .filter((e) => e.kind === "release")
-    .map((e) => `| ${e.date} | v${e.version} | ${e.title.replace(/\|/g, "\\|")} |`);
+    .map((e) => `| ${e.date} | v${e.version} | ${cellEscape(e.title)} |`);
   return [
     HISTORY_BLOCK_START,
     "",
