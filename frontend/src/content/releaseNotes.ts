@@ -46,10 +46,8 @@ export const RELEASE_NOTES: ReleaseNotesEntry[] = [
     kind: "release",
     key: "2.1",
     version: "2.1",
-    // Placeholder: 2.0.1 shipped 2026-10-17 and the list is strictly
-    // newest-first, so 2.1 promotes on 10-18 or later; the gate wants the
-    // promote day here.
-    date: "2026-10-18",
+    // Promote day (America/Chicago), finalised by the v2.1 release PR.
+    date: "2026-10-19",
     title: "A steadier keypad",
     sections: [
       {
