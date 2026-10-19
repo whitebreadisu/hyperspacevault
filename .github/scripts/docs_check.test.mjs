@@ -37,13 +37,18 @@ test("links: bad anchor is a warning, not a failure", () => {
   assert.equal(slugs[0].target, "x.md#nope");
 });
 
-test("private allowlist: unmarked link warns, marked link passes, neither fails", () => {
+test("private allowlist: unmarked link fails (Phase C), marked link passes", () => {
   const unmarked = run("private_unmarked");
   assert.equal(only(unmarked, "links").length, 0);
   assert.equal(only(unmarked, "private-marker").length, 1);
-  assert.equal(only(unmarked, "private-marker")[0].level, "warn");
-  assert.equal(exitCode("private_unmarked").status, 0);
+  assert.equal(only(unmarked, "private-marker")[0].level, "fail");
+  assert.equal(exitCode("private_unmarked").status, 1);
   assert.deepEqual(run("private_marked"), []);
+});
+
+test("private-marker: links inside a verbatim spec archive are exempt (Phase C)", () => {
+  assert.equal(only(run("private_archive_exempt"), "private-marker").length, 0);
+  assert.equal(exitCode("private_archive_exempt").status, 0);
 });
 
 test("adr-index: file without row, row without file, status mismatch", () => {
@@ -124,7 +129,7 @@ test("helpers: slug rules, release-date parse, private allowlist", () => {
 
 test("level table: initial levels per the brief", () => {
   assert.equal(LEVELS.links, "fail");
-  assert.equal(LEVELS["private-marker"], "warn");
+  assert.equal(LEVELS["private-marker"], "fail");
   assert.equal(LEVELS["history-current"], "warn");
   assert.equal(LEVELS["adr-index"], "fail");
 });
@@ -174,7 +179,7 @@ test("cite-path: a missing repo path fails; real, extensionless, runtime, privat
   assert.equal(f[0].level, "fail");
   assert.match(f[0].message, /missing\.py/);
   assert.equal(exitCode("cite_path_fail", ["--level", "cite-path=fail"]).status, 1);
-  assert.equal(exitCode("cite_path_fail").status, 0, "warn until Phase C clears the 3 real findings");
+  assert.equal(exitCode("cite_path_fail").status, 1, "fail since Phase C (2026-10-19)");
   assert.deepEqual(run("cite_path_pass"), []);
   assert.equal(exitCode("cite_path_pass").status, 0);
 });
@@ -205,7 +210,7 @@ test("ci-job-name: phantom job in the diagram or in prose fails; real names and 
   assert.match(d[0].message, /phantom-gate/);
   assert.equal(d[0].level, "fail");
   assert.equal(exitCode("ci_job_fail_diagram", ["--level", "ci-job-name=fail"]).status, 1);
-  assert.equal(exitCode("ci_job_fail_diagram").status, 0, "warn until Phase C clears the 2 real findings");
+  assert.equal(exitCode("ci_job_fail_diagram").status, 1, "fail since Phase C (2026-10-19)");
   const p = only(run("ci_job_fail_prose"), "ci-job-name").map((x) => x.message);
   assert.equal(p.length, 2);
   assert.ok(p.some((m) => /ghost-deploy/.test(m)) && p.some((m) => /deploy-ghost/.test(m)));
@@ -276,9 +281,22 @@ test("gap 3: doc set comes from the tracked-file list at a repo toplevel, static
 });
 
 test("round 2 level table and --json include the new checks", () => {
-  for (const c of ["cite-line", "adr-status-inline"]) assert.equal(LEVELS[c], "fail", c);
-  for (const c of ["cite-path", "ci-job-name", "cite-line-range", "number-snapshot"]) assert.equal(LEVELS[c], "warn", c);
+  for (const c of ["cite-line", "adr-status-inline", "cite-path", "ci-job-name"]) assert.equal(LEVELS[c], "fail", c);
+  for (const c of ["cite-line-range", "number-snapshot"]) assert.equal(LEVELS[c], "warn", c);
   const j = JSON.parse(exitCode("cite_line_fail", ["--json"]).stdout);
   assert.deepEqual([...new Set(j.findings.map((f) => f.check))].sort(), ["cite-line", "cite-line-range"]);
   assert.equal(exitCode("cite_path_fail", ["--level", "cite-path=fail"]).status, 1);
+});
+
+test("cite-path: the ignore list is doc-scoped — the entry's doc passes, another doc citing the same missing path fails", () => {
+  const f = only(run("cite_path_ignored"), "cite-path");
+  assert.equal(f.length, 1);
+  assert.equal(f[0].file, "README.md");
+  assert.equal(f[0].level, "fail");
+  assert.equal(exitCode("cite_path_ignored").status, 1);
+});
+
+test("private mode: tombstone-index table rows count as tombstones (Phase C)", () => {
+  assert.deepEqual(only(run("private_table", { privateMode: true }), "private-mode"), []);
+  assert.equal(exitCode("private_table", ["--private"]).status, 0);
 });

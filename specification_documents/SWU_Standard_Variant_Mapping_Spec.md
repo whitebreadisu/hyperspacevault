@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-20
 **Status:** Living reference document — update as new scenarios are confirmed or new swuapi data resolves existing exceptions.
-**Related:** [`SWU_Backlog.md`](SWU_Backlog.md) BL-27 (variant-type enumeration), BL-28 (swuapi.com analysis — origin of this document), BL-29 (catalog rebuild), BL-31/BL-32 (tournament-tier stamp consolidation), BL-33 (schema redesign this document's mechanism feeds into).
+**Related:** [`SWU_Backlog.md`](SWU_Backlog.md) (private) BL-27 (variant-type enumeration), BL-28 (swuapi.com analysis — origin of this document), BL-29 (catalog rebuild), BL-31/BL-32 (tournament-tier stamp consolidation), BL-33 (schema redesign this document's mechanism feeds into).
 **Companion file:** [`swuapi_standard_variant_exceptions.md`](swuapi_standard_variant_exceptions.md) — the current, short, regenerated list of cards with no resolved standard anchor. Check that file for "is X still an exception" questions; you should not need to read this document for that.
 
 ---
@@ -58,7 +58,7 @@ Every SORP (Spark of Rebellion Weekly Play) card's `variant_of_uuid` points dire
 
 ### The integrity invariant this design depends on — corrected 2026-06-21 against the full export
 
-**Multi-hop chains exist — resolution must walk to the ultimate root, not assume one hop.** The original wording here ("must always point directly to a root... never to another non-root variant") was written from a handful of spot-checked examples and is **factually wrong** against the full corpus. A full live capture of all 8,353 cards (2026-06-21, `backend/app/tests/fixtures/swuapi_export_2026-06-21.json`) found **143 two-hop chains**, concentrated in 6 Weekly Play/Promo container sets (P25: 44, P26: 23, LAWP: 20, SECP: 20, LOFP: 19, JTLP: 17), all following the same pattern: `"<X> Foil" → "<X>" → Standard root` — e.g. `JTLP_21 "Weekly Play Foil" → JTLP_1 "Weekly Play" → JTL_32 "Standard"`. The intermediate card (`JTLP_1`) is itself a non-root variant whose own `variant_of_uuid` correctly points to the JTL root; the foil sibling just points to the intermediate card instead of straight to the root.
+**Multi-hop chains exist — resolution must walk to the ultimate root, not assume one hop.** The original wording here ("must always point directly to a root... never to another non-root variant") was written from a handful of spot-checked examples and is **factually wrong** against the full corpus. A full live capture of all 8,353 cards (2026-06-21; the fixture was later retired from the repo — the export lives in the private repo-assets bucket, BL-170, fetched by the realdata test tier) found **143 two-hop chains**, concentrated in 6 Weekly Play/Promo container sets (P25: 44, P26: 23, LAWP: 20, SECP: 20, LOFP: 19, JTLP: 17), all following the same pattern: `"<X> Foil" → "<X>" → Standard root` — e.g. `JTLP_21 "Weekly Play Foil" → JTLP_1 "Weekly Play" → JTL_32 "Standard"`. The intermediate card (`JTLP_1`) is itself a non-root variant whose own `variant_of_uuid` correctly points to the JTL root; the foil sibling just points to the intermediate card instead of straight to the root.
 
 **The corrected invariant:** resolving any card's `base_card_id` requires **walking `variant_of_uuid` until reaching a row whose own `variant_of_uuid` is `null`** (the ultimate root) — not assuming a single hop. Zero hops beyond 2 were found in the full export; the invariant test (§8) should assert termination within a small bounded number of hops (and fail loudly if a cycle or an unexpectedly deep chain appears), not assume exactly one hop. This is a mechanism correction recorded here, not a vocabulary or product decision — it doesn't touch finish-vs-provenance modeling (§3.2) or `stamp_group` assignment, both still reserved for BL-27's Opus-level pass.
 
@@ -148,7 +148,7 @@ This is intentionally narrow and structural — not "no card matched by name sea
 ## 7. Deferred / Related Concepts (explicitly out of scope here)
 
 - **Cross-set reprint grouping.** "Show every printing of this physical card, reprints across sets included" (wanted for the card detail popup) requires grouping independent roots by `(name, subtitle)`, case-insensitive, *across* sets — layered on top of the within-set mechanism this document describes, not part of it. Deferred per 2026-06-20 conversation; pick up when popup work (S6) reaches this feature. **Tracked: `SWU_Backlog.md` BL-52.**
-- **`stamp_group` (BL-31/BL-32).** Grouping a root's many non-root *tournament-tier* children (e.g. Rey's 6 RQ-tier variants, pixel-identical art with only a stamp changed) for UI consolidation is a sub-grouping among one root's children — a UI concern, not a base-card-matching concern. This document's mechanism determines *that* those 6 variants share a root; which of them visually look alike is BL-31/32's problem.
+- **`stamp_group` (BL-31/BL-32).** Grouping a root's many non-root *tournament-tier* children (e.g. Rey's 6 RQ-tier variants, pixel-identical art with only a stamp changed) for UI consolidation is a sub-grouping among one root's children — a UI concern, not a base-card-matching concern. This document's mechanism determines *that* those six RQ-tier variants (the 2026-06-21 census example) share a root; which of them visually look alike is BL-31/32's problem.
 
 ---
 

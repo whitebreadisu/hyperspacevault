@@ -29,7 +29,7 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0014](0014-deck-card-level-references.md) | Decks reference cards, not printings — anchored on non-token root numbers | Accepted |
 | [0015](0015-deck-interop-de-facto-json.md) | Deck interop via the de facto JSON, clipboard-first | Accepted |
 | [0016](0016-auth-provider-collision-auto-link.md) | Social-provider collisions resolve by native auto-link — one account per email | Accepted |
-| [0017](0017-risk-tiered-autonomy-rubric.md) | Risk-tiered autonomy rubric — explicit levels, fail-closed defaults, one machine-consumed label | Accepted |
+| [0017](0017-risk-tiered-autonomy-rubric.md) (private) | Risk-tiered autonomy rubric — explicit levels, fail-closed defaults, one machine-consumed label | Accepted |
 | [0018](0018-category-level-cap-precision-restore.md) | Restore numeric keep-limit precision at category granularity | Accepted |
 | [0019](0019-sharing-secret-link-trust-model.md) | Collection sharing via secret-link capability tokens over the existing RLS rails | Accepted |
 | [0020](0020-three-tier-documentation-regime.md) | Three-tier documentation regime — current-state / rationale / history | Accepted |
@@ -45,3 +45,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0030](0030-mobile-2-0-owner-finish-round.md) | Mobile 2.0 owner finish round — the gallery plate on card detail; red only past the limit | Accepted |
 | [0031](0031-set-order-newest-first.md) | Set order — main-release sets newest first, everywhere | Accepted |
 | [0032](0032-phone-keypad-keeps-its-size.md) | Phone keypad keeps its size; the user folds it | Accepted |
+| [0034](0034-verified-email-gate-boundary.md) | Verified-email gate boundary — inventory data writes, not account configuration | Accepted |
