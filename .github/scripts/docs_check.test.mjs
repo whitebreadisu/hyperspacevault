@@ -178,6 +178,15 @@ test("release entries: a URL in a title survives, a trailing inline comment is h
       ),
     /title after `sections:`/
   );
+  // kind last with no trailing comma: matched by nothing, so the count guard must catch it; the TS union type's
+  // `kind: "release";` must not count as an entry
+  assert.throws(
+    () =>
+      parseReleaseEntries(
+        `type T = { kind: "release"; key: string }; export const X = [{ kind: "release", key: "1", date: "2026-01-01", title: "a" }, { key: "2", date: "2026-01-02", title: "b", kind: "release" }]`
+      ),
+    /2 entries declare a kind but 1 parsed/
+  );
   assert.equal(
     renderReleasesBlock([
       { kind: "release", version: "1", date: "2026-01-01", title: "a\\b|c" },

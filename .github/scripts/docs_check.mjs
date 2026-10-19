@@ -545,7 +545,8 @@ export const HISTORY_BLOCK_END = "<!-- generated:releases end -->";
 /**
  * Release entries from releaseNotes.ts by regex (the module is pure data: string literals only):
  * [{kind, key, version, date, title}], newest first as in the file. Announcements are returned with kind
- * "announcement" and no version. Fields are read in any order up to the next `kind:`.
+ * "announcement" and no version. Shape contract: `kind` leads each entry (followed by a comma) and the entry's
+ * own `title` precedes its nested `sections[].title`s; the other fields may follow in any order. Violations throw.
  */
 export function parseReleaseEntries(tsText) {
   // Whole-line `//` comments and block comments are stripped; a `//` inside a string (a URL in a title)
@@ -578,6 +579,13 @@ export function parseReleaseEntries(tsText) {
     }
     out.push(e);
   });
+  // An entry whose `kind` is last with no trailing comma matches nothing above and would vanish silently.
+  const declared = [...text.matchAll(/\bkind:\s*"(?:release|announcement)"(?!\s*;)/g)].length;
+  if (declared !== out.length) {
+    throw new Error(
+      `releaseNotes.ts: ${declared} entries declare a kind but ${out.length} parsed — every entry's \`kind\` must lead it and end with a comma`
+    );
+  }
   return out;
 }
 
