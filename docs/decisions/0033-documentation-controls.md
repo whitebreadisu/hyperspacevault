@@ -30,6 +30,6 @@ Two supporting rules: **generate, don't maintain** — wherever the source of tr
 - + BL-13 (an owner-performed manual review) is retired; the audit issue is its standing replacement.
 - − Every spec edit now carries a regeneration step (`docs_index.mjs --write`); the index diff is machine churn and not for human review.
 - − A promote can be refused for a documentation reason. That is the point; the waiver covers rollbacks, and a genuine emergency can use it deliberately.
-- − The `risk:low` fast lane (`promote-prod-fast`, outside the dispatch's concurrency group) runs neither the notes gate nor the docs gate; the release gate holds only for dispatch promotes until the fast lane is removed (owner decision 2026-10-18, after the v2.1 promote).
+- − The `risk:low` fast lane (`promote-prod-fast`, outside the dispatch's concurrency group) runs neither the notes gate nor the docs gate; the release gate holds only for dispatch promotes until the fast lane is removed (removal sequenced after the v2.1 promote, owner 2026-10-18; the removal itself is still the owner's call).
 - − Branch protection is not "strict", so two clean-merging PRs can leave a generated file stale on main until the next run reddens; the audit catches what the PR job misses.
-- = Register: `SWU_Platform_Spec.md` §2.8 lists every control with its drift class, location and level; CLAUDE.md's Documentation Drift rule points there.
+- Register: `SWU_Platform_Spec.md` §2.8 lists every control with its drift class, location and level; CLAUDE.md's Documentation Drift rule points there.
