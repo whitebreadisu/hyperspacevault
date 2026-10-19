@@ -427,6 +427,13 @@ jobs:
       - name: Docs-index freshness
         run: node .github/scripts/docs_index.mjs --check
 
+      # BL-271 Phase E: the HISTORY Releases block generator and the audit report script.
+      # (HISTORY freshness itself is docs_check's `history-releases`, already run above.)
+      - name: Docs-history + docs-audit tests
+        run: |
+          node .github/scripts/docs_history.test.mjs
+          node .github/scripts/docs_audit.test.mjs
+
   # ── BL-178: the single required status check ────────────────────────────
   # Branch protection on main requires exactly this check ("ci-ok"), not the
   # heavy jobs individually — that's what lets docs-only PRs merge cleanly

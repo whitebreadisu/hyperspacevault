@@ -1,4 +1,4 @@
 # HISTORY
 | Date | Milestone |
 |---|---|
-| 2026-10-02 | **v1.5 shipped** |
+| 2026-10-18 | **v2.1 shipped** |
