@@ -421,6 +421,8 @@ Write the variant-graph invariant and the resolver tests against captured fixtur
 
 *(The BL-33-era execution map, every row resolved — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
+*Section-level retrieval index for this spec (generated, CI-checked, never hand-edited): `INDEX.md`.*
+
 ---
 
 ## 10. Variant Census & Classification (BL-27 — resolved 2026-06-21; §10.11 product-structure facts — BL-160, 2026-10-19)
