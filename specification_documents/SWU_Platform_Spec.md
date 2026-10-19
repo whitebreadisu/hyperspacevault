@@ -259,10 +259,11 @@ The gate's purpose is to catch a *regression* (someone adds a large untested mod
 
 ### 2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))
 
-One row per drift class found by the BL-271 Phase A sweep (and the two earlier machine checks), with the control that now catches it. Kinds: **gate** (refuses the prod promote), **test** (fails CI), **check** (docs-check level: fail reddens CI, warn is reported), **audit** (surfaces in the monthly rolling issue), **hook** (refuses a private-ledger commit). A new drift class gets a row and a control, not a CLAUDE.md sentence (ADR-0033).
+One row per drift class found by the BL-271 Phase A sweep, plus the machine checks and gates that predate or accompany it, with the control that catches each. Kinds: **gate** (refuses the prod promote), **test** (fails CI), **check** (docs-check level: fail reddens CI, warn is reported), **audit** (surfaces in the monthly rolling issue), **hook** (refuses a private-ledger commit). A new drift class gets a row and a control, not a CLAUDE.md sentence (ADR-0033).
 
 | Drift class (example found) | Control | Kind · level | Where it lives |
 |---|---|---|---|
+| Release shipped without a finished notes entry (the ritual as memory, pre-BL-210) | release-notes gate: newest `releaseNotes.ts` entry = `package.json` version, dated promote day | gate | `release_notes.mjs gate` in `promote-prod.yml` (BL-210) |
 | Release missing from HISTORY (six releases absent, Phase A) | Releases table generated from `releaseNotes.ts`; `history-releases` freshness | check · fail; gate | `.github/scripts/docs_history.mjs`; `docs_check.mjs`; `promote-prod.yml` docs gate |
 | Spec "Last updated" banner stale vs the file's history | `last-updated` (banner > 14 days behind the last commit to the file) | check · warn; gate · fail | `docs_check.mjs`; docs gate |
 | Architecture view behind the shipped minor | `arch-as-of` ("as of release vX.Y" < newest release's major.minor) | check · warn; gate · fail | `docs_check.mjs`; docs gate; §2.1 |
@@ -280,7 +281,7 @@ One row per drift class found by the BL-271 Phase A sweep (and the two earlier m
 | Backlog ✅ flipped without the archive move; orphan tombstone; stray archive line | `--private` mode | hook (internal pre-commit); audit (local) | `.claude/hooks/internal_pre_commit.sh` → `.git-internal/hooks/pre-commit` (private) |
 | Any of the above tolerated at warn, or missed by a PR | monthly audit, every check at fail → one rolling issue, red while findings remain | audit | `.github/workflows/docs-audit.yml` |
 
-**Release-ritual consequence.** A minor release's finalisation PR now carries five mechanically checked edits: the notes date, `docs_history.mjs --write`, the App Spec milestone banner, the three view banners ("as of release vX.Y"), and `docs_index.mjs --write`. A patch release needs the first two and the banner, not the views (`arch-as-of` compares at major.minor). Triage vocabulary for audit findings: **drift** (spec behind code → doc fix), **defect** (code behind spec → BL item), **intentional-unbuilt** (design-stage text → private design shelf).
+**Release-ritual consequence.** A minor release's finalisation PR now carries five mechanically checked edits: the notes date, `docs_history.mjs --write`, the App Spec milestone banner, the three view banners ("as of release vX.Y"), and `docs_index.mjs --write`. A patch release needs the first two, the milestone banner and `docs_index.mjs --write` (the banner edit changes the index), not the views (`arch-as-of` compares at major.minor); in every case each spec's "Last updated" banner must be within 14 days of the file's last commit (`last-updated`). Triage vocabulary for audit findings: **drift** (spec behind code → doc fix), **defect** (code behind spec → BL item), **intentional-unbuilt** (design-stage text → private design shelf).
 
 ---
 

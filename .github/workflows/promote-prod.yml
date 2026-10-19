@@ -41,11 +41,12 @@ on:
       # BL-210: the notes gate's escape hatch. A rollback or re-promote of
       # an already-shipped version carries its original (past) notes date,
       # which the gate would otherwise reject. Version-match is still
-      # enforced even with this set — only the date check is waived.
+      # enforced even with this set — the date check and (BL-271 Phase E)
+      # the docs gate are waived.
       allow_stale_notes:
         description: >-
-          Skip the notes-date check (rollbacks / re-promotes of an
-          already-shipped version only).
+          Skip the notes-date check and the docs gate (rollbacks /
+          re-promotes of an already-shipped version only).
         required: false
         type: boolean
         default: false
