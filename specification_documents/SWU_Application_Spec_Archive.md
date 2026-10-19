@@ -575,7 +575,7 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 
 ### §21 v1.4 Vault batch — per-item summaries
 
-**Disposition:** → archive (changelog-shaped); five facts absent from §5 merged into their owning sections (R6); BL-223/224/226 and the P26 line already covered (§5.13, §23)
+**Disposition:** → archive (changelog-shaped); five facts absent from §5 merged into their owning sections (R6); BL-223/224/226 → §5.15 (reviewer fold-in; their §21 pointers re-pointed); the P26 line archive-only — the current counts are §23
 
 > As-built summaries; each item's build-authoritative detail lives in its PR + the 2026-08-15/16 field logs. All are feedback-sourced (📣 backlog convention) unless noted.
 >
@@ -698,3 +698,9 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 **Disposition:** → archive; present tense (R8): 'the only surface that renders prices' stopped being true at BL-163
 
 > **Scope decision (Jeremy, 2026-07-21): popups ONLY in v1** — the card detail/inventory popup (§5.3) is the only surface that renders prices. No table column, no gallery badge, no completion-header integration; those designed-but-deferred surfaces are BL-141 (the `list-gallery-price` prototype exists in Claude Design). **Partially superseded (2026-07-26, BL-163 — §5.13):** the completion panel now renders **Collection value**; the table-column and gallery-badge surfaces remain deferred under BL-141.
+
+### §7 Access & currency — `Currency` bullet (target-state sync design)
+
+**Disposition:** → archive (described the unbuilt BL-33 step 7 / BL-36 / BL-37 scheduled detection as current; rewritten to the runbook mechanism — reviewer finding, PR #276)
+
+> - **Currency** — Cloud Scheduler → Cloud Run, daily detection, operator-gated apply (later full auto-apply, BL-37); public catalog shows pre-release/preview content with the gate as the quality check. New-set onboarding in BL-36. **Deletions:** the sync consumes swuapi `/deletions` tombstones (not just upserts) via the documented `since` + `after`/`next_cursor` cursor contract; deletions are surfaced in the operator gating review before apply, with explicit attention to deleting a card that already has inventory rows (rare, must not silently orphan a tenant's inventory). swuapi "card merges never emit," so no card-merge handling is needed. (BL-33 step 7; BL-36.)
