@@ -2,7 +2,7 @@
 
 > **Status:** Authoritative — current as-built reference for the application domain (catalog, variants, inventory, and their UX).
 > **Supersedes:** `SWU_ClaudeCode_Spec.md` (frozen — original V1 design) for **all application domains** — data model, UX, API, ingestion, architecture, and environment.
-> **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24; foreign-format imports + release-notes system shipped in v1.3 (2026-08-07); **sharing + the v1.4 Vault batch shipped in v1.4 (2026-08-16, §19–§21)**; product analytics in v1.4.2 (2026-08-27, §22); Homeworlds in v1.5 (2026-10-02, §23); **the phone layout and camera scanning in v2.0 (2026-10-14, §24–§25)**; v2.0.1 2026-10-17.
+> **App milestone:** v1.0 shipped 2026-07-14; pricing + deck-check arc shipped 2026-07-22; import/export (§17) and precon bulk-add (§18) shipped 2026-07-24; foreign-format imports + release-notes system shipped in v1.3 (2026-08-07); **sharing + the v1.4 Vault batch shipped in v1.4 (2026-08-16, §19–§21)**; product analytics in v1.4.2 (2026-08-27, §22); Homeworlds in v1.5 (2026-10-02, §23); **the phone layout and camera scanning in v2.0 (2026-10-14, §24–§25)**; v2.0.1 2026-10-17; v2.1 2026-10-19 (keypad keeps its size + fold tab §25.3 / ADR-0032, batch clears after an add, SQLAlchemy 2.1 + firebase 13 §11).
 > **Last updated:** 2026-10-19 (§10.11 product-structure facts salvaged from `CARD_RULES.md` — BL-160, verified against the live catalogue; §10.10 wording). Previous pass 2026-10-18 (BL-271 Phase C tier purity — disposition log `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md`, private: head/§1/§2/§4/§9/§21 narrative and the §24 spike flow moved to the archive; §15 and §19.2–19.4 to the private design shelf; §24 reduced to rules and geometry; §11 versions; §24/§25.0 device record). Previous pass 2026-10-17 (§25.3 keypad fold tab — BL-270, ADR-0032; batch clears after an add — BL-268; §22 `pad_keypad_toggled`; §11 SQLAlchemy 2.1 — BL-265; on dev for v2.1).
 > **Consumer-facing name:** renamed to **HyperspaceVault** 2026-07-20 (BL-138). This document, the repo, and other `SWU_*` artifacts keep the historical internal naming.
 
@@ -521,7 +521,7 @@ Durable facts about how the printed product is structured, re-expressed in the �
 
 **Tech stack** (code-verified versions as of 2026-07-24; full table + local setup in `README.md`):
 - Backend — Python 3.12, FastAPI 0.141, SQLAlchemy 2.1 (engines name the `psycopg2` driver explicitly via `app/db_url.py` — 2.1 maps a bare `postgresql://` URL to psycopg 3), Alembic, Pydantic 2.13, `psycopg2`, `firebase-admin` 7.5, uvicorn; pytest. PostgreSQL 16.
-- Frontend — React 19.3 + Vite 8, TypeScript, Firebase JS SDK 13 (main; prod v2.0.1 runs 12.19.0), posthog-js; Vitest 4, Playwright 1.61 (phone e2e), ESLint 9 + Prettier.
+- Frontend — React 19.3 + Vite 8, TypeScript, Firebase JS SDK 13 (prod since v2.1, 2026-10-19), posthog-js; Vitest 4, Playwright 1.61 (phone e2e), ESLint 9 + Prettier.
 - Platform (GCP / Cloud Run / Cloud SQL / Terraform / CI) — authoritative in `SWU_Platform_Spec.md`.
 
 ---

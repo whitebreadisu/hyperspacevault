@@ -4,7 +4,7 @@
 
 Everything runs on Google Cloud in `us-central1`, in two mirrored environments defined by one shared Terraform module — a dev project and a prod project — plus a frozen sandbox for infra experiments. Firebase Hosting is the CDN and front door; there is deliberately no load balancer.
 
-*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Logical](Architecture_Logical.md) (components & data)*
+*Prepared 2026-07-28 · Updated 2026-10-19 — as of release v2.1 (promoted 2026-10-19) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Logical](Architecture_Logical.md) (components & data)*
 
 ## Production runtime topology
 
@@ -92,7 +92,7 @@ flowchart TB
 |---|---|---|
 | Deploys | Automatic on merge to main | Owner-gated promote (or all-risk:low auto) |
 | Front door | `swu-dev-jbapps.web.app` | `www.hyperspacevault.com` (apex 301; legacy domain a permanent 301 since 2026-07-30) |
-| Running | v2.1 candidate (main `d3118c5`) | v2.0.1 (`c65cf87`) |
+| Running | main (v2.1 and later) | v2.1 (promoted 2026-10-19) |
 | Cloud Run max instances | 1 | 3 — bounds worst-case cost of flooding the anonymous catalog endpoints |
 | Cloud SQL tier | db-f1-micro | db-g1-small (applied and live-verified 2026-08-01) |
 | Deletion protection | Off | On |
@@ -112,4 +112,4 @@ Local development mirrors the cloud shape with Docker Compose: Postgres 16, the 
 
 ---
 
-*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`), from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Logical](Architecture_Logical.md)*
+*Prepared 2026-07-28 · Updated 2026-10-19 — as of release v2.1 (promoted 2026-10-19), from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Logical](Architecture_Logical.md)*

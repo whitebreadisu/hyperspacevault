@@ -4,7 +4,7 @@
 
 HyperspaceVault is a multi-tenant web application for Star Wars: Unlimited collectors. It carries the complete card catalog with daily market prices, and gives each signed-in collector a private, isolated vault to track what they own, what a deck would cost them, and what they're missing — on a desktop browser or, since v2.0, as a phone app with a card scanner.
 
-*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`) · Companion views: [Logical](Architecture_Logical.md) (components & data) · [Physical](Architecture_Physical.md) (deployment & delivery)*
+*Prepared 2026-07-28 · Updated 2026-10-19 — as of release v2.1 (promoted 2026-10-19) · Companion views: [Logical](Architecture_Logical.md) (components & data) · [Physical](Architecture_Physical.md) (deployment & delivery)*
 
 ## System context
 
@@ -147,4 +147,4 @@ The catalog is an open storefront window — browsing requires nothing. Progress
 
 ---
 
-*Prepared 2026-07-28 · Updated 2026-10-18 — as of release v2.0.1 (prod `c65cf87`) with the v2.1 candidate on dev (main `d3118c5`), from the as-built system; companion views: [Logical](Architecture_Logical.md) · [Physical](Architecture_Physical.md)*
+*Prepared 2026-07-28 · Updated 2026-10-19 — as of release v2.1 (promoted 2026-10-19), from the as-built system; companion views: [Logical](Architecture_Logical.md) · [Physical](Architecture_Physical.md)*

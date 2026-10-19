@@ -15,7 +15,7 @@ the **Milestones** table is hand-written narrative.
 
 | Date | Version | Release |
 |---|---|---|
-| 2026-10-18 | v2.1 | A steadier keypad |
+| 2026-10-19 | v2.1 | A steadier keypad |
 | 2026-10-17 | v2.0.1 | No more stuck Loading… |
 | 2026-10-14 | v2.0 | Your Vault, in your pocket |
 | 2026-10-08 | v1.5.1 | Bring your Homeworlds in |
@@ -60,6 +60,7 @@ the **Milestones** table is hand-written narrative.
 | 2026-10-08 | v1.5.1 — Homeworlds imports from SWUDB and HoloScan exports |
 | 2026-10-14 | **v2.0 shipped** — "Your Vault, in your pocket": a purpose-built phone layout, shared Vaults on the phone, and camera card scanning; newest-sets-first ordering and Showcase back in the scope picker |
 | 2026-10-17 | v2.0.1 — "No more stuck Loading…": phone and Safari sign-in start-up fixed |
+| 2026-10-19 | v2.1 — "A steadier keypad": the phone keypad keeps its size behind a fold tab; batches clear completely after an add; SQLAlchemy 2.1 and firebase 13 · first release through the BL-271 documentation gate |
 
 ## Resolution ledger
 
