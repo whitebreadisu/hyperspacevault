@@ -29,3 +29,9 @@ jobs:
 
       - name: Docs-check on the tree
         run: node .github/scripts/docs_check.mjs
+
+      - name: Docs-index tests
+        run: node .github/scripts/docs_index.test.mjs
+
+      - name: Docs-index freshness
+        run: node .github/scripts/docs_index.mjs --check
