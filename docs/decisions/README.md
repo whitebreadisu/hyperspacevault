@@ -45,4 +45,5 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0030](0030-mobile-2-0-owner-finish-round.md) | Mobile 2.0 owner finish round — the gallery plate on card detail; red only past the limit | Accepted |
 | [0031](0031-set-order-newest-first.md) | Set order — main-release sets newest first, everywhere | Accepted |
 | [0032](0032-phone-keypad-keeps-its-size.md) | Phone keypad keeps its size; the user folds it | Accepted |
+| [0033](0033-documentation-controls.md) | Documentation controls — gate at release, test at the enforcement surface, audit on a schedule | Accepted |
 | [0034](0034-verified-email-gate-boundary.md) | Verified-email gate boundary — inventory data writes, not account configuration | Accepted |

@@ -47,7 +47,8 @@ test("--write splices the fresh block, preserves surrounding text, then --check 
     const before = readFileSync(join(dir, "HISTORY.md"), "utf-8");
     writeFileSync(
       join(dir, "HISTORY.md"),
-      before.replace(/\n/g, "\r\n") + "\r\nTail paragraph.\r\n"
+      // normalise first: on a Windows checkout the fixture is already CRLF (\r\r\n otherwise)
+      before.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n") + "\r\nTail paragraph.\r\n"
     );
     const r = cli(dir, "--write");
     assert.equal(r.status, 0, r.stderr);
