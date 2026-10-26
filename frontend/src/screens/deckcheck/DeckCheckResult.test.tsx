@@ -161,8 +161,11 @@ describe("DeckCheckResult (BL-142)", () => {
     const row = screen.getByText("Test Card").closest(".dcr-row") as HTMLElement;
     const dots = row.querySelectorAll(".dcr-dot");
     expect(dots).toHaveLength(3);
-    expect(dots[0]).toHaveStyle({ background: "rgb(63, 185, 80)" }); // owned -> GREEN
-    expect(dots[1]).toHaveStyle({ background: "rgb(224, 86, 91)" }); // missing -> RED
+    // PORT (deps batch 2026-10-25): jsdom 30.1 serialises the `background`
+    // shorthand as a full shorthand, so read the longhand the component's
+    // `style={{ background }}` sets -- the colour, which is the behaviour.
+    expect(dots[0]).toHaveStyle({ backgroundColor: "rgb(63, 185, 80)" }); // owned -> GREEN
+    expect(dots[1]).toHaveStyle({ backgroundColor: "rgb(224, 86, 91)" }); // missing -> RED
   });
 
   it("shows an em dash (not a per-unit line) for an unpriced missing card", () => {
@@ -438,7 +441,7 @@ describe("DeckCheckResult -- ALL CARDS toggle (BL-142)", () => {
     const row = screen.getByText("Owned Card").closest(".dcr-row") as HTMLElement;
     const dots = row.querySelectorAll(".dcr-dot");
     expect(dots).toHaveLength(2);
-    dots.forEach((dot) => expect(dot).toHaveStyle({ background: "rgb(63, 185, 80)" }));
+    dots.forEach((dot) => expect(dot).toHaveStyle({ backgroundColor: "rgb(63, 185, 80)" }));
     expect(row.querySelector(".dcr-row__subtotal")?.textContent).toBe("—");
   });
 
