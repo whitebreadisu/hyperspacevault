@@ -38,6 +38,37 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-276 (low-price outlier rule: a low >= 10x market is served as the
+    // market price, App Spec 16.4) + BL-277 (Dependabot batch, late October
+    // 2026: Pillow 13, dompurify 3.4.17, vitest 4.1.12 and riders). Owner
+    // said "promote it" 2026-10-25; date = promote day (America/Chicago).
+    kind: "release",
+    key: "2.1.1",
+    version: "2.1.1",
+    date: "2026-10-25",
+    title: "Low prices that make sense",
+    sections: [
+      {
+        heading: "Fixes",
+        items: [
+          {
+            title: "No more $9,999 commons",
+            body: "If you switched your collection value to Low, one card could blow up the total: a single TCGplayer seller had a common listed at $9,999, and Low took the cheapest listing at face value. Now, when a card's cheapest listing is ten times its market price or more, we use the market price instead.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "Routine housekeeping behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-270 (keypad keeps its size + fold tab, ADR-0032), BL-268 (batch
     // clears fully after add), BL-265 (SQLAlchemy 2.1, firebase 13) and
     // BL-267 (Dependabot batch). Owner-approved copy 2026-10-17 (draft:
