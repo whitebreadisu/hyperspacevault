@@ -6,9 +6,12 @@ from datetime import date
 
 from app.schemas.base_card_detail_schema import PriceInfo
 from app.services.pricing import (
+    LOW_OUTLIER_MULTIPLE,
     PricingEnvelope,
     VariantTypePrice,
     compute_display_price,
+    plausible_low,
+    to_price_info,
 )
 
 TODAY = date(2026, 7, 16)
@@ -72,3 +75,56 @@ def test_pricing_envelope_omits_as_of_header_when_none():
     envelope = PricingEnvelope(source="tcgplayer", as_of=None, unpriced_count=0)
     headers = envelope.as_headers()
     assert "X-Pricing-As-Of" not in headers
+
+
+# --- BL-276: low-price outlier rule (owner rule 2026-10-25) -----------------
+# tcgcsv's lowPrice is the cheapest current listing; one $9,999 troll listing
+# (Chopper Base // Shield (Hyperspace), market $0.63) tripled a collection's
+# "low" total. A low >= 10x market is replaced by market at the PriceInfo seam.
+
+
+class _Row:
+    def __init__(self, market, low, as_of=TODAY):
+        self.market = market
+        self.low = low
+        self.as_of = as_of
+
+
+def test_plausible_low_passes_ordinary_low_through():
+    assert plausible_low(10.0, 8.0) == 8.0
+    # a genuinely thin market (Showcase: cheapest listing above recent sales)
+    # is still a real price -- under the multiple, untouched
+    assert plausible_low(99.13, 195.0) == 195.0
+
+
+def test_plausible_low_substitutes_market_at_or_above_the_multiple():
+    assert LOW_OUTLIER_MULTIPLE == 10.0
+    assert plausible_low(0.63, 9999.0) == 0.63  # the Chopper Base case
+    assert plausible_low(1.0, 10.0) == 1.0  # boundary: exactly 10x counts
+    assert plausible_low(1.0, 9.99) == 9.99  # just under: real low stands
+
+
+def test_plausible_low_leaves_low_alone_without_a_positive_market():
+    assert plausible_low(None, 9999.0) == 9999.0
+    assert plausible_low(0.0, 5.0) == 5.0
+    assert plausible_low(10.0, None) is None
+
+
+def test_to_price_info_applies_the_outlier_rule():
+    info = to_price_info(_Row(market=0.63, low=9999.0))
+    assert info.market == 0.63
+    assert info.low == 0.63
+    assert info.as_of == TODAY
+    untouched = to_price_info(_Row(market=10.0, low=8.0))
+    assert untouched.low == 8.0
+
+
+def test_cheapest_aggregate_sees_the_corrected_low():
+    # the list's cheapest display_price is min(low) over to_price_info output,
+    # so the troll listing can no longer win (or lose) the aggregate
+    prices = [
+        VariantTypePrice("Standard", to_price_info(_Row(market=0.09, low=0.01))),
+        VariantTypePrice("Hyperspace", to_price_info(_Row(market=0.63, low=9999.0))),
+    ]
+    result = compute_display_price(prices, "cheapest")
+    assert result.value == 0.01

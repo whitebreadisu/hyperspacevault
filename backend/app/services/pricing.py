@@ -20,15 +20,35 @@ from app.schemas.base_card_detail_schema import DisplayPrice, PriceInfo
 PRICING_SOURCE = "tcgplayer"
 STANDARD_VARIANT_TYPE = "Standard"
 
+# BL-276: tcgcsv's lowPrice is the literal cheapest CURRENT listing, so a
+# single implausible listing (a $9,999 "Chopper Base // Shield (Hyperspace)"
+# against a $0.63 market, 2026-10-25) inflates every "low" total that
+# includes the card -- the owner's collection read 3x its market value.
+# Owner rule (2026-10-25): a low at or above this multiple of market is not
+# a price, and market stands in for it. Applied here, at the one Row ->
+# PriceInfo seam every price consumer shares (catalog list/detail, deck
+# check, the cheapest aggregate), so stored history stays raw and the
+# threshold is tunable without a backfill.
+LOW_OUTLIER_MULTIPLE = 10.0
+
+
+def plausible_low(market: float | None, low: float | None) -> float | None:
+    """BL-276: `low`, or `market` when `low` >= LOW_OUTLIER_MULTIPLE x market.
+    Needs a positive market to judge against -- with market None (or 0) the
+    low ships untouched, since there is nothing credible to compare it to."""
+    if low is None or market is None or market <= 0:
+        return low
+    if low >= market * LOW_OUTLIER_MULTIPLE:
+        return market
+    return low
+
 
 def to_price_info(row: Row | None) -> PriceInfo | None:
     if row is None:
         return None
-    return PriceInfo(
-        market=float(row.market) if row.market is not None else None,
-        low=float(row.low) if row.low is not None else None,
-        as_of=row.as_of,
-    )
+    market = float(row.market) if row.market is not None else None
+    low = float(row.low) if row.low is not None else None
+    return PriceInfo(market=market, low=plausible_low(market, low), as_of=row.as_of)
 
 
 class VariantTypePrice(NamedTuple):
