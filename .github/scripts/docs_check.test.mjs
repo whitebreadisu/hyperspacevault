@@ -3,6 +3,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import {
+  cpSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -27,6 +38,7 @@ import {
   HISTORY_BLOCK_END,
   GATE_CHECKS,
   LEVELS,
+  loadPrivateRegistry,
 } from "./docs_check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -296,23 +308,158 @@ test("parseLinks: one level of balanced brackets inside the link text", () => {
   );
 });
 
-test("private mode: pass, orphan tombstone, duplicate/resolved entry, files absent", () => {
-  assert.deepEqual(only(run("private_pass", { privateMode: true }), "private-mode"), []);
-  assert.equal(exitCode("private_pass", ["--private"]).status, 0);
-  const orphan = only(run("private_orphan", { privateMode: true }), "private-mode");
-  assert.equal(orphan.length, 1);
-  assert.match(orphan[0].message, /BL-3/);
-  assert.equal(exitCode("private_orphan", ["--private"]).status, 1);
-  const dup = only(run("private_duplicate", { privateMode: true }), "private-mode");
-  assert.ok(dup.some((x) => /both/.test(x.message)));
-  assert.ok(dup.some((x) => /Resolved/.test(x.message)));
-  assert.equal(exitCode("private_duplicate", ["--private"]).status, 1);
-  // not in private mode the ledger is not looked at
-  assert.equal(only(run("private_orphan"), "private-mode").length, 0);
-  const absent = exitCode("private_absent", ["--private"]);
-  assert.equal(absent.status, 0);
-  assert.match(absent.stdout, /backlog files absent/);
+// ── private mode over the registry folder (BL-279 WS-1 W1-06) ──────────────────────────────────────────────
+// Test disposition (CLAUDE.md "Testing"): the legacy single-file fixtures private_pass / private_orphan /
+// private_duplicate / private_stray / private_table are RETIRED with the active-file tombstone table they
+// exercised (BL-279 D1 designed it away). Their still-valid intents are PORTED below: orphan tombstone ->
+// "legacy archive heading with no TOMBSTONES.md row"; resolved-but-active -> "done file in the active folder";
+// stray archive line and duplicate archive heading -> same rules, now run over the registry folder.
+// The registry is private-layer: these cases need the real registry.mjs from the main tree and are SKIPPED
+// (with a printed note) in a public checkout; the absent-path cases below run everywhere.
+const REAL_REGISTRY = join(
+  here,
+  "..",
+  "..",
+  "specification_documents",
+  "planning",
+  "foundation",
+  "tools",
+  "registry.mjs"
+);
+const REAL_SCHEMA = join(here, "..", "..", "specification_documents", "backlog", "_schema.json");
+const HAVE_REGISTRY = existsSync(REAL_REGISTRY) && existsSync(REAL_SCHEMA);
+const NEEDS_REGISTRY = HAVE_REGISTRY
+  ? false
+  : "registry.mjs absent in this checkout (public CI): registry-mode private cases skipped";
+if (!HAVE_REGISTRY) console.log(`# ${NEEDS_REGISTRY}`);
+
+/** A throwaway copy of a fixture tree that carries the real registry.mjs + schema (the module resolves paths from its own location). */
+function registryTree(name) {
+  const tmp = mkdtempSync(join(tmpdir(), "docs-check-reg-"));
+  cpSync(fx(name), tmp, { recursive: true });
+  const tools = join(tmp, "specification_documents", "planning", "foundation", "tools");
+  mkdirSync(tools, { recursive: true });
+  copyFileSync(REAL_REGISTRY, join(tools, "registry.mjs"));
+  copyFileSync(REAL_SCHEMA, join(tmp, "specification_documents", "backlog", "_schema.json"));
+  return tmp;
+}
+async function privateFindings(root) {
+  const registry = await loadPrivateRegistry(root);
+  return only(runChecks({ root, privateMode: true, registry }).findings, "private-mode");
+}
+const cli = (root, extra = []) =>
+  spawnSync(process.execPath, [SCRIPT, "--root", root, ...extra], { encoding: "utf-8" });
+const withTree = async (name, fn) => {
+  const tmp = registryTree(name);
+  try {
+    return await fn(tmp);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+};
+
+test("private mode: registry absent (folder or module missing) degrades to a note and exits 0", async () => {
+  for (const name of ["private_absent", "private_registry_absent"]) {
+    assert.equal(await loadPrivateRegistry(fx(name)), null);
+    const r = runChecks({ root: fx(name), privateMode: true, registry: null });
+    assert.deepEqual(only(r.findings, "private-mode"), []);
+    assert.ok(
+      r.notes.includes("private-mode: backlog registry absent in this tree; nothing checked")
+    );
+    const c = exitCode(name, ["--private"]);
+    assert.equal(c.status, 0);
+    assert.match(c.stdout, /backlog registry absent in this tree; nothing checked/);
+  }
+  // without --private the ledger is never looked at
+  assert.equal(only(run("private_registry_absent"), "private-mode").length, 0);
 });
+
+test(
+  "private mode (registry): a fresh 2-item folder passes",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      assert.deepEqual(await privateFindings(root), []);
+      assert.equal(cli(root, ["--private"]).status, 0);
+    });
+  }
+);
+
+test(
+  "private mode (registry): a stale INDEX.md is exactly one failure naming INDEX.md",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_stale_index", async (root) => {
+      const f = await privateFindings(root);
+      assert.equal(f.length, 1);
+      assert.equal(f[0].level, "fail");
+      assert.match(f[0].file, /backlog\/INDEX\.md$/);
+      assert.match(f[0].message, /INDEX\.md is stale \(first difference at line \d+/);
+      const c = cli(root, ["--private"]);
+      assert.equal(c.status, 1);
+      assert.match(c.stdout, /INDEX\.md is stale/);
+    });
+  }
+);
+
+test(
+  "private mode (registry): CRLF in a generated file is not staleness",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const p = join(root, "specification_documents", "backlog", "INDEX.md");
+      writeFileSync(p, readFileSync(p, "utf8").replace(/\n/g, "\r\n"));
+      assert.deepEqual(await privateFindings(root), []);
+    });
+  }
+);
+
+test(
+  "private mode (registry): archive file rules ported (stray tombstone line, duplicate heading, heading without a row)",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const arch = join(root, "specification_documents", "SWU_Backlog_Archive.md");
+      const base = readFileSync(arch, "utf8");
+      writeFileSync(arch, base + "\n- **BL-9 — stray** → [archive](x.md)\n");
+      const stray = await privateFindings(root);
+      assert.equal(stray.length, 1);
+      assert.match(stray[0].message, /stray/);
+      assert.equal(cli(root, ["--private"]).status, 1);
+
+      writeFileSync(arch, base + "\n### BL-2: Second again\n");
+      assert.ok(
+        (await privateFindings(root)).some((x) =>
+          /duplicate archive heading for BL-2/.test(x.message)
+        )
+      );
+
+      writeFileSync(arch, base + "\n### BL-9: Orphan heading\n");
+      assert.ok(
+        (await privateFindings(root)).some((x) =>
+          /legacy archive heading BL-9 has no row in TOMBSTONES\.md/.test(x.message)
+        )
+      );
+    });
+  }
+);
+
+test(
+  "private mode (registry): a done file left in the active folder fails",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const p = join(root, "specification_documents", "backlog", "BL-5.md");
+      writeFileSync(
+        p,
+        readFileSync(p, "utf8").replace("status: open\n", "status: done\nresolved: 2026-10-02\n")
+      );
+      const f = await privateFindings(root);
+      assert.ok(f.some((x) => /status done in the active folder/.test(x.message)));
+      assert.equal(cli(root, ["--private"]).status, 1);
+    });
+  }
+);
 
 test("--json prints findings; --level overrides", () => {
   const r = exitCode("link_broken", ["--json"]);
@@ -364,13 +511,6 @@ test("spec-tombstones-loose: bare archive pointer warns, exit 0", () => {
   assert.equal(f.length, 1);
   assert.match(f[0].message, /bare archive pointer/);
   assert.equal(exitCode("tomb_bare_pointer").status, 0);
-});
-
-test("private mode: stray tombstone-style line in the archive fails", () => {
-  const f = only(run("private_stray", { privateMode: true }), "private-mode");
-  assert.equal(f.length, 1);
-  assert.match(f[0].message, /stray/);
-  assert.equal(exitCode("private_stray", ["--private"]).status, 1);
 });
 
 test("last-updated: skipped on a shallow checkout, flags a late banner otherwise", () => {
@@ -576,7 +716,84 @@ test("cite-path: the ignore list is doc-scoped — the entry's doc passes, anoth
   assert.equal(exitCode("cite_path_ignored").status, 1);
 });
 
-test("private mode: tombstone-index table rows count as tombstones (Phase C)", () => {
-  assert.deepEqual(only(run("private_table", { privateMode: true }), "private-mode"), []);
-  assert.equal(exitCode("private_table", ["--private"]).status, 0);
+test(
+  "private mode (registry): an active file whose id has a legacy archive heading fails (id collision)",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const dir = join(root, "specification_documents", "backlog");
+      writeFileSync(
+        join(dir, "BL-3.md"),
+        readFileSync(join(dir, "BL-4.md"), "utf8").replace("id: 4", "id: 3")
+      );
+      const f = await privateFindings(root);
+      assert.ok(
+        f.some((x) => /BL-3 is already issued and archived in the legacy archive/.test(x.message))
+      );
+      assert.equal(cli(root, ["--private"]).status, 1);
+    });
+  }
+);
+
+test(
+  "private mode (registry): a TOMBSTONES.md row whose legacy archive heading is gone fails (orphan row)",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const arch = join(root, "specification_documents", "SWU_Backlog_Archive.md");
+      writeFileSync(
+        arch,
+        readFileSync(arch, "utf8").replace("### BL-3: Third resolved thing", "Third resolved thing")
+      );
+      const f = await privateFindings(root);
+      assert.ok(
+        f.some((x) =>
+          /TOMBSTONES\.md row BL-3 points at the legacy archive, which has no "### BL-3:" heading/.test(
+            x.message
+          )
+        )
+      );
+      assert.equal(cli(root, ["--private"]).status, 1);
+    });
+  }
+);
+
+test(
+  "private mode (registry): a stale TOMBSTONES.md is exactly one failure naming TOMBSTONES.md",
+  { skip: NEEDS_REGISTRY },
+  async () => {
+    await withTree("private_registry_pass", async (root) => {
+      const p = join(root, "specification_documents", "backlog", "TOMBSTONES.md");
+      writeFileSync(
+        p,
+        readFileSync(p, "utf8").replace("First resolved thing", "First resolved thinq")
+      );
+      const f = await privateFindings(root);
+      assert.equal(f.length, 1);
+      assert.match(f[0].file, /backlog\/TOMBSTONES\.md$/);
+      assert.match(
+        f[0].message,
+        /TOMBSTONES\.md is stale \(first difference at line \d+, column \d+/
+      );
+    });
+  }
+);
+
+test("private mode: a registry module that fails to load is one private-mode fail, not a crash", async () => {
+  const tmp = mkdtempSync(join(tmpdir(), "docs-check-broken-"));
+  try {
+    const tools = join(tmp, "specification_documents", "planning", "foundation", "tools");
+    mkdirSync(tools, { recursive: true });
+    mkdirSync(join(tmp, "specification_documents", "backlog"), { recursive: true });
+    writeFileSync(join(tools, "registry.mjs"), "export const broken = ;\n");
+    const registry = await loadPrivateRegistry(tmp);
+    const f = only(runChecks({ root: tmp, privateMode: true, registry }).findings, "private-mode");
+    assert.equal(f.length, 1);
+    assert.match(f[0].message, /^registry module failed to load: /);
+    const c = cli(tmp, ["--private"]);
+    assert.equal(c.status, 1);
+    assert.match(c.stdout, /registry module failed to load/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });

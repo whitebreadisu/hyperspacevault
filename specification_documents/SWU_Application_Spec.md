@@ -15,7 +15,7 @@
 - [`swuapi_standard_variant_exceptions.md`](swuapi_standard_variant_exceptions.md) — current standard-anchor exceptions.
 - [`SWU_Platform_Spec.md`](SWU_Platform_Spec.md) — auth, CI/CD, infrastructure, observability, security.
 - [`SWU_Application_Spec_Archive.md`](SWU_Application_Spec_Archive.md) — superseded text, verbatim, under dated headings; [`docs/decisions/`](../docs/decisions/README.md) — the ADR series (rationale).
-- [`SWU_Backlog.md`](SWU_Backlog.md) (private) — the work registry; [`SWU_ClaudeCode_Spec.md`](SWU_ClaudeCode_Spec.md) (private) — the frozen original V1 design, historical only.
+- [`backlog/INDEX.md`](backlog/INDEX.md) (private) — the work registry (one file per item); [`SWU_ClaudeCode_Spec.md`](SWU_ClaudeCode_Spec.md) (private) — the frozen original V1 design, historical only.
 
 ---
 
@@ -259,7 +259,7 @@ Three sections, copy owner-approved verbatim:
 - **Privacy** — the four BL-104/RR-12 points (what's stored: account email + card collection; where it lives: GCP `us-central1`; leaving: self-service via Delete Account; tracking: anonymous usage analytics — inputs masked, opt-out in Settings, processed by PostHog (BL-235, §22)), plus a fifth point BL-126 added the same session: feedback messages are stored, and email only when contact is opted in.
 - **Attribution** — swuapi.com sourcing of catalog data and images.
 
-This is the shipped resolution of **RR-13** (IP/affiliation disclaimer) and completes the privacy floor **RR-12/BL-104** first argued for — both close out via this one modal (`SWU_Backlog.md`/archive has the full BL-104/BL-125 disposition).
+This is the shipped resolution of **RR-13** (IP/affiliation disclaimer) and completes the privacy floor **RR-12/BL-104** first argued for — both close out via this one modal (`SWU_Backlog_Archive.md` has the full BL-104/BL-125 disposition).
 
 ### 5.9 Feedback (BL-126, shipped 2026-07-14)
 
@@ -352,7 +352,7 @@ The v1.3 scoped-affordance cluster: six features completing §5.14's finish scop
 
 ## 6. Completion, limits, enforcement (cross-reference)
 
-Three decoupled axes — see `SWU_Backlog.md` for detail:
+Three decoupled axes — see `SWU_Backlog_Archive.md` (BL-24, BL-35) for detail:
 
 - **Completion** — base-card-level and variant-agnostic: *playset* = 3 total copies (1 for Leader/Base), *owned* = ≥1. Already built (`InventorySummary`); unchanged by the redesign.
 - **Keep-limits** — per-variant, per-tenant, configurable, **advisory** (BL-24, built 2026-07-12): each variant's own quantity vs. the effective limit for its (type-category × limit-bucket) cell — override if one exists (NULL = no limit), else the code default (singleton 1 / standard 3). **Independent per variant — no cross-variant summing** (the pre-BL-24 shared pool of 3 across a card's variants is retired). Decoupled from completion *and* from stored `quantity`; only the unconditional 999-per-variant technical ceiling sits above it (§4.5).
@@ -638,7 +638,7 @@ BL-87: permanently purges the caller's own tenant — every `inventory` row, the
 
 BL-126, optional-auth via `get_optional_db` (the same family as `/api/base-cards/{id}`, [ADR-0008](../docs/decisions/0008-anonymous-catalog-reads.md)) — anonymous submission is a first-class case here, not a degraded fallback (§4.6). Request (`FeedbackSubmitRequest`): `message` (required, 1–5000 chars, server-rejects blank/whitespace-only), `contact_ok` (bool, default false), `contact_email` (required only when `contact_ok`; format-validated server-side against a simple "looks like an email" pattern — not RFC-5322-grade, since the address is never used to actually send mail, only to appear in a notification issue body), `website` (honeypot, default empty string). A non-empty `website` returns the **identical** 201 `FeedbackSubmitResponse` but stores nothing and fires no notification (`app/services/feedback.py`). `FeedbackSubmitResponse` is minimal by design (owner spec): `{ status: "ok" }` — no submission id, nothing for a caller to enumerate.
 
-**Rate limiting.** A per-client-IP (IPv6 keyed by its /64, BL-266), in-memory, per-Cloud-Run-*instance* cap — 5 submissions/hour (`app/rate_limit.py`), `429` past the cap; runs before the DB write so a limited caller never consumes a round trip, and does not special-case the honeypot path (a bot retrying past it is exactly the traffic the limiter exists to blunt too). Deliberately the cheapest tier: state resets on every cold start/restart and is blind to traffic split across instances — not a defense against a distributed or persistent attacker. Real rate limiting is tracked separately (`SWU_Backlog.md` BL-53).
+**Rate limiting.** A per-client-IP (IPv6 keyed by its /64, BL-266), in-memory, per-Cloud-Run-*instance* cap — 5 submissions/hour (`app/rate_limit.py`), `429` past the cap; runs before the DB write so a limited caller never consumes a round trip, and does not special-case the honeypot path (a bot retrying past it is exactly the traffic the limiter exists to blunt too). Deliberately the cheapest tier: state resets on every cold start/restart and is blind to traffic split across instances — not a defense against a distributed or persistent attacker. Real rate limiting is tracked separately (`specification_documents/backlog/` BL-53).
 
 **Notification.** A best-effort GitHub issue, created *after* the DB write commits (`app/services/github_notify.py`) — a notification failure can never turn a persisted submission into an error response; every failure mode (missing/placeholder token, network error, GitHub 4xx/5xx) is caught and logged, never re-raised. Issue title = the message (whitespace-collapsed, truncated to 60 chars); body = message + commit SHA + submission timestamp, plus contact email **only** when consent was given. Token/repo come from the `FEEDBACK_GITHUB_PAT`/`FEEDBACK_GITHUB_REPO` env vars (`SWU_Platform_Spec.md` §3.5/§3.7); a missing or still-placeholder token is treated identically to "not configured" — the submission still succeeds, the notification silently skips.
 
