@@ -47,3 +47,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0032](0032-phone-keypad-keeps-its-size.md) | Phone keypad keeps its size; the user folds it | Accepted |
 | [0033](0033-documentation-controls.md) | Documentation controls — gate at release, test at the enforcement surface, audit on a schedule | Accepted |
 | [0034](0034-verified-email-gate-boundary.md) | Verified-email gate boundary — inventory data writes, not account configuration | Accepted |
+| [0035](0035-work-registry-one-file-per-item-and-issues-as-intake.md) | Work registry as one file per item; GitHub Issues as intake only | Accepted |

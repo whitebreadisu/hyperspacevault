@@ -137,3 +137,7 @@ Owner decisions of 2026-10-18, executed in BL-271 Phase C (disposition log
    tombstone that quotes a heading the archive lacks and flags an archive heading
    no tombstone quotes. Verbatim archived text is exempt from the private-link
    marker rule, since it cannot be edited.
+
+## Amendment 2026-10-27 — work registry form (BL-279 WS-1)
+
+Amended by ADR-0035 (2026-10-27): the Tier-1 backlog is the one-file-per-item registry folder, archive-by-move replaces the single archive file for new resolutions (the legacy archive is frozen Tier 3), the tombstone index is generated, and at-resolution archiving runs through `resolve-item` and the pre-commit hook. Decision text and the four amended readings are in ADR-0035.
