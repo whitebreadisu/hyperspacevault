@@ -36,7 +36,7 @@ Requirements the design rests on:
 - **Base-set anchoring** — the experience is organized around the base sets (11 as of Homeworlds); long-tail provenance is a secondary, toggleable dimension.
 - **Completion is base-card-level and variant-agnostic** (playset / owned). [§6]
 - **Per-variant, per-tenant configurable keep-limits** — advisory policy, never DB constraints. [§4.5, §6]
-- **Approximately-current catalog** — refreshed by the operator per `SWU_SWUAPI_Content_Runbook.md` (private); no automated detection exists (BL-36/BL-37 remain open).
+- **Approximately-current catalog** — refreshed by the operator per `SWU_SWUAPI_Content_Runbook.md` (private); no automated detection exists (BL-37 remains open; BL-36 retired 2026-10-27, superseded by the runbook).
 - **Public catalog, auth-gated inventory.** [ADR-0008; §7]
 - **One user per tenant — permanent** (owner decision 2026-07-30, public-release review; retired BL-89). Every account is the sole member of its own auto-provisioned tenant; shared/household tenants, invitations, and ownership transfer are permanently out of scope. `DELETE /api/account`'s whole-tenant purge semantics are correct by construction under this model.
 
@@ -102,7 +102,7 @@ One row per swuapi set, **base and long-tail container alike**.
 - `card_number`
 - `front_image_url`, `back_image_url`
 - `swuapi_id` (swuapi UUID, unique-indexed — the upsert key for the ongoing-sync thread)
-- `stamp_group` (nullable — consolidation key for same-art/same-finish stamp variants: `(base_card, finish)` with a stamped member, §10.5. Confirmed families: Prestige Foil (Foil Prestige + Serialized Prestige) and the PQ/SQ/RQ/GC/SS tournament tiers. Judge/Prerelease deferred to BL-39; a broader group-by-art model is BL-40.)
+- `stamp_group` (nullable — consolidation key for same-art/same-finish stamp variants: `(base_card, finish)` with a stamped member, §10.5. Confirmed families: Prestige Foil (Foil Prestige + Serialized Prestige) and the PQ/SQ/RQ/GC/SS tournament tiers. Judge/Prerelease stays ungrouped (BL-39 retired 2026-10-27, not wanted now); a broader group-by-art model is not planned (BL-40 retired 2026-10-27; finish+stamp stands).)
 
 **The `is_organized_play` boolean is retired** — OP becomes ordinary variants with `source_set_code` = a Weekly Play set, anchored by `variant_of_uuid`. This removes the old OP card-number-collision handling. **Keying:** `card_variants` is uniquely keyed on `swuapi_id` (uuid); `(base_card_id, variant_type)` is **not** unique — Serialized Prestige collides (§10.8).
 
@@ -365,7 +365,7 @@ Three decoupled axes — see `SWU_Backlog_Archive.md` (BL-24, BL-35) for detail:
 ## 7. Access & currency (cross-reference)
 
 - **Access** — public **Cards** list + card detail popup ([ADR-0008](../docs/decisions/0008-anonymous-catalog-reads.md)): the catalog reads (`/api/base-cards` list since BL-101, `/api/sets`; the `/api/cards` family was retired in BL-102) are served by a strictly tenant-less catalog session (and CDN-cached, Platform Spec §3.14); the card detail popup (`/api/base-cards/{id}`) is optional-auth, so its `quantity` field is real for signed-in callers and 0 for anonymous ones; the Cards list's quantities come from the auth-only `GET /api/inventory/quantities`, merged client-side. Inventory + mutations stay auth-gated, tenant-scoped. Anonymous users see the unified list (§5.5) with inventory columns present-but-inert as a signup teaser — not a separate empty-state tab. (Open Q D resolved; BL-17 → superseded by BL-56.) **`POST /api/feedback` (BL-126, §4.6/§5.9/§12) is a third optional-auth consumer**, but unlike the catalog's use of the pattern (a real value vs. a degraded `0`), anonymous submission there is a fully first-class, intentionally-supported case, not a stand-in for a signed-in view.
-- **Currency** — the catalog is refreshed by the operator per `SWU_SWUAPI_Content_Runbook.md` (private): detect a delta, confirm scope, ingest the export to dev then prod. No scheduled detection exists — the designed Cloud Scheduler → Cloud Run daily detection with operator-gated apply (BL-36 new-set onboarding, BL-37 auto-apply) is unbuilt. **Deletions:** handled by the runbook's Deletions procedure ([ADR-0004](../docs/decisions/0004-catalog-bootstrap-from-swuapi-export.md), 2026-10-02 amendment); the swuapi `/deletions` tombstones contract (`since` + `after`/`next_cursor`) is the designed input for a future sync, with the rule that deleting a card that already has inventory rows must never silently orphan a tenant's inventory (swuapi "card merges never emit," so no merge handling is needed). *(the target-state Currency bullet (BL-33 step 7) — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
+- **Currency** — the catalog is refreshed by the operator per `SWU_SWUAPI_Content_Runbook.md` (private): detect a delta, confirm scope, ingest the export to dev then prod. No scheduled detection exists — the designed Cloud Scheduler → Cloud Run daily detection with operator-gated apply (BL-36 new-set onboarding, retired 2026-10-27; BL-37 auto-apply) is unbuilt. **Deletions:** handled by the runbook's Deletions procedure ([ADR-0004](../docs/decisions/0004-catalog-bootstrap-from-swuapi-export.md), 2026-10-02 amendment); the swuapi `/deletions` tombstones contract (`since` + `after`/`next_cursor`) is the designed input for a future sync, with the rule that deleting a card that already has inventory rows must never silently orphan a tenant's inventory (swuapi "card merges never emit," so no merge handling is needed). *(the target-state Currency bullet (BL-33 step 7) — archived 2026-10-18, see "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" in `SWU_Application_Spec_Archive.md`.)*
 
 ---
 
@@ -459,8 +459,8 @@ A `stamp_group` consolidates variants sharing the **same base art AND the same f
 
 - **Prestige Foil family (confirmed):** finish "Prestige Foil" → { **Foil Prestige** (unstamped anchor) + **Serialized Prestige** (stamped; Carbonite/Gold/Rose Gold tiers, distinguished by image-filename suffix `_Gold` / `_Rose_Gold` / plain — filenames decode `Carb_A`=Standard Prestige, `Carb_B`=Foil Prestige, `Carb_C`=Serialized) }. **Standard Prestige is separate** (non-foil — a finish difference, like Standard vs Foil).
 - **Tournament-tier family (confirmed):** each card's PQ/SQ/RQ/GC/SS tier set is one promo finish, all stamped, no unstamped anchor → one group. Presentation-only consolidation; per-`uuid` images and inventory are preserved, and selecting a tier shows its real image — so pixel-identity is *trusted* from BL-28's sampled inspection, not re-verified per card.
-- **Judge / Prerelease Judge / Prerelease Promo:** a varied lot (some stamped, some not) — **deferred to BL-39** (visual set-by-set analysis); **default ungrouped** for now.
-- **Group-by-art alternative:** the whole finish+stamp model is a deliberate *starting point*; a broader "group by base art regardless of finish" model (Standard+Foil, Hyperspace+HS Foil, all prestiges, …) is **deferred to BL-40**.
+- **Judge / Prerelease Judge / Prerelease Promo:** a varied lot (some stamped, some not) — **default ungrouped** (the visual set-by-set analysis, BL-39, was retired 2026-10-27 as not wanted now).
+- **Group-by-art alternative:** the whole finish+stamp model is a deliberate *starting point*; a broader "group by base art regardless of finish" model (Standard+Foil, Hyperspace+HS Foil, all prestiges, …) is **not planned** (BL-40 retired 2026-10-27; finish+stamp stands).
 
 ### 10.6 Exceptions — structural 15 → fallback → genuine exceptions
 
@@ -484,9 +484,8 @@ Derived from the `type` field containing **"Token"** — `Token Unit` (21), `Tok
 
 ### 10.10 Remaining open
 
-- **Judge / Prerelease stamp classification** — visual set-by-set analysis → **BL-39**.
-- **Group-by-art grouping revisit** — finish+stamp vs. broader art-based grouping → **BL-40** (BL-39's visual pass is an input).
-- **Limit configuration granularity** — per `variant_type` vs. per `stamp_group`/finish family (§4.5; tied to BL-31/32 and BL-40).
+- *Closed 2026-10-27 (not open):* the Judge / Prerelease visual classification (BL-39) and the group-by-art grouping revisit (BL-40) are not pursued — Judge / Prerelease stays ungrouped and finish+stamp stands (§10.5).
+- **Limit configuration granularity** — per `variant_type` vs. per `stamp_group`/finish family (§4.5; tied to BL-31/32; BL-40 retired 2026-10-27).
 - **Additional swuapi fields** beyond §4 (e.g. `rules`/`additionalRulings`) — deferred, no current consumer.
 - **Exact column types / constraints / indexes** — the Alembic migrations (`backend/alembic/versions/`) are the record (§4).
 
