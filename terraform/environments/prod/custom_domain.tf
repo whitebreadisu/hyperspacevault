@@ -109,6 +109,10 @@ resource "google_dns_record_set" "hyperspacevault_apex_txt" {
     "\"hosting-site=swu-prod\"",
     "\"v=spf1 include:_spf.firebasemail.com ~all\"",
     "\"firebase=swu-prod\"",
+    # Google Search Console domain-property verification (BL-275 idea 1,
+    # 2026-10-26): token from the Site Verification API; applied to DNS
+    # out-of-band the same day, declared here so the next apply is a no-op.
+    "\"google-site-verification=Td92tVM2Ob30YU2HjnSVE265H7Oz1EMIwoPMcvf5SIk\"",
   ]
 }
 

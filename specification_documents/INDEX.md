@@ -1,4 +1,4 @@
-<!-- generated 2026-10-26 by .github/scripts/docs_index.mjs from d7d7786 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-27 by .github/scripts/docs_index.mjs from 924f959 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,7 +115,7 @@ Total 250,802 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 115,766 B (LF) · 6 h2 · 43 h3
+Total 116,166 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -139,7 +139,7 @@ Total 115,766 B (LF) · 6 h2 · 43 h3
 | h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 238 | 6,217 | 2026-07-15 Mechanism | 0007, 0011, 0033 | `.github/actions/promote-prod/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 248 | 950 |  | 0022 |  |  |
 | h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 260 | 4,681 |  | 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/workflows/docs-audit.yml`, `backend/app/tests/test_route_registry.py`, `frontend/src`, `frontend/src/mobile/docs.test.ts` |  |
-| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 288 | 35,441 |  |  |  |  |
+| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 288 | 35,841 |  |  |  |  |
 | h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 290 | 511 |  |  |  |  |
 | h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 300 | 388 |  |  | `terraform/state` |  |
 | h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 304 | 733 |  |  |  |  |
@@ -150,7 +150,7 @@ Total 115,766 B (LF) · 6 h2 · 43 h3
 | h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 406 | 4,327 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
 | h3 | [§3.8 Artifact Registry](SWU_Platform_Spec.md#38-artifact-registry) | 425 | 211 |  |  |  |  |
 | h3 | [§3.9 Firebase & Identity Platform](SWU_Platform_Spec.md#39-firebase--identity-platform) | 429 | 3,077 |  | 0016 | `frontend/firebase.json` |  |
-| h3 | [§3.10 Custom domain](SWU_Platform_Spec.md#310-custom-domain) | 436 | 2,076 | 2026-07-20 BL-127 — `hyperspacevault.com`, a stand- |  | `terraform/modules/app/firebase.tf` |  |
+| h3 | [§3.10 Custom domain](SWU_Platform_Spec.md#310-custom-domain) | 436 | 2,476 | 2026-07-20 BL-127 — `hyperspacevault.com`, a stand- |  | `terraform/modules/app/firebase.tf` |  |
 | h3 | [§3.11 Frontend ↔ backend connection](SWU_Platform_Spec.md#311-frontend--backend-connection) | 444 | 1,750 |  |  | `backend/app/main.py`, `frontend/firebase.json`, `frontend/src/api/authedFetch.ts` |  |
 | h3 | [§3.12 Outputs consumed by CI](SWU_Platform_Spec.md#312-outputs-consumed-by-ci) | 460 | 816 |  |  |  |  |
 | h3 | [§3.13 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#313-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 469 | 725 |  | 0001, 0020, 0021, 0023 |  |  |
