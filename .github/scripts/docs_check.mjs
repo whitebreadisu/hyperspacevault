@@ -7,14 +7,17 @@
 //
 // Output: one line per finding `level  check  file:line  message`, then
 // `docs-check: N fail, M warn`. Exit 1 iff any finding is at level `fail`.
-// --private additionally checks the private backlog ledger (run locally from
-// the main tree; no-ops with a message where those files are absent).
+// --private additionally checks the private backlog registry (specification_documents/backlog/, one file
+// per item, BL-279 WS-1): it imports the tree's own planning/foundation/tools/registry.mjs (the ONE parser),
+// reports its fails, checks TOMBSTONES.md coverage of the legacy archive and archive/, and checks that
+// INDEX.md / TOMBSTONES.md are fresh. Run locally from the main tree; where the folder or registry.mjs is
+// absent (public CI) it no-ops with the note "backlog registry absent in this tree; nothing checked".
 // The file walker and link parser are exported for the Phase D index generator.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, posix, resolve, sep } from "node:path";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // ── Check levels: the ONE table. Phase C/D flip entries here. ──────────────
 export const LEVELS = {
@@ -89,7 +92,8 @@ const CITE_ROOTS = [
 // reference these without a dangling-link failure, but should say "(private)".
 // Entries ending in "/" are prefixes; entries containing "*" are single-segment globs.
 export const PRIVATE_ALLOWLIST = [
-  "specification_documents/SWU_Backlog.md",
+  "specification_documents/SWU_Backlog.md", // legacy single-file backlog (historical links in archives)
+  "specification_documents/backlog/", // the work registry, one file per item (BL-279 WS-1)
   "specification_documents/SWU_Backlog_Archive.md",
   "specification_documents/analysis/",
   "specification_documents/planning/",
@@ -755,77 +759,107 @@ function checkLastUpdated(ctx) {
       );
   }
 }
+// BL-279 WS-1 W1-06: the private backlog ledger is now a folder of one-file-per-item registry entries. This
+// check has ONE parser: it imports the registry module that lives in the tree itself (private layer, main
+// tree only) and reports its fails; public CI has neither the folder nor the module and degrades to a note.
+export const REGISTRY_FOLDER = "specification_documents/backlog";
+export const REGISTRY_MODULE = "specification_documents/planning/foundation/tools/registry.mjs";
+export async function loadPrivateRegistry(root) {
+  if (!existsSync(join(root, REGISTRY_FOLDER)) || !existsSync(join(root, REGISTRY_MODULE)))
+    return null;
+  try {
+    return await import(pathToFileURL(join(root, REGISTRY_MODULE)).href);
+  } catch (e) {
+    return { loadError: e.message }; // reported as one private-mode fail by checkPrivateMode
+  }
+}
 function checkPrivateMode(ctx) {
-  const { root, add, notes } = ctx;
-  const active = "specification_documents/SWU_Backlog.md";
-  const arch = "specification_documents/SWU_Backlog_Archive.md";
-  if (!exists(root, active) || !exists(root, arch)) {
-    notes.push("private-mode: backlog files absent in this tree; nothing checked");
+  const { root, add, notes, registry } = ctx;
+  if (!registry) {
+    notes.push("private-mode: backlog registry absent in this tree; nothing checked");
     return;
   }
-  const tomb = new Map();
-  const full = new Map();
-  let cur = null;
-  read(root, active)
-    .split("\n")
-    .forEach((l, i) => {
-      // A tombstone is a one-line `- **BL-n — …** … → [archive](…)` or, since Phase C (ADR-0020 amendment
-      // 2026-10-18), a row of the tombstone-index table: `| BL-n | … | [archive](SWU_Backlog_Archive.md) |`.
-      let m =
-        /^- \*\*BL-(\d+)\b.*→ \[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l) ||
-        /^\| \**BL-(\d+)\**\s*\|.*\[archive\]\(SWU_Backlog_Archive\.md\)/.exec(l);
-      if (m) tomb.set(m[1], i + 1);
-      m = /^#{3,4} BL-(\d+):/.exec(l);
-      if (m) {
-        cur = m[1];
-        full.set(cur, i + 1);
-      } else if (/^#{1,3}\s/.test(l)) cur = null;
-      else if (
-        cur &&
-        (/^\**Status:?\**:?\s*(✅|⤴️)/.test(l.trim()) || /Status.*✅\s*Resolved/.test(l))
-      ) {
-        add(
-          "private-mode",
-          active,
-          i + 1,
-          `BL-${cur} is a full active entry with a ✅ Resolved status (should be archived + tombstoned)`
-        );
-      }
-    });
-  const archived = new Map();
-  read(root, arch)
-    .split("\n")
-    .forEach((l, i) => {
-      const m = /^#{3,4} BL-(\d+):/.exec(l);
-      if (m && archived.has(m[1]))
-        add(
-          "private-mode",
-          arch,
-          i + 1,
-          `duplicate archive heading for BL-${m[1]} (first at line ${archived.get(m[1])})`
-        );
-      else if (m) archived.set(m[1], i + 1);
-      if (/^- \*\*BL-\d+/.test(l))
-        add("private-mode", arch, i + 1, "stray tombstone-style line in the archive");
-    });
-  for (const [id, line] of tomb) {
-    if (!archived.has(id))
-      add(
-        "private-mode",
-        active,
-        line,
-        `tombstone BL-${id} has no "### BL-${id}:" (or ####) heading in the archive`
-      );
+  if (registry.loadError) {
+    add(
+      "private-mode",
+      REGISTRY_MODULE,
+      1,
+      `registry module failed to load: ${registry.loadError}`
+    );
+    return;
   }
-  for (const [id, line] of archived) {
-    if (!tomb.has(id))
-      add("private-mode", arch, line, `archived BL-${id} has no tombstone in the active backlog`);
-    if (full.has(id))
+  const arch = "specification_documents/SWU_Backlog_Archive.md";
+  const tombFile = `${REGISTRY_FOLDER}/TOMBSTONES.md`;
+  let facts;
+  try {
+    // 1. every item file validates (schema, file names, no done/retired in the active folder, ids unique and
+    //    not colliding with legacy-archived ids, feedback marker consistency)
+    const v = registry.validateRegistry(root);
+    for (const f of v.fails) add("private-mode", f.file, f.line ?? 1, f.message);
+    if (v.warns.length)
+      notes.push(
+        `private-mode: ${v.warns.length} registry warning(s) (priority/area unset); run registry.mjs validate`
+      );
+    facts = registry.tombstoneFacts(root);
+    // 2. INDEX.md / TOMBSTONES.md are fresh: regenerate to a string, compare with CRLF normalised to LF
+    for (const s of registry.staleGenerated(root))
       add(
         "private-mode",
-        active,
-        full.get(id),
-        `BL-${id} appears as a full entry in both the active backlog and the archive`
+        s.file,
+        s.line,
+        `${s.file.split("/").pop()} is stale (first difference at line ${s.line}, column ${s.col + 1}: on disk ${JSON.stringify(s.onDisk.slice(Math.max(0, s.col - 30), s.col + 40))}, regenerated ${JSON.stringify(s.expected.slice(Math.max(0, s.col - 30), s.col + 40))}); run registry.mjs ${s.file.endsWith("INDEX.md") ? "index" : "tombstones"}`
+      );
+  } catch (e) {
+    add("private-mode", REGISTRY_MODULE, 1, `registry.mjs failed to run: ${e.message}`);
+    return;
+  }
+  // 3. the legacy archive file (frozen Tier 3): duplicate headings and stray tombstone lines still apply
+  if (exists(root, arch)) {
+    const seen = new Map();
+    read(root, arch)
+      .split("\n")
+      .forEach((l, i) => {
+        const m = /^#{3,4} BL-(\d+):/.exec(l);
+        if (m && seen.has(m[1]))
+          add(
+            "private-mode",
+            arch,
+            i + 1,
+            `duplicate archive heading for BL-${m[1]} (first at line ${seen.get(m[1])})`
+          );
+        else if (m) seen.set(m[1], i + 1);
+        if (/^- \*\*BL-\d+/.test(l))
+          add("private-mode", arch, i + 1, "stray tombstone-style line in the archive");
+      });
+  }
+  // 4. TOMBSTONES.md resolves every legacy archive heading and every archive/BL-n.md, and nothing else
+  const legacy = new Set(facts.legacyHeadingIds);
+  const folder = new Set(facts.archiveFolderIds);
+  for (const id of legacy)
+    if (!facts.rows.has(id))
+      add(
+        "private-mode",
+        tombFile,
+        1,
+        `legacy archive heading BL-${id} has no row in TOMBSTONES.md`
+      );
+  for (const id of folder)
+    if (!facts.rows.has(id))
+      add("private-mode", tombFile, 1, `archive/BL-${id}.md has no row in TOMBSTONES.md`);
+  for (const [id, target] of facts.rows) {
+    if (target.includes("SWU_Backlog_Archive.md") && !legacy.has(id))
+      add(
+        "private-mode",
+        tombFile,
+        1,
+        `TOMBSTONES.md row BL-${id} points at the legacy archive, which has no "### BL-${id}:" heading`
+      );
+    if (target.startsWith("archive/") && !folder.has(id))
+      add(
+        "private-mode",
+        tombFile,
+        1,
+        `TOMBSTONES.md row BL-${id} points at ${target}, which does not exist`
       );
   }
 }
@@ -1107,7 +1141,13 @@ function checkNumberSnapshots(ctx) {
 }
 
 // ── runner ─────────────────────────────────────────────────────────────────
-export function runChecks({ root, privateMode = false, levels = {}, git = defaultGit } = {}) {
+export function runChecks({
+  root,
+  privateMode = false,
+  levels = {},
+  git = defaultGit,
+  registry = null,
+} = {}) {
   const table = { ...LEVELS, ...levels };
   const findings = [];
   const notes = [];
@@ -1120,6 +1160,7 @@ export function runChecks({ root, privateMode = false, levels = {}, git = defaul
     add,
     notes,
     git,
+    registry, // the imported registry module (see loadPrivateRegistry), only consulted in private mode
   };
   checkLinks(ctx);
   checkAdrIndex(ctx);
@@ -1171,7 +1212,7 @@ export function formatReport({ findings, notes }) {
   return { text: lines.join("\n"), fails, warns };
 }
 
-function main(argv) {
+async function main(argv) {
   let root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
   let privateMode = false;
   let json = false;
@@ -1197,7 +1238,10 @@ function main(argv) {
       return 2;
     }
   }
-  const result = gate ? runGate({ root, waive }) : runChecks({ root, privateMode, levels });
+  const registry = privateMode && !gate ? await loadPrivateRegistry(root) : null;
+  const result = gate
+    ? runGate({ root, waive })
+    : runChecks({ root, privateMode, levels, registry });
   const rep = formatReport(result);
   if (json)
     console.log(
@@ -1212,5 +1256,7 @@ function main(argv) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exitCode = main(process.argv.slice(2));
+  main(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }

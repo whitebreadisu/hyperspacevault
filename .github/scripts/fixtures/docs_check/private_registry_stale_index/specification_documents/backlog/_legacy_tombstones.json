@@ -1,0 +1,5 @@
+[
+  {"id":1,"title":"First resolved thing","resolution":"Resolved 2026-09-01","resolved":"2026-09-01","tier":"Tier 1"},
+  {"id":2,"title":"Second resolved thing","resolution":"Resolved 2026-09-02","resolved":"2026-09-02","tier":"Tier 1"},
+  {"id":3,"title":"Third resolved thing","resolution":"Resolved 2026-09-03","resolved":"2026-09-03","tier":"Tier 1"}
+]

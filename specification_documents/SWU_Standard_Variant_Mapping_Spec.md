@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-20
 **Status:** Living reference document — update as new scenarios are confirmed or new swuapi data resolves existing exceptions.
-**Related:** [`SWU_Backlog.md`](SWU_Backlog.md) (private) BL-27 (variant-type enumeration), BL-28 (swuapi.com analysis — origin of this document), BL-29 (catalog rebuild), BL-31/BL-32 (tournament-tier stamp consolidation), BL-33 (schema redesign this document's mechanism feeds into).
+**Related:** [`backlog/INDEX.md`](backlog/INDEX.md) (private) BL-27 (variant-type enumeration), BL-28 (swuapi.com analysis — origin of this document), BL-29 (catalog rebuild), BL-31/BL-32 (tournament-tier stamp consolidation), BL-33 (schema redesign this document's mechanism feeds into).
 **Companion file:** [`swuapi_standard_variant_exceptions.md`](swuapi_standard_variant_exceptions.md) — the current, short, regenerated list of cards with no resolved standard anchor. Check that file for "is X still an exception" questions; you should not need to read this document for that.
 
 ---
@@ -66,7 +66,7 @@ Every SORP (Spark of Rebellion Weekly Play) card's `variant_of_uuid` points dire
 
 ## 4. Database Design
 
-Full schema detail lives in `SWU_Backlog.md` BL-33 — this section states only how `variant_of_uuid` feeds it, so the two documents don't drift.
+Full schema detail lives in `specification_documents/backlog/` BL-33 — this section states only how `variant_of_uuid` feeds it, so the two documents don't drift.
 
 - **`base_cards`** rows = roots. One row per `variant_of_uuid: null` card, grouped by its own set.
 - **`card_variants.base_card_id`** is derived directly by resolving each card's `variant_of_uuid` to its root's row — no `(name, subtitle, variantType)` fuzzy matching needed for this step at all. (Text matching is still relevant for the deferred cross-set reprint grouping in §7, just not for within-set anchoring.)
@@ -147,7 +147,7 @@ This is intentionally narrow and structural — not "no card matched by name sea
 
 ## 7. Deferred / Related Concepts (explicitly out of scope here)
 
-- **Cross-set reprint grouping.** "Show every printing of this physical card, reprints across sets included" (wanted for the card detail popup) requires grouping independent roots by `(name, subtitle)`, case-insensitive, *across* sets — layered on top of the within-set mechanism this document describes, not part of it. Deferred per 2026-06-20 conversation; pick up when popup work (S6) reaches this feature. **Tracked: `SWU_Backlog.md` BL-52.**
+- **Cross-set reprint grouping.** "Show every printing of this physical card, reprints across sets included" (wanted for the card detail popup) requires grouping independent roots by `(name, subtitle)`, case-insensitive, *across* sets — layered on top of the within-set mechanism this document describes, not part of it. Deferred per 2026-06-20 conversation; pick up when popup work (S6) reaches this feature. **Tracked: `specification_documents/backlog/` BL-52.**
 - **`stamp_group` (BL-31/BL-32).** Grouping a root's many non-root *tournament-tier* children (e.g. Rey's 6 RQ-tier variants, pixel-identical art with only a stamp changed) for UI consolidation is a sub-grouping among one root's children — a UI concern, not a base-card-matching concern. This document's mechanism determines *that* those six RQ-tier variants (the 2026-06-21 census example) share a root; which of them visually look alike is BL-31/32's problem.
 
 ---

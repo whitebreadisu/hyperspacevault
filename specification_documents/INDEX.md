@@ -1,15 +1,15 @@
-<!-- generated 2026-10-27 by .github/scripts/docs_index.mjs from 924f959 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-27 by .github/scripts/docs_index.mjs from 166d129 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 250,802 B (LF) · 25 h2 · 77 h3
+Total 250,867 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
-| — | (preamble: title and front matter) | 1 | 3,711 | 2026-10-25 Last updated | 0032 | `docs/decisions`, `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| — | (preamble: title and front matter) | 1 | 3,735 | 2026-10-25 Last updated | 0032 | `docs/decisions`, `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§1. Status under the documentation regime](SWU_Application_Spec.md#1-status-under-the-documentation-regime) | 22 | 573 |  | 0020 | `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§2. Product frame (requirements that drive the design)](SWU_Application_Spec.md#2-product-frame-requirements-that-drive-the-design) | 30 | 1,563 |  | 0008 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§3. Core concepts](SWU_Application_Spec.md#3-core-concepts) | 47 | 3,184 |  |  |  |  |
@@ -40,7 +40,7 @@ Total 250,802 B (LF) · 25 h2 · 77 h3
 | h3 | [§5.14 Variant scope + the Value column (BL-173/BL-181 — build record archived 2026-08-17, BL-233)](SWU_Application_Spec.md#514-variant-scope--the-value-column-bl-173bl-181--build-record-archived-2026-08-17-bl-233) | 315 | 4,820 | 2026-08-17 Archived | 0030 | `frontend/src/utils/variantScope.ts` | "Archived 2026-10-12 — §5.13 / §25.1 scope option set superseded: Showcase returns to the scope picker (BL-259)" |
 | h3 | [§5.15 Completion-panel set selection + filter-panel UX (BL-179 — build record archived 2026-08-17, BL-233)](SWU_Application_Spec.md#515-completion-panel-set-selection--filter-panel-ux-bl-179--build-record-archived-2026-08-17-bl-233) | 330 | 2,474 | 2026-08-17 Archived |  |  |  |
 | h3 | [§5.16 Finish-scope follow-through + busy overlay (BL-187/191–196 — shipped prod 2026-08-07, v1.3)](SWU_Application_Spec.md#516-finish-scope-follow-through--busy-overlay-bl-187191196--shipped-prod-2026-08-07-v13) | 341 | 4,371 |  | 0031 | `frontend/src/utils/variantScope.ts` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
-| h2 | [§6. Completion, limits, enforcement (cross-reference)](SWU_Application_Spec.md#6-completion-limits-enforcement-cross-reference) | 353 | 1,660 |  |  |  |  |
+| h2 | [§6. Completion, limits, enforcement (cross-reference)](SWU_Application_Spec.md#6-completion-limits-enforcement-cross-reference) | 353 | 1,683 |  |  |  |  |
 | h2 | [§7. Access & currency (cross-reference)](SWU_Application_Spec.md#7-access--currency-cross-reference) | 365 | 2,156 |  | 0004, 0008 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§8. Test Strategy](SWU_Application_Spec.md#8-test-strategy) | 372 | 6,768 |  |  |  |  |
 | h3 | [§8.1 Coverage disposition mandate](SWU_Application_Spec.md#81-coverage-disposition-mandate) | 376 | 2,685 |  |  |  |  |
@@ -62,7 +62,7 @@ Total 250,802 B (LF) · 25 h2 · 77 h3
 | h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 485 | 626 |  |  | `backend/alembic/versions` |  |
 | h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 493 | 3,833 |  | 0002, 0014 |  |  |
 | h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 506 | 2,830 |  |  | `backend/app`, `backend/app/db_url.py` |  |
-| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 529 | 21,902 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
+| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 529 | 21,920 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
 | h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 543 | 256 |  |  |  |  |
 | h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 551 | 5,563 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` |  |
 | h3 | [§Inventory — `/api/inventory`](SWU_Application_Spec.md#inventory--apiinventory) | 564 | 3,261 |  |  |  |  |
@@ -70,7 +70,7 @@ Total 250,802 B (LF) · 25 h2 · 77 h3
 | h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 595 | 1,739 |  |  |  |  |
 | h3 | [§Deck check — `/api/deck-check`](SWU_Application_Spec.md#deck-check--apideck-check) | 612 | 2,910 |  | 0015 |  |  |
 | h3 | [§Account — `/api/account`](SWU_Application_Spec.md#account--apiaccount) | 627 | 1,860 |  |  |  |  |
-| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 634 | 2,496 |  | 0008 | `backend/app/rate_limit.py`, `backend/app/services/feedback.py`, `backend/app/services/github_notify.py` |  |
+| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 634 | 2,514 |  | 0008 | `backend/app/rate_limit.py`, `backend/app/services/feedback.py`, `backend/app/services/github_notify.py`, `specification_documents/backlog` |  |
 | h3 | [§Analytics relay — `/api/relay` (BL-235, v1.4.2)](SWU_Application_Spec.md#analytics-relay--apirelay-bl-235-v142) | 645 | 602 |  | 0027 |  |  |
 | h2 | [§13. Ingestion pipeline](SWU_Application_Spec.md#13-ingestion-pipeline) | 654 | 3,108 | 2026-07-25 Inventory snapshot — retired , replaced | 0002, 0004 | `backend/app/ingestion`, `backend/app/ingestion/bootstrap.py` |  |
 | h2 | [§14. Environment](SWU_Application_Spec.md#14-environment) | 670 | 663 |  |  |  |  |
@@ -115,12 +115,12 @@ Total 250,802 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 116,166 B (LF) · 6 h2 · 43 h3
+Total 116,260 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
 | — | (preamble: title and front matter) | 1 | 96 | 2026-06-14 Version 1.0 \| Created |  |  |  |
-| h2 | [§Purpose & How to Use This Document](SWU_Platform_Spec.md#purpose--how-to-use-this-document) | 7 | 2,337 |  | 0020 | `backend/app/tests/test_route_registry.py`, `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h2 | [§Purpose & How to Use This Document](SWU_Platform_Spec.md#purpose--how-to-use-this-document) | 7 | 2,359 |  | 0020 | `backend/app/tests/test_route_registry.py`, `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§1. Auth & Tenancy Architecture](SWU_Platform_Spec.md#1-auth--tenancy-architecture) | 30 | 24,537 |  |  |  |  |
 | h3 | [§1.1 Overview](SWU_Platform_Spec.md#11-overview) | 32 | 4,860 |  | 0008, 0019, 0027 | `backend/app/auth.py`, `backend/app/database.py`, `backend/app/routers/relay.py`, `backend/app/services/feedback.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§1.2 Where the token is verified — `app/auth.py`](SWU_Platform_Spec.md#12-where-the-token-is-verified--appauthpy) | 64 | 4,325 |  | 0034 | `backend/app/auth.py`, `frontend/src/components/VerifyEmailBanner.tsx` |  |
@@ -139,7 +139,7 @@ Total 116,166 B (LF) · 6 h2 · 43 h3
 | h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 238 | 6,217 | 2026-07-15 Mechanism | 0007, 0011, 0033 | `.github/actions/promote-prod/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 248 | 950 |  | 0022 |  |  |
 | h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 260 | 4,681 |  | 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/workflows/docs-audit.yml`, `backend/app/tests/test_route_registry.py`, `frontend/src`, `frontend/src/mobile/docs.test.ts` |  |
-| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 288 | 35,841 |  |  |  |  |
+| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 288 | 35,877 |  |  |  |  |
 | h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 290 | 511 |  |  |  |  |
 | h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 300 | 388 |  |  | `terraform/state` |  |
 | h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 304 | 733 |  |  |  |  |
@@ -154,34 +154,34 @@ Total 116,166 B (LF) · 6 h2 · 43 h3
 | h3 | [§3.11 Frontend ↔ backend connection](SWU_Platform_Spec.md#311-frontend--backend-connection) | 444 | 1,750 |  |  | `backend/app/main.py`, `frontend/firebase.json`, `frontend/src/api/authedFetch.ts` |  |
 | h3 | [§3.12 Outputs consumed by CI](SWU_Platform_Spec.md#312-outputs-consumed-by-ci) | 460 | 816 |  |  |  |  |
 | h3 | [§3.13 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#313-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 469 | 725 |  | 0001, 0020, 0021, 0023 |  |  |
-| h3 | [§3.14 CDN caching of public catalog reads (RR-3)](SWU_Platform_Spec.md#314-cdn-caching-of-public-catalog-reads-rr-3) | 477 | 2,764 |  |  | `backend/app/http_cache.py`, `backend/app/routers/sets.py` |  |
+| h3 | [§3.14 CDN caching of public catalog reads (RR-3)](SWU_Platform_Spec.md#314-cdn-caching-of-public-catalog-reads-rr-3) | 477 | 2,782 |  |  | `backend/app/http_cache.py`, `backend/app/routers/sets.py`, `specification_documents/backlog` |  |
 | h3 | [§3.15 Response compression (gzip, BL-99)](SWU_Platform_Spec.md#315-response-compression-gzip-bl-99) | 487 | 2,655 |  |  | `backend/app/main.py` |  |
-| h3 | [§3.16 Self-hosted card images (BL-76 / ADR-0012)](SWU_Platform_Spec.md#316-self-hosted-card-images-bl-76--adr-0012) | 495 | 3,766 | 2026-07-12 Prod state | 0012 | `backend/app/ingestion/image_mirror.py`, `backend/app/routers/images.py`, `backend/app/services/image_paths.py`, `frontend/src/utils/cardImages.ts` |  |
-| h2 | [§4. Observability](SWU_Platform_Spec.md#4-observability) | 509 | 13,031 |  |  |  |  |
+| h3 | [§3.16 Self-hosted card images (BL-76 / ADR-0012)](SWU_Platform_Spec.md#316-self-hosted-card-images-bl-76--adr-0012) | 495 | 3,784 | 2026-07-12 Prod state | 0012 | `backend/app/ingestion/image_mirror.py`, `backend/app/routers/images.py`, `backend/app/services/image_paths.py`, `frontend/src/utils/cardImages.ts`, `specification_documents/backlog` |  |
+| h2 | [§4. Observability](SWU_Platform_Spec.md#4-observability) | 509 | 13,049 |  |  |  |  |
 | h3 | [§4.1 Structured JSON logging](SWU_Platform_Spec.md#41-structured-json-logging) | 511 | 2,122 |  |  | `backend/app/logging_config.py`, `backend/app/main.py`, `backend/app/middleware.py` |  |
 | h3 | [§4.2 Cloud Monitoring dashboard](SWU_Platform_Spec.md#42-cloud-monitoring-dashboard) | 526 | 687 |  |  |  |  |
-| h3 | [§4.3 Alerting](SWU_Platform_Spec.md#43-alerting) | 534 | 6,092 | 2026-07-14 Operational finding |  |  |  |
+| h3 | [§4.3 Alerting](SWU_Platform_Spec.md#43-alerting) | 534 | 6,110 | 2026-07-14 Operational finding |  | `specification_documents/backlog` |  |
 | h3 | [§4.4 Error Reporting](SWU_Platform_Spec.md#44-error-reporting) | 552 | 426 |  |  |  |  |
 | h3 | [§4.5 Design Rationale](SWU_Platform_Spec.md#45-design-rationale) | 556 | 927 |  | 0025 |  |  |
 | h3 | [§4.6 Cost Controls (RR-2 / finding F14)](SWU_Platform_Spec.md#46-cost-controls-rr-2--finding-f14) | 568 | 2,756 |  | 0008 | `terraform/modules/app/variables.tf` |  |
-| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 589 | 12,129 | 2026-08-16 Review currency |  |  |  |
-| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 595 | 9,056 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/routers/feedback.py`, `backend/app/services/deck_fetch.py` |  |
+| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 589 | 12,147 | 2026-08-16 Review currency |  |  |  |
+| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 595 | 9,074 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/routers/feedback.py`, `backend/app/services/deck_fetch.py`, `specification_documents/backlog` |  |
 | h3 | [§5.2 Secrets (Secret Manager)](SWU_Platform_Spec.md#52-secrets-secret-manager) | 620 | 551 |  |  |  |  |
 | h3 | [§5.3 Network posture](SWU_Platform_Spec.md#53-network-posture) | 624 | 699 |  | 0023 |  |  |
 | h3 | [§5.4 Open follow-ups](SWU_Platform_Spec.md#54-open-follow-ups) | 630 | 634 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 
 ## SWU_Standard_Variant_Mapping_Spec.md
 
-Total 21,785 B (LF) · 9 h2 · 10 h3
+Total 21,825 B (LF) · 9 h2 · 10 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
-| — | (preamble: title and front matter) | 1 | 800 |  |  |  |  |
+| — | (preamble: title and front matter) | 1 | 804 |  |  |  |  |
 | h2 | [§1. Purpose](SWU_Standard_Variant_Mapping_Spec.md#1-purpose) | 10 | 1,602 |  |  |  |  |
 | h2 | [§2. The Core Concept](SWU_Standard_Variant_Mapping_Spec.md#2-the-core-concept) | 21 | 1,006 |  |  |  |  |
 | h2 | [§3. The Mechanism — `variant_of_uuid`](SWU_Standard_Variant_Mapping_Spec.md#3-the-mechanism--variant_of_uuid) | 32 | 3,777 |  |  |  |  |
 | h3 | [§The integrity invariant this design depends on — corrected 2026-06-21 against the full export](SWU_Standard_Variant_Mapping_Spec.md#the-integrity-invariant-this-design-depends-on--corrected-2026-06-21-against-the-full-export) | 59 | 1,785 |  |  |  |  |
-| h2 | [§4. Database Design](SWU_Standard_Variant_Mapping_Spec.md#4-database-design) | 67 | 1,898 | 2026-06-20 Resolved (swuapi-first redesign session |  |  |  |
+| h2 | [§4. Database Design](SWU_Standard_Variant_Mapping_Spec.md#4-database-design) | 67 | 1,916 | 2026-06-20 Resolved (swuapi-first redesign session |  | `specification_documents/backlog` |  |
 | h2 | [§5. Scenario Taxonomy](SWU_Standard_Variant_Mapping_Spec.md#5-scenario-taxonomy) | 79 | 4,922 |  |  |  |  |
 | h3 | [§A. Simple single-set family](SWU_Standard_Variant_Mapping_Spec.md#a-simple-single-set-family) | 83 | 218 |  |  |  |  |
 | h3 | [§B. Cross-set reprint (independent roots)](SWU_Standard_Variant_Mapping_Spec.md#b-cross-set-reprint-independent-roots) | 87 | 239 |  |  |  |  |
@@ -193,6 +193,6 @@ Total 21,785 B (LF) · 9 h2 · 10 h3
 | h3 | [§H. No-anchor exception](SWU_Standard_Variant_Mapping_Spec.md#h-no-anchor-exception) | 124 | 715 | 2026-10-02 Status |  |  |  |
 | h3 | [§I. Chain-depth invariant — corrected 2026-06-21](SWU_Standard_Variant_Mapping_Spec.md#i-chain-depth-invariant--corrected-2026-06-21) | 130 | 556 |  |  |  |  |
 | h2 | [§6. Exception Handling](SWU_Standard_Variant_Mapping_Spec.md#6-exception-handling) | 136 | 3,211 | 2026-06-21 Definition |  |  |  |
-| h2 | [§7. Deferred / Related Concepts (explicitly out of scope here)](SWU_Standard_Variant_Mapping_Spec.md#7-deferred--related-concepts-explicitly-out-of-scope-here) | 148 | 985 |  |  |  |  |
+| h2 | [§7. Deferred / Related Concepts (explicitly out of scope here)](SWU_Standard_Variant_Mapping_Spec.md#7-deferred--related-concepts-explicitly-out-of-scope-here) | 148 | 1,003 |  |  | `specification_documents/backlog` |  |
 | h2 | [§8. Test Strategy](SWU_Standard_Variant_Mapping_Spec.md#8-test-strategy) | 155 | 2,036 |  |  |  |  |
 | h2 | [§9. Appendix — Confirmed Reference Examples](SWU_Standard_Variant_Mapping_Spec.md#9-appendix--confirmed-reference-examples) | 166 | 1,548 |  |  |  |  |
