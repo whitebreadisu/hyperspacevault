@@ -70,6 +70,11 @@ locals {
     # RR-9 play, avoiding the apply racing IAM propagation); this entry
     # codifies it for prod ahead of the next promote's apply.
     "roles/logging.configWriter",
+    # BL-279 W2-15: the scheduled health-check workflow (health-check.yml)
+    # impersonates terraform-ci to read Cloud Run request logs
+    # (`gcloud logging read`); configWriter manages metrics/sinks but cannot
+    # read entries. Read-only. Granted manually first (the RR-9 play).
+    "roles/logging.viewer",
   ]
 }
 

@@ -1,0 +1,94 @@
+name: health-check
+
+# BL-279 WS-2 W2-15(a) (Platform Spec 2.8): the deterministic prod health check, on a
+# schedule. Runs .github/scripts/health_check.mjs (served version, /api/sets smoke,
+# Cloud Run 5xx split, PostHog pulse) and appends one comment per run to ONE rolling
+# issue. No LLM. A "check" verdict posts a **CHECK**-prefixed comment and turns the run
+# red at the END, so the Actions list shows it while the comment still posts.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # daily 13:00 UTC = 08:00 Central (07:00 in winter)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+env:
+  ISSUE_TITLE: "Prod health check (rolling)"
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-prod
+          workload_identity_provider: projects/373324715123/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      # A failing smoke (exit 1) must not skip the issue comment: capture the code, go on.
+      # `shell: bash` runs with -eo pipefail, hence the explicit `|| true` captures.
+      - name: Run the health check
+        shell: bash
+        env:
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node .github/scripts/health_check.mjs --json > health.json || true
+          rc=0
+          node .github/scripts/health_check.mjs | tee health.txt || rc=${PIPESTATUS[0]}
+          echo "exit_code=${rc}" >> "$GITHUB_ENV"
+
+      - name: Append to the rolling issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          verdict=$(sed -n 's/^verdict: *//p' health.txt | head -n 1)
+          if [ "${verdict}" = "ok" ] && [ "${exit_code}" = "0" ]; then
+            prefix=""; echo "health_ok=1" >> "$GITHUB_ENV"
+          else
+            prefix="**CHECK** "; echo "health_ok=0" >> "$GITHUB_ENV"
+          fi
+          {
+            echo "${prefix}### $(date -u +%Y-%m-%d) — [run](${RUN_URL})"
+            echo
+            echo '```'
+            cat health.txt
+            echo '```'
+          } > comment.md
+          # One rolling issue for the life of the repo: found by exact title in ANY state, created once.
+          number=$(gh issue list --state all --limit 100 --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")] | sort_by(.number) | first | .number // empty")
+          if [ -z "$number" ]; then
+            printf '%s\n' "_Rolling issue: one comment per run of \`.github/workflows/health-check.yml\` (daily). Comments starting **CHECK** need a look; the rest are a heartbeat._" > body.md
+            number=$(gh issue create --title "${ISSUE_TITLE}" --label "type:chore" --label "area:platform" --body-file body.md | grep -oE '[0-9]+$')
+            echo "created issue #${number}"
+          fi
+          gh issue comment "$number" --body-file comment.md
+
+      - name: Red on a check verdict
+        if: always()
+        run: |
+          if [ "${health_ok:-0}" != "1" ]; then
+            echo "::error::health-check: verdict is not ok - see the rolling issue"
+            exit 1
+          fi
+          echo "health-check: ok"

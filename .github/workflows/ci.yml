@@ -416,7 +416,9 @@ jobs:
           node-version: "22"
 
       - name: Docs-check tests
-        run: node .github/scripts/docs_check.test.mjs
+        run: |
+          node .github/scripts/docs_check.test.mjs
+          node --test .github/scripts/health_check.test.mjs
 
       - name: Docs-check on the tree
         run: node .github/scripts/docs_check.mjs
