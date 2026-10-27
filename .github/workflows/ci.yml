@@ -434,6 +434,28 @@ jobs:
           node .github/scripts/docs_history.test.mjs
           node .github/scripts/docs_audit.test.mjs
 
+  # ── BL-279 W2-16 (D4): BL-id comment check ─────────────────────────────
+  # Comments describe the present, not history: fails on a BL-<n> id inside a
+  # comment in frontend/src or backend/app unless the file is on
+  # .github/scripts/comment_check.allow (WS-4 shrinks that list to zero).
+  # Ungated like docs-check; plain Node, no install. Required in BOTH ci-ok
+  # branches. Controls Register: Platform Spec 2.8.
+  comment-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Comment-check tests
+        run: node --test .github/scripts/comment_check.test.mjs
+
+      - name: Comment-check on the tree
+        run: node .github/scripts/comment_check.mjs
+
   # ── BL-178: the single required status check ────────────────────────────
   # Branch protection on main requires exactly this check ("ci-ok"), not the
   # heavy jobs individually — that's what lets docs-only PRs merge cleanly
@@ -444,7 +466,7 @@ jobs:
   # existing pipeline unchanged.
 
   ci-ok:
-    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt, docs-check]
+    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt, docs-check, comment-check]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
@@ -458,9 +480,10 @@ jobs:
           FRONTEND_E2E_MOBILE_RESULT: ${{ needs.frontend-e2e-mobile.result }}
           TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
           DOCS_CHECK_RESULT: ${{ needs.docs-check.result }}
+          COMMENT_CHECK_RESULT: ${{ needs.comment-check.result }}
         run: |
           echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED"
-          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
             echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
@@ -470,6 +493,12 @@ jobs:
           # BL-271: docs-check is required in BOTH branches (never skipped).
           if [ "$DOCS_CHECK_RESULT" != "success" ]; then
             echo "::error::docs-check did not succeed (run node .github/scripts/docs_check.mjs locally)."
+            exit 1
+          fi
+
+          # BL-279 W2-16: comment-check is required in BOTH branches (never skipped).
+          if [ "$COMMENT_CHECK_RESULT" != "success" ]; then
+            echo "::error::comment-check did not succeed (run node .github/scripts/comment_check.mjs locally)."
             exit 1
           fi
 
