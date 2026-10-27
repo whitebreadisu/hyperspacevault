@@ -797,3 +797,41 @@ test("private mode: a registry module that fails to load is one private-mode fai
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// BL-279 W2-20: read-path budgets (ADR-0036), evaluated only with --private.
+test("budget: a 4,200-byte CLAUDE.md fails under --private and passes without it", () => {
+  const priv = runChecks({ root: fx("budget_over"), privateMode: true });
+  const f = only(priv.findings, "budget");
+  assert.equal(f.length, 1);
+  assert.equal(f[0].level, "fail");
+  assert.ok(priv.notes.includes("budget: CLAUDE.md 4200 B (limit 4096)"));
+  assert.equal(exitCode("budget_over", ["--private"]).status, 1);
+  assert.deepEqual(only(run("budget_over"), "budget"), []);
+  assert.equal(exitCode("budget_over").status, 0);
+});
+
+test("budget: a 4,000-byte CLAUDE.md with no private_check.json passes with notes", () => {
+  const r = runChecks({ root: fx("budget_ok"), privateMode: true });
+  assert.deepEqual(only(r.findings, "budget"), []);
+  assert.ok(r.notes.includes("budget: CLAUDE.md 4000 B (limit 4096)"));
+  assert.ok(r.notes.includes("budget: memory index not configured/absent; budget not checked"));
+  assert.equal(exitCode("budget_ok", ["--private"]).status, 0);
+});
+
+test("budget: a memoryIndex pointing at a 7,000-byte file fails", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "docs-check-budget-"));
+  try {
+    cpSync(fx("budget_ok"), tmp, { recursive: true });
+    const idx = join(tmp, "MEMORY.md");
+    writeFileSync(idx, "m".repeat(6999) + "\n");
+    mkdirSync(join(tmp, ".claude"), { recursive: true });
+    writeFileSync(join(tmp, ".claude", "private_check.json"), JSON.stringify({ memoryIndex: idx }));
+    const r = runChecks({ root: tmp, privateMode: true });
+    const f = only(r.findings, "budget");
+    assert.equal(f.length, 1);
+    assert.match(f[0].message, /memory index is 7000 B/);
+    assert.ok(r.notes.includes("budget: memory index 7000 B (limit 6144)"));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

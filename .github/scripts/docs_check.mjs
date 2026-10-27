@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, posix, resolve, sep } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // ── Check levels: the ONE table. Phase C/D flip entries here. ──────────────
@@ -32,6 +32,7 @@ export const LEVELS = {
   "arch-as-of": "warn", // architecture view "as of release vX.Y" is behind the newest release's major.minor; fail inside --gate
   "app-milestone": "warn", // App Spec "App milestone" banner does not name the newest release version; fail inside --gate
   "private-mode": "fail", // only evaluated with --private
+  budget: "fail", // only evaluated with --private: read-path size budgets (BL-279 W2-20, ADR-0036)
   // round 2 (BL-271 Phase B ext)
   "cite-path": "fail", // backticked repo-shaped path that does not exist (fail since Phase C, 2026-10-19; historical citations on CITE_PATH_IGNORE)
   "cite-line": "fail", // `path:line` citation whose file does not exist
@@ -864,6 +865,49 @@ function checkPrivateMode(ctx) {
   }
 }
 
+// BL-279 W2-20: the standing read path has three size budgets (ADR-0036). One `budget:` note per surface is
+// emitted even when passing, so the numbers show on every ledger commit.
+export const BUDGETS = { claudeMd: 4096, memoryIndex: 6144, injection: 2048 };
+export const PRIVATE_CONFIG = ".claude/private_check.json";
+function checkBudget(ctx) {
+  const { root, add, notes } = ctx;
+  const report = (label, bytes, limit, file) => {
+    notes.push(`budget: ${label} ${bytes} B (limit ${limit})`);
+    if (bytes > limit)
+      add("budget", file, 1, `${label} is ${bytes} B, over the ${limit} B budget (ADR-0036)`);
+  };
+  const claude = join(root, "CLAUDE.md");
+  if (existsSync(claude)) report("CLAUDE.md", readFileSync(claude).length, BUDGETS.claudeMd, "CLAUDE.md");
+  else notes.push("budget: CLAUDE.md absent; not checked");
+  let memory = null;
+  const cfg = join(root, PRIVATE_CONFIG);
+  if (existsSync(cfg)) {
+    try {
+      memory = JSON.parse(readFileSync(cfg, "utf-8")).memoryIndex ?? null;
+    } catch {
+      memory = null;
+    }
+  }
+  if (memory && existsSync(memory))
+    report("memory index", readFileSync(memory).length, BUDGETS.memoryIndex, PRIVATE_CONFIG);
+  else notes.push("budget: memory index not configured/absent; budget not checked");
+  const hook = join(root, ".claude", "hooks", "session_context.py");
+  if (!existsSync(hook)) {
+    notes.push("budget: session_context.py absent; injection budget not checked");
+    return;
+  }
+  const r = spawnSync("python", [hook], { cwd: root, input: "", encoding: "utf-8" });
+  let ctxText = null;
+  try {
+    ctxText = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  } catch {
+    ctxText = null;
+  }
+  if (typeof ctxText !== "string")
+    notes.push("budget: session_context.py did not run (python missing or bad output); injection budget not checked");
+  else report("SessionStart injection", Buffer.byteLength(ctxText, "utf-8"), BUDGETS.injection, ".claude/hooks/session_context.py");
+}
+
 // ── round 2 checks (BL-271 Phase B ext) ────────────────────────────────────
 const ignoredCite = (file, p) =>
   CITE_PATH_IGNORE.some((e) => e.doc === file && e.path === p) ||
@@ -1173,7 +1217,10 @@ export function runChecks({
   checkCiJobNames(ctx);
   checkAdrStatusInline(ctx);
   checkNumberSnapshots(ctx);
-  if (privateMode) checkPrivateMode(ctx);
+  if (privateMode) {
+    checkPrivateMode(ctx);
+    checkBudget(ctx);
+  }
   return { findings, notes };
 }
 
