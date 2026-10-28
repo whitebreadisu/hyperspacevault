@@ -47,14 +47,14 @@ export default defineConfig({
     {
       name: "phone-390",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       dependencies: ["setup"],
       use: phone(390, 844),
     },
     {
       name: "phone-430",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       dependencies: ["setup"],
       use: phone(430, 932),
     },
@@ -79,7 +79,7 @@ export default defineConfig({
     {
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts/,
+      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       // BL-252 S6-11: the desktop smoke signs in with the saved session.
       dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },

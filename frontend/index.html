@@ -8,6 +8,9 @@
          has no external links today -- this makes that safe by default
          rather than by construction. -->
     <meta name="referrer" content="no-referrer" />
+    <!-- BL-279 A06: the commit this build was made from (vite.config.ts
+         defaults it to "local"; deploy builds set VITE_GIT_SHA). -->
+    <meta name="build-sha" content="%VITE_GIT_SHA%" />
     <title>HyperspaceVault</title>
     <meta
       name="description"

@@ -1,0 +1,116 @@
+name: Local full stack
+description: >
+  BL-279 WS-3 W3-07. Brings up the whole app on the runner with no network
+  beyond the pip/npm caches (the BL-255 external-host rule): migrates the
+  caller's Postgres, runs the backend (uvicorn :8000) against the Firebase Auth
+  emulator (:9099, project demo-swu), and serves the frontend with Vite on
+  :5174, proxying /api and /images/cards to :8000. Output base_url is what
+  VERIFY_BASE_URL should be. The wait loops share a 90 s budget.
+
+  Preconditions (the caller owns them):
+    * actions/checkout has run, and the job has Node 22 on PATH
+      (actions/setup-node) with `npm ci` already run in frontend/;
+    * the job declares the Postgres 16 service exactly as ci.yml's `backend`
+      job does (POSTGRES_DB swu_inventory, POSTGRES_USER swu_user,
+      POSTGRES_PASSWORD swu_pass, port 5432, the pg_isready health options) and
+      sets the same job-level env: DATABASE_URL, APP_DATABASE_URL and
+      APP_DB_PASSWORD (composite steps inherit the job env; migration 0019
+      reads APP_DB_PASSWORD to create the swu_app role).
+
+  Logs (the caller uploads these on failure, e.g. actions/upload-artifact with
+  path: $RUNNER_TEMP/local-stack/*.log; the description must not contain an expression):
+    $RUNNER_TEMP/local-stack/backend.log
+    $RUNNER_TEMP/local-stack/auth-emulator.log
+    $RUNNER_TEMP/local-stack/vite.log
+
+  Catalog: by default the backend boots from the committed trimmed export
+  backend/app/ingestion/data/fixtures/swuapi_export_journeys.json (the journey
+  cards plus their variant families; built by backend/scripts/
+  trim_export_fixture.py), exported to uvicorn as SWUAPI_EXPORT_PATH, so no
+  bucket fetch or credentials are needed. The full captures are gitignored.
+  swuapi-export-path overrides it.
+
+inputs:
+  swuapi-export-path:
+    description: >
+      Optional path to a swuapi export JSON, exported to the backend as
+      SWUAPI_EXPORT_PATH. Empty: the committed journeys fixture.
+    required: false
+    default: ""
+
+outputs:
+  base_url:
+    description: The app's URL for VERIFY_BASE_URL.
+    value: http://localhost:5174
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+        cache: pip
+        cache-dependency-path: backend/requirements.txt
+
+    - name: Install backend dependencies
+      working-directory: backend
+      shell: bash
+      run: pip install -r requirements.txt
+
+    - name: Apply migrations
+      working-directory: backend
+      shell: bash
+      run: alembic upgrade head
+
+    - name: Start auth emulator, backend and Vite
+      shell: bash
+      env:
+        SWUAPI_EXPORT_INPUT: ${{ inputs.swuapi-export-path }}
+      run: |
+        set -euo pipefail
+        LOGS="$RUNNER_TEMP/local-stack"
+        mkdir -p "$LOGS"
+        ROOT="$GITHUB_WORKSPACE"
+
+        # Auth emulator (firebase-tools is a frontend devDependency; its
+        # emulator config is frontend/firebase.json).
+        (cd "$ROOT/frontend" && nohup npx firebase emulators:start --only auth \
+          --project demo-swu > "$LOGS/auth-emulator.log" 2>&1 &)
+
+        # Backend.
+        export SWUAPI_EXPORT_PATH="${SWUAPI_EXPORT_INPUT:-$ROOT/backend/app/ingestion/data/fixtures/swuapi_export_journeys.json}"
+        test -f "$SWUAPI_EXPORT_PATH" || { echo "::error::catalog export not found: $SWUAPI_EXPORT_PATH"; exit 1; }
+        (cd "$ROOT/backend" && \
+          GOOGLE_CLOUD_PROJECT=demo-swu \
+          FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+          > "$LOGS/backend.log" 2>&1 &)
+
+        # Vite, same demo keys as frontend/e2e/run-mobile.mjs's webServer.
+        (cd "$ROOT/frontend" && \
+          VITE_USE_AUTH_EMULATOR=true \
+          VITE_FIREBASE_API_KEY=demo-api-key \
+          VITE_FIREBASE_AUTH_DOMAIN=demo-swu.firebaseapp.com \
+          VITE_FIREBASE_PROJECT_ID=demo-swu \
+          VITE_API_PROXY_TARGET=http://127.0.0.1:8000 \
+          nohup npx vite --port 5174 --strictPort > "$LOGS/vite.log" 2>&1 &)
+
+    - name: Wait for the stack (90 s budget)
+      shell: bash
+      run: |
+        set -uo pipefail
+        deadline=$((SECONDS + 90))
+        wait_for() {
+          local name="$1" url="$2"
+          until curl -fsS -o /dev/null "$url"; do
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::local stack: $name not ready at $url within the 90 s budget"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "local stack: $name ready at $SECONDS s"
+        }
+        wait_for "auth emulator" "http://localhost:9099/"
+        wait_for "backend" "http://localhost:8000/health"
+        wait_for "vite" "http://localhost:5174/"

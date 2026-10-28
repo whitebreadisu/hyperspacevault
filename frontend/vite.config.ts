@@ -47,6 +47,18 @@ const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf-8")
 ) as { version: string };
 
+// BL-279 WS-3 W3-07 / A06: index.html carries <meta name="build-sha"> so a
+// journey run can prove which commit an environment serves. Deploy builds set
+// VITE_GIT_SHA (ci.yml deploy-dev, the promote-prod action); anything else
+// (local dev, the plain CI build) renders "local" instead of the literal
+// %VITE_GIT_SHA% placeholder.
+process.env.VITE_GIT_SHA ||= "local";
+
+// BL-279 WS-3 W3-07: the dev server proxies /api and /images/cards to the
+// compose backend by default; the CI local stack points it at uvicorn on
+// localhost instead.
+const API_PROXY_TARGET = process.env.VITE_API_PROXY_TARGET ?? "http://backend:8000";
+
 export default defineConfig({
   plugins: [react(), scanDocument()],
   define: {
@@ -67,7 +79,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://backend:8000",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
       // BL-76 Phase 3 (ADR-0012): same-origin card images, mirroring the
@@ -84,7 +96,7 @@ export default defineConfig({
       // Hosting's static-file-wins-over-rewrite precedence already serves
       // those correctly regardless of this rule.
       "/images/cards": {
-        target: "http://backend:8000",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },

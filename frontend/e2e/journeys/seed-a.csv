@@ -1,0 +1,12 @@
+# swu-inv-export v1
+swuapi_uuid,set_code,card_number,variant_type,quantity,name,subtitle
+019d3177-0a5a-7e36-8b97-bf6885129b7c,SOR,5,Standard,1,Luke Skywalker,Faithful Friend
+019d3177-1392-707d-aa99-5053140b4f57,SOR,10,Standard,3,Darth Vader,Dark Lord of the Sith
+019d3177-4016-7713-a0d6-f485c5d1489c,SOR,20,Standard,1,Capital City,
+019d3177-385d-7401-b1be-307d572f7323,SOR,50,Standard,1,The Ghost,Spectre Home Base
+019d3177-2c51-7e30-8a14-6a26ee669e11,SOR,100,Standard,3,Wedge Antilles,Star of the Rebellion
+019d3177-e43c-7b4f-91bf-e67cb074ef50,SHD,1,Standard,1,Gar Saxon,Viceroy of Mandalore
+019d3177-e63e-72c9-9c33-9c9f040c7fcb,SHD,13,Standard,2,Han Solo,Worth the Risk
+019d3177-9696-7eed-8c37-a83a38adce1d,SHD,30,Standard,3,Death Trooper,
+019d3177-e948-7e7a-9e7b-3b7eac2ee42c,SHD,50,Standard,1,Chewbacca,Pykesbane
+019d3177-a0c2-77ef-8062-3dc6371c5797,SHD,100,Standard,2,Modded Cohort,
