@@ -1,7 +1,7 @@
 # Runtime dependencies — everything the shipped container imports (RR-11).
 # Test/lint tooling lives in requirements-dev.txt; the Dockerfile's `runtime`
 # stage installs only this file.
-fastapi==0.143.0
+fastapi==0.162.0
 uvicorn[standard]==0.54.0
 sqlalchemy==2.1.5
 psycopg2-binary==2.9.13
