@@ -3,6 +3,7 @@
 Usage (Application Default Credentials; the caller is the owner/orchestrator):
 
     python scripts/verify_tenant.py --env dev [--dry-run] [--purge-j1]
+    python scripts/verify_tenant.py --env dev --purge-only [--dry-run]
     python scripts/verify_tenant.py --env prod
 
 Passwords come from environment variables only and are never printed:
@@ -15,6 +16,10 @@ email_verified to the listed value (so a rerun rotates the password).
 --purge-j1 (dev only) deletes users whose email starts with
 ``jeremy.braden+hsv-j1-`` and that were created more than one hour ago (the
 J1 sign-up journey leaves these behind when it fails before deleting itself).
+
+--purge-only (dev only; the promote gate uses it) does the --purge-j1 deletion
+and nothing else: no password variables are needed and no identity is created
+or updated.
 
 The module imports without network: the Admin SDK app is initialised inside
 ``main()``.
@@ -123,12 +128,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("--env", choices=sorted(PROJECTS), required=True)
     parser.add_argument("--purge-j1", action="store_true")
+    parser.add_argument("--purge-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
-    if args.purge_j1 and args.env != "dev":
-        print("--purge-j1 is dev only", file=sys.stderr)
+    if (args.purge_j1 or args.purge_only) and args.env != "dev":
+        print("--purge-j1 and --purge-only are dev only", file=sys.stderr)
         return 2
+
+    if args.purge_only:
+        firebase_admin.initialize_app(
+            credentials.ApplicationDefault(), {"projectId": PROJECTS[args.env]}
+        )
+        print(f"purged j1 users: {purge_j1(time.time(), args.dry_run)}")
+        return 0
 
     identities = IDENTITIES[args.env]
     for identity in identities:

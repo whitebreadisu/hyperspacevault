@@ -968,3 +968,29 @@ test("defaultRunner passes args as an array with a timeout and no shell on this 
   assert.equal(r.status, 0);
   assert.equal(r.stdout, "a b; c"); // one argument, not interpreted by a shell
 });
+
+test("--require-credentials turns a credential SKIP into a FAIL (A02, A07 on dev)", async () => {
+  assert.equal(parseArgs(["--require-credentials"]).requireCredentials, true);
+  assert.equal(parseArgs([]).requireCredentials, false);
+  const base = {
+    base: "http://127.0.0.1:1",
+    envName: "dev",
+    env: {},
+    state: {},
+  };
+  assert.equal((await a02(base)).status, "SKIP");
+  assert.equal((await a07(base)).status, "SKIP");
+  assert.equal(
+    (await a02({ ...base, requireCredentials: true })).status,
+    "FAIL",
+  );
+  assert.equal(
+    (await a07({ ...base, requireCredentials: true })).status,
+    "FAIL",
+  );
+  // prod stays a SKIP by design, flag or not
+  assert.equal(
+    (await a07({ ...base, envName: "prod", requireCredentials: true })).status,
+    "SKIP",
+  );
+});

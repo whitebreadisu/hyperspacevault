@@ -43,8 +43,20 @@ jobs:
     name: journeys (${{ matrix.browser }})
     runs-on: ubuntu-latest
     environment: dev
+    # One run at a time on the dev verification tenant (shared with the promote
+    # gate: promote-prod.yml gate and ci.yml promote-gate-fast). A second PENDING
+    # run is superseded by GitHub: visibly cancelled in the Actions list, never
+    # silently dropped; a running one is never cancelled. NOTE: the group is on
+    # the matrix job, so the three legs also queue one behind another, which is
+    # the intent (they share tenant A); max-parallel: 1 keeps a pending leg from
+    # being superseded by a sibling leg.
+    # No job-level concurrency group on a matrix: GitHub keeps one pending run
+    # per group and would supersede a queued sibling leg. max-parallel: 1 is the
+    # serialisation; the gate jobs use the verify-tenant-dev group, and this run
+    # is scheduled at 06:00 UTC when promotes are unlikely.
     strategy:
       fail-fast: false
+      max-parallel: 1 # legs share tenant A; one at a time
       matrix:
         browser: [chromium, firefox, webkit]
 

@@ -14,6 +14,8 @@ name: CI
 #   build-and-push   — build image once; push to both dev and prod AR
 #   deploy-dev       — terraform validate + apply dev; build + deploy frontend to swu-dev-jbapps;
 #                      smoke-test /health + /api/sets (RR-1)
+#   promote-gate-fast — the promote gate G for the fast lane (journeys + platform
+#                      assertions against dev); promote-prod-fast needs it
 #   promote-prod-fast — risk:low merges only: promotes to prod in-pipeline,
 #                      human-free by design (BL-43 Stage 3); BL-96 guard —
 #                      blocked unless EVERY unpromoted commit since the
@@ -97,7 +99,7 @@ concurrency:
 # no longer inherit whatever the repo-level default happens to be. The
 # privileged jobs each declare their own job-level permissions block, which
 # REPLACES this default entirely for that job (build-and-push, deploy-dev,
-# check-risk-level, promote-prod-fast) -- nothing widens implicitly.
+# check-risk-level, promote-gate-fast, promote-prod-fast) -- nothing widens implicitly.
 permissions:
   contents: read
 
@@ -1048,7 +1050,12 @@ jobs:
   # whole-build guard) — a risk:low merge no longer ships someone else's
   # gated work as a side effect.
 
-  promote-prod-fast:
+  # BL-279 W3-18: the promote gate G for the fast path. promote-prod.yml runs
+  # the same verify-gate action in its `gate` job. A separate job (environment
+  # dev) because the VERIFY_* secrets are scoped per environment and a job has
+  # one; promote-prod-fast below needs it, so a red gate stops the fast path
+  # before terraform. dev serves this SHA here (deploy-dev is a dependency).
+  promote-gate-fast:
     needs: [deploy-dev, check-risk-level]
     if: |
       github.ref == 'refs/heads/main' &&
@@ -1056,6 +1063,60 @@ jobs:
       needs.check-risk-level.outputs.is_low_risk == 'true' &&
       needs.check-risk-level.outputs.build_clean == 'true'
     runs-on: ubuntu-latest
+    environment: dev
+    # One run at a time on the dev verification tenant (promote-prod.yml gate,
+    # promote-gate-fast, verify-engines). A second PENDING run is superseded by
+    # GitHub: visibly cancelled in the Actions list, never silently dropped; a
+    # running one is never cancelled.
+    concurrency:
+      group: verify-tenant-dev
+      cancel-in-progress: false
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+      id-token: write
+
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-dev-jbapps
+          workload_identity_provider: projects/887823370605/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-dev-jbapps.iam.gserviceaccount.com
+
+      - name: Promote gate G (journeys + platform assertions against dev)
+        uses: ./.github/actions/verify-gate
+        timeout-minutes: 20
+        with:
+          base: https://swu-dev-jbapps.web.app
+          env: dev
+          direct: ${{ vars.VERIFY_API_DIRECT_URL }}
+          expect-sha: ${{ github.sha }}
+          smoke-only: "false"
+          verify-firebase-api-key: ${{ vars.VERIFY_FIREBASE_API_KEY }}
+          verify-email: ${{ secrets.VERIFY_EMAIL }}
+          verify-password: ${{ secrets.VERIFY_PASSWORD }}
+          verify-b-email: ${{ secrets.VERIFY_B_EMAIL }}
+          verify-b-password: ${{ secrets.VERIFY_B_PASSWORD }}
+          verify-unverified-email: ${{ secrets.VERIFY_UNVERIFIED_EMAIL }}
+          verify-unverified-password: ${{ secrets.VERIFY_UNVERIFIED_PASSWORD }}
+
+  promote-prod-fast:
+    needs: [deploy-dev, check-risk-level, promote-gate-fast]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.check-risk-level.outputs.is_low_risk == 'true' &&
+      needs.check-risk-level.outputs.build_clean == 'true'
+    runs-on: ubuntu-latest
+
+    # BL-279 W3-19: P needs the production environment's VERIFY_* secrets.
+    environment: production
+    timeout-minutes: 45
 
     env:
       # BL-171: see deploy-dev — value from the repo Actions variable.
@@ -1066,6 +1127,7 @@ jobs:
       # action's final step force-moves the `prod-current` tag.
       contents: write
       id-token: write
+      issues: write # BL-279 W3-19: P comments on the rolling health issue
 
     steps:
       - uses: actions/checkout@v7
@@ -1073,3 +1135,28 @@ jobs:
       - uses: ./.github/actions/promote-prod
         with:
           image_tag: ${{ github.sha }}
+
+      # BL-279 W3-19: post-promote check P, after the smoke test and the
+      # prod-current tag move (inside the action). Red = prod is live and
+      # wrong: the action comments on the rolling health issue; no rollback.
+      # A tree older than WS-3 has no verify-gate action: warn and skip instead of
+      # failing at `uses:` after prod is already live.
+      - name: Post-promote check P unavailable on this tree
+        if: ${{ hashFiles('.github/actions/verify-gate/action.yml') == '' }}
+        run: echo "::warning::post-promote check unavailable on this tree (pre-WS-3); use the hand ladder (promote-prod recipe.md section 6)"
+
+      - name: Post-promote check P (@smoke journeys + platform assertions against prod)
+        if: ${{ hashFiles('.github/actions/verify-gate/action.yml') != '' }}
+        timeout-minutes: 10
+        uses: ./.github/actions/verify-gate
+        with:
+          base: https://www.hyperspacevault.com
+          env: prod
+          direct: ${{ vars.VERIFY_API_DIRECT_URL }}
+          expect-sha: ${{ github.sha }}
+          smoke-only: "true"
+          sql-instance: swu-prod-pg
+          github-token: ${{ github.token }}
+          verify-firebase-api-key: ${{ vars.VERIFY_FIREBASE_API_KEY }}
+          verify-email: ${{ secrets.VERIFY_EMAIL }}
+          verify-password: ${{ secrets.VERIFY_PASSWORD }}
