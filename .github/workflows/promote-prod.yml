@@ -72,6 +72,18 @@ on:
         required: false
         type: boolean
         default: false
+      # ADR-0037 item 3: set only by release-train.yml. Its ONE effect: the
+      # release-notes gate runs in train mode (`gate --train`: the newest entry
+      # is newer than prod-current's and dated within 7 days) instead of the
+      # same-day rule. The CI gate, docs gate, G, the promote and P all run
+      # unchanged.
+      train:
+        description: >-
+          Release-train dispatch (set by release-train.yml only): the notes
+          gate accepts an entry newer than prod-current's dated within 7 days.
+        required: false
+        type: boolean
+        default: false
 
 # Serialize promotes against each other. Deliberately NOT the main pipeline's
 # `main-deploy-*` group: joining it could cancel a *queued* main deploy run
@@ -162,7 +174,15 @@ jobs:
       - name: Release-notes gate (BL-210)
         env:
           ALLOW_STALE_NOTES: ${{ inputs.allow_stale_notes }}
-        run: node --experimental-strip-types .github/scripts/release_notes.mjs gate
+          TRAIN: ${{ inputs.train }}
+        run: |
+          if [ "$TRAIN" = "true" ]; then
+            # prod-current's own newest entry key = its package.json version (trailing .0 stripped, as the gate does)
+            prod_key=$(git show prod-current:frontend/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version.replace(/\.0$/,'')")
+            node --experimental-strip-types .github/scripts/release_notes.mjs gate --train --prod-key "$prod_key"
+          else
+            node --experimental-strip-types .github/scripts/release_notes.mjs gate
+          fi
 
       # BL-271 Phase E (ADR-0033): the release-event doc checks, at the
       # promoted SHA -- HISTORY.md's generated Releases block carries the

@@ -1,0 +1,224 @@
+name: Release train
+
+# BL-279 WS-3 W3-20, ADR-0037 item 3: the weekly release train. Promotes main's
+# head through promote-prod.yml (which runs the promote gate G and the
+# post-promote check P) when ALL of these hold; otherwise it exits 0 with a
+# readable reason and promotes nothing:
+#   1. RELEASE_TRAIN_PAUSED is not "true" (a missing variable means not paused).
+#   1b. The head SHA's main CI run has build-and-push AND deploy-dev green (a
+#      docs-only head has no image and no dev deploy: HOLD, never a halt; the
+#      train does not fall back to the newest promotable ancestor).
+#   2. prod-current exists and every commit in prod-current..HEAD has a merged PR
+#      labelled risk:low or risk:train (fail closed: no PR, no label, or no
+#      prod-current tag all hold the train).
+#   3. `release_notes.mjs gate --train`: the newest releaseNotes.ts entry matches
+#      package.json, is newer than prod-current's entry and is dated within 7 days.
+#      The same mode runs again inside promote-prod.yml (input `train=true`, whose
+#      one effect is the notes gate's mode).
+# The lineage check is this workflow's own (a copy of check-risk-level's BL-96
+# guard that accepts either label). check-risk-level and the ci.yml fast path
+# are untouched and still require risk:low alone, so a risk:train commit in the
+# lineage keeps the fast path blocked.
+#
+# Schedule: Tuesday 09:00 America/Chicago. GitHub cron is UTC and does not
+# follow DST: 14:00 UTC is 09:00 CDT (summer) but 08:00 CST (after the November
+# clock change). Accepted drift; shift to `0 15 * * 2` if 09:00 sharp matters
+# in winter.
+#
+# Two consecutive halts set RELEASE_TRAIN_PAUSED=true. A halt is ONLY a red G or
+# P: the failing step of the dispatched run must be "Promote gate G ..." or
+# "Post-promote check P ...". Any other refusal (CI gate, notes gate, docs gate,
+# terraform, an unfindable run) is a hold: a notice, no counter change. A green
+# most-recent promote-prod run (any actor) resets the counter to 0. To re-enable: set RELEASE_TRAIN_PAUSED=false AND
+# RELEASE_TRAIN_HALTS=0 (a success resets the counter by itself).
+#
+# Repository variables RELEASE_TRAIN_PAUSED / RELEASE_TRAIN_HALTS are WRITTEN with
+# secrets.RELEASE_TRAIN_ADMIN_TOKEN (a token with repository Variables: write;
+# the job's GITHUB_TOKEN cannot write variables). Without that secret the halt
+# counting is skipped with a warning (the dispatch itself uses GITHUB_TOKEN).
+
+on:
+  schedule:
+    - cron: "0 14 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # dispatch promote-prod.yml and watch its run
+  pull-requests: read
+
+concurrency:
+  group: release-train
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    # promote-prod.yml: gate job (25 min) + promote job (45 min), plus queue time
+    # behind the prod-promote and verify-tenant-dev concurrency groups.
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # A green most-recent promote-prod run (any actor, owner dispatch included)
+      # means prod is healthy again: clear the halt counter.
+      - name: Reset the halt counter after a green promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ADMIN_TOKEN: ${{ secrets.RELEASE_TRAIN_ADMIN_TOKEN }}
+          HALTS: ${{ vars.RELEASE_TRAIN_HALTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ADMIN_TOKEN:-}" ] || [ -z "${HALTS:-}" ] || [ "${HALTS}" = "0" ]; then
+            exit 0
+          fi
+          last=$(gh run list --workflow promote-prod.yml --status completed --limit 1 --json conclusion --jq '.[0].conclusion // empty')
+          if [ "$last" = "success" ]; then
+            GH_TOKEN="$ADMIN_TOKEN" gh variable set RELEASE_TRAIN_HALTS --body 0
+            echo "most recent promote-prod run succeeded: RELEASE_TRAIN_HALTS reset to 0"
+          fi
+
+      - name: Decide whether the train runs
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAUSED: ${{ vars.RELEASE_TRAIN_PAUSED }}
+        run: |
+          set -euo pipefail
+          hold() {
+            echo "::notice::train held: $1"
+            echo "### Train held" >> "$GITHUB_STEP_SUMMARY"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if [ "${PAUSED:-}" = "true" ]; then
+            hold "RELEASE_TRAIN_PAUSED=true (two consecutive halts, or paused by hand) -- set it to false and RELEASE_TRAIN_HALTS to 0 to re-enable"
+          fi
+          if ! git rev-parse --verify --quiet prod-current >/dev/null; then
+            hold "prod-current tag not found, so the unpromoted lineage cannot be verified (fail closed); promote via promote-prod.yml, which re-creates the tag"
+          fi
+          head=$(git rev-parse origin/main)
+          # Image + dev deploy for the head, from its own main CI run (the same check
+          # runs ci_gate.sh reads). Latest check run per name wins.
+          for job in build-and-push deploy-dev; do
+            concl=$(gh api "repos/${{ github.repository }}/commits/${head}/check-runs?per_page=100" \
+              --jq "[.check_runs[] | select(.name == \"${job}\")] | sort_by(.id) | last | if . == null then \"absent\" elif .status != \"completed\" then \"pending\" else .conclusion end" 2>/dev/null || echo "unreadable")
+            if [ "$concl" != "success" ]; then
+              hold "head has no image/dev deploy: ${job} is ${concl} for ${head} (a docs-only head, or its CI run has not finished); promote the last code commit via promote-prod.yml, or wait for the next code merge"
+            fi
+          done
+          if [ -z "$(git rev-list prod-current..origin/main)" ]; then
+            hold "nothing to promote: prod-current already equals main's head (${head})"
+          fi
+          count=0
+          for c in $(git rev-list prod-current..origin/main); do
+            count=$((count+1))
+            if [ "$count" -gt 100 ]; then
+              hold ">100 unpromoted commits; promote deliberately via promote-prod.yml"
+            fi
+            labels=$(gh api "repos/${{ github.repository }}/commits/$c/pulls" \
+              --jq '.[0].labels[].name' 2>/dev/null || echo "")
+            if ! echo "$labels" | grep -qxE 'risk:low|risk:train'; then
+              hold "${c} has no train label (needs risk:low or risk:train on its merged PR)"
+            fi
+          done
+          # The notes gate judges the notes at main's head; key of prod-current's entry
+          # comes from its own package.json version (trailing .0 stripped, as in the gate).
+          git checkout --quiet "$head"
+          prod_key=$(git show prod-current:frontend/package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version.replace(/\.0$/,'')")
+          if ! out=$(node --experimental-strip-types .github/scripts/release_notes.mjs gate --train --prod-key "$prod_key" 2>&1); then
+            hold "notes gate (train mode): ${out}"
+          fi
+          echo "$out"
+          echo "go=true" >> "$GITHUB_OUTPUT"
+          echo "head=${head}" >> "$GITHUB_OUTPUT"
+          echo "### Train go" >> "$GITHUB_STEP_SUMMARY"
+          echo "Promoting ${head}: ${count} unpromoted commit(s), all labelled; ${out}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch promote-prod.yml and wait for it
+        id: promote
+        if: steps.decide.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.decide.outputs.head }}
+        run: |
+          set -euo pipefail
+          # Search from 2 minutes BEFORE the dispatch so a clock skew cannot hide our run.
+          since=$(date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run promote-prod.yml -f sha="$HEAD_SHA" -f train=true
+          # `gh workflow run` prints no run id: ours = workflow_dispatch by the bot at our head
+          # (a dispatched run's head_sha is the branch tip, which is HEAD_SHA), created after `since`.
+          run_id=""
+          for i in $(seq 1 24); do
+            sleep 5
+            ids=$(gh api "repos/${{ github.repository }}/actions/workflows/promote-prod.yml/runs?event=workflow_dispatch&per_page=30" \
+              --jq "[.workflow_runs[] | select(.created_at >= \"${since}\" and .head_sha == \"${HEAD_SHA}\" and ((.triggering_actor.login // .actor.login) == \"github-actions[bot]\")) | .id] | sort | .[]")
+            n=$(printf '%s' "$ids" | grep -c . || true)
+            if [ "$n" -gt 1 ]; then
+              echo "::notice::train held (ambiguous): ${n} candidate promote-prod runs for ${HEAD_SHA} since ${since}: $(echo $ids); not tracking, no halt counted"
+              echo "result=hold" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$n" -eq 1 ]; then run_id="$ids"; break; fi
+          done
+          if [ -z "$run_id" ]; then
+            echo "::notice::train held: could not find the dispatched promote-prod run for ${HEAD_SHA}; no halt counted"
+            echo "result=hold" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Promote run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${run_id}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # 60 s poll interval: the default 3 s burns the GITHUB_TOKEN API budget over a long promote.
+          if gh run watch "$run_id" --interval 60 --exit-status >/dev/null; then
+            echo "result=success" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Red. Only a red G or P is a halt; read which step failed.
+          failed=$(gh run view "$run_id" --json jobs --jq '[.jobs[].steps[] | select(.conclusion == "failure") | .name] | join(" | ")')
+          echo "Failed step(s): ${failed:-none recorded}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if printf '%s' "$failed" | grep -qE 'Promote gate G|Post-promote check P \('; then
+            echo "result=halt" >> "$GITHUB_OUTPUT"
+            echo "::error::the train promote run ${run_id} ended red in G or P: ${failed}"
+            exit 1
+          fi
+          echo "::notice::train held: promote run ${run_id} refused before G/P (failed step: ${failed:-unknown}); not a halt, counter unchanged"
+          echo "result=hold" >> "$GITHUB_OUTPUT"
+
+      # Halt accounting runs whether the promote passed or failed (not when the
+      # train held or the dispatched run refused before G/P: a hold is not a halt). A success resets the counter; the
+      # second consecutive failure pauses the train.
+      - name: Halt counter (two consecutive halts pause the train, ADR-0037)
+        if: ${{ always() && steps.decide.outputs.go == 'true' && (steps.promote.outputs.result == 'success' || steps.promote.outputs.result == 'halt') }}
+        env:
+          ADMIN_TOKEN: ${{ secrets.RELEASE_TRAIN_ADMIN_TOKEN }}
+          RESULT: ${{ steps.promote.outputs.result }}
+          HALTS: ${{ vars.RELEASE_TRAIN_HALTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ADMIN_TOKEN:-}" ]; then
+            echo "::warning::secret RELEASE_TRAIN_ADMIN_TOKEN is not set: halt counting skipped (the train will not self-pause)"
+            exit 0
+          fi
+          export GH_TOKEN="$ADMIN_TOKEN"
+          halts=${HALTS:-0}
+          case "$halts" in ''|*[!0-9]*) halts=0 ;; esac
+          if [ "$RESULT" = "success" ]; then
+            gh variable set RELEASE_TRAIN_HALTS --body 0
+            echo "train succeeded: RELEASE_TRAIN_HALTS reset to 0"
+          else
+            halts=$((halts+1))
+            gh variable set RELEASE_TRAIN_HALTS --body "$halts"
+            echo "train halt ${halts}"
+            if [ "$halts" -ge 2 ]; then
+              gh variable set RELEASE_TRAIN_PAUSED --body true
+              echo "::error::two consecutive train halts: RELEASE_TRAIN_PAUSED=true until the owner re-enables"
+            fi
+          fi
