@@ -151,10 +151,15 @@ async function seedTenant(role, email, password, csvName) {
 
   const hash = createHash("sha1").update(canonical(limits)).digest("hex");
 
+  // W3-08: count owned variants only. A card a journey stepped up and back
+  // down keeps an inventory row at quantity 0, and replace_all leaves that row
+  // in place (observed on dev 2026-10-28: variants=11 copies=18 after J2), so
+  // qty.length alone drifts from run to run.
   const qty = await (await api(token, "GET", "/api/inventory/quantities")).json();
-  const copies = qty.reduce((n, r) => n + r.quantity, 0);
+  const owned = qty.filter((r) => r.quantity > 0);
+  const copies = owned.reduce((n, r) => n + r.quantity, 0);
   console.log(
-    `seed ${role}: variants=${qty.length} copies=${copies} shares=${left.length} limits=${hash}`
+    `seed ${role}: variants=${owned.length} copies=${copies} shares=${left.length} limits=${hash}`
   );
 }
 
