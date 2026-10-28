@@ -1,15 +1,15 @@
-<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 311e719 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 9dfb349 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 251,423 B (LF) · 25 h2 · 77 h3
+Total 251,667 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
-| — | (preamble: title and front matter) | 1 | 3,735 | 2026-10-25 Last updated | 0032 | `docs/decisions`, `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| — | (preamble: title and front matter) | 1 | 3,979 | 2026-10-28 Last updated | 0032 | `docs/decisions`, `specification_documents/analysis/BL271_Purity_Dispositions_2026-10-18.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§1. Status under the documentation regime](SWU_Application_Spec.md#1-status-under-the-documentation-regime) | 22 | 573 |  | 0020 | `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§2. Product frame (requirements that drive the design)](SWU_Application_Spec.md#2-product-frame-requirements-that-drive-the-design) | 30 | 1,611 |  | 0008 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§3. Core concepts](SWU_Application_Spec.md#3-core-concepts) | 47 | 3,184 |  |  |  |  |
