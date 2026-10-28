@@ -8,6 +8,7 @@ from app.models.feedback_model import Feedback
 from app.models.inventory import Inventory
 from app.models.pricing_sync_state import PricingSyncState
 from app.models.set_model import CardSet
+from app.models.share import Share
 from app.models.tcgplayer_product import TcgplayerProduct
 from app.models.tenant import Tenant
 from app.models.tenant_card_limit import TenantCardLimit
@@ -24,6 +25,7 @@ __all__ = [
     "Feedback",
     "Inventory",
     "PricingSyncState",
+    "Share",
     "TcgplayerProduct",
     "Tenant",
     "TenantCardLimit",
