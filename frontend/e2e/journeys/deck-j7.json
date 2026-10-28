@@ -1,0 +1,10 @@
+{
+  "metadata": { "name": "J7 journey deck", "author": "hsv-verify" },
+  "leader": { "id": "SOR_010", "count": 1 },
+  "base": { "id": "SOR_050", "count": 1 },
+  "deck": [
+    { "id": "SHD_013", "count": 2 },
+    { "id": "SOR_008", "count": 1 },
+    { "id": "SOR_009", "count": 1 }
+  ]
+}
