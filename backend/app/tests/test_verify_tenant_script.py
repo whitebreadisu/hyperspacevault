@@ -127,7 +127,7 @@ def test_prod_refuses_purge(fake_auth, no_init, monkeypatch, capsys):
     no_init.assert_not_called()
 
 
-def test_missing_secret_var_exits_2(no_init, monkeypatch, capsys):
+def test_missing_env_name_exits_2(no_init, monkeypatch, capsys):
     monkeypatch.setenv("VERIFY_PASSWORD", "x")
     monkeypatch.delenv("VERIFY_B_PASSWORD", raising=False)
     monkeypatch.setenv("VERIFY_UNVERIFIED_PASSWORD", "x")
