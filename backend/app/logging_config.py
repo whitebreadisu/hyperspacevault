@@ -8,7 +8,13 @@ from datetime import datetime, timezone
 # LogEntry itself (rather than leaving them inside jsonPayload): severity,
 # message, httpRequest, time. Everything else in the payload becomes a
 # queryable jsonPayload.<key> field.
-_EXTRA_FIELDS = ("httpRequest", "tenant_id", "forwarded_hops", "forwarded_host")
+_EXTRA_FIELDS = (
+    "httpRequest",
+    "tenant_id",
+    "forwarded_hops",
+    "forwarded_host",
+    "forwarded_unrecognised_hop",
+)
 
 
 class JSONFormatter(logging.Formatter):

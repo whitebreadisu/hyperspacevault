@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from app.forwarded import ForwardedClientMiddleware
 from app.ingestion.bootstrap import bootstrap_catalog
 from app.logging_config import configure_logging
 from app.middleware import log_requests, security_headers
@@ -103,30 +103,16 @@ app.middleware("http")(log_requests)
 # never reads/rewrites the body), so it rides along in registration order.
 app.middleware("http")(security_headers)
 
-# BL-53/A4-11 (proxy-IP fix): added LAST, which -- per this file's own
-# GZip-ordering comment above (add_middleware() inserts at the FRONT of
-# Starlette's user_middleware list; build_middleware_stack() wraps
-# outer-to-inner in that list order) -- makes this the OUTERMOST
-# middleware, running before every other middleware and the router on the
-# way in. That's required here: it rewrites `scope["client"]` (what
-# `request.client.host` resolves to) from Cloud Run's X-Forwarded-For, and
-# every downstream consumer of request.client.host -- the feedback
-# limiter (app/routers/feedback.py) today, this wave's tenant-keyed
-# limiters use request.state.tenant_id instead so they're unaffected --
-# needs to see the corrected value, not the proxy's own address.
-#
-# trusted_hosts="*" (this uvicorn version's constructor param -- the
-# older `forwarded_allow_ips` CLI-flag name from the backlog note is
-# uvicorn's `--forwarded-allow-ips`, not this in-app middleware's kwarg)
-# is safe specifically because of this deployment's topology: Cloud Run
-# only accepts traffic from Google's own front-end/Firebase Hosting
-# rewrite (SWU_Platform_Spec.md §3.11) -- there is no way for an external
-# client to connect directly to this container and forge its own
-# X-Forwarded-For as if it were the trusted proxy. Wildcard-trusting the
-# immediate peer is standard practice for exactly this "single, fixed,
-# non-client-reachable proxy in front" topology; it would NOT be safe if
-# this service ever accepted direct internet connections.
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# Client address (BL-273): added LAST, so it is the outermost middleware and
+# every later layer and consumer of request.client.host sees the resolved
+# caller. Ingress is INGRESS_TRAFFIC_ALL: anyone can reach the Cloud Run URL
+# directly and forge any leading X-Forwarded-For entry. The Google front end
+# appends the real client on the right; the Firebase Hosting rewrite adds one
+# more hop (the real client is then second from the right). The resolver
+# walks from the right and takes the Hosting position only when the rightmost
+# entry is a Google front-door address (app/forwarded.py has the rule and the
+# measured paths). Replaces uvicorn's ProxyHeadersMiddleware(trusted_hosts="*").
+app.add_middleware(ForwardedClientMiddleware)
 
 app.include_router(sets_router.router)
 app.include_router(base_cards_router.router)

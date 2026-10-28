@@ -226,9 +226,10 @@ def get_shared_db(token: str, request: Request):
     Per-IP rate limiting runs BEFORE any DB work (cheap-tier reuse of the
     BL-53 sliding-window limiter; the key is the client IP -- an IPv6
     address collapsed to its /64 (BL-266, `client_ip_key`) -- not a tenant
-    -- same per-instance caveats). request.client reflects
-    X-Forwarded-For via uvicorn's proxy-headers middleware, so this keys
-    on the real viewer behind the Firebase Hosting proxy.
+    -- same per-instance caveats). request.client is the
+    address ForwardedClientMiddleware resolved from X-Forwarded-For
+    (app/forwarded.py), so this keys on the real viewer on both the Hosting
+    and the direct path, whatever leading entries the caller forged.
     """
     from app.rate_limit import check_tenant_rate_limit, client_ip_key
 
