@@ -47,14 +47,28 @@ export default defineConfig({
     {
       name: "phone-390",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       dependencies: ["setup"],
       use: phone(390, 844),
     },
     {
       name: "phone-430",
-      testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      // WS-3 W3-10 (b2, Option B): 390 is the narrower, stricter width, so fit,
+      // no-overflow, right-edge-pinned and 44 px target checks run at 390 only.
+      // 430 keeps the specs whose assertions need the wider width: wrap, centring
+      // on the viewport, ellipsis, landscape, and explicit 430-only tests.
+      // phone-390 runs every spec. Per-spec dispositions:
+      // planning/foundation/WS3_Test_Dispositions_2026-10.md.
+      testMatch: [
+        /s1-04-shell\.spec\.ts$/, // bottom-bar centre button centred on innerWidth (cx vs iw / 2)
+        /s1-09-auth\.spec\.ts$/, // auth card is min(iw - 32, 420) wide and centred in the viewport
+        /s1-14-status\.spec\.ts$/, // explicit 430-only test s1-14-two-rows-fit-430 (skips unless phone-430)
+        /s1-20-gallery\.spec\.ts$/, // single-column gallery cell centred in the viewport (lefts[0] vs (iw - want) / 2)
+        /s2-12-sheet\.spec\.ts$/, // filter sheet Set-row chips wrap onto more than one line
+        /s6-shared\.spec\.ts$/, // long-name ellipsis (textOverflow) and the vault switch centred on innerWidth
+        /fr5-06-landscape\.spec\.ts$/, // landscape turns and narrow/short windows
+      ],
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       dependencies: ["setup"],
       use: phone(430, 932),
     },
@@ -79,7 +93,7 @@ export default defineConfig({
     {
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts|[\/](journeys|verify)[\/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
       // BL-252 S6-11: the desktop smoke signs in with the saved session.
       dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },

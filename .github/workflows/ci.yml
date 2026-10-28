@@ -321,11 +321,11 @@ jobs:
 
   e2e-mobile-shard:
     # BL-247 S1-10 / BL-260: the phone-app Playwright suite
-    # (frontend/e2e/mobile), split into five legs by Playwright project
-    # (phone-390 and phone-430 each halved with --shard=N/2; scan + desktop
-    # together) so legs carry roughly equal test time -- a plain --shard=N/4
-    # left one leg almost all self-skipped desktop tests. Cuts CI wall time
-    # (~25 min -> ~6-7 min; issue #227). Same
+    # (frontend/e2e/mobile), split into four legs by Playwright project
+    # (phone-390 halved with --shard=N/2; phone-430 runs only its explicit
+    # layout list, one leg, since BL-279 WS-3 3c-3; scan + desktop together)
+    # so legs carry roughly equal test time -- a plain --shard=N/4 left one
+    # leg almost all self-skipped desktop tests (~25 min -> ~6-7 min; issue #227). Same
     # frontend_changed gating as frontend, but it starts WITH frontend rather than after it:
     # the repo is public (standard-runner minutes are free) so a wasted shard
     # when lint fails costs nothing, and ci-ok + the deploy chain still
@@ -347,8 +347,7 @@ jobs:
         include:
           - { id: p390-1, name: "phone-390 (1/2)", args: "--project=phone-390 --shard=1/2" }
           - { id: p390-2, name: "phone-390 (2/2)", args: "--project=phone-390 --shard=2/2" }
-          - { id: p430-1, name: "phone-430 (1/2)", args: "--project=phone-430 --shard=1/2" }
-          - { id: p430-2, name: "phone-430 (2/2)", args: "--project=phone-430 --shard=2/2" }
+          - { id: p430, name: "phone-430", args: "--project=phone-430" }
           - { id: scan-desktop, name: "scan + desktop", args: "--project=scan --project=desktop-1440" }
 
     steps:
