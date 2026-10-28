@@ -15,6 +15,7 @@ the **Milestones** table is hand-written narrative.
 
 | Date | Version | Release |
 |---|---|---|
+| 2026-10-28 | v2.1.2 | Tightening the bolts |
 | 2026-10-25 | v2.1.1 | Low prices that make sense |
 | 2026-10-19 | v2.1 | A steadier keypad |
 | 2026-10-17 | v2.0.1 | No more stuck Loading… |

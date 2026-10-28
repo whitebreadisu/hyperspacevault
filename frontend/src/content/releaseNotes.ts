@@ -38,6 +38,47 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-273 (per-IP limiters keyed on a client-forgeable X-Forwarded-For
+    // entry; trusted-proxy resolver, Platform Spec 3.5 / 5.4) + BL-275 idea 1
+    // (robots.txt, sitemap, Search Console) + BL-279 WS-3 (journeys, platform
+    // assertions, promote gate and post-promote check, release train; the
+    // first release through the gate). Owner said "promote" 2026-10-28; date =
+    // promote day (America/Chicago).
+    kind: "release",
+    key: "2.1.2",
+    version: "2.1.2",
+    date: "2026-10-28",
+    title: "Tightening the bolts",
+    sections: [
+      {
+        heading: "Fixes",
+        items: [
+          {
+            title: "A rate-limit loophole, closed",
+            body: "On the feedback form and shared-vault pages, a caller could pick its own rate-limit bucket by forging a request header, which made abuse cheaper than it should have been. No one's data was ever exposed. The limiter now keys on the real address.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "Releases now check themselves",
+            body: "Before anything reaches you, a set of automated user journeys (sign up, add a card, see a price, share, import and export) and platform checks run against a test copy of the site, and run again right after the release lands. If anything looks wrong the release stops or we get paged.",
+          },
+          {
+            title: "Findable",
+            body: "The site now has a robots.txt and a sitemap and is registered with Google Search Console.",
+          },
+          {
+            title: "The boring stuff",
+            body: "Database and CI housekeeping behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-276 (low-price outlier rule: a low >= 10x market is served as the
     // market price, App Spec 16.4) + BL-277 (Dependabot batch, late October
     // 2026: Pillow 13, dompurify 3.4.17, vitest 4.1.12 and riders). Owner
