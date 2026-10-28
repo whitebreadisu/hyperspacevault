@@ -93,16 +93,16 @@ SORP (Weekly Play) cards → SOR root; C26 (Convention Exclusive) cards → core
 **Assert:** a variant's `base_card_id` correctly resolves into a **different** set's root; container-set membership doesn't change which `base_cards` row a variant belongs to.
 
 ### D. Old-set card-number collision
-SOR/SHD/TWI contain 14 genuine cross-variant `card_number` collisions (concentrated entirely in the three earliest sets — confirmed zero in JTL onward).
+`card_number` is reused across different roots inside a set. Measured on the frozen 2026-06-21 capture (BL-34, 2026-10-28): the number of card_numbers that map to more than one distinct root is TWI 14, SOR 13, SHD 12 (plus LAW 12, JTL 9, SEC 6, LOF 6, P25 4, TS26 4, ASH 3) — the earlier wording ("14 genuine collisions, concentrated entirely in the three earliest sets, zero in JTL onward") did not hold.
 **Assert:** matching never relies on `card_number` as a key; resolution via `variant_of_uuid` is correct regardless of number reuse.
 
-### E. Newer-set baseline (no collisions)
-JTL onward.
+### E. Newer-set baseline
+JTL onward. Numbers collide here too (JTL has 9 card_numbers shared by different roots), so the baseline is "the same plain resolution works", not "no collisions".
 **Assert:** the same mechanism produces the correct result without any set-specific special-casing — a regression here would mean the mechanism silently depends on collision-handling logic that shouldn't exist.
 
 ### F. Serialized Prestige triple-finish collision
-SEC's 21 "Serialized Prestige" senator cards (Queen Amidala, Mon Mothma, etc.) each have **3 rows sharing identical `set_code`/`card_number`/`variant_type`** ("Serialized Prestige") — three distinct finishes (Carbonite/Gold/Rose Gold), distinguishable only by `uuid` and image filename suffix (`_A`/`_B`/`_C` observed in `front_image_url`), not any structured field.
-**Assert:** all three finish rows are retained as distinct `card_variants` rows keyed by `swuapi_id`/`uuid`; `(base_card_id, variant_type)` must **not** be assumed a unique constraint — this is the one confirmed case where it isn't. *(Carried forward from BL-28's findings log; needs re-verification against live data when this scenario's test is written — not yet re-confirmed this session.)*
+SEC's 21 "Serialized Prestige" senator cards (Queen Amidala, Mon Mothma, etc.) each have **3 rows sharing identical `set_code`/`card_number`/`variant_type`** ("Serialized Prestige") — three distinct finishes (Carbonite/Gold/Rose Gold), distinguishable only by `uuid` and the finish named in the `front_image_url` filename (all three contain `Carb_C`; the Gold and Rose Gold rows add `_Gold` / `_Rose_Gold` after it — not an `_A`/`_B`/`_C` suffix), not any structured field.
+**Assert:** all three finish rows are retained as distinct `card_variants` rows keyed by `swuapi_id`/`uuid`; `(base_card_id, variant_type)` must **not** be assumed a unique constraint — this is the one confirmed case where it isn't. *(Re-verified 2026-10-28 against the 2026-06-21 capture, BL-34: exactly 21 SEC card_numbers carry three rows, one per finish, with three distinct uuids.)*
 
 ### G. Standalone new-base set
 TS26, IBH — and C26's non-exception cards.

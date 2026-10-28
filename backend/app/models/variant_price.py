@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -24,6 +24,9 @@ class VariantPrice(Base):
     null-the-whole-row concern."""
 
     __tablename__ = "variant_prices"
+    __table_args__ = (
+        Index("ix_variant_prices_variant_id_as_of", "variant_id", text("as_of DESC")),
+    )
 
     variant_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("card_variants.id"), primary_key=True
