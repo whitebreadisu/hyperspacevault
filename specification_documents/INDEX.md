@@ -1,11 +1,11 @@
-<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 63bb574 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 311e719 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 251,107 B (LF) · 25 h2 · 77 h3
+Total 251,423 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -103,8 +103,8 @@ Total 251,107 B (LF) · 25 h2 · 77 h3
 | h3 | [§24.3 Guide geometry (measured on official card images; fractions of card width W / height H)](SWU_Application_Spec.md#243-guide-geometry-measured-on-official-card-images-fractions-of-card-width-w--height-h) | 898 | 1,796 |  |  |  | "Archived 2026-10-11 — §24 / §25.1 spike-era and interim wording superseded by the camera build (BL-253)", "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§24.4 Readers and acceptance](SWU_Application_Spec.md#244-readers-and-acceptance) | 919 | 1,642 |  | 0029 |  |  |
 | h3 | [§24.5 Printed-code collisions](SWU_Application_Spec.md#245-printed-code-collisions) | 946 | 700 |  | 0028 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§25. Mobile experience (BL-190 — as built)](SWU_Application_Spec.md#25-mobile-experience-bl-190--as-built) | 957 | 76,252 |  |  |  | "Archived 2026-10-11 — §25 slice-by-slice text superseded by the closing consolidation (BL-252 S6-09)" |
-| h3 | [§25.0 Overview](SWU_Application_Spec.md#250-overview) | 963 | 13,176 |  | 0030 | `frontend/e2e/mobile`, `frontend/e2e/report-flaky.mjs`, `frontend/src/api/sharedView.ts`, `frontend/src/mobile`, `frontend/src/mobile/MobileApp`, `frontend/src/mobile/docs.test.ts`, `frontend/src/mobile/router.ts`, `frontend/src/mobile/useIsPhone.ts`, `frontend/src/utils/shareSession.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
+| h2 | [§25. Mobile experience (BL-190 — as built)](SWU_Application_Spec.md#25-mobile-experience-bl-190--as-built) | 957 | 76,568 |  |  |  | "Archived 2026-10-11 — §25 slice-by-slice text superseded by the closing consolidation (BL-252 S6-09)" |
+| h3 | [§25.0 Overview](SWU_Application_Spec.md#250-overview) | 963 | 13,492 |  | 0030 | `frontend/e2e/mobile`, `frontend/e2e/report-flaky.mjs`, `frontend/src/api/sharedView.ts`, `frontend/src/mobile`, `frontend/src/mobile/MobileApp`, `frontend/src/mobile/docs.test.ts`, `frontend/src/mobile/router.ts`, `frontend/src/mobile/useIsPhone.ts`, `frontend/src/utils/shareSession.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
 | h3 | [§25.1 Shell + Vault (BL-247)](SWU_Application_Spec.md#251-shell--vault-bl-247) | 1004 | 7,481 |  | 0030, 0031 | `frontend/src/utils/cardSort.ts`, `frontend/src/utils/variantScope.ts` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)", "Archived 2026-10-12 — round 2: phone Sort sheet (BL-257, F-17)", "Archived 2026-10-11 — §25.1 shared-link interim sentence superseded by slice 6" |
 | h3 | [§25.2 Card detail + Filters (BL-248)](SWU_Application_Spec.md#252-card-detail--filters-bl-248) | 1017 | 9,462 |  | 0030, 0031 | `frontend/src/mobile/card`, `frontend/src/mobile/filters`, `frontend/src/mobile/filters/FiltersSheet.tsx` | "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)", "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
 | h3 | [§25.3 Keypad, choosers, verify batch, commit (BL-249)](SWU_Application_Spec.md#253-keypad-choosers-verify-batch-commit-bl-249) | 1054 | 12,323 |  | 0030, 0032 | `frontend/scripts/measure-set-logos.mjs`, `frontend/src/mobile/SetLogo.tsx`, `frontend/src/mobile/setLogoArt.ts`, `frontend/src/mobile/tool` | "Archived 2026-10-17 — phone keypad keeps its size (BL-270)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
@@ -115,7 +115,7 @@ Total 251,107 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 139,052 B (LF) · 6 h2 · 43 h3
+Total 139,120 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -130,8 +130,8 @@ Total 139,052 B (LF) · 6 h2 · 43 h3
 | h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 158 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
 | h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 171 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
 | h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 180 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
-| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 45,933 |  |  |  |  |
-| h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 188 | 14,460 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
+| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 46,001 |  |  |  |  |
+| h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 188 | 14,528 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
 | h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 221 | 659 |  |  | `backend/requirements.txt` |  |
 | h3 | [§2.3 `frontend` job](SWU_Platform_Spec.md#23-frontend-job) | 226 | 465 |  |  | `frontend/package-lock.json`, `frontend/vite.config.ts` |  |
 | h3 | [§2.4 `build-and-push` job](SWU_Platform_Spec.md#24-build-and-push-job) | 231 | 614 |  |  |  |  |
