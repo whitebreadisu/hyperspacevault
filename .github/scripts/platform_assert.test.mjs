@@ -19,6 +19,8 @@ import {
   a07,
   a08,
   evaluateBackup,
+  defaultRunner,
+  SPAWN_TIMEOUT_MS,
   extractBuildSha,
   notesVersionFromSource,
   checkHeaders,
@@ -886,4 +888,83 @@ test("parseArgs and --only selection", async () => {
     seen.map((r) => r.id),
     ["A03", "A07"],
   );
+});
+
+// ---------- spawn hygiene ----------
+
+import { spawnSync as realSpawn } from "node:child_process";
+
+test("an injection-shaped --sql-instance is rejected with exit 2 before any spawn", () => {
+  const script = path.join(here, "platform_assert.mjs");
+  for (const bad of ["x; rm -rf /", "$(id)", "a b", "A_B", "-flag", ""]) {
+    const r = realSpawn(
+      process.execPath,
+      [
+        script,
+        "--base",
+        "http://127.0.0.1:1",
+        "--env",
+        "prod",
+        "--only",
+        "A05",
+        "--sql-instance",
+        bad || " ",
+      ],
+      { encoding: "utf8", timeout: 20000 },
+    );
+    assert.equal(r.status, 2, `${JSON.stringify(bad)}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stderr, /invalid --sql-instance/);
+    assert.equal(r.stdout, "");
+  }
+});
+
+test("a05 refuses an invalid instance or project without calling the runner", async () => {
+  let calls = 0;
+  const runCommand = () => ((calls += 1), { status: 0, stdout: "{}" });
+  const badInstance = await a05({
+    envName: "prod",
+    sqlInstance: "x; id",
+    env: {},
+    runCommand,
+  });
+  assert.equal(badInstance.status, "FAIL");
+  assert.match(badInstance.observed, /invalid --sql-instance/);
+  const badProject = await a05({
+    envName: "prod",
+    sqlInstance: "swu-prod-pg",
+    env: { HEALTH_GCP_PROJECT: "p; id" },
+    runCommand,
+  });
+  assert.equal(badProject.status, "FAIL");
+  assert.match(badProject.observed, /invalid HEALTH_GCP_PROJECT/);
+  assert.equal(calls, 0);
+});
+
+test("a timed-out gcloud is a FAIL line naming the timeout", async () => {
+  const r = await a05({
+    envName: "prod",
+    sqlInstance: "swu-prod-pg",
+    env: {},
+    runCommand: () => ({
+      status: null,
+      error: Object.assign(new Error("spawnSync gcloud ETIMEDOUT"), {
+        code: "ETIMEDOUT",
+      }),
+    }),
+  });
+  assert.equal(r.status, "FAIL");
+  assert.match(
+    r.observed,
+    new RegExp(`timed out after ${SPAWN_TIMEOUT_MS / 1000} s`),
+  );
+});
+
+test("defaultRunner passes args as an array with a timeout and no shell on this platform's non-gcloud commands", () => {
+  const r = defaultRunner(process.execPath, [
+    "-e",
+    "process.stdout.write(process.argv[1])",
+    "a b; c",
+  ]);
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, "a b; c"); // one argument, not interpreted by a shell
 });

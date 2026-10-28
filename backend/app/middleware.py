@@ -32,11 +32,14 @@ def forwarded_evidence(request: Request) -> dict:
     X-Forwarded-For (0 when absent); forwarded_host is the
     X-Forwarded-Host value or "". The addresses themselves are never logged.
     """
-    xff = request.headers.get("x-forwarded-for")
+    from app.forwarded import first_header, joined_header
+
+    raw = request.scope.get("headers") or []
+    xff = joined_header(raw, b"x-forwarded-for")
     hops = len([e for e in xff.split(",") if e.strip()]) if xff else 0
     evidence = {
         "forwarded_hops": hops,
-        "forwarded_host": request.headers.get("x-forwarded-host", ""),
+        "forwarded_host": first_header(raw, b"x-forwarded-host") or "",
     }
     if getattr(request.state, "forwarded_unrecognised_hop", False):
         # Hosting host header but a rightmost address outside the vendored

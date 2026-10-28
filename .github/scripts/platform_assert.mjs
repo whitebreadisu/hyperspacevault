@@ -632,8 +632,28 @@ export function evaluateBackup(
   return { ok: problems.length === 0, problems, ageH };
 }
 
+export const SPAWN_TIMEOUT_MS = 60000;
+export const SQL_INSTANCE_RE = /^[a-z][a-z0-9-]{0,62}$/;
+export const GCP_PROJECT_RE = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
+export const SHA40_RE = /^[0-9a-f]{40}$/;
+
+// External commands run WITHOUT a shell (array arguments), with a timeout. Every value that reaches
+// an argument list is validated first (instance, project, sha). The one exception is gcloud on
+// Windows, which is a .cmd wrapper that Node refuses to spawn without a shell (EINVAL since the
+// 2024 .bat/.cmd hardening); its arguments are the validated values above plus fixed words, so
+// there is nothing to inject. CI runs on Linux, where no shell is involved at all.
+export function defaultRunner(cmd, args) {
+  return spawnSync(cmd, args, {
+    encoding: "utf8",
+    timeout: SPAWN_TIMEOUT_MS,
+    shell: process.platform === "win32" && cmd === "gcloud",
+  });
+}
+
 // A prod run must never turn a credential or CLI error into a quiet SKIP.
 function gcloudError(what, r) {
+  if (r.error?.code === "ETIMEDOUT")
+    return `${what} timed out after ${SPAWN_TIMEOUT_MS / 1000} s`;
   const text = (r.error?.message ?? r.stderr ?? "").toString().trim();
   const last = text.split(/\r?\n/).filter(Boolean).pop() ?? "no output";
   return `${what} failed (exit ${r.status ?? "none"}): ${last}`;
@@ -646,13 +666,19 @@ export async function a05(ctx) {
     return skip("A05", claim, "no dev credentials in the gate");
   const instance = ctx.sqlInstance;
   const project = ctx.env.HEALTH_GCP_PROJECT || "swu-prod";
-  const run =
-    ctx.runCommand ??
-    ((cmd, args) =>
-      spawnSync(cmd, args, {
-        encoding: "utf8",
-        shell: process.platform === "win32",
-      }));
+  if (!SQL_INSTANCE_RE.test(instance ?? ""))
+    return fail(
+      "A05",
+      claim,
+      `refusing invalid --sql-instance ${JSON.stringify(instance)}`,
+    );
+  if (!GCP_PROJECT_RE.test(project))
+    return fail(
+      "A05",
+      claim,
+      `refusing invalid HEALTH_GCP_PROJECT ${JSON.stringify(project)}`,
+    );
+  const run = ctx.runCommand ?? defaultRunner;
   const d = run("gcloud", [
     "sql",
     "instances",
@@ -725,13 +751,7 @@ async function servedVersion(ctx) {
 }
 
 function taggedVersion(ctx) {
-  const run =
-    ctx.runCommand ??
-    ((cmd, args) =>
-      spawnSync(cmd, args, {
-        encoding: "utf8",
-        shell: process.platform === "win32",
-      }));
+  const run = ctx.runCommand ?? defaultRunner;
   const repo = ctx.repo ?? "whitebreadisu/hyperspacevault";
   const sha = run("gh", [
     "api",
@@ -740,7 +760,7 @@ function taggedVersion(ctx) {
     ".sha",
   ]);
   const shaText = (sha.stdout ?? "").trim();
-  if (sha.error || sha.status !== 0 || !/^[0-9a-f]{40}$/.test(shaText))
+  if (sha.error || sha.status !== 0 || !SHA40_RE.test(shaText))
     return { error: gcloudError("gh api commits/prod-current", sha) };
   const file = run("gh", [
     "api",
@@ -938,6 +958,15 @@ async function main(argv) {
     process.exitCode = 2;
     return;
   }
+  const sqlInstance =
+    a.sqlInstance || process.env.ASSERT_SQL_INSTANCE || "swu-prod-pg";
+  if (!SQL_INSTANCE_RE.test(sqlInstance)) {
+    console.error(
+      `invalid --sql-instance ${JSON.stringify(sqlInstance)} (must match ${SQL_INSTANCE_RE})`,
+    );
+    process.exitCode = 2;
+    return;
+  }
   const ctx = {
     base: a.base,
     direct: a.direct,
@@ -946,8 +975,7 @@ async function main(argv) {
     specText: readFileSync(a.spec, "utf8"),
     expectSha: a.expectSha,
     expectVersion: a.expectVersion,
-    sqlInstance:
-      a.sqlInstance || process.env.ASSERT_SQL_INSTANCE || "swu-prod-pg",
+    sqlInstance,
     runId: new Date()
       .toISOString()
       .replace(/[-:.TZ]/g, "")

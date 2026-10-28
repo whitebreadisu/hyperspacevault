@@ -26,10 +26,17 @@ rule is therefore: take the second-from-right entry only when BOTH
       Run attacker sits in cloud.json, which is excluded;
 
 otherwise take the rightmost entry. An empty chain falls back to the socket
-peer. If the ranges file is missing or unparsable the check falls back to
-(a) alone and one WARNING is logged at import; that weaker mode lets a
-direct caller who forges both headers pick a one-entry-left address, so
-keep the file in the image.
+peer. If the ranges file is unusable (missing, not JSON, or zero networks)
+one WARNING is logged at import and the resolver fails CLOSED: it takes the
+rightmost entry only, never second-from-right, and flags every Hosting-host
+request (below). Hosting users then share the fetcher's limiter bucket until
+the file is fixed, but no caller text can choose a key. Individual malformed
+prefixes are skipped with a WARNING naming the count.
+
+Header lines: a request may carry several ``X-Forwarded-For`` lines. They are
+joined with ", " in order before splitting (what uvicorn does), so the
+rightmost entry is the last entry of the last line. ``X-Forwarded-Host`` uses
+the first non-empty line, the same value the request log reports.
 
 Stale ranges are visible, not silent: when the host matches but the rightmost
 entry is not in the ranges, the request is resolved to the rightmost entry
@@ -67,24 +74,54 @@ _UNSET = object()
 
 
 def load_google_networks(path: Path = RANGES_PATH) -> list | None:
-    """Parsed networks from the ranges file, or None (with one WARNING) when
-    the file is missing or unparsable."""
+    """Parsed networks from the ranges file. Malformed individual prefixes are
+    skipped with one WARNING naming the count; the file is unusable (None, with
+    one WARNING) only when it is missing, not JSON, or yields zero networks."""
     try:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
-        nets = [ipaddress.ip_network(p) for p in doc["prefixes"]]
+        prefixes = doc["prefixes"]
+        nets = []
+        skipped = 0
+        for p in prefixes:
+            try:
+                if not isinstance(p, str):  # ip_network(5) would parse as 0.0.0.5/32
+                    raise TypeError(p)
+                nets.append(ipaddress.ip_network(p))
+            except (ValueError, TypeError):
+                skipped += 1
+        if skipped:
+            logger.warning(
+                "google_ranges.json: skipped %d malformed prefix(es) of %d",
+                skipped,
+                len(prefixes),
+            )
         if not nets:
-            raise ValueError("no prefixes")
+            raise ValueError("no usable prefixes")
         return nets
     except (OSError, ValueError, KeyError, TypeError) as exc:
         logger.warning(
-            "google_ranges.json unusable (%s): Hosting-hop detection falls back to "
-            "the X-Forwarded-Host check alone (weaker mode)",
+            "google_ranges.json unusable (%s): failing closed -- the rightmost "
+            "X-Forwarded-For entry is used and every Hosting-host request is flagged",
             exc,
         )
         return None
 
 
 _GOOGLE_NETWORKS = load_google_networks()
+
+
+def joined_header(raw_headers, name: bytes) -> str | None:
+    """All lines of a header joined with ", " in order (None when absent)."""
+    values = [v.decode("latin1") for k, v in raw_headers if k == name]
+    return ", ".join(values) if values else None
+
+
+def first_header(raw_headers, name: bytes) -> str | None:
+    """The first non-empty line of a header (None when absent or all empty)."""
+    for k, v in raw_headers:
+        if k == name and v.strip():
+            return v.decode("latin1")
+    return None
 
 
 def hosting_hosts() -> frozenset[str]:
@@ -108,19 +145,19 @@ def resolve_client(
     google_networks=_UNSET,
 ) -> tuple[str | None, bool]:
     """(client address, unrecognised_hop). unrecognised_hop is True when the
-    host header names Hosting but the rightmost entry is outside the ranges."""
+    host header names Hosting but the Hosting hop was not recognised: the
+    rightmost entry is outside the ranges, or the ranges are unusable."""
     chain = [e.strip() for e in (xff or "").split(",") if e.strip()]
     if not chain:
         return peer, False
     rightmost = chain[-1]
     networks = _GOOGLE_NETWORKS if google_networks is _UNSET else google_networks
     host_ok = (forwarded_host or "").strip().lower() in hosting_hosts()
-    unrecognised = False
-    if networks is None:  # weaker mode: ranges unavailable
-        hosting_hop = host_ok
+    if networks is None:  # ranges unusable: fail closed, rightmost only
+        hosting_hop = False
     else:
         hosting_hop = host_ok and _in_google_ranges(rightmost, networks)
-        unrecognised = host_ok and not hosting_hop
+    unrecognised = host_ok and not hosting_hop
     if hosting_hop and len(chain) >= 2:
         return chain[-2], False
     return rightmost, unrecognised
@@ -144,14 +181,14 @@ class ForwardedClientMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket"):
-            headers = dict(scope.get("headers") or [])
-            xff = headers.get(b"x-forwarded-for")
+            raw = scope.get("headers") or []
+            headers = dict(raw)
+            xff = joined_header(raw, b"x-forwarded-for")
             if xff is not None:
                 peer = scope.get("client")
-                host = headers.get(b"x-forwarded-host")
                 resolved, unrecognised = resolve_client(
-                    xff.decode("latin1"),
-                    host.decode("latin1") if host else None,
+                    xff,
+                    first_header(raw, b"x-forwarded-host"),
                     peer[0] if peer else None,
                 )
                 if resolved:

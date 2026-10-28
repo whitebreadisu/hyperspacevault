@@ -94,25 +94,86 @@ def test_hosting_hosts_env_override(monkeypatch):
     assert resolve_client_ip(chain, HOSTING, None) == GOOGLE_FETCHER
 
 
-def test_missing_ranges_file_falls_back_to_the_host_check_and_warns(tmp_path, caplog):
+def test_missing_ranges_file_fails_closed_to_the_rightmost_and_warns(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="app.forwarded"):
         assert load_google_networks(tmp_path / "absent.json") is None
-    assert "weaker mode" in caplog.text
+    assert "failing closed" in caplog.text
     chain = f"{REAL}, {GOOGLE_FETCHER}"
-    assert resolve_client_ip(chain, HOSTING, None, google_networks=None) == REAL
-    # weaker mode: a non-Google rightmost entry is unwrapped when the host matches
-    assert (
-        resolve_client_ip(f"6.6.6.6, {REAL}", HOSTING, None, google_networks=None)
-        == "6.6.6.6"
+    # never second-from-right, even with a matching Hosting host
+    assert resolve_client(chain, HOSTING, None, google_networks=None) == (
+        GOOGLE_FETCHER,
+        True,
     )
-    # without the host header the rightmost still wins
-    assert resolve_client_ip(chain, "", None, google_networks=None) == GOOGLE_FETCHER
+    # the forged-host direct case: the caller's text cannot pick the key
+    assert resolve_client(f"6.6.6.6, {REAL}", HOSTING, None, google_networks=None) == (
+        REAL,
+        True,
+    )
+    # without the Hosting host nothing is flagged
+    assert resolve_client(chain, "", None, google_networks=None) == (
+        GOOGLE_FETCHER,
+        False,
+    )
 
 
-def test_unparsable_ranges_file_is_treated_as_missing(tmp_path):
+def test_unusable_ranges_file_is_treated_as_missing(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"prefixes": ["not-a-cidr"]}))
-    assert load_google_networks(bad) is None
+    assert load_google_networks(bad) is None  # zero usable networks
+    notjson = tmp_path / "notjson.json"
+    notjson.write_text("{nope")
+    assert load_google_networks(notjson) is None
+
+
+def test_malformed_prefixes_are_skipped_with_a_count(tmp_path, caplog):
+    f = tmp_path / "mixed.json"
+    f.write_text(
+        json.dumps({"prefixes": ["74.125.0.0/16", "garbage", 5, "2001:db8::/32"]})
+    )
+    with caplog.at_level(logging.WARNING, logger="app.forwarded"):
+        nets = load_google_networks(f)
+    assert [str(n) for n in nets] == ["74.125.0.0/16", "2001:db8::/32"]
+    assert "skipped 2 malformed prefix(es) of 4" in caplog.text
+
+
+def test_multiple_xff_lines_are_joined_and_logged_with_the_joined_count(caplog):
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    from app.middleware import log_requests
+
+    app = FastAPI()
+
+    @app.get("/who")
+    def who(request: Request):
+        return {"host": request.client.host}
+
+    app.add_middleware(BaseHTTPMiddleware, dispatch=log_requests)
+    app.add_middleware(ForwardedClientMiddleware)
+    client = TestClient(app)
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        body = client.get(
+            "/who",
+            headers=[
+                ("X-Forwarded-For", f"1.1.1.1, {REAL}"),
+                ("X-Forwarded-For", "9.9.9.9"),
+            ],
+        ).json()
+    assert body["host"] == "9.9.9.9"  # rightmost of the joined chain
+    (record,) = [r for r in caplog.records if r.name == "app.request"]
+    assert record.forwarded_hops == 3
+
+
+def test_forwarded_host_uses_the_first_non_empty_line():
+    from app.forwarded import first_header, joined_header
+
+    raw = [
+        (b"x-forwarded-host", b" "),
+        (b"x-forwarded-host", b"a.example"),
+        (b"x-forwarded-host", b"b.example"),
+    ]
+    assert first_header(raw, b"x-forwarded-host") == "a.example"
+    assert first_header([], b"x-forwarded-host") is None
+    assert joined_header(raw, b"x-forwarded-for") is None
 
 
 def _echo_app():
@@ -205,12 +266,13 @@ def test_unrecognised_hop_is_flagged_when_host_matches_but_address_is_not_google
     # stale-ranges case: Hosting host, a rightmost address outside the ranges
     ip, flagged = resolve_client("6.6.6.6, 203.0.113.50", HOSTING, None)
     assert (ip, flagged) == ("203.0.113.50", True)
-    # recognised hop, no host, and the weaker mode do not flag
+    # a recognised hop and a request without the Hosting host do not flag;
+    # unusable ranges flag every Hosting-host request (fail closed)
     assert resolve_client(f"{REAL}, {GOOGLE_FETCHER}", HOSTING, None) == (REAL, False)
     assert resolve_client(f"{REAL}, {GOOGLE_FETCHER}", "", None)[1] is False
     assert (
         resolve_client("6.6.6.6, 203.0.113.50", HOSTING, None, google_networks=None)[1]
-        is False
+        is True
     )
 
 

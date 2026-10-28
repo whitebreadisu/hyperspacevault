@@ -1,4 +1,4 @@
-<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from f4458cc — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 29f27ec — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,7 +115,7 @@ Total 251,107 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 124,053 B (LF) · 6 h2 · 43 h3
+Total 124,481 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -164,8 +164,8 @@ Total 124,053 B (LF) · 6 h2 · 43 h3
 | h3 | [§4.4 Error Reporting](SWU_Platform_Spec.md#44-error-reporting) | 564 | 426 |  |  |  |  |
 | h3 | [§4.5 Design Rationale](SWU_Platform_Spec.md#45-design-rationale) | 568 | 927 |  | 0025 |  |  |
 | h3 | [§4.6 Cost Controls (RR-2 / finding F14)](SWU_Platform_Spec.md#46-cost-controls-rr-2--finding-f14) | 580 | 2,756 |  | 0008 | `terraform/modules/app/variables.tf` |  |
-| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 601 | 12,913 | 2026-08-16 Review currency |  |  |  |
-| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 607 | 9,840 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/forwarded.py`, `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/services/deck_fetch.py`, `specification_documents/backlog` | "Archived 2026-10-28 — proxy-IP fix superseded (BL-273)" |
+| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 601 | 13,341 | 2026-08-16 Review currency |  |  |  |
+| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 607 | 10,268 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/forwarded.py`, `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/services/deck_fetch.py`, `specification_documents/backlog` | "Archived 2026-10-28 — proxy-IP fix superseded (BL-273)" |
 | h3 | [§5.2 Secrets (Secret Manager)](SWU_Platform_Spec.md#52-secrets-secret-manager) | 632 | 551 |  |  |  |  |
 | h3 | [§5.3 Network posture](SWU_Platform_Spec.md#53-network-posture) | 636 | 699 |  | 0023 |  |  |
 | h3 | [§5.4 Open follow-ups](SWU_Platform_Spec.md#54-open-follow-ups) | 642 | 634 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
