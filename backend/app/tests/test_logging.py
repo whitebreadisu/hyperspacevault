@@ -95,3 +95,40 @@ def test_unauthenticated_request_logs_null_tenant_id(caplog):
     assert len(records) == 1
     assert records[0].tenant_id is None
     assert records[0].httpRequest["status"] == 401
+
+
+def _request_record(caplog, headers):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        TestClient(app).get("/health", headers=headers)
+    records = [r for r in caplog.records if r.name == "app.request"]
+    assert len(records) == 1
+    return records[0]
+
+
+def test_forwarded_evidence_absent_headers(caplog):
+    record = _request_record(caplog, {})
+    assert record.forwarded_hops == 0
+    assert record.forwarded_host == ""
+
+
+def test_forwarded_hops_counted_without_logging_addresses(caplog):
+    one = _request_record(caplog, {"X-Forwarded-For": "1.2.3.4"})
+    assert one.forwarded_hops == 1
+    caplog.clear()
+    three = _request_record(
+        caplog,
+        {
+            "X-Forwarded-For": "6.6.6.6, 1.2.3.4, 35.1.1.1",
+            "X-Forwarded-Host": "swu-dev-jbapps.web.app",
+        },
+    )
+    assert three.forwarded_hops == 3
+    assert three.forwarded_host == "swu-dev-jbapps.web.app"
+    payload = json.loads(JSONFormatter().format(three))
+    assert payload["forwarded_hops"] == 3
+    assert payload["forwarded_host"] == "swu-dev-jbapps.web.app"
+    assert "6.6.6.6" not in json.dumps(payload)

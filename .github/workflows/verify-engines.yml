@@ -1,0 +1,178 @@
+name: verify-engines
+
+# BL-279 WS-3 W3-15 (BL-124): the nightly three-engine run of the verification
+# journeys against the dev environment (https://swu-dev-jbapps.web.app), one
+# matrix leg per rendering engine (chromium = Blink, firefox = Gecko,
+# webkit = WebKit). Each leg uploads a one-line result; a single `summary` job
+# then appends one comment (three lines) to ONE rolling issue (same mechanism
+# as health-check.yml) and turns red when any leg failed.
+#
+# Two contracts with the verification suite (owned by WS-3 stage 3c; this
+# workflow does not edit them):
+#   1. VERIFY_BROWSER - playwright.verify.config.ts reads it (chromium |
+#      firefox | webkit) and sets the projects' `browserName` from it, so the
+#      same phone-390 / desktop-1440 projects run once per engine.
+#   2. @no-engines - a test tagged @no-engines is excluded here with
+#      --grep-invert. J1, J5 and J6 carry the tag: J1 creates a real user, J5
+#      replaces the vault from a file upload (data reasons), and J6 needs
+#      Chromium's fake camera (the only Chromium-only one). They run in the
+#      other journey runs (catalogue section 3).
+#
+# Needs from the `dev` environment: variable VERIFY_FIREBASE_API_KEY (an
+# environment-scoped variable; both `dev` and `production` carry one) and
+# secrets VERIFY_EMAIL / VERIFY_PASSWORD (the verification tenant A).
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # nightly 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: verify-engines
+  cancel-in-progress: false
+
+env:
+  ISSUE_TITLE: "Nightly three-engine journeys"
+
+jobs:
+  engines:
+    name: journeys (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    environment: dev
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    env:
+      VERIFY_BASE_URL: https://swu-dev-jbapps.web.app
+      VERIFY_FIREBASE_API_KEY: ${{ vars.VERIFY_FIREBASE_API_KEY }}
+      VERIFY_EMAIL: ${{ secrets.VERIFY_EMAIL }}
+      VERIFY_PASSWORD: ${{ secrets.VERIFY_PASSWORD }}
+      VERIFY_BROWSER: ${{ matrix.browser }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright ${{ matrix.browser }}
+        working-directory: frontend
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Seed the verification tenant
+        working-directory: frontend
+        run: node e2e/verify/seed.mjs
+
+      # A failing journey must not skip the issue comment: capture the code, go on.
+      - name: Run the journeys
+        shell: bash
+        working-directory: frontend
+        run: |
+          rc=0
+          npx playwright test -c playwright.verify.config.ts --project=phone-390 --project=desktop-1440 --grep-invert "@no-engines" -- 2>&1 | tee ../engines.txt || rc=${PIPESTATUS[0]}
+          echo "exit_code=${rc}" >> "$GITHUB_ENV"
+
+      - name: Record this leg's result
+        if: always()
+        shell: bash
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          if [ "${exit_code:-1}" = "0" ]; then verdict="pass"; else verdict="FAIL (exit ${exit_code:-unset})"; fi
+          mkdir -p result
+          echo "${BROWSER}: ${verdict}" > "result/${BROWSER}.txt"
+
+      - name: Upload this leg's result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: engine-result-${{ matrix.browser }}
+          path: result/${{ matrix.browser }}.txt
+          retention-days: 3
+
+      - name: Upload Playwright report
+        if: ${{ always() && env.exit_code != '0' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-engines-${{ matrix.browser }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Red on a failed journey
+        if: always()
+        run: |
+          if [ "${exit_code:-1}" != "0" ]; then
+            echo "::error::verify-engines (${{ matrix.browser }}): journeys failed"
+            exit 1
+          fi
+          echo "verify-engines (${{ matrix.browser }}): ok"
+
+  # One rolling-issue comment per run, posted once (three matrix legs finding
+  # the issue at the same time could each create their own on the first run).
+  summary:
+    needs: [engines]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          pattern: engine-result-*
+          path: results
+          merge-multiple: true
+
+      - name: Append to the rolling issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ENGINES_RESULT: ${{ needs.engines.result }}
+        run: |
+          mkdir -p results
+          lines=$(cat results/*.txt 2>/dev/null || true)
+          if [ "${ENGINES_RESULT}" = "success" ]; then
+            prefix=""; echo "engines_ok=1" >> "$GITHUB_ENV"
+          else
+            prefix="**CHECK** "; echo "engines_ok=0" >> "$GITHUB_ENV"
+          fi
+          {
+            echo "${prefix}### $(date -u +%Y-%m-%d) - ${ENGINES_RESULT} - [run](${RUN_URL})"
+            echo
+            echo '```'
+            if [ -n "$lines" ]; then echo "$lines"; else echo "(no leg result recorded)"; fi
+            echo '```'
+          } > comment.md
+          # One rolling issue for the life of the repo: found by exact title in ANY state, created once.
+          number=$(gh issue list --state all --limit 100 --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")] | sort_by(.number) | first | .number // empty")
+          if [ -z "$number" ]; then
+            printf '%s\n' "_Rolling issue: one comment per run of \`.github/workflows/verify-engines.yml\` (nightly), one line per engine. Comments starting **CHECK** need a look; the rest are a heartbeat._" > body.md
+            number=$(gh issue create --title "${ISSUE_TITLE}" --label "type:chore" --label "area:platform" --body-file body.md | grep -oE '[0-9]+$')
+            echo "created issue #${number}"
+          fi
+          gh issue comment "$number" --body-file comment.md
+
+      - name: Red when any leg failed
+        if: always()
+        run: |
+          if [ "${engines_ok:-0}" != "1" ]; then
+            echo "::error::verify-engines: a leg failed - see the rolling issue"
+            exit 1
+          fi
+          echo "verify-engines: all legs ok"
