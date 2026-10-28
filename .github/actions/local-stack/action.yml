@@ -18,7 +18,7 @@ description: >
       reads APP_DB_PASSWORD to create the swu_app role).
 
   Logs (the caller uploads these on failure, e.g. actions/upload-artifact with
-  path: ${{ runner.temp }}/local-stack/*.log):
+  path: $RUNNER_TEMP/local-stack/*.log; the description must not contain an expression):
     $RUNNER_TEMP/local-stack/backend.log
     $RUNNER_TEMP/local-stack/auth-emulator.log
     $RUNNER_TEMP/local-stack/vite.log

@@ -41,7 +41,7 @@ J1_MAX_AGE_SECONDS = 3600
 class Identity:
     role: str
     email: str
-    password_env: str
+    secret_var: str
     email_verified: bool
 
 
@@ -132,9 +132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     identities = IDENTITIES[args.env]
     for identity in identities:
-        if not os.environ.get(identity.password_env):
+        if not os.environ.get(identity.secret_var):
             print(
-                f"missing environment variable {identity.password_env}",
+                f"missing environment variable {identity.secret_var}",
                 file=sys.stderr,
             )
             return 2
@@ -145,7 +145,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for identity in identities:
         uid, status = ensure_identity(
-            identity, os.environ[identity.password_env], args.dry_run
+            identity, os.environ[identity.secret_var], args.dry_run
         )
         print(f"{identity.role} {identity.email} {uid} {status}")
 
