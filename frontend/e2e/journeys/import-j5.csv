@@ -1,0 +1,8 @@
+# swu-inv-export v1
+swuapi_uuid,set_code,card_number,variant_type,quantity,name,subtitle
+019d3177-1c95-7bcc-95e3-c92db9dd7077,SOR,11,Standard,1,Grand Inquisitor,Hunting the Jedi
+019d3177-3709-7e21-b259-e8ccebfd3f8e,SOR,12,Standard,2,IG-88,Ruthless Bounty Hunter
+019d3177-3747-7633-bde7-5bd2e5fa5b3a,SOR,13,Standard,3,Cassian Andor,Dedicated to the Rebellion
+019d3177-1d7f-7b29-ba65-0649e36f83a8,SOR,14,Standard,1,Sabine Wren,Galvanized Revolutionary
+019d3177-230f-7b1c-bae8-8918a21aaff8,SOR,15,Standard,2,Boba Fett,Collecting the Bounty
+019d3177-23fd-76d2-a599-442985e67692,SOR,16,Standard,1,Grand Admiral Thrawn,Patient and Insightful
