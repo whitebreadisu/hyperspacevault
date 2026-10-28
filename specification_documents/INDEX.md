@@ -1,4 +1,4 @@
-<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from 99494f7 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-10-28 by .github/scripts/docs_index.mjs from f4458cc — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,7 +115,7 @@ Total 251,107 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 122,384 B (LF) · 6 h2 · 43 h3
+Total 124,053 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -139,13 +139,13 @@ Total 122,384 B (LF) · 6 h2 · 43 h3
 | h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 240 | 6,217 | 2026-07-15 Mechanism | 0007, 0011, 0033 | `.github/actions/promote-prod/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 250 | 950 |  | 0022 |  |  |
 | h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 262 | 9,458 |  | 0020, 0033, 0035, 0036 | `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `frontend/src`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
-| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 300 | 35,877 |  |  |  |  |
+| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 300 | 36,780 |  |  |  |  |
 | h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 302 | 511 |  |  |  |  |
 | h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 312 | 388 |  |  | `terraform/state` |  |
 | h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 316 | 733 |  |  |  |  |
 | h3 | [§3.4 IAM](SWU_Platform_Spec.md#34-iam) | 323 | 2,971 |  |  |  |  |
 | h3 | [§3.4a Pricing infrastructure (BL-136/BL-139)](SWU_Platform_Spec.md#34a-pricing-infrastructure-bl-136bl-139) | 357 | 1,560 |  |  | `terraform/modules/app/pricing_jobs.tf` |  |
-| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 366 | 3,330 | 2026-07-24 As-built addition — BL-53 proxy-IP fix, |  | `backend/app/main.py` |  |
+| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 366 | 4,233 | 2026-10-28 As-built |  | `backend/app/data/google_ranges.json`, `backend/app/forwarded.py`, `backend/scripts/refresh_google_ranges.py` |  |
 | h3 | [§3.6 Cloud SQL](SWU_Platform_Spec.md#36-cloud-sql) | 398 | 3,753 | 2026-07-24 D4 — prod Cloud SQL tier |  | `backend/app/database.py`, `terraform/environments/prod/main.tf` |  |
 | h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 418 | 4,327 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
 | h3 | [§3.8 Artifact Registry](SWU_Platform_Spec.md#38-artifact-registry) | 437 | 211 |  |  |  |  |
@@ -164,8 +164,8 @@ Total 122,384 B (LF) · 6 h2 · 43 h3
 | h3 | [§4.4 Error Reporting](SWU_Platform_Spec.md#44-error-reporting) | 564 | 426 |  |  |  |  |
 | h3 | [§4.5 Design Rationale](SWU_Platform_Spec.md#45-design-rationale) | 568 | 927 |  | 0025 |  |  |
 | h3 | [§4.6 Cost Controls (RR-2 / finding F14)](SWU_Platform_Spec.md#46-cost-controls-rr-2--finding-f14) | 580 | 2,756 |  | 0008 | `terraform/modules/app/variables.tf` |  |
-| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 601 | 12,147 | 2026-08-16 Review currency |  |  |  |
-| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 607 | 9,074 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/routers/feedback.py`, `backend/app/services/deck_fetch.py`, `specification_documents/backlog` |  |
+| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 601 | 12,913 | 2026-08-16 Review currency |  |  |  |
+| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 607 | 9,840 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022 | `backend/app/forwarded.py`, `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/services/deck_fetch.py`, `specification_documents/backlog` | "Archived 2026-10-28 — proxy-IP fix superseded (BL-273)" |
 | h3 | [§5.2 Secrets (Secret Manager)](SWU_Platform_Spec.md#52-secrets-secret-manager) | 632 | 551 |  |  |  |  |
 | h3 | [§5.3 Network posture](SWU_Platform_Spec.md#53-network-posture) | 636 | 699 |  | 0023 |  |  |
 | h3 | [§5.4 Open follow-ups](SWU_Platform_Spec.md#54-open-follow-ups) | 642 | 634 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
