@@ -12,6 +12,12 @@ import {
   settled,
 } from "./_helpers";
 
+// Skips when E2E_LOCAL is set (the PR gate's local stack): the camera reader
+// validates the printed denominator ("229/252") against the main-set size it
+// computes from the loaded catalog (scanCatalog.ts), and the local stack boots
+// from the trimmed 67-card fixture, so SOR's computed size never matches 252.
+// J6 therefore runs at the promote gate against dev (full catalog), not at the PR gate.
+//
 // BL-279 WS-3 W3-09, journey J6: on a phone, the camera screen reads a card
 // from the fake-camera clip fake_v2_std (the BL-238 spike's clip of SOR 229
 // Cell Block Guard; the real getUserMedia, Paddle worker and scan core run),
@@ -31,6 +37,10 @@ journeyTest.describe.configure({ mode: "serial" });
 journeyTest(
   "j6 @no-engines @chromium-only a scanned card lands in the real vault",
   async ({ playwright, browserName }, info) => {
+    journeyTest.skip(
+      process.env.E2E_LOCAL === "1",
+      "the trimmed local catalog cannot match the printed denominator"
+    );
     journeyTest.skip(browserName !== "chromium", "the fake camera is Chromium-only");
     journeyTest.skip(!isPhone(info), "the camera screen is the phone app's");
 
