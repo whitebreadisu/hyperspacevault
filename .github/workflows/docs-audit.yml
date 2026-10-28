@@ -94,6 +94,37 @@ jobs:
           APP_DB_PASSWORD: swu_app_pass
         run: pytest app/tests/test_route_registry.py -q -p no:cacheprovider --no-cov 2>&1 | tee /tmp/registry.txt
 
+      # BL-279 W3-21 (BL-273 follow-up): the client-address resolver's Google ranges
+      # (backend/app/data/google_ranges.json) go stale when Google adds Hosting
+      # origin-fetcher addresses. Monthly, rebuild into a scratch file and append
+      # whether the prefix list differs from the committed one. Informational only
+      # (never red, never edits the tree): applying a change is a manual
+      # `python backend/scripts/refresh_google_ranges.py` + PR. Controls register, Platform Spec 2.8.
+      - name: Google ranges refresh (report only)
+        continue-on-error: true
+        run: |
+          {
+            echo
+            echo "## Google ranges (client-address resolver, BL-273)"
+            echo
+            if python backend/scripts/refresh_google_ranges.py --out /tmp/google_ranges.json; then
+              python - <<'PY'
+          import json
+          a = set(json.load(open("backend/app/data/google_ranges.json"))["prefixes"])
+          b = set(json.load(open("/tmp/google_ranges.json"))["prefixes"])
+          if a == b:
+              print(f"Unchanged: {len(a)} prefixes match the committed file.")
+          else:
+              print(f"**Changed:** {len(a - b)} prefix(es) removed, {len(b - a)} added (committed {len(a)}, current {len(b)}). Run `python backend/scripts/refresh_google_ranges.py` and open a PR.")
+              for label, items in (("Added", sorted(b - a)[:20]), ("Removed", sorted(a - b)[:20])):
+                  if items:
+                      print(f"- {label} (first 20): " + ", ".join(items))
+          PY
+            else
+              echo "Refresh failed (gstatic fetch); the committed file is unverified this month."
+            fi
+          } >> /tmp/audit.md
+
       - name: Upsert the rolling issue
         env:
           GH_TOKEN: ${{ github.token }}
