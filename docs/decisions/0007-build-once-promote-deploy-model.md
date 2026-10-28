@@ -1,7 +1,7 @@
 # ADR-0007: Build-once / promote deploy model with a gated prod release (staging deferred)
 
 ## Status
-Accepted — 2026-06-27. **Implemented** (status corrected 2026-07-24, BL-150 W1): BL-43 (Stage 2 of `SWU_Platform_Roadmap.md` §7) fully complete 2026-06-28
+Accepted — 2026-06-27. **Implemented** (status corrected 2026-07-24, BL-150 W1): BL-43 (Stage 2 of `SWU_Platform_Roadmap.md` §7) fully complete 2026-06-28. **Amended by ADR-0037 (2026-10-28):** decision item 4's gate is now the verification suites (promote gate G and post-promote check P), not a reviewer
 
 > **Update 2026-07-15 (BL-131):** the decision stands, but the human gate's *mechanism* changed. The GitHub Environment required-reviewers rule died when the repo went private (Enterprise-only on private repos), so the gated in-pipeline `promote-prod` job was replaced by an explicit `promote-prod.yml` `workflow_dispatch` (promote a stated main SHA; build-once semantics unchanged; `risk:low` fast path unchanged). Current mechanism: `SWU_Platform_Spec.md` §2.6.
 > **Update 2026-07-29 (BL-172):** the repo is public again (environment protection is available once more); the `workflow_dispatch` mechanism is retained by owner decision — see §2.6.

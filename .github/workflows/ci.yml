@@ -573,6 +573,7 @@ jobs:
           node .github/scripts/docs_check.test.mjs
           node --test .github/scripts/health_check.test.mjs
           node --test --test-timeout=60000 .github/scripts/platform_assert.test.mjs
+          node --test .github/scripts/release_notes.test.mjs
 
       - name: Docs-check on the tree
         run: node .github/scripts/docs_check.mjs

@@ -15,6 +15,16 @@
 //                      re-promotes of an already-shipped version, where the
 //                      entry's date is legitimately in the past.
 //
+//   gate --train --prod-key <key>
+//                      the release-train variant (ADR-0037 item 3): same
+//                      version check, but the date rule becomes "the newest
+//                      entry is NEWER than the entry prod-current shipped
+//                      (--prod-key, the key of prod-current's own newest
+//                      entry; list order is newest first) and dated within
+//                      the last 7 days (America/Chicago)". Fails closed when
+//                      --prod-key is missing or not in the list. The dispatch
+//                      path (no --train) keeps the same-day rule.
+//
 //   markdown [key]     render the entry with `key` (default: newest) as
 //                      GitHub-Release markdown on stdout.
 //
@@ -24,19 +34,26 @@
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+// Test seams (release_notes.test.mjs): RELEASE_NOTES_MODULE (path of a module
+// exporting RELEASE_NOTES), NOTES_TODAY (YYYY-MM-DD), NOTES_PKG_VERSION.
 const { RELEASE_NOTES } = await import(
-  new URL("../../frontend/src/content/releaseNotes.ts", import.meta.url)
+  process.env.RELEASE_NOTES_MODULE
+    ? pathToFileURL(process.env.RELEASE_NOTES_MODULE).href
+    : new URL("../../frontend/src/content/releaseNotes.ts", import.meta.url).href
 );
+
+const TRAIN_MAX_AGE_DAYS = 7;
 
 function normalizeVersion(pkgVersion) {
   return pkgVersion.replace(/\.0$/, "");
 }
 
 function centralToday() {
+  if (process.env.NOTES_TODAY) return process.env.NOTES_TODAY;
   // en-CA formats as YYYY-MM-DD, matching the entries' date strings.
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Chicago",
@@ -61,13 +78,26 @@ function entryToMarkdown(entry) {
   return lines.join("\n");
 }
 
+function daysBetween(fromDate, toDate) {
+  return Math.round((Date.parse(toDate) - Date.parse(fromDate)) / 86400000);
+}
+
+function argValue(flag) {
+  const i = process.argv.indexOf(flag);
+  return i > 0 ? process.argv[i + 1] : undefined;
+}
+
 const mode = process.argv[2];
+const train = process.argv.includes("--train");
 const newest = RELEASE_NOTES[0];
 
 if (mode === "gate") {
-  const pkg = JSON.parse(
-    readFileSync(join(repoRoot, "frontend", "package.json"), "utf-8")
-  );
+  const pkg = {
+    version:
+      process.env.NOTES_PKG_VERSION ??
+      JSON.parse(readFileSync(join(repoRoot, "frontend", "package.json"), "utf-8"))
+        .version,
+  };
   const expected = normalizeVersion(pkg.version);
   const failures = [];
 
@@ -82,7 +112,27 @@ if (mode === "gate") {
   }
 
   const today = centralToday();
-  if (newest.date !== today) {
+  if (train) {
+    const prodKey = argValue("--prod-key");
+    const prodIdx = prodKey ? RELEASE_NOTES.findIndex((e) => e.key === prodKey) : -1;
+    if (!prodKey) {
+      failures.push("--train needs --prod-key <key of prod-current's newest entry>");
+    } else if (prodIdx < 0) {
+      failures.push(
+        `prod-current's entry "${prodKey}" is not in releaseNotes.ts — cannot prove the newest entry is newer (fail closed)`
+      );
+    } else if (prodIdx === 0) {
+      failures.push(
+        `newest entry "${newest.key}" is the one prod-current already shipped — write a new release-notes entry before the train can run`
+      );
+    }
+    const age = daysBetween(newest.date, today);
+    if (!(age >= 0 && age <= TRAIN_MAX_AGE_DAYS)) {
+      failures.push(
+        `newest entry's date is ${newest.date}, ${age < 0 ? "in the future" : `${age} days before today (${today})`}; the train needs it within the last ${TRAIN_MAX_AGE_DAYS} days (America/Chicago)`
+      );
+    }
+  } else if (newest.date !== today) {
     if (process.env.ALLOW_STALE_NOTES === "true") {
       console.log(
         `notes-gate: date ${newest.date} != today ${today} — allowed by allow_stale_notes (rollback/re-promote path)`
@@ -99,7 +149,7 @@ if (mode === "gate") {
     process.exit(1);
   }
   console.log(
-    `notes-gate OK: v${newest.key} "${newest.title}" dated ${newest.date}`
+    `notes-gate OK${train ? " (train)" : ""}: v${newest.key} "${newest.title}" dated ${newest.date}`
   );
 } else if (mode === "markdown") {
   const key = process.argv[3];
@@ -112,6 +162,6 @@ if (mode === "gate") {
   }
   process.stdout.write(entryToMarkdown(entry) + "\n");
 } else {
-  console.error("usage: release_notes.mjs gate|markdown [key]");
+  console.error("usage: release_notes.mjs gate [--train --prod-key <key>] | markdown [key]");
   process.exit(1);
 }
