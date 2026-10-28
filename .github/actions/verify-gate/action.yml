@@ -1,0 +1,305 @@
+name: Verify gate
+description: >
+  BL-279 WS-3 W3-18 / W3-19: the journeys + platform assertions, as ONE
+  implementation for two uses. smoke-only "false" is the promote gate G (runs
+  against DEV before terraform: purge stale J1 users, fail fast unless dev
+  serves the promoted SHA, seed, every journey on both projects, every
+  assertion row). smoke-only "true" is the post-promote check P (runs against
+  PROD after the smoke test and the prod-current tag move: seed, the @smoke
+  journeys on both projects, every assertion row with the Cloud SQL backup
+  check A05). Used by promote-prod.yml (gate and promote jobs) and ci.yml
+  (promote-gate-fast and promote-prod-fast).
+
+  The CALLER passes the verification credentials of the environment it runs
+  under as the verify-* inputs (secrets are therefore visible to the seed,
+  journeys and assertions steps only, not to the whole job): the Firebase web
+  API key, tenant A, and on dev tenant B and the unverified identity. Secrets
+  cannot be read across environments, which is why G (dev) and P (production)
+  sit in different jobs. G passes --require-credentials to the assertions (a
+  missing B/unverified credential is a FAIL, not a SKIP); P does not (prod has
+  no such identities by design). The caller also runs actions/checkout (the tree under test)
+  and, for G, the WIF auth to dev (the purge uses Application Default
+  Credentials); P reuses the prod auth the promote-prod action already did.
+
+  Failure semantics: any failing step fails the calling job. G failing stops
+  the promote before terraform. P failing means prod is LIVE and wrong: the
+  action appends the failing lines to the rolling health issue and @-mentions
+  the owner; there is NO rollback (rollback is a dispatch of the previous
+  prod-current SHA). The journeys step and the assertions step both run even
+  when the other failed, so one run reports everything.
+
+inputs:
+  base:
+    description: Site under test (https://swu-dev-jbapps.web.app or https://www.hyperspacevault.com).
+    required: true
+  env:
+    description: dev or prod (the platform_assert.mjs --env value).
+    required: true
+  direct:
+    description: Cloud Run URL of the backend (the environment's VERIFY_API_DIRECT_URL variable).
+    required: true
+  expect-sha:
+    description: Full SHA the target must be serving (the A06 comparison).
+    required: true
+  smoke-only:
+    description: '"true" = post-promote P (prod, @smoke); "false" = promote gate G (dev, all journeys).'
+    required: false
+    default: "false"
+  sql-instance:
+    description: Cloud SQL instance for A05 (P only; the gate leaves it empty because A05 SKIPs on dev).
+    required: false
+    default: ""
+  github-token:
+    description: Token for the rolling-issue comment (P only; the caller needs issues write).
+    required: false
+    default: ""
+  verify-firebase-api-key:
+    description: Firebase web API key of the target (the environment's VERIFY_FIREBASE_API_KEY variable).
+    required: false
+    default: ""
+  verify-email:
+    description: Tenant A email (VERIFY_EMAIL secret).
+    required: false
+    default: ""
+  verify-password:
+    description: Tenant A password (VERIFY_PASSWORD secret).
+    required: false
+    default: ""
+  verify-b-email:
+    description: Tenant B email (dev only).
+    required: false
+    default: ""
+  verify-b-password:
+    description: Tenant B password (dev only).
+    required: false
+    default: ""
+  verify-unverified-email:
+    description: Unverified identity email (dev only).
+    required: false
+    default: ""
+  verify-unverified-password:
+    description: Unverified identity password (dev only).
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Start the clock
+      id: clock
+      shell: bash
+      run: |
+        mkdir -p "${RUNNER_TEMP}/verify-gate"
+        : > "${RUNNER_TEMP}/verify-gate/failing.txt"
+        echo "VG_DIR=${RUNNER_TEMP}/verify-gate" >> "$GITHUB_ENV"
+        echo "VG_START=$(date +%s)" >> "$GITHUB_ENV"
+
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      shell: bash
+      working-directory: frontend
+      run: npm ci
+
+    - name: Install Playwright chromium
+      shell: bash
+      working-directory: frontend
+      run: npx playwright install --with-deps chromium
+
+    # G only: the purge needs the Admin SDK and the caller's dev WIF credentials.
+    - uses: actions/setup-python@v7
+      if: ${{ inputs.smoke-only != 'true' }}
+      with:
+        python-version: "3.12"
+
+    - name: Purge stale J1 sign-up users (dev)
+      if: ${{ inputs.smoke-only != 'true' }}
+      shell: bash
+      run: |
+        pip install --quiet firebase-admin==7.7.0
+        python backend/scripts/verify_tenant.py --env dev --purge-only
+
+    # G only: fail fast when dev is not serving the promoted SHA (the journeys
+    # would judge the wrong build). Before the seed so a stale dev spends no imports.
+    - name: Dev serves the promoted SHA (A06)
+      if: ${{ inputs.smoke-only != 'true' }}
+      shell: bash
+      env:
+        BASE: ${{ inputs.base }}
+        DIRECT: ${{ inputs.direct }}
+        EXPECT_SHA: ${{ inputs.expect-sha }}
+      run: |
+        rc=0
+        node .github/scripts/platform_assert.mjs --base "$BASE" --env dev --direct "$DIRECT" --expect-sha "$EXPECT_SHA" --only A06 2>&1 | tee "$VG_DIR/a06.txt" || rc=${PIPESTATUS[0]}
+        if [ "$rc" != "0" ]; then
+          { echo "dev is not serving ${EXPECT_SHA}:"; grep -F '| FAIL' "$VG_DIR/a06.txt" || true; } >> "$VG_DIR/failing.txt"
+          exit "$rc"
+        fi
+
+    - name: Seed the verification tenants
+      id: seed
+      shell: bash
+      working-directory: frontend
+      env:
+        VERIFY_BASE_URL: ${{ inputs.base }}
+        VERIFY_FIREBASE_API_KEY: ${{ inputs.verify-firebase-api-key }}
+        VERIFY_EMAIL: ${{ inputs.verify-email }}
+        VERIFY_PASSWORD: ${{ inputs.verify-password }}
+        VERIFY_B_EMAIL: ${{ inputs.verify-b-email }}
+        VERIFY_B_PASSWORD: ${{ inputs.verify-b-password }}
+        VERIFY_UNVERIFIED_EMAIL: ${{ inputs.verify-unverified-email }}
+        VERIFY_UNVERIFIED_PASSWORD: ${{ inputs.verify-unverified-password }}
+      run: |
+        rc=0
+        node e2e/verify/seed.mjs 2>&1 | tee "$VG_DIR/seed.txt" || rc=${PIPESTATUS[0]}
+        if [ "$rc" != "0" ]; then
+          { echo "seed failed:"; tail -n 5 "$VG_DIR/seed.txt"; } >> "$VG_DIR/failing.txt"
+          exit "$rc"
+        fi
+
+    # The setup project's test is named "verify-setup ..." and carries no tag; a
+    # bare --grep @smoke would filter it out and leave the specs without a sign-in,
+    # so P's pattern also matches it.
+    - name: Run the journeys
+      id: journeys
+      shell: bash
+      working-directory: frontend
+      env:
+        VERIFY_BASE_URL: ${{ inputs.base }}
+        SMOKE_ONLY: ${{ inputs.smoke-only }}
+        LEG_NAME: ${{ inputs.smoke-only == 'true' && 'post-promote @smoke' || 'promote gate' }}
+        VERIFY_FIREBASE_API_KEY: ${{ inputs.verify-firebase-api-key }}
+        VERIFY_EMAIL: ${{ inputs.verify-email }}
+        VERIFY_PASSWORD: ${{ inputs.verify-password }}
+        VERIFY_B_EMAIL: ${{ inputs.verify-b-email }}
+        VERIFY_B_PASSWORD: ${{ inputs.verify-b-password }}
+        VERIFY_UNVERIFIED_EMAIL: ${{ inputs.verify-unverified-email }}
+        VERIFY_UNVERIFIED_PASSWORD: ${{ inputs.verify-unverified-password }}
+      run: |
+        # A green run of zero tests proves nothing: refuse to run when the suite
+        # lists fewer tests than the floor. P needs at least one @smoke test (the
+        # --grep "@smoke" listing excludes the untagged setup test, so zero means
+        # no smoke journey exists). G needs at least 10 (J1-J7 on two projects plus
+        # setup is 15 today; 10 is the floor).
+        if [ "$SMOKE_ONLY" = "true" ]; then
+          list_args=(--grep "@smoke"); floor=1; what="@smoke tests"
+        else
+          list_args=(); floor=10; what="journey tests"
+        fi
+        listing=$(npx playwright test -c playwright.verify.config.ts --list "${list_args[@]}" 2>&1) || true
+        total=$(echo "$listing" | grep -oE 'Total: [0-9]+' | grep -oE '[0-9]+' | tail -n 1)
+        total=${total:-0}
+        if [ "$total" -lt "$floor" ]; then
+          msg="the verification suite lists ${total} ${what}; the floor is ${floor}. Refusing to report a green run of an empty suite (is the journeys branch merged and tagged?)."
+          echo "::error::${msg}"
+          echo "$msg" >> "$VG_DIR/failing.txt"
+          exit 1
+        fi
+        echo "suite lists ${total} ${what} (floor ${floor})"
+        args=(-c playwright.verify.config.ts)
+        if [ "$SMOKE_ONLY" = "true" ]; then args+=(--grep "@smoke|verify-setup"); fi
+        rc=0
+        npx playwright test "${args[@]}" 2>&1 | tee "$VG_DIR/journeys.txt" || rc=${PIPESTATUS[0]}
+        node e2e/report-flaky.mjs e2e-results/verify-report.json
+        if [ "$rc" != "0" ]; then
+          { echo "journeys failed (exit ${rc}):"; grep -E '^\s+[0-9]+\) |[0-9]+ (failed|flaky)' "$VG_DIR/journeys.txt" | head -n 20 || true; } >> "$VG_DIR/failing.txt"
+          exit "$rc"
+        fi
+
+    # Runs even when the journeys failed (one run, one full report), but not when
+    # the job never reached the seed (an install failure is its own message).
+    - name: Platform assertions
+      id: assertions
+      if: ${{ !cancelled() && steps.seed.conclusion != 'skipped' }}
+      shell: bash
+      env:
+        BASE: ${{ inputs.base }}
+        ENV_NAME: ${{ inputs.env }}
+        DIRECT: ${{ inputs.direct }}
+        EXPECT_SHA: ${{ inputs.expect-sha }}
+        SQL_INSTANCE: ${{ inputs.sql-instance }}
+        SMOKE_ONLY: ${{ inputs.smoke-only }}
+        VERIFY_FIREBASE_API_KEY: ${{ inputs.verify-firebase-api-key }}
+        VERIFY_EMAIL: ${{ inputs.verify-email }}
+        VERIFY_PASSWORD: ${{ inputs.verify-password }}
+        VERIFY_B_EMAIL: ${{ inputs.verify-b-email }}
+        VERIFY_B_PASSWORD: ${{ inputs.verify-b-password }}
+        VERIFY_UNVERIFIED_EMAIL: ${{ inputs.verify-unverified-email }}
+        VERIFY_UNVERIFIED_PASSWORD: ${{ inputs.verify-unverified-password }}
+      run: |
+        args=(--base "$BASE" --env "$ENV_NAME" --direct "$DIRECT" --expect-sha "$EXPECT_SHA")
+        # G: a missing tenant-B / unverified credential must FAIL, not SKIP A02/A07.
+        if [ "$SMOKE_ONLY" != "true" ]; then args+=(--require-credentials); fi
+        if [ -n "$SQL_INSTANCE" ]; then args+=(--sql-instance "$SQL_INSTANCE"); fi
+        rc=0
+        node .github/scripts/platform_assert.mjs "${args[@]}" 2>&1 | tee "$VG_DIR/assert.txt" || rc=${PIPESTATUS[0]}
+        if [ "$rc" != "0" ]; then
+          { echo "platform assertions failed (exit ${rc}):"; grep -E '\| FAIL|^verdict' "$VG_DIR/assert.txt" || true; } >> "$VG_DIR/failing.txt"
+          exit "$rc"
+        fi
+
+    # P only. Prod is live and wrong at this point: say so on the rolling issue
+    # (same issue and find-or-create as health-check.yml) and page the owner.
+    # No rollback.
+    - name: Comment on the rolling health issue (P failed)
+      if: ${{ failure() && inputs.smoke-only == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        ISSUE_TITLE: "Prod health check (rolling)"
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        EXPECT_SHA: ${{ inputs.expect-sha }}
+      run: |
+        {
+          echo "**CHECK** ### $(date -u +%Y-%m-%d) - post-promote check FAILED for \`${EXPECT_SHA}\` - [run](${RUN_URL})"
+          echo
+          echo "Prod is live on this SHA and the post-promote check is red. No automatic rollback; rollback is a dispatch of the previous \`prod-current\` SHA. @whitebreadisu"
+          echo
+          echo '```'
+          cat "$VG_DIR/failing.txt"
+          echo '```'
+        } > "$VG_DIR/comment.md"
+        number=$(gh issue list --state all --limit 100 --search "\"${ISSUE_TITLE}\" in:title" --json number,title \
+          --jq "[.[] | select(.title == \"${ISSUE_TITLE}\")] | sort_by(.number) | first | .number // empty")
+        if [ -z "$number" ]; then
+          printf '%s\n' "_Rolling issue: one comment per run of \`.github/workflows/health-check.yml\` (daily) and one per failed post-promote check. Comments starting **CHECK** need a look; the rest are a heartbeat._" > "$VG_DIR/body.md"
+          number=$(gh issue create --title "${ISSUE_TITLE}" --label "type:chore" --label "area:platform" --body-file "$VG_DIR/body.md" | grep -oE '[0-9]+$')
+          echo "created issue #${number}"
+        fi
+        gh issue comment "$number" --body-file "$VG_DIR/comment.md"
+
+    # Always (not only on failure): a pass-on-retry keeps its trace for the flake
+    # policy (sentence 4: a flaky run against dev/prod is a product observation).
+    - name: Upload Playwright results and logs
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: verify-gate-${{ inputs.env }}-${{ inputs.smoke-only == 'true' && 'post-promote' || 'gate' }}
+        path: |
+          frontend/test-results/
+          frontend/e2e-results/
+          ${{ runner.temp }}/verify-gate/
+        retention-days: 7
+        if-no-files-found: ignore
+
+    - name: Job summary (wall-clock, failing lines)
+      if: ${{ always() }}
+      shell: bash
+      env:
+        LABEL: ${{ inputs.smoke-only == 'true' && 'Post-promote check P' || 'Promote gate G' }}
+        TARGET: ${{ inputs.base }}
+        EXPECT_SHA: ${{ inputs.expect-sha }}
+      run: |
+        elapsed=$(( $(date +%s) - ${VG_START:-$(date +%s)} ))
+        {
+          echo "### ${LABEL}: $((elapsed / 60)) min $((elapsed % 60)) s wall-clock"
+          echo
+          echo "Target ${TARGET}, expected SHA \`${EXPECT_SHA}\`."
+          if [ -s "$VG_DIR/seed.txt" ]; then echo; echo '```'; cat "$VG_DIR/seed.txt"; echo '```'; fi
+          if [ -s "$VG_DIR/assert.txt" ]; then echo; echo '```'; cat "$VG_DIR/assert.txt"; echo '```'; fi
+          if [ -s "$VG_DIR/failing.txt" ]; then echo; echo "Failing:"; echo '```'; cat "$VG_DIR/failing.txt"; echo '```'; fi
+        } >> "$GITHUB_STEP_SUMMARY"

@@ -4,6 +4,11 @@
 //   node .github/scripts/platform_assert.mjs --base <url> --env dev|prod
 //        [--only A01,A03] [--spec <SWU_Platform_Spec.md>] [--direct <cloud run url>]
 //        [--expect-sha <sha>] [--expect-version <x.y.z>] [--sql-instance <name>] [--json]
+//        [--require-credentials]
+//
+// --require-credentials: a row that would SKIP for missing/unusable credentials (A02, A07 on dev)
+// is a FAIL instead (the promote gate passes it; the post-promote check does not, because prod
+// has no tenant B or unverified identity by design).
 //
 // Prints one line per row:  A0n <claim> | <observed> | PASS|FAIL|SKIP   then  verdict: ok|check ...
 // Exit 1 on any FAIL, 0 otherwise (SKIP never fails).
@@ -345,12 +350,12 @@ export async function a02(ctx) {
     ctx.env.VERIFY_B_EMAIL,
     ctx.env.VERIFY_B_PASSWORD,
   );
-  if (!a.ok || !b.ok)
-    return skip(
-      "A02",
-      claim,
-      `credentials unavailable (A: ${a.error ?? "ok"}, B: ${b.error ?? "ok"})`,
-    );
+  if (!a.ok || !b.ok) {
+    const why = `credentials unavailable (A: ${a.error ?? "ok"}, B: ${b.error ?? "ok"})`;
+    return ctx.requireCredentials
+      ? fail("A02", claim, why)
+      : skip("A02", claim, why);
+  }
   const base = ctx.base;
   const problems = [];
   const notes = [];
@@ -833,7 +838,12 @@ export async function a07(ctx) {
     ctx.env.VERIFY_UNVERIFIED_EMAIL,
     ctx.env.VERIFY_UNVERIFIED_PASSWORD,
   );
-  if (!u.ok) return skip("A07", claim, `credentials unavailable (${u.error})`);
+  if (!u.ok) {
+    const why = `credentials unavailable (${u.error})`;
+    return ctx.requireCredentials
+      ? fail("A07", claim, why)
+      : skip("A07", claim, why);
+  }
   const inc = await http(ctx, "POST", `${ctx.base}/api/inventory/1/increment`, {
     headers: auth(u.token),
   });
@@ -932,12 +942,14 @@ export function parseArgs(argv) {
     expectVersion: opt("--expect-version"),
     sqlInstance: opt("--sql-instance"),
     json: argv.includes("--json"),
+    requireCredentials: argv.includes("--require-credentials"),
   };
 }
 
 export const USAGE = `usage: node .github/scripts/platform_assert.mjs --base <url> --env dev|prod
        [--only A01,A03] [--spec <SWU_Platform_Spec.md>] [--direct <cloud run url>]
        [--expect-sha <sha>] [--expect-version <x.y.z>] [--sql-instance <name>] [--json]
+       [--require-credentials]
 rows: ${ROWS.join(" ")}   exit 1 on any FAIL; SKIP never fails.`;
 
 export async function runChecks(ctx, only) {
@@ -975,6 +987,7 @@ async function main(argv) {
     specText: readFileSync(a.spec, "utf8"),
     expectSha: a.expectSha,
     expectVersion: a.expectVersion,
+    requireCredentials: a.requireCredentials,
     sqlInstance,
     runId: new Date()
       .toISOString()

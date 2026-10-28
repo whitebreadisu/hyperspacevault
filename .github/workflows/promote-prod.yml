@@ -28,6 +28,28 @@ name: Promote to prod
 # tree, so neither can be edited away in the promoted commit and a rollback
 # to an older tree is judged by today's gate logic (never by today's content
 # rules). `allow_stale_notes` waives the docs gate as well as the notes date.
+#
+# BL-279 WS-3 stage 3e (W3-18 / W3-19, ADR-0037): two jobs.
+#   gate    (environment: dev)        CI gate, notes gate, docs gate, then the
+#                                     promote gate G (.github/actions/verify-gate):
+#                                     journeys + platform assertions against DEV,
+#                                     which must serve this SHA. Any failure stops
+#                                     the workflow before terraform.
+#   promote (environment: production) terraform + deploy + smoke + the
+#                                     prod-current tag move, then the post-promote
+#                                     check P (same action, @smoke journeys + the
+#                                     assertions against PROD).
+# Two jobs because the VERIFY_* secrets are scoped per GitHub environment and a
+# job has one environment. P red means prod is LIVE and wrong (the paging case,
+# not a refusal case): it comments on the rolling health issue and @-mentions
+# the owner; there is NO rollback. The prod-current tag moves before P on
+# purpose (prod IS on that SHA; a rollback is a dispatch of the previous
+# prod-current SHA). allow_stale_notes (rollbacks, re-promotes) waives G only
+# (dev does not serve a rolled-back SHA, so the gate cannot test it). P is
+# unconditional (except on a tree that has no verify-gate action: P then prints
+# a warning and the hand ladder applies): after a rollback prod serves exactly the promoted SHA, so the
+# smoke journey, the assertions and A06 (--expect-sha = the promoted SHA) are
+# the proof the rollback worked.
 
 on:
   workflow_dispatch:
@@ -61,25 +83,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  promote:
+  gate:
     runs-on: ubuntu-latest
 
-    env:
-      # BL-171: the alert address is operator-personal; the value lives in
-      # the repo's Actions variable, never in the tracked tree.
-      TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+    # The dev environment holds the verification tenants' secrets and variables
+    # (VERIFY_*); G runs against dev.
+    environment: dev
 
-    # The "production" environment no longer carries protection rules (see
-    # header) but tagging the job keeps GitHub's deployment history intact.
-    environment: production
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
 
     permissions:
-      # contents: write (was read) — BL-96: the promote-prod composite
-      # action's final step force-moves the `prod-current` tag.
-      contents: write
+      contents: read
       id-token: write
       checks: read # BL-256: the CI gate reads the promoted SHA's check runs
       actions: read # BL-279 W3-17: the CI gate reads the promoted SHA's CI run status (wait vs refuse)
+
+    # One run at a time on the dev verification tenant (promote-prod.yml gate,
+    # promote-gate-fast, verify-engines). A second PENDING run is superseded by
+    # GitHub: visibly cancelled in the Actions list, never silently dropped; a
+    # running one is never cancelled.
+    concurrency:
+      group: verify-tenant-dev
+      cancel-in-progress: false
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v7
@@ -162,9 +189,73 @@ jobs:
             fi
           fi
 
+      # BL-279 W3-18: promote gate G. WIF to dev (the purge's Admin SDK calls
+      # use these credentials), then the shared verify-gate action against dev.
+      # Runs after every cheap gate above and before anything touches prod.
+      - id: auth_dev
+        if: ${{ !inputs.allow_stale_notes }}
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-dev-jbapps
+          workload_identity_provider: projects/887823370605/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-dev-jbapps.iam.gserviceaccount.com
+
+      - name: Promote gate G (journeys + platform assertions against dev)
+        if: ${{ !inputs.allow_stale_notes }}
+        uses: ./.github/actions/verify-gate
+        timeout-minutes: 20
+        with:
+          base: https://swu-dev-jbapps.web.app
+          env: dev
+          direct: ${{ vars.VERIFY_API_DIRECT_URL }}
+          expect-sha: ${{ steps.resolve.outputs.sha }}
+          smoke-only: "false"
+          verify-firebase-api-key: ${{ vars.VERIFY_FIREBASE_API_KEY }}
+          verify-email: ${{ secrets.VERIFY_EMAIL }}
+          verify-password: ${{ secrets.VERIFY_PASSWORD }}
+          verify-b-email: ${{ secrets.VERIFY_B_EMAIL }}
+          verify-b-password: ${{ secrets.VERIFY_B_PASSWORD }}
+          verify-unverified-email: ${{ secrets.VERIFY_UNVERIFIED_EMAIL }}
+          verify-unverified-password: ${{ secrets.VERIFY_UNVERIFIED_PASSWORD }}
+
+  promote:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # BL-171: the alert address is operator-personal; the value lives in
+      # the repo's Actions variable, never in the tracked tree.
+      TF_VAR_notification_email: ${{ vars.NOTIFICATION_EMAIL }}
+
+    # The "production" environment no longer carries protection rules (see
+    # header) but tagging the job keeps GitHub's deployment history intact.
+    environment: production
+
+    permissions:
+      # contents: write (was read) - BL-96: the promote-prod composite
+      # action's final step force-moves the `prod-current` tag.
+      contents: write
+      id-token: write
+      issues: write # BL-279 W3-19: P comments on the rolling health issue
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The gate job resolved and validated the SHA; this job promotes that
+      # commit's own tree (terraform config, frontend source, the actions).
+      - name: Check out the promoted commit
+        run: git checkout --quiet "${{ needs.gate.outputs.sha }}"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - uses: ./.github/actions/promote-prod
         with:
-          image_tag: ${{ steps.resolve.outputs.sha }}
+          image_tag: ${{ needs.gate.outputs.sha }}
 
       # BL-210: the public repo's changelog surface — tag + GitHub Release
       # carrying the shipped entry rendered to markdown. Never fails the
@@ -174,7 +265,7 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          PROMOTED_SHA: ${{ steps.resolve.outputs.sha }}
+          PROMOTED_SHA: ${{ needs.gate.outputs.sha }}
         run: |
           version=$(node -p "require('./frontend/package.json').version.replace(/\.0$/,'')")
           tag="v${version}"
@@ -193,3 +284,32 @@ jobs:
           else
             gh release create "${tag}" --title "${tag}" --notes-file /tmp/release_notes.md --verify-tag
           fi
+
+      # BL-279 W3-19: post-promote check P, after the smoke test and the
+      # prod-current tag move (both inside the promote-prod action) and after
+      # the notes mirror (which never fails). Red = prod is live and wrong:
+      # the action comments on the rolling health issue and the job fails.
+      # No rollback.
+      # Unconditional, including under allow_stale_notes (see the header): after a
+      # rollback this is the proof prod serves the promoted SHA.
+      # A tree older than WS-3 has no verify-gate action: warn and skip instead of
+      # failing at `uses:` after prod is already live.
+      - name: Post-promote check P unavailable on this tree
+        if: ${{ hashFiles('.github/actions/verify-gate/action.yml') == '' }}
+        run: echo "::warning::post-promote check unavailable on this tree (pre-WS-3); use the hand ladder (promote-prod recipe.md section 6)"
+
+      - name: Post-promote check P (@smoke journeys + platform assertions against prod)
+        if: ${{ hashFiles('.github/actions/verify-gate/action.yml') != '' }}
+        timeout-minutes: 10
+        uses: ./.github/actions/verify-gate
+        with:
+          base: https://www.hyperspacevault.com
+          env: prod
+          direct: ${{ vars.VERIFY_API_DIRECT_URL }}
+          expect-sha: ${{ needs.gate.outputs.sha }}
+          smoke-only: "true"
+          sql-instance: swu-prod-pg
+          github-token: ${{ github.token }}
+          verify-firebase-api-key: ${{ vars.VERIFY_FIREBASE_API_KEY }}
+          verify-email: ${{ secrets.VERIFY_EMAIL }}
+          verify-password: ${{ secrets.VERIFY_PASSWORD }}

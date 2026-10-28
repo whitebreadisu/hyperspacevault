@@ -127,6 +127,42 @@ def test_prod_refuses_purge(fake_auth, no_init, monkeypatch, capsys):
     no_init.assert_not_called()
 
 
+def test_prod_refuses_purge_only(fake_auth, no_init, capsys):
+    assert vt.main(["--env", "prod", "--purge-only"]) == 2
+    assert "dev only" in capsys.readouterr().err
+    no_init.assert_not_called()
+    fake_auth.list_users.assert_not_called()
+
+
+def test_purge_only_needs_no_passwords_and_touches_no_identity(
+    fake_auth, no_init, monkeypatch, capsys
+):
+    for name in ("VERIFY_PASSWORD", "VERIFY_B_PASSWORD", "VERIFY_UNVERIFIED_PASSWORD"):
+        monkeypatch.delenv(name, raising=False)
+    fake_auth.list_users.return_value = _list(
+        [
+            _user("old", vt.J1_EMAIL_PREFIX + "b@gmail.com", created_seconds=1),
+            _user("verify", vt.IDENTITIES["dev"][0].email, created_seconds=1),
+        ]
+    )
+    assert vt.main(["--env", "dev", "--purge-only"]) == 0
+    assert capsys.readouterr().out.strip() == "purged j1 users: 1"
+    fake_auth.delete_user.assert_called_once_with("old")
+    fake_auth.get_user_by_email.assert_not_called()
+    fake_auth.create_user.assert_not_called()
+    fake_auth.update_user.assert_not_called()
+    assert no_init.call_args.args[1] == {"projectId": "swu-dev-jbapps"}
+
+
+def test_purge_only_dry_run_deletes_nothing(fake_auth, no_init, monkeypatch):
+    monkeypatch.delenv("VERIFY_PASSWORD", raising=False)
+    fake_auth.list_users.return_value = _list(
+        [_user("old", vt.J1_EMAIL_PREFIX + "b@gmail.com", created_seconds=1)]
+    )
+    assert vt.main(["--env", "dev", "--purge-only", "--dry-run"]) == 0
+    fake_auth.delete_user.assert_not_called()
+
+
 def test_missing_env_name_exits_2(no_init, monkeypatch, capsys):
     monkeypatch.setenv("VERIFY_PASSWORD", "x")
     monkeypatch.delenv("VERIFY_B_PASSWORD", raising=False)
