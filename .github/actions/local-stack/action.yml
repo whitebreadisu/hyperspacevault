@@ -30,6 +30,11 @@ description: >
   bucket fetch or credentials are needed. The full captures are gitignored.
   swuapi-export-path overrides it.
 
+  Images: CARD_IMAGES_BUCKET is deliberately unset, so /images/cards/* 500s
+  instantly (KeyError in get_images_bucket) by design, the documented local
+  behaviour (Platform Spec 3.16); a local images path is out of scope and no
+  journey needs images.
+
 inputs:
   swuapi-export-path:
     description: >

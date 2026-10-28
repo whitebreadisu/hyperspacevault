@@ -61,14 +61,14 @@ Delivery is **build-once, promote-many**: one Docker image is built per merge an
 flowchart TB
   pr["Pull request"] --> checks["CI checks: pytest ≥75% cov (incl. the route-registry test) · vitest (lines ≥75 / statements ≥74)<br/>ruff · eslint · prettier · terraform fmt · docs-check (links, ADR index, tombstones, citations)"]
   pr --> e2e["Phone e2e — 5 Playwright legs: phone-390 ×2 · phone-430 ×2 · scan + desktop-1440<br/>one retry per leg → frontend-e2e-mobile aggregator"]
-  checks --> ciok["ci-ok — required branch-protection check<br/>needs classify-pr · backend · frontend · frontend-e2e-mobile · terraform-fmt · docs-check<br/>(docs-only PRs skip the heavy jobs, still report)"]
+  checks --> ciok["ci-ok — required branch-protection check<br/>needs classify-pr · backend · frontend · frontend-e2e-mobile · journeys · terraform-fmt · docs-check<br/>(docs-only PRs skip the heavy jobs, still report)"]
   e2e --> ciok
   ciok --> merge["Merge to main"]
-  merge --> build["Build image once (needs backend · frontend · phone e2e green on this main run)<br/>push :sha to dev AND prod registries"]
+  merge --> build["Build image once (needs backend · frontend · phone e2e · journeys green on this main run)<br/>push :sha to dev AND prod registries"]
   build --> dev["deploy-dev (automatic): migrate job → terraform apply → hosting deploy → smoke test"]
   dev --> gate["Every unpromoted commit labeled risk:low? (fails closed)"]
   gate -->|"yes — promote-prod-fast, same run<br/>(CI implied by the build's needs; no further gate)"| promote
-  gate -->|"no — owner dispatches<br/>promote-prod with a SHA"| cigate["CI gate (ci_gate.sh): the promoted SHA's own main-run checks<br/>backend · frontend · frontend-e2e-mobile all green"]
+  gate -->|"no — owner dispatches<br/>promote-prod with a SHA"| cigate["CI gate (ci_gate.sh): the promoted SHA's own main-run checks<br/>backend · frontend · frontend-e2e-mobile · journeys · build-and-push · deploy-dev all green"]
   cigate --> notes["Release-notes gate: the promoted build must carry<br/>its own in-app release-notes entry"]
   notes --> promote["Promote to prod — same composite action, same image"]
   promote --> tag["prod-current tag moved to the promoted SHA<br/>after the prod smoke test"]
@@ -80,7 +80,7 @@ flowchart TB
 
 - **Human gate by default:** the pipeline ends at dev. Production is a deliberate `workflow_dispatch` with a SHA that must be an ancestor of main.
 - **Two gates on the dispatched path:** the promoted SHA's own main-push run must be green for the required jobs (`ci_gate.sh` — branch protection only proves the PR's checks; this proves the merged commit's), and the build must carry its own in-app release-notes entry. Both live in `promote-prod.yml` only.
-- **Risk-tiered fast lane:** auto-promotion fires only if *every* commit since the last promote carried a `risk:low` label — a whole-build guard that fails closed on any missing label, missing PR, or unreadable state. It runs in the same `ci.yml` run as the build, so its CI guarantee is the build job's own `needs` (backend, frontend, phone e2e); it passes through neither `ci_gate.sh` nor the release-notes gate.
+- **Risk-tiered fast lane:** auto-promotion fires only if *every* commit since the last promote carried a `risk:low` label — a whole-build guard that fails closed on any missing label, missing PR, or unreadable state. It runs in the same `ci.yml` run as the build, so its CI guarantee is the build job's own `needs` (backend, frontend, phone e2e, journeys); it passes through neither `ci_gate.sh` nor the release-notes gate.
 - **`prod-current` is the source of truth** for "what is production running" — a tag moved only after the prod smoke test passes, readable without any cloud credentials.
 - **Dispatched promotes are release-noted:** `promote-prod.yml` refuses to ship a build whose version lacks its in-app release-notes entry, then mirrors that entry to a GitHub Release on the public repo — users and the repo see the same story. The fast lane is not gated on a notes entry.
 - **The phone suite is part of the merge gate.** Five Playwright legs (two viewports sharded in half, plus the fake-camera scan project with the desktop smoke) run in parallel on every code PR and on every main push; a leg that passes on its single retry is reported as flaky, not failed; the image build waits for all three heavy jobs on main, so a red phone run never deploys.
