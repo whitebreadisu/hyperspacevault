@@ -25,6 +25,21 @@ def loggable_path(path: str) -> str:
     return path
 
 
+def forwarded_evidence(request: Request) -> dict:
+    """Non-PII shape of the forwarding headers, as evidence for client-IP resolution.
+
+    forwarded_hops is the number of comma-separated entries in
+    X-Forwarded-For (0 when absent); forwarded_host is the
+    X-Forwarded-Host value or "". The addresses themselves are never logged.
+    """
+    xff = request.headers.get("x-forwarded-for")
+    hops = len([e for e in xff.split(",") if e.strip()]) if xff else 0
+    return {
+        "forwarded_hops": hops,
+        "forwarded_host": request.headers.get("x-forwarded-host", ""),
+    }
+
+
 async def log_requests(request: Request, call_next):
     """Emit one structured log line per request.
 
@@ -33,6 +48,9 @@ async def log_requests(request: Request, call_next):
     a 401 from get_current_identity, or /health) log tenant_id: null.
     severity reflects the response status so Cloud Monitoring/Error
     Reporting can filter on it directly (see logging_config.JSONFormatter).
+    forwarded_hops / forwarded_host record the shape of the forwarding
+    headers (no addresses) so the client-IP resolution can be
+    designed from observed hop counts.
     """
     start = time.perf_counter()
     try:
@@ -50,6 +68,7 @@ async def log_requests(request: Request, call_next):
                     "latency": f"{duration_ms / 1000:.3f}s",
                 },
                 "tenant_id": getattr(request.state, "tenant_id", None),
+                **forwarded_evidence(request),
             },
         )
         raise
@@ -63,6 +82,7 @@ async def log_requests(request: Request, call_next):
             "latency": f"{duration_ms / 1000:.3f}s",
         },
         "tenant_id": getattr(request.state, "tenant_id", None),
+        **forwarded_evidence(request),
     }
     if response.status_code >= 500:
         logger.error("request completed", extra=extra)

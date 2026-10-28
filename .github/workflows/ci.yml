@@ -6,6 +6,9 @@ name: CI
 #   backend  — pytest + ruff
 #   frontend — vitest + eslint/prettier/tsc
 #   terraform-fmt — fmt -check across all TF (no GCP auth needed)
+#   (BL-243: on a PR each heavy job runs only when its tree changed --
+#   backend/, frontend/, terraform/; any other code path runs all of them.
+#   On push to main everything always runs.)
 #
 # On push to main only:
 #   build-and-push   — build image once; push to both dev and prod AR
@@ -128,8 +131,17 @@ jobs:
   classify-pr:
     runs-on: ubuntu-latest
 
+    # BL-243: besides the docs-only verdict (code_changed), one flag per
+    # heavy area so a PR only pays for the trees it touched. The docs-only
+    # case-arm is UNCHANGED (BL-178 invariant: identical to the push `paths`
+    # list); the per-area split lives only inside the "this is code" branches.
+    # A code path outside backend/, frontend/, terraform/ (.github/, scripts/,
+    # root files, the two machine-checked specs) fails open: all three true.
     outputs:
       code_changed: ${{ steps.check.outputs.code_changed }}
+      backend_changed: ${{ steps.check.outputs.backend_changed }}
+      frontend_changed: ${{ steps.check.outputs.frontend_changed }}
+      terraform_changed: ${{ steps.check.outputs.terraform_changed }}
 
     steps:
       - uses: actions/checkout@v7
@@ -140,15 +152,21 @@ jobs:
       - name: Determine if this PR touches only non-deployed files
         id: check
         run: |
+          emit_all() {
+            for k in code_changed backend_changed frontend_changed terraform_changed; do
+              echo "$k=$1" >> "$GITHUB_OUTPUT"
+            done
+          }
+
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            echo "Push event — the trigger's paths filter already filtered docs-only; code_changed=true by definition."
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Push event — the trigger's paths filter already filtered docs-only; every area runs by definition."
+            emit_all true
             exit 0
           fi
 
           if ! git rev-parse HEAD^1 >/dev/null 2>&1; then
-            echo "No parent commit available — treating as code-changed (fail open into running CI)."
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            echo "No parent commit available — treating as code-changed in every area (fail open into running CI)."
+            emit_all true
             exit 0
           fi
 
@@ -156,37 +174,52 @@ jobs:
           echo "Changed files:"
           echo "$changed"
 
-          code_changed=false
+          backend_changed=false
+          frontend_changed=false
+          terraform_changed=false
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
-              specification_documents/SWU_Application_Spec.md|specification_documents/SWU_Platform_Spec.md) code_changed=true ;; # machine-checked specs: docs.test.ts / test_route_registry.py read them
+              specification_documents/SWU_Application_Spec.md|specification_documents/SWU_Platform_Spec.md) backend_changed=true; frontend_changed=true; terraform_changed=true ;; # machine-checked specs: docs.test.ts / test_route_registry.py read them
               */*)
                 case "$f" in
                   specification_documents/*|docs/*|learning_guide/*|claude_design/*|.design-sync/*) ;;
-                  *) code_changed=true ;;
+                  backend/*) backend_changed=true ;;
+                  frontend/*) frontend_changed=true ;;
+                  terraform/*) terraform_changed=true ;;
+                  *) backend_changed=true; frontend_changed=true; terraform_changed=true ;;
                 esac
                 ;;
               *)
                 case "$f" in
                   *.md|LICENSE) ;;
-                  *) code_changed=true ;;
+                  *) backend_changed=true; frontend_changed=true; terraform_changed=true ;;
                 esac
                 ;;
             esac
           done <<< "$changed"
 
-          echo "code_changed=$code_changed"
+          code_changed=false
+          if [ "$backend_changed" = true ] || [ "$frontend_changed" = true ] || [ "$terraform_changed" = true ]; then
+            code_changed=true
+          fi
+
+          echo "code_changed=$code_changed backend_changed=$backend_changed frontend_changed=$frontend_changed terraform_changed=$terraform_changed"
           echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
+          echo "backend_changed=$backend_changed" >> "$GITHUB_OUTPUT"
+          echo "frontend_changed=$frontend_changed" >> "$GITHUB_OUTPUT"
+          echo "terraform_changed=$terraform_changed" >> "$GITHUB_OUTPUT"
 
   backend:
-    # BL-178: runs whenever classify-pr says the change set touches
-    # deployed files — always true on push (docs-only pushes — docs set minus
-    # the two machine-checked specs — never trigger the workflow at all), computed per-PR otherwise. `!cancelled()` lets
+    # Runs whenever classify-pr says backend/ changed (or a code path outside
+    # the three trees did) -- always true on push (docs-only pushes -- docs set
+    # minus the two machine-checked specs -- never trigger the workflow at all),
+    # computed per-PR otherwise. `!cancelled()` lets
     # the condition evaluate even if classify-pr failed (heavy jobs then
     # skip and ci-ok fails on the classify result).
+    # BL-243: gated on this job's OWN area flag (backend_changed).
     needs: [classify-pr]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.backend_changed == 'true' }}
     runs-on: ubuntu-latest
 
     services:
@@ -244,8 +277,9 @@ jobs:
 
   frontend:
     # BL-178: same gating as backend — see the comment there.
+    # BL-243: on the frontend_changed flag.
     needs: [classify-pr]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.frontend_changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -285,8 +319,8 @@ jobs:
     # (phone-390 and phone-430 each halved with --shard=N/2; scan + desktop
     # together) so legs carry roughly equal test time -- a plain --shard=N/4
     # left one leg almost all self-skipped desktop tests. Cuts CI wall time
-    # (~25 min -> ~6-7 min; issue #227). Same code_changed
-    # gating as frontend, but it starts WITH frontend rather than after it:
+    # (~25 min -> ~6-7 min; issue #227). Same
+    # frontend_changed gating as frontend, but it starts WITH frontend rather than after it:
     # the repo is public (standard-runner minutes are free) so a wasted shard
     # when lint fails costs nothing, and ci-ok + the deploy chain still
     # require `frontend` to pass. Each shard keeps Playwright's default 2
@@ -298,7 +332,8 @@ jobs:
     # job below, not here.
     name: e2e-mobile (${{ matrix.name }})
     needs: [classify-pr]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    # BL-243: on the frontend_changed flag.
+    if: ${{ !cancelled() && needs.classify-pr.outputs.frontend_changed == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -365,13 +400,14 @@ jobs:
     # `frontend-e2e-mobile` ("the whole phone suite passed"). ci-ok,
     # detect-changes, build-and-push and .github/scripts/ci_gate.sh all key on
     # this name (BL-178 / BL-256) and are unchanged. Same skip semantics as
-    # before: skipped on docs-only PRs (code_changed != 'true') and when the
-    # run is cancelled; otherwise it runs and fails unless every shard
+    # before: skipped on a PR that leaves frontend/ untouched
+    # (frontend_changed != 'true') and when the run is cancelled; otherwise it runs and fails unless every shard
     # succeeded (`needs.<matrix job>.result` is success only if all legs
     # passed, failure if any failed). It does not look at `frontend`: a
     # failing frontend already fails ci-ok and the deploy chain.
     needs: [classify-pr, e2e-mobile-shard]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    # BL-243: on the frontend_changed flag.
+    if: ${{ !cancelled() && needs.classify-pr.outputs.frontend_changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -388,8 +424,9 @@ jobs:
 
   terraform-fmt:
     # BL-178: same gating as backend — see the comment there.
+    # BL-243: on the terraform_changed flag.
     needs: [classify-pr]
-    if: ${{ !cancelled() && needs.classify-pr.outputs.code_changed == 'true' }}
+    if: ${{ !cancelled() && needs.classify-pr.outputs.terraform_changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -479,6 +516,9 @@ jobs:
         env:
           CLASSIFY_RESULT: ${{ needs.classify-pr.result }}
           CODE_CHANGED: ${{ needs.classify-pr.outputs.code_changed }}
+          BACKEND_CHANGED: ${{ needs.classify-pr.outputs.backend_changed }}
+          FRONTEND_CHANGED: ${{ needs.classify-pr.outputs.frontend_changed }}
+          TERRAFORM_CHANGED: ${{ needs.classify-pr.outputs.terraform_changed }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           FRONTEND_E2E_MOBILE_RESULT: ${{ needs.frontend-e2e-mobile.result }}
@@ -486,7 +526,7 @@ jobs:
           DOCS_CHECK_RESULT: ${{ needs.docs-check.result }}
           COMMENT_CHECK_RESULT: ${{ needs.comment-check.result }}
         run: |
-          echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED"
+          echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED backend_changed=$BACKEND_CHANGED frontend_changed=$FRONTEND_CHANGED terraform_changed=$TERRAFORM_CHANGED"
           echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
@@ -506,21 +546,34 @@ jobs:
             exit 1
           fi
 
+          # BL-243: per area -- a touched area must be green; an untouched
+          # area must have been skipped (success is also tolerated, e.g. a
+          # re-run). No area touched (docs-only) means every job is skipped.
+          # The frontend-e2e-mobile aggregator follows the frontend flag.
+          check_area() {
+            local name="$1" changed="$2" result="$3"
+            if [ "$changed" = "true" ]; then
+              if [ "$result" != "success" ]; then
+                echo "::error::$name changed but its job reports '$result' (expected success)."
+                exit 1
+              fi
+              echo "$name: changed, job green."
+            else
+              if [ "$result" != "skipped" ] && [ "$result" != "success" ]; then
+                echo "::error::$name untouched but its job reports '$result' (expected skipped)."
+                exit 1
+              fi
+              echo "$name: untouched, job $result."
+            fi
+          }
+          check_area backend "$BACKEND_CHANGED" "$BACKEND_RESULT"
+          check_area frontend "$FRONTEND_CHANGED" "$FRONTEND_RESULT"
+          check_area frontend-e2e-mobile "$FRONTEND_CHANGED" "$FRONTEND_E2E_MOBILE_RESULT"
+          check_area terraform-fmt "$TERRAFORM_CHANGED" "$TERRAFORM_FMT_RESULT"
+
           if [ "$CODE_CHANGED" = "true" ]; then
-            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$FRONTEND_E2E_MOBILE_RESULT" "$TERRAFORM_FMT_RESULT"; do
-              if [ "$r" != "success" ]; then
-                echo "::error::code-changing PR requires backend/frontend/frontend-e2e-mobile/terraform-fmt all green."
-                exit 1
-              fi
-            done
-            echo "Code PR: all heavy jobs green."
+            echo "Code PR: every touched area green, gate green."
           else
-            for r in "$BACKEND_RESULT" "$FRONTEND_RESULT" "$FRONTEND_E2E_MOBILE_RESULT" "$TERRAFORM_FMT_RESULT"; do
-              if [ "$r" != "skipped" ] && [ "$r" != "success" ]; then
-                echo "::error::docs-only PR, but a heavy job reports '$r' (expected skipped)."
-                exit 1
-              fi
-            done
             echo "Docs-only PR: heavy jobs skipped, gate green."
           fi
 

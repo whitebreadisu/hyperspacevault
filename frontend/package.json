@@ -3,6 +3,12 @@
   "private": true,
   "version": "2.1.1",
   "type": "module",
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "iOS >= 16"
+  ],
   "engines": {
     "node": ">=20.19"
   },
