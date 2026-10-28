@@ -2,22 +2,28 @@
 # BL-256: the promote-prod CI gate. The promoted SHA's own main-push check
 # runs for the required jobs must all be green before prod moves. Branch
 # protection only proves the PR's checks passed; this proves the merged
-# commit's run did (the mobile e2e job finishes after deploy-dev, see
-# SWU_Platform_Spec.md 2.1 / 2.6). Waits for in-progress runs up to
-# CI_GATE_TIMEOUT_SECONDS (default 1800), fails on any non-success
-# conclusion or on a missing run (a docs-only commit has no main run and
-# no image -- promote the last code commit instead). Since BL-271 Phase E
-# the set includes build-and-push, so a spec-only SHA (tests ran, image
-# skipped) is refused here too.
+# commit's run did (SWU_Platform_Spec.md 2.1 / 2.6).
 #
-# Usage: ci_gate.sh <full-sha>   (needs gh + GH_TOKEN with checks:read)
+# Required checks: backend, frontend, frontend-e2e-mobile, journeys (BL-279
+# WS-3 W3-17), build-and-push (BL-271 Phase E: a docs-only or spec-only SHA
+# has no image and is refused here) and deploy-dev (BL-279 WS-3 W3-17: the
+# SHA was deployed to dev before it is promoted).
+#
+# Waits up to CI_GATE_TIMEOUT_SECONDS (default 1800) for in-progress runs, and
+# for a required check that has no run yet while the SHA's main `CI` workflow
+# run is still in progress (a job still waiting on `needs` has no check run).
+# Fails on any non-success conclusion, on a check that is absent once the CI
+# run has completed, and when no CI run exists (a docs-only commit has no main
+# run -- promote the last code commit instead).
+#
+# Usage: ci_gate.sh <full-sha>   (needs gh + GH_TOKEN with checks:read and actions:read)
 set -euo pipefail
 
 sha="${1:?usage: ci_gate.sh <sha>}"
 repo="${GITHUB_REPOSITORY:-whitebreadisu/hyperspacevault}"
 # BL-271 Phase E: build-and-push joins the set -- a docs-only SHA (skipped build, no image) is refused
 # here with a readable message instead of at `terraform apply` (the pre-E failure mode).
-required=(backend frontend frontend-e2e-mobile build-and-push)
+required=(backend frontend frontend-e2e-mobile journeys build-and-push deploy-dev)
 deadline=$(( $(date +%s) + ${CI_GATE_TIMEOUT_SECONDS:-1800} ))
 
 while :; do
@@ -41,8 +47,14 @@ while :; do
     exit 1
   fi
   if [ "${#missing[@]}" -gt 0 ]; then
-    echo "::error::CI gate: no main CI run named [${missing[*]}] for ${sha} -- only a commit that ran the main pipeline (a code change) can be promoted; a docs-only commit has no image either."
-    exit 1
+    # A job still waiting on `needs` has no check run yet: while the SHA's
+    # main CI run is in progress, a missing name is pending, not absent.
+    ci_status=$(gh api "repos/${repo}/actions/runs?head_sha=${sha}&event=push&per_page=100"       --jq '[.workflow_runs[] | select(.name == "CI")] | sort_by(.id) | last | .status // "none"')
+    if [ "$ci_status" = "completed" ] || [ "$ci_status" = "none" ]; then
+      echo "::error::CI gate: no main CI run named [${missing[*]}] for ${sha} -- only a commit that ran the main pipeline (a code change) can be promoted; a docs-only commit has no image either."
+      exit 1
+    fi
+    pending+=("${missing[@]}")
   fi
   if [ "${#pending[@]}" -eq 0 ]; then
     echo "CI gate: ${required[*]} all green for ${sha}"

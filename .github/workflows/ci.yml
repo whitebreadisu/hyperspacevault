@@ -426,6 +426,114 @@ jobs:
           fi
           echo "All mobile e2e shards green."
 
+  journeys:
+    # BL-279 WS-3 W3-17: the journey suite against the local full stack
+    # (.github/actions/local-stack: Postgres + uvicorn + Firebase Auth
+    # emulator + Vite). Runs when
+    # backend/ or frontend/ changed (a backend change can break a journey),
+    # always on push to main (classify-pr sets both flags true on push).
+    # Required on PRs through ci-ok exactly like the other gated jobs, and by
+    # .github/scripts/ci_gate.sh for the promoted SHA. The credentials below
+    # are emulator-only (project demo-swu); they are not the verification
+    # tenants' secrets.
+    needs: [classify-pr]
+    if: ${{ !cancelled() && (needs.classify-pr.outputs.frontend_changed == 'true' || needs.classify-pr.outputs.backend_changed == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: swu_inventory
+          POSTGRES_USER: swu_user
+          POSTGRES_PASSWORD: swu_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U swu_user -d swu_inventory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://swu_user:swu_pass@localhost:5432/swu_inventory
+      APP_DATABASE_URL: postgresql://swu_app:swu_app_pass@localhost:5432/swu_inventory
+      APP_DB_PASSWORD: swu_app_pass
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Bring up the local stack
+        id: stack
+        uses: ./.github/actions/local-stack
+
+      - name: Seed the verification tenant
+        working-directory: frontend
+        env:
+          E2E_LOCAL: "1"
+          VERIFY_BASE_URL: ${{ steps.stack.outputs.base_url }}
+          VERIFY_EMAIL: e2e@hsv.test
+          VERIFY_PASSWORD: e2e-password-1
+          VERIFY_FIREBASE_API_KEY: fake
+        # Twice, and the two outputs must match: a seed that is not
+        # idempotent would make every later journey order-dependent.
+        run: |
+          node e2e/verify/seed.mjs | tee "$RUNNER_TEMP/seed-1.txt"
+          node e2e/verify/seed.mjs | tee "$RUNNER_TEMP/seed-2.txt"
+          diff "$RUNNER_TEMP/seed-1.txt" "$RUNNER_TEMP/seed-2.txt"
+
+      - name: Run journeys
+        working-directory: frontend
+        env:
+          CI: "true"
+          E2E_LOCAL: "1"
+          VERIFY_BASE_URL: ${{ steps.stack.outputs.base_url }}
+          VERIFY_EMAIL: e2e@hsv.test
+          VERIFY_PASSWORD: e2e-password-1
+          VERIFY_FIREBASE_API_KEY: fake
+        run: npx playwright test -c playwright.verify.config.ts
+
+      - name: Report flaky tests
+        if: ${{ always() }}
+        working-directory: frontend
+        env:
+          LEG_NAME: journeys
+          FLAKY_FILE_PREFIX: frontend/e2e/journeys
+        run: node e2e/report-flaky.mjs e2e-results/verify-report.json
+
+      - name: Upload Playwright artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: journeys-playwright
+          path: |
+            frontend/test-results/
+            frontend/e2e-results/
+          retention-days: 7
+
+      - name: Upload local-stack logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: journeys-stack-logs
+          path: ${{ runner.temp }}/local-stack/*.log
+          retention-days: 7
+
   terraform-fmt:
     # BL-178: same gating as backend — see the comment there.
     # BL-243: on the terraform_changed flag.
@@ -512,7 +620,7 @@ jobs:
   # existing pipeline unchanged.
 
   ci-ok:
-    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, terraform-fmt, docs-check, comment-check]
+    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, journeys, terraform-fmt, docs-check, comment-check]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
@@ -527,12 +635,13 @@ jobs:
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           FRONTEND_E2E_MOBILE_RESULT: ${{ needs.frontend-e2e-mobile.result }}
+          JOURNEYS_RESULT: ${{ needs.journeys.result }}
           TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
           DOCS_CHECK_RESULT: ${{ needs.docs-check.result }}
           COMMENT_CHECK_RESULT: ${{ needs.comment-check.result }}
         run: |
           echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED backend_changed=$BACKEND_CHANGED frontend_changed=$FRONTEND_CHANGED terraform_changed=$TERRAFORM_CHANGED"
-          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT journeys=$JOURNEYS_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
             echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
@@ -574,6 +683,13 @@ jobs:
           check_area backend "$BACKEND_CHANGED" "$BACKEND_RESULT"
           check_area frontend "$FRONTEND_CHANGED" "$FRONTEND_RESULT"
           check_area frontend-e2e-mobile "$FRONTEND_CHANGED" "$FRONTEND_E2E_MOBILE_RESULT"
+          # BL-279 W3-17: journeys follows frontend OR backend changed.
+          if [ "$FRONTEND_CHANGED" = "true" ] || [ "$BACKEND_CHANGED" = "true" ]; then
+            JOURNEYS_CHANGED=true
+          else
+            JOURNEYS_CHANGED=false
+          fi
+          check_area journeys "$JOURNEYS_CHANGED" "$JOURNEYS_RESULT"
           check_area terraform-fmt "$TERRAFORM_CHANGED" "$TERRAFORM_FMT_RESULT"
 
           if [ "$CODE_CHANGED" = "true" ]; then
@@ -603,7 +719,7 @@ jobs:
     # chain (build-and-push -> deploy-dev -> promote-prod-fast), not only of
     # the PR's ci-ok gate -- a main push used to deploy dev while the mobile
     # suite was still running (observed live on 7d984df, 2026-10-12).
-    needs: [backend, frontend, frontend-e2e-mobile]
+    needs: [backend, frontend, frontend-e2e-mobile, journeys]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -653,7 +769,7 @@ jobs:
   # ── main-only: build image once, push to both dev and prod AR ──────────────
 
   build-and-push:
-    needs: [backend, frontend, frontend-e2e-mobile, detect-changes]
+    needs: [backend, frontend, frontend-e2e-mobile, journeys, detect-changes]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&

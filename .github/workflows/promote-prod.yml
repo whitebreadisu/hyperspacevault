@@ -79,6 +79,7 @@ jobs:
       contents: write
       id-token: write
       checks: read # BL-256: the CI gate reads the promoted SHA's check runs
+      actions: read # BL-279 W3-17: the CI gate reads the promoted SHA's CI run status (wait vs refuse)
 
     steps:
       - uses: actions/checkout@v7
@@ -104,8 +105,8 @@ jobs:
       # Promote the stated commit's own tree: terraform config, frontend
       # source, and the promote-prod composite action are all read from the
       # promoted SHA, not from main's tip.
-      # BL-256: the promoted commit's own main-run checks (backend, frontend,
-      # frontend-e2e-mobile) must be green -- waits for in-progress runs,
+      # BL-256: the promoted commit's own main-run checks (see ci_gate.sh for the set:
+      # backend, frontend, frontend-e2e-mobile, journeys, build-and-push, deploy-dev) must be green -- waits for in-progress runs,
       # refuses failures and commits with no main run. Runs from main's
       # checkout so the gate itself cannot be edited away in the promoted SHA.
       - name: CI gate for the promoted SHA (BL-256)
