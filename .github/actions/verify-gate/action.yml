@@ -50,7 +50,7 @@ inputs:
     required: false
     default: ""
   github-token:
-    description: Token for the rolling-issue comment (P only; the caller needs issues write).
+    description: Token for A06's prod half (`gh api`, contents read) and the rolling-issue comment (P; the caller needs issues write).
     required: false
     default: ""
   verify-firebase-api-key:
@@ -223,6 +223,10 @@ runs:
         EXPECT_SHA: ${{ inputs.expect-sha }}
         SQL_INSTANCE: ${{ inputs.sql-instance }}
         SMOKE_ONLY: ${{ inputs.smoke-only }}
+        # A06's prod half reads the prod-current tag and releaseNotes.ts through `gh api`;
+        # without GH_TOKEN gh exits 4 and the step prints gh's own hint line as the failure
+        # (first gated promote, run 40750261536, 2026-10-28).
+        GH_TOKEN: ${{ inputs.github-token }}
         VERIFY_FIREBASE_API_KEY: ${{ inputs.verify-firebase-api-key }}
         VERIFY_EMAIL: ${{ inputs.verify-email }}
         VERIFY_PASSWORD: ${{ inputs.verify-password }}
