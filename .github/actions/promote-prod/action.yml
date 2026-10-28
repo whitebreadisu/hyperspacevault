@@ -97,7 +97,9 @@ runs:
         VITE_FIREBASE_API_KEY: ${{ steps.firebase_config.outputs.api_key }}
         VITE_FIREBASE_AUTH_DOMAIN: ${{ steps.firebase_config.outputs.auth_domain }}
         VITE_FIREBASE_PROJECT_ID: ${{ steps.firebase_config.outputs.project_id }}
-      run: npm run build
+      # BL-279 W3-07 / A06: the promoted commit is checked out here, so HEAD
+      # (not github.sha, which is the dispatching ref) is what this build serves.
+      run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
     - name: Deploy frontend to prod Firebase Hosting
       working-directory: frontend

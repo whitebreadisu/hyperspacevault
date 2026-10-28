@@ -269,9 +269,11 @@ jobs:
         working-directory: frontend
         run: npm run format:check
 
+      # BL-279 W3-07: build with a SHA so the <meta name="build-sha"> path is
+      # exercised on every PR (the deploy builds below set the real one).
       - name: Type-check and build
         working-directory: frontend
-        run: npm run build
+        run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
       - name: Run vitest
         working-directory: frontend
@@ -835,7 +837,9 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ steps.firebase_config.outputs.api_key }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ steps.firebase_config.outputs.auth_domain }}
           VITE_FIREBASE_PROJECT_ID: ${{ steps.firebase_config.outputs.project_id }}
-        run: npm run build
+        # BL-279 W3-07 / A06: the deployed commit, readable as
+        # <meta name="build-sha"> so the gate can prove dev serves this SHA.
+        run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
       - name: Deploy frontend to dev Firebase Hosting
         working-directory: frontend
