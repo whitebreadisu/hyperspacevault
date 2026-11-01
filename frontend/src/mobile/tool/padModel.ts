@@ -219,21 +219,31 @@ export function padReadout(
   const draft = rowFor("__draft__", setCode, num, picks);
   const res = resolveRow(draft, catalog);
   if (res.status !== "resolved") return null;
-  // After add = owned + every copy of this printing already in the batch
-  // (keypad or precon -- S3-10) + this one. desktop inventoryStatus gives
-  // owned / limit / owned + 1 for the draft alone; the batch adds its count.
+  // inventoryStatus gives the printing's owned count and effective limit;
+  // the batch's copies of it (keypad or precon) count toward After add.
   const inv = inventoryStatus([draft], draft, res, catalog, limits, capMode);
-  const inBatch = batch.reduce((n, b) => n + (b.variantId === res.variantId ? 1 : 0), 0);
-  const afterAdd = inv.afterAdd + inBatch;
-  const limit = inv.effectiveLimit;
-  const atLimit = limit !== null && inv.owned >= limit;
+  return keepLimitReadout(inv.owned, inv.effectiveLimit, batch, res.variantId);
+}
+
+/** The readout for one printing from its owned count and effective
+ * keep-limit (null = No limit): After add = owned + the printing's copies
+ * already in the batch + this one. */
+export function keepLimitReadout(
+  owned: number,
+  limit: number | null,
+  batch: BatchRow[],
+  variantId: number
+): Readout {
+  const inBatch = batch.reduce((n, b) => n + (b.variantId === variantId ? 1 : 0), 0);
+  const after = owned + inBatch + 1;
+  const atLimit = limit !== null && owned >= limit;
   return {
-    owned: inv.owned,
+    owned,
     limit,
-    after: afterAdd,
+    after,
     atLimit,
-    overLimit: limit !== null && inv.owned > limit,
-    afterOver: limit !== null && !atLimit && afterAdd > limit,
+    overLimit: limit !== null && owned > limit,
+    afterOver: limit !== null && !atLimit && after > limit,
   };
 }
 

@@ -9,6 +9,7 @@ import {
 } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
+import { variantPriceValue } from "../../utils/completion";
 import type { PriceMode } from "../../utils/variantScope";
 import { pickRepresentative } from "../vault/cardImage";
 import type { NavPosition } from "./navList";
@@ -105,8 +106,7 @@ export function groupPrintings(
 
 /** Desktop railPriceText: two decimals, an em dash when unpriced. */
 export function railPrice(v: Pick<InventoryVariant, "price">, mode: PriceMode): string {
-  if (v.price == null) return "—";
-  const val = mode === "market" ? v.price.market : v.price.low;
+  const val = variantPriceValue(v, mode);
   return val == null ? "—" : `$${val.toFixed(2)}`;
 }
 
@@ -208,12 +208,13 @@ export function stepperState(
   };
 }
 
-/** BL-257 FR1-07 (owner decision 2026-10-12, ADR-0030): what the card-detail
- * plate shows -- EXACTLY a finish-scoped gallery tile's numbers
- * (vault/GalleryCell.tsx:43-51), with `scope` = the selected printing's raw
- * finish. The same helpers the tile calls, in the same order, so the two
- * cannot drift: `owned` / `complete` are the card's all-printings total
- * (cardOwnedTotal / isPlaysetComplete over the variant_id -> quantity map);
+/** What the card-detail plate shows (ADR-0030): a finish-scoped gallery
+ * tile's numbers (utils/variantScope.ts playsetPlate), with `scope` = the
+ * selected printing's raw finish, read from the variants alone. The two
+ * agree for every non-empty scope; an empty-string scope fills no pips here
+ * and fills from the total on a tile. `owned` / `complete` are the card's
+ * all-printings total (cardOwnedTotal / isPlaysetComplete over the
+ * variant_id -> quantity map);
  * the pips fill from every printing of the scoped finish (scopedOwnedCount)
  * and the plate's complete state is that scoped sum at a playset
  * (scopedPlaysetComplete). `variants` carry the quantities to SHOW (the

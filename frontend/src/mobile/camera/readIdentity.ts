@@ -5,6 +5,7 @@ import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { effectiveLimit, limitBucketOf, typeCategoryOf } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import type { BatchRow } from "../tool/batch";
+import { keepLimitReadout } from "../tool/padModel";
 import type { PadChoice, Readout } from "../tool/padModel";
 import type { PadPicks } from "../tool/toolStore";
 
@@ -272,21 +273,10 @@ export function printingReadout(
   void capMode; // the readout's numbers do not depend on the mode (as the keypad's)
   const entry = catalog.find((c) => c.id === variantId);
   if (!entry) return null;
-  const owned = entry.quantity;
   const limit = effectiveLimit(
     limits,
     typeCategoryOf(entry.type),
     limitBucketOf(entry.finish, entry.channel)
   );
-  const inBatch = batch.reduce((n, b) => n + (b.variantId === variantId ? 1 : 0), 0);
-  const after = owned + inBatch + 1;
-  const atLimit = limit !== null && owned >= limit;
-  return {
-    owned,
-    limit,
-    after,
-    atLimit,
-    overLimit: limit !== null && owned > limit,
-    afterOver: limit !== null && !atLimit && after > limit,
-  };
+  return keepLimitReadout(entry.quantity, limit, batch, variantId);
 }

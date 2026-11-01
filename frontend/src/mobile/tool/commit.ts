@@ -3,6 +3,7 @@ import { ImportApiError, runImport } from "../../api/inventoryImportExport";
 import type { CapHandling, ImportReport } from "../../api/inventoryImportExport";
 import type { CapMode } from "../../api/settingsLimits";
 import type { PreconDeckCard } from "../../data/preconDecks";
+import { capHandlingFor } from "../../utils/limits";
 import { buildPreconImportFile } from "../../utils/preconImport";
 import type { BatchRow, BatchView } from "./batch";
 import { toolAddCardsCommitted } from "./toolAnalytics";
@@ -60,7 +61,7 @@ export function commitPlan(batch: BatchRow[], view: BatchView, capMode: CapMode)
   for (const r of batch) {
     if (!ok.has(r.id) || r.variantId === null) continue;
     if (r.via === "precon" && r.deck) {
-      const cap: CapHandling = capMode === "hard" && !r.force ? "trim" : "add_above";
+      const cap = capHandlingFor(capMode, r.force ? "add_above" : "trim");
       const byUuid = decks.get(cap) ?? new Map<string, PreconDeckCard>();
       decks.set(cap, byUuid);
       const dc = r.deck.card;
@@ -176,7 +177,7 @@ export function committedRowIds(
   for (const r of batch) {
     if (!ok.has(r.id) || r.variantId === null) continue;
     if (r.via === "precon") {
-      const cap: CapHandling = capMode === "hard" && !r.force ? "trim" : "add_above";
+      const cap = capHandlingFor(capMode, r.force ? "add_above" : "trim");
       if (err.committedImports.has(cap)) out.add(r.id);
     } else if (err.committedVariants.has(r.variantId)) out.add(r.id);
   }

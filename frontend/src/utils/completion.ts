@@ -42,7 +42,14 @@ function pct(numerator: number, denominator: number): number {
   return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100);
 }
 
-function variantPrice(v: InventoryVariant, mode: PriceMode): number | null {
+/** One printing's own price for the active kind, or null. A missing price
+ * row (`null`) and a stale response without the field (`undefined`) both
+ * mean "no price for this printing": callers fall through to whatever
+ * fallback applies. */
+export function variantPriceValue(
+  v: Pick<InventoryVariant, "price">,
+  mode: PriceMode
+): number | null {
   if (v.price == null) return null;
   const value = mode === "market" ? v.price.market : v.price.low;
   return value ?? null;
@@ -59,14 +66,14 @@ export function cardValue(
   mode: PriceMode
 ): { value: number; unpriced: number } {
   const standard = card.variants.find((v) => v.variant_type === "Standard");
-  const standardPrice = standard ? variantPrice(standard, mode) : null;
+  const standardPrice = standard ? variantPriceValue(standard, mode) : null;
 
   let value = 0;
   let unpriced = 0;
   for (const v of card.variants) {
     const qty = v.quantity || 0;
     if (qty <= 0) continue;
-    const effective = variantPrice(v, mode) ?? standardPrice;
+    const effective = variantPriceValue(v, mode) ?? standardPrice;
     if (effective == null) {
       unpriced += 1;
     } else {

@@ -608,6 +608,20 @@ describe("AddCardsModal cap choice (BL-151 S2b, PORT — §4 P2 unchanged)", () 
     expect(trimOption.checked).toBe(true);
   });
 
+  it("a hard-mode user who keeps the default previews with trim", async () => {
+    useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
+    runImport.mockResolvedValue(baseImportReport());
+    await renderModal();
+    await waitForPreconBarLoaded();
+    await choosePreconDeck("SOR-LUKE");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /preview adding deck/i }));
+    });
+
+    expect(runImport).toHaveBeenCalledWith(expect.any(File), "merge_add", "trim", "dry_run");
+  });
+
   it("lets a hard-mode user switch to 'add the full deck' before previewing", async () => {
     useLimitsMock.mockReturnValue({ limits: null, capMode: "hard" });
     runImport.mockResolvedValue(baseImportReport());

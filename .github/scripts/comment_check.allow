@@ -152,7 +152,7 @@ frontend/src/mobile/card/FinishSheet.tsx 1
 frontend/src/mobile/card/PriceChart.tsx 1
 frontend/src/mobile/card/PrintingPlate.tsx 1
 frontend/src/mobile/card/Printings.tsx 2
-frontend/src/mobile/card/cardDetailModel.ts 7
+frontend/src/mobile/card/cardDetailModel.ts 6
 frontend/src/mobile/card/navList.ts 2
 frontend/src/mobile/card/priceChartModel.ts 1
 frontend/src/mobile/card/useStepper.ts 2
@@ -228,11 +228,11 @@ frontend/src/screens/cards/CardPopupInventory.tsx 19
 frontend/src/screens/cards/CardPopupNav.tsx 13
 frontend/src/screens/cards/CardPopupPriceHistory.tsx 3
 frontend/src/screens/cards/CardPopupRail.tsx 12
-frontend/src/screens/cards/CardsPage.tsx 106
+frontend/src/screens/cards/CardsPage.tsx 99
 frontend/src/screens/cards/CardsTable.tsx 49
-frontend/src/screens/cards/GalleryGrid.tsx 25
+frontend/src/screens/cards/GalleryGrid.tsx 21
 frontend/src/screens/cards/GallerySortHeader.tsx 9
-frontend/src/screens/cards/PlaysetCell.tsx 8
+frontend/src/screens/cards/PlaysetCell.tsx 6
 frontend/src/screens/cards/PriceHistoryPanel.tsx 2
 frontend/src/screens/cards/SortHeaderButton.tsx 2
 frontend/src/screens/cards/VariantScopeControls.tsx 5
@@ -276,7 +276,7 @@ frontend/src/utils/setGrouping.ts 3
 frontend/src/utils/shareRoute.ts 1
 frontend/src/utils/shareSession.ts 1
 frontend/src/utils/tableWidthTier.ts 2
-frontend/src/utils/variantScope.ts 10
+frontend/src/utils/variantScope.ts 9
 frontend/src/utils/variants.ts 3
 frontend/src/utils/version.ts 1
 frontend/src/vite-env.d.ts 1

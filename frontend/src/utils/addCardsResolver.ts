@@ -4,6 +4,7 @@ import {
   DEFAULT_LIMITS,
   effectiveLimit,
   enforcementCap,
+  FINISH_BUCKETS,
   limitBucketOf,
   QUANTITY_CEILING,
   typeCategoryOf,
@@ -259,16 +260,7 @@ export function maxCopies(
 
 // ── variant_type decomposition: (event, stamp, finish) ──────────────────────
 
-const FROZEN_FINISHES = new Set([
-  "Standard",
-  "Standard Foil",
-  "Hyperspace",
-  "Hyperspace Foil",
-  "Standard Prestige",
-  "Foil Prestige",
-  "Serialized Prestige",
-  "Showcase",
-]);
+const FROZEN_FINISHES: ReadonlySet<string> = new Set(FINISH_BUCKETS);
 
 // Tournament event prefixes (BL-80 vocabulary, confirmed 2026-07-05).
 const TOURNAMENT_EVENTS: Record<string, string> = {

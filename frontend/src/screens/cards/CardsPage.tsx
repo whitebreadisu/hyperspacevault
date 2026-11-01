@@ -3,12 +3,7 @@ import { getBaseCardsList } from "../../api/baseCards";
 import { getQuantities } from "../../api/inventory";
 import { getSharedQuantities } from "../../api/sharedView";
 import { getSets } from "../../api/sets";
-import {
-  toInventoryCards,
-  isPlaysetComplete,
-  isOwned,
-  cardOwnedTotal,
-} from "../../utils/inventory";
+import { toInventoryCards } from "../../utils/inventory";
 import { InventorySummary } from "../inventory/InventorySummary";
 import { CardsTable } from "./CardsTable";
 import { GalleryGrid } from "./GalleryGrid";
@@ -17,7 +12,6 @@ import { CardPopup } from "./CardPopup";
 import { FilterPanel, countActiveFilters } from "../../components/FilterPanel";
 import { capture } from "../../analytics/analytics";
 import { useLimits } from "../../context/LimitsContext";
-import { cardOverCap } from "../../utils/limits";
 import { applyFilters, DEFAULT_FILTERS, isDefaultFilterState } from "../../utils/filters";
 import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
@@ -31,8 +25,7 @@ import {
   saveValueDisplay,
   isFinishSetScopedTo,
   sortCardsByScope,
-  scopedOwnedCount,
-  scopedPlaysetComplete,
+  applyCollectionToggles,
 } from "../../utils/variantScope";
 import { sortCards, nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
 import type { SortState, SortColumn } from "../../utils/cardSort";
@@ -495,54 +488,21 @@ export function CardsPage({
   // filters are independent per-card predicates, so folding the toggles in
   // first vs. last doesn't change the final `filtered` set -- only what
   // FilterPanel sees.
-  // BL-195 (Issue #60): while a scope is active, all three collection
-  // filters below evaluate against the SCOPED finish instead of the card's
-  // total inventory -- e.g. "cards I don't own" with scope=Hyperspace
-  // includes a card you own 3 Standard copies of but 0 Hyperspace of (the
-  // owner's worked example). scope === null leaves every predicate exactly
-  // as it was pre-BL-195 (isPlaysetComplete/isOwned/cardOwnedTotal, the
-  // fixed-1/3-driven inventory.ts helpers) -- these existing behaviors are
-  // untouched, not routed through the scoped helpers at all.
-  const toggleNarrowed = useMemo(() => {
-    let result = cards;
-    if (incompleteOnly) {
-      result = result.filter((c) =>
-        scope
-          ? !scopedPlaysetComplete(c.variants, scope, c.type)
-          : !isPlaysetComplete(c.inventory, c.type)
-      );
-    }
-    // BL-60: keep only cards with at least one owned copy across variants
-    // (or, scoped, at least one owned copy of the scoped finish). Reuses the
-    // existing isOwned/scopedOwnedCount helpers rather than re-deriving
-    // ownership.
-    if (ownedOnly) {
-      result = result.filter((c) =>
-        scope ? scopedOwnedCount(c.variants, scope) > 0 : isOwned(c.inventory)
-      );
-    }
-    // BL-115: inverse of ownedOnly -- keep only cards with a zero owned
-    // total (or, scoped, zero owned copies of the scoped finish). Mutually
-    // exclusive with ownedOnly by construction (the setters below never let
-    // both be true at once), so this filter and the one above never compound
-    // in practice, but each is independently correct if that ever changes.
-    if (noInventoryOnly) {
-      result = result.filter((c) =>
-        scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
-      );
-    }
-    // BL-222 (revises BL-217, Issue #134): "over my keep limit" now follows
-    // the SAME BL-195 scope-aware pattern as the three toggles above --
-    // while a scope is active, only the scoped finish's own variant(s) are
-    // checked against their limit (cardOverCap's new `scope` parameter,
-    // utils/limits.ts); unscoped behavior (ANY variant over its own cap) is
-    // unchanged. Owner revision of BL-217's original "deliberately NOT
-    // scope-aware" call.
-    if (overCapOnly) {
-      result = result.filter((c) => cardOverCap(c.variants, c.type, limits, scope));
-    }
-    return result;
-  }, [cards, incompleteOnly, ownedOnly, noInventoryOnly, overCapOnly, scope, limits]);
+  const toggleNarrowed = useMemo(
+    () =>
+      applyCollectionToggles(
+        cards,
+        {
+          incomplete: incompleteOnly,
+          owned: ownedOnly,
+          unowned: noInventoryOnly,
+          overcap: overCapOnly,
+        },
+        scope,
+        limits
+      ),
+    [cards, incompleteOnly, ownedOnly, noInventoryOnly, overCapOnly, scope, limits]
+  );
 
   const filtered = useMemo(
     () => applyFilters(toggleNarrowed as BaseCard[], filters) as InventoryCard[],

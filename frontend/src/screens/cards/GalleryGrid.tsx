@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
-import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps } from "../../utils/cardImages";
-import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
+import { playsetPlate } from "../../utils/variantScope";
 
 /** BL-73 Stage 1: uniform portrait cell, matching the 2.5:3.5 card ratio used
  * by the BL-62 Add Cards preview frame (AddCardsModal.css's
@@ -235,29 +234,18 @@ function GalleryCell({
   scope,
 }: GalleryCellProps) {
   const [hovered, setHovered] = useState(false);
-  const size = getPlaysetSize(card.type);
-  // `owned`/`complete` stay the OVERALL (all-variant) values -- PlateTotal
-  // (the plate's right-side number AND the dossier's OWNED row) is
-  // deliberately unaffected by scope (BL-222 point 5).
-  const owned = cardOwnedTotal(card.inventory);
-  const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
+  // PlateTotal (the plate's number and the dossier's OWNED row) shows the
+  // all-finishes `owned` / `complete`; the plate ring keys off `pipsComplete`.
+  const {
+    size,
+    owned,
+    complete,
+    scoped: isScoped,
+    filled: filledPips,
+    pipsComplete,
+  } = playsetPlate(card, scope, isAuthenticated);
   const showDossier = isAuthenticated && hovered;
   const breakdown = showDossier ? ownedFinishBreakdown(card) : [];
-  // BL-222 (Issue #134): while a scope is active, the PIPS fill from the
-  // scoped owned count (the same BL-195 utility PlaysetCell's table pips
-  // use) instead of the total -- mirrors PlaysetCell.tsx's own
-  // isScoped/scopedOwned/scopedComplete trio verbatim so the table and
-  // gallery pips can never disagree.
-  const isScoped = isAuthenticated && scope != null;
-  const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
-  const filledPips = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
-  const scopedComplete =
-    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
-  // The plate's outline/fill ("pips-state complete") keys off SCOPED
-  // completion while scoped, else overall completion -- NOT off `complete`
-  // unconditionally (BL-222 point 4; PlateTotal above keeps using `complete`
-  // regardless, per point 5).
-  const pipsComplete = isScoped ? scopedComplete : complete;
 
   return (
     <button
