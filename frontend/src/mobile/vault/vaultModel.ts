@@ -13,7 +13,7 @@ import {
   SCOPE_PINNED_ROWS,
   sortCardsByScope,
 } from "../../utils/variantScope";
-import type { CollectionToggles, PriceMode } from "../../utils/variantScope";
+import type { CollectionToggles, PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 
 // BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
 // desktop's own types and utilities (filters.ts, variantScope.ts,
@@ -138,8 +138,15 @@ export function filterCards(
   s: VaultFilterState,
   limits: LimitsMatrix | null
 ): InventoryCard[] {
-  const out = applyCollectionToggles(ordered, s.toggles, s.scope, limits);
-  const faceted = applyFilters(out as BaseCard[], { ...s.filters, search: "" }) as InventoryCard[];
+  return facetAndSearch(applyCollectionToggles(ordered, s.toggles, s.scope, limits), s);
+}
+
+/** Every facet, then the search, over an already-toggled list. */
+function facetAndSearch(toggled: InventoryCard[], s: VaultFilterState): InventoryCard[] {
+  const faceted = applyFilters(toggled as BaseCard[], {
+    ...s.filters,
+    search: "",
+  }) as InventoryCard[];
   return s.query.trim() ? faceted.filter((c) => matchesQuery(c, s.query)) : faceted;
 }
 
@@ -149,6 +156,9 @@ const NO_SETS: Set<string> = new Set();
 export interface VaultList {
   /** Every card in default order (the unnarrowed list; "All" totals, S1-23). */
   all: InventoryCard[];
+  /** The Collection toggles only, in default order: no facet, no search.
+   * Desktop's filter panel draws its option universes from it. */
+  toggled: InventoryCard[];
   /** The narrowed list, sorted -- what the rows / gallery render. */
   list: InventoryCard[];
   /** S1-24: every narrowing EXCEPT the Set facet (desktop CardsPage
@@ -158,27 +168,41 @@ export interface VaultList {
   activeCount: number;
 }
 
-/** The whole pipeline, as CardsPage.tsx:432-640: scope-aware default order
- * -> narrowing -> the user's sort (with desktop's defaultIndex tiebreak). */
+/** Desktop applies the sort it is handed: its headers offer Set and Variants. */
+export const desktopSortPolicy = (s: SortState): SortState => s;
+
+export interface VaultListContext {
+  setOrder: SetOrderMap;
+  priceKind: PriceMode;
+  limits: LimitsMatrix | null;
+  /** How the handed sort is applied. Default: phoneSortState, so the list is
+   * ordered by the sort the phone shows; desktop passes desktopSortPolicy. */
+  sortPolicy?: (s: SortState) => SortState;
+  /** What the Value sort reads. Default "unit" (the phone has no switch);
+   * desktop passes its Unit/Collection switch. */
+  unitMode?: ValueDisplayMode;
+}
+
+/** The whole pipeline: scope-aware default order -> narrowing -> the sort
+ * (with the default-order tiebreak). */
 export function buildVaultList(
   cards: InventoryCard[],
   s: VaultFilterState,
   sort: SortState,
-  ctx: { setOrder: SetOrderMap; priceKind: PriceMode; limits: LimitsMatrix | null }
+  ctx: VaultListContext
 ): VaultList {
   const all = sortCardsByScope(cards, ctx.setOrder, s.scope);
   const defaultIndex = new Map(all.map((c, i) => [c.base_card_id, i]));
-  const filtered = filterCards(all, s, ctx.limits);
-  // FR5-05: the list is ordered by the sort the phone shows (phoneSortState),
-  // whatever state it is handed.
-  const list = sortCards(filtered, phoneSortState(sort), {
+  const toggled = applyCollectionToggles(all, s.toggles, s.scope, ctx.limits);
+  const filtered = facetAndSearch(toggled, s);
+  const list = sortCards(filtered, (ctx.sortPolicy ?? phoneSortState)(sort), {
     scope: s.scope,
     valueMode: ctx.priceKind,
-    unitMode: "unit",
+    unitMode: ctx.unitMode ?? "unit",
     setOrder: ctx.setOrder,
     defaultIndex,
   });
-  const breakdown = filterCards(all, { ...s, filters: { ...s.filters, set: NO_SETS } }, ctx.limits);
+  const breakdown = facetAndSearch(toggled, { ...s, filters: { ...s.filters, set: NO_SETS } });
   const activeCount = activeFilterCount(s);
-  return { all, list, breakdown, narrowed: activeCount > 0, activeCount };
+  return { all, toggled, list, breakdown, narrowed: activeCount > 0, activeCount };
 }

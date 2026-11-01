@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BaseCardCatalog } from "../../api/baseCards";
 import { getQuantities } from "../../api/inventory";
@@ -85,5 +85,41 @@ describe("S1-12 Vault data hook", () => {
     expect(result.current.cards[0].inventory[101]).toBe(0);
     expect(result.current.cards[0].variants.find((v) => v.variant_id === 102)?.quantity).toBe(2);
     expect(result.current.setOrder.SOR).toBe("2024-03-08");
+  });
+
+  it("returns the sparse quantities map as fetched", async () => {
+    const { result } = renderHook(() => useVaultDataSource(true));
+    await waitFor(() => expect(result.current.quantities).toEqual({ 102: 2 }));
+  });
+
+  it("anonymous: the quantities map is empty", async () => {
+    const { result } = renderHook(() => useVaultDataSource(false));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.quantities).toEqual({});
+  });
+
+  it("returns the catalogue merged with quantities, 0 for absent variants", async () => {
+    const { result } = renderHook(() => useVaultDataSource(true));
+    await waitFor(() => expect(result.current.quantities).toEqual({ 102: 2 }));
+    const merged = result.current.catalogWithQuantities;
+    expect(merged).toHaveLength(1);
+    expect(merged[0].id).toBe(7);
+    expect(merged[0].variants.map((v) => [v.variant_id, v.quantity])).toEqual([
+      [101, 0],
+      [102, 2],
+    ]);
+  });
+
+  it("refreshQuantities re-reads the quantities and updates the map", async () => {
+    const { result } = renderHook(() => useVaultDataSource(true));
+    await waitFor(() => expect(result.current.quantities).toEqual({ 102: 2 }));
+    vi.mocked(getQuantities).mockResolvedValueOnce([
+      { variant_id: 101, quantity: 3 },
+      { variant_id: 102, quantity: 2 },
+    ]);
+    await act(() => result.current.refreshQuantities());
+    expect(getQuantities).toHaveBeenCalledTimes(2);
+    expect(result.current.quantities).toEqual({ 101: 3, 102: 2 });
+    expect(result.current.catalogWithQuantities[0].variants[0].quantity).toBe(3);
   });
 });
