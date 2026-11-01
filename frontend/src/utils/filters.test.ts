@@ -8,6 +8,8 @@ import {
   facetValidValues,
   facetedOptions,
   isDefaultFilterState,
+  matchesQuery,
+  setFacetAfterRowTap,
   buildFinishTree,
   shapeFinishTree,
   COST_MAX,
@@ -16,6 +18,7 @@ import {
 } from "./filters";
 import type { FilterState, AspectMatchMode, FinishTreeRow } from "./filters";
 import type { BaseCard, Variant } from "./catalog";
+import { countActiveFilters } from "../components/FilterPanel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 // Same factories as FilterPanel.test.tsx -- duplicated (they're small) so
@@ -805,5 +808,51 @@ describe("shapeFinishTree (BL-133)", () => {
   it("omits a group row entirely once every child is hidden (invalid, unselected, show-all off)", () => {
     const shaped = shapeFinishTree(groupTree(), new Set(), new Set(), false);
     expect(shaped).toHaveLength(0);
+  });
+});
+
+// CREATE (BL-302): the desktop search is the phone's matcher, and a blank
+// search is not a narrowing.
+describe("matchesQuery and the blank search (BL-302)", () => {
+  const card = makeCard({
+    name: "Darth Vader - Dark Lord of the Sith",
+    base_card_number: "87",
+    variants: [
+      makeVariant({ source_set_code: "SOR", card_number: "87" }),
+      makeVariant({ variant_id: 2, source_set_code: "JTL", card_number: "339" }),
+    ],
+  });
+
+  it("matches name, subtitle, base number, a printing's number and 'SET number'", () => {
+    expect(matchesQuery(card, "vader")).toBe(true);
+    expect(matchesQuery(card, "87")).toBe(true);
+    expect(matchesQuery(card, "339")).toBe(true);
+    expect(matchesQuery(card, "SOR 87")).toBe(true);
+    expect(matchesQuery(card, "ash 87")).toBe(false);
+    expect(matchesQuery(card, "8")).toBe(false);
+  });
+
+  it("applyFilters applies the number search", () => {
+    expect(applyFilters([card], { ...DEFAULT_FILTERS, search: "sor 87" })).toHaveLength(1);
+    expect(applyFilters([card], { ...DEFAULT_FILTERS, search: "sor 88" })).toHaveLength(0);
+  });
+
+  it("a spaces-only search is a default state and counts as no active filter", () => {
+    const blank = { ...DEFAULT_FILTERS, search: "   " };
+    expect(isDefaultFilterState(blank)).toBe(true);
+    expect(countActiveFilters(blank)).toBe(0);
+    expect(applyFilters([card], blank)).toHaveLength(1);
+  });
+});
+
+describe("setFacetAfterRowTap (the set-row tap, both screens)", () => {
+  it("replaces the facet with the tapped set", () => {
+    expect([...setFacetAfterRowTap(new Set(), "SOR")]).toEqual(["SOR"]);
+    expect([...setFacetAfterRowTap(new Set(["SOR"]), "SHD")]).toEqual(["SHD"]);
+    expect([...setFacetAfterRowTap(new Set(["SOR", "SHD"]), "SOR")]).toEqual(["SOR"]);
+  });
+
+  it("clears the facet when the tapped set is the only one selected", () => {
+    expect(setFacetAfterRowTap(new Set(["SOR"]), "SOR").size).toBe(0);
   });
 });

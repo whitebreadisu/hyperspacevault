@@ -88,10 +88,11 @@ interface Props {
    * Rows render highlighted when their code is here -- effectively
    * `filters.set ∩ orderedBaseSets`, since only base sets ever get a row. */
   selectedSetCodes?: Set<string>;
-  /** BL-224: row-click toggle -- writes the same set facet a sidebar click
-   * would. Its presence is what makes rows selectable at all -- omitted
-   * (older call sites, tests) renders the popovers exactly as before. */
-  onToggleSetCode?: (code: string) => void;
+  /** Row-click pick: the host replaces the set facet with the clicked set, or
+   * clears it when that set is the only one selected. Its presence is what
+   * makes rows selectable at all -- omitted (older call sites, tests) renders
+   * the popovers exactly as before. */
+  onPickSetCode?: (code: string) => void;
 }
 
 // BL-223 (re-locked, builds on BL-224's set-facet unification): two-way --
@@ -327,7 +328,7 @@ export function InventorySummary({
   onWidthTierChange,
   breakdownCards,
   selectedSetCodes,
-  onToggleSetCode,
+  onPickSetCode,
 }: Props) {
   const [scope, setScope] = useState<Scope>("filtered");
   const [priceMode, setPriceMode] = useState<PriceMode>("market");
@@ -509,23 +510,22 @@ export function InventorySummary({
                 ) : (
                   breakdown.map((row) => {
                     const cell = popoverCell(block.id, row, isAuthenticated);
-                    // BL-224: rows are a filter control when the toggle is
+                    // Rows are a filter control when the pick handler is
                     // wired, reading/writing the sidebar's own set facet. A
                     // zero-universe row (no cards in scope map to this set)
                     // is inert -- selecting it could only produce an empty
-                    // table -- EXCEPT when already selected: a selection
-                    // must always be removable, or a later filter change
-                    // could strand it.
+                    // table -- EXCEPT when already selected, so a selected
+                    // row never reads as dead.
                     const selected = selectedSetCodes?.has(row.code) ?? false;
                     const selectable =
-                      isAuthenticated && !!onToggleSetCode && (row.universeSize > 0 || selected);
-                    const rowToggle = selectable ? () => onToggleSetCode(row.code) : undefined;
+                      isAuthenticated && !!onPickSetCode && (row.universeSize > 0 || selected);
+                    const rowToggle = selectable ? () => onPickSetCode(row.code) : undefined;
                     return (
                       <div
                         className={`inv-summary__popover-row${
                           selectable ? " inv-summary__popover-row--selectable" : ""
                         }${selected ? " inv-summary__popover-row--selected" : ""}${
-                          onToggleSetCode && !selectable ? " inv-summary__popover-row--inert" : ""
+                          onPickSetCode && !selectable ? " inv-summary__popover-row--inert" : ""
                         }`}
                         key={row.code}
                         role={rowToggle ? "button" : undefined}

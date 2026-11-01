@@ -91,7 +91,7 @@ frontend/src/api/sharedView.ts 1
 frontend/src/api/shares.ts 3
 frontend/src/components/BusyOverlay.tsx 3
 frontend/src/components/FilterMenuPortal.tsx 4
-frontend/src/components/FilterPanel.tsx 58
+frontend/src/components/FilterPanel.tsx 56
 frontend/src/components/FinishFilter.tsx 10
 frontend/src/components/GoogleAuthButton.tsx 1
 frontend/src/components/GoogleIcon.tsx 1
@@ -234,7 +234,7 @@ frontend/src/screens/inventory/AddCardsModal.tsx 31
 frontend/src/screens/inventory/AddCardsPreconBar.tsx 9
 frontend/src/screens/inventory/AddCardsSetBar.tsx 4
 frontend/src/screens/inventory/AddCardsVerification.tsx 7
-frontend/src/screens/inventory/InventorySummary.tsx 28
+frontend/src/screens/inventory/InventorySummary.tsx 26
 frontend/src/screens/inventory/PreconDropdown.tsx 1
 frontend/src/screens/inventory/PreconPreviewComposition.tsx 1
 frontend/src/screens/inventory/SetDropdown.tsx 1

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import { nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
-import { DEFAULT_FILTERS } from "../../utils/filters";
+import { DEFAULT_FILTERS, matchesQuery } from "../../utils/filters";
 import { toInventoryCards } from "../../utils/inventory";
 import { SORT_LABELS, SORT_ORDER, sortLabel } from "./SortSheet";
 import { useVaultViewOver } from "./useVaultView";
@@ -11,7 +11,6 @@ import {
   buildVaultList,
   freshFilterState,
   isNarrowed,
-  matchesQuery,
   nextPhoneSort,
   PHONE_FIRST_DIRECTION,
   phoneSortState,

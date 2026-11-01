@@ -683,7 +683,7 @@ describe("InventorySummary signed-out disables popovers (BL-163, CREATE)", () =>
 // needed (the Set facet's own field already shows/clears the selection),
 // and no third scope value for the switch to hold. The row-selectable /
 // row-inert / stranded-selection PREDICATE survives in new form (same
-// behavior, new prop names selectedSetCodes/onToggleSetCode) -- see the
+// behavior, new prop names selectedSetCodes/onPickSetCode) -- see the
 // PORT/CREATE tests below, not retired. The "Sets selected:" filterSetCodes
 // popover readout is retired outright too (rows no longer carry a separate
 // readout of the set facet at all).
@@ -725,7 +725,7 @@ describe("InventorySummary set-facet unification (BL-224, CREATE)", () => {
   const ALL = [sorCard, shdCard, sorCardB];
 
   function renderControl(overrides: Record<string, unknown> = {}) {
-    const onToggleSetCode = vi.fn();
+    const onPickSetCode = vi.fn();
     const utils = render(
       <InventorySummary
         filteredCards={FILTERED}
@@ -735,19 +735,19 @@ describe("InventorySummary set-facet unification (BL-224, CREATE)", () => {
         baseSetCodes={THREE_CODES}
         orderedBaseSets={THREE_BASE_SETS}
         selectedSetCodes={new Set(["SOR"])}
-        onToggleSetCode={onToggleSetCode}
+        onPickSetCode={onPickSetCode}
         {...overrides}
       />
     );
-    return { ...utils, onToggleSetCode };
+    return { ...utils, onPickSetCode };
   }
 
   function rows(container: HTMLElement): HTMLElement[] {
     return Array.from(container.querySelectorAll(".inv-summary__popover-row"));
   }
 
-  it("popover rows are selectable and toggle the set facet by code", () => {
-    const { container, onToggleSetCode } = renderControl();
+  it("popover rows are selectable and pick the set facet by code", () => {
+    const { container, onPickSetCode } = renderControl();
     fireEvent.click(block(container, "cards"));
     const [sor, shd] = rows(container);
     expect(sor.className).toContain("--selectable");
@@ -755,19 +755,19 @@ describe("InventorySummary set-facet unification (BL-224, CREATE)", () => {
     expect(shd.className).toContain("--selectable");
     expect(shd.className).not.toContain("--selected");
     fireEvent.click(shd);
-    expect(onToggleSetCode).toHaveBeenCalledWith("SHD");
+    expect(onPickSetCode).toHaveBeenCalledWith("SHD");
   });
 
   it("a zero-universe row is inert (no toggle call), but stays clickable while selected", () => {
-    const { container, onToggleSetCode } = renderControl();
+    const { container, onPickSetCode } = renderControl();
     fireEvent.click(block(container, "cards"));
     const twi = rows(container)[2];
     expect(twi.className).toContain("--inert");
     fireEvent.click(twi);
-    expect(onToggleSetCode).not.toHaveBeenCalled();
+    expect(onPickSetCode).not.toHaveBeenCalled();
 
     // Selected-but-empty: TWI is in the facet yet has no cards in scope --
-    // the deselect path must stay open or the selection would be stranded.
+    // a selected row stays selectable even with no cards in scope.
     const strandedToggle = vi.fn();
     const { container: c2 } = render(
       <InventorySummary
@@ -778,7 +778,7 @@ describe("InventorySummary set-facet unification (BL-224, CREATE)", () => {
         baseSetCodes={THREE_CODES}
         orderedBaseSets={THREE_BASE_SETS}
         selectedSetCodes={new Set(["TWI"])}
-        onToggleSetCode={strandedToggle}
+        onPickSetCode={strandedToggle}
       />
     );
     fireEvent.click(block(c2, "cards"));

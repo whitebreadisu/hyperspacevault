@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { orderSetCodes } from "../../utils/catalog";
 import type { SetMeta } from "../../utils/completion";
+import { setFacetAfterRowTap } from "../../utils/filters";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { publishNav, setOpener, setOpenSource } from "../card/navList";
 import { go } from "../router";
@@ -217,7 +218,12 @@ export function Vault({
           isAuthenticated={isAuthenticated}
           priceKind={vv.priceKind}
           onPriceKind={vv.setPriceKind}
-          onPickSet={(code) => vv.setFilters({ ...vv.state.filters, set: new Set([code]) })}
+          onPickSet={(code) =>
+            vv.setFilters({
+              ...vv.state.filters,
+              set: setFacetAfterRowTap(vv.state.filters.set, code),
+            })
+          }
           onClose={closeSheet}
         />
       ) : null}

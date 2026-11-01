@@ -12,7 +12,12 @@ import { CardPopup } from "./CardPopup";
 import { FilterPanel, countActiveFilters } from "../../components/FilterPanel";
 import { capture } from "../../analytics/analytics";
 import { useLimits } from "../../context/LimitsContext";
-import { applyFilters, DEFAULT_FILTERS, isDefaultFilterState } from "../../utils/filters";
+import {
+  applyFilters,
+  DEFAULT_FILTERS,
+  isDefaultFilterState,
+  setFacetAfterRowTap,
+} from "../../utils/filters";
 import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
 import { ShareManageModal } from "../shares/ShareManageModal";
@@ -501,17 +506,14 @@ export function CardsPage({
     [toggleNarrowed, filters]
   );
 
-  // Popover row-clicks read/write the SAME sidebar set facet a FilterPanel
-  // click would -- there is no separate "home set" dimension to keep in sync.
-  // Routed through handleFilterPanelChange (not a raw setFilters) so a
-  // row-click carries the exact same side effects as any other FilterPanel
-  // edit.
-  const toggleFilterSet = useCallback(
+  // A popover row-click replaces the sidebar's set facet with that one set;
+  // tapping the set that is already the only selection clears it (the phone's
+  // rule, setFacetAfterRowTap). Routed through handleFilterPanelChange (not a raw
+  // setFilters) so a row-click carries the exact same side effects as any
+  // other FilterPanel edit.
+  const pickFilterSet = useCallback(
     (code: string) => {
-      const next = new Set(filters.set);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      handleFilterPanelChange({ ...filters, set: next });
+      handleFilterPanelChange({ ...filters, set: setFacetAfterRowTap(filters.set, code) });
     },
     [filters, handleFilterPanelChange]
   );
@@ -860,7 +862,7 @@ export function CardsPage({
               allCards={cards}
               breakdownCards={breakdownCards}
               selectedSetCodes={filters.set}
-              onToggleSetCode={toggleFilterSet}
+              onPickSetCode={pickFilterSet}
               isNarrowed={isNarrowed}
               baseSetCodes={baseSetCodes}
               orderedBaseSets={orderedBaseSets}

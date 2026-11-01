@@ -1654,10 +1654,12 @@ describe("CardsPage FilterPanel faceting (BL-70, CREATE)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /show only cards i own/i }));
 
-    // After: the unowned SHD card is toggle-narrowed out before faceting
-    // runs at all, so SHD is no longer an addable Set value.
+    // REPLACE (owner 2026-11-01, BL-302): the unowned SHD card is
+    // toggle-narrowed out before faceting runs, so SHD has no matches; it
+    // stays listed, greyed with "(0)" and disabled, instead of disappearing.
     expect(screen.getByRole("option", { name: "SOR — Spark of Rebellion" })).toBeTruthy();
     expect(screen.queryByRole("option", { name: "SHD — Shadows of the Galaxy" })).toBeNull();
+    expect(screen.getByRole("option", { name: "SHD — Shadows of the Galaxy (0)" })).toBeDisabled();
   });
 
   // CREATE (BL-115): mirror of the ownedOnly faceting test above, for its
@@ -1677,7 +1679,10 @@ describe("CardsPage FilterPanel faceting (BL-70, CREATE)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /only cards with no inventory/i }));
 
+    // REPLACE (owner 2026-11-01, BL-302): SOR has no matches and stays
+    // listed, greyed with "(0)" and disabled.
     expect(screen.queryByRole("option", { name: "SOR — Spark of Rebellion" })).toBeNull();
+    expect(screen.getByRole("option", { name: "SOR — Spark of Rebellion (0)" })).toBeDisabled();
     expect(screen.getByRole("option", { name: "SHD — Shadows of the Galaxy" })).toBeTruthy();
   });
 });
@@ -2952,5 +2957,108 @@ describe("CardsPage analytics (BL-235, CREATE)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// CREATE (BL-302): the desktop Cards screen filters like the phone -- number
+// search, a blank search is not a filter, a set-row tap replaces the Set
+// facet, and 0-match filter values stay listed greyed.
+describe("CardsPage phone-parity filtering (BL-302, CREATE)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+
+  const searchBox = () => screen.getByPlaceholderText("Search cards…");
+  const cardBtn = (name: string) => screen.queryByRole("button", { name });
+  const resetBtn = () => screen.getByRole("button", { name: /reset all filters/i });
+
+  it("search finds a card by 'SET number', by the number alone, and still by name", async () => {
+    await renderPage();
+
+    fireEvent.change(searchBox(), { target: { value: "SHD 1" } });
+    expect(cardBtn("SHD Card One")).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeNull();
+    expect(cardBtn("SHD Card Two")).toBeNull();
+
+    fireEvent.change(searchBox(), { target: { value: "2" } });
+    expect(cardBtn("SOR Card Two")).toBeTruthy();
+    expect(cardBtn("SHD Card Two")).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeNull();
+
+    fireEvent.change(searchBox(), { target: { value: "shd card" } });
+    expect(cardBtn("SHD Card One")).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeNull();
+  });
+
+  it("a search of only spaces is not an active filter: no badge, Reset inert, no Totals switch", async () => {
+    await renderPage();
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
+
+    fireEvent.change(searchBox(), { target: { value: "   " } });
+
+    expect(resetBtn().getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByLabelText(/^Totals:/)).toBeNull();
+    expect(cardBtn("SOR Card One")).toBeTruthy();
+    expect(cardBtn("SHD Card Two")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("Collapse filters"));
+    expect(document.querySelector(".ifp-sidebar-tab__badge")).toBeNull();
+
+    fireEvent.click(screen.getByTitle("Expand filters"));
+    fireEvent.change(searchBox(), { target: { value: "shd" } });
+    expect(resetBtn().getAttribute("aria-disabled")).toBeNull();
+    expect(screen.queryByLabelText(/^Totals:/)).not.toBeNull();
+  });
+
+  function popoverRow(container: HTMLElement, setName: string): HTMLElement {
+    const img = container.querySelector(`.inv-summary__popover-row img[alt="${setName}"]`);
+    return img!.closest(".inv-summary__popover-row") as HTMLElement;
+  }
+
+  it("tapping a set row in the completion breakdown replaces the Set filter with that set", async () => {
+    const { container } = await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Set — All sets" }));
+    fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
+    expect(screen.getByRole("button", { name: /^Set — SOR/ })).toBeTruthy();
+
+    fireEvent.click(
+      container.querySelector('[data-testid="inv-summary-block-cards"]') as HTMLElement
+    );
+    fireEvent.click(popoverRow(container, "Shadows of the Galaxy"));
+
+    // SHD replaces SOR: one set, not {SOR, SHD}.
+    expect(screen.getByRole("button", { name: /^Set — SHD/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Set — .*SOR/ })).toBeNull();
+    expect(cardBtn("SHD Card One")).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeNull();
+  });
+
+  it("tapping the already-selected sole set clears the Set filter (the second tap undoes the first)", async () => {
+    const { container } = await renderPage();
+    fireEvent.click(
+      container.querySelector('[data-testid="inv-summary-block-cards"]') as HTMLElement
+    );
+    fireEvent.click(popoverRow(container, "Shadows of the Galaxy"));
+    expect(screen.getByRole("button", { name: /^Set — SHD/ })).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeNull();
+
+    fireEvent.click(popoverRow(container, "Shadows of the Galaxy"));
+    expect(screen.getByRole("button", { name: "Set — All sets" })).toBeTruthy();
+    expect(cardBtn("SHD Card One")).toBeTruthy();
+    expect(cardBtn("SOR Card One")).toBeTruthy();
+  });
+
+  it("the filter panel lists a 0-match value greyed with (0), disabled, with no show-all toggle", async () => {
+    await renderPage();
+    expect(screen.queryByRole("button", { name: /show all values/i })).toBeNull();
+
+    // Search narrows to SHD cards only, so SOR has no matches under it.
+    fireEvent.change(searchBox(), { target: { value: "shd card" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set — All sets" }));
+
+    const sorOpt = screen.getByRole("option", { name: /SOR/ });
+    expect(sorOpt.textContent).toContain("(0)");
+    expect(sorOpt).toBeDisabled();
+    expect(screen.getByRole("option", { name: /SHD/ })).not.toBeDisabled();
   });
 });
