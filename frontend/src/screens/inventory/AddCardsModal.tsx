@@ -16,6 +16,7 @@ import {
   verificationRowsFromReport,
 } from "../../utils/preconImport";
 import { useLimits } from "../../context/LimitsContext";
+import { capHandlingFor } from "../../utils/limits";
 import type { Row, AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import type { PreconEntry } from "../../data/preconDecks";
 import type { CapHandling, ImportReport } from "../../api/inventoryImportExport";
@@ -235,8 +236,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   // P2: hard-mode users' explicit trim/add-above choice; soft/no-limit users
   // always send "add_above" (§4 -- "no UI" for them, their over-limit
   // indicators already communicate state post-refresh).
-  const effectivePreconCap: CapHandling =
-    capMode === "hard" ? state.precon.capHandling : "add_above";
+  const effectivePreconCap = capHandlingFor(capMode, state.precon.capHandling);
 
   async function handlePreconPreview() {
     if (!state.precon.selection || previewingPrecon) return;

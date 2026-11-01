@@ -1,7 +1,6 @@
 import { parseCardDisplay } from "../../utils/catalog";
-import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
-import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
+import { playsetPlate } from "../../utils/variantScope";
 import { cellImage, pickRepresentative } from "./cardImage";
 import { GalleryPlate } from "./GalleryPlate";
 import type { GallerySize } from "./useVaultView";
@@ -40,15 +39,7 @@ export function GalleryCell({
   const shown = pickRepresentative(card.variants, finishes);
   const filterDriven = finishes.size > 0 && shown != null;
   const img = cellImage(card, shown, gallerySize === 1 ? "large" : "thumb", SIZES[gallerySize]);
-  const size = getPlaysetSize(card.type);
-  const owned = cardOwnedTotal(card.inventory);
-  const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
-  const isScoped = isAuthenticated && scope != null;
-  const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
-  const filledPips = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
-  const scopedComplete =
-    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
-  const pipsComplete = isScoped ? scopedComplete : complete;
+  const plate = playsetPlate(card, scope, isAuthenticated);
   const { displayName } = parseCardDisplay(card);
   const finishLabel = shown && filterDriven ? ", " + (shown.finish ?? shown.variant_type) : "";
 
@@ -77,12 +68,12 @@ export function GalleryCell({
         ) : null}
       </span>
       <GalleryPlate
-        size={size}
-        filled={filledPips}
-        scoped={isScoped}
-        complete={pipsComplete}
-        total={owned}
-        totalComplete={complete}
+        size={plate.size}
+        filled={plate.filled}
+        scoped={plate.scoped}
+        complete={plate.pipsComplete}
+        total={plate.owned}
+        totalComplete={plate.complete}
         isAuthenticated={isAuthenticated}
       />
     </button>

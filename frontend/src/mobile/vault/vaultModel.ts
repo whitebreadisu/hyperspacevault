@@ -5,19 +5,16 @@ import { nextSortState, sortCards } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
 import { applyFilters, DEFAULT_FILTERS } from "../../utils/filters";
 import type { FilterState } from "../../utils/filters";
-import { cardOwnedTotal, isOwned, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard } from "../../utils/inventory";
-import { cardOverCap } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import {
+  applyCollectionToggles,
   isFinishSetScopedTo,
   SCOPE_EXPANDED_ROWS,
   SCOPE_PINNED_ROWS,
-  scopedOwnedCount,
-  scopedPlaysetComplete,
   sortCardsByScope,
 } from "../../utils/variantScope";
-import type { PriceMode } from "../../utils/variantScope";
+import type { CollectionToggles, PriceMode } from "../../utils/variantScope";
 
 // BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
 // desktop's own types and utilities (filters.ts, variantScope.ts,
@@ -64,15 +61,8 @@ export function nextPhoneSort(current: SortState, picked: SortColumn): PhoneSort
     : next;
 }
 
-/** Desktop's four Collection toggles (CardsPage.tsx incompleteOnly /
- * ownedOnly / noInventoryOnly / overCapOnly): applied filters that live
- * outside FilterState. The Filters sheet (S2) edits them. */
-export interface CollectionToggles {
-  incomplete: boolean;
-  owned: boolean;
-  unowned: boolean;
-  overcap: boolean;
-}
+/** The Collection toggles the Filters sheet edits. */
+export type { CollectionToggles };
 
 export const NO_TOGGLES: CollectionToggles = {
   incomplete: false,
@@ -164,31 +154,15 @@ export function matchesQuery(card: BaseCard, query: string): boolean {
   return false;
 }
 
-/** The narrowed list in default (scope-aware) order: desktop's toggles
- * (CardsPage toggleNarrowed), then applyFilters (every facet), then the
- * search. `ordered` = sortCardsByScope(cards). */
+/** The narrowed list in default (scope-aware) order: the Collection toggles,
+ * then applyFilters (every facet), then the search. `ordered` =
+ * sortCardsByScope(cards). */
 export function filterCards(
   ordered: InventoryCard[],
   s: VaultFilterState,
   limits: LimitsMatrix | null
 ): InventoryCard[] {
-  const { scope, toggles: t } = s;
-  let out = ordered;
-  if (t.incomplete)
-    out = out.filter((c) =>
-      scope
-        ? !scopedPlaysetComplete(c.variants, scope, c.type)
-        : !isPlaysetComplete(c.inventory, c.type)
-    );
-  if (t.owned)
-    out = out.filter((c) =>
-      scope ? scopedOwnedCount(c.variants, scope) > 0 : isOwned(c.inventory)
-    );
-  if (t.unowned)
-    out = out.filter((c) =>
-      scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
-    );
-  if (t.overcap) out = out.filter((c) => cardOverCap(c.variants, c.type, limits, scope));
+  const out = applyCollectionToggles(ordered, s.toggles, s.scope, limits);
   const faceted = applyFilters(out as BaseCard[], { ...s.filters, search: "" }) as InventoryCard[];
   return s.query.trim() ? faceted.filter((c) => matchesQuery(c, s.query)) : faceted;
 }

@@ -13,11 +13,14 @@
 // codes like "Hy" purely for its own demo data object; the real raw values
 // are the literal finish/variant_type strings, e.g. "Hyperspace Foil").
 
-import type { InventoryVariant } from "./inventory";
+import type { InventoryCard, InventoryVariant } from "./inventory";
+import { variantPriceValue } from "./completion";
 import type { PriceMode } from "./completion";
 import type { BaseCard, SetOrderMap } from "./catalog";
 import { sortBaseCards, setReleaseRank } from "./catalog";
-import { getPlaysetSize } from "./inventory";
+import { cardOwnedTotal, getPlaysetSize, isOwned, isPlaysetComplete } from "./inventory";
+import { cardOverCap } from "./limits";
+import type { LimitsMatrix } from "./limits";
 
 export type { PriceMode };
 
@@ -79,20 +82,6 @@ export function saveValueDisplay(mode: ValueDisplayMode): void {
 }
 
 // ── Value column price (Definition §1) ──────────────────────────────────────
-
-/** A single variant's own price for the active kind. `v.price === undefined`
- * (stale pre-BL-163 cached response) and `v.price === null` (a real,
- * priced-nothing variant) both resolve to "no price for this variant" here --
- * the same `== null` fold utils/completion.ts's own `variantPrice` uses --
- * because both cases mean the SAME thing to this function's caller: fall
- * through to whatever fallback applies. Distinguishing the two is a
- * loading-vs-permanent distinction that matters to *callers deciding whether
- * to show a skeleton*, not to the fallback math itself. */
-function variantPriceValue(v: Pick<InventoryVariant, "price">, kind: PriceMode): number | null {
-  if (v.price == null) return null;
-  const value = kind === "market" ? v.price.market : v.price.low;
-  return value ?? null;
-}
 
 /** The Value column's per-row price: the unit price of ONE copy of the
  * relevant printing (never price × quantity -- owner decision, Definition
@@ -238,6 +227,88 @@ export function scopedPlaysetComplete(
   type: string
 ): boolean {
   return scopedOwnedCount(variants, scope) >= getPlaysetSize(type);
+}
+
+// ── Playset plate ───────────────────────────────────────────────────────────
+
+/** What a card's playset pips and owned count show. `owned` and `complete`
+ * are always the card's all-finishes total (the count chip and the plate
+ * total never narrow with scope); while signed in with a scope active the
+ * pips fill from the scoped finish's owned count and `scopedComplete` is
+ * that count at a playset. `pipsComplete` is the plate's complete state:
+ * scoped completion while scoped, else overall completion. Signed out
+ * nothing fills and nothing is complete; the playset size never changes. */
+export function playsetPlate(
+  card: Pick<InventoryCard, "type" | "inventory" | "variants">,
+  scope: string | null,
+  isAuthenticated: boolean
+) {
+  const size = getPlaysetSize(card.type);
+  const owned = cardOwnedTotal(card.inventory);
+  const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
+  const scoped = isAuthenticated && scope != null;
+  const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
+  const filled = isAuthenticated ? Math.min(size, scoped ? scopedOwned : owned) : 0;
+  const scopedComplete =
+    scoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
+  return {
+    size,
+    owned,
+    complete,
+    scoped,
+    filled,
+    scopedComplete,
+    pipsComplete: scoped ? scopedComplete : complete,
+  };
+}
+
+// ── Collection toggles ──────────────────────────────────────────────────────
+
+/** The four Collection toggles: applied filters that live outside FilterState. */
+export interface CollectionToggles {
+  incomplete: boolean;
+  owned: boolean;
+  unowned: boolean;
+  overcap: boolean;
+}
+
+/** The cards the Collection toggles keep, in input order. Each toggle is an
+ * independent per-card predicate. While a scope is active every predicate
+ * reads the scoped finish (its owned count, its playset, its keep-limit)
+ * instead of the card's total, so "cards I don't own" scoped to Hyperspace
+ * keeps a card with three Standard copies and no Hyperspace one. "No
+ * inventory" is mutually exclusive with "owned only" and with "over keep
+ * limit": each screen's toggle setters turn the other off, because no card
+ * can pass both. Combined anyway, each filter here still applies on its own
+ * terms. */
+export function applyCollectionToggles<T extends InventoryCard>(
+  cards: T[],
+  toggles: CollectionToggles,
+  scope: string | null,
+  limits: LimitsMatrix | null
+): T[] {
+  let result = cards;
+  if (toggles.incomplete) {
+    result = result.filter((c) =>
+      scope
+        ? !scopedPlaysetComplete(c.variants, scope, c.type)
+        : !isPlaysetComplete(c.inventory, c.type)
+    );
+  }
+  if (toggles.owned) {
+    result = result.filter((c) =>
+      scope ? scopedOwnedCount(c.variants, scope) > 0 : isOwned(c.inventory)
+    );
+  }
+  if (toggles.unowned) {
+    result = result.filter((c) =>
+      scope ? scopedOwnedCount(c.variants, scope) === 0 : cardOwnedTotal(c.inventory) === 0
+    );
+  }
+  if (toggles.overcap) {
+    result = result.filter((c) => cardOverCap(c.variants, c.type, limits, scope));
+  }
+  return result;
 }
 
 // ── Scoped row order (BL-187) ───────────────────────────────────────────────

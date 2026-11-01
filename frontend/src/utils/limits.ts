@@ -1,4 +1,5 @@
-import type { LimitCell, TypeCategory } from "../api/settingsLimits";
+import type { CapHandling } from "../api/inventoryImportExport";
+import type { CapMode, LimitCell, TypeCategory } from "../api/settingsLimits";
 
 /** BL-25: pure keep-limit resolution shared by the enforcement pre-checks
  * (addCardsResolver's maxCopies, CardPopup's stepper disable) and
@@ -157,4 +158,11 @@ export function cardOverCap(
     const limit = effectiveLimit(limits, category, limitBucketOf(v.finish, v.channel));
     return limit !== null && v.quantity > limit;
   });
+}
+
+/** The import's `cap_handling` for a cap mode: hard mode sends the
+ * collector's choice (trim at the keep-limit, or add above it); soft mode
+ * always adds above, as nothing is enforced. */
+export function capHandlingFor(capMode: CapMode, hardChoice: CapHandling): CapHandling {
+  return capMode === "hard" ? hardChoice : "add_above";
 }

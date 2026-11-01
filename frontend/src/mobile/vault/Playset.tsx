@@ -1,6 +1,5 @@
-import { cardOwnedTotal, getPlaysetSize, isPlaysetComplete } from "../../utils/inventory";
 import type { InventoryCard } from "../../utils/inventory";
-import { scopedOwnedCount, scopedPlaysetComplete } from "../../utils/variantScope";
+import { playsetPlate } from "../../utils/variantScope";
 
 // BL-247 S1-19: the row's count chip + pips -- desktop's DOM and rules, ported
 // from screens/cards/PlaysetCell.tsx:54-130 (the cell's <td>, click-to-edit
@@ -19,14 +18,14 @@ export function Playset({
   scope: string | null;
   isAuthenticated: boolean;
 }) {
-  const size = getPlaysetSize(card.type);
-  const owned = cardOwnedTotal(card.inventory);
-  const complete = isAuthenticated && isPlaysetComplete(card.inventory, card.type);
-  const isScoped = isAuthenticated && scope != null;
-  const scopedOwned = scope ? scopedOwnedCount(card.variants, scope) : owned;
-  const filled = isAuthenticated ? Math.min(size, isScoped ? scopedOwned : owned) : 0;
-  const scopedComplete =
-    isScoped && scope != null && scopedPlaysetComplete(card.variants, scope, card.type);
+  const {
+    size,
+    owned,
+    complete,
+    scoped: isScoped,
+    filled,
+    scopedComplete,
+  } = playsetPlate(card, scope, isAuthenticated);
   const chipModifier = !isAuthenticated
     ? " playset-chip--signed-out"
     : complete

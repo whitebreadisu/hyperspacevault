@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLimits } from "../../context/LimitsContext";
-import { getPlaysetSize } from "../../utils/inventory";
+import { cardOwnedTotalFromVariants, getPlaysetSize } from "../../utils/inventory";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { MIcon } from "../icons";
 import { SetLogo } from "../SetLogo";
@@ -111,7 +111,7 @@ function ReadoutLines({ r }: { r: Readout }) {
  * per card type), no count chip (R4-7: no chip in the keypad panel). */
 function Pips({ card, signedIn }: { card: InventoryCard; signedIn: boolean }) {
   const size = getPlaysetSize(card.type);
-  const owned = signedIn ? card.variants.reduce((s, v) => s + (v.quantity || 0), 0) : 0;
+  const owned = signedIn ? cardOwnedTotalFromVariants(card.variants) : 0;
   return (
     <span
       className={

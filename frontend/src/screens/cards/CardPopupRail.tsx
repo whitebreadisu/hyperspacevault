@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ValueSwitch } from "./VariantScopeControls";
 import type { VariantDetail } from "../../api/baseCards";
+import { variantPriceValue } from "../../utils/completion";
 import { variantLabel, orderVariants } from "./cardPopupShared";
 import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
 
@@ -65,8 +66,7 @@ export type PriceRailMode = "market" | "low";
  * a loading-skeleton state, never reaching this function -- see the rail
  * JSX below. */
 function railPriceText(v: VariantDetail, mode: PriceRailMode): string {
-  if (v.price == null) return "—";
-  const val = mode === "market" ? v.price.market : v.price.low;
+  const val = variantPriceValue(v, mode);
   return val == null ? "—" : `$${val.toFixed(2)}`;
 }
 
