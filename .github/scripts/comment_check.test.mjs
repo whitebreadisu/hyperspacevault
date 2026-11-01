@@ -27,20 +27,20 @@ test("flagged TS file not allowlisted fails with file:line", () => {
 });
 
 test("the same file allowlisted passes", () => {
-  const { root, allowFile } = tree({ [TS]: "// BL-12\n" }, [TS]);
+  const { root, allowFile } = tree({ [TS]: "// BL-12\n" }, [`${TS} 1`]);
   assert.deepEqual(check(root, allowFile).errors, []);
 });
 
 test("allowlisted clean file fails as stale", () => {
-  const { root, allowFile } = tree({ [TS]: "// no ids here\n" }, [TS]);
+  const { root, allowFile } = tree({ [TS]: "// no ids here\n" }, [`${TS} 1`]);
   const r = check(root, allowFile);
   assert.equal(r.errors.length, 1);
-  assert.match(r.errors[0], /stale allowlist entry/);
+  assert.match(r.errors[0], /stale baseline entry/);
 });
 
 test("allowlisted missing file fails as stale", () => {
-  const { root, allowFile } = tree({}, [TS]);
-  assert.match(check(root, allowFile).errors[0], /stale allowlist entry/);
+  const { root, allowFile } = tree({}, [`${TS} 1`]);
+  assert.match(check(root, allowFile).errors[0], /stale baseline entry/);
 });
 
 test("BL-id in a string literal is not flagged", () => {
@@ -83,4 +83,48 @@ test("test files and test directories are skipped", () => {
     "frontend/src/test/setup.ts": "// BL-1\n",
   });
   assert.deepEqual(check(root, allowFile).errors, []);
+});
+
+// ADR-0020 amendment 2026-11-01: the allowlist is a per-file count baseline.
+// Dispositions: "the same file allowlisted passes", "allowlisted clean file fails as stale" and
+// "allowlisted missing file fails as stale" are PORTED to the "path count" format; the rest unchanged.
+test("count increase over the baseline fails", () => {
+  const { root, allowFile } = tree({ [TS]: "// BL-1\n// BL-2\n" }, [`${TS} 1`]);
+  const r = check(root, allowFile);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /baseline 1 - the count may only go down/);
+});
+
+test("count equal to the baseline passes", () => {
+  const { root, allowFile } = tree({ [TS]: "// BL-1\n// BL-2\n" }, [`${TS} 2`]);
+  assert.deepEqual(check(root, allowFile).errors, []);
+});
+
+test("count below the baseline fails with an update-the-baseline message", () => {
+  const { root, allowFile } = tree({ [TS]: "// BL-1\n" }, [`${TS}\t3`]);
+  const r = check(root, allowFile);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /update the baseline: lower this entry in comment_check\.allow to 1/);
+});
+
+test("a new unlisted file fails while a listed one stays within baseline", () => {
+  const { root, allowFile } = tree(
+    { [TS]: "// BL-1\n", "frontend/src/b.ts": "// BL-2\n" },
+    [`${TS} 1`]
+  );
+  const r = check(root, allowFile);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /^frontend\/src\/b\.ts:1: /);
+});
+
+test("frontend/src/content/ is exempt from the scan", () => {
+  const { root, allowFile } = tree({ "frontend/src/content/releaseNotes.ts": "// BL-1\n" });
+  const r = check(root, allowFile);
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.files, 0);
+});
+
+test("a malformed baseline line throws", () => {
+  const { root, allowFile } = tree({ [TS]: "// BL-1\n" }, [TS]);
+  assert.throws(() => check(root, allowFile), /bad line/);
 });

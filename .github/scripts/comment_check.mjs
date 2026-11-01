@@ -1,6 +1,8 @@
 // BL-279 W2-16 (decision D4): comments describe the present, not history. Fails on a
-// BL-<n> id inside a comment in non-test source (frontend/src, backend/app) unless the
-// file is on the allowlist; fails on a stale allowlist entry so the list only shrinks.
+// BL-<n> id inside a comment in non-test source (frontend/src, backend/app, excluding
+// frontend/src/content/) beyond the per-file count baseline ("path count"). It fails when
+// a file's count goes up, when an unlisted file has any hit, and when a listed count is
+// stale (above the real number) so the baseline only decreases.
 //
 // Usage: node .github/scripts/comment_check.mjs [--root <dir>] [--allow <file>] [--seed]
 //   --seed   (re)write the allowlist from the tree as it stands, then exit 0.
@@ -29,6 +31,8 @@ const SKIP_DIRS = new Set([
 ]);
 const JS_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const PY_EXT = /\.py$/;
+// Release-history data files are exempt by design (ADR-0020 amendment 2026-11-01).
+const EXEMPT_PREFIXES = ["frontend/src/content/"];
 const SKIP_FILE = /\.(test|spec)\./;
 const BL = /\bBL-\d+\b/;
 
@@ -143,34 +147,52 @@ export function scan(root) {
   const result = new Map();
   for (const f of files.sort()) {
     const rel = relative(root, f).split(sep).join("/");
+    if (EXEMPT_PREFIXES.some((x) => rel.startsWith(x))) continue;
     const hits = commentHits(readFileSync(f, "utf-8"), PY_EXT.test(f));
     if (hits.length) result.set(rel, hits);
   }
   return result;
 }
 
+// Returns Map<path, count> from lines of "path<space or tab>count".
 export function readAllow(file) {
-  if (!existsSync(file)) return [];
-  return readFileSync(file, "utf-8")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"));
+  const out = new Map();
+  if (!existsSync(file)) return out;
+  for (const l of readFileSync(file, "utf-8").split(/\r?\n/)) {
+    const t = l.trim();
+    if (!t || t.startsWith("#")) continue;
+    const m = /^(\S+)\s+(\d+)$/.exec(t);
+    if (!m) throw new Error(`comment_check.allow: bad line "${t}" (want "path count")`);
+    out.set(m[1], Number(m[2]));
+  }
+  return out;
 }
 
 export function check(root, allowFile) {
   const found = scan(root);
   const allow = readAllow(allowFile);
-  const allowSet = new Set(allow);
   const errors = [];
   for (const [file, hits] of found) {
-    if (allowSet.has(file)) continue;
-    for (const h of hits) errors.push(`${file}:${h.line}: ${h.text}`);
+    const base = allow.get(file);
+    if (base === undefined) {
+      for (const h of hits) errors.push(`${file}:${h.line}: ${h.text}`);
+    } else if (hits.length > base) {
+      errors.push(
+        `${file}: ${hits.length} BL-id comment(s), baseline ${base} - the count may only go down; remove the new ones (lines ${hits.map((h) => h.line).join(", ")})`
+      );
+    } else if (hits.length < base) {
+      errors.push(
+        `${file}: ${hits.length} BL-id comment(s), baseline ${base} - update the baseline: lower this entry in comment_check.allow to ${hits.length}`
+      );
+    }
   }
-  for (const a of allow) {
+  for (const a of allow.keys()) {
     if (!found.has(a))
-      errors.push(`${a}: stale allowlist entry - remove it (no BL-id comments left in this file)`);
+      errors.push(`${a}: stale baseline entry - remove it (no BL-id comments left in this file)`);
   }
-  return { errors, files: found.size, allow: allow.length, found };
+  let total = 0;
+  for (const v of allow.values()) total += v;
+  return { errors, files: found.size, allow: allow.size, baseline: total, found };
 }
 
 function main() {
@@ -182,9 +204,10 @@ function main() {
   if (argv.includes("--seed")) {
     const found = scan(root);
     const body =
-      "# BL-279 W2-16 / D4: files whose comments still cite BL-ids. WS-4 shrinks this list to zero;\n" +
-      "# the check fails on a new file not listed here and on an entry with no remaining hits.\n" +
-      [...found.keys()].join("\n") +
+      "# BL-279 W2-16 / D4 / ADR-0020 amendment 2026-11-01: per-file count baseline of BL-id comments.\n" +
+      "# Format: path count. A count may only go down; a new file or a higher count fails the check,\n" +
+      "# and so does a count left above the real number (lower it). WS-4 shrinks this to zero.\n" +
+      [...found].map(([f, h]) => `${f} ${h.length}`).join("\n") +
       "\n";
     writeFileSync(allowFile, body);
     console.log(`comment-check: seeded ${found.size} files into ${relative(root, allowFile)}`);
@@ -197,7 +220,7 @@ function main() {
     process.exit(1);
   }
   console.log(
-    `comment-check: ${r.files} files with BL-id comments, all allowlisted; allowlist ${r.allow}`
+    `comment-check: ${r.files} files with BL-id comments, at or under baseline; baseline ${r.baseline} comment(s) in ${r.allow} file(s)`
   );
 }
 
