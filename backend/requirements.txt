@@ -5,7 +5,7 @@ fastapi==0.143.0
 uvicorn[standard]==0.54.0
 sqlalchemy==2.1.5
 psycopg2-binary==2.9.13
-alembic==1.20.0
+alembic==1.20.1
 pydantic==2.14.1
 httpx==0.28.1
 # BL-54 S2 (§7.2): POST /api/inventory/import is multipart (file + form
