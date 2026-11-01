@@ -16,7 +16,9 @@ export const BLUR_THRESHOLD = 14;
 export const MIN_GLYPH = 22;
 export const PADDLE_TEXT_PX = 40;
 export const TESS_TEXT_PX = 36;
-/** Fixed output width when no implied text height exists. */
+/** Target output width when no implied text height exists; the scale that
+ * reaches it is clamped to 0.25-4x, so a very small or very large crop
+ * lands short of or past it. */
 export const FIXED_W = 1100;
 
 export function grayOf(img: { data: ArrayLike<number> }): Uint8ClampedArray {

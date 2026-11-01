@@ -45,9 +45,12 @@ MAX_SUBMISSIONS_PER_WINDOW = 5
 WINDOW_SECONDS = 60 * 60  # one hour
 
 # A full store of one-hit keys measures ~19 MB (~370 bytes a key
-# with the OrderedDict), so both stores together stay under ~40 MB of the
-# 512 MiB Cloud Run container (the default; terraform/modules/app sets no
-# memory limit for the service) -- bounded even mid-flood.
+# with the OrderedDict), so two full stores of one-hit keys come to ~40 MB of
+# the 512 MiB Cloud Run container (the default; terraform/modules/app sets no
+# memory limit for the service). A key holds one timestamp per hit in its
+# window, so keys near their limit cost more: a store full of shared-read keys
+# at 300 hits each is several hundred MB. MAX_KEYS bounds the key count, not
+# the timestamps per key.
 MAX_KEYS = 50_000
 SWEEP_INTERVAL_SECONDS = 60.0
 _IPV6_64_MASK = ((1 << 64) - 1) << 64

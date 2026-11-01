@@ -136,7 +136,10 @@ export function layoutGuide(
 }
 
 /** The crop (stage CSS px) in full-resolution video px under
- * `object-fit: cover`, clamped to the frame; null before the first frame. */
+ * `object-fit: cover`; null before the first frame. The origin is floored at
+ * 0 and the size trimmed to the frame's far edges, which assumes the crop
+ * overlaps the frame (the guide always sits inside the stage); a crop wholly
+ * outside it would come back with a negative size. */
 export function guideRectInVideo(
   g: GuideLayout,
   vw: number,

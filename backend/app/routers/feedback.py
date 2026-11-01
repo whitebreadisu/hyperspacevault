@@ -23,7 +23,9 @@ def submit_feedback(
     db: Session = Depends(get_optional_db),
 ):
     """Rate limiting (the cheap tier, app/rate_limit.py; App Spec §12) runs
-    before the DB write so a limited caller never consumes a round trip.
+    before the feedback write, so a limited caller never inserts a row. The
+    session itself is already open by then: get_optional_db opens it and
+    stamps the tenant context before this handler runs.
     It deliberately does not special-case the honeypot path -- a bot
     retrying past the honeypot is exactly the traffic this limiter exists
     to blunt too.
