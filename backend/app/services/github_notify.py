@@ -1,10 +1,12 @@
-"""BL-126 owner decisions #1/#2: best-effort GitHub-issue notification for
-a feedback submission, created AFTER the feedback DB write already
-committed -- a failure here must never turn a persisted submission into an
-error response. Every failure mode (missing/placeholder token, network
-error, GitHub 4xx/5xx) is caught here and logged, never re-raised; the PAT
-and the exception detail never leave this module. See
-app/services/feedback.py's submit_feedback, the only caller.
+"""Best-effort GitHub-issue notification for a feedback submission,
+created AFTER the feedback DB write already committed -- a failure here
+must never turn a persisted submission into an error response. Every
+failure mode (missing/placeholder token, network error, GitHub 4xx/5xx) is
+caught here and logged, never re-raised; the PAT and the exception detail
+never leave this module. Only the production environment notifies; every
+other ENVIRONMENT value (and an unset one) skips the notification while the
+submission still succeeds. See app/services/feedback.py's submit_feedback,
+the only caller.
 """
 
 import logging
@@ -16,8 +18,7 @@ logger = logging.getLogger("app.feedback")
 
 GITHUB_API_BASE = "https://api.github.com"
 
-# Owner decision (issue #289): Jeremy creates this private repo manually;
-# the env var (terraform/modules/app/cloud_run.tf) overrides this default
+# The owner creates this private repo manually; the env var (terraform/modules/app/cloud_run.tf) overrides this default
 # per environment, but every environment is expected to point at the same
 # single private repo for now.
 DEFAULT_FEEDBACK_REPO = "whitebreadisu/swu-feedback"
@@ -31,6 +32,12 @@ DEFAULT_FEEDBACK_REPO = "whitebreadisu/swu-feedback"
 # reject.
 _PLACEHOLDER_TOKEN = "PLACEHOLDER_ROTATE_ME"
 
+# Terraform sets ENVIRONMENT per environment (terraform/modules/app/cloud_run.tf):
+# "production" on prod, "development" on dev. Only the production value
+# notifies, so a new or misconfigured environment fails closed.
+_NOTIFYING_ENVIRONMENT = "production"
+_ENVIRONMENT_LABELS = {"production": "prod", "development": "dev"}
+
 _TITLE_MAX_LENGTH = 60
 _REQUEST_TIMEOUT_SECONDS = 10.0
 
@@ -40,6 +47,13 @@ def _issue_title(message: str) -> str:
     if len(stripped) <= _TITLE_MAX_LENGTH:
         return stripped or "(no message)"
     return stripped[: _TITLE_MAX_LENGTH - 1].rstrip() + "…"
+
+
+def _environment_label() -> str:
+    raw = os.environ.get("ENVIRONMENT")
+    if not raw:
+        return "unknown"
+    return _ENVIRONMENT_LABELS.get(raw, raw)
 
 
 def _issue_body(
@@ -53,6 +67,7 @@ def _issue_body(
         message,
         "",
         "---",
+        f"Environment: {_environment_label()}",
         f"Commit: {commit_sha or 'unknown'}",
         f"Submitted: {created_at}",
     ]
@@ -61,7 +76,7 @@ def _issue_body(
     # function) -- included verbatim, never inferred.
     if contact_email:
         lines.append(f"Contact: {contact_email}")
-    # BL-128: @mention the repo owner so the notification email rides the
+    # @mention the repo owner so the notification email rides the
     # Participating channel. Watching-class emails (bot-authored issue
     # creation alone) were verified NOT delivering on 2026-07-31 despite
     # the owner's Watching->Email setting; a mention-class email delivered
@@ -82,7 +97,14 @@ def notify(
 ) -> None:
     """Creates one GitHub issue for this submission. Always returns None;
     never raises. token/repo come from env (FEEDBACK_GITHUB_PAT /
-    FEEDBACK_GITHUB_REPO)."""
+    FEEDBACK_GITHUB_REPO); the notification is skipped, with no network
+    call, unless ENVIRONMENT is "production"."""
+    if os.environ.get("ENVIRONMENT") != _NOTIFYING_ENVIRONMENT:
+        logger.info(
+            "feedback github notification skipped: environment is not production"
+        )
+        return
+
     token = os.environ.get("FEEDBACK_GITHUB_PAT")
     repo = os.environ.get("FEEDBACK_GITHUB_REPO") or DEFAULT_FEEDBACK_REPO
 

@@ -63,7 +63,6 @@ backend/app/services/deck_fetch.py 1
 backend/app/services/deck_parse.py 1
 backend/app/services/deck_resolution.py 2
 backend/app/services/feedback.py 2
-backend/app/services/github_notify.py 2
 backend/app/services/image_paths.py 2
 backend/app/services/inventory.py 10
 backend/app/services/inventory_import.py 4

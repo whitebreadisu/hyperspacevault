@@ -252,6 +252,7 @@ class TestGithubNotification:
     def test_notification_success_still_stores_row_and_returns_201(
         self, anon_client, db, monkeypatch
     ):
+        monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("FEEDBACK_GITHUB_PAT", "test-token")
         monkeypatch.setenv("FEEDBACK_GITHUB_REPO", "whitebreadisu/swu-feedback")
         fake_client_holder: dict = {}
@@ -280,6 +281,7 @@ class TestGithubNotification:
             # email rides the Participating channel (Watching-class emails
             # verified not delivering, 2026-07-31).
             assert calls[0]["json"]["body"].endswith("cc @whitebreadisu")
+            assert "Environment: prod" in calls[0]["json"]["body"]
         finally:
             _cleanup_feedback(db, message)
 
@@ -290,6 +292,7 @@ class TestGithubNotification:
         attempted (decision #1) -- a network failure/4xx/5xx from GitHub
         must never surface as anything other than a normal success
         response, and the row must still be there."""
+        monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("FEEDBACK_GITHUB_PAT", "test-token")
         monkeypatch.setattr(github_notify.httpx, "Client", _FakeFailingClient)
 
@@ -303,6 +306,29 @@ class TestGithubNotification:
 
             row = _feedback_row(db, message)
             assert row is not None
+        finally:
+            _cleanup_feedback(db, message)
+
+    def test_development_environment_skips_notification_and_stores_row(
+        self, anon_client, db, monkeypatch
+    ):
+        """A configured token does not matter outside production: no HTTP
+        client is built, and the submission is stored and returns 201."""
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        monkeypatch.setenv("FEEDBACK_GITHUB_PAT", "test-token")
+
+        def _must_not_build_client(*args, **kwargs):
+            raise AssertionError("no GitHub call outside production")
+
+        monkeypatch.setattr(github_notify.httpx, "Client", _must_not_build_client)
+
+        message = "BL-304 test: development skips notification"
+        try:
+            response = anon_client.post(
+                "/api/feedback", json={"message": message, "contact_ok": False}
+            )
+            assert response.status_code == 201
+            assert _feedback_row(db, message) is not None
         finally:
             _cleanup_feedback(db, message)
 

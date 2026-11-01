@@ -79,6 +79,9 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
 
+      # Also the feedback notification switch and the issue body's
+      # Environment line (app/services/github_notify.py): only "production"
+      # creates GitHub issues; any other value, including "development", skips.
       env {
         name  = "ENVIRONMENT"
         value = var.environment_name
