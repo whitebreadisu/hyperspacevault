@@ -100,6 +100,7 @@ describe("S1-12 Vault data hook", () => {
 
   it("returns the catalogue merged with quantities, 0 for absent variants", async () => {
     const { result } = renderHook(() => useVaultDataSource(true));
+    await waitFor(() => expect(result.current.loading).toBe(false));
     await waitFor(() => expect(result.current.quantities).toEqual({ 102: 2 }));
     const merged = result.current.catalogWithQuantities;
     expect(merged).toHaveLength(1);

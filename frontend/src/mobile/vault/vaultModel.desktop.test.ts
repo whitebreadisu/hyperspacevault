@@ -107,8 +107,8 @@ const CTX = { setOrder: SET_ORDER, priceKind: "market" as const, limits: null };
 const DESKTOP = { ...CTX, sortPolicy: desktopSortPolicy, unitMode: "unit" as const };
 const ids = (cards: InventoryCard[]) => cards.map((c) => c.base_card_id);
 
-/** Asserts the shared model gives the literal answer for one input. In these
- * stages the desktop options make no difference at the default sort. */
+/** Asserts the shared model gives the literal answer for one input, under both
+ * the phone's and the desktop's options (they agree at the default sort). */
 function expectModel(
   s: VaultFilterState,
   want: { list: number[]; breakdown: number[]; activeCount: number; narrowed: boolean }
@@ -122,6 +122,16 @@ function expectModel(
       narrowed: p.narrowed,
     },
     "model"
+  ).toEqual(want);
+  const d = buildVaultList(CARDS, s, DEFAULT_SORT_STATE, DESKTOP);
+  expect(
+    {
+      list: ids(d.list),
+      breakdown: ids(d.breakdown),
+      activeCount: d.activeCount,
+      narrowed: d.narrowed,
+    },
+    "desktop options"
   ).toEqual(want);
   expect(ids(filterCards(p.all, s, CTX.limits)), "filterCards").toEqual(want.list);
   expect(activeFilterCount(s)).toBe(want.activeCount);
