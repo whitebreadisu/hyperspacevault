@@ -1,5 +1,4 @@
-/* Price history panel (BL-140 design-conformance pass) -- .php-* styles.
-   No longer an overlay: this is now embedded content, mounted twice by
+/* Price history panel -- .php-* styles. Embedded content, mounted twice by
    CardPopup.tsx --
 
      - .php-panel--compact inside .cp-rail__history (a border-top-2px wrapper
@@ -113,9 +112,9 @@
   color: var(--color-danger);
 }
 
-/* Sparse-data notice: HistoryPanel.dc.html's blue-left-border line. Can
-   render ALONGSIDE the chart (n>1 but still short of the requested range)
-   or alone (n===1, not enough points to draw a line at all). */
+/* Sparse-data notice: a blue-left-border line. Can render ALONGSIDE the
+   chart (n>1 but still short of the requested range) or alone (n===1, not
+   enough points to draw a line at all). */
 .php-sparse {
   font-size: 11px;
   color: var(--color-text-muted);

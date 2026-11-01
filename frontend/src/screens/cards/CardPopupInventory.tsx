@@ -12,23 +12,18 @@ import {
 import { variantLabel } from "./cardPopupShared";
 import { capture } from "../../analytics/analytics";
 
-/** BL-155 decomposition: inventory controls, pulled out of CardPopup.tsx
- * verbatim -- the selected printing's owned-quantity stepper (InventoryPlate,
- * with its limits/cap_mode math), the signed-out "Sign in" nudge that stands
- * in for it, and the increment/decrement mutation logic (useInventoryMutation)
- * that drives both.
- *
- * BL-219 (issue #127): useInventoryMutation reworked from "one round trip
- * per click, buttons disabled while it's in flight" to accumulate-and-
- * debounce -- see its own doc comment below for the full design. The
- * increment/decrement API contracts themselves are untouched; this hook now
- * drives the new POST .../adjust endpoint exclusively. */
+/** Inventory controls: the selected printing's owned-quantity stepper
+ * (InventoryPlate, with its limits/cap_mode math), the signed-out "Sign in"
+ * nudge that stands in for it, and the increment/decrement mutation logic
+ * (useInventoryMutation) that drives both. The hook accumulates clicks and
+ * debounces them into POST .../adjust calls -- see its own doc comment
+ * below for the design. */
 
 const VERIFY_EMAIL_MESSAGE = "Verify your email to manage inventory -- see the banner above.";
 
-/** Inventory-plate label format (design handoff §5: "OWNED — <printing>
- * <cardnum>") -- deliberately shorter than variantLabel above (no set code;
- * the printings picker and the right pane's set name already carry that). */
+/** Inventory-plate label format ("OWNED — <printing> <cardnum>") --
+ * deliberately shorter than variantLabel above (no set code; the printings
+ * picker and the right pane's set name already carry that). */
 function ownedLabel(v: VariantDetail): string {
   return `${v.finish ?? v.variant_type} #${v.card_number}`;
 }
@@ -41,37 +36,32 @@ interface InventoryPlateProps {
   pending: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
-  /** BL-205 (§19.1): true for a shared-vault viewer -- renders the same
+  /** True for a shared-vault viewer (App Spec §19.1): renders the same
    * readout (qty, limit fraction, progress bar, over-limit tag) but with the
-   * -/+ stepper buttons REMOVED rather than merely disabled, matching the
-   * spec's "quantity editing removed" wording. Distinct from the
-   * signed-out nudge above: a read-only viewer sees the OWNER's real
-   * quantity, not a "sign in" prompt. Defaults false so every existing
-   * caller renders the interactive stepper unchanged. */
+   * -/+ stepper buttons REMOVED rather than merely disabled ("quantity
+   * editing removed"). Distinct from the signed-out nudge above: a read-only
+   * viewer sees the OWNER's real quantity, not a "sign in" prompt. Defaults
+   * to false (interactive stepper). */
   readOnly?: boolean;
 }
 
-/** The selected printing's owned-quantity stepper (design handoff §5's
- * "Inventory plate"). BL-111 F5 LIMITS MAPPING (product-owner decision,
- * overrides the design mock's hardcoded 3/1): reuses the exact enforcement
- * math CardInventoryPopup shipped (utils/limits.ts) rather than the mock's
- * fixed playset-size constants --
+/** The selected printing's owned-quantity stepper (the inventory plate).
+ * Limits mapping reuses the enforcement math in utils/limits.ts rather than
+ * fixed playset-size constants:
  *   - y = the printing's effectiveLimit; null ("No limit") hides the "/y"
  *     suffix and the progress bar entirely, and + is enabled up to the 999
  *     technical ceiling (enforcementCap already resolves null -> the
  *     ceiling, so the hard-mode branch below reduces to the same check).
- *   - hard cap_mode: + disables at the effective cap (ported verbatim).
+ *   - hard cap_mode: + disables at the effective cap.
  *   - soft cap_mode: + stays enabled past the limit -- only the ceiling
  *     stops it -- and the readout carries a distinct amber "Over limit" tag
- *     (ported verbatim from CardInventoryPopup's cip-row--over-limit/
- *     cip-row__qty--over-limit) once quantity exceeds the raw effective
- *     limit. This is separate from pastLimit below, which is a purely
- *     visual "you are past the configured limit" cue (FR1-05, owner
- *     decision 2026-10-12: red only OVER the limit, at the limit the count
- *     keeps its normal colour) that applies in EITHER cap_mode once
- *     quantity > the limit -- hard mode only gets there when the limit was
- *     lowered below an existing count (+ disables at the limit), soft mode
- *     can sail past it (and the amber over-limit class then wins). */
+ *     once quantity exceeds the raw effective limit. This is separate from
+ *     pastLimit below, which is a purely visual "you are past the configured
+ *     limit" cue (red only OVER the limit; at the limit the count keeps its
+ *     normal colour) that applies in EITHER cap_mode once quantity > the
+ *     limit -- hard mode only gets there when the limit was lowered below an
+ *     existing count (+ disables at the limit), soft mode can sail past it
+ *     (and the amber over-limit class then wins). */
 function InventoryPlate({
   variant,
   typeCategory,
@@ -87,17 +77,16 @@ function InventoryPlate({
   const cap = enforcementCap(limits, typeCategory, bucket);
   const qty = variant.quantity;
 
-  // BL-219: no longer gated on `pending` -- the debounced stepper never
-  // blocks the buttons while a flush is in flight (accumulating clicks is
-  // the whole point). `qty` here is already the DISPLAYED quantity
-  // (serverQuantity + the accumulated-but-not-yet-flushed delta,
-  // useInventoryMutation's optimistic update), so the same boundary
-  // semantics that used to gate against the server-confirmed quantity now
-  // gate against that live, locally-accumulated value instead.
+  // Not gated on `pending`: the debounced stepper never blocks the buttons
+  // while a flush is in flight (accumulating clicks is the whole point). `qty`
+  // here is already the DISPLAYED quantity (serverQuantity + the
+  // accumulated-but-not-yet-flushed delta, useInventoryMutation's optimistic
+  // update), so the boundary semantics gate against that live,
+  // locally-accumulated value rather than the server-confirmed quantity.
   const incDisabled = capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap;
   const decDisabled = qty <= 0;
 
-  // FR1-05: red only PAST the limit; at the limit the count is the normal colour.
+  // Red only PAST the limit; at the limit the count is the normal colour.
   const pastLimit = rawLimit !== null && qty > rawLimit;
   const softOverLimit = capMode === "soft" && rawLimit !== null && qty > rawLimit;
   const pctWidth =
@@ -108,17 +97,15 @@ function InventoryPlate({
   const label = ownedLabel(variant);
 
   return (
-    // BL-219: `pending` is now purely informational (a flush is somewhere
-    // in flight for this popup) -- the buttons themselves are never gated
-    // on it (see incDisabled/decDisabled above); this class is an
-    // unstyled-today hook for a future subtle "saving" affordance, kept
-    // deliberately inert rather than reaching for CSS this task didn't
-    // ask for.
+    // `pending` is purely informational (a flush is somewhere in flight for
+    // this popup) -- the buttons themselves are never gated on it (see
+    // incDisabled/decDisabled above); this class is an unstyled hook,
+    // deliberately inert.
     <div className={`cp-plate${pending ? " cp-plate--pending" : ""}`}>
       <div className="cp-plate__inner">
-        {/* BL-205: readOnly renders the qty by itself -- no -/+ buttons at
-            all (removed, not disabled -- §19.1's "card-detail quantity
-            editing" mutation affordance). */}
+        {/* readOnly renders the qty by itself -- no -/+ buttons at all
+            (removed, not disabled; App Spec §19.1's quantity-editing
+            removal for shared-vault viewers). */}
         {readOnly ? (
           <div className="cp-plate__stepper">
             <span className="cp-plate__qty">{qty}</span>
@@ -176,10 +163,10 @@ function InventoryPlate({
   );
 }
 
-/** BL-219 (issue #127): per-variant debounce/accumulation bookkeeping --
- * lives in a ref (not state) since updating it must never itself trigger a
- * render; the DISPLAYED quantity is what's rendered, driven by ordinary
- * setVariants calls at the points below that actually change it.
+/** Per-variant debounce/accumulation bookkeeping -- lives in a ref (not
+ * state) since updating it must never itself trigger a render; the DISPLAYED
+ * quantity is what's rendered, driven by ordinary setVariants calls at the
+ * points below that actually change it.
  *   - serverQty: the last quantity this hook knows the SERVER actually
  *     holds -- seeded from the variant's own quantity the first time a
  *     click touches it (at that instant nothing is pending yet, so the
@@ -197,37 +184,34 @@ interface AdjustBookkeeping {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-// BL-219: debounce window -- one network call per burst of clicks landing
-// within 400ms of each other, not one call per click.
+// Debounce window: one network call per burst of clicks landing within 400ms
+// of each other, not one call per click.
 const ADJUST_DEBOUNCE_MS = 400;
 
-/** BL-155 decomposition (BL-219 rework, issue #127): handleIncrement/
- * handleDecrement pulled out of CardPopup.tsx verbatim as a hook originally;
- * now accumulate-and-debounce instead of one increment/decrement round trip
- * per click. `setVariants`/`setChanged` are the shell's own useState
- * setters (stable across renders), passed down rather than owned here,
- * since the shell's data-loading effect and the rest of the popup still
+/** Increment/decrement handlers, accumulate-and-debounce rather than one
+ * round trip per click. `setVariants`/`setChanged` are the shell's own
+ * useState setters (stable across renders), passed down rather than owned
+ * here, since the shell's data-loading effect and the rest of the popup still
  * need `variants`/`changed` directly. `pending`/`mutationError` ARE owned
- * here -- nothing outside this hook reads/writes them except via its
- * return value.
+ * here -- nothing outside this hook reads/writes them except via its return
+ * value.
  *
- * Design (BL-219 locked spec): a click mutates a local, per-variant signed
- * delta immediately (both +/- accumulate into the SAME delta, so
- * interleaving nets out) and updates the DISPLAYED quantity optimistically
- * (serverQty + unflushed) -- no network call yet. 400ms after the last
- * click on that variant, exactly one POST .../adjust call fires with the
- * net delta (skipped entirely if it netted to 0); while that call is in
- * flight, further clicks keep accumulating into a NEW delta and reschedule
- * their own 400ms flush rather than blocking on the one already in flight
- * (see InventoryPlate's incDisabled/decDisabled -- never gated on
- * `pending`). The reconciliation on a response replaces serverQty with the
- * response's authoritative quantity and re-derives the display from
- * whatever accumulated in the meantime (bump() during that flight already
- * moved it into `unflushed` again); an error instead leaves serverQty
- * untouched and re-derives from that same untouched value -- "dropping"
- * only the failed flush's own delta while preserving anything accumulated
- * after it. bookkeepingRef is keyed by variant_id (not just "the current
- * selection") since a forced flush on variant-switch can still be in
+ * Design: a click mutates a local, per-variant signed delta immediately (both
+ * +/- accumulate into the SAME delta, so interleaving nets out) and updates
+ * the DISPLAYED quantity optimistically (serverQty + unflushed) -- no network
+ * call yet. 400ms after the last click on that variant, exactly one POST
+ * .../adjust call fires with the net delta (skipped entirely if it netted to
+ * 0); while that call is in flight, further clicks keep accumulating into a
+ * NEW delta and reschedule their own 400ms flush rather than blocking on the
+ * one already in flight (see InventoryPlate's incDisabled/decDisabled --
+ * never gated on `pending`). The reconciliation on a response replaces
+ * serverQty with the response's authoritative quantity and re-derives the
+ * display from whatever accumulated in the meantime (bump() during that
+ * flight already moved it into `unflushed` again); an error instead leaves
+ * serverQty untouched and re-derives from that same untouched value --
+ * "dropping" only the failed flush's own delta while preserving anything
+ * accumulated after it. bookkeepingRef is keyed by variant_id (not just "the
+ * current selection") since a forced flush on variant-switch can still be in
  * flight for a variant that is no longer selected -- its eventual response
  * must still land on the right row in `variants`. */
 export function useInventoryMutation(
@@ -267,14 +251,14 @@ export function useInventoryMutation(
       setMutationError(null);
       try {
         const result = await adjustCard(variantId, delta);
-        // BL-35 (ported): result.over_limit/blocked are informational only
-        // for the *response itself* -- the over-limit indicator is derived
-        // fresh on every render from the resolved quantity vs. the
-        // effective limit (see InventoryPlate), so it stays correct even if
-        // the tenant's limits/cap_mode change later in the same session.
-        // `applied` is deliberately NOT used here -- `quantity` is the
-        // authoritative post-adjust value regardless of how much of the
-        // request was actually applied (partial, zero/blocked, or full).
+        // result.over_limit/blocked are informational only for the *response
+        // itself* -- the over-limit indicator is derived fresh on every render
+        // from the resolved quantity vs. the effective limit (see
+        // InventoryPlate), so it stays correct even if the tenant's
+        // limits/cap_mode change later in the same session. `applied` is
+        // deliberately NOT used here -- `quantity` is the authoritative
+        // post-adjust value regardless of how much of the request was
+        // actually applied (partial, zero/blocked, or full).
         entry.serverQty = result.quantity;
         setDisplayedQuantity(variantId, entry.serverQty + entry.unflushed);
       } catch (err) {
@@ -309,19 +293,19 @@ export function useInventoryMutation(
     [flush]
   );
 
-  // A click: accumulate the +-1 into the variant's pending delta, update
-  // the display optimistically, and (re)start its 400ms debounce window.
+  // A click: accumulate the +-1 into the variant's pending delta, update the
+  // display optimistically, and (re)start its 400ms debounce window.
   // setChanged(true) fires HERE (synchronously, at click time) rather than
-  // waiting on the flush's response -- CardPopup.tsx's close() reads
-  // `changed` synchronously the instant Close is clicked, which can easily
-  // land before an in-flight or still-debouncing flush has resolved (the
-  // popup's OWN unmount is one of the "MUST flush immediately" triggers, so
-  // a flush is often only just STARTING as the popup goes away); if
-  // `changed` waited on that response, a close that races the flush would
-  // silently skip the parent's refreshQuantities. Optimistic and harmless
-  // either way (a no-op refresh costs a cheap idempotent GET, same trade-off
-  // decrement_card's response already made by never distinguishing "really
-  // changed" from "no-op at the floor" pre-BL-219).
+  // waiting on the flush's response -- CardPopup.tsx's close() reads `changed`
+  // synchronously the instant Close is clicked, which can easily land before
+  // an in-flight or still-debouncing flush has resolved (the popup's OWN
+  // unmount is one of the "MUST flush immediately" triggers, so a flush is
+  // often only just STARTING as the popup goes away); if `changed` waited on
+  // that response, a close that races the flush would silently skip the
+  // parent's refreshQuantities. Optimistic and harmless either way (a no-op
+  // refresh costs a cheap idempotent GET, the same trade-off decrement_card's
+  // response makes by never distinguishing "really changed" from "no-op at
+  // the floor").
   const bump = useCallback(
     (variantId: number, delta: 1 | -1, currentDisplayed: number) => {
       let entry = bookkeepingRef.current.get(variantId);
@@ -347,25 +331,24 @@ export function useInventoryMutation(
 
   const handleIncrement = useCallback(() => {
     if (!selectedVariant) return;
-    capture("quantity_changed", { direction: "increment", surface: "popup" }); // BL-235
+    capture("quantity_changed", { direction: "increment", surface: "popup" });
     bump(selectedVariant.variant_id, 1, selectedVariant.quantity);
   }, [selectedVariant, bump]);
 
   const handleDecrement = useCallback(() => {
     if (!selectedVariant) return;
-    capture("quantity_changed", { direction: "decrement", surface: "popup" }); // BL-235
+    capture("quantity_changed", { direction: "decrement", surface: "popup" });
     bump(selectedVariant.variant_id, -1, selectedVariant.quantity);
   }, [selectedVariant, bump]);
 
-  // BL-219: flush-on-variant-switch and flush-on-unmount, both from ONE
-  // effect keyed on the selected variant_id -- its cleanup fires exactly
-  // when that id is about to change (a rail click, prev/next card nav, or
-  // any other path that moves the selection) AND on unmount (popup close),
-  // which is exactly the "MUST flush immediately" trigger set the locked
-  // spec calls out. "Before any other inventory mutation from the same
-  // popup" is covered for free: this popup only ever mutates the currently
-  // SELECTED variant, so any other mutation necessarily follows a
-  // selection change this same cleanup already intercepts.
+  // Flush-on-variant-switch and flush-on-unmount, both from ONE effect keyed
+  // on the selected variant_id -- its cleanup fires exactly when that id is
+  // about to change (a rail click, prev/next card nav, or any other path that
+  // moves the selection) AND on unmount (popup close), which is exactly the
+  // "MUST flush immediately" trigger set. "Before any other inventory
+  // mutation from the same popup" is covered for free: this popup only ever
+  // mutates the currently SELECTED variant, so any other mutation necessarily
+  // follows a selection change this same cleanup already intercepts.
   const selectedVariantId = selectedVariant?.variant_id;
   useEffect(() => {
     return () => {
@@ -377,8 +360,8 @@ export function useInventoryMutation(
 }
 
 /** Switches between the signed-in stepper and the signed-out nudge -- the
- * unified popup opens for anonymous users too (BL-56 §5.5's inert-teaser
- * pattern), the plate itself being the nudge rather than a separate bounce. */
+ * unified popup opens for anonymous users too (an inert-teaser pattern), the
+ * plate itself being the nudge rather than a separate bounce. */
 export function CardPopupInventoryControls({
   isAuthenticated,
   readOnly = false,
@@ -392,11 +375,10 @@ export function CardPopupInventoryControls({
   onRequestSignIn,
 }: {
   isAuthenticated: boolean;
-  /** BL-205: forwarded to InventoryPlate -- see its own doc comment. Only
-   * meaningful when `isAuthenticated` is true (a shared-vault viewer always
-   * has `isAuthenticated=true` here, see CardsPage's `hasData` -- readOnly
-   * is what then keeps the stepper from being interactive). Defaults false
-   * so every existing caller renders unchanged. */
+  /** Forwarded to InventoryPlate -- see its own doc comment. Only meaningful
+   * when `isAuthenticated` is true (a shared-vault viewer always has
+   * `isAuthenticated=true` here, see CardsPage's `hasData` -- readOnly is what
+   * then keeps the stepper from being interactive). Defaults to false. */
   readOnly?: boolean;
   variant: VariantDetail;
   typeCategory: TypeCategory;
@@ -405,8 +387,8 @@ export function CardPopupInventoryControls({
   pending: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
-  /** BL-56 §5.5's inert-teaser pattern: opens the shell's AuthModal. The
-   * signed-out inventory plate's "Sign in" button routes through this. */
+  /** Inert-teaser pattern: opens the shell's AuthModal. The signed-out
+   * inventory plate's "Sign in" button routes through this. */
   onRequestSignIn?: () => void;
 }) {
   if (!isAuthenticated) {

@@ -1,23 +1,19 @@
 import type { VariantDetail } from "../../api/baseCards";
 
-/** BL-155 decomposition: pulled out of CardPopup.tsx verbatim -- this format
- * string is used by both the printings rail (CardPopupRail.tsx, as each
+/** Picker/label format shared by the printings rail (CardPopupRail.tsx, each
  * row's `title` attribute) and the inventory stepper (CardPopupInventory.tsx,
- * in its increment/decrement aria-labels), so it lives here rather than in
- * either component file to avoid one importing from the other.
- *
- * Picker/label format shared with the retired popups: "Standard – #4 – ASH". */
+ * its increment/decrement aria-labels). It lives here so neither component
+ * file has to import from the other. Example: "Standard – #4 – ASH". */
 export function variantLabel(v: VariantDetail): string {
   return `${v.finish ?? v.variant_type} – #${v.card_number} – ${v.source_set_code}`;
 }
 
-/** BL-192: moved from CardPopupRail.tsx verbatim so the shell (CardPopup.tsx)
- * can compute the SAME flat ordered variant list the rail renders, for the
- * up/down keyboard cycle -- one ordering rule, two consumers, instead of a
- * second implementation that could drift from the rail's own. Ordering for
- * the printings picker (design handoff §5 / mock): base set first (the
- * card's own set_code), then other source sets alphabetically, then
- * card_number ascending within each set. */
+/** Ordering for the printings picker: base set first (the card's own
+ * set_code), then other source sets alphabetically, then card_number
+ * ascending within each set. The rail renders this order and the shell
+ * (CardPopup.tsx) builds the same flat list for the up/down keyboard cycle,
+ * so there is one ordering rule with two consumers and no second
+ * implementation to drift. */
 export function orderVariants(variants: VariantDetail[], baseSetCode: string): VariantDetail[] {
   const numericNumber = (v: VariantDetail) => {
     const n = Number(v.card_number);

@@ -5,16 +5,15 @@ import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps } from "../../utils/cardImages";
 import { playsetPlate } from "../../utils/variantScope";
 
-/** BL-73 Stage 1: uniform portrait cell, matching the 2.5:3.5 card ratio used
- * by the BL-62 Add Cards preview frame (AddCardsModal.css's
- * `.ac-pad__resolve-image`, 132x185 -- same ratio, sized up slightly for a
- * gallery-density grid). Landscape sources never render landscape here --
- * see cellImage's orientation rule (leader backs / rotated base fronts). */
+/** Uniform portrait cell, matching the 2.5:3.5 card ratio used by the Add
+ * Cards preview frame (AddCardsModal.css's `.ac-pad__resolve-image`,
+ * 132x185 -- same ratio, sized up slightly for a gallery-density grid).
+ * Landscape sources never render landscape here -- see cellImage's
+ * orientation rule (leader backs / rotated base fronts). */
 const CELL_WIDTH = 140;
 const CELL_HEIGHT = 196;
-/** BL-111 F4 (design handoff §4, Option D "Plate + hover dossier"): each
- * cell grew a console plate footer below the art. PLATE_HEIGHT/CELL_GAP feed
- * both the CSS (.gallery-cell / .gallery-plate in cards.css) and the
+/** Each cell has a console plate footer below the art. PLATE_HEIGHT/CELL_GAP
+ * feed both the CSS (.gallery-cell / .gallery-plate in cards.css) and the
  * virtualizer's row pitch below -- the two must never disagree, same
  * reasoning as `columns` further down. */
 const PLATE_HEIGHT = 24;
@@ -30,31 +29,29 @@ const DEFAULT_CONTAINER_WIDTH = 1200;
 
 interface Props {
   cards: InventoryCard[];
-  /** BL-201: `displayedFinish` is non-null ONLY when the active Finish
-   * filter drove the cell's image pick (pickRepresentative's filter
-   * branch) -- the finish the collector is literally looking at. CardsPage
-   * feeds it to the popup's initialFinish so the click-through opens on
-   * the displayed printing; null (no filter / fallback pick) keeps the
-   * popup's own default rules (BL-193 scope preselect, then Standard). */
+  /** `displayedFinish` is non-null ONLY when the active Finish filter drove
+   * the cell's image pick (pickRepresentative's filter branch) -- the finish
+   * the collector is literally looking at. CardsPage feeds it to the popup's
+   * initialFinish so the click-through opens on the displayed printing; null
+   * (no filter / fallback pick) keeps the popup's own default rules (scope
+   * preselect, then Standard). */
   onSelectCard: (baseCardId: number, displayedFinish?: string | null) => void;
-  /** Active Finish filter selection (FilterState.finish, BL-90/BL-73
-   * follow-up from Jeremy's dev review) -- an empty set means "no finish
-   * filter active" and pickRepresentative falls back to the Standard/base
-   * rule below. Passed as just the Set rather than the whole FilterState so
-   * GalleryGrid doesn't take on a dependency on every other facet. */
+  /** Active Finish filter selection (FilterState.finish) -- an empty set means
+   * "no finish filter active" and pickRepresentative falls back to the
+   * Standard/base rule below. Passed as just the Set rather than the whole
+   * FilterState so GalleryGrid doesn't take on a dependency on every other
+   * facet. */
   activeFinishes?: Set<string>;
-  /** BL-111 F4: drives the plate's signed-in vs. "SIGN IN TO TRACK" state
-   * and gates the hover dossier (anonymous users get no dossier -- there is
-   * nothing tenant-specific to show). */
+  /** Drives the plate's signed-in vs. "SIGN IN TO TRACK" state and gates the
+   * hover dossier (anonymous users get no dossier -- there is nothing
+   * tenant-specific to show). */
   isAuthenticated: boolean;
-  /** BL-222 (Issue #134): the SAME finish scope CardsTable's Playset header
-   * drives (CardsPage's `scope`) -- when set, the plate's pips fill from the
-   * scoped owned count instead of the total (scopedOwnedCount, the same
-   * BL-195 utility PlaysetCell's table pips use), and the plate's
-   * complete/incomplete visual keys off scoped completion instead of
-   * overall completion. Optional/defaulted to null (today's unscoped
-   * behavior) so every pre-existing call site/test not concerned with scope
-   * renders unaffected. */
+  /** The SAME finish scope CardsTable's Playset header drives (CardsPage's
+   * `scope`) -- when set, the plate's pips fill from the scoped owned count
+   * instead of the total (scopedOwnedCount, the same utility PlaysetCell's
+   * table pips use), and the plate's complete/incomplete visual keys off
+   * scoped completion instead of overall completion. Optional, defaulting to
+   * null (unscoped). */
   scope?: string | null;
 }
 
@@ -62,24 +59,23 @@ interface Props {
  * - No finish filter active (activeFinishes empty/undefined): the Standard
  *   printing if present, else the first variant in API order -- same rule as
  *   the unified CardPopup's `pickRepresentative` (screens/cards/
- *   CardPopup.tsx, BL-111 F5), applied here to the card's own image instead
- *   of the popup's.
+ *   CardPopup.tsx), applied here to the card's own image instead of the
+ *   popup's.
  * - Finish filter active: pick a variant whose finish matches the filter --
  *   matching mirrors applyFilters' own check (`v.finish ?? v.variant_type`
  *   against the filter set, utils/filters.ts) so a card that's in the
  *   `filtered` array (guaranteed >=1 matching variant) always has a match
  *   here too. Multiple matches: lowest card_number wins (numeric compare --
- *   card_number is a digit string, e.g. "045" < "132"). Still tied: Jeremy
- *   doesn't care which -- first in array order (Array.prototype.find is
- *   already stable, so no extra sort is needed for that case). Falls back to
- *   the no-filter rule if nothing matches (shouldn't happen given the
+ *   card_number is a digit string, e.g. "045" < "132"). Still tied: any is
+ *   acceptable, so first in array order (Array.prototype.find is already
+ *   stable, so no extra sort is needed for that case). Falls back to the
+ *   no-filter rule if nothing matches (shouldn't happen given the
  *   filtered-array guarantee, but keeps this function total).
  *
- * BL-201: `filterDriven` reports WHICH branch produced the pick -- true only
- * for the filter branch above, so the caller can tell "the collector chose
- * to look at this finish" (feeds the popup's initial selection) apart from
- * "the default Standard/base rule happened to run" (popup keeps its own
- * rules). */
+ * `filterDriven` reports WHICH branch produced the pick -- true only for the
+ * filter branch above, so the caller can tell "the collector chose to look at
+ * this finish" (feeds the popup's initial selection) apart from "the default
+ * Standard/base rule happened to run" (popup keeps its own rules). */
 function pickRepresentative(
   variants: InventoryVariant[],
   activeFinishes?: Set<string>
@@ -102,8 +98,7 @@ function pickRepresentative(
   };
 }
 
-/** Orientation rule (Jeremy's dev review of the BL-73 Stage 1 build): no
- * card may display landscape in the gallery.
+/** Orientation rule: no card may display landscape in the gallery.
  * - Leader: the front is the landscape side; the back is the portrait/
  *   deployed side -- show the back. A leader whose representative has no
  *   back image falls back to the Base treatment below so it still never
@@ -114,9 +109,9 @@ function pickRepresentative(
  * - Every other type: front image, unrotated.
  * A card with no usable image at all keeps the placeholder cell so sort
  * positions stay stable. */
-/** BL-76 Phase 3: "thumb" candidates sized around the CELL_WIDTH cell --
- * the util falls back to the plain hotlinked URL on its own when
- * front_images/back_images are absent (stale cached catalog response). */
+/** "thumb" candidates sized around the CELL_WIDTH cell -- the util falls back
+ * to the plain hotlinked URL on its own when front_images/back_images are
+ * absent (stale cached catalog response). */
 const CELL_SIZES = `${CELL_WIDTH}px`;
 
 function cellImage(
@@ -157,15 +152,13 @@ function cellImage(
   };
 }
 
-/** BL-111 F4: per-finish owned breakdown for the hover dossier -- playset-
- * completion semantics (utils/inventory.ts), deliberately NOT the
- * configurable keep-limits system (utils/limits.ts). Groups card.inventory
- * quantities by `finish ?? variant_type` (same fallback applyFilters/
- * CardPopup use elsewhere), in first-seen variant order with
- * Standard pulled to the front -- mirrors the design prototype's
- * `distinctFinishes`/`demo` helpers (claude_design/design_handoff_swu_restyle/
- * prototypes/gallery-view/GalleryCellOptions.jsx). Finishes with zero owned
- * copies are dropped -- the dossier only lists what's actually owned. */
+/** Per-finish owned breakdown for the hover dossier -- playset-completion
+ * semantics (utils/inventory.ts), deliberately NOT the configurable
+ * keep-limits system (utils/limits.ts). Groups card.inventory quantities by
+ * `finish ?? variant_type` (same fallback applyFilters/CardPopup use
+ * elsewhere), in first-seen variant order with Standard pulled to the front.
+ * Finishes with zero owned copies are dropped -- the dossier only lists
+ * what's actually owned. */
 export interface FinishBreakdownEntry {
   key: string;
   qty: number;
@@ -189,13 +182,10 @@ export function ownedFinishBreakdown(card: InventoryCard): FinishBreakdownEntry[
 /** Shared owned/limit readout (plate + dossier header) -- Russo One, green
  * when the playset is complete, muted when nothing is owned yet, otherwise
  * the neutral text color. Raw `owned` is shown even past `size` (overflow) --
- * deliberately not clamped, matching the design prototype's `Total`. `owned`/
- * `complete` are always the OVERALL (all-variant) values, independent of any
- * active scope -- unaffected by BL-222, which only touches the pips.
- *
- * BL-222 (owner rationale): the "/N" denominator (playset size) is dropped
- * here -- "what constitutes a full playset is a given; no reminder needed".
- * Color behavior (green/muted/neutral) is untouched. */
+ * deliberately not clamped. `owned`/`complete` are always the OVERALL
+ * (all-variant) values, independent of any active scope; scope only affects
+ * the pips. The "/N" denominator (playset size) is not shown: what
+ * constitutes a full playset is a given, so it needs no reminder. */
 function PlateTotal({ owned, complete }: { owned: number; complete: boolean }) {
   const stateClass = complete
     ? " gallery-plate__total--complete"
@@ -211,20 +201,18 @@ interface GalleryCellProps {
   rotated: boolean;
   isAuthenticated: boolean;
   onSelect: () => void;
-  /** BL-222: see GalleryGrid's own `scope` prop doc comment. */
+  /** See GalleryGrid's own `scope` prop doc comment. */
   scope: string | null;
 }
 
-/** BL-111 F4 (design handoff §4, Option D "Plate + hover dossier" -- final):
- * one clickable unit -- art frame, console plate footer (playset pips +
+/** One clickable unit -- art frame, console plate footer (playset pips +
  * owned/limit), and (signed-in, hovered) a dossier tooltip listing owned
  * copies per finish. Hover state is local React state (mouseenter/leave),
  * mirroring the codebase's existing hover-tooltip idiom
  * (components/VariantsTooltip.tsx) rather than a CSS :hover reveal, so the
  * dossier stays directly testable. Touch devices never fire
  * mouseenter/mouseleave, so the dossier simply never appears there -- the
- * cell's own click/tap still opens the detail popup (design handoff's
- * "mobile note": no extra work needed). */
+ * cell's own click/tap still opens the detail popup. */
 function GalleryCell({
   card,
   images,
@@ -267,9 +255,9 @@ function GalleryCell({
           />
         )}
       </div>
-      {/* Owner dev review 2026-07-26 (round 3): the dossier's hover trigger
-          is the inventory PLATE only, not the whole tile -- same
-          hover-the-count scoping the table's Playset chip got in round 2. */}
+      {/* The dossier's hover trigger is the inventory PLATE only, not the
+          whole tile -- the same hover-the-count scoping the table's Playset
+          chip uses. */}
       <div
         className={`gallery-plate${pipsComplete ? " gallery-plate--complete" : ""}`}
         onMouseEnter={() => setHovered(true)}
@@ -330,11 +318,10 @@ function GalleryCell({
   );
 }
 
-/** Gallery view of the Cards screen (BL-73 Stage 1 art + BL-111 F4 console
- * plate/dossier) -- the *same* filtered/sorted `cards` array CardsTable
- * renders, so filters, sort order, and the owned/incomplete toggles affect
- * it identically (see CardsPage's `filtered`). Sort order flows
- * left-to-right, top-to-bottom.
+/** Gallery view of the Cards screen (art + console plate/dossier) -- the
+ * *same* filtered/sorted `cards` array CardsTable renders, so filters, sort
+ * order, and the owned/incomplete toggles affect it identically (see
+ * CardsPage's `filtered`). Sort order flows left-to-right, top-to-bottom.
  *
  * Virtualized with @tanstack/react-virtual, same library/pattern as
  * CardsTable -- but a table virtualizes one row per card, while a grid needs
@@ -345,12 +332,11 @@ function GalleryCell({
  * below and the CSS grid-template-columns of each rendered row, so the two
  * can never disagree about how many cards are in a row.
  *
- * BL-222 (Issue #134): CardsPage now renders GallerySortHeader.tsx directly
- * above this component (a sibling, not a wrapper) whenever Gallery is the
- * active view -- that header shares CardsPage's `sortState`/`scope` with
- * this component and CardsTable alike, so this file itself never grew a
- * sort affordance of its own; only the `scope` prop's downstream effect on
- * the plate pips (see GalleryCell) is new here. */
+ * CardsPage renders GallerySortHeader.tsx directly above this component (a
+ * sibling, not a wrapper) whenever Gallery is the active view. That header
+ * shares CardsPage's `sortState`/`scope` with this component and CardsTable
+ * alike, so this file has no sort affordance of its own; the `scope` prop
+ * affects only the plate pips (see GalleryCell). */
 export function GalleryGrid({
   cards,
   onSelectCard,
@@ -415,9 +401,9 @@ export function GalleryGrid({
                   activeFinishes
                 );
                 const { images, rotated } = cellImage(card, representative);
-                // BL-201: only a filter-driven pick carries its finish to
-                // the click-through -- the default Standard/base pick sends
-                // null so the popup keeps its own rules (scope, Standard).
+                // Only a filter-driven pick carries its finish to the
+                // click-through -- the default Standard/base pick sends null
+                // so the popup keeps its own rules (scope, Standard).
                 const displayedFinish =
                   filterDriven && representative
                     ? (representative.finish ?? representative.variant_type)
