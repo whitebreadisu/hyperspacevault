@@ -6,7 +6,7 @@ import { scopeShortName } from "../../utils/variantScope";
 import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { Playset } from "../vault/Playset";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { orderPrintings } from "./cardDetailModel";
 import "./card.css";
 

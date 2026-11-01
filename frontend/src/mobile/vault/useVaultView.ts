@@ -8,16 +8,16 @@ import type { PriceMode } from "../../utils/variantScope";
 import type { ViewModeChangedMode } from "../../analytics/analytics";
 import { capturePhone, phoneViewMode } from "../phoneAnalytics";
 import { usePriceKind } from "../priceKind";
-import { useVaultData } from "./useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
+import { nextPhoneSort, phoneSortState } from "./phoneSort";
 import {
   buildVaultList,
   freshFilterState,
-  nextPhoneSort,
   SCOPE_VALUES,
   withFilters,
   withScope,
-} from "./vaultModel";
-import type { CollectionToggles, VaultFilterState, VaultList } from "./vaultModel";
+} from "../../vault/vaultModel";
+import type { CollectionToggles, VaultFilterState, VaultList } from "../../vault/vaultModel";
 
 // BL-247 S1-22 (+ S1-16 scope, S1-17 sort, S1-18 view): the Vault's view
 // state. Filters, search, scope and sort are plain React state -- never
@@ -155,7 +155,13 @@ export function useVaultViewOver(
   }, [key, updatePrefs]);
 
   const list = useMemo(
-    () => buildVaultList(cards, state, sort, { setOrder, priceKind, limits }),
+    () =>
+      buildVaultList(cards, state, sort, {
+        setOrder,
+        priceKind,
+        limits,
+        sortPolicy: phoneSortState,
+      }),
     [cards, state, sort, setOrder, priceKind, limits]
   );
 

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { BaseCardCatalog } from "../../api/baseCards";
-import { getQuantities } from "../../api/inventory";
+import type { BaseCardCatalog } from "../api/baseCards";
+import { getQuantities } from "../api/inventory";
 import { useVaultDataSource } from "./useVaultData";
 
 const CARD: BaseCardCatalog = {
@@ -44,10 +44,10 @@ const CARD: BaseCardCatalog = {
   ],
 } as BaseCardCatalog;
 
-vi.mock("../../api/baseCards", () => ({
+vi.mock("../api/baseCards", () => ({
   getBaseCardsList: vi.fn(() => Promise.resolve([CARD])),
 }));
-vi.mock("../../api/sets", () => ({
+vi.mock("../api/sets", () => ({
   getSets: vi.fn(() =>
     Promise.resolve([
       {
@@ -60,7 +60,7 @@ vi.mock("../../api/sets", () => ({
     ])
   ),
 }));
-vi.mock("../../api/inventory", () => ({
+vi.mock("../api/inventory", () => ({
   getQuantities: vi.fn(() => Promise.resolve([{ variant_id: 102, quantity: 2 }])),
 }));
 

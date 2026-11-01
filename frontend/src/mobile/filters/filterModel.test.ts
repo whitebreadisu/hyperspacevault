@@ -4,7 +4,7 @@ import type { BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import { DEFAULT_FILTERS } from "../../utils/filters";
 import { toInventoryCards } from "../../utils/inventory";
 import { useVaultViewOver } from "../vault/useVaultView";
-import { freshFilterState, withFilters, withScope } from "../vault/vaultModel";
+import { freshFilterState, withFilters, withScope } from "../../vault/vaultModel";
 import {
   collectionChips,
   facetBase,

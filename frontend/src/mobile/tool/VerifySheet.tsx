@@ -16,7 +16,7 @@ import { groupBy } from "../../utils/addCardsResolver";
 import type { VerificationRow } from "../../utils/addCardsResolver";
 import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import {
   batchView,
   discardBatch,

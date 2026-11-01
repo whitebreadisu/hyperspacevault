@@ -55,7 +55,7 @@ const card = (id: number, num: string): InventoryCard => ({
   inventory: {},
 });
 const CARDS = [card(1, "1"), card(2, "2")];
-vi.mock("../vault/useVaultData", () => ({
+vi.mock("../../vault/useVaultData", () => ({
   useVaultData: () => ({
     cards: CARDS,
     setOrder: { SOR: "2024-03-08" },

@@ -1,7 +1,7 @@
 import type { SortColumn, SortState } from "../../utils/cardSort";
 import { Sheet, useSheetClose } from "../Sheet";
-import { phoneSortState } from "./vaultModel";
-import type { PhoneSortColumn } from "./vaultModel";
+import { phoneSortState } from "./phoneSort";
+import type { PhoneSortColumn } from "./phoneSort";
 
 // BL-247 S1-17: the sort sheet (rev4 MSheet.jsx:170-188). A pick follows
 // desktop nextSortState: a new column lands ascending, the active column

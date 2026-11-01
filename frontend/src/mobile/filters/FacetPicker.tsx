@@ -5,7 +5,7 @@ import type { FilterState, ShapedFinishRow } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
 import { MIcon } from "../icons";
 import { SetLogo } from "../SetLogo";
-import type { CollectionToggles } from "../vault/vaultModel";
+import type { CollectionToggles } from "../../vault/vaultModel";
 import { COLLECTION_LONG } from "./collectionLabels";
 import { facetValid, fieldOptions, listUniverse, setPickerGroups } from "./filterModel";
 import type { filterActions } from "./filterModel";

@@ -8,15 +8,15 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { getBaseCardsList } from "../../api/baseCards";
-import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
-import { getQuantities } from "../../api/inventory";
-import { getSharedQuantities } from "../../api/sharedView";
-import { getSets } from "../../api/sets";
-import type { CardSet } from "../../api/sets";
-import type { SetOrderMap } from "../../utils/catalog";
-import { toInventoryCards } from "../../utils/inventory";
-import type { InventoryCard } from "../../utils/inventory";
+import { getBaseCardsList } from "../api/baseCards";
+import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../api/baseCards";
+import { getQuantities } from "../api/inventory";
+import { getSharedQuantities } from "../api/sharedView";
+import { getSets } from "../api/sets";
+import type { CardSet } from "../api/sets";
+import type { SetOrderMap } from "../utils/catalog";
+import { toInventoryCards } from "../utils/inventory";
+import type { InventoryCard } from "../utils/inventory";
 
 // The one catalogue + quantities source for both the desktop Cards page and the
 // phone: the publicly cached list (getBaseCardsList), the caller's sparse

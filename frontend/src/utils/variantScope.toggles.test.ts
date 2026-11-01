@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterCards } from "../mobile/vault/vaultModel";
+import { filterCards } from "../vault/vaultModel";
 import { HYPERSPACE, phoneCard, SHOWCASE, STANDARD } from "../mobile/vault/phoneCardFixtures";
 import { applyFilters, DEFAULT_FILTERS } from "./filters";
 import type { BaseCard } from "./catalog";

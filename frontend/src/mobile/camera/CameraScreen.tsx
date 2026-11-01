@@ -6,7 +6,7 @@ import { go } from "../router";
 import { Sheet } from "../Sheet";
 import { cellImage } from "../vault/cardImage";
 import { Playset } from "../vault/Playset";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { useBatch } from "../tool/batch";
 import { cameraKeypadRoute, setCameraKeypadExit } from "../tool/cameraHop";
 import type { CameraScreenProps } from "../tool/cameraHop";

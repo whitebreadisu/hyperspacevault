@@ -9,7 +9,7 @@ vi.mock("../../api/baseCards", () => ({
   getPriceHistory: vi.fn().mockResolvedValue({ series: [] }),
 }));
 const CARDS: InventoryCard[] = [];
-vi.mock("../vault/useVaultData", () => ({
+vi.mock("../../vault/useVaultData", () => ({
   useVaultData: () => ({
     cards: CARDS,
     setOrder: {},

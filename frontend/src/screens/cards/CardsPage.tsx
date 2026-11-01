@@ -28,16 +28,16 @@ import type { FilterState } from "../../utils/filters";
 import type { ViewMode } from "../../components/FilterPanel";
 import type { BaseCard } from "../../utils/catalog";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
-import { useVaultDataSource } from "../../mobile/vault/useVaultData";
+import { useVaultDataSource } from "../../vault/useVaultData";
 import {
   buildVaultList,
   desktopSortPolicy,
   freshFilterState,
   withFilters,
   withScope,
-} from "../../mobile/vault/vaultModel";
-import type { CollectionToggles, VaultFilterState } from "../../mobile/vault/vaultModel";
-import { withToggle } from "../../mobile/filters/filterModel";
+  withToggle,
+} from "../../vault/vaultModel";
+import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
 import "./cards.css";
 
 interface Props {

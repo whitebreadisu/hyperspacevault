@@ -7,7 +7,7 @@ import setsJson from "../../../e2e/mobile/fixtures/sets.json";
 import { splitForVerification } from "../../utils/addCardsResolver";
 import { toInventoryCards } from "../../utils/inventory";
 import { cardsForEntry } from "../../utils/preconImport";
-import { mergeQuantities } from "../vault/useVaultData";
+import { mergeQuantities } from "../../vault/useVaultData";
 import {
   addCopy,
   addDeck,

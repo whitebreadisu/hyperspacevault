@@ -8,6 +8,7 @@ import {
   facetValidValues,
   facetedOptions,
   isDefaultFilterState,
+  countActiveFilters,
   matchesQuery,
   setFacetAfterRowTap,
   buildFinishTree,
@@ -18,7 +19,6 @@ import {
 } from "./filters";
 import type { FilterState, AspectMatchMode, FinishTreeRow } from "./filters";
 import type { BaseCard, Variant } from "./catalog";
-import { countActiveFilters } from "../components/FilterPanel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 // Same factories as FilterPanel.test.tsx -- duplicated (they're small) so

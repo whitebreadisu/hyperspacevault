@@ -14,7 +14,7 @@ import type { TotalsScope } from "./completionModel";
 import { ScopeSheet } from "./ScopeChip";
 import { SetsSheet } from "./SetsSheet";
 import { SortSheet } from "./SortSheet";
-import { useVaultData } from "./useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { useVaultView } from "./useVaultView";
 import { VaultList } from "./VaultList";
 import { VaultScreen } from "./VaultScreen";

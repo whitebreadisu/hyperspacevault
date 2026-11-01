@@ -18,8 +18,8 @@ import { allSetsGroups, isBaseSetCode } from "../../utils/setGrouping";
 import type { InventoryCard } from "../../utils/inventory";
 import type { LimitsMatrix } from "../../utils/limits";
 import { scopeShortName } from "../../utils/variantScope";
-import { filterCards } from "../vault/vaultModel";
-import type { CollectionToggles, VaultFilterState } from "../vault/vaultModel";
+import { filterCards, withToggle } from "../../vault/vaultModel";
+import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
 
 // BL-248 stage 2B-1 (S2-13 / S2-14 / S2-15): the Filters sheet's model, pure
 // functions over desktop's own utilities (utils/filters.ts facetValidValues /
@@ -255,21 +255,6 @@ export const TOGGLE_FIELD: Record<keyof CollectionToggles, FilterField> = {
   unowned: "no_inventory",
   overcap: "over_cap",
 };
-
-/** Desktop CardsPage's mutual exclusions, applied on the way in: Own clears
- * Don't own; Don't own clears Own and Over limit; Over limit clears Don't
- * own. Turning a toggle off clears nothing. */
-export function withToggle(t: CollectionToggles, key: keyof CollectionToggles): CollectionToggles {
-  const on = !t[key];
-  const next = { ...t, [key]: on };
-  if (on && key === "owned") next.unowned = false;
-  if (on && key === "unowned") {
-    next.owned = false;
-    next.overcap = false;
-  }
-  if (on && key === "overcap") next.unowned = false;
-  return next;
-}
 
 export type SetField = "type" | "arena" | "keyword" | "trait";
 export type RangeField = "cost" | "power" | "hp";

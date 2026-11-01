@@ -90,7 +90,7 @@ frontend/src/api/sharedView.ts 1
 frontend/src/api/shares.ts 3
 frontend/src/components/BusyOverlay.tsx 3
 frontend/src/components/FilterMenuPortal.tsx 4
-frontend/src/components/FilterPanel.tsx 56
+frontend/src/components/FilterPanel.tsx 53
 frontend/src/components/FinishFilter.tsx 10
 frontend/src/components/GoogleAuthButton.tsx 1
 frontend/src/components/GoogleIcon.tsx 1
@@ -213,9 +213,7 @@ frontend/src/mobile/vault/VaultStatus.tsx 1
 frontend/src/mobile/vault/cardImage.ts 2
 frontend/src/mobile/vault/completionModel.ts 2
 frontend/src/mobile/vault/useCollapse.ts 2
-frontend/src/mobile/vault/useVaultData.ts 4
 frontend/src/mobile/vault/useVaultView.ts 1
-frontend/src/mobile/vault/vaultModel.ts 2
 frontend/src/scan.tsx 1
 frontend/src/screens/about/AboutModal.tsx 3
 frontend/src/screens/auth/AuthModal.tsx 19
@@ -264,4 +262,6 @@ frontend/src/utils/tableWidthTier.ts 2
 frontend/src/utils/variantScope.ts 9
 frontend/src/utils/variants.ts 3
 frontend/src/utils/version.ts 1
+frontend/src/vault/useVaultData.ts 4
+frontend/src/vault/vaultModel.ts 1
 frontend/src/vite-env.d.ts 1

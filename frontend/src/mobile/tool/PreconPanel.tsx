@@ -4,7 +4,7 @@ import type { PreconEntry } from "../../data/preconDecks";
 import { useLimits } from "../../context/LimitsContext";
 import { entryName, entryProduct } from "../../screens/inventory/AddCardsPreconBar";
 import { SWUButton } from "../../components/SWUButton";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { addDeck } from "./batch";
 import { SetLogo } from "../SetLogo";
 import { preconFacts } from "./padModel";
