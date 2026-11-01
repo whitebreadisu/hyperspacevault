@@ -4,7 +4,7 @@ relies on.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -65,7 +65,7 @@ def submit_feedback(
     # deliberately never reads the row back (see its docstring); the two
     # values are for-humans-adjacent anyway (an issue body's "Submitted:"
     # line), not something anything reconciles against the DB row.
-    submitted_at = datetime.now(timezone.utc).isoformat()
+    submitted_at = datetime.now(UTC).isoformat()
     github_notify.notify(
         message=payload.message,
         commit_sha=commit_sha,

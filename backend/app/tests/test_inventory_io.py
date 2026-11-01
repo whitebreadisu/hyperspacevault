@@ -7,7 +7,7 @@ Run:
     docker compose exec backend pytest app/tests/test_inventory_io.py -v
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -36,7 +36,7 @@ class TestSerializeJson:
         content = io.serialize_json(
             [row],
             source="hyperspacevault",
-            exported_at=datetime(2026, 7, 22, 23, 50, 0, tzinfo=timezone.utc),
+            exported_at=datetime(2026, 7, 22, 23, 50, 0, tzinfo=UTC),
         )
         import json
 
@@ -74,14 +74,14 @@ class TestSerializeJson:
         assert "_derived" not in card
 
     def test_default_exported_at_is_close_to_now(self):
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         content = io.serialize_json([])
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         import json
 
         exported_at = datetime.strptime(
             json.loads(content)["exported_at"], "%Y-%m-%dT%H:%M:%SZ"
-        ).replace(tzinfo=timezone.utc)
+        ).replace(tzinfo=UTC)
         assert (
             before <= exported_at <= after or (after - exported_at).total_seconds() < 2
         )

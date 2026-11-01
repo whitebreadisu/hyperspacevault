@@ -6,6 +6,7 @@ Run inside the backend container:
 """
 
 import os
+from datetime import UTC
 
 import pytest
 from sqlalchemy import text
@@ -284,6 +285,6 @@ class TestExportTenantIsolation:
 
 
 def _today() -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return datetime.now(UTC).strftime("%Y-%m-%d")

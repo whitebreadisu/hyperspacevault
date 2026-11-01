@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # Fields Cloud Logging recognizes as "special fields" and promotes onto the
 # LogEntry itself (rather than leaving them inside jsonPayload): severity,
@@ -35,7 +35,7 @@ class JSONFormatter(logging.Formatter):
             "severity": record.levelname,
             "message": message,
             "logger": record.name,
-            "time": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "time": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
         }
         for key in _EXTRA_FIELDS:
             if hasattr(record, key):

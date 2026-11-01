@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
@@ -35,9 +35,9 @@ router = APIRouter(prefix="/api/base-cards", tags=["base-cards"])
 )
 def list_base_cards(
     response: Response,
-    set_code: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
-    rarity: Optional[str] = Query(None),
+    set_code: str | None = Query(None),
+    type: str | None = Query(None),
+    rarity: str | None = Query(None),
     pricing: Literal["standard", "cheapest"] = Query(
         "standard",
         description=(

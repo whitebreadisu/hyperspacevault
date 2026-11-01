@@ -249,7 +249,7 @@ def _aggregate_needs(
 def _build_deck_summary(
     parsed: ParsedDeck,
     resolved: list[ResolvedCardRef],
-    card_refs: dict[int, "deck_check_repo.BaseCardRef"],
+    card_refs: dict[int, deck_check_repo.BaseCardRef],
     source: str,
 ) -> DeckSummary:
     by_slot: dict[str, ResolvedCardRef] = {}

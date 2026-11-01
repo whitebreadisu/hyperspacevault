@@ -5,7 +5,7 @@ tenant-less (ADR-0008), same exposure class as GET /api/sets."""
 
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -57,6 +57,6 @@ def get_reference_csv(db: Session) -> tuple[str, str]:
         )
     content = buffer.getvalue()
 
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_str = datetime.now(UTC).strftime("%Y-%m-%d")
     filename = f"{REFERENCE_FILENAME_STEM}_{date_str}.csv"
     return content, filename

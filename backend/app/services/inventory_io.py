@@ -48,7 +48,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -177,7 +177,7 @@ class ParsedRow:
     # BL-200 census). Converted to ImportRowCard only at report-building
     # time (inventory_import.py), same as every other resolved-variant
     # rendering.
-    preresolved_candidates: list["VariantMatch"] | None = None
+    preresolved_candidates: list[VariantMatch] | None = None
     preresolved_mismatch: bool = False
 
 
@@ -318,7 +318,7 @@ def serialize_json(
 ) -> str:
     """§3.1. `exported_at` defaults to now (UTC); tests that need a fixed
     timestamp pass one explicitly."""
-    ts = exported_at or datetime.now(timezone.utc)
+    ts = exported_at or datetime.now(UTC)
     payload = {
         "format_version": FORMAT_VERSION,
         "exported_at": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -161,7 +161,7 @@ def export_inventory(db: Session, format: str) -> tuple[str, str, str]:
             )
         )
 
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_str = datetime.now(UTC).strftime("%Y-%m-%d")
     if format == "csv":
         return (
             inventory_io.serialize_csv(io_rows),

@@ -6,6 +6,7 @@ Run inside the backend container:
 """
 
 import os
+from datetime import UTC
 
 import pytest
 from fastapi.testclient import TestClient
@@ -135,9 +136,9 @@ class TestReferenceCsvPublicAccess:
         response = anon_client.get("/api/catalog/reference.csv")
         assert response.headers["content-type"].startswith("text/csv")
         assert response.headers["cache-control"] == "public, max-age=300, s-maxage=3600"
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         assert (
             response.headers["content-disposition"]
             == f'attachment; filename="hyperspacevault-catalog-reference_{today}.csv"'
