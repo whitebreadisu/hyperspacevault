@@ -29,6 +29,12 @@ import type { InventoryCard } from "../../utils/inventory";
 export interface VaultData {
   /** Every base card, merged with the caller's quantities (0 when anonymous). */
   cards: InventoryCard[];
+  /** The same merge in the catalogue's own shape (slim variants + quantity),
+   * for readers that flatten it per variant, such as desktop's Add Cards. */
+  catalogWithQuantities: BaseCardCatalogWithQuantity[];
+  /** The sparse variant id -> quantity map as fetched (absent = 0); desktop's
+   * read-only popup reads quantities from it directly. */
+  quantities: Record<number, number>;
   /** BL-252 S6-05: the share's data (desktop CardsPage `readOnly`): the
    * quantities are the share owner's, nothing here may mutate them. */
   readOnly: boolean;
@@ -146,13 +152,19 @@ export function useVaultDataSource(
     return { setOrder: order, setNameByCode: names };
   }, [sets]);
 
+  const catalogWithQuantities = useMemo(
+    () => mergeQuantities(catalog, quantities),
+    [catalog, quantities]
+  );
   const cards = useMemo(
-    () => toInventoryCards(mergeQuantities(catalog, quantities), setOrder),
-    [catalog, quantities, setOrder]
+    () => toInventoryCards(catalogWithQuantities, setOrder),
+    [catalogWithQuantities, setOrder]
   );
 
   return {
     cards,
+    catalogWithQuantities,
+    quantities,
     sets,
     setOrder,
     setNameByCode,
