@@ -13,6 +13,7 @@ from app.schemas.inventory_schema import (
 )
 from app.services import inventory_io
 from app.services.limits import (
+    CAP_MODE_HARD,
     CAP_MODE_SOFT,
     TYPE_CATEGORY_SINGLETON,
     effective_cap_mode,
@@ -55,74 +56,55 @@ def get_quantities(db: Session) -> list[VariantQuantityResponse]:
 
 
 def increment_card(db: Session, variant_id: int) -> IncrementResponse | None:
+    """Add one copy. Resolves the variant's quantity and effective limit,
+    hands the block-or-commit decision to _resolve_adjust (delta +1), then
+    writes with one atomic upsert. The cap_mode query is issued only when
+    the variant is at or over its limit: below it the mode cannot change
+    the outcome, which keeps the common path to a single limit query."""
     variant = inventory_repo.get_variant_with_inventory(db, variant_id)
     if variant is None:
         return None
 
     current_qty = variant.inventory.quantity if variant.inventory else 0
-
-    # BL-24 step 1: the technical ceiling always wins, checked before any
-    # limit resolution -- even a bucket explicitly configured "no limit"
-    # cannot push a variant past 999.
-    if current_qty >= QUANTITY_CEILING:
-        return IncrementResponse(
-            variant_id=variant_id,
-            quantity=current_qty,
-            blocked=True,
-            reason="ceiling",
-        )
-
     category = type_category(variant.base_card.type)
     bucket = limit_bucket(variant.variant_type, variant.source_set_code)
     max_quantity = effective_limit(db, category, bucket)
+    cap_mode = (
+        effective_cap_mode(db)
+        if _at_or_over_limit(current_qty, max_quantity)
+        else CAP_MODE_HARD
+    )
 
-    # BL-24/BL-35 step 2-4: per-variant, no cross-variant summing -- the
-    # variant's OWN quantity is compared to its effective limit (tenant
-    # override if one exists, else the code default). None means the tenant
-    # has configured this bucket as unlimited, so at_or_over_limit can never
-    # be true for it -- there's no boundary to cross.
-    #
-    # cap_mode governs what happens when at_or_over_limit IS true: "hard"
-    # (default, unchanged pre-BL-35 behavior) blocks with reason
-    # "trade_sell"; "soft" instead lets the increment through below and the
-    # response carries over_limit=True. effective_cap_mode is only queried
-    # when it can actually change the outcome, keeping the common
-    # (below-limit) path to a single extra query total.
-    at_or_over_limit = max_quantity is not None and current_qty >= max_quantity
-    if at_or_over_limit and effective_cap_mode(db) != CAP_MODE_SOFT:
+    _, _, blocked, reason, over_limit = _resolve_adjust(
+        current_qty, 1, max_quantity, cap_mode
+    )
+    if blocked:
         return IncrementResponse(
             variant_id=variant_id,
             quantity=current_qty,
             blocked=True,
-            reason="trade_sell",
+            reason=reason,
         )
 
     if category == TYPE_CATEGORY_SINGLETON:
+        # Singleton completion is "first copy acquired" for this variant,
+        # independent of the effective limit: a raised override lets the
+        # variant hold a 2nd copy without the flag firing again.
+        playset_complete = current_qty == 0
         inv = inventory_repo.upsert_increment(db, variant_id)
-        return IncrementResponse(
-            variant_id=variant_id,
-            quantity=inv.quantity,
-            # BL-24: completion semantics for singletons are unchanged from
-            # pre-BL-24 -- "first copy acquired", independent of the
-            # effective limit. A raised singleton override (e.g. 2) lets
-            # the variant hold a 2nd copy without playset_complete
-            # re-firing on that later increment.
-            playset_complete=(current_qty == 0),
-            # BL-35: reaching here with at_or_over_limit true only happens
-            # in soft mode (hard mode already returned above), so this is
-            # exactly the "committed past the limit" case the response
-            # flags for the client.
-            over_limit=at_or_over_limit,
-        )
+    else:
+        # The base-card total is read before the write so it excludes this
+        # increment; the flag fires when the total reaches exactly
+        # COMPLETION_PLAYSET_SIZE.
+        current_total = inventory_repo.get_base_card_total(db, variant.base_card_id)
+        inv = inventory_repo.upsert_increment(db, variant_id)
+        playset_complete = current_total + 1 == COMPLETION_PLAYSET_SIZE
 
-    current_total = inventory_repo.get_base_card_total(db, variant.base_card_id)
-    inv = inventory_repo.upsert_increment(db, variant_id)
-    new_total = current_total + 1
     return IncrementResponse(
         variant_id=variant_id,
         quantity=inv.quantity,
-        playset_complete=(new_total == COMPLETION_PLAYSET_SIZE),
-        over_limit=at_or_over_limit,
+        playset_complete=playset_complete,
+        over_limit=over_limit,
     )
 
 
@@ -188,16 +170,21 @@ def decrement_card(db: Session, variant_id: int) -> DecrementResponse | None:
 AdjustReason = Literal["trade_sell", "ceiling"]
 
 
+def _at_or_over_limit(current_qty: int, max_quantity: int | None) -> bool:
+    """True when the variant holds at least its effective limit. An
+    unlimited bucket (None) has no boundary to reach."""
+    return max_quantity is not None and current_qty >= max_quantity
+
+
 def _resolve_adjust(
     current_qty: int, delta: int, max_quantity: int | None, cap_mode: str
 ) -> tuple[int, int, bool, AdjustReason | None, bool]:
-    """BL-219: the pure decision core behind adjust_card -- given the
-    variant's pre-adjust quantity, the requested signed delta, its
-    effective limit (None = unlimited), and the tenant's cap_mode, returns
-    (new_quantity, applied, blocked, reason, over_limit). Generalizes
-    increment_card/decrement_card's existing per-call semantics from a
-    fixed +-1 to an arbitrary signed magnitude, resolving the limit/cap_mode
-    exactly ONCE per call (both callers below already fetched them once):
+    """The pure decision core shared by increment_card (delta +1) and
+    adjust_card (any signed delta) -- given the variant's pre-adjust
+    quantity, the requested signed delta, its effective limit (None =
+    unlimited), and the tenant's cap_mode, returns (new_quantity, applied,
+    blocked, reason, over_limit). The caller resolves the limit and cap_mode
+    once and passes them in; this function does no I/O:
 
       - negative delta: always applies down to the floor (0), never blocks
         (same as decrement_card). over_limit is still reported (gated on
@@ -205,11 +192,10 @@ def _resolve_adjust(
         soft mode" invariant -- see IncrementResponse.over_limit) so a
         decrement off a stranded/lowered-limit quantity reports the
         resulting state the same way an increment would.
-      - positive delta: the 999 ceiling always wins first (BL-24 step 1,
-        unconditional in both cap modes -- QUANTITY_CEILING module
-        constant). Then, in hard mode with a real (non-None) limit, a
-        variant already at/over that limit is fully blocked (0 applied,
-        reason "trade_sell") exactly like increment_card's existing block.
+      - positive delta: the 999 ceiling always wins first (unconditional
+        in both cap modes -- QUANTITY_CEILING module constant). Then, in
+        hard mode with a real (non-None) limit, a variant already at/over
+        that limit is fully blocked (0 applied, reason "trade_sell").
         Otherwise the delta is clamped to whichever cap actually binds (the
         effective limit in hard mode, the 999 ceiling in soft/no-limit
         mode) -- which can mean a PARTIAL apply (more was requested than
@@ -230,12 +216,12 @@ def _resolve_adjust(
         return new_qty, applied, False, None, over_limit
 
     # delta > 0 from here -- the 999 ceiling always wins first, in either
-    # cap_mode (BL-24 step 1, ported verbatim from increment_card).
+    # cap_mode.
     if current_qty >= QUANTITY_CEILING:
         return current_qty, 0, True, "ceiling", False
 
     hard_capped = cap_mode != CAP_MODE_SOFT and max_quantity is not None
-    if hard_capped and current_qty >= cast(int, max_quantity):
+    if hard_capped and _at_or_over_limit(current_qty, max_quantity):
         return current_qty, 0, True, "trade_sell", False
 
     cap: int
