@@ -4,42 +4,28 @@ import type { PriceHistoryPoint, PriceHistoryRange, VariantDetail } from "../../
 import { capture } from "../../analytics/analytics";
 import "./PriceHistoryPanel.css";
 
-/** BL-140 design-conformance pass (2026-07-21): aligns the history panel
- * with Jeremy's saved DesignSync defaults, extracted to disk at
- * claude_design/extracted_2026-07-21/{PRICING_DEFAULTS_SPEC.md,
- * HistoryPanel.dc.html} after the original build (DesignSync was
- * unreachable from that agent's tool set). The original build shipped this
- * as an independent overlay opened by a "View price history" button, no
- * hover interaction. The saved defaults (chartPlacement=under-printings,
- * historyEmbed=expand-below) call for a COMPACT panel permanently embedded
- * under the printings rail -- re-rendering on printing selection -- with an
- * expand (⤢) affordance opening a FULL panel appended BELOW the popup's grid;
- * never an overlay. CardPopup.tsx now mounts two instances of this
- * component (compact=true always-on, compact=false only while expanded)
- * that each own their own range state/fetch independently, matching the
- * mock's per-instance range toggle.
+/** Price-history panel for one printing, in two modes that each own their
+ * range state and fetch independently: compact (always mounted under the
+ * printings rail while a printing is selected, re-rendering on selection) and
+ * full (appended below the popup's grid once the compact embed's expand
+ * affordance is used). Embedded in the popup, never an overlay (App Spec
+ * §5.10's embedded price-history panel).
  *
- * Recorded deviations from the .dc mock:
- * - The mock assumes one upfront fetch of a printing's FULL history with
- *   client-side range slicing (`pts.slice(-want)`). This app's
- *   GET .../price-history takes a `range` query param and the backend does
- *   the slicing server-side (only VariantPrice rows inside the window come
- *   back -- backend/app/repositories/pricing.py's get_price_history), so
- *   this component re-fetches per range change instead of slicing
- *   client-side.
- * - Because of that, "isEmpty"/sparse detection is necessarily PER THE
- *   SELECTED RANGE (no data in this window) rather than the mock's per-all-
- *   time signal (no data ever, in any window) -- there's no single "does
- *   this printing have ANY history" signal without an extra full-range
- *   fetch, and the range toggle already gives the user an escape hatch
- *   (try a wider range) that makes the distinction low-value here.
- * - The mock's `newSet` flag (a distinct "New printing -- N days" sparse
- *   message) has no backend signal to key off -- collapsed to the single
- *   "Only N days of data available" message in both cases.
- * - "Full view →" (full mode footer) maps to nothing yet in the mock either
- *   (its own onClick is a placeholder alert) -- kept as a present, inert
- *   affordance here rather than dropped, per the spec's "keep as a no-op"
- *   option. */
+ * Design decisions:
+ * - The backend slices server-side. GET .../price-history takes a `range`
+ *   query param and returns only the VariantPrice rows inside the window
+ *   (backend/app/repositories/pricing.py's get_price_history), so this
+ *   component re-fetches on every range change instead of slicing one full
+ *   history client-side.
+ * - "isEmpty"/sparse detection is therefore per selected range (no data in
+ *   this window), not per all time (no data ever). There is no single "does
+ *   this printing have ANY history" signal without an extra full-range fetch,
+ *   and the range toggle already gives the user an escape hatch (a wider
+ *   range).
+ * - The backend has no signal for a newly released printing, so the sparse
+ *   state is the single "Only N days of data available" message in every case.
+ * - "Full view →" (full-mode footer) is an inert affordance, kept visible
+ *   rather than dropped. */
 
 const RANGE_OPTIONS: { value: PriceHistoryRange; label: string }[] = [
   { value: "30d", label: "30D" },
@@ -72,7 +58,7 @@ function formatAsOf(iso: string | null | undefined): string {
   });
 }
 
-/** m/d for sub-year ranges, m/yy at 1y+/all -- HistoryPanel.dc.html's `fmt`. */
+/** m/d for sub-year ranges, m/yy at 1y+/all. */
 function formatTick(iso: string, wantDays: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   const m = d.getUTCMonth() + 1;
@@ -82,7 +68,7 @@ function formatTick(iso: string, wantDays: number): string {
   return `${m}/${d.getUTCDate()}`;
 }
 
-/** "Foil · #123" -- HistoryPanel.dc.html's full-mode `printingLabel`. */
+/** "Foil · #123" -- the full-mode printing label. */
 function printingLabel(v: VariantDetail): string {
   return `${v.finish ?? v.variant_type} · #${v.card_number}`;
 }
@@ -92,8 +78,7 @@ interface ChartPoint {
   as_of: string;
 }
 
-/** SVG line chart w/ hover crosshair (HistoryPanel.dc.html's Component.
- * renderVals chart block) -- 560x170 viewBox, non-uniform scale
+/** SVG line chart with a hover crosshair: 560x170 viewBox, non-uniform scale
  * (preserveAspectRatio="none") so the same markup serves the shorter compact
  * embed (chartH=110) and the taller full panel (chartH=170) via just the
  * rendered <svg height>. */
@@ -290,7 +275,7 @@ export function PriceHistoryPanel({ baseCardId, variant, compact, onExpand, onCl
             title="Expand price history"
             aria-label="Expand price history"
             onClick={() => {
-              capture("price_history_opened", {}); // BL-235
+              capture("price_history_opened", {});
               onExpand();
             }}
           >

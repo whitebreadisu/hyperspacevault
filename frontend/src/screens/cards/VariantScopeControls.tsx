@@ -9,26 +9,25 @@ import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { SCOPE_EXPANDED_ROWS, SCOPE_PINNED_ROWS, scopeShortName } from "../../utils/variantScope";
 import type { PriceMode, ScopeMenuRow, ValueDisplayMode } from "../../utils/variantScope";
 
-/** BL-173 (Definition_VariantScope_2026-07-26.md §2, VariantScopeMock.jsx):
- * the Playset header's scope trigger + portaled dropdown menu, and the Value
+/** The Playset header's scope trigger + portaled dropdown menu, and the Value
  * header's mini Market/Low toggle. Split out of CardsTable.tsx because both
- * controls carry their own local open/position state -- keeping that out of
- * the table component keeps CardsTable's own render loop (one row per card)
+ * controls carry their own local open/position state; keeping that out of the
+ * table component keeps CardsTable's own render loop (one row per card)
  * uncluttered.
  *
  * The menu reuses the `ifp-multi__menu`/`ifp-multi__menu--portal`/
  * `ifp-multi__items`/`ifp-multi__pin-divider` shell classes for chrome
- * (FilterPanel.css) but is NOT rendered through FilterMenuPortal --that
- * component pins the menu's width to its trigger button's own measured
- * width (built for MultiSelect/FinishFilter's full-width sidebar fields);
- * this header trigger is a small compact chip, and the mock's own locked
- * menu width is a fixed 300px anchored under (and, near the viewport edge,
- * clamped leftward of) the trigger -- see ScopeMenuPortal below, a
- * purpose-built sibling using the exact same createPortal/getBoundingClientRect
- * technique. It still stamps FILTER_MENU_PORTAL_ATTR so FilterPanel's own
- * outside-click collapse (and any other consumer of isInsideFilterMenuPortal)
- * correctly treats a click inside this menu as "still interacting with a
- * filter-shaped control," exactly like the sidebar's own dropdowns. */
+ * (FilterPanel.css) but is NOT rendered through FilterMenuPortal: that
+ * component pins the menu's width to its trigger button's own measured width
+ * (built for MultiSelect/FinishFilter's full-width sidebar fields), while
+ * this header trigger is a small compact chip and the menu is a fixed 300px
+ * anchored under (and, near the viewport edge, clamped leftward of) the
+ * trigger. See ScopeMenuPortal below, a purpose-built sibling using the same
+ * createPortal/getBoundingClientRect technique. It still stamps
+ * FILTER_MENU_PORTAL_ATTR so FilterPanel's own outside-click collapse (and
+ * any other consumer of isInsideFilterMenuPortal) correctly treats a click
+ * inside this menu as "still interacting with a filter-shaped control,"
+ * exactly like the sidebar's own dropdowns. */
 
 function ScopeMenuPortal({
   anchorRef,
@@ -47,9 +46,9 @@ function ScopeMenuPortal({
       const el = anchorRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      // Mirrors the mock's HeaderScope: clamp the fixed-width menu so it
-      // never hangs off the right edge of the viewport near a right-docked
-      // trigger. 316 = 300px menu + a small breathing margin.
+      // Clamp the fixed-width menu so it never hangs off the right edge of
+      // the viewport near a right-docked trigger. 316 = 300px menu + a small
+      // breathing margin.
       setRect({ left: Math.min(r.left, window.innerWidth - 316), top: r.bottom + 5 });
     };
     update();
@@ -81,8 +80,7 @@ function ScopeMenuPortal({
  * and the sidebar's Finish filter read as the same family of control
  * (FilterPanel.css owns that styling; the vs-scope-menu__* names below are
  * structural hooks for tests/width only). Unlike the filter, the picker is
- * single-select, so it has no check-box rows: every value is a chip (owner
- * decision 2026-10-12, BL-259). */
+ * single-select, so it has no check-box rows: every value is a chip. */
 
 function ScopeChips({
   chips,
@@ -123,8 +121,8 @@ function ScopeRow({
   onPick: (raw: string) => void;
 }) {
   // Every row shares one anatomy: label column + chips. A "single" row
-  // (Showcase and the four extra finishes, BL-259) is a one-value row drawn
-  // with ONE chip -- the picker's single-select idiom. No row is a check-box.
+  // (Showcase and the four extra finishes) is a one-value row drawn with ONE
+  // chip -- the picker's single-select idiom. No row is a check-box.
   return (
     <div
       className={`ifp-finish-pair vs-scope-menu__row--chips${
@@ -148,9 +146,9 @@ function ScopeMenuContent({
   const [showAll, setShowAll] = useState(false);
   return (
     <>
-      {/* Round 4 (owner): "All finishes" is a MENUBAR BUTTON, exactly like
-          the sidebar filter's own All/Clear bar -- not a checkbox row.
-          Disabled when already unscoped (it acts as this menu's Clear). */}
+      {/* "All finishes" is a MENUBAR BUTTON, exactly like the sidebar filter's
+          own All/Clear bar -- not a checkbox row. Disabled when already
+          unscoped (it acts as this menu's Clear). */}
       <div className="ifp-multi__menubar">
         <button
           type="button"
@@ -200,10 +198,9 @@ interface CardsScopeTriggerProps {
 }
 
 /** The Playset header's own trigger -- "ALL VARIANTS" / "PIPS · <finish>",
- * amber-bordered when scoped (Definition §2). IS the dropdown trigger
- * (matches the mock's HeaderScope, not the toolbar-oriented ScopeControl
- * variant, which isn't built -- Definition §2's owner-locked placement is
- * "column headers" only). */
+ * amber-bordered when scoped. It IS the dropdown trigger: scope is chosen
+ * from the table's Playset header or the gallery header's Playset entry; there
+ * is no toolbar control. */
 export function CardsScopeTrigger({ scope, onScopeChange }: CardsScopeTriggerProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -232,8 +229,8 @@ export function CardsScopeTrigger({ scope, onScopeChange }: CardsScopeTriggerPro
     setOpen(false);
   };
 
-  // Round 4 (owner): "ALL FINISHES" -- normalized with the sidebar Finish
-  // filter's vocabulary and the menu's own "All finishes" row.
+  // "ALL FINISHES": normalized with the sidebar Finish filter's vocabulary
+  // and the menu's own "All finishes" row.
   const label = scope ? `PIPS · ${scopeShortName(scope)}` : "ALL FINISHES";
 
   return (
@@ -264,13 +261,12 @@ interface CardsValueDisplayToggleProps {
   onChange: (mode: ValueDisplayMode) => void;
 }
 
-/** Shared track-and-thumb switch (owner-dialed across the 2026-07-31 local
- * round): shows only the ACTIVE state's label INSIDE the track; each click
- * flips to the other state. `large` is the UNIT/COLLECTION size (label
- * matches the th's own 11px type); the default small size fits the MKT/LOW
- * uses. EXPORTED for every Market/Low site (Value header, completion
- * panel's value block, CardPopup rail) so the control reads identically
- * app-wide. */
+/** Shared track-and-thumb switch: shows only the ACTIVE state's label INSIDE
+ * the track; each click flips to the other state. `large` is the
+ * UNIT/COLLECTION size (label matches the th's own 11px type); the default
+ * small size fits the MKT/LOW uses. EXPORTED for every Market/Low site
+ * (Value header, completion panel's value block, CardPopup rail) so the
+ * control reads identically app-wide. */
 export function ValueSwitch({
   checked,
   label,
@@ -285,12 +281,11 @@ export function ValueSwitch({
   ariaLabel: string;
   title: string;
   large?: boolean;
-  /** BL-223 (completion panel's Totals switch): an optional token-family
-   * modifier the caller drives independently of `checked` -- e.g. "amber"
-   * while the panel reads FILTERED (rgba(217,154,31,*), the same
-   * `.pl-toggle--scoped` family). Minimal extension point rather than a
-   * forked component: every other ValueSwitch call site omits it and keeps
-   * today's plain on/off look. */
+  /** An optional token-family modifier the caller drives independently of
+   * `checked` -- e.g. "amber" while the completion panel's Totals switch
+   * reads FILTERED (rgba(217,154,31,*), the same `.pl-toggle--scoped`
+   * family). Every other ValueSwitch call site omits it and gets the plain
+   * on/off look. */
   accent?: "amber";
   onToggle: () => void;
 }) {
@@ -314,10 +309,10 @@ export function ValueSwitch({
   );
 }
 
-/** The Value header's Unit/Total switch. UNIT = one copy's price (original
- * semantics); TOTAL = the viewer's owned copies' value (cardCollectionValue
- * -- the internal mode value stays "collection", only the visible
- * vocabulary is TOTAL). Sits ABOVE the "Value" label at the large size. */
+/** The Value header's UNIT/COLLECTION switch. UNIT = one copy's price;
+ * COLLECTION = the viewer's owned copies' value (cardCollectionValue; the
+ * aria-label and title say total, the internal mode value is "collection").
+ * Sits ABOVE the "Value" label at the large size. */
 export function CardsValueDisplayToggle({ mode, onChange }: CardsValueDisplayToggleProps) {
   const isTotal = mode === "collection";
   return (
@@ -341,14 +336,15 @@ export function CardsValueDisplayToggle({ mode, onChange }: CardsValueDisplayTog
 interface CardsValueKindToggleProps {
   kind: PriceMode;
   onChange: (kind: PriceMode) => void;
-  /** BL-225: the gallery header renders this switch at the large size to
-   * match its neighboring UNIT/COLLECTION control; the table keeps small. */
+  /** The gallery header renders this switch at the large size to match its
+   * neighboring UNIT/COLLECTION control; the table keeps small. */
   large?: boolean;
 }
 
-/** The Value header's Market/Low control (Definition §1/§2; owner-dialed
- * 2026-07-31: same single-label SWITCH idiom as UNIT/TOTAL, at the small
- * size, sitting RIGHT of the "Value" label). MKT is the unchecked side. */
+/** The Value header's Market/Low control: the same single-label SWITCH idiom
+ * as UNIT/COLLECTION, at the small size, sitting LEFT of the "Value" label in
+ * the table header (the gallery header puts both switches right of its label).
+ * MKT is the unchecked side. */
 export function CardsValueKindToggle({ kind, onChange, large }: CardsValueKindToggleProps) {
   const isLow = kind === "low";
   return (

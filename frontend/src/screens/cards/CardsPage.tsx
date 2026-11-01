@@ -44,76 +44,69 @@ import "./cards.css";
 
 interface Props {
   isAuthenticated: boolean;
-  /** BL-56 §5.5 Slice 4: opens the shell's AuthModal (owned by App.tsx).
-   * Every inert anonymous inventory control (Add Cards, the incomplete-
-   * playsets toggle, an Inventory cell) routes its click through this
-   * callback via requestSignIn() below. Optional so CardsPage still renders
-   * standalone (e.g. existing tests that don't wire it). */
+  /** Opens the shell's AuthModal (owned by App.tsx). Every inert anonymous
+   * inventory control (Add Cards, Import / Export, Share, the Collection
+   * toggles, the popup's signed-out plate) routes its click through this callback via requestSignIn() below.
+   * Optional so CardsPage still renders standalone. */
   onRequestSignIn?: () => void;
-  /** BL-54 S3 (§8.1 P9): mirrors AuthContext's emailVerified -- gates the
-   * Import / Export button's third auth state (verified) alongside
-   * isAuthenticated's anonymous/signed-in split. Defaults to `true` so
-   * every pre-existing call site (and this file's own pre-BL-54 tests)
-   * renders the button in its normal active state unchanged, the same
-   * default-true idiom InventorySummary's own isAuthenticated prop uses. */
+  /** Mirrors AuthContext's emailVerified -- gates the Import / Export button's
+   * third auth state (verified) alongside isAuthenticated's anonymous/signed-in
+   * split. Defaults to `true` (the same default-true idiom InventorySummary's
+   * own isAuthenticated prop uses), so the button renders in its normal active
+   * state. */
   isEmailVerified?: boolean;
-  /** BL-54 S3 (§8.1 P10): opens the shell's Import / Export pane (App-owned
-   * activeView state, same App-owns-the-pane-switch pattern as
-   * onOpenSettings threading through Header). Only ever called when both
-   * isAuthenticated and isEmailVerified hold -- see the button's onClick
-   * below. Optional for the same standalone-render reason as
-   * onRequestSignIn above. */
+  /** Opens the shell's Import / Export pane (App-owned activeView state, same
+   * App-owns-the-pane-switch pattern as onOpenSettings threading through
+   * Header). Only ever called when both isAuthenticated and isEmailVerified
+   * hold -- see the button's onClick below. Optional for the same
+   * standalone-render reason as onRequestSignIn above. */
   onOpenImportExport?: () => void;
-  /** BL-196: hands the Vault's own quantities refetch up to App.tsx, which
-   * forwards it to ImportExportPage as `onImported` -- CardsPage stays
-   * mounted the whole time (App.tsx display:none's the inactive pane rather
-   * than unmounting it), so without this an import commit never refreshed
-   * the Vault's quantities until some unrelated auth change happened to
-   * re-run the effect below. A ref-registration (not a global store): the
-   * function identity is hand-delivered once per refreshQuantities change,
-   * nothing else reaches for it. Optional so CardsPage still renders
-   * standalone (e.g. this file's own tests) without wiring it. */
+  /** Hands the Vault's own quantities refetch up to App.tsx, which forwards it
+   * to ImportExportPage as `onImported`. CardsPage stays mounted the whole
+   * time (App.tsx display:none's the inactive pane rather than unmounting it),
+   * so without this an import commit would not refresh the Vault's quantities
+   * until some unrelated auth change happened to re-run the effect below. A
+   * ref-registration (not a global store): the function identity is
+   * hand-delivered once per refreshQuantities change, nothing else reaches for
+   * it. Optional so CardsPage still renders standalone. */
   onQuantitiesRefreshReady?: (refresh: () => Promise<void>) => void;
-  /** BL-205 (§19.1): when set, this instance renders the READ-ONLY
-   * viewer-mode Vault for a shared link (SharedVaultPage) instead of the
-   * caller's own -- the seam is exactly the two per-tenant fetches below:
-   * quantities come from GET /api/shared/{token}/quantities (the share's
-   * OWNER-tenant rows) instead of GET /api/inventory/quantities, and every
-   * mutation affordance (Add Cards, Import/Export, the popup's quantity
-   * stepper) is hidden rather than merely disabled. The catalog fetch
-   * (getBaseCardsList/getSets, both already public) is completely
-   * unchanged -- this prop touches nothing upstream of `baseCards`.
+  /** When set, this instance renders the READ-ONLY viewer-mode Vault for a
+   * shared link (SharedVaultPage; App Spec §19.1) instead of the caller's own
+   * -- the seam is exactly the two per-tenant fetches below: quantities come
+   * from GET /api/shared/{token}/quantities (the share's OWNER-tenant rows)
+   * instead of GET /api/inventory/quantities, and every mutation affordance
+   * (Add Cards, Import/Export, the popup's quantity stepper) is hidden rather
+   * than merely disabled. The catalog fetch (getBaseCardsList/getSets, both
+   * already public) is unaffected -- this prop touches nothing upstream of
+   * `baseCards`.
    *
    * Independent of `isAuthenticated`: a signed-in viewer browsing someone
-   * else's share still can't edit it (see `readOnly`/`hasData` below), and
-   * an anonymous viewer sees the shared vault at full fidelity, not the
-   * empty anonymous zero-state (see `hasData`). Optional so every existing
-   * call site/test (the caller's own Vault) renders exactly as before. */
+   * else's share still can't edit it (see `readOnly`/`hasData` below), and an
+   * anonymous viewer sees the shared vault at full fidelity, not the empty
+   * anonymous zero-state (see `hasData`). Optional (undefined = the caller's
+   * own Vault). */
   shareToken?: string;
 }
 
-// BL-224: a stable empty Set identity for building the popovers'
-// "every filter except the set facet" breakdownCards below -- spreading
-// `{ ...filters, set: new Set() }` inline would hand useMemo a fresh Set
-// every render even when nothing else changed.
+// A stable empty Set identity for building the popovers' "every filter except
+// the set facet" breakdownCards below -- spreading `{ ...filters, set: new
+// Set() }` inline would hand useMemo a fresh Set every render even when
+// nothing else changed.
 const EMPTY_SET_CODES: Set<string> = new Set();
 
-/** Unified Cards view (BL-56 §5.5) -- one list for everyone, inventory data
- * layered on by auth state rather than a second view.
+/** Unified Cards view -- one list for everyone, inventory data layered on by
+ * auth state rather than a second view.
  *
- * BL-101 catalog/quantity split (ADR-0005's payload axis): the list data
- * now arrives as two fetches merged client-side --
+ * The list data arrives as two fetches merged client-side (App Spec §12;
+ * ADR-0005's payload axis):
  *   1. getBaseCardsList: catalog only, no per-tenant data, publicly
- *      CDN/browser-cached server-side (the 4.3 MB that used to be
- *      regenerated per request), fetched once on mount; and
- *   2. getQuantities: the caller's sparse variant_id -> quantity rows,
- *      tiny, auth-required, re-fetched on every auth change and after
- *      every inventory mutation (Add Cards commit, inventory popup).
+ *      CDN/browser-cached server-side, fetched once on mount; and
+ *   2. getQuantities: the caller's sparse variant_id -> quantity rows, tiny,
+ *      auth-required, re-fetched on every auth change and after every
+ *      inventory mutation (Add Cards commit, inventory popup).
  * Anonymous users skip fetch 2 entirely; every variant_id absent from the
- * quantities map renders as 0. Signing in/out therefore no longer
- * re-downloads the catalog -- only the quantities swap. The merged shape
- * feeding toInventoryCards is identical to the pre-split response, so the
- * table, completion math, and Add Cards resolver are unchanged. */
+ * quantities map renders as 0. Signing in/out therefore never re-downloads the
+ * catalog -- only the quantities swap. */
 export function CardsPage({
   isAuthenticated,
   onRequestSignIn,
@@ -122,22 +115,21 @@ export function CardsPage({
   onQuantitiesRefreshReady,
   shareToken,
 }: Props) {
-  // BL-205: `readOnly` gates the genuinely MUTATING affordances (Add Cards,
+  // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
   // `isAuthenticated && !readOnly`. `hasData` gates everything else that
   // merely READS quantities (filter toggles, real numbers vs. em-dash,
   // clickable-to-view cells) -- real per-tenant data exists whenever the
-  // caller is signed into their OWN Vault OR this is a shared read-only
-  // view, so those checks widen from the raw `isAuthenticated` to `hasData`
-  // instead. See the `shareToken` prop's own doc comment for the full
-  // rationale.
+  // caller is signed into their OWN Vault OR this is a shared read-only view,
+  // so those checks use `hasData` instead of the raw `isAuthenticated`. See
+  // the `shareToken` prop's own doc comment for the full rationale.
   const readOnly = shareToken != null;
   const hasData = isAuthenticated || readOnly;
-  // BL-217: the tenant's (or, in read-only viewer mode, the share owner's --
-  // LimitsProvider's own shareToken seam) effective keep-limit matrix, same
-  // null-means-code-defaults fallback every other limits consumer treats it
-  // with (utils/limits.ts). Feeds overCapOnly's predicate below; nothing
-  // else in this file reads it.
+  // The tenant's (or, in read-only viewer mode, the share owner's --
+  // LimitsProvider's own shareToken seam) effective keep-limit matrix, with
+  // the same null-means-code-defaults fallback every other limits consumer
+  // uses (utils/limits.ts). Feeds overCapOnly's predicate below; nothing else
+  // in this file reads it.
   const { limits } = useLimits();
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -146,10 +138,10 @@ export function CardsPage({
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [incompleteOnly, setIncompleteOnly] = useState(false);
-  // BL-60: parallel my-collection filter -- same shape/treatment as
-  // incompleteOnly (state + pl-toggle + requestSignIn routing for anonymous).
+  // Parallel my-collection filter -- same shape/treatment as incompleteOnly
+  // (state + pl-toggle + requestSignIn routing for anonymous).
   const [ownedOnly, setOwnedOnly] = useState(false);
-  // BL-115: inverse of ownedOnly -- "what am I missing" shopping view. Same
+  // Inverse of ownedOnly -- "what am I missing" shopping view. Same
   // state/pl-toggle/requestSignIn shape as its siblings, with one addition:
   // it's semantically the opposite of ownedOnly (owned total 0 vs. > 0), so
   // the two are mutually exclusive -- see the two setters below, which each
@@ -157,7 +149,7 @@ export function CardsPage({
   // "no inventory" and "incomplete playset" aren't contradictory (a
   // zero-owned card is trivially an incomplete playset too), just narrower.
   const [noInventoryOnly, setNoInventoryOnly] = useState(false);
-  // BL-217: "over my keep limit" discovery filter -- same state/pl-toggle/
+  // "Over my keep limit" discovery filter -- same state/pl-toggle/
   // requestSignIn shape as its three siblings above. Mutually exclusive with
   // noInventoryOnly specifically (over-cap implies owned, so "over cap" and
   // "no inventory" can never both hold -- see the two setters below, which
@@ -167,105 +159,97 @@ export function CardsPage({
   // ones are blocked.
   const [overCapOnly, setOverCapOnly] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  // BL-205 (§19.1): owner-side share management modal -- the Vault header's
+  // Owner-side share management modal (App Spec §19.1) -- the Vault header's
   // share affordance. Never rendered in read-only viewer mode (see the
   // `!readOnly` guard alongside Add Cards/Import Export below); this is the
   // OWNER's own tools for managing shares OF their Vault, not part of the
   // viewer-mode Vault at all.
   const [shareManageModalOpen, setShareManageModalOpen] = useState(false);
-  // BL-73 Stage 1: Table <-> Gallery view toggle, owned here (not
-  // FilterPanel) since it governs which component below renders `filtered`
-  // -- FilterPanel only displays/controls the value (see its ViewMode prop).
+  // Table <-> Gallery view toggle, owned here (not FilterPanel) since it
+  // governs which component below renders `filtered` -- FilterPanel only
+  // displays/controls the value (see its ViewMode prop).
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  // BL-111 F5: ONE unified popup state replaces the old two (selectedBaseCardId
-  // for CardDetailPopup, inventoryPopupBaseCardId for CardInventoryPopup) --
-  // every opener (table name click, table Playset-cell click, gallery cell
-  // click) now targets the same popup. The Name cell's click for anonymous
-  // users still opens it (its plate shows "Sign in to manage inventory")
-  // instead of bouncing to requestSignIn -- the popup itself is the nudge.
-  // BL-162: the Playset cell's own click-to-edit affordance (onSelectInventory
-  // below) is now disabled entirely for anonymous users (PlaysetCell.tsx) --
-  // the redundant "click opens the same popup as its own nudge" path the old
-  // standalone Inventory cell had is retired along with that column; the
-  // Name cell already covers the anonymous nudge.
+  // ONE unified popup state: every opener (table name click, table
+  // Playset-cell click, gallery cell click) targets the same popup. The Name
+  // cell's click for anonymous users still opens it (its plate shows "Sign in
+  // to manage inventory") instead of bouncing to requestSignIn -- the popup
+  // itself is the nudge. The Playset cell's own click-to-edit affordance
+  // (onSelectInventory below) is disabled entirely for anonymous users
+  // (PlaysetCell.tsx); the Name cell already covers the anonymous nudge.
   const [popupBaseCardId, setPopupBaseCardId] = useState<number | null>(null);
-  // BL-148: the ordered base_card_id list for the popup's prev/next nav,
-  // SNAPSHOTTED at the moment the popup opens (see openPopup below) rather
-  // than read live off `filtered` on every render. State model (owner's
-  // explicit call): "the popup session's list is whatever it was opened
-  // from" -- if the filter/sort result changes while the popup is open
-  // (filters live behind the popup's overlay so this is rare, but the state
-  // shape doesn't assume it's impossible), navigation keeps browsing the
-  // frozen list rather than jumping around a moving target. Cleared back to
-  // null on close so the next open always starts a fresh snapshot.
+  // The ordered base_card_id list for the popup's prev/next nav, SNAPSHOTTED
+  // at the moment the popup opens (see openPopup below) rather than read live
+  // off `filtered` on every render. State model: "the popup session's list is
+  // whatever it was opened from" -- if the filter/sort result changes while
+  // the popup is open (filters live behind the popup's overlay so this is
+  // rare, but the state shape doesn't assume it's impossible), navigation
+  // keeps browsing the frozen list rather than jumping around a moving
+  // target. Cleared back to null on close so the next open always starts a
+  // fresh snapshot.
   const [popupCardIds, setPopupCardIds] = useState<number[] | null>(null);
-  // BL-201: the finish the gallery cell was displaying when clicked (only
-  // when the Finish filter drove that display) -- wins over `scope` as the
-  // popup's initialFinish for that popup session; cleared on close.
+  // The finish the gallery cell was displaying when clicked (only when the
+  // Finish filter drove that display) -- wins over `scope` as the popup's
+  // initialFinish for that popup session; cleared on close.
   const [galleryDisplayedFinish, setGalleryDisplayedFinish] = useState<string | null>(null);
-  // BL-235: which surface opened the currently-open popup -- card_popup_
-  // opened's `source` property. Only "table"/"gallery" are ever produced
-  // today (see openPopupFromTable/openPopupFromGallery below); "deck_check"/
+  // Which surface opened the currently-open popup -- card_popup_opened's
+  // `source` property (App Spec §22). Only "table"/"gallery" are produced (see
+  // openPopupFromTable/openPopupFromGallery below); "deck_check"/
   // "new_arrivals" are in the taxonomy's enum but have no popup-opening seam
-  // in this codebase yet (neither screen renders CardPopup).
+  // in this codebase (neither screen renders CardPopup).
   const [popupSource, setPopupSource] = useState<"table" | "gallery">("table");
   const [setOrder, setSetOrder] = useState<SetOrderMap>({});
   const [setNameByCode, setSetNameByCode] = useState<Record<string, string>>({});
-  // BL-163: the raw getSets() rows, kept alongside the two derived maps
-  // above -- baseSetCodes/orderedBaseSets (below) need `is_base_set`, which
-  // neither existing map carries.
+  // The raw getSets() rows, kept alongside the two derived maps above --
+  // baseSetCodes/orderedBaseSets (below) need `is_base_set`, which neither
+  // existing map carries.
   const [sets, setSets] = useState<CardSet[]>([]);
-  // BL-54 S3 (§8.1 P9): the "signed-in unverified" click nudge for the
-  // Import / Export button -- the anonymous click already has a mechanism
-  // (requestSignIn opens AuthModal); this is its verified-email equivalent,
-  // same click-to-reveal shape but with no modal to open (the site-wide
-  // VerifyEmailBanner is the actual verification affordance -- this just
-  // points at it). Reset whenever a click lands so re-clicking after the
-  // message is already showing still reads as fresh feedback.
+  // The "signed-in unverified" click nudge for the Import / Export button --
+  // the anonymous click already has a mechanism (requestSignIn opens
+  // AuthModal); this is its verified-email equivalent, same click-to-reveal
+  // shape but with no modal to open (the site-wide VerifyEmailBanner is the
+  // actual verification affordance -- this just points at it). Reset whenever
+  // a click lands so re-clicking after the message is already showing still
+  // reads as fresh feedback.
   const [importExportNudge, setImportExportNudge] = useState(false);
-  // BL-173 (Definition_VariantScope_2026-07-26.md §1): the Cards table's
-  // variant-scope control (Playset header) -- a single raw finish value, or
-  // null for "All variants" (today's behavior). Transient by design (never
-  // persisted, resets to null on every fresh load) -- see
+  // The Cards table's variant-scope control (Playset header; App Spec §5.14)
+  // -- a single raw finish value, or null for "All variants". Transient by
+  // design (never persisted, resets to null on every fresh load) -- see
   // utils/variantScope.ts. Picking/clearing a scope also drives
   // `filters.finish` directly (handleScopeChange below); the reverse never
   // happens automatically -- a *user* edit of the Finish filter instead
   // disengages the scope (handleFilterPanelChange below), per "scope drives
   // filter, never vice versa."
   const [scope, setScope] = useState<string | null>(null);
-  // BL-173: Market/Low kind for the Value column -- Market default,
-  // persisted across visits (localStorage, headerStarfield's pattern).
+  // Market/Low kind for the Value column -- Market default, persisted across
+  // visits (localStorage, headerStarfield's pattern).
   const [priceKind, setPriceKind] = useState<PriceMode>(() => loadPriceKind());
-  // BL-213 (Issue #122): the Vault table's user-controlled column sort --
-  // SESSION-ONLY (plain React state, deliberately never localStorage; owner
-  // spec) and single-column. Defaults to `#` ascending, which IS today's
-  // default row order (utils/cardSort.ts's DEFAULT_SORT_STATE) -- there is
-  // no separate "unsorted" state.
+  // The Vault table's user-controlled column sort -- SESSION-ONLY (plain React
+  // state, deliberately never localStorage) and single-column. Defaults to `#`
+  // ascending, which IS the default row order (utils/cardSort.ts's
+  // DEFAULT_SORT_STATE) -- there is no separate "unsorted" state.
   const [sortState, setSortState] = useState<SortState>(DEFAULT_SORT_STATE);
-  // BL-226 (Issue #140, owner-locked design): the Vault table's width-tier
-  // override -- AUTO default, persisted like priceKind/valueDisplay above
-  // (localStorage, utils/tableWidthTier.ts's load/saveWidthTier). Rendered
-  // for both the caller's own Vault AND a read-only shared-Vault view (this
-  // component makes no isAuthenticated distinction for it below) -- it's
-  // pure presentation, same reasoning as viewMode itself.
+  // The Vault table's width-tier override -- AUTO default, persisted like
+  // priceKind/valueDisplay above (localStorage, utils/tableWidthTier.ts's
+  // load/saveWidthTier). Rendered for both the caller's own Vault AND a
+  // read-only shared-Vault view (this component makes no isAuthenticated
+  // distinction for it below) -- it's pure presentation, same reasoning as
+  // viewMode itself.
   const [widthTier, setWidthTier] = useState<WidthTier>(() => loadWidthTier());
 
-  /** BL-56 §5.5 Slice 4: the single handler every inert anonymous control
-   * routes through -- opens the shell's AuthModal via the App-owned callback.
-   * BL-57 later upgrades this into a full value-prop popup shown ahead of the
-   * modal. */
+  /** The single handler every inert anonymous control routes through -- opens
+   * the shell's AuthModal via the App-owned callback. */
   const requestSignIn = useCallback(() => {
     onRequestSignIn?.();
   }, [onRequestSignIn]);
 
-  // BL-173: picking/clearing a scope REPLACES filters.finish wholesale --
-  // picking sets it to the single-value Set([raw]), clearing empties it.
-  // This is the one path allowed to set `finish` without going through
+  // Picking/clearing a scope REPLACES filters.finish wholesale -- picking sets
+  // it to the single-value Set([raw]), clearing empties it. This is the one
+  // path allowed to set `finish` without going through
   // handleFilterPanelChange's disengage check below (scope driving filter is
   // the expected direction; only the reverse needs guarding against).
   const handleScopeChange = useCallback((raw: string | null) => {
-    // BL-235: "all" represents the cleared/"All variants" selection --
-    // capture()'s properties can't carry null.
+    // "all" represents the cleared/"All variants" selection -- capture()'s
+    // properties can't carry null.
     capture("finish_scope_changed", { finish: raw ?? "all" });
     setScope(raw);
     setFilters((prev) => ({ ...prev, finish: raw ? new Set([raw]) : new Set<string>() }));
@@ -276,41 +260,41 @@ export function CardsPage({
     savePriceKind(kind);
   }, []);
 
-  // BL-226: mirrors handlePriceKindChange's persist-on-change idiom exactly.
+  // Mirrors handlePriceKindChange's persist-on-change idiom exactly.
   const handleWidthTierChange = useCallback((tier: WidthTier) => {
     setWidthTier(tier);
     saveWidthTier(tier);
   }, []);
 
-  // BL-213: 2-state header click cycling (utils/cardSort.ts's
-  // nextSortState) -- a different column lands on ascending, the
-  // already-active column toggles asc<->desc.
+  // 2-state header click cycling (utils/cardSort.ts's nextSortState) -- a
+  // different column lands on ascending, the already-active column toggles
+  // asc<->desc.
   const handleSortChange = useCallback((column: SortColumn) => {
     setSortState((prev) => {
       const next = nextSortState(prev, column);
-      capture("sort_changed", { column, direction: next.direction }); // BL-235
+      capture("sort_changed", { column, direction: next.direction });
       return next;
     });
   }, []);
 
-  // Owner request 2026-07-31: Unit/Collection display for the Value column
-  // -- Unit default, persisted like priceKind above.
+  // Unit/Collection display for the Value column -- Unit default, persisted
+  // like priceKind above.
   const [valueDisplay, setValueDisplay] = useState<ValueDisplayMode>(() => loadValueDisplay());
   const handleValueDisplayChange = useCallback((mode: ValueDisplayMode) => {
     setValueDisplay(mode);
     saveValueDisplay(mode);
   }, []);
 
-  // BL-173: the ONLY other path that ever writes FilterState -- everything
-  // FilterPanel does (every facet, Reset All Filters) flows through here
-  // instead of the raw `setFilters`. If a scope is active and the resulting
-  // `finish` set is no longer exactly the single value the scope itself set
-  // it to, the user has directly edited the Finish filter (or reset
-  // everything) -- disengage the scope (Definition §1: "scope drives filter,
-  // never vice versa"; their new selection stands untouched). Reads `filters`
-  // from this render's closure rather than via a functional setFilters
-  // updater specifically so the disengage decision -- a second, independent
-  // setState call -- never has to happen from inside another state updater.
+  // The ONLY other path that ever writes FilterState -- everything FilterPanel
+  // does (every facet, Reset All Filters) flows through here instead of the
+  // raw `setFilters`. If a scope is active and the resulting `finish` set is
+  // no longer exactly the single value the scope itself set it to, the user
+  // has directly edited the Finish filter (or reset everything) -- disengage
+  // the scope (App Spec §5.14: "scope drives filter, never vice versa"; their
+  // new selection stands untouched). Reads `filters` from this render's
+  // closure rather than via a functional setFilters updater specifically so
+  // the disengage decision -- a second, independent setState call -- never
+  // has to happen from inside another state updater.
   const handleFilterPanelChange = useCallback(
     (update: FilterState | ((prev: FilterState) => FilterState)) => {
       const next = typeof update === "function" ? update(filters) : update;
@@ -323,7 +307,7 @@ export function CardsPage({
   );
 
   // Catalog: once on mount. Auth changes don't touch it -- the catalog is
-  // identity-independent by construction (BL-101).
+  // identity-independent by construction.
   useEffect(() => {
     setCatalogLoading(true);
     setError(null);
@@ -333,13 +317,12 @@ export function CardsPage({
       .finally(() => setCatalogLoading(false));
   }, []);
 
-  /** Quantities: re-fetched on auth change and after every inventory
-   * mutation (the AddCardsModal/CardInventoryPopup callbacks below) --
-   * the split's replacement for the old full-list re-fetch. */
+  /** Quantities: re-fetched on auth change and after every inventory mutation
+   * (the AddCardsModal / inventory-popup callbacks below). */
   const refreshQuantities = useCallback(async () => {
-    // BL-205: shareToken wins outright, checked before isAuthenticated --
-    // the shared endpoint returns the share's OWNER-tenant rows regardless
-    // of whether the viewer themselves is signed in.
+    // shareToken wins outright, checked before isAuthenticated -- the shared
+    // endpoint returns the share's OWNER-tenant rows regardless of whether the
+    // viewer themselves is signed in.
     if (readOnly) {
       const rows = await getSharedQuantities(shareToken!);
       const map: Record<number, number> = {};
@@ -367,9 +350,9 @@ export function CardsPage({
       .finally(() => setQuantitiesLoading(false));
   }, [refreshQuantities]);
 
-  // BL-196: hands the current refreshQuantities up to App.tsx on every
-  // identity change (only ever changes with isAuthenticated -- see the
-  // callback's own deps above) -- see this prop's own doc comment for why.
+  // Hands the current refreshQuantities up to App.tsx on every identity change
+  // (only ever changes with isAuthenticated -- see the callback's own deps
+  // above) -- see this prop's own doc comment for why.
   useEffect(() => {
     onQuantitiesRefreshReady?.(refreshQuantities);
   }, [onQuantitiesRefreshReady, refreshQuantities]);
@@ -377,10 +360,9 @@ export function CardsPage({
   const loading = catalogLoading || quantitiesLoading;
 
   /** The merged shape: slim catalog variants + quantity (0 when the caller
-   * owns none / is anonymous). BL-146: typed as BaseCardCatalogWithQuantity
-   * (the slim list shape), not BaseCardDetail (the fat detail shape) --
-   * those two stopped being structurally interchangeable once the list
-   * slimmed down; see toInventoryCards' BL-146 doc comment
+   * owns none / is anonymous). Typed as BaseCardCatalogWithQuantity (the slim
+   * list shape), not BaseCardDetail (the fat detail shape) -- the two are not
+   * structurally interchangeable; see toInventoryCards' doc comment
    * (utils/inventory.ts). */
   const baseCards = useMemo<BaseCardCatalogWithQuantity[]>(
     () =>
@@ -405,17 +387,16 @@ export function CardsPage({
         });
         setSetNameByCode(nameMap);
         setSetOrder(orderMap);
-        // BL-163: baseSetCodes/orderedBaseSets (below) derive from the raw
-        // rows -- `is_base_set` isn't carried by either map above.
+        // baseSetCodes/orderedBaseSets (below) derive from the raw rows --
+        // `is_base_set` isn't carried by either map above.
         setSets(fetchedSets);
       })
       .catch((err) => console.error("Failed to load sets:", err));
   }, []);
 
-  // BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
-  // panel's universe -- the base sets, by `is_base_set` (already true
-  // for TS26 in prod, Definition §4) -- plus the same set list release-
-  // ordered for the panel's "by set" breakdown popovers.
+  // The completion panel's universe (App Spec §5.13) -- the base sets, by
+  // `is_base_set` (true for TS26) -- plus the same set list release-ordered
+  // for the panel's "by set" breakdown popovers.
   const baseSetCodes = useMemo(
     () => new Set(sets.filter((s) => s.is_base_set).map((s) => s.code)),
     [sets]
@@ -428,12 +409,11 @@ export function CardsPage({
     }));
   }, [sets, setOrder, setNameByCode]);
 
-  // BL-187: row order follows
-  // the active scope -- toInventoryCards already applies the unscoped
-  // sortBaseCards order internally; sortCardsByScope re-sorts by the scoped
-  // variant's own card_number when a scope is active, and is a no-op re-sort
-  // (defers straight to sortBaseCards) when it isn't. `scope` joins the dep
-  // list so re-engaging/clearing it recomputes this memo -- everything
+  // Row order follows the active scope -- toInventoryCards already applies the
+  // unscoped sortBaseCards order internally; sortCardsByScope re-sorts by the
+  // scoped variant's own card_number when a scope is active, and is a no-op
+  // re-sort (defers straight to sortBaseCards) when it isn't. `scope` joins
+  // the dep list so re-engaging/clearing it recomputes this memo -- everything
   // downstream (toggleNarrowed -> filtered -> sortedCards, plus the popup's
   // openPopup snapshot) reads off this array, so the # column, table order,
   // and popup prev/next nav all follow the same order for free.
@@ -465,13 +445,13 @@ export function CardsPage({
           is_token: base.is_token,
           quantity: v.quantity,
           front_image_url: v.front_image_url,
-          // BL-146: derived client-side -- the list response no longer
-          // ships front_images/back_images at all (Design_SparseList_
-          // 2026-07-25.md §3), same derivation toInventoryCards uses.
+          // Derived client-side -- the list response ships no
+          // front_images/back_images (App Spec §12), same derivation
+          // toInventoryCards uses.
           front_images: v.front_image_url ? deriveRenditions(v.front_image_url) : undefined,
-          // BL-111 F7: the resolve-panel preview needs the back side too --
-          // Leaders preview their portrait back (design handoff §7), same
-          // rule GalleryGrid's cellImage already applies.
+          // The resolve-panel preview needs the back side too -- Leaders
+          // preview their portrait back, the same rule GalleryGrid's cellImage
+          // already applies.
           back_image_url: v.back_image_url,
           back_images: v.back_image_url ? deriveRenditions(v.back_image_url) : undefined,
         });
@@ -480,14 +460,13 @@ export function CardsPage({
     return flat;
   }, [baseCards]);
 
-  // BL-70: toggle-narrowed base set -- incompleteOnly/ownedOnly applied, but
-  // not the FilterPanel dropdown filters. This is what FilterPanel facets
-  // against (so "show only cards I own" narrows dropdown options the same
-  // way it narrows the table -- the reason BL-60 shipped before BL-70), and
-  // it's also the base `filtered` below applies `filters` to. Toggles and
-  // filters are independent per-card predicates, so folding the toggles in
-  // first vs. last doesn't change the final `filtered` set -- only what
-  // FilterPanel sees.
+  // Toggle-narrowed base set -- incompleteOnly/ownedOnly applied, but not the
+  // FilterPanel dropdown filters. This is what FilterPanel facets against (so
+  // "show only cards I own" narrows dropdown options the same way it narrows
+  // the table), and it's also the base `filtered` below applies `filters` to.
+  // Toggles and filters are independent per-card predicates, so folding the
+  // toggles in first vs. last doesn't change the final `filtered` set -- only
+  // what FilterPanel sees.
   const toggleNarrowed = useMemo(
     () =>
       applyCollectionToggles(
@@ -509,13 +488,10 @@ export function CardsPage({
     [toggleNarrowed, filters]
   );
 
-  // BL-224 (unifies BL-179's parallel "home base set" dimension into the
-  // sidebar's own Set facet): the completion popovers' rows are that
-  // facet's OWN selection menu, so their universe is every filter applied
-  // EXCEPT the set facet itself (BL-173's scope-control lesson, extended
-  // from "except the home selection" to the whole set dimension) -- a menu
-  // never filters itself, or a set the collector already picked would erase
-  // its own row out from under them.
+  // The completion popovers' rows are the sidebar Set facet's OWN selection
+  // menu, so their universe is every filter applied EXCEPT the set facet
+  // itself -- a menu never filters itself, or a set the collector already
+  // picked would erase its own row out from under them.
   const breakdownCards = useMemo(
     () =>
       applyFilters(toggleNarrowed as BaseCard[], {
@@ -525,11 +501,11 @@ export function CardsPage({
     [toggleNarrowed, filters]
   );
 
-  // BL-224: popover row-clicks read/write the SAME sidebar set facet a
-  // FilterPanel click would -- there is no separate "home set" dimension
-  // left to keep in sync. Routed through handleFilterPanelChange (not a raw
-  // setFilters) so a row-click carries the exact same side effects as any
-  // other FilterPanel edit.
+  // Popover row-clicks read/write the SAME sidebar set facet a FilterPanel
+  // click would -- there is no separate "home set" dimension to keep in sync.
+  // Routed through handleFilterPanelChange (not a raw setFilters) so a
+  // row-click carries the exact same side effects as any other FilterPanel
+  // edit.
   const toggleFilterSet = useCallback(
     (code: string) => {
       const next = new Set(filters.set);
@@ -540,31 +516,30 @@ export function CardsPage({
     [filters, handleFilterPanelChange]
   );
 
-  // BL-179 round 11 (owner): the Collection checkboxes are real applied
-  // filters living outside FilterState -- they feed the rail badge and keep
-  // Reset All Filters active (which clears them alongside the FilterState
-  // reset). BL-224: the base-set-selection term is RETIRED here -- a set
-  // facet selection, however it was made (sidebar or popover row), now
-  // lives IN FilterState and is already counted once by FilterPanel's own
-  // countActiveFilters, so counting it again here would double-count it.
+  // The Collection checkboxes are real applied filters living outside
+  // FilterState -- they feed the rail badge and keep Reset All Filters active
+  // (which clears them alongside the FilterState reset). A set facet
+  // selection, however it was made (sidebar or popover row), lives IN
+  // FilterState and is already counted once by FilterPanel's own
+  // countActiveFilters, so it is not counted again here.
   const externalActiveCount =
     (incompleteOnly ? 1 : 0) +
     (ownedOnly ? 1 : 0) +
     (noInventoryOnly ? 1 : 0) +
     (overCapOnly ? 1 : 0);
 
-  // BL-235: the SAME total FilterPanel's own collapsed-rail badge shows
-  // (its countActiveFilters, exported for this) plus the toggles above --
-  // filter_applied's active_filter_count property.
+  // The SAME total FilterPanel's own collapsed-rail badge shows (its
+  // countActiveFilters, exported for this) plus the toggles above --
+  // filter_applied's active_filter_count property (App Spec §22).
   const activeFilterCount = countActiveFilters(filters) + externalActiveCount;
 
-  // BL-235: which filter field a click/change just touched, stashed
-  // synchronously (FilterPanel's onFieldChanged prop, or the four Collection
-  // toggle onClicks below) so the effect further down can read the
-  // POST-change results_count/active_filter_count off this component's own
-  // next render before firing filter_applied. Cleared once consumed so an
-  // unrelated `filtered`/`activeFilterCount` change (e.g. a quantities
-  // refresh) never fires a spurious event.
+  // Which filter field a click/change just touched, stashed synchronously
+  // (FilterPanel's onFieldChanged prop, or the four Collection toggle
+  // onClicks below) so the effect further down can read the POST-change
+  // results_count/active_filter_count off this component's own next render
+  // before firing filter_applied. Cleared once consumed so an unrelated
+  // `filtered`/`activeFilterCount` change (e.g. a quantities refresh) never
+  // fires a spurious event.
   const pendingFilterFieldRef = useRef<string | null>(null);
   const handleFieldChanged = useCallback((field: string) => {
     pendingFilterFieldRef.current = field;
@@ -577,21 +552,21 @@ export function CardsPage({
     setOverCapOnly(false);
   }, []);
 
-  // BL-213: base_card_id -> position in TODAY's default order (canonical set
-  // order, numbers ascending) -- built off `cards` (the full scope-ordered
-  // list BEFORE any filter/toggle narrows it), not `filtered`, so the index
-  // a row carries never changes as filters/toggles come and go, only which
-  // rows are visible. Every column's comparator falls back to this on a tie
+  // base_card_id -> position in the default order (canonical set order,
+  // numbers ascending) -- built off `cards` (the full scope-ordered list
+  // BEFORE any filter/toggle narrows it), not `filtered`, so the index a row
+  // carries never changes as filters/toggles come and go, only which rows are
+  // visible. Every column's comparator falls back to this on a tie
   // (utils/cardSort.ts), and it's the literal definition of `#`/`Set`
   // ascending.
   const defaultIndex = useMemo(() => new Map(cards.map((c, i) => [c.base_card_id, i])), [cards]);
 
-  // BL-213: the row order the page actually renders -- `filtered` (every
-  // filter/toggle narrowing already applied, set facet included) reordered
-  // by the active single-column sort. Feeds CardsTable AND GalleryGrid from
-  // one call, so the Gallery view inherits the same ordering (owner spec)
-  // for free, and the popup's prev/next snapshot below follows the same
-  // order the collector is actually looking at.
+  // The row order the page actually renders -- `filtered` (every filter/toggle
+  // narrowing already applied, set facet included) reordered by the active
+  // single-column sort. Feeds CardsTable AND GalleryGrid from one call, so the
+  // Gallery view inherits the same ordering for free, and the popup's
+  // prev/next snapshot below follows the same order the collector is actually
+  // looking at.
   const sortedCards = useMemo(
     () =>
       sortCards(filtered, sortState, {
@@ -604,20 +579,19 @@ export function CardsPage({
     [filtered, sortState, scope, priceKind, valueDisplay, setOrder, defaultIndex]
   );
 
-  // BL-163 (Definition §3): "any mechanism" that narrows the visible list --
-  // a FilterPanel facet/search (the set facet included), or any of the four
-  // toggles above -- makes `filtered` a genuine subset of `cards`, which is
-  // what governs whether InventorySummary's Filtered/All scope toggle
-  // renders at all. BL-224: no separate home-base-set term -- a set facet
-  // selection is already covered by `isDefaultFilterState(filters)`.
+  // "Any mechanism" that narrows the visible list -- a FilterPanel
+  // facet/search (the set facet included), or any of the four toggles above --
+  // makes `filtered` a genuine subset of `cards`, which is what governs
+  // whether InventorySummary's Filtered/All scope toggle renders at all. A set
+  // facet selection is already covered by `isDefaultFilterState(filters)`.
   const isNarrowed =
     !isDefaultFilterState(filters) || incompleteOnly || ownedOnly || noInventoryOnly || overCapOnly;
 
-  // BL-235: fires filter_applied once per user-driven field change, reading
-  // the POST-change results_count/active_filter_count off THIS render --
-  // pendingFilterFieldRef is set synchronously in the same click/change
-  // event that produced the `filters`/toggle state this render reflects, so
-  // by the time this effect runs the values below are already current.
+  // Fires filter_applied once per user-driven field change (App Spec §22),
+  // reading the POST-change results_count/active_filter_count off THIS render
+  // -- pendingFilterFieldRef is set synchronously in the same click/change
+  // event that produced the `filters`/toggle state this render reflects, so by
+  // the time this effect runs the values below are already current.
   useEffect(() => {
     const field = pendingFilterFieldRef.current;
     if (field == null) return;
@@ -629,12 +603,12 @@ export function CardsPage({
     });
   }, [filtered, activeFilterCount]);
 
-  // BL-235: search_performed -- debounce-follows the search box (never per
-  // keystroke) and skips an emptied/never-typed box entirely (nothing to
+  // search_performed (App Spec §22) -- debounce-follows the search box (never
+  // per keystroke) and skips an emptied/never-typed box entirely (nothing to
   // report). Reads `filtered.length` from this render's closure rather than
-  // listing it as a dep -- see the disable comment below; a `filtered`
-  // change from something OTHER than this search text (e.g. a quantities
-  // refresh) would otherwise restart the debounce for no reason.
+  // listing it as a dep -- see the disable comment below; a `filtered` change
+  // from something OTHER than this search text (e.g. a quantities refresh)
+  // would otherwise restart the debounce for no reason.
   useEffect(() => {
     if (filters.search.length === 0) return undefined;
     const timeout = setTimeout(() => {
@@ -647,37 +621,37 @@ export function CardsPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.search]);
 
-  /** BL-148: opens the unified popup AND snapshots `filtered`'s current
-   * base_card_id order for prev/next nav -- the single entry point both the
-   * table (name cell + inventory cell) and the gallery route through, so
-   * every opener gets identical nav behavior for free. */
+  /** Opens the unified popup AND snapshots the sorted list's base_card_id
+   * order for prev/next nav -- the single entry point both the table (Name
+   * cell + Playset cell) and the gallery route through, so every opener gets
+   * identical nav behavior for free. */
   const openPopup = useCallback(
     (
       baseCardId: number,
       displayedFinish: string | null = null,
       source: "table" | "gallery" = "table"
     ) => {
-      // BL-201: non-null only from a gallery cell whose image the Finish
-      // filter picked -- that popup session opens on the finish the
-      // collector was looking at (precedence over the BL-193 scope
-      // preselect below). Table opens and unfiltered gallery opens pass
-      // nothing and keep the existing rules.
+      // Non-null only from a gallery cell whose image the Finish filter picked
+      // -- that popup session opens on the finish the collector was looking at
+      // (precedence over the scope preselect below). Table opens and
+      // unfiltered gallery opens pass nothing and keep the default rules.
       setGalleryDisplayedFinish(displayedFinish);
-      // BL-213: snapshot the SORTED order (not the pre-sort `filtered`) --
-      // prev/next now browses in the same order the collector clicked from,
-      // table or Gallery alike.
+      // Snapshot the SORTED order (not the pre-sort `filtered`) -- prev/next
+      // browses in the same order the collector clicked from, table or Gallery
+      // alike.
       setPopupCardIds(sortedCards.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
-      setPopupSource(source); // BL-235
+      setPopupSource(source);
     },
     [sortedCards]
   );
 
-  // BL-235: card_popup_opened's `source` -- CardsTable's onSelectCard/
-  // onSelectInventory take a single (baseCardId) argument, GalleryGrid's
-  // onSelectCard takes (baseCardId, displayedFinish); neither knows about
-  // `source` itself, so these thin wrappers are the minimal plumbing that
-  // tags each opener without changing either component's own contract.
+  // card_popup_opened's `source` (App Spec §22) -- CardsTable's
+  // onSelectCard/onSelectInventory take a single (baseCardId) argument,
+  // GalleryGrid's onSelectCard takes (baseCardId, displayedFinish); neither
+  // knows about `source` itself, so these thin wrappers are the minimal
+  // plumbing that tags each opener without changing either component's own
+  // contract.
   const openPopupFromTable = useCallback(
     (baseCardId: number) => openPopup(baseCardId, null, "table"),
     [openPopup]
@@ -694,17 +668,15 @@ export function CardsPage({
     setGalleryDisplayedFinish(null);
   }, []);
 
-  /** BL-148: derives prev/next targets from the snapshotted `popupCardIds`
-   * (never from live `filtered` -- see that state's own comment). Boundary
-   * behavior is DISABLE, not wrap (the conventional default, and the owner
-   * left the choice to build judgment) -- `canPrev`/`canNext` are what
-   * CardPopup uses to disable each button and to guard the ArrowLeft/
-   * ArrowRight shortcuts; `onPrev`/`onNext` at a disabled boundary are
-   * harmless no-ops rather than `undefined`, so CardPopup never needs to
-   * null-check before calling them. If the popup isn't open, or --
-   * defensively -- the current id somehow isn't in the snapshot, navigation
-   * is `undefined` entirely and the affordance doesn't render at all (see
-   * CardPopup's `navigation` prop). */
+  /** Derives prev/next targets from the snapshotted `popupCardIds` (never from
+   * live `filtered` -- see that state's own comment). Boundary behavior is
+   * DISABLE, not wrap -- `canPrev`/`canNext` are what CardPopup uses to
+   * disable each button and to guard the ArrowLeft/ArrowRight shortcuts;
+   * `onPrev`/`onNext` at a disabled boundary are harmless no-ops rather than
+   * `undefined`, so CardPopup never needs to null-check before calling them.
+   * If the popup isn't open, or -- defensively -- the current id somehow isn't
+   * in the snapshot, navigation is `undefined` entirely and the affordance
+   * doesn't render at all (see CardPopup's `navigation` prop). */
   const popupNavigation = useMemo(() => {
     if (popupBaseCardId == null || popupCardIds == null) return undefined;
     const index = popupCardIds.indexOf(popupBaseCardId);
@@ -726,17 +698,15 @@ export function CardsPage({
       {loading ? (
         <p className="loading-text">Loading cards…</p>
       ) : (
-        // BL-129 R2 (docked filter sidebar, extends R8): FilterPanel and the
-        // summary+table/gallery stack are now grouped under one flex row
-        // (`.cards-layout`, cards.css) instead of being three direct `.screen`
-        // children -- FilterPanel.tsx's own open/collapsed state is untouched
-        // (no parallel state added here), but wrapping it alongside a
-        // `.cards-content` column lets cards.css's media query dock the
-        // expanded sidebar in-flow on wide viewports and center the
-        // [sidebar + content] pair as one unit, while narrower viewports (or
-        // the collapsed rail) keep the existing float-over-the-table overlay
-        // unchanged -- see cards.css's `.cards-layout` comment for the full
-        // mechanism and the breakpoint arithmetic in FilterPanel.css.
+        // FilterPanel and the summary+table/gallery stack are grouped under one
+        // flex row (`.cards-layout`, cards.css); FilterPanel.tsx's own
+        // open/collapsed state is untouched (no parallel state added here).
+        // Wrapping it alongside a `.cards-content` column lets cards.css's
+        // media query dock the expanded sidebar in-flow on wide viewports and
+        // center the [sidebar + content] pair as one unit, while narrower
+        // viewports (or the collapsed rail) float the sidebar over the table --
+        // see cards.css's `.cards-layout` comment for the full mechanism and
+        // the breakpoint arithmetic in FilterPanel.css.
         <div className="cards-layout">
           <FilterPanel
             filters={filters}
@@ -746,21 +716,18 @@ export function CardsPage({
             externalActiveCount={externalActiveCount}
             onFieldChanged={handleFieldChanged}
           >
-            {/* BL-224: the completion popovers' set selection now IS the
-                sidebar's own Set facet (no second dimension to surface here
-                anymore) -- a popover row-click shows up in the Set field's
-                own chip/dropdown exactly like a sidebar click would, so the
-                separate BL-179 "Base sets: …" chip that used to bridge the
-                two is retired outright, not ported. */}
+            {/* The completion popovers' set selection IS the sidebar's own Set
+                facet (no second dimension to surface here) -- a popover
+                row-click shows up in the Set field's own chip/dropdown exactly
+                like a sidebar click would. */}
             <div className="ifp-toggle-row">
-              {/* BL-195 (Issue #60): while `scope` is active, each pl-toggle
-                  below also carries `pl-toggle--scoped` -- the same amber
-                  outline/text/background token family BL-194's # th uses
-                  (cards.css copies `.vs-header-scope__trigger--on` verbatim),
-                  signaling that these three filters now evaluate against the
-                  scoped finish (toggleNarrowed above), not the card's total
-                  inventory. Click handling/behavior is unchanged; this is a
-                  styling-only modifier. */}
+              {/* While `scope` is active, each pl-toggle below also carries
+                  `pl-toggle--scoped` -- the same amber outline/text/background
+                  token family the # th uses (cards.css copies
+                  `.vs-header-scope__trigger--on` verbatim), signaling that
+                  these filters evaluate against the scoped finish
+                  (toggleNarrowed above), not the card's total inventory.
+                  Styling-only modifier; click handling is unaffected. */}
               <div className="ifp-toggle-row__buttons">
                 <button
                   type="button"
@@ -769,7 +736,7 @@ export function CardsPage({
                   }${scope ? " pl-toggle--scoped" : ""}`}
                   onClick={() => {
                     if (hasData) {
-                      handleFieldChanged("completion"); // BL-235
+                      handleFieldChanged("completion");
                       setIncompleteOnly((v) => !v);
                     } else requestSignIn();
                   }}
@@ -779,13 +746,13 @@ export function CardsPage({
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only incomplete playsets</span>
                 </button>
-                {/* BL-60: my-collection filter, mirrors incompleteOnly above --
-                    same pl-toggle markup and requestSignIn routing for
-                    anonymous users (BL-56's inert-teaser mechanism). BL-205:
-                    gated on `hasData` (not the raw isAuthenticated) so this
-                    toggle works for a read-only shared-vault viewer too --
-                    the owner's real quantities exist to filter on even when
-                    the VIEWER themselves is anonymous. */}
+                {/* My-collection filter, mirrors incompleteOnly above -- same
+                    pl-toggle markup and requestSignIn routing for anonymous
+                    users (the inert-teaser mechanism). Gated on `hasData` (not
+                    the raw isAuthenticated) so this toggle works for a
+                    read-only shared-vault viewer too -- the owner's real
+                    quantities exist to filter on even when the VIEWER
+                    themselves is anonymous. */}
                 <button
                   type="button"
                   className={`pl-toggle${ownedOnly ? " pl-toggle--on" : ""}${
@@ -796,9 +763,9 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
-                    handleFieldChanged("owned"); // BL-235
-                    // BL-115: turning ownedOnly on contradicts noInventoryOnly
-                    // (owned total > 0 vs. === 0) -- clear it on the way in.
+                    handleFieldChanged("owned");
+                    // Turning ownedOnly on contradicts noInventoryOnly (owned
+                    // total > 0 vs. === 0) -- clear it on the way in.
                     setOwnedOnly((v) => {
                       const next = !v;
                       if (next) setNoInventoryOnly(false);
@@ -811,7 +778,7 @@ export function CardsPage({
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only cards I own</span>
                 </button>
-                {/* BL-115: inverse of ownedOnly -- same pl-toggle markup and
+                {/* Inverse of ownedOnly -- same pl-toggle markup and
                     requestSignIn routing for anonymous users. Anonymous
                     inventory is all-zero, so the filter would be meaningless
                     noise for a signed-out visitor -- same inert-teaser
@@ -826,11 +793,11 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
-                    handleFieldChanged("no_inventory"); // BL-235
-                    // BL-115: turning noInventoryOnly on contradicts ownedOnly
-                    // -- clear it on the way in (mirror of the setOwnedOnly
-                    // handler above). BL-217: it also contradicts overCapOnly
-                    // (over-cap implies owned) -- clear that too.
+                    handleFieldChanged("no_inventory");
+                    // Turning noInventoryOnly on contradicts ownedOnly -- clear
+                    // it on the way in (mirror of the setOwnedOnly handler
+                    // above). It also contradicts overCapOnly (over-cap implies
+                    // owned) -- clear that too.
                     setNoInventoryOnly((v) => {
                       const next = !v;
                       if (next) {
@@ -846,16 +813,12 @@ export function CardsPage({
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Only cards with no inventory</span>
                 </button>
-                {/* BL-217: "over my keep limit" discovery filter -- same
-                    pl-toggle markup and requestSignIn routing as its
-                    siblings. Dev copy ("Over keep limit") is intentionally
-                    short -- owner reviews copy in a later HMR round.
-                    BL-222: now carries pl-toggle--scoped like its three
-                    siblings -- the predicate itself became scope-aware (see
-                    toggleNarrowed's overCapOnly branch above), so the amber
-                    "this filter now evaluates against the scoped finish"
-                    signal is accurate here too (owner revision of BL-217's
-                    original "deliberately never" call). */}
+                {/* "Over my keep limit" discovery filter -- same pl-toggle
+                    markup and requestSignIn routing as its siblings. Carries
+                    pl-toggle--scoped like them: the predicate is scope-aware
+                    (see toggleNarrowed's overCapOnly branch above), so the
+                    amber "this filter evaluates against the scoped finish"
+                    signal is accurate here too. */}
                 <button
                   type="button"
                   className={`pl-toggle${overCapOnly ? " pl-toggle--on" : ""}${
@@ -866,11 +829,10 @@ export function CardsPage({
                       requestSignIn();
                       return;
                     }
-                    handleFieldChanged("over_cap"); // BL-235
-                    // BL-217: turning overCapOnly on contradicts
-                    // noInventoryOnly (over-cap implies owned) -- clear it on
-                    // the way in, mirroring the ownedOnly/noInventoryOnly
-                    // exclusion above.
+                    handleFieldChanged("over_cap");
+                    // Turning overCapOnly on contradicts noInventoryOnly
+                    // (over-cap implies owned) -- clear it on the way in,
+                    // mirroring the ownedOnly/noInventoryOnly exclusion above.
                     setOverCapOnly((v) => {
                       const next = !v;
                       if (next) setNoInventoryOnly(false);
@@ -884,12 +846,11 @@ export function CardsPage({
                   <span className="pl-toggle__label">Over keep limit</span>
                 </button>
               </div>
-              {/* BL-60/BL-56 §5.5: quiet persistent nudge near the toggles for
-                  anonymous users -- the passive half of the layered nudge
-                  treatment (the click-to-prompt above is the active half).
-                  Suppressed for a read-only shared-vault view (`hasData` is
-                  true there too) -- there's nothing to log in FOR on someone
-                  else's Vault. */}
+              {/* Quiet persistent nudge near the toggles for anonymous users --
+                  the passive half of the layered nudge treatment (the
+                  click-to-prompt above is the active half). Suppressed for a
+                  read-only shared-vault view (`hasData` is true there too) --
+                  there's nothing to log in FOR on someone else's Vault. */}
               {!hasData && <p className="ifp-toggle-nudge">Log in to track your collection</p>}
             </div>
           </FilterPanel>
@@ -909,8 +870,8 @@ export function CardsPage({
               widthTier={widthTier}
               onWidthTierChange={handleWidthTierChange}
             >
-              {/* BL-205 (§19.1): mutation affordances are REMOVED (not just
-                  disabled) in read-only viewer mode -- Add Cards and
+              {/* Mutation affordances are REMOVED (not just disabled) in
+                  read-only viewer mode (App Spec §19.1) -- Add Cards and
                   Import/Export never render at all for a shared vault. */}
               {!readOnly && (
                 <>
@@ -925,15 +886,15 @@ export function CardsPage({
                   >
                     Add Cards
                   </SWUButton>
-                  {/* BL-54 S3 (§8.1 P10): same standard SWUButton, immediately
-                      right of Add Cards, rendered for every auth state.
-                      Three-way click routing mirrors the toggles' two-way
-                      routing above, extended with the verified-email gate:
-                      anonymous -> requestSignIn (the AuthModal, same as Add
-                      Cards); signed-in unverified -> the local nudge below
-                      (import-export state stays App-owned and unreachable, see
-                      onOpenImportExport?: undefined-safe call); verified ->
-                      onOpenImportExport (App's activeView switch). */}
+                  {/* Same standard SWUButton, immediately right of Add Cards,
+                      rendered for every auth state. Three-way click routing
+                      mirrors the toggles' two-way routing above, extended with
+                      the verified-email gate: anonymous -> requestSignIn (the
+                      AuthModal, same as Add Cards); signed-in unverified ->
+                      the local nudge below (import-export state stays
+                      App-owned and unreachable, see onOpenImportExport?:
+                      undefined-safe call); verified -> onOpenImportExport
+                      (App's activeView switch). */}
                   <SWUButton
                     size="sm"
                     active={isAuthenticated && isEmailVerified}
@@ -946,12 +907,12 @@ export function CardsPage({
                   >
                     Import / Export
                   </SWUButton>
-                  {/* BL-205 (§19.1): the Vault header's share affordance --
+                  {/* The Vault header's share affordance (App Spec §19.1) --
                       same inert-teaser routing as Add Cards above (anonymous
                       -> requestSignIn; signed-in -> opens ShareManageModal).
                       Unlike Import/Export, sharing isn't gated on verified
-                      email -- §19.1 doesn't call for that gate, and sharing
-                      a Vault carries none of import/export's data-integrity
+                      email -- §19.1 doesn't call for that gate, and sharing a
+                      Vault carries none of import/export's data-integrity
                       stakes. */}
                   <SWUButton
                     size="sm"
@@ -967,13 +928,12 @@ export function CardsPage({
                 </>
               )}
             </InventorySummary>
-            {/* BL-54 S3 (§8.1 P9): the "same visual pattern" verify-email
-                nudge -- a quiet inline message revealed by the click above,
-                the unverified counterpart to the anonymous
+            {/* The verify-email nudge -- a quiet inline message revealed by
+                the click above, the unverified counterpart to the anonymous
                 click-to-sign-in-modal above it. Points at the site-wide
-                VerifyEmailBanner (App.tsx) rather than opening anything of
-                its own, since that banner is already the app's one
-                verify-email affordance. */}
+                VerifyEmailBanner (App.tsx) rather than opening anything of its
+                own, since that banner is already the app's one verify-email
+                affordance. */}
             {!readOnly && importExportNudge && isAuthenticated && !isEmailVerified && (
               <p className="ie-entry-nudge">
                 Verify your email to import or export your collection — see the banner above.
@@ -983,11 +943,10 @@ export function CardsPage({
               <AddCardsModal
                 catalog={addCardsCatalog}
                 onClose={() => setModalOpen(false)}
-                // BL-196: awaited now (was fire-and-forget) -- the modal's
-                // own commit-stage busy overlay holds its "Refreshing your
-                // Vault…" stage on this promise before dismissing. Errors
-                // still swallowed here (unchanged behavior) so a failed
-                // refresh never rejects the overlay's own settle step.
+                // Awaited -- the modal's own commit-stage busy overlay holds
+                // its "Refreshing your Vault…" stage on this promise before
+                // dismissing. Errors are swallowed here so a failed refresh
+                // never rejects the overlay's own settle step.
                 onCommitted={async () => {
                   await refreshQuantities().catch(console.error);
                 }}
@@ -1014,14 +973,13 @@ export function CardsPage({
                 widthTier={widthTier}
               />
             ) : (
-              // BL-213: the Gallery view inherits the same ordering as the
-              // table (owner spec) -- GalleryGrid itself still has no sort
-              // affordance of its own, it just renders whatever order it's
-              // handed. BL-222 (Issue #134): the sort/scope AFFORDANCE now
+              // The Gallery view inherits the same ordering as the table --
+              // GalleryGrid itself has no sort affordance of its own, it just
+              // renders whatever order it's handed. The sort/scope AFFORDANCE
               // lives one level up, in GallerySortHeader -- the same
-              // sortState/scope owned here, so a sort or scope change made
-              // from the gallery header is visible in the table too the next
-              // time the view is switched (no separate gallery-local state).
+              // sortState/scope owned here, so a sort or scope change made from
+              // the gallery header is visible in the table too the next time
+              // the view is switched (no separate gallery-local state).
               <>
                 <GallerySortHeader
                   sortState={sortState}
@@ -1050,10 +1008,9 @@ export function CardsPage({
           baseCardId={popupBaseCardId}
           isAuthenticated={hasData}
           readOnly={readOnly}
-          // BL-205 (owner HMR round 1): the detail endpoint answers for the
-          // VIEWER's auth context, so in a shared vault the popup must
-          // display the share owner's quantities -- the same map the table
-          // renders from -- not the response's.
+          // The detail endpoint answers for the VIEWER's auth context, so in a
+          // shared vault the popup must display the share owner's quantities --
+          // the same map the table renders from -- not the response's.
           quantityOverrides={readOnly ? quantities : undefined}
           setNameByCode={setNameByCode}
           onClose={closePopup}
@@ -1063,11 +1020,11 @@ export function CardsPage({
           onRequestSignIn={requestSignIn}
           navigation={popupNavigation}
           source={popupSource}
-          // BL-193: keeps the popup's initial/per-card selection in the same
-          // finish the collector is scoped to (BL-173) -- companion to
-          // BL-187's scoped number/sort and BL-192's rail cycling.
-          // BL-201: a finish-filtered gallery click showed the collector a
-          // specific printing -- that displayed finish wins for the session.
+          // Keeps the popup's initial/per-card selection in the same finish the
+          // collector is scoped to -- companion to the scoped number/sort and
+          // the rail's keyboard cycling. A finish-filtered gallery click showed
+          // the collector a specific printing -- that displayed finish wins for
+          // the session.
           initialFinish={galleryDisplayedFinish ?? scope}
         />
       )}

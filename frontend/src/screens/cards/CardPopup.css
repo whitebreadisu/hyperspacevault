@@ -1,39 +1,30 @@
-/* Unified card detail / inventory popup -- .cp-* styles (BL-111 F5, design
-   handoff claude_design/design_handoff_swu_restyle/README.md §5, "selected-
-   panel" -- prototypes/inventory-popup/InvPanel.dc.html is the pixel
-   reference). Replaces CardDetailPopup.css + CardInventoryPopup.css.
+/* Unified card detail / inventory popup -- .cp-* styles.
 
-   Steel-ring geometry follows the same double clip-path technique F4's
-   .gallery-plate/.gallery-dossier already shipped (an outer colored layer
-   clipped to the angled-corner polygon, padded by ~1.5px, wrapping an inner
-   layer clipped to the same polygon) -- .cp-shell/.cp-modal is that pattern
-   at modal scale (22px/21px cuts, matching the prototype's literal geometry
-   verbatim), reused again at panel scale (12-14px cuts) for .cp-text/
+   Steel-ring geometry uses the same double clip-path technique as
+   .gallery-plate/.gallery-dossier (an outer colored layer clipped to the
+   angled-corner polygon, padded by ~1.5px, wrapping an inner layer clipped
+   to the same polygon) -- .cp-shell/.cp-modal is that pattern at modal scale
+   (22px/21px cuts), reused again at panel scale (12-14px cuts) for .cp-text/
    .cp-stats/.cp-plate.
 
-   Ring color: the design tokens section (§ Design Tokens) documents steel
-   rings as `#d3d3d4` at opacity .28 (modal) -- used here (rgba(211,211,212,
-   .28)) rather than the InvPanel prototype's literal inline `#2a3558`, to
-   stay consistent with the rgba(211,211,212,X) convention F2 (circuit-
-   separator), F4 (gallery plate/dossier rings) already shipped. Documented
-   in the F5 PR description.
+   Ring color: steel rings are `#d3d3d4` at opacity .28 (modal), written
+   here as rgba(211,211,212,.28) to stay consistent with the
+   rgba(211,211,212,X) convention the circuit-separator and the gallery
+   plate/dossier rings use.
 
-   Backdrop art: the prototype's stat-plate/inventory-plate/rail backdrops
-   use a `cover`-sized "assets/art/generic-background.jpg" not present in
-   this repo. Reused `/images/circuit-tile.webp` at the same 260px auto tile
-   size F4's gallery plate already established instead of introducing a new
-   asset -- same visual family, one fewer file to ship. */
+   Backdrop art: the stat-plate/inventory-plate/rail backdrops reuse
+   `/images/circuit-tile.webp` at the same 260px auto tile size the gallery
+   plate uses, rather than introducing a new asset -- same visual family,
+   one fewer file to ship. */
 
-/* .cp-overlay's backdrop styling moved to index.css's shared .modal-overlay
-   class (BL-153, A3-06) -- the element keeps this class name too (see
-   CardPopup.tsx), just with no rule of its own left here. */
+/* .cp-overlay's backdrop styling lives in index.css's shared .modal-overlay
+   class -- the element carries this class name too (see CardPopup.tsx), with
+   no rule of its own here. */
 
 .cp-shell {
   position: relative;
-  /* BL-140 review finding: 1080 -> 1140, absorbing the printings rail's
-   * widened column (below, 222 -> 300px) minus a modest trim off the image
-   * column (340 -> 320px) -- see .cp-body's own comment for the full
-   * rail-width math. */
+  /* Shell width absorbs the printings rail's 300px column (see .cp-body's
+   * comment for the rail-width math), with the image column at 320px. */
   width: min(1140px, calc(100vw - 44px));
   max-height: calc(100vh - 36px);
   background: rgba(211, 211, 212, 0.28);
@@ -87,11 +78,10 @@
 .cp-header {
   position: relative;
   background-color: var(--bg-surface);
-  /* BL-148: right padding 60 -> 140px, reserving room for the prev/next nav
-   * cluster now grouped alongside the close button (.cp-header__controls
-   * below) so the title's flex-wrap never runs text under the (absolutely
-   * positioned, out-of-flow) controls at narrow viewports -- same role the
-   * original 60px played for the close button alone. */
+  /* Right padding of 140px reserves room for the prev/next nav cluster
+   * grouped alongside the close button (.cp-header__controls below), so the
+   * title's flex-wrap never runs text under the (absolutely positioned,
+   * out-of-flow) controls at narrow viewports. */
   padding: 20px 140px 22px 30px;
   flex: none;
 }
@@ -142,10 +132,9 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 
-/* BL-148: prev/next + close, grouped in one absolutely-positioned flex row
-   so all three line up on a shared baseline without hand-matched top/right
-   offsets per button (cp-close used to be positioned standalone -- see git
-   history). */
+/* Prev/next + close, grouped in one absolutely-positioned flex row so all
+   three line up on a shared baseline without hand-matched top/right offsets
+   per button. */
 .cp-header__controls {
   position: absolute;
   top: 12px;
@@ -155,15 +144,13 @@
   gap: 2px;
 }
 
-/* BL-148: deliberately the quietest control in the popup -- no background,
-   no clip-path/frame heft (unlike every other button here, e.g. cp-flip/
+/* Deliberately the quietest control in the popup -- no background, no
+   clip-path/frame heft (unlike every other button here, e.g. cp-flip/
    cp-plate__step), a thin angle-quote glyph rather than a bold arrow, and a
-   lower resting opacity than even cp-close (which is otherwise the
-   popup's quietest existing control) per the owner's explicit "quieter
-   than the popup's other controls" constraint. Disabled at a list boundary
-   (not wrapped -- the conventional default) fades it further rather than
-   hiding it, so the cluster's width/position never shifts as you approach
-   an end. */
+   lower resting opacity than even cp-close (which is otherwise the popup's
+   quietest control). Disabled at a list boundary (not wrapped) fades it
+   further rather than hiding it, so the cluster's width/position never
+   shifts as you approach an end. */
 .cp-nav-btn {
   background: none;
   border: none;
@@ -196,32 +183,28 @@
   color: var(--color-text);
 }
 
-/* Straddles the header/body seam -- same proportional -height/2 overlap
-   the base .circuit-separator rule already applies (BL-111 dev-review
-   wave 1 fix 1); no extra positioning needed. */
+/* Straddles the header/body seam -- same proportional -height/2 overlap the
+   base .circuit-separator rule already applies; no extra positioning
+   needed. */
 .cp-separator {
   flex: none;
 }
 
 /* ── Body grid ──────────────────────────────────────────── */
-/* BL-74 (resolved by BL-111 F5's layout): the three columns scroll
-   INDEPENDENTLY -- each gets its own max-height/overflow-y below, rather
-   than the grid itself scrolling as one unit. A many-variant card (e.g. JTL
-   Black One) can therefore scroll a tall printings rail without carrying the
-   card image out of view alongside it, which was the old single-column
-   CardDetailPopup's exact bug. */
-/* BL-147 dev-review fix (BL-140 review finding): rail widened 222 -> 300px
- * so the longest real finish names ("Serialized Prestige", "Hyperspace
- * Foil", "Event Exclusive") never ellipsize (measured against the real
- * Barlow Condensed 700 12px 0.06em-tracked font via headless Chromium:
- * "Serialized Prestige" is the longest at ~95px; a full row also carries
- * the card number, an owned-qty chip, and a right-aligned price, so 300px
- * leaves ~35-40px of breathing room over the worst-case measured row
- * rather than a bare fit -- see .cp-rail__item-finish below, which drops
- * the truncating overflow/ellipsis entirely now that the column is sized
- * for it). Image column trimmed 340 -> 320px to help absorb the rail's
- * growth without inflating the shell as much as a straight add would (see
- * .cp-shell's own 1080 -> 1140 comment). */
+/* The three columns scroll INDEPENDENTLY -- each gets its own
+   max-height/overflow-y below, rather than the grid itself scrolling as one
+   unit. A many-variant card (e.g. JTL Black One) can therefore scroll a tall
+   printings rail without carrying the card image out of view alongside it. */
+/* Rail is 300px wide so the longest real finish names ("Serialized
+ * Prestige", "Hyperspace Foil", "Event Exclusive") never ellipsize (measured
+ * against the real Barlow Condensed 700 12px 0.06em-tracked font via
+ * headless Chromium: "Serialized Prestige" is the longest at ~95px; a full
+ * row also carries the card number, an owned-qty chip, and a right-aligned
+ * price, so 300px leaves ~35-40px of breathing room over the worst-case
+ * measured row rather than a bare fit -- see .cp-rail__item-finish below,
+ * which carries no truncating overflow/ellipsis because the column is sized
+ * for it). The image column is 320px, which keeps the shell width (see
+ * .cp-shell) from growing by the full rail width. */
 .cp-body {
   display: grid;
   grid-template-columns: 300px 320px 1fr;
@@ -259,9 +242,8 @@
   color: var(--color-text-muted);
 }
 
-/* BL-140 design-conformance pass: rail-header Market/Low toggle
-   (PRICING_DEFAULTS_SPEC.md's per-printing price-KIND switch, right-aligned
-   in the same row as the rail heading label). */
+/* Rail-header Market/Low toggle (the per-printing price-KIND switch),
+   right-aligned in the same row as the rail heading label. */
 .cp-rail__pricemode {
   margin-left: auto;
   display: inline-flex;
@@ -337,14 +319,13 @@
   color: #ffffff;
 }
 
-/* BL-147 dev-review fix (BL-140 review finding, owner constraint: widen the
- * rail rather than shrink/wrap): NEVER truncate the finish name, at any
- * printing count. The old overflow:hidden/text-overflow:ellipsis pair is
- * dropped outright -- .cp-body's rail column (300px, up from 222px) is
- * sized to fit the longest real finish name single-line at full font size
- * (see that rule's own comment for the measurement), so this row no longer
- * needs to shrink its text to fit. white-space:nowrap stays: the owner's
- * preference is a wider single-line row over wrapping to a second line. */
+/* NEVER truncate the finish name, at any printing count: there is no
+ * overflow:hidden/text-overflow:ellipsis pair here. .cp-body's rail column
+ * (300px) is sized to fit the longest real finish name single-line at full
+ * font size (see that rule's own comment for the measurement), so this row
+ * does not need to shrink its text to fit. white-space:nowrap keeps the row
+ * single-line: a wider single-line row is preferred over wrapping to a
+ * second line. */
 .cp-rail__item-finish {
   white-space: nowrap;
 }
@@ -367,11 +348,10 @@
   color: #1fa347;
 }
 
-/* BL-140 design-conformance pass: tileFormat=price-right -- each printing
-   row's own price, right-aligned mono text after the finish/num/qty
-   cluster. `.cp-rail__item-num`'s existing margin-left:auto above already
-   pushes that whole trailing cluster (num, qty, price) to the right as a
-   group; this element just needs to sit last in DOM order among them. */
+/* Each printing row's own price, right-aligned mono text after the
+   finish/num/qty cluster. `.cp-rail__item-num`'s margin-left:auto above
+   already pushes that whole trailing cluster (num, qty, price) to the right
+   as a group; this element just needs to sit last in DOM order among them. */
 .cp-rail__item-price {
   display: inline-flex;
   justify-content: flex-end;
@@ -393,9 +373,8 @@
   border-radius: 2px;
 }
 
-/* BL-140 design-conformance pass: chartPlacement=under-printings -- the
-   compact HistoryPanel embedded permanently under the printing rows, inside
-   the rail's own scroll region. */
+/* The compact history panel is embedded permanently under the printing rows,
+   inside the rail's own scroll region. */
 .cp-rail__history {
   margin-top: 6px;
   border-top: 2px solid var(--color-border);
@@ -419,13 +398,12 @@
 }
 
 /* ── Center column: image, flip, inventory plate ───────────── */
-/* BL-74: this column (image + flip button + inventory plate) scrolls
-   INDEPENDENTLY of the rail (left) -- the point being that it stays put
-   while a long printings list scrolls past on its own, rather than the two
-   sharing one scroll context (the old single-column CardDetailPopup's bug).
-   In practice this column's own content is short enough that it never needs
-   to scroll itself; max-height/overflow-y here is a safety net, not the
-   primary mechanism. */
+/* This column (image + flip button + inventory plate) scrolls INDEPENDENTLY
+   of the rail (left) -- it stays put while a long printings list scrolls past
+   on its own, rather than the two sharing one scroll context. In practice
+   this column's own content is short enough that it never needs to scroll
+   itself; max-height/overflow-y here is a safety net, not the primary
+   mechanism. */
 .cp-center {
   padding: 28px 24px 20px 24px;
   display: flex;
@@ -441,16 +419,14 @@
   perspective: 1400px;
 }
 
-/* BL-111 dev-review wave 1 fix 2: a "flip" that ever RESTS (or animates
-   past) rotateY(90deg) mirrors the flat <img> (there's no real back face to
-   reveal, just the same plane seen from behind), so neither half of this
-   two-phase flip ever crosses that boundary. `--out` rotates whichever side
-   is CURRENTLY showing from 0deg to 90deg (edge-on); CardPopup.tsx's
-   onAnimationEnd handler swaps `showBack` (and therefore `src`) at exactly
-   that boundary, then switches the class to `--in`, which rotates 90deg back
-   to 0deg to reveal the new side. Each half keeps the original combined
-   pulse's total duration (0.36s) split evenly, so the flip reads at the same
-   overall pace as before -- just now in the right visual order. */
+/* A "flip" that ever RESTS (or animates past) rotateY(90deg) mirrors the flat
+   <img> (there's no real back face to reveal, just the same plane seen from
+   behind), so neither half of this two-phase flip ever crosses that
+   boundary. `--out` rotates whichever side is CURRENTLY showing from 0deg to
+   90deg (edge-on); CardPopup.tsx's onAnimationEnd handler swaps `showBack`
+   (and therefore `src`) at exactly that boundary, then switches the class to
+   `--in`, which rotates 90deg back to 0deg to reveal the new side. The two
+   halves split the flip's total duration (0.36s) evenly. */
 @keyframes cp-flip-out {
   from {
     transform: rotateY(0deg);
@@ -477,27 +453,24 @@
   animation: cp-flip-in 0.18s ease forwards;
 }
 
-/* BL-132 J3: leader backs are landscape, fronts portrait -- without this,
-   the container's height snapped instantly to the new side's aspect the
-   moment `src` swapped mid-flip (the "blip"). `transition: height` morphs it
-   smoothly instead, driven by CardPopup.tsx's inline `style={{ height }}`
-   (computed from the measured wrap width and the target side's aspect
-   ratio, kept in React state rather than CSS since CSS alone has no way to
-   know an *image's* aspect ratio ahead of loading it). 0.36s matches the
-   flip's total duration (the two 0.18s rotateY phases combined, above) so
-   the height finishes morphing exactly as the flip itself settles, not
-   before or after it.
+/* Leader backs are landscape, fronts portrait -- without this, the
+   container's height would snap instantly to the new side's aspect the
+   moment `src` swaps mid-flip. `transition: height` morphs it smoothly
+   instead, driven by CardPopup.tsx's inline `style={{ height }}` (computed
+   from the measured wrap width and the target side's aspect ratio, kept in
+   React state rather than CSS since CSS alone has no way to know an *image's*
+   aspect ratio ahead of loading it). 0.36s matches the flip's total duration
+   (the two 0.18s rotateY phases combined, above) so the height finishes
+   morphing exactly as the flip itself settles, not before or after it.
 
-   `overflow: hidden` is required for the height transition to visually
-   clip the taller side down to the shrinking box instead of just spilling
-   out of it, but that in turn means the <img>'s own box-shadow/border-radius
-   (previously set directly on .cp-image, below) could never render -- an
-   element cannot clip its own box-shadow away without also hiding the
-   shadow. Moved both onto this element instead so the resting look (no
-   flip in progress, height back to auto/full) stays pixel-identical to
-   before. `display: flex` + centering keeps the (usually narrower, since
-   height is shrinking to fit) image centered in the box during the morph
-   rather than pinned to a corner. */
+   `overflow: hidden` is required for the height transition to visually clip
+   the taller side down to the shrinking box instead of just spilling out of
+   it, but that in turn means the <img>'s own box-shadow/border-radius could
+   never render -- an element cannot clip its own box-shadow away without
+   also hiding the shadow. So both live on this element, not on .cp-image.
+   `display: flex` + centering keeps the (usually narrower, since height is
+   shrinking to fit) image centered in the box during the morph rather than
+   pinned to a corner. */
 .cp-image-flip {
   overflow: hidden;
   display: flex;
@@ -662,8 +635,8 @@
 .cp-plate__count--at-limit {
   color: var(--color-danger);
 }
-/* BL-35 (ported): soft-mode "committed past your keep-limit" warning --
-   amber, distinct from the past-limit red above (declared later, so it wins). */
+/* Soft-mode "committed past your keep-limit" warning -- amber, distinct from
+   the past-limit red above (declared later, so it wins). */
 .cp-plate__count--over-limit {
   color: var(--color-warning);
 }
@@ -705,9 +678,8 @@
   overflow-y: auto;
 }
 
-/* Owner dev review 2026-07-26 round 2: row = [large rarity symbol] [two-line
- * text stack] (working/card popup rarity label change.JPG) -- the column
- * layout moved to the inner .cp-info__set-text. */
+/* row = [large rarity symbol] [two-line text stack]; the column layout lives
+ * on the inner .cp-info__set-text. */
 .cp-info__set-row {
   display: flex;
   align-items: center;
@@ -721,12 +693,10 @@
   min-width: 0;
 }
 
-/* Owner dev review 2026-07-26 (round 7): the plate's rarity symbol sat a
- * touch high of the two-line text stack's optical center -- same small
- * downward nudge the table's rarity icon got (.td-rarity, cards.css).
- * BL-173 review round 3 (owner, 2026-07-27): "lowered some more" -- 2px
- * still read high against the set/rarity stack; stepped to 4px (visible
- * 2px step, per the sub-pixel-calibration lesson). */
+/* The plate's rarity symbol is nudged down 4px to sit at the optical center
+ * of the two-line text stack (the same small downward nudge the table's
+ * rarity icon gets, .td-rarity in cards.css). The step is visible (a 2px
+ * change reads; smaller steps are lost to sub-pixel rendering). */
 .cp-info__set-row > .rarity-badge .rarity-badge__icon {
   position: relative;
   top: 4px;
@@ -752,10 +722,9 @@
   letter-spacing: 0.04em;
 }
 
-/* BL-173 review round 4 (owner): type + aspects joined the set row,
- * right-aligned (margin-left: auto), type text LEFT of the icons; the old
- * standalone .cp-info__aspects row is retired. Aspect icons render at 34px
- * to match the rarity icon (CardPopup.tsx). */
+/* Type + aspects sit in the set row, right-aligned (margin-left: auto), type
+ * text LEFT of the icons. Aspect icons render at 46px to match the stat
+ * badges (CardPopup.tsx). */
 .cp-info__typeaspects {
   display: flex;
   align-items: center;
@@ -875,12 +844,12 @@
   color: var(--color-text-muted);
 }
 
-/* ── History expand-below section (BL-140 design-conformance pass) ──── */
-/* historyEmbed=expand-below: the FULL HistoryPanel, appended below the
-   3-column .cp-body grid (a sibling inside .cp-modal) once the compact
-   embed's ⤢ affordance is used. Own internal scroll region (rather than
-   making the whole modal scroll as one unit) so it doesn't reopen the BL-74
-   bug the 3 columns' independent scrolling was built to fix. */
+/* ── History expand-below section ──── */
+/* The FULL history panel, appended below the 3-column .cp-body grid (a
+   sibling inside .cp-modal) once the compact embed's ⤢ affordance is used.
+   Own internal scroll region (rather than making the whole modal scroll as
+   one unit) so it doesn't undo the independent scrolling of the 3 columns
+   above. */
 .cp-history-expand {
   border-top: 1px solid var(--color-border);
   padding: 16px 28px 14px 28px;
