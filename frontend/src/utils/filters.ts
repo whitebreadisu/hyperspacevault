@@ -126,7 +126,7 @@ function rangeEqual(a: [number, number], b: [number, number]): boolean {
 
 export function isDefaultFilterState(filters: FilterState): boolean {
   return (
-    filters.search === DEFAULT_FILTERS.search &&
+    filters.search.trim() === DEFAULT_FILTERS.search &&
     setsEqual(filters.aspects, DEFAULT_FILTERS.aspects) &&
     // BL-130: the matching mode is a genuine FilterState field now -- Reset
     // restores it to Exact even when `aspects` is already empty (a changed
@@ -185,8 +185,37 @@ function matchesAspectMode(
 
 // ── applyFilters ──────────────────────────────────────────────────────────
 
+/** The Set facet after a tap on a completion-breakdown set row: that set
+ * alone, or an empty facet when it is already the only selected set (a second
+ * tap undoes the first). Both screens use it. */
+export function setFacetAfterRowTap(current: Set<string>, code: string): Set<string> {
+  return current.size === 1 && current.has(code) ? new Set() : new Set([code]);
+}
+
+/** The search both screens share: the name and displayed subtitle, the card
+ * number (the base number or any printing's own number), or "SET number"
+ * ("SOR 87", leading zeros ignored). Case-insensitive; blank matches all. */
+export function matchesQuery(card: BaseCard, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const { displayName, subtitle } = parseCardDisplay(card);
+  if (`${displayName} ${subtitle ?? ""}`.toLowerCase().includes(q)) return true;
+  const nums = new Set<string>([card.base_card_number.toLowerCase()]);
+  for (const v of card.variants) nums.add(v.card_number.toLowerCase());
+  if (nums.has(q)) return true;
+  const m = /^([a-z0-9]+)\s+0*(\d+[a-z]?)$/.exec(q);
+  if (m) {
+    const [, set, num] = m;
+    if (card.set_code.toLowerCase() === set && card.base_card_number.replace(/^0+/, "") === num)
+      return true;
+    return card.variants.some(
+      (v) => v.source_set_code.toLowerCase() === set && v.card_number.replace(/^0+/, "") === num
+    );
+  }
+  return false;
+}
+
 export function applyFilters(cards: BaseCard[], filters: FilterState): BaseCard[] {
-  const q = filters.search.trim().toLowerCase();
   const costNarrowed = filters.costRange[0] !== 0 || filters.costRange[1] !== COST_MAX;
   const powerNarrowed = filters.powerRange[0] !== 0 || filters.powerRange[1] !== POWER_MAX;
   const hpNarrowed = filters.hpRange[0] !== 0 || filters.hpRange[1] !== HP_MAX;
@@ -195,11 +224,7 @@ export function applyFilters(cards: BaseCard[], filters: FilterState): BaseCard[
     set.size === 0 || values.some((v) => set.has(v));
 
   return cards.filter((card) => {
-    if (q) {
-      const { displayName, subtitle } = parseCardDisplay(card);
-      const hay = `${displayName} ${subtitle ?? ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+    if (!matchesQuery(card, filters.search)) return false;
 
     // BL-90 x BL-130: an empty filters.aspects means unfiltered (all pass)
     // in every mode -- BL-90's empty-selection semantics hold constant

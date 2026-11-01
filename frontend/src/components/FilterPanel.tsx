@@ -213,7 +213,7 @@ interface FilterPanelProps {
  * than re-deriving it. */
 export function countActiveFilters(filters: FilterState): number {
   let n = 0;
-  if (filters.search) n++;
+  if (filters.search.trim()) n++;
   // BL-130: the mode change alone (no selection) has no filtering effect
   // (matchesAspectMode's empty-selection short-circuit), so it doesn't earn
   // its own bump -- it counts as part of the same "Aspects" bucket the
@@ -258,10 +258,6 @@ export function FilterPanel({
   // Base/long-tail set toggle (§5.1): defaults to base sets only; the
   // header button inside the Set dropdown expands to all sets.
   const [showAllSets, setShowAllSets] = useState(false);
-  // BL-70: global "show all values" toggle -- off by default (hide values
-  // that can't add anything given the other active filters/toggles), on
-  // reveals them disabled/greyed alongside the valid ones.
-  const [showInvalidValues, setShowInvalidValues] = useState(false);
   useEffect(() => {
     getSets()
       .then(setSets)
@@ -357,8 +353,9 @@ export function FilterPanel({
 
   // BL-70: facet each dropdown against "every other active filter" (the
   // dead-end-prevention rule -- own selection ignored), then fold the
-  // result + the current selection + the show-all toggle into what each
-  // MultiSelect actually renders. `cards` here is already toggle-narrowed
+  // result + the current selection into what each MultiSelect actually
+  // renders. Every universe value is listed: one with no matches is greyed
+  // with "(0)" and cannot be added (a selected one stays removable). `cards` here is already toggle-narrowed
   // by the caller (CardsPage folds ownedOnly/incompleteOnly in before
   // passing it down), so facets automatically respect those toggles too.
   // BL-90: aspects universe is the 6 real aspects plus the explicit
@@ -373,43 +370,43 @@ export function FilterPanel({
     aspectUniverse,
     facetValidValues(cards, filters, "aspects"),
     filters.aspects,
-    showInvalidValues
+    true
   );
   const facetedSetOptions = facetedOptions(
     setOptions,
     facetValidValues(cards, filters, "set"),
     filters.set,
-    showInvalidValues
+    true
   );
   const facetedTypeOptions = facetedOptions(
     TYPE_OPTIONS,
     facetValidValues(cards, filters, "type"),
     filters.type,
-    showInvalidValues
+    true
   );
   const facetedRarityOptions = facetedOptions(
     RARITY_OPTIONS,
     facetValidValues(cards, filters, "rarity"),
     filters.rarity,
-    showInvalidValues
+    true
   );
   const facetedKeywordOptions = facetedOptions(
     keywordOptions,
     facetValidValues(cards, filters, "keyword"),
     filters.keyword,
-    showInvalidValues
+    true
   );
   const facetedTraitOptions = facetedOptions(
     traitOptions,
     facetValidValues(cards, filters, "trait"),
     filters.trait,
-    showInvalidValues
+    true
   );
   const facetedArenaOptions = facetedOptions(
     ARENA_OPTIONS,
     facetValidValues(cards, filters, "arena"),
     filters.arena,
-    showInvalidValues
+    true
   );
 
   // BL-179 round 11 (owner): the rail badge counts the external filters
@@ -648,7 +645,7 @@ export function FilterPanel({
         }}
         tree={finishTree}
         valid={finishValid}
-        showAllValues={showInvalidValues}
+        showAllValues
         placeholder="All finishes"
       />
     </div>
@@ -741,18 +738,6 @@ export function FilterPanel({
     </div>
   );
 
-  const cascadeBtn = (
-    <button
-      type="button"
-      className={`pl-toggle ifp-sidebar__cascade${showInvalidValues ? " pl-toggle--on" : ""}`}
-      onClick={() => setShowInvalidValues((v) => !v)}
-      aria-pressed={showInvalidValues}
-    >
-      <span className="pl-toggle__box" />
-      <span className="pl-toggle__label">No filter cascade / Show all values</span>
-    </button>
-  );
-
   const resetBtn = (
     <SWUButton
       size="sm"
@@ -769,12 +754,11 @@ export function FilterPanel({
   // ── Arrangement per tier ──────────────────────────────────────────────
   // Single-column (FULL/COMPACT): search, Aspects group (label + BL-130
   // mode control sharing a header row, chits below), Card, Gameplay,
-  // Collection, cascade toggle (own divider), Reset -- unchanged shape from
-  // pre-BL-121, just density-varied by CSS custom properties keyed off
+  // Collection, Reset (under a divider) -- density-varied by CSS custom properties keyed off
   // data-vtier (§3). Two-column (TWO-COL/fallback, §4): a top span (search +
   // aspect chits + BL-130 mode control, no "Aspects" label), a 2-col grid
-  // (left: Card + Collection, right: Gameplay), and a footer row (cascade
-  // left w/o its own divider, Reset right, shared divider on the row) --
+  // (left: Card + Collection, right: Gameplay), and a footer row
+  // (Reset right, divider above the row) --
   // the fallback tier additionally wraps the grid+footer in an internal
   // scroll region while the head and top span stay pinned (§5).
   let body: React.ReactNode;
@@ -792,7 +776,6 @@ export function FilterPanel({
         {cardGroup}
         {gameplayGroup}
         {collectionGroup}
-        {cascadeBtn}
         <div className="ifp-sidebar__reset">{resetBtn}</div>
       </>
     );
@@ -806,10 +789,7 @@ export function FilterPanel({
           </div>
           <div className="ifp-sidebar__col">{gameplayGroup}</div>
         </div>
-        <div className="ifp-sidebar__footrow">
-          {cascadeBtn}
-          {resetBtn}
-        </div>
+        <div className="ifp-sidebar__footrow">{resetBtn}</div>
       </>
     );
     body = (

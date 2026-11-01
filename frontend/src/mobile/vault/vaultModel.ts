@@ -1,9 +1,8 @@
 import { countActiveFilters } from "../../components/FilterPanel";
-import { parseCardDisplay } from "../../utils/catalog";
 import type { BaseCard, SetOrderMap } from "../../utils/catalog";
 import { nextSortState, sortCards } from "../../utils/cardSort";
 import type { SortColumn, SortState } from "../../utils/cardSort";
-import { applyFilters, DEFAULT_FILTERS } from "../../utils/filters";
+import { applyFilters, DEFAULT_FILTERS, matchesQuery } from "../../utils/filters";
 import type { FilterState } from "../../utils/filters";
 import type { InventoryCard } from "../../utils/inventory";
 import type { LimitsMatrix } from "../../utils/limits";
@@ -73,8 +72,8 @@ export const NO_TOGGLES: CollectionToggles = {
 
 export interface VaultFilterState {
   filters: FilterState;
-  /** The search box. Kept beside FilterState (filters.search stays empty)
-   * because the phone search also matches card numbers. */
+  /** The search box. Kept beside FilterState (filters.search stays empty):
+   * the phone applies it after the facets. */
   query: string;
   /** Active finish scope (one raw finish value) or null -- never persisted. */
   scope: string | null;
@@ -129,29 +128,6 @@ export function activeFilterCount(s: VaultFilterState): number {
  * the Finish facet, so every scoped view is narrowed. */
 export function isNarrowed(s: VaultFilterState): boolean {
   return activeFilterCount(s) > 0;
-}
-
-/** The search: desktop matches name + subtitle (applyFilters, via
- * parseCardDisplay); the phone also matches the card number -- the base
- * number, any printing's own number, or "SET number" ("SOR 87"). */
-export function matchesQuery(card: BaseCard, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const { displayName, subtitle } = parseCardDisplay(card);
-  if (`${displayName} ${subtitle ?? ""}`.toLowerCase().includes(q)) return true;
-  const nums = new Set<string>([card.base_card_number.toLowerCase()]);
-  for (const v of card.variants) nums.add(v.card_number.toLowerCase());
-  if (nums.has(q)) return true;
-  const m = /^([a-z0-9]+)\s+0*(\d+[a-z]?)$/.exec(q);
-  if (m) {
-    const [, set, num] = m;
-    if (card.set_code.toLowerCase() === set && card.base_card_number.replace(/^0+/, "") === num)
-      return true;
-    return card.variants.some(
-      (v) => v.source_set_code.toLowerCase() === set && v.card_number.replace(/^0+/, "") === num
-    );
-  }
-  return false;
 }
 
 /** The narrowed list in default (scope-aware) order: the Collection toggles,

@@ -261,15 +261,17 @@ describe("FilterPanel faceting (BL-70)", () => {
     expect(screen.getByRole("option", { name: /JTL/ })).toBeTruthy();
   });
 
-  it("narrows another filter's options to values that co-occur with the selection", async () => {
+  // REPLACE (owner 2026-11-01, BL-302): a value that does not co-occur with
+  // the selection stays listed, greyed with "(0)" and disabled.
+  it("marks another filter's non-co-occurring values (0) and disabled", async () => {
     await renderFaceted(sorJtlCards());
 
     openField("Set");
     fireEvent.click(screen.getByRole("option", { name: /JTL/ }));
 
     openField("Finish");
-    expect(screen.getByRole("option", { name: "Foil" })).toBeTruthy();
-    expect(screen.queryByRole("option", { name: "Standard" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Foil" })).not.toBeDisabled();
+    expect(screen.getByRole("option", { name: "Standard (0)" })).toBeDisabled();
   });
 
   it("lists rarity options matching the data's full-word values (regression: RARITY_OPTIONS used codes, so faceting hid every rarity)", async () => {
@@ -286,15 +288,15 @@ describe("FilterPanel faceting (BL-70)", () => {
     expect(screen.getByRole("option", { name: "Rare" })).toBeTruthy();
   });
 
-  it("reveals facet-invalid values (greyed, disabled, '(0)') when show-all is on", async () => {
+  // REPLACE (owner 2026-11-01, BL-302): facet-invalid values are always listed
+  // greyed with "(0)"; the "Show all values" toggle no longer exists.
+  it("always lists facet-invalid values (greyed, disabled, '(0)') with no show-all toggle", async () => {
     await renderFaceted(sorJtlCards());
 
     openField("Set");
     fireEvent.click(screen.getByRole("option", { name: /JTL/ }));
     openField("Finish");
-    expect(screen.queryByRole("option", { name: "Standard" })).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: /show all values/i }));
+    expect(screen.queryByRole("button", { name: /show all values/i })).toBeNull();
 
     const standardOpt = screen.getByRole("option", { name: /Standard/ });
     expect(standardOpt.textContent).toContain("(0)");
@@ -437,7 +439,9 @@ describe("AspectPicker (BL-90)", () => {
     expect(aspectBtn("Aggression")!.className).toContain("ifp-aspect--off");
   });
 
-  it("No Aspect's faceted count reflects aspectless cards in the current result set (BL-70 parity: hidden when zero, greyed+'(0)'+disabled via show-all)", async () => {
+  // REPLACE (owner 2026-11-01, BL-302): a zero-match No Aspect is always
+  // shown greyed with "(0)" and disabled; there is no show-all toggle.
+  it("No Aspect's faceted count reflects aspectless cards in the current result set (greyed+'(0)'+disabled when zero)", async () => {
     const cards = [
       makeCard({
         base_card_number: "1",
@@ -462,9 +466,7 @@ describe("AspectPicker (BL-90)", () => {
     fireEvent.click(setButton);
     fireEvent.click(screen.getByRole("option", { name: /SOR/ }));
 
-    expect(aspectBtn("No Aspect")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: /show all values/i }));
+    expect(screen.queryByRole("button", { name: /show all values/i })).toBeNull();
     const noAspectBtn = aspectBtn("No Aspect (0)");
     expect(noAspectBtn).toBeTruthy();
     expect(noAspectBtn!.className).toContain("ifp-aspect--inert");
@@ -1088,7 +1090,9 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     expect(within(collectionGroup).queryAllByRole("button", { name: /—/ })).toHaveLength(0);
   });
 
-  it("two-col tier renders a footer row with the cascade toggle and Reset button, absent at full", async () => {
+  // REPLACE (owner 2026-11-01, BL-302): the footer row holds the Reset button
+  // alone; the show-all-values toggle is gone.
+  it("two-col tier renders a footer row with the Reset button and no show-all toggle, absent at full", async () => {
     await renderTiered();
     expect(document.querySelector(".ifp-sidebar__footrow")).not.toBeInTheDocument();
 
@@ -1096,7 +1100,7 @@ describe("FilterPanel vertical tiers (BL-121)", () => {
     reopenViaRail();
     const footrow = document.querySelector(".ifp-sidebar__footrow");
     expect(footrow).toBeInTheDocument();
-    expect(within(footrow as HTMLElement).getByText(/show all values/i)).toBeInTheDocument();
+    expect(within(footrow as HTMLElement).queryByText(/show all values/i)).not.toBeInTheDocument();
     expect(
       within(footrow as HTMLElement).getByRole("button", { name: /reset all filters/i })
     ).toBeInTheDocument();

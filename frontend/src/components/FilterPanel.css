@@ -312,15 +312,11 @@
   color: #fff;
 }
 
-/* Divider ahead of the cascade checkbox, matching the prototype's
-   border-top on that control. */
-.ifp-sidebar__cascade {
+/* Divider ahead of the Reset button. */
+.ifp-sidebar__reset {
+  align-self: stretch;
   border-top: 1px solid var(--color-border);
   padding-top: 12px;
-}
-
-.ifp-sidebar__reset {
-  align-self: flex-start;
 }
 
 /* ── BL-121: vertical-tier model (design_handoff_filter_vertical/README.md
@@ -418,19 +414,14 @@
   text-align: left;
 }
 
-/* Footer span (§4): cascade toggle left (its own divider removed here --
-   the row itself carries one), Reset right, shared divider. */
+/* Footer span (§4): Reset right, under a divider. */
 .ifp-sidebar__footrow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   border-top: 1px solid var(--color-border);
   padding-top: 10px;
-}
-.ifp-sidebar__footrow .ifp-sidebar__cascade {
-  border-top: none;
-  padding-top: var(--v-togpy, 6px);
 }
 
 /* Fallback (§5, < ~600px viewport only): head + top span stay pinned:
@@ -545,9 +536,8 @@
   filter: grayscale(0.7);
 }
 
-/* BL-70/BL-90 parity with .ifp-multi__item--inert: a faceted-invalid
- * aspect option, only ever visible via the "show all values" toggle
- * (or as a stale selected value). Greyed and, unless selected, disabled. */
+/* Parity with .ifp-multi__item--inert: a faceted-invalid aspect option.
+ * Greyed and, unless selected, disabled. */
 .ifp-aspect--inert {
   opacity: 0.25;
 }
@@ -813,8 +803,8 @@
   flex: 1;
 }
 
-/* BL-70: a faceted-invalid option -- either revealed by the "show all
- * values" toggle, or a stale multi-select value kept visible instead of
+/* A faceted-invalid option: a value with no matches under the other
+ * filters, shown greyed, or a stale selected value kept visible instead of
  * silently dropped. Greyed but (if already selected) still clickable to
  * remove. */
 .ifp-multi__item--inert {

@@ -29,7 +29,7 @@ import type { CollectionToggles, VaultFilterState } from "../vault/vaultModel";
 
 /** Desktop CardsPage hands FilterPanel the toggle-narrowed cards (BL-70) and
  * facets with the search inside FilterState. The phone's search lives beside
- * FilterState and also matches card numbers, so the facet universe here is
+ * FilterState, so the facet universe here is
  * the toggle-narrowed list with the search applied -- the same conjunction
  * desktop facets over. */
 export function facetBase(

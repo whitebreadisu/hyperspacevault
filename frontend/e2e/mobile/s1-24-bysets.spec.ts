@@ -134,6 +134,25 @@ test("s1-24-set-from-bysets", async ({ page }) => {
   );
 });
 
+test("s1-24-second-tap-clears-set", async ({ page }) => {
+  // A second tap on the row that is the only selected set clears the Set facet.
+  await open(page, "#/vault");
+  const first = ORDERED_BASE_SETS[0].code;
+  const row = page.locator(`.m-setrow[data-set="${first}"]`);
+  await page.locator(".m-summary__body").click();
+  await expect(page.locator(".m-sheet")).toBeVisible();
+  await row.click();
+  await expect(page.locator(".m-sheet")).toHaveCount(0);
+  await expect(page.locator(".m-clearbtn")).toBeVisible();
+  await page.locator(".m-summary__body").click();
+  await expect(page.locator(".m-sheet")).toBeVisible();
+  await expect(row).toHaveAttribute("aria-pressed", "true");
+  await row.click();
+  await expect(page.locator(".m-sheet")).toHaveCount(0);
+  await expect(page.locator(".m-clearbtn")).toHaveCount(0);
+  await expect(page.locator(".m-count")).toHaveText(`${ALL.length} cards`);
+});
+
 test("s1-24-byset-narrows", async ({ page }) => {
   // b2-byset-narrows: the rows follow every filter except Set, so the scope
   // narrows them; a row tap writes the Set facet and keeps the scope.

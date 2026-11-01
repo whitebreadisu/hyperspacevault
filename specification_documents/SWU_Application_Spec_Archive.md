@@ -704,3 +704,29 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 **Disposition:** → archive (described the unbuilt BL-33 step 7 / BL-36 / BL-37 scheduled detection as current; rewritten to the runbook mechanism — reviewer finding, PR #276)
 
 > - **Currency** — Cloud Scheduler → Cloud Run, daily detection, operator-gated apply (later full auto-apply, BL-37); public catalog shows pre-release/preview content with the gate as the quality check. New-set onboarding in BL-36. **Deletions:** the sync consumes swuapi `/deletions` tombstones (not just upserts) via the documented `since` + `after`/`next_cursor` cursor contract; deletions are surfaced in the operator gating review before apply, with explicit attention to deleting a card that already has inventory rows (rare, must not silently orphan a tenant's inventory). swuapi "card merges never emit," so no card-merge handling is needed. (BL-33 step 7; BL-36.)
+
+## Archived 2026-11-01 — desktop Cards filtering follows the phone (BL-302)
+
+**Disposition:** → archive. Owner decisions 2026-11-01 (BL-302): desktop always lists 0-match filter values greyed (no "Show all values" toggle), a set-row tap replaces the Set filter, and on both screens a second tap on the sole selected set clears it. The rationale is the owner decision recorded in the BL-302 item; no ADR.
+
+### §5.6 Layout paragraph — wording replaced (verbatim)
+
+> the cascade/show-all checkboxes, and an SWUButton "Reset all filters"
+
+> cascade+Reset footer row
+
+### §5.6 — Hide-by-default + show-all toggle bullet (verbatim)
+
+> - **Hide-by-default + show-all toggle.** A value not reachable given the other active filters is hidden unless the panel-level "Show all values" toggle is on, in which case it renders greyed/"(0)"-suffixed and (if not already selected) not clickable.
+
+### §5.6 — Scope bullet (verbatim)
+
+> - **Scope.** Applies to the seven dropdown fields plus Aspects; the three range sliders (Cost/Power/HP) remain unchanged — continuous controls don't fit the same "hide unreachable values" model and weren't part of BL-70's ask.
+
+### §5.15 — Popover set rows bullet (verbatim)
+
+> - **Popover set rows are a filter control** on the sidebar's own Set facet (`filters.set` — one selection, one language, since BL-224 unified the dimensions, v1.4). Rows ignore their own dimension (the menu never filters itself — same shape as `facetValidValues`) while respecting every other filter; zero-universe rows are inert; an already-selected row is always deselectable. Selected rows: steel-blue band + accent edge (green stays reserved for 100%); hover lift; the popover hover-dismisses (armed after pointer entry; wrap-level boundary with a transparent gap bridge).
+
+### §25.1 — Completion panel, row-tap clause (verbatim)
+
+> a row tap sets the Set facet to that set.
