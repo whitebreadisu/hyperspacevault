@@ -29,7 +29,9 @@ import type { VaultFilterState } from "./vaultModel";
 //
 // `desktop()` composes the shared helpers exactly the way CardsPage's memos do
 // (line numbers below are CardsPage.tsx). It is the subject under test, never
-// the source of an expected value.
+// the source of an expected value. Once buildVaultList takes the desktop
+// options, every `desktop()` call is re-pointed to it and `desktop()` is
+// deleted, so the pipeline is never kept in two places.
 
 type V = BaseCardCatalogWithQuantity["variants"][number];
 const v = (id: number, finish: string, num: string, qty: number, market: number, set: string): V =>
@@ -283,6 +285,9 @@ describe("desktop pipeline: stages desktop and phone share", () => {
     expect(ids(desktop(freshFilterState(), { column: "number", direction: "desc" }).list)).toEqual([
       3, 5, 1, 2, 4,
     ]);
+    expect(ids(desktop(freshFilterState(), { column: "playset", direction: "desc" }).list)).toEqual(
+      [2, 5, 1, 3, 4]
+    );
   });
 });
 
