@@ -592,8 +592,9 @@ jobs:
 
   # ── BL-279 W2-16 (D4): BL-id comment check ─────────────────────────────
   # Comments describe the present, not history: fails on a BL-<n> id inside a
-  # comment in frontend/src or backend/app unless the file is on
-  # .github/scripts/comment_check.allow (WS-4 shrinks that list to zero).
+  # comment in frontend/src or backend/app (not frontend/src/content/) beyond the
+  # per-file count baseline in .github/scripts/comment_check.allow, which may only
+  # decrease (WS-4 shrinks it to zero).
   # Ungated like docs-check; plain Node, no install. Required in BOTH ci-ok
   # branches. Controls Register: Platform Spec 2.8.
   comment-check:

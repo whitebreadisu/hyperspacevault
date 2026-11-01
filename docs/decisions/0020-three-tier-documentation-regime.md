@@ -141,3 +141,43 @@ Owner decisions of 2026-10-18, executed in BL-271 Phase C (disposition log
 ## Amendment 2026-10-27 — work registry form (BL-279 WS-1)
 
 Amended by ADR-0035 (2026-10-27): the Tier-1 backlog is the one-file-per-item registry folder, archive-by-move replaces the single archive file for new resolutions (the legacy archive is frozen Tier 3), the tombstone index is generated, and at-resolution archiving runs through `resolve-item` and the pre-commit hook. Decision text and the four amended readings are in ADR-0035.
+
+## Amendment 2026-11-01 — source comments describe now (BL-278, Foundation D4)
+
+Owner ratification of 2026-11-01, extending the regime to comments and docstrings in code. This is the Tier-1 test of this ADR applied to a comment.
+
+**Scope.** Comments and docstrings in non-test source under `frontend/src` and `backend/app`. Out of scope: test files, test names and test ids (a BL-id there is a navigation aid and stays); commit messages and PR bodies (they are the history tier for code); content data files under `frontend/src/content/` (such as `releaseNotes.ts`), which are release history by design and are exempt from the check.
+
+**Rule.** A comment makes a claim that is true now: a constraint, an invariant, a contract, or the reason a non-obvious choice holds. It does not narrate how the code reached its current shape. Anything phrased as "we did / we chose / it used to / round N / fixed in" belongs in Tier 2 or 3.
+
+**A comment may cite:**
+- a section of a Tier-1 specification (`App Spec §19.1`, `Platform Spec §2.8`, `mapping spec §3`), named when the document is not obvious from the file;
+- an ADR by number (`ADR-0031`);
+- another source file or symbol (extends Foundation D4, which names only the two kinds above; both extensions describe the present and were already in use);
+- an external standard, library document or vendor behaviour, such as a Safari rendering bug or an RFC (extends Foundation D4).
+
+A planning or analysis document is not a permitted citation. Where a comment cites one today, the sweep replaces the citation with the spec section that holds the point, or writes a short ADR first.
+
+**A comment may not cite:** a backlog id (`BL-n`); a GitHub issue number such as `#140` (treated as history, like a backlog id); a slice, stage, round, wave or run tag (`S1-07`, `R5-2`, `round 4`, `wave 1 fix 3`, `RUN 2B`); a review finding or review date (`S1 review F7`, `owner dev review 2026-07-26`); a previous implementation (`used to`, `the old X`, `pre-BL-n`, `replacing the old`); a person.
+
+**What happens to rationale before a comment goes.** For every block the sweep touches, one of four dispositions, logged per module (the discipline of rule 3 of this ADR):
+1. **keep** — the block already conforms;
+2. **rewrite** — the block states a present reason; it is rewritten in present tense without the forbidden citations and keeps the reason;
+3. **move → ADR-n / move → spec §n** — the block holds durable rationale or a behaviour contract that no ADR or spec section holds yet; it is written there first, in the same PR, and the comment keeps a one-line pointer;
+4. **drop** — the block narrates a change or is scaffolding; nothing present depends on it; git holds the history.
+
+No block is deleted without a logged disposition. The per-module disposition log is kept with the BL-278 work.
+
+**Sweep.** Dedicated per-module stages under WS-4, never per-touch (D4). Each stage is one PR; the journey suite is its gate like any other PR.
+
+**Enforcement.** `.github/scripts/comment_check.mjs` fails a BL-id in a non-test comment. The allowlist is a per-file count baseline (`path count` per line) that may only decrease: a file still on the list cannot grow new BL-id comments before its module is swept, an unlisted file may have none, and a count left above the real number fails until it is lowered. `frontend/src/content/` is not scanned. The check does not yet enforce the GitHub-issue-number rule; it is added once the BL-id sweep is done. The baseline reaches zero when the last module is swept, and the file is then deleted.
+
+**What this costs, stated.** The direct hop from a line of code to its backlog item is lost once the item is archived. Spec-to-code navigation stays (the specs cite code by function name); code-to-spec stays through `§` citations; code-to-history is `git log -S <symbol>` / `git blame` and the backlog archive. Accepted (D4).
+
+**Consequences.**
+- + Comments cannot drift from a narrated history.
+- + A smaller standing read in the files agents open most.
+- + One CI rule, with a baseline that only shrinks.
+- − About a thousand comment edits across 280 files, spread over the module stages.
+- − A reader who wants the story must open git or an ADR.
+- − The two citation extensions go beyond D4 as written, and the issue-number rule is stated before it is enforced.
