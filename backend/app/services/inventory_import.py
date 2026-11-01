@@ -13,7 +13,9 @@ WritePlan and calls db.commit() once.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
+from functools import partial
 
 from sqlalchemy.orm import Session
 
@@ -71,7 +73,8 @@ def _triple_of(row: ParsedRow) -> tuple[str, str, str] | None:
     return None
 
 
-def _resolve_row(
+# PLR0911: one early return per §4 outcome, in the order the spec lists them.
+def _resolve_row(  # noqa: PLR0911
     row: ParsedRow,
     uuid_map: dict[str, VariantMatch],
     triple_map: dict[tuple[str, str, str], list[VariantMatch]],
@@ -195,11 +198,10 @@ def _fold_post_resolution_duplicates(
     by uuid, once by triple); that duplicate only becomes visible after
     resolution, when both rows land on the same variant_id. Without this
     pass, both rows would appear in the report while
-    `plan_updates[variant.id] = resulting` last-write-wins in
-    compute_import -- report and actual write would disagree, violating
-    §7.3's "the preview shows exact outcomes". (inventory_io's
-    _merge_duplicates docstring explicitly leaves this post-resolution fold
-    to S2 -- its representation-level scope line stands.)
+    `updates[variant.id] = resulting` last-write-wins in _plan_rows --
+    report and actual write would disagree, violating §7.3's "the preview
+    shows exact outcomes". (inventory_io's _merge_duplicates leaves this
+    post-resolution fold to this module by design.)
 
     Policy matches §3.4's duplicate handling: file quantities sum into the
     FIRST row (its row_number and resolution attributes win), later rows
@@ -246,8 +248,9 @@ def _resolved_card(match: VariantMatch) -> ImportRowCard:
 
 
 def _raw_card(row: ParsedRow) -> ImportRowCard:
-    """For unresolved/ambiguous rows: only whatever raw identity fragments
-    the file actually carried, never a guessed/invented identity."""
+    """For unresolved rows: only whatever raw identity fragments the file
+    actually carried, never a guessed/invented identity. Ambiguous rows
+    build their own card from the triple alone (see _plan_rows)."""
     return ImportRowCard(
         swuapi_uuid=row.swuapi_uuid,
         set_code=row.set_code,
@@ -256,19 +259,11 @@ def _raw_card(row: ParsedRow) -> ImportRowCard:
     )
 
 
-def compute_import(
-    db: Session,
-    rows: list[ParsedRow],
-    notes: ParseNotes,
-    *,
-    mode: str,
-    cap_handling: str,
-    stage: str,
-) -> tuple[ImportReport, WritePlan]:
-    """§4 resolution + §5 merge/cap math + §7.3 report, for either stage --
-    read-only (issues no writes; the caller applies the returned WritePlan
-    for the commit stage only). See module docstring for why this single
-    function backs both stages."""
+def _resolve_rows(db: Session, rows: list[ParsedRow]) -> tuple[list[_Resolution], int]:
+    """§4 for every row: one bulk uuid lookup and one bulk triple lookup,
+    per-row resolution against them, then the cross-scheme duplicate fold.
+    Returns the folded resolutions and the number of rows the fold
+    removed."""
     uuids: set[str] = set()
     triples: set[tuple[str, str, str]] = set()
     for row in rows:
@@ -284,39 +279,45 @@ def compute_import(
     triple_map = inventory_import_repo.get_variants_by_triples(db, list(triples))
 
     resolutions = [_resolve_row(row, uuid_map, triple_map) for row in rows]
-    resolutions, cross_scheme_merged = _fold_post_resolution_duplicates(resolutions)
+    return _fold_post_resolution_duplicates(resolutions)
 
-    resolved_variant_ids = list(
-        {res.variant[0].id for res in resolutions if res.variant is not None}
-    )
-    current_quantities = inventory_import_repo.get_current_quantities(
-        db, resolved_variant_ids
-    )
 
-    # §5: the effective keep-limit only depends on (type_category,
-    # limit_bucket) -- at most 2 x len(ALL_LIMIT_BUCKETS) distinct cells --
-    # so cache per-cell rather than re-querying tenant_card_limits once per
-    # file row.
-    limit_cache: dict[tuple[str, str], int | None] = {}
+LimitCache = dict[tuple[str, str], int | None]
+LimitLookup = Callable[[str, str, str], int | None]
 
-    def _limit_for(base_card_type: str, variant_type: str, set_code: str) -> int | None:
-        category = type_category(base_card_type)
-        bucket = limit_bucket(variant_type, set_code)
-        key = (category, bucket)
-        if key not in limit_cache:
-            limit_cache[key] = effective_limit(db, category, bucket)
-        return limit_cache[key]
 
+def _cached_limit(
+    db: Session,
+    cache: LimitCache,
+    base_card_type: str,
+    variant_type: str,
+    set_code: str,
+) -> int | None:
+    """§5: the effective keep-limit for one variant. The limit depends only
+    on (type_category, limit_bucket) -- at most 2 x len(ALL_LIMIT_BUCKETS)
+    distinct cells -- so `cache` holds one lookup per cell and
+    tenant_card_limits is queried once per cell rather than once per file
+    row. The caller owns `cache` and scopes it to one import."""
+    key = (type_category(base_card_type), limit_bucket(variant_type, set_code))
+    if key not in cache:
+        cache[key] = effective_limit(db, *key)
+    return cache[key]
+
+
+def _plan_rows(
+    resolutions: list[_Resolution],
+    current_quantities: dict[int, int],
+    limit_for: LimitLookup,
+    mode: str,
+    cap_handling: str,
+) -> tuple[list[ImportRowReport], dict[int, int]]:
+    """§5 merge/cap per row and the §7.3 report row for it. Returns the
+    report rows (in resolution order) and the target quantity for every
+    resolved variant_id. DB-free: `current_quantities` is already fetched
+    (an absent variant_id means current 0) and `limit_for(base_card_type,
+    variant_type, set_code)` supplies each resolved row's keep-limit."""
     row_reports: list[ImportRowReport] = []
-    plan_updates: dict[int, int] = {}
-    resolved_variant_id_set: set[int] = set()
-
-    resolved_count = 0
-    matched_by_fallback_count = 0
-    unresolved_count = 0
-    ambiguous_count = 0
-    trimmed_count = 0
-    ceiling_clamped_count = 0
+    updates: dict[int, int] = {}
 
     for res in resolutions:
         row = res.row
@@ -325,15 +326,13 @@ def compute_import(
             variant, _name, _subtitle, base_card_type = res.variant
             assert row.quantity is not None  # malformed rows never resolve
             current = current_quantities.get(variant.id, 0)
-            limit = _limit_for(
+            limit = limit_for(
                 base_card_type, variant.variant_type, variant.source_set_code
             )
             resulting, trim_reason, copies_not_added = _compute_target(
                 mode, cap_handling, current, row.quantity, limit
             )
-            plan_updates[variant.id] = resulting
-            resolved_variant_id_set.add(variant.id)
-
+            updates[variant.id] = resulting
             row_reports.append(
                 ImportRowReport(
                     row_number=row.row_number,
@@ -348,26 +347,15 @@ def compute_import(
                     trim_reason=trim_reason,
                 )
             )
-            resolved_count += 1
-            if res.matched_by_fallback:
-                matched_by_fallback_count += 1
-            if trim_reason == "keep_limit":
-                trimmed_count += 1
-            elif trim_reason == "ceiling":
-                ceiling_clamped_count += 1
-
         elif res.status == "ambiguous":
             row_reports.append(
                 ImportRowReport(
                     row_number=row.row_number,
                     status="ambiguous",
                     reason=res.reason,
-                    # BL-200: each candidate is now a full ImportRowCard
-                    # (set/number/variant/name/subtitle), built the exact
-                    # same way a resolved row's own `card` is -- see
-                    # _resolved_card. No new query: every candidate here is
-                    # already a VariantMatch fetched by the bulk triple/
-                    # set-and-number/base-card lookups above.
+                    # Each candidate renders as a full card, built the same
+                    # way as a resolved row's `card`, from VariantMatch data
+                    # the bulk lookups already fetched (no extra query).
                     candidates=[_resolved_card(m) for m in res.candidates],
                     card=ImportRowCard(
                         set_code=row.set_code,
@@ -377,8 +365,6 @@ def compute_import(
                     file_quantity=row.quantity,
                 )
             )
-            ambiguous_count += 1
-
         else:  # unresolved
             row_reports.append(
                 ImportRowReport(
@@ -389,65 +375,125 @@ def compute_import(
                     file_quantity=row.quantity,
                 )
             )
-            unresolved_count += 1
+
+    return row_reports, updates
+
+
+def _replace_all_removals(
+    owned_rows: Iterable[tuple],
+) -> tuple[list[RemovedRow], dict[int, int]]:
+    """§5 `replace_all`: every owned row the file did not resolve is
+    itemized as a removal and written as a resolved-to-zero update in the
+    same WritePlan as every other resolved row. `owned_rows` are
+    get_owned_rows_excluding's rows: (variant_id, quantity, swuapi_id,
+    set_code, card_number, variant_type, name, subtitle). DB-free."""
+    removed: list[RemovedRow] = []
+    updates: dict[int, int] = {}
+    for (
+        variant_id,
+        quantity,
+        swuapi_id,
+        set_code,
+        card_number,
+        variant_type,
+        name,
+        subtitle,
+    ) in owned_rows:
+        removed.append(
+            RemovedRow(
+                card=ImportRowCard(
+                    swuapi_uuid=swuapi_id,
+                    set_code=set_code,
+                    card_number=card_number,
+                    variant_type=variant_type,
+                    name=name,
+                    subtitle=subtitle,
+                ),
+                quantity=quantity,
+            )
+        )
+        updates[variant_id] = 0
+    return removed, updates
+
+
+def _totals(
+    shown_rows: int,
+    row_reports: list[ImportRowReport],
+    removed: list[RemovedRow],
+    notes: ParseNotes,
+    cross_scheme_merged: int,
+) -> ImportTotals:
+    """§7.3 totals, counted from the report rows. `shown_rows` counts the
+    rows the report actually shows (resolved + unresolved + ambiguous);
+    rows folded away by either duplicate pass (inventory_io's §3.4
+    raw-identity pass, or the post-resolution cross-scheme pass) count in
+    duplicate_rows_merged instead."""
+    resolved = [r for r in row_reports if r.status == "resolved"]
+    trim_reasons = [r.trim_reason for r in resolved]
+    return ImportTotals(
+        rows=shown_rows,
+        resolved=len(resolved),
+        matched_by_fallback=sum(1 for r in resolved if r.matched_by_fallback),
+        unresolved=sum(1 for r in row_reports if r.status == "unresolved"),
+        ambiguous=sum(1 for r in row_reports if r.status == "ambiguous"),
+        trimmed=trim_reasons.count("keep_limit"),
+        ceiling_clamped=trim_reasons.count("ceiling"),
+        duplicate_rows_merged=notes.duplicate_rows_merged + cross_scheme_merged,
+        unrecognized_columns=notes.unrecognized_columns,
+        removed_by_replace_all=len(removed),
+    )
+
+
+# PLR0913: the router passes mode, cap_handling and stage as three separate
+# keyword options, one per form field.
+def compute_import(  # noqa: PLR0913
+    db: Session,
+    rows: list[ParsedRow],
+    notes: ParseNotes,
+    *,
+    mode: str,
+    cap_handling: str,
+    stage: str,
+) -> tuple[ImportReport, WritePlan]:
+    """§4 resolution + §5 merge/cap math + §7.3 report, for either stage --
+    read-only (issues no writes; the caller applies the returned WritePlan
+    for the commit stage only). See module docstring for why this single
+    function backs both stages."""
+    resolutions, cross_scheme_merged = _resolve_rows(db, rows)
+
+    resolved_variant_ids = list(
+        {res.variant[0].id for res in resolutions if res.variant is not None}
+    )
+    current_quantities = inventory_import_repo.get_current_quantities(
+        db, resolved_variant_ids
+    )
+    limit_cache: LimitCache = {}
+    row_reports, plan_updates = _plan_rows(
+        resolutions,
+        current_quantities,
+        partial(_cached_limit, db, limit_cache),
+        mode,
+        cap_handling,
+    )
 
     removed_rows: list[RemovedRow] = []
     if mode == "replace_all":
-        owned = inventory_import_repo.get_owned_rows_excluding(
-            db, resolved_variant_id_set
-        )
-        for (
-            variant_id,
-            quantity,
-            swuapi_id,
-            set_code,
-            card_number,
-            variant_type,
-            name,
-            subtitle,
-        ) in owned:
-            removed_rows.append(
-                RemovedRow(
-                    card=ImportRowCard(
-                        swuapi_uuid=swuapi_id,
-                        set_code=set_code,
-                        card_number=card_number,
-                        variant_type=variant_type,
-                        name=name,
-                        subtitle=subtitle,
-                    ),
-                    quantity=quantity,
-                )
-            )
-            # §5: replace_all wipes rows absent from the file -- itemized
-            # above AND applied (as a resolved-to-zero write) below, in the
-            # same WritePlan as every other resolved row.
-            plan_updates[variant_id] = 0
-
-    # `rows` counts the rows the report actually shows (resolved +
-    # unresolved + ambiguous) -- rows folded away by either duplicate pass
-    # (inventory_io's §3.4 raw-identity pass, or the post-resolution
-    # cross-scheme pass above) are counted in duplicate_rows_merged
-    # instead, exactly like the within-scheme case already was.
-    totals = ImportTotals(
-        rows=len(rows) - cross_scheme_merged,
-        resolved=resolved_count,
-        matched_by_fallback=matched_by_fallback_count,
-        unresolved=unresolved_count,
-        ambiguous=ambiguous_count,
-        trimmed=trimmed_count,
-        ceiling_clamped=ceiling_clamped_count,
-        duplicate_rows_merged=notes.duplicate_rows_merged + cross_scheme_merged,
-        unrecognized_columns=notes.unrecognized_columns,
-        removed_by_replace_all=len(removed_rows),
-    )
+        owned = inventory_import_repo.get_owned_rows_excluding(db, set(plan_updates))
+        removed_rows, removal_updates = _replace_all_removals(owned)
+        plan_updates.update(removal_updates)
 
     report = ImportReport(
         stage=stage,
         mode=mode,
         cap_handling=cap_handling,
         committed=False,
-        totals=totals,
+        totals=_totals(
+            len(rows) - cross_scheme_merged,
+            row_reports,
+            removed_rows,
+            notes,
+            cross_scheme_merged,
+        ),
         rows=row_reports,
         removed=removed_rows,
     )
