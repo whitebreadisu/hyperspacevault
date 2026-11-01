@@ -6,22 +6,21 @@ import { wholeMoney } from "./completionModel";
 import type { TotalsScope } from "./completionModel";
 import "./completion.css";
 
-// BL-247 S1-23: the collection panel inside the expanded Vault header (rev4
-// MHome.jsx:12-62 MScopeToggle + MSummary; CSS m-layout.css:421-445,
-// m-rev2.css:33-39, m-rev3.css:89-114). Head: "Your collection", or -- while
+// The collection panel inside the expanded Vault header (App Spec §25.1
+// Completion panel). Head: "Your collection", or -- while
 // the list is narrowed and the caller signed in -- "Totals" with desktop's
 // Filtered / All switch (amber while Filtered, with the amber ring); the
 // Market / Low segment at the right (desktop's persisted price kind). Both
-// segments are drawn 34 px with 44 px targets (R3-2). Body: Playsets % + ten
+// segments are drawn 34 px with 44 px targets. Body: Playsets % + ten
 // ticks, Cards owned + unique, Value (+ unpriced) and "By set", one button
-// that opens the by-set sheet (S1-24). Signed out: em dashes and empty
+// that opens the by-set sheet. Signed out: em dashes and empty
 // ticks, "— unique", and the body opens nothing (desktop InventorySummary's
 // signed-out rules).
 
 const EM_DASH = "—";
 
-/** The Market / Low segment (rev4 MPriceMode, .m-seg--sm) -- the header's
- * and the by-set sheet's (same widths, R4-11). Never amber. */
+/** The Market / Low segment (.m-seg--sm) -- the header's and the by-set
+ * sheet's (same widths). Never amber. */
 export function PriceSeg({
   mode,
   onChange,
@@ -121,7 +120,7 @@ interface Props {
   priceKind: PriceMode;
   onPriceKind: (m: PriceMode) => void;
   onOpenSets: () => void;
-  /** BL-252 S6-03: "<Name>'s collection" in a share (CSS uppercases it). */
+  /** "<Name>'s collection" in a share (CSS uppercases it). */
   label?: string;
 }
 

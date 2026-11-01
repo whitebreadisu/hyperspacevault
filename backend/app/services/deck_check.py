@@ -1,8 +1,8 @@
-"""BL-137 D4: orchestrates D1 (parse+resolve) + D2 (fetch) + D3 (diff) + D4
-(cost+cart) behind one entrypoint, check_deck -- the single function
-POST /api/deck-check calls. Ephemeral by design (Definition_DeckCheck
-§1/§4): nothing here writes to the database; the caller's inventory is the
-only thing read."""
+"""Orchestrates fetch (deck_fetch), parse + resolve (deck_parse,
+deck_resolution), diff (deck_diff) and cost + cart (deck_cost) behind one
+entrypoint, check_deck -- the single function POST /api/deck-check calls.
+Ephemeral by design (App Spec §12): nothing here writes to the database;
+the caller's inventory is the only tenant data read."""
 
 from __future__ import annotations
 
@@ -156,9 +156,10 @@ def build_scope_result(  # noqa: PLR0913
     """Pure (no DB): prices one scope's missing cards and its full card
     list under `mode`, builds the cart lines, and sums the totals. Returns
     the ScopeResult plus the newest price `as_of` among the priced cards it
-    touched (None when none were priced). A card with no entry in
-    `card_refs` still counts toward the totals but gets no row or cart
-    line."""
+    touched (None when none were priced). A missing card with no entry in
+    `card_refs` still counts toward missing_total/unpriced_count but gets
+    no row or cart line; in the full card list it is skipped entirely (no
+    row, no deck_value contribution)."""
     missing_cards: list[MissingCard] = []
     cart_lines: list[deck_cost.CartLine] = []
     missing_total = 0.0
@@ -195,7 +196,7 @@ def build_scope_result(  # noqa: PLR0913
             # TCGplayer product names include the subtitle as
             # "Name - Subtitle" (verified against tcgcsv product data,
             # e.g. "Han Solo - Hibernation Sick") -- a bare "Han Solo"
-            # matches nothing in Mass Entry (owner repro, 2026-07-21).
+            # matches nothing in Mass Entry.
             cart_lines.append(
                 deck_cost.CartLine(
                     qty=missing_qty,
@@ -264,9 +265,10 @@ def build_scope_result(  # noqa: PLR0913
 def _aggregate_needs(
     resolved: list[ResolvedCardRef],
 ) -> tuple[dict[int, int], dict[int, int]]:
-    """Definition_DeckCheck §4: main scope = main deck + leader + base
-    (+ second leader); side scope = sideboard only. Counts are summed per
-    base_card_id in case the same card appears more than once in a pool."""
+    """Main scope = main deck + leader + base (+ second leader); side scope
+    = sideboard only (the slots in _MAIN_POOL_SLOTS / SLOT_SIDEBOARD).
+    Counts are summed per base_card_id in case the same card appears more
+    than once in a pool."""
     main_needs: dict[int, int] = {}
     side_needs: dict[int, int] = {}
     for r in resolved:

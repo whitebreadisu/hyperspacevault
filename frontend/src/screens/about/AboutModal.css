@@ -1,18 +1,17 @@
 /* ── AboutModal (.about-*) ──────────────────────────────────────────────
-   Co-located with AboutModal.tsx (BL-125). Deliberately NOT AuthModal.css's
-   plain rounded-card family -- the design record (issue #287) calls for
-   the console "steel ring" treatment (angled corners + steel ring + tile)
-   CardPopup.css's .cp-shell/.cp-modal already established for the card-
-   detail/inventory popups: an outer layer clipped to an angled-corner
+   Co-located with AboutModal.tsx. Deliberately NOT AuthModal.css's
+   plain rounded-card family -- this uses the console "steel ring"
+   treatment (angled corners + steel ring + tile) that CardPopup.css's
+   .cp-shell/.cp-modal use for the card-detail/inventory popup: an outer layer clipped to an angled-corner
    polygon at the steel-ring color (rgba(211,211,212,.28)), padded ~1.5px,
    wrapping an inner layer clipped to the same polygon. Same technique, at
    a much smaller ~520px panel scale (12-13px cuts vs. CardPopup's 21-22px
    modal-scale cuts) since this is chrome/informational rather than the
-   1080px card-detail shell. ─────────────────────────────────────────── */
+   ~1140px card-detail shell. ─────────────────────────────────────────── */
 
-/* .about-overlay's backdrop styling moved to index.css's shared
-   .modal-overlay class (BL-153, A3-06) -- the element keeps this class
-   name too (see AboutModal.tsx), just with no rule of its own left here. */
+/* .about-overlay has no rule here: the backdrop comes from index.css's
+   shared .modal-overlay class, which the element carries alongside this
+   name (see AboutModal.tsx). */
 
 .about-shell {
   position: relative;
@@ -82,8 +81,8 @@
   text-align: center;
 }
 
-/* Circuit-tile backdrop (same asset/size CardPopup's .cp-rail and the F4
-   gallery plate already use) -- keeps the body reading as the shared
+/* Circuit-tile backdrop (same asset/size CardPopup's .cp-rail and the
+   gallery plate use) -- keeps the body reading as the shared
    console material rather than a plain surface panel. */
 .about-body {
   display: flex;

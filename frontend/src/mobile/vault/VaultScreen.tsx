@@ -6,11 +6,11 @@ import { VaultHeader } from "./VaultHeader";
 import type { StripSummary } from "./VaultHeader";
 import "./header.css";
 
-// BL-247 S1-05 / S1-06: the Vault screen's frame -- the collapsing header
-// overlay, its layout slot (always the collapsed height), and the content
-// below, moved down by --vh-delta while expanded (transform only). Below the
-// header: `controls` (the status rows, S1-14) then the scrolling `children`
-// (the list). `searching` (S1-15) collapses the header to its seam and lifts
+// The Vault screen's frame -- the collapsing header overlay, its layout slot
+// (always the collapsed height), and the content below, moved down by
+// --vh-delta while expanded (transform only). Below the header: `controls`
+// (the status rows) then the scrolling `children` (the list). `searching`
+// collapses the header to its seam and lifts
 // the content to the top -- transform + opacity only, the box grown once by
 // the same cut mechanism (header.css .m-vault--search).
 
@@ -21,11 +21,11 @@ interface Props {
   unread: boolean;
   onOpenChooser: () => void;
   onOpenFeedback: () => void;
-  /** ?collapsed=1 opens collapsed (rev4 param; review links). */
+  /** ?collapsed=1 opens collapsed (deep links). */
   startCollapsed?: boolean;
-  /** S1-14: the status rows, fixed above the list. */
+  /** The status rows, fixed above the list. */
   controls?: ReactNode;
-  /** S1-15: search mode. */
+  /** Search mode. */
   searching?: boolean;
   /** The list's scroll container (the virtualiser's scroll element). */
   onScrollEl?: (el: HTMLElement | null) => void;
@@ -86,7 +86,7 @@ export function VaultScreen({
       />
       <div className="m-vh__slot" aria-hidden="true" />
       <div className="m-vault__below">
-        {/* BL-251 S5-08: desktop's banner, unchanged, at the top of the list area. */}
+        {/* Desktop's banner, unchanged, at the top of the list area. */}
         <VerifyEmailBanner />
         {controls}
         <div className="m-scroll m-vault__scroll" ref={setScroll} key={listKey}>

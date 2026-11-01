@@ -1,11 +1,11 @@
 import { authedFetch } from "./authedFetch";
 import { ApiError, CodedApiError } from "./errors";
 
-/** BL-205 (SWU_Application_Spec.md §19.1): owner-side share management --
- * create/list/rename/rotate/revoke, all authed. One row per tenant per
- * scope today (BL-205 ships `scope: "inventory"` only; `wanted`/`list` are
- * carried in the type so a later BL-206/BL-209 caller doesn't need a schema
- * change here either). */
+/** Owner-side share management (App Spec §19.1) -- create/list/rename/
+ * rotate/revoke, all authed. At most one active share per scope target; only
+ * `scope: "inventory"` is created, and `wanted`/`list` are carried in the
+ * type (as in the backend enum) so a caller for those scopes needs no schema
+ * change here. */
 export interface ShareRecord {
   id: number;
   name: string;
@@ -15,7 +15,7 @@ export interface ShareRecord {
   revoked: boolean;
 }
 
-/** POST /api/shares' one closed error case: §19.1's "at most one active
+/** POST /api/shares' one closed error case: App Spec §19.1's "at most one active
  * share per scope target" -- the backend answers a second create attempt
  * with 409. Everything else (network, 401, 5xx) falls through to a plain
  * ApiError; ShareManageModal only needs to special-case this one. */

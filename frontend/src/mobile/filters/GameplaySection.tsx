@@ -17,12 +17,11 @@ import {
 import type { filterActions, RangeField } from "./filterModel";
 import { FChip } from "./pickerParts";
 
-// BL-248 (R4-2; rev4 MFilters.jsx GameplayFacet): the Gameplay disclosure,
-// collapsed by default (local state, so every fresh open starts collapsed).
-// Head = the label in the rows' 86 px column, "· n active" by the badge rule
-// (one per group), a one-line hint while closed, the chevron. Stage 2B-2
-// (S2-19) body, desktop FilterPanel's Gameplay order with Aspects first
-// where the owner put them: Aspects (seven chits + Any / Within / Exact and
+// The Gameplay disclosure (App Spec §25.2), collapsed by default (local
+// state, so every fresh open starts collapsed). Head = the label in the
+// rows' 86 px column, "· n active" by the badge rule (one per group), a
+// one-line hint while closed, the chevron. Body: desktop FilterPanel's
+// Gameplay order with Aspects first: Aspects (seven chits + Any / Within / Exact and
 // its one-line meaning), Type, Arena, Keyword, Trait (rows opening the
 // full-height pickers), Cost, Power, HP (one track, two 44 px thumbs).
 
@@ -72,7 +71,7 @@ const MODE_LABEL: Record<AspectMatchMode, string> = {
   exact: "Exact",
 };
 
-/** The Gameplay body (S2-19). */
+/** The Gameplay body. */
 export function GameplayBody({
   f,
   facetCards,
@@ -224,7 +223,7 @@ export function GameplayBody({
   );
 }
 
-/** rev4 MRange (desktop RangeSlider semantics): one track, two 44 px
+/** The range control (desktop RangeSlider semantics): one track, two 44 px
  * thumbs, Russo One readout ("Any" at full range). A press on the track
  * moves the nearer thumb and drags it; arrow keys step a focused thumb. */
 export function MRange({

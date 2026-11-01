@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
-// BL-247 S1-01 + BL-257 FR5-06 (owner decisions 2026-10-12, F-18 and the
-// review fix run): the phone/desktop gate. ONE definition -- `isPhoneLayout()`
+// The phone/desktop gate (App Spec §25.0, "Gate"). ONE definition -- `isPhoneLayout()`
 // -- read by the hook below and by the analytics `layout` super-property
 // (analytics.ts calls the same function).
 //
@@ -109,7 +108,7 @@ export function useIsPhone(): boolean {
   return isPhone;
 }
 
-/** FR5-06: is the DEVICE on its side? From the screen orientation --
+/** Is the DEVICE on its side? From the screen orientation --
  * `screen.orientation.type`, else the legacy `window.orientation` angle
  * (+-90), else the screen's own width > height. Never from the viewport's
  * shape (`innerWidth > innerHeight`, `(orientation: landscape)`): an Android
@@ -125,7 +124,7 @@ export function screenIsLandscape(win: ScreenLike | null | undefined): boolean {
   return typeof w === "number" && typeof h === "number" && w > h;
 }
 
-/** FR5-06: a phone held on its side -- the screen is in landscape AND the
+/** A phone held on its side -- the screen is in landscape AND the
  * device is a phone (touch-primary, short side at most 500 px). The second
  * half keeps a narrow desktop window (a landscape monitor, a mouse) and every
  * tablet out of it; the first half keeps an upright phone with its keyboard

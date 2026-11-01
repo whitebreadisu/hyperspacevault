@@ -1,4 +1,4 @@
-"""BL-126: request/response shapes for POST /api/feedback.
+"""Request/response shapes for POST /api/feedback (App Spec §5.9).
 
 No response_model beyond FeedbackSubmitResponse is needed -- there's no
 GET counterpart (RLS denies SELECT to swu_app outright, see migration
@@ -10,13 +10,12 @@ import re
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Deliberately simple (not the pydantic `EmailStr` type, which pulls in the
-# email-validator package -- not a runtime dependency of this backend
-# today, see requirements.txt) -- "looks like an email" is all client-side
-# validation ever promised (owner spec: "email field... passes client-side
-# format validation"), so the server-side check mirrors that bar rather
-# than pulling in RFC-5322-grade validation for a field that's never used
-# to actually send mail from this service (GitHub-issue notification only,
-# decision #2).
+# email-validator package -- not a runtime dependency of this backend, see
+# requirements.txt) -- "looks like an email" is all the client-side
+# validation promises, so the server-side check mirrors that bar rather
+# than pulling in RFC-5322-grade validation for a field this service never
+# sends mail to (it only appears in the GitHub-issue notification,
+# app/services/github_notify.py).
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 MESSAGE_MAX_LENGTH = 5000
@@ -27,7 +26,7 @@ class FeedbackSubmitRequest(BaseModel):
     message: str = Field(min_length=1, max_length=MESSAGE_MAX_LENGTH)
     contact_ok: bool = False
     contact_email: str | None = Field(default=None, max_length=EMAIL_MAX_LENGTH)
-    # Honeypot (decision #5): a real browser never fills this -- it's
+    # Honeypot: a real browser never fills this -- it's
     # visually hidden + aria-hidden + tabIndex -1 on the frontend. A
     # non-empty value marks the submission as a bot; the router still
     # returns the normal success response (never tips off a bot that it
@@ -57,7 +56,7 @@ class FeedbackSubmitRequest(BaseModel):
 
 
 class FeedbackSubmitResponse(BaseModel):
-    """Minimal by design (owner spec) -- no submission id is returned, so
+    """Minimal by design -- no submission id is returned, so
     there's nothing here for a caller to enumerate."""
 
     status: str = "ok"

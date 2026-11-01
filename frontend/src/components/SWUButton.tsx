@@ -2,8 +2,8 @@
 // Left cap SVG + center stripe (SVG bg + label) + right cap SVG.
 // Non-scaling-stroke keeps the cream outline uniform across caps and center.
 
-/** `touch` (BL-254 fold-back of the phone's MSWUButton): the small size stepped
- * up to the 44 px tap floor; the phone layout's buttons use it. */
+/** `touch`: the small size stepped up to the 44 px tap floor; the phone
+ * layout's buttons use it. */
 const SWU_SIZES = { sm: 40, touch: 44, md: 52, lg: 64 } as const;
 const MAIN_TOP = 8;
 const MAIN_BOTTOM = 124.75;
@@ -16,10 +16,11 @@ interface Props {
   active?: boolean;
   onClick?: () => void;
   size?: keyof typeof SWU_SIZES;
-  /** BL-56 §5.5: anonymous "inert teaser" controls (e.g. Add Cards) stay
-   * clickable -- the click still needs to fire the sign-in prompt -- but are
-   * flagged aria-disabled for assistive tech / testability. Deliberately NOT
-   * the native `disabled` attribute, which would swallow the click event. */
+  /** Inert controls (e.g. the anonymous Add Cards teaser, or a submit that
+   * is not ready yet) stay clickable -- the click still needs to fire, for
+   * example to open the sign-in prompt -- but are flagged aria-disabled for
+   * assistive tech / testability. Deliberately NOT the native `disabled`
+   * attribute, which would swallow the click event. */
   ariaDisabled?: boolean;
   /** Phone layout: an accessible name for icon-only uses. */
   ariaLabel?: string;

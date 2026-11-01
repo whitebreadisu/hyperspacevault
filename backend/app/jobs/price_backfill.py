@@ -1,13 +1,10 @@
-"""BL-136 P3: one-time (restartable) history backfill job
-(Definition_Pricing_2026-07-16.md §3).
+"""One-time (restartable) history backfill job (App Spec §16.3).
 
-Downloads tcgcsv's daily archive (`prices-YYYY-MM-DD.ppmd.7z`,
-spike_TCGCSV_Pricing_2026-07-16.md §3 -- 7z/PPMd-compressed, one archive
-per calendar day covering EVERY TCGplayer category), extracts only the
-`{date}/79/{groupId}/prices` entries for the mapped groups
-(app.ingestion.tcgcsv_client.ALL_PRICED_GROUP_IDS -- the 10 root sets
-plus, since BL-183/BL-175 step 1, the 8 Weekly Play groups; originally
-ROOT_SET_GROUP_IDS only), and inserts a variant_prices row per resolved
+Downloads tcgcsv's daily archive (`prices-YYYY-MM-DD.ppmd.7z` --
+7z/PPMd-compressed, one archive per calendar day covering EVERY TCGplayer
+category), extracts only the `{date}/79/{groupId}/prices` entries for the
+mapped groups (app.ingestion.tcgcsv_client.ALL_PRICED_GROUP_IDS -- the
+root sets plus the Weekly Play groups), and inserts a variant_prices row per resolved
 (variant_id, date) -- ON CONFLICT DO NOTHING, since a historical day, once
 inserted, never changes (unlike the daily sync job's DO UPDATE for a
 still-moving "today").
@@ -18,10 +15,9 @@ watermark; an explicit --start always starts there regardless of the
 watermark (useful for a targeted re-run), but never rewinds the watermark
 itself if the new run's end date is earlier.
 
-The brief explicitly says NOT to run the full ~860-day backfill from this
-build session -- this job is verified against a small (2-3 day) sample
-only; the full run is a deliberately separate, one-time operation for the
-orchestrator to schedule (see PR follow-ups).
+The job never runs on a schedule or on a deploy; executing the full
+~860-day walk is a deliberately separate, one-time operation (App Spec
+§16.3; prod's history was transferred from dev instead, §16.6).
 
 Usage:
     python -m app.jobs.price_backfill --start 2024-03-08 --end 2024-03-10
@@ -52,7 +48,7 @@ from app.jobs.price_sync import load_product_index, upsert_prices
 logger = logging.getLogger(__name__)
 
 ARCHIVE_URL_TEMPLATE = "https://tcgcsv.com/archive/tcgplayer/prices-{date}.ppmd.7z"
-MIN_ARCHIVE_INTERVAL_SECONDS = 1.0  # ">=1s between archive downloads" per the brief
+MIN_ARCHIVE_INTERVAL_SECONDS = 1.0  # >=1s between archive downloads
 WATERMARK_KEY = "backfill"
 DOWNLOAD_TIMEOUT_SECONDS = 60.0
 
@@ -93,8 +89,8 @@ def download_archive(client: httpx.Client, target_date: date) -> bytes | None:
 def extract_day_prices(
     archive_bytes: bytes, target_date: date, group_ids: dict[str, int]
 ) -> dict[str, list[dict]]:
-    """Extracts the {date}/79/{groupId}/prices entry for each root set out
-    of one day's archive. Returns {set_code: price_rows}; a set with no
+    """Extracts the {date}/79/{groupId}/prices entry for each group in
+    `group_ids` out of one day's archive. Returns {set_code: price_rows}; a set with no
     entry in this day's archive (e.g. a set that didn't exist yet) is
     simply absent from the returned dict, not an error."""
     date_str = target_date.isoformat()

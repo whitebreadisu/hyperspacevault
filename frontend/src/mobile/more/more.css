@@ -1,11 +1,8 @@
-/* BL-250 S4-01 … S4-05: More, About & Legal, [HSV] Updates. Values verbatim
- * from rev4 m-layout.css 497-515 (More groups / rows / foot), m-rev1.css
- * 285-288, m-rev4-d.css 1-158 (full shell, About, Updates rail / well / band
- * / seam, brand tap); desktop AboutModal.css and NewArrivalsPage.css load as
- * they are (imported by the screens) and only the phone deltas live here.
- * Scoped under .m-app. */
+/* More, About & Legal, [HSV] Updates (App Spec §25.4). Desktop
+ * AboutModal.css and NewArrivalsPage.css load as they are (imported by the
+ * screens) and only the phone deltas live here. Scoped under .m-app. */
 
-/* ── More (S4-01) ───────────────────────────────────────────────────────── */
+/* ── More ───────────────────────────────────────────────────────────────── */
 .m-app .m-more {
   position: relative;
 }
@@ -35,7 +32,7 @@
   gap: 8px;
   min-height: 44px;
 }
-/* m-rev4-d.css .m-d1-brandbtn */
+/* The brand block: one About button. */
 .m-app .m-more__brand {
   flex: 1 1 auto;
   min-width: 0;
@@ -70,7 +67,7 @@
   text-transform: uppercase;
   color: #9fb0cc;
 }
-/* Rows 52 px (brief S4-01; rev4 60), chevron, hairlines (rev4). */
+/* Rows 52 px, chevron, hairlines (App Spec §25.4). */
 .m-app .m-morerow {
   width: 100%;
   display: flex;
@@ -116,7 +113,7 @@
 .m-app .m-morerow--off .m-morerow__title {
   color: var(--color-text-muted);
 }
-/* S4-04: the Updates title pulses through the shared .m-cue layer
+/* The Updates title pulses through the shared .m-cue layer
  * (shell.css: an absolutely positioned ::after whose only animated property
  * is opacity, 2 s; reduced motion = steady 0.85). */
 .m-app .m-morerow--cue .m-morerow__title {
@@ -130,7 +127,7 @@
   line-height: 1.45;
   color: var(--color-text-muted);
 }
-/* m-layout.css:47 .m-fine + m-rev1.css:288 .m-more__note */
+/* The fine-print note under the groups. */
 .m-app .m-more__note {
   margin: 12px 0 0;
   padding: 4px 16px 0;
@@ -157,8 +154,8 @@
   text-transform: none;
 }
 
-/* ── Full-shell console screen (S4-02 / S4-03; m-rev4-d.css 9-31, the
- * Feedback screen's scale: 18 / 17 px cuts, steel ring 0.28 at 1.5 px). The
+/* ── Full-shell console screen (the Feedback screen's scale: 18 / 17 px
+ * cuts, steel ring 0.28 at 1.5 px). The
  * screen sits above the bottom bar, so only the top takes the inset. ───── */
 .m-app .m-shellscreen {
   overflow-y: auto;
@@ -239,17 +236,17 @@
   color: var(--color-text);
 }
 
-/* ── About & Legal (S4-02): AboutModal.css as-is, phone deltas only ─────── */
+/* ── About & Legal: AboutModal.css as-is, phone deltas only ─────────────── */
 .m-app .m-about .about-body {
   padding: 18px 16px;
 }
-/* 14 px prose (desktop 13) -- the owner reads small type as too small. */
+/* 14 px prose (desktop 13) -- smaller type reads as too small on a phone. */
 .m-app .m-about .about-section__text,
 .m-app .m-about .about-section__list {
   font-size: 14px;
 }
 /* .m-app button resets font and colour; restate desktop's .about-submit
- * and step it to the 44 px floor (rev4 min-height 44, min-width 120). */
+ * and step it to the 44 px floor (min-height 44, min-width 120). */
 .m-app .m-about .about-submit {
   min-height: 44px;
   min-width: 120px;
@@ -265,14 +262,14 @@
   transform: translateY(1px);
 }
 
-/* ── [HSV] Updates (S4-03): NewArrivalsPage.css as-is, phone deltas ─────── */
+/* ── [HSV] Updates: NewArrivalsPage.css as-is, phone deltas ─────────────── */
 .m-app .m-updates__rail.na-quicklinks {
   gap: 4px 8px;
   padding: 4px 12px;
   /* Sticks at the safe-area edge, not 12 px below it (the screen's top
    * padding is 12 px + the inset), so nothing scrolls through above it. */
   top: -12px;
-  /* One row that scrolls sideways (TIEBREAKER S4-03): desktop's wrap makes
+  /* One row that scrolls sideways (App Spec §25.4): desktop's wrap makes
    * three 44 px rows of sticky chrome at 390 px (~150 px of the screen). */
   flex-wrap: nowrap;
   overflow-x: auto;

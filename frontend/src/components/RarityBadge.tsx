@@ -1,17 +1,11 @@
-// BL-161: rarity symbol image + colored label, shared by the Cards table's
-// Rarity column (this slice) and (a follow-up slice, per the Definition's
-// build-routing note -- BL-155 decomposes CardPopup before landing its
-// rarity line) the unified CardPopup's rarity line. Gallery tiles show no
-// rarity today and are out of scope (verified,
-// specification_documents/planning/Definition_CosmeticsBatch_2026-07-26.md
-// §1).
+// Rarity symbol image + colored label, shared by the Cards table's Rarity
+// column, CardPopup's set plate, and the mobile card detail, card row and
+// rarity filter. Gallery tiles show no rarity.
 //
 // Assets imported (not referenced by a public/ URL) so the bundler owns
-// them -- same convention as components/AspectIcon.tsx's aspect icons and
-// components/StatBadge.tsx's stat badges: the real app gets content-hashed
-// files, and nothing depends on a runtime /images/ server path. Extracted
-// 2026-07-26 from the Claude Design "SWU Inventory Manager — Synced"
-// project's templates/rarity-symbols/img/*.webp (byte-identical copies).
+// them -- same convention as components/AspectIcon.tsx's aspect icons: the
+// real app gets content-hashed files, and nothing depends on a runtime
+// /images/ server path.
 import common from "../assets/rarity/common.webp";
 import uncommon from "../assets/rarity/uncommon.webp";
 import rare from "../assets/rarity/rare.webp";
@@ -46,14 +40,11 @@ interface Props {
    * comment) -- the same value every existing caller already passes to
    * getRarityLabel(). */
   rarity: string;
-  /** Symbol size in px (raritySize owner default: 20). Label font-size is
-   * fixed at 14px (rarityTextSize) via RarityBadge.css, not exposed as a
-   * prop -- the Definition's owner-saved tweaks are hardcoded, not ported as
-   * runtime options (the design canvas's window.__SWU_TABLE_TWEAKS knobs are
-   * exploration machinery, not a shipped feature). */
+  /** Symbol size in px (default 20). Label font-size is fixed at 14px via
+   * RarityBadge.css and is not a prop. */
   size?: number;
-  /** Owner dev review 2026-07-26 (round 2): CardPopup's set plate splits the
-   * badge -- a large symbol anchored left of the two-line set/rarity text
+  /** Split modes. CardPopup's set plate uses both halves separately -- a
+   * large symbol anchored left of the two-line set/rarity text
    * stack (iconOnly), with the colored label rendered separately inline in
    * the meta line (labelOnly). An unrecognized rarity has no symbol, so
    * iconOnly renders nothing for it (the labelOnly half still shows the raw

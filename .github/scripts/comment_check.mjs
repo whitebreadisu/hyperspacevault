@@ -1,8 +1,10 @@
 // BL-279 W2-16 (decision D4): comments describe the present, not history. Fails on a
 // BL-<n> id inside a comment in non-test source (frontend/src, backend/app, excluding
-// frontend/src/content/) beyond the per-file count baseline ("path count"). It fails when
-// a file's count goes up, when an unlisted file has any hit, and when a listed count is
-// stale (above the real number) so the baseline only decreases.
+// frontend/src/content/). An optional per-file count baseline ("path count",
+// comment_check.allow) can admit an accepted tokenizer false positive; with no file
+// present - the state since the baseline reached zero - every hit fails. With a file, it
+// fails when a count goes up, when an unlisted file has a hit, and when a listed count is
+// stale (above the real number).
 //
 // Usage: node .github/scripts/comment_check.mjs [--root <dir>] [--allow <file>] [--seed]
 //   --seed   (re)write the allowlist from the tree as it stands, then exit 0.

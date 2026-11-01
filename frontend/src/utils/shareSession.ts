@@ -1,7 +1,7 @@
-// BL-205 (SWU_Application_Spec.md §19.1): tab-session-scoped storage for the
-// viewer-mode share the current tab has open -- "sessionStorage: survives
-// navigation, dies with the tab, and reappears whenever the link is opened
-// ... newest share replaces the previous ... no saved-shares list." Follows
+// Tab-session-scoped storage for the viewer-mode share the current tab has
+// open (App Spec §19.1): sessionStorage survives navigation, dies with the
+// tab, and reappears whenever the link is opened; the newest share replaces
+// the previous; there is no saved-shares list. Follows
 // the SAME degrade-gracefully shape as releaseNotesSeen.ts's
 // loadLastSeenKey/saveLastSeenKey (itself modeled on headerStarfield.ts):
 // storage access is wrapped in try/catch, and a throwing/absent/corrupt
@@ -45,8 +45,8 @@ export function loadShareSession(): ShareSession | null {
 }
 
 /** Opening a share link ALWAYS (re)establishes the session -- overwriting
- * whatever was stored before, even mid-tab (owner ruling: "newest share
- * replaces the previous"). Best-effort, same as saveLastSeenKey: a throwing
+ * whatever was stored before, even mid-tab (the newest share replaces the
+ * previous, App Spec §19.1). Best-effort, same as saveLastSeenKey: a throwing
  * store never bubbles out to the caller. */
 export function saveShareSession(session: ShareSession): void {
   try {

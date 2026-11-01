@@ -1,23 +1,20 @@
-"""BL-76 Phase 3 (ADR-0012, derivation amendment): pure, side-effect-free
-path/URL derivation shared by the ingestion mirror (Phase 2) and the API/
-serving layer (Phase 3).
+"""Pure, side-effect-free image path/URL derivation (ADR-0012, derivation
+amendment) shared by the ingestion mirror and the API/serving layer.
 
-Moved here from `app.ingestion.image_mirror` (which re-exports `derive_stem`
-and `object_paths` for backward compatibility -- the backfill script and its
-tests still import them from there) so that `app.services.cards` (imported
-on every API request) doesn't have to pull in `google-cloud-storage`/`httpx`/
-`Pillow` just to compute a same-origin path string. This module has zero
+It lives here rather than in `app.ingestion.image_mirror` (which imports
+`derive_stem` and `object_paths` for its own mirroring and re-exports
+them; `test_image_mirror.py` imports them from there) so that
+`app.services.cards` (imported on every API request) doesn't pull in
+`google-cloud-storage`/`httpx`/`Pillow` just to compute a same-origin
+path string. This module has zero
 third-party imports and zero I/O -- safe to import from the request path.
 
-The amendment to ADR-0012's "additive path columns" line, decided
-2026-07-11: no new DB columns, no migration. Every rendition path is
-*derived* at read time from the already-stored `front_image_url`/
-`back_image_url` CDN URLs via `object_paths` below -- the mirror's path
-scheme is deterministic and stateless by design (see its original
-docstring), so storing the derived paths a second time would just be
-redundant, driftable state. This is also why Phase 3 needs zero catalog
-seed regeneration: no catalog *data* changes, only how the API composes
-URLs from data that was already there.
+Per ADR-0012's derivation amendment there are no stored path columns:
+every rendition path is *derived* at read time from the stored
+`front_image_url`/`back_image_url` CDN URLs via `object_paths` below. The
+mirror's path scheme is deterministic and stateless by design, so storing
+the derived paths a second time would be redundant, driftable state, and
+the API composes URLs from catalog data without any catalog change.
 """
 
 from __future__ import annotations
@@ -30,9 +27,8 @@ WEBP_QUALITY = 80
 ORIGINAL_CONTENT_TYPE = "image/png"
 RENDITION_CONTENT_TYPE = "image/webp"
 
-# The official SWU CDN -- ingestion's source of truth, and Phase 3's
-# same-origin serving handler's fallback target for any object the backfill
-# hasn't mirrored yet (dev is ~25% through as of 2026-07-11).
+# The official SWU CDN -- ingestion's source of truth, and the same-origin
+# serving handler's fallback target for any object not yet mirrored.
 CDN_ORIGIN = "https://cdn.starwarsunlimited.com"
 
 # Same-origin path prefix the Firebase Hosting rewrite / Cloud Run image
@@ -65,10 +61,12 @@ def object_paths(url: str) -> dict[str, str]:
 
 def same_origin_renditions(url: str) -> dict[str, str]:
     """The 3 same-origin serving URLs (GET /images/cards/<file>) for a
-    stored CDN URL, keyed "original"/"w640"/"w320" -- the shape
-    `CardVariantCatalogResponse.front_images`/`back_images` (BL-76 Phase 3)
-    return to the frontend for srcset construction. Additive alongside the
-    untouched `front_image_url`/`back_image_url` provenance fields."""
+    stored CDN URL, keyed "original"/"w640"/"w320" -- the dict
+    cards._renditions wraps as `ImageRenditions` for
+    `CardVariantDetailResponse.front_images`/`back_images`, which the
+    frontend uses for srcset construction.
+    Additive alongside the `front_image_url`/`back_image_url` provenance
+    fields."""
     paths = object_paths(url)
     return {
         "original": f"{SERVE_PREFIX}{paths['original']}",
@@ -84,16 +82,15 @@ def fallback_cdn_url(stem: str) -> str:
     that don't exist on the CDN. Used by the images router's cache-miss 307
     redirect (app/routers/images.py).
 
-    Best-effort, not authoritative: `derive_stem` discards the source URL's
-    path entirely (see its docstring's `<anything>/<stem>.png` scheme), and
-    CloudFront/S3 does NOT normalize away an empty path segment -- the
-    double-slash `.com//<stem>.png` and single-slash `.com/<stem>.png`
-    forms are distinct object keys, each 403ing for the other's images
-    (verified live 2026-07-11). The stem cannot encode which form is
-    correct, so this picks the dominant one: a dev-DB census of all 8,354
-    stored image URLs found double-slash origin outnumbers single-slash
-    ~29:1 (8,077 vs 277). The ~277 single-slash-origin URLs (concentrated
-    in SOR standard cards) 403 through this redirect until mirrored.
+    Best-effort, not authoritative: `derive_stem` keeps only the filename
+    and discards the source URL's path, and CloudFront/S3 does NOT
+    normalize away an empty path segment -- the double-slash
+    `.com//<stem>.png` and single-slash `.com/<stem>.png` forms are
+    distinct object keys, each 403ing for the other's images. The stem
+    cannot encode which form is correct, so this picks the dominant one:
+    double-slash origins far outnumber single-slash among stored image
+    URLs. The single-slash-origin URLs (concentrated in SOR standard cards)
+    403 through this redirect until mirrored.
 
     The AUTHORITATIVE safety net is client-side: the frontend has the
     exact stored URL (front_image_url/back_image_url), and every card

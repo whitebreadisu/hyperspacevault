@@ -1,14 +1,14 @@
 import { ortThreads } from "./isolationReport";
 
-// BL-253 S7-05: the Paddle reader's message protocol and result rules -- the
-// part of paddle-reader.js (spike v0.5.5) that is logic rather than plumbing,
-// kept free of Worker / DOM so it is unit-testable with a stub engine. The
+// The Paddle reader's message protocol and result rules -- the logic rather
+// than the plumbing, kept free of Worker / DOM so it is unit-testable with a
+// stub engine. The
 // worker (paddleWorker.ts) wires it to onnxruntime-web + ppu-paddle-ocr; the
 // client (readerClient.ts) wires it to the UI thread. Errors never throw into
 // the UI: every response is `{ok: true, ...}` or `{ok: false, reason}`.
 
 /** Paddle's box height is ~1.4 x the cap height (smoke-test calibration:
- * 14 px and 34 px synthetic strips at 1100 px width). paddle-reader.js:10. */
+ * 14 px and 34 px synthetic strips at 1100 px width). */
 export const BOX_PAD_FACTOR = 1.4;
 
 export interface PaddleRead {
@@ -63,7 +63,7 @@ export type InitResponse = { type: "init"; id: number } & (InitOk | Failure);
 export type ReadResponse = { type: "read"; id: number } & (PaddleRead | Failure);
 export type WorkerResponse = InitResponse | ReadResponse;
 
-/** paddle-reader.js:43-52 -- the result summary. */
+/** The result summary. */
 export function summariseRead(res: EngineResult, ms: number): PaddleRead {
   const hs: number[] = [];
   for (const line of res.lines || [])

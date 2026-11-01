@@ -1,11 +1,11 @@
-"""BL-136 P4: pure pricing computation -- turns raw latest-price rows
+"""Pure pricing computation -- turns raw latest-price rows
 (app.repositories.pricing) into the API's PriceInfo/DisplayPrice shapes.
-Definition_Pricing_2026-07-16.md §4's decided cheapest definition:
-min(low) across ALL of a card's priced variants, any printing; standard
-mode is the Standard-printing variant's market price. Kept DB-free (a
-plain Row -> pydantic mapper plus a list-of-tuples aggregator) so it's
-unit-testable without a database, mirroring this codebase's service-layer
-split elsewhere (e.g. app.ingestion.swuapi_transform)."""
+App Spec §16.4's cheapest definition: min(low) across ALL of a card's
+priced variants, any printing; standard mode is the Standard-printing
+variant's market price. Kept DB-free (a plain Row -> pydantic mapper plus
+a list-of-tuples aggregator) so it's unit-testable without a database,
+mirroring this codebase's service-layer split elsewhere (e.g.
+app.ingestion.swuapi_transform)."""
 
 from __future__ import annotations
 
@@ -20,20 +20,19 @@ from app.schemas.base_card_detail_schema import DisplayPrice, PriceInfo
 PRICING_SOURCE = "tcgplayer"
 STANDARD_VARIANT_TYPE = "Standard"
 
-# BL-276: tcgcsv's lowPrice is the literal cheapest CURRENT listing, so a
-# single implausible listing (a $9,999 "Chopper Base // Shield (Hyperspace)"
-# against a $0.63 market, 2026-10-25) inflates every "low" total that
-# includes the card -- the owner's collection read 3x its market value.
-# Owner rule (2026-10-25): a low at or above this multiple of market is not
-# a price, and market stands in for it. Applied here, at the one Row ->
-# PriceInfo seam every price consumer shares (catalog list/detail, deck
-# check, the cheapest aggregate), so stored history stays raw and the
-# threshold is tunable without a backfill.
+# Low-price outlier rule (App Spec §16.4): tcgcsv's lowPrice is the literal
+# cheapest CURRENT listing, so a single implausible listing (e.g. a $9,999
+# listing against a $0.63 market) inflates every "low" total that includes
+# the card. A low at or above this multiple of market is not a price, and
+# market stands in for it. Applied here, at the one Row -> PriceInfo seam
+# every price consumer shares (catalog list/detail, deck check, the
+# cheapest aggregate), so stored history stays raw and the threshold is
+# tunable without a backfill.
 LOW_OUTLIER_MULTIPLE = 10.0
 
 
 def plausible_low(market: float | None, low: float | None) -> float | None:
-    """BL-276: `low`, or `market` when `low` >= LOW_OUTLIER_MULTIPLE x market.
+    """`low`, or `market` when `low` >= LOW_OUTLIER_MULTIPLE x market.
     Needs a positive market to judge against -- with market None (or 0) the
     low ships untouched, since there is nothing credible to compare it to."""
     if low is None or market is None or market <= 0:
@@ -64,7 +63,7 @@ def compute_display_price(
     Standard-printing variant's market price, or None if that variant has
     no price (a card whose only priced variant happens to be, say,
     Hyperspace still shows no standard display_price -- 'standard' means
-    the Standard printing specifically, per the decided definition, not
+    the Standard printing specifically, per App Spec §16.4, not
     'whatever's available')."""
     if mode == "cheapest":
         candidates = [
@@ -94,11 +93,10 @@ class PricingEnvelope:
     def as_headers(self) -> dict[str, str]:
         """List-level pricing envelope, shipped as response headers rather
         than an extra key on the response body -- GET /api/base-cards
-        returns a bare JSON array today (BL-44/BL-101), and the live
-        frontend (not touched in this arc; P5/UI wiring is separate,
-        unbuilt) depends on that array shape. Wrapping it in an envelope
-        object now would be a breaking change with nothing yet consuming
-        the wrapper. Headers carry the same three fields additively."""
+        returns a bare JSON array, and the frontend depends on that array
+        shape. Wrapping it in an envelope object would be a breaking change
+        with nothing consuming the wrapper. Headers carry the same three
+        fields additively."""
         headers = {
             "X-Pricing-Source": self.source,
             "X-Pricing-Unpriced-Count": str(self.unpriced_count),

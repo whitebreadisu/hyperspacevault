@@ -4,8 +4,7 @@ import { createPortal } from "react-dom";
 import { MIcon } from "./icons";
 import "./sheet.css";
 
-// BL-247 S1-13: the bottom sheet (rev4 MSheet.jsx:21-65; CSS m-layout.css:
-// 225-312). Bottom-anchored full shell (18 px cuts, steel ring), scrim, X
+// The bottom sheet (sheet.css). Bottom-anchored full shell (18 px cuts, steel ring), scrim, X
 // top-right 44 px, title + optional sub, height = content up to 86 %. Closes
 // on the scrim, the X, Escape and a downward swipe on the head. Motion is
 // transform + opacity only: the panel rises / sinks (translateY) and the
@@ -26,7 +25,7 @@ export function SheetHost({ children }: { children: ReactNode }) {
   );
 }
 
-/** BL-249 S3-14: the SheetHost element, for a layer that must sit over
+/** The SheetHost element, for a layer that must sit over
  * every sheet (the batch close-guard confirm). Null outside a SheetHost. */
 export function useSheetHost(): HTMLElement | null {
   return useContext(HostContext);
@@ -48,10 +47,10 @@ interface Props {
   onClose: () => void;
   labelId: string;
   className?: string;
-  /** BL-249 S3-05: an optional pinned foot under the scrolling body (rev4
-   * MSheet footer, m-layout.css:248 .m-sheet__foot). */
+  /** An optional pinned foot under the scrolling body (sheet.css
+   * .m-sheet__foot). */
   footer?: ReactNode;
-  /** BL-249 S3 F1: while true Escape, the scrim and the swipe do nothing
+  /** While true Escape, the scrim and the swipe do nothing
    * (a commit is in flight; the busy overlay already covers the X). */
   locked?: boolean;
   children: ReactNode;

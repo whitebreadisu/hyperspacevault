@@ -1,4 +1,5 @@
-"""BL-24: shared per-tenant inventory-limit vocabulary and resolution.
+"""Shared per-tenant inventory-limit vocabulary and resolution (App Spec
+§4.5, §6).
 
 Keeps the type_category/limit_bucket vocabulary and code-default values in
 one place so services/inventory.py (enforcement, POST increment) and
@@ -13,8 +14,8 @@ deliberately does not import this module (schemas stay leaf modules with no
 service-layer dependency), so keep the two in sync by hand if this ever
 changes.
 
-BL-35 adds the cap_mode ("hard"/"soft") enforcement-mode vocabulary here
-for the same drift-prevention reason -- inventory.py's increment_card reads
+The cap_mode ("hard"/"soft") enforcement-mode vocabulary lives here for
+the same drift-prevention reason -- inventory.py's increment_card reads
 effective_cap_mode to decide whether an at/over-limit increment blocks or
 commits-and-flags, and settings.py's GET/PUT round-trips it alongside the
 limits matrix. cap_mode's two literal values are likewise mirrored in
@@ -30,13 +31,12 @@ TYPE_CATEGORY_SINGLETON = "singleton"
 TYPE_CATEGORY_STANDARD = "standard"
 ALL_TYPE_CATEGORIES = (TYPE_CATEGORY_SINGLETON, TYPE_CATEGORY_STANDARD)
 
-# BL-24 design: Leader/Base are "singleton" (each variant capped at 1 by
-# default); everything else is "standard" (each variant capped at 3 by
-# default). Ported from services/inventory.py's pre-BL-24 SINGLETON_TYPES.
+# Leader/Base are "singleton" (each variant capped at 1 by default);
+# everything else is "standard" (each variant capped at 3 by default).
 SINGLETON_BASE_CARD_TYPES = frozenset({"Leader", "Base"})
 
-# Code defaults (BL-24 design): NOT provisioned as tenant_card_limits rows
-# -- a tenant with no override row for a (category, bucket) cell gets these.
+# Code defaults: NOT provisioned as tenant_card_limits rows -- a tenant
+# with no override row for a (category, bucket) cell gets these.
 DEFAULT_LIMITS = {
     TYPE_CATEGORY_SINGLETON: 1,
     TYPE_CATEGORY_STANDARD: 3,
@@ -63,9 +63,9 @@ def effective_limit(db: Session, category: str, bucket: str) -> int | None:
     return DEFAULT_LIMITS[category]
 
 
-# BL-35: the two cap_mode values -- "hard" (default) blocks an at/over-limit
+# The two cap_mode values -- "hard" (default) blocks an at/over-limit
 # increment; "soft" commits it and flags the response over_limit=True. The
-# 999 QUANTITY_CEILING (services/inventory.py) blocks unconditionally in
+# 999 QUANTITY_CEILING (services/inventory.py) applies unconditionally in
 # both modes -- cap_mode only governs the effective-limit check.
 CAP_MODE_HARD = "hard"
 CAP_MODE_SOFT = "soft"

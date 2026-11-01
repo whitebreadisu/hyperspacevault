@@ -5,13 +5,12 @@ import { SWUButton } from "../../components/SWUButton";
 import { useSheetHost } from "../Sheet";
 import "./verify.css";
 
-// BL-249 S3-14: desktop's close-guard confirm (AddCardsModal.tsx:738-775,
+// Desktop's close-guard confirm (AddCardsModal.tsx's "Discard this batch?",
 // copy verbatim; AddCardsModal.css .ac-confirm: steel ring, 14 px cut,
-// circuit tile at 420) as rev4 MVerify.jsx DiscardConfirm drew it on the
-// phone: centred over a scrim, X top-right (it returns to the batch), two
-// 44 px SWUButtons. "Discard & Close" carries the destructive fill #c0202e
-// on the button itself (F-2: `.swu-btn` sets its own resting
-// --color-primary, which shadows any value inherited from a wrapper --
+// circuit tile at 420) at phone size: centred over a scrim, X top-right (it
+// returns to the batch), two 44 px SWUButtons. "Discard & Close" carries the
+// destructive fill #c0202e on the button itself (`.swu-btn` sets its own
+// resting --color-primary, which shadows any value inherited from a wrapper --
 // desktop's `.ac-confirm__danger` wrapper rule renders navy for that
 // reason). "Return to Batch" keeps the resting navy. Rendered into the
 // SheetHost so it covers the tool and any open sheet (the Verify cards

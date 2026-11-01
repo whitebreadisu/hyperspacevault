@@ -1,5 +1,5 @@
-"""BL-205 (App Spec §19.1): share management (owner, authed) and the
-viewer-mode reads (anonymous, token-scoped).
+"""Share management (owner, authed) and the viewer-mode reads
+(anonymous, token-scoped), App Spec §19.1.
 
 Two routers on purpose -- they serve different audiences with different
 security postures. /api/shares is a normal authed tenant surface
@@ -80,7 +80,7 @@ def _owned_active_share(db: Session, share_id: int) -> Share:
 @router.post("", response_model=ShareResponse, status_code=201)
 def create_share(payload: ShareCreateRequest, db: Session = Depends(get_db)):
     """Create the tenant's inventory share. One active share per scope
-    target (owner ruling, §19.4): the partial unique index is the
+    target (App Spec §19.1, ADR-0019): the partial unique index is the
     authority; the pre-check just turns the common case into a clean 409
     before the constraint has to say it."""
     existing = (

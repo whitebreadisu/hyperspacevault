@@ -1,9 +1,8 @@
 import type { ScanCatalogData } from "./scanCore";
 
-// BL-253 S7-07: the scan catalogue, derived from the catalogue the app already
-// loads (useVaultData's cards + sets), so it never goes stale. A TypeScript
-// port of spikes/bl238/tools/build_catalog.py:16-56 (which reduced the live
-// API to public/catalog.json). Denominators are not in the API; they are
+// The scan catalogue, derived from the catalogue the app already loads
+// (useVaultData's cards + sets), so it never goes stale (App Spec §25.7
+// "Catalogue and parser"). Denominators are not in the API; they are
 // derived:
 //   main[base]  = count of Standard non-token printings released in the home
 //                 base set (the number after the slash on a Standard card)
@@ -15,10 +14,10 @@ import type { ScanCatalogData } from "./scanCore";
 //               into the same printed code (a leader pair prints N/2, the
 //               rest join the N/20 Weekly Play run)
 //   printed[code] = the source sets one printed code may belong to, incl. the
-//               ASHP -> P26 extra (owner evidence 2026-10-10: the Grogu Store
-//               Showdown promo prints "ASHP" while the API says P26).
-// Open question carried from the spike: whether LAWP / SECP / LOFP P25-era
-// promos collide the same way is not generalised without physical evidence.
+//               ASHP -> P26 extra (the Grogu Store Showdown promo prints
+//               "ASHP" while the API says P26; App Spec §24.5).
+// Whether LAWP / SECP / LOFP P25-era promos collide the same way is unknown
+// (App Spec §24.5), so it is not generalised without physical evidence.
 
 /** The slice of the app's catalogue shapes this needs (InventoryCard and
  * CardSet satisfy it structurally). */
@@ -59,8 +58,8 @@ export function buildScanCatalog(
   const rows: { c: ScanSourceCard; v: ScanSourceCard["variants"][number]; n: number }[] = [];
   for (const c of cards)
     for (const v of c.variants) {
-      // the spike asserted digit-only numbers; a printing without one cannot
-      // be keyed by a printed number, so it is not scannable.
+      // A printing without a digit-only number cannot be keyed by a printed
+      // number, so it is not scannable.
       if (!isDigits(v.card_number)) continue;
       rows.push({ c, v, n: parseInt(v.card_number, 10) });
     }

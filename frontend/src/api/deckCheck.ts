@@ -1,10 +1,9 @@
 import { authedFetch } from "./authedFetch";
 import { CodedApiError } from "./errors";
 
-/** BL-142: frontend types + client for POST /api/deck-check, mirroring
- * backend/app/schemas/deck_check_schema.py field-for-field
- * (Definition_DeckCheck_2026-07-16.md §6 -- the authoritative contract).
- * Auth-only endpoint (get_db) -- callers must only invoke this when
+/** Frontend types + client for POST /api/deck-check, mirroring
+ * backend/app/schemas/deck_check_schema.py field-for-field (App Spec §12,
+ * Deck check). Auth-only endpoint (get_db) -- callers must only invoke this when
  * signed in; DeckCheckPage gates on isAuthenticated before ever rendering
  * the entry form. */
 
@@ -56,7 +55,7 @@ export interface MissingCard {
   subtotal: number | null;
 }
 
-/** BL-142: one row of a scope's COMPLETE card list (the ALL CARDS toggle) --
+/** One row of a scope's COMPLETE card list (the ALL CARDS toggle) --
  * present for every card in the scope, including fully-owned ones, unlike
  * MissingCard which only ever appears for cards still missing at least one
  * copy. `line_value` is unit_price * need (the value of owning every copy
@@ -76,7 +75,7 @@ export interface ScopeResult {
   missing_total: number;
   unpriced_count: number;
   cart_url: string | null;
-  /** BL-142 additions -- see DeckCardEntry's doc comment. deck_value is the
+  /** The complete-list fields -- see DeckCardEntry's doc comment. deck_value is the
    * scope's complete-decklist market value (same mode/price-basis rules as
    * missing_total, priced via unit_price * need rather than the missing
    * quantity); unpriced_value_count counts all_cards entries with no price
@@ -114,10 +113,8 @@ export interface DeckCheckResponse {
 export type DeckCheckErrorCode =
   "unsupported_url" | "fetch_failed" | "invalid_deck_json" | "unknown";
 
-/** BL-154: extends the shared CodedApiError base (api/errors.ts) rather than
- * Error directly -- the code/message/status shape and construction were
- * already the target pattern (the audit's "parsed-body typed errors"
- * convention), so only the base class changed here. */
+/** A parsed-body typed error: extends the shared CodedApiError base
+ * (api/errors.ts) with this endpoint's closed code union. */
 export class DeckCheckApiError extends CodedApiError<DeckCheckErrorCode> {
   constructor(code: DeckCheckErrorCode, message: string, status: number) {
     super(code, message, status);

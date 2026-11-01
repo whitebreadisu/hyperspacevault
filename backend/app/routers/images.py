@@ -1,10 +1,10 @@
-"""BL-76 Phase 3 (ADR-0012): same-origin card-image serving.
+"""Same-origin card-image serving (ADR-0012, Platform Spec §3.16).
 
 GET /images/cards/{filename} streams one object out of the per-env GCS
-bucket (Phase 1's card_images_bucket, Phase 2's mirror target) with a
+card-images bucket (filled by app/ingestion/image_mirror.py) with a
 long-lived immutable Cache-Control header, so the Firebase Hosting CDN edge
-(the BL-101/ADR-0005 pattern -- see app/http_cache.py) caches every hit
-after the first Cloud Run round-trip.
+(the ADR-0005 pattern -- see app/http_cache.py) caches every hit after the
+first Cloud Run round-trip.
 
 Public-cache eligibility (http_cache.py's invariant: a route may carry a
 public cache header only if its response bytes are independent of the
@@ -19,15 +19,14 @@ does (app/routers/base_cards.py) -- just via its own explicit
 Cache-Control rather than the shared http_cache.catalog_cache dependency,
 since immutable objects warrant a far longer TTL than catalog data.
 
-Miss fallback (partial-backfill + DR design): the dev bucket is mid-backfill
-(observed ~28% mirrored, unevenly by set, as of 2026-07-11 -- see the PR),
-and even a fully-backfilled bucket is a mirror, not the source of truth. A
-miss reconstructs the official CDN URL from the stem (pure, via
+Miss fallback (partial-backfill + DR design): a bucket can lag the catalog
+(an image not yet mirrored), and even a fully-backfilled bucket is a
+mirror, not the source of truth. A miss reconstructs the official CDN URL
+from the stem (pure, via
 image_paths.fallback_cdn_url) and 307-redirects there with `Cache-Control:
 no-store` -- nothing caches the fallback, so a request for the same
-filename heals to a 200 the moment the backfill (or a future re-run)
-mirrors it, with zero client-visible change (same URL, same img tag) once
-it does.
+filename heals to a 200 the moment a mirror run copies it, with zero
+client-visible change (same URL, same img tag) once it does.
 
 The reconstruction is BEST-EFFORT, correct only for the dominant (~97%)
 double-slash-origin URL form -- ~277 single-slash-origin stored URLs

@@ -1,8 +1,8 @@
-/* BL-250 S4-08 … S4-11: Import & Export. Desktop ImportExportPage.css loads as
- * it is (imported by the screen); this file holds the phone deltas only, values
- * from rev4 m-rev4-d.css 179-237 (one column, whole-row 48 px radios with a
- * drawn dot, red Replace All, red check) plus the report list that replaces
- * desktop's fixed-column tables. Scoped under .m-app. */
+/* Import & Export (App Spec §25.4). Desktop ImportExportPage.css loads as it
+ * is (imported by the screen); this file holds the phone deltas only (one
+ * column, whole-row 48 px radios with a drawn dot, red Replace All, red
+ * check) plus the report list that replaces desktop's fixed-column tables.
+ * Scoped under .m-app. */
 
 .m-app .m-ie .ie-section {
   padding: 16px 14px;
@@ -37,7 +37,7 @@
 }
 /* The picker: desktop hides the native input behind the button and forwards a
  * click; on the phone the input itself lies over the 44 px button, invisible,
- * so the tap is the native picker's own (S4-10). 16 px so iOS Safari never
+ * so the tap is the native picker's own. 16 px so iOS Safari never
  * zooms on it. */
 .m-app .m-ie .m-ie__pick {
   position: relative;
@@ -114,7 +114,7 @@
   line-height: 1.4;
 }
 
-/* Desktop's Replace All confirmation (red check), now on the preview step. */
+/* Desktop's Replace All confirmation (red check), on the preview step. */
 .m-app .m-ie .m-ie__check {
   align-items: flex-start;
   gap: 10px;
@@ -141,7 +141,7 @@
   font-size: 14px;
 }
 
-/* ── Report list (S4-11) ─────────────────────────────────────────────────── */
+/* ── Report list ─────────────────────────────────────────────────────────── */
 .m-app .m-ie .ie-totals {
   gap: 12px 16px;
 }
@@ -214,7 +214,7 @@
   color: var(--color-warning);
 }
 
-/* Replace All in red: the S3 tool's unscoped `.m-app .ie-radio-option__title`
+/* Replace All in red: the tool layer's unscoped `.m-app .ie-radio-option__title`
  * colour (tool.css) would otherwise outrank desktop's danger rule. */
 .m-app .m-ie .ie-radio-option__title--danger {
   color: var(--color-danger);

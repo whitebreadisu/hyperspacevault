@@ -1,17 +1,13 @@
 /* ── AuthModal (.auth-modal-*, .auth-*) ────────────────────────────────────
-   Co-located with AuthModal.tsx. Imported directly by that module. The
-   .auth-card__* / .auth-form / .auth-field / .auth-error / .auth-submit /
-   .auth-switch classes are shared with the retired full-screen AuthScreen --
-   same form visuals, now inside an overlay instead of a full-page layout.
+   Co-located with AuthModal.tsx; ChangePasswordModal, DeleteAccountModal,
+   VerifyEmailAction and ShareManageModal import it too and reuse these
+   classes, so every account dialog shares one card/form family.
    ──────────────────────────────────────────────────────────────────────── */
 
-/* .auth-modal-overlay's backdrop styling moved to index.css's shared
-   .modal-overlay class (BL-153, A3-06 -- this also folds in the blur/tint
-   drift fix: was blur(2px)/rgba(7,9,16,.74), now the shared blur(3px)/
-   rgba(4,6,10,.72) every other modal overlay already used). Every call site
-   (AuthModal, ChangePasswordModal, DeleteAccountModal, VerifyEmailAction)
-   keeps the .auth-modal-overlay class name too, just with no rule of its
-   own left here. */
+/* .auth-modal-overlay has no rule here: the backdrop comes from index.css's
+   shared .modal-overlay class, which every call site (AuthModal,
+   ChangePasswordModal, DeleteAccountModal, VerifyEmailAction,
+   ShareManageModal) carries alongside the .auth-modal-overlay name. */
 
 .auth-modal-card {
   width: min(360px, 100%);
@@ -82,8 +78,8 @@
   gap: 14px;
 }
 
-/* BL-118: separates the Google button (rendered above the credentials
-   card, GoogleAuthButton.css) from the email/password form below it. */
+/* Separates the Google button above it (GoogleAuthButton.css) from the
+   email/password form below it. */
 .auth-divider {
   display: flex;
   align-items: center;
@@ -145,7 +141,8 @@
   color: #f87171;
 }
 
-/* BL-23: success text inside ChangePasswordModal's post-submit state. */
+/* Centered body copy for the dialogs' confirmation and info screens (e.g.
+   ChangePasswordModal's post-submit state, AuthModal's "check your email"). */
 .auth-success {
   margin: 0;
   font-family: var(--font-body);
@@ -178,8 +175,9 @@
   cursor: not-allowed;
 }
 
-/* BL-23: Cancel/Change Password button row in ChangePasswordModal, which has
-   two form actions where AuthModal's form only ever has the one submit. */
+/* Two-button action row (Cancel + the primary or destructive action) for
+   ChangePasswordModal, DeleteAccountModal and ShareManageModal; AuthModal's
+   form only ever has the one submit. */
 .auth-modal-actions {
   display: flex;
   gap: 10px;
@@ -217,7 +215,7 @@
   cursor: not-allowed;
 }
 
-/* BL-87: DeleteAccountModal's warning copy (both steps) and its
+/* DeleteAccountModal's warning copy (both steps) and its
    destructive confirm button -- reuses .auth-submit's shape/sizing but in
    --color-danger rather than --color-primary, so the two-level confirm
    reads as unambiguously destructive next to ChangePasswordModal's
@@ -256,7 +254,7 @@
   cursor: not-allowed;
 }
 
-/* BL-116: sits inside .auth-form, directly under the password field, so it
+/* Sits inside .auth-form, directly under the password field, so it
    reads as attached to that field rather than a page-level nav action like
    .auth-switch below (which sits outside the form, centered, at the card's
    base). Right-aligned to match the common "Forgot password?" placement

@@ -2,11 +2,11 @@ import { useEffect, useId, useRef } from "react";
 import { MIcon } from "./icons";
 import { SWUButton } from "../components/SWUButton";
 
-// BL-247 S1-07 (R5-2): tapping the title (expanded) or the [HSV] badge
-// (collapsed) opens this chooser -- a small centred card of the
-// transactional family (desktop AuthModal.css .auth-modal-card, phone values
-// rev4 m-rev4-d2.css:137-199), X top-right, two SWUButtons. The Updates
-// button carries the unread pulse while an update is unread.
+// Tapping the title (expanded) or the [HSV] badge (collapsed) opens this
+// chooser -- a small centred card of the transactional family (desktop
+// AuthModal.css .auth-modal-card; phone values in shell.css .m-chooser),
+// X top-right, two SWUButtons. The Updates button carries the unread pulse
+// while an update is unread (App Spec §25.4).
 
 interface Props {
   unread: boolean;

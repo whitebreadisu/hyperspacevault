@@ -12,10 +12,12 @@ export interface IncrementResult {
   playset_complete: boolean;
   blocked: boolean;
   reason: string | null;
-  // BL-35: true when this increment committed past the variant's effective
+  // True when this increment committed past the variant's effective
   // keep-limit (only possible in "soft" cap_mode -- "hard" mode blocks the
-  // increment instead). Informational -- see CardPopup's handleIncrement
-  // (BL-111 F5) for why it isn't stored as state.
+  // increment instead). Informational: the UI derives its over-limit
+  // indicator from the resolved quantity vs. the effective limit on every
+  // render (see CardPopupInventory.tsx's InventoryPlate), so it is not
+  // stored as state.
   over_limit?: boolean;
 }
 
@@ -24,14 +26,15 @@ export interface DecrementResult {
   quantity: number;
 }
 
-/** BL-16: thrown when the backend's inventory-mutation gate (require_verified_
+/** Thrown when the backend's inventory-mutation gate (require_verified_
  * email) rejects a request with 403 {"detail": "email_not_verified"} -- the
  * caller is authenticated but hasn't confirmed their email yet. Callers that
- * mutate inventory (CardPopup, AddCardsModal) catch this
- * specifically to point the user at the site-wide verify-email banner,
- * rather than showing a generic failure message. BL-154: extends the shared
- * ApiError base (api/errors.ts) -- status is always 403 (the only status
- * this error is ever constructed for; see throwIfMutationFailed below). */
+ * mutate inventory (CardPopupInventory.tsx's useInventoryMutation,
+ * AddCardsModal, the phone's useStepper and tool commit) catch this
+ * specifically to show the verify-email message rather than a generic
+ * failure. Extends the shared ApiError base (api/errors.ts) -- status is
+ * always 403 (the only status this error is ever constructed for; see
+ * throwIfMutationFailed below). */
 export class EmailNotVerifiedError extends ApiError {
   constructor() {
     super("Verify your email to manage inventory.", 403);
@@ -54,29 +57,25 @@ async function throwIfMutationFailed(
     }
     if (detail === "email_not_verified") throw new EmailNotVerifiedError();
   }
-  // BL-154: migrated from a bare `throw new Error` -- same message text, now
-  // a typed ApiError carrying res.status for callers that want to branch on it.
   throw new ApiError(`${action} failed for variant ${variantId}: ${res.status}`, res.status);
 }
 
-// BL-102: getInventory() retired with GET /api/inventory (runtime-dead
-// since BL-56; getQuantities below is its designed replacement). The
-// CardWithQty type stays -- Add Cards test fixtures are deliberately typed
+// CardWithQty above has no endpoint of its own (quantities come from
+// getQuantities below); Add Cards test fixtures are deliberately typed
 // against it (utils/addCardsResolver.ts's contract note).
 
-/** One sparse per-tenant inventory row (BL-101) -- the quantity half of the
+/** One sparse per-tenant inventory row -- the quantity half of the
  * catalog/quantity split. Any variant_id absent from the list is quantity 0. */
 export interface VariantQuantity {
   variant_id: number;
   quantity: number;
 }
 
-/** BL-101: the caller's sparse per-variant quantities, merged onto the
- * (publicly cached) catalog list in CardsPage. Auth-required -- only call
+/** The caller's sparse per-variant quantities, merged onto the (publicly
+ * cached) catalog list in vault/useVaultData.ts. Auth-required -- only call
  * when signed in; anonymous users simply have no quantities to fetch. */
 export async function getQuantities(): Promise<VariantQuantity[]> {
   const res = await authedFetch("/api/inventory/quantities");
-  // BL-154: migrated from a bare `throw new Error`.
   if (!res.ok) throw new ApiError(`Failed to fetch quantities: ${res.status}`, res.status);
   return res.json();
 }
@@ -93,10 +92,10 @@ export async function decrementCard(variantId: number): Promise<DecrementResult>
   return res.json();
 }
 
-// BL-219 (issue #127): the stepper's debounced-batch endpoint -- one call
-// per accumulated burst of clicks instead of one increment/decrement round
-// trip per click (see CardPopupInventory.tsx's useInventoryMutation).
-// increment/decrement above are unchanged, untouched contracts.
+// The debounced-batch endpoint -- one call per accumulated burst of
+// stepper clicks instead of one increment/decrement round trip per click
+// (see CardPopupInventory.tsx's useInventoryMutation). incrementCard/
+// decrementCard above are separate single-step endpoints.
 export interface AdjustResult {
   variant_id: number;
   quantity: number;

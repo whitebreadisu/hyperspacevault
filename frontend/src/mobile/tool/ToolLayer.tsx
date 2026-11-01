@@ -16,29 +16,29 @@ import { toolAddCardsAbandoned, toolScreenViewed } from "./toolAnalytics";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import "./tool.css";
 
-// BL-249 S3-01: the tool layer at #/pad (rev4 MTool.jsx). A layer over the
-// current screen, like the card layer: the screen beneath stays mounted
-// (the Vault keeps its state), the bottom bar is covered and inert. Header =
-// title + sub, the mode toggle (only behind MOBILE_CAMERA_ENABLED, plan
-// A8), X top-right. The X closes back to the screen the tool opened over;
-// with a non-empty batch it asks desktop's close guard first (S3-14:
-// Discard & Close empties the batch and closes, Return to Batch keeps
-// both). The entry row's Verify button opens the Verify cards sheet (S3-12). The keypad
-// ignores the Vault's finish scope: nothing here reads it, and Card details
-// opens the S2 card layer on the resolved printing with no scope (S3-06).
+// The tool layer at #/pad (App Spec §25.3). A layer over the current screen,
+// like the card layer: the screen beneath stays mounted (the Vault keeps its
+// state), the bottom bar is covered and inert. Header = title + sub, the mode
+// toggle (only behind MOBILE_CAMERA_ENABLED), X top-right. The X closes back
+// to the screen the tool opened over; with a non-empty batch it asks
+// desktop's close guard first (Discard & Close empties the batch and closes,
+// Return to Batch keeps both). The entry row's Verify button opens the
+// Verify cards sheet. The keypad ignores the Vault's finish scope: nothing
+// here reads it, and Card details opens the card layer on the resolved
+// printing with no scope.
 
-// BL-253 S7-09 / S7-10: the same layer hosts the camera (#/camera, served by
-// the isolated /scan/ document): title "Camera", the header's Fast add
-// toggle (S7-17, remembered in hsv.scan.v1), the mode toggle (keypad side =
-// in place, camera side = cameraHop.openCamera), the same X + close guard;
-// the body is the camera screen the scanner entry registered (cameraSlot) --
-// this file never imports mobile/camera/.
+// The same layer hosts the camera (#/camera, served by the isolated /scan/
+// document; App Spec §25.7): title "Camera", the header's Fast add toggle
+// (remembered in hsv.scan.v1), the mode toggle (keypad side = in place,
+// camera side = cameraHop.openCamera), the same X + close guard; the body is
+// the camera screen the scanner entry registered (cameraHop's
+// renderCameraScreen) -- this file never imports mobile/camera/.
 
 export interface ToolLayerProps {
   params: Record<string, string>;
-  /** BL-253 S7-10: the camera mode (#/camera) rather than the keypad. */
+  /** The camera mode (#/camera) rather than the keypad. */
   camera?: boolean;
-  /** The card layer is over the tool (S3-06): the tool stays mounted, inert. */
+  /** The card layer is over the tool: the tool stays mounted, inert. */
   covered: boolean;
   onRequestSignIn: () => void;
   onClose?: () => void;
@@ -53,18 +53,18 @@ export function ToolLayer({
 }: ToolLayerProps) {
   const scan = useScanSettings();
 
-  // S3-07: screen_viewed {screen: "tool"} once per open. BL-253 S7-18: the
-  // camera mode reports "camera" itself (CameraScreen), so "tool" is sent
-  // when the keypad is what the open shows (and again on a switch back).
+  // screen_viewed {screen: "tool"} once per open. The camera mode reports
+  // "camera" itself (CameraScreen), so "tool" is sent when the keypad is what
+  // the open shows (and again on a switch back).
   useEffect(() => {
     if (!camera) toolScreenViewed();
   }, [camera]);
 
-  // Review deep link (as rev4's #/pad?set=&num=, kept like the Vault's and
-  // the detail's review params): lock a set and type a number.
+  // Review deep link (#/pad?set=&num=, like the Vault's and the detail's
+  // review params): lock a set and type a number.
   const pSet = params.set;
   const pNum = params.num;
-  // Applied once per distinct link: the card layer over the tool (S3-06)
+  // Applied once per distinct link: the card layer over the tool
   // and its return must not re-type a number the user has since changed.
   const applied = useRef<string | null>(null);
   useEffect(() => {
@@ -81,12 +81,12 @@ export function ToolLayer({
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [guard, setGuard] = useState(false);
   const leave = onClose ?? closeTool;
-  // S3-14: the X asks first while copies wait in the batch.
+  // The X asks first while copies wait in the batch.
   const close = () => {
     if (getBatch().length) setGuard(true);
     else leave();
   };
-  // F2: focus the close control on open, return it to the opener on close.
+  // Focus the close control on open, return it to the opener on close.
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -96,7 +96,7 @@ export function ToolLayer({
         opener.focus({ preventScroll: true });
     };
   }, []);
-  // F3: Escape on the keypad layer (no sheet / confirm over it) = the X.
+  // Escape on the keypad layer (no sheet / confirm over it) = the X.
   const closeRef2 = useRef(close);
   const coveredRef = useRef(covered);
   useEffect(() => {
@@ -113,7 +113,7 @@ export function ToolLayer({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const openCard = (card: InventoryCard, variant: InventoryVariant) => {
-    // S3-06: no scope, a one-card list; the batch is untouched.
+    // No scope, a one-card list; the batch is untouched.
     publishNav({ ids: [card.base_card_id], narrowed: false, scope: null });
     go("#/card/" + card.base_card_id + "?v=" + variant.variant_id);
   };
@@ -131,7 +131,7 @@ export function ToolLayer({
           <span className="m-padlayer__sub">Look up or add by number</span>
         </div>
         {camera ? (
-          // S7-17 (rev4 MTool.jsx:25-29): Fast add, remembered in hsv.scan.v1.
+          // Fast add, remembered in hsv.scan.v1.
           <button
             type="button"
             className={"m-check m-tool__fast" + (scan.fastAdd ? " m-check--on" : "")}
@@ -157,7 +157,7 @@ export function ToolLayer({
               aria-pressed={!camera}
               onClick={() => {
                 setToolMode("keypad");
-                // S7-16: leaving with a partial read prefills the keypad.
+                // Leaving with a partial read prefills the keypad.
                 if (camera) go(cameraKeypadRoute(), true);
               }}
               aria-label="Keypad mode"
@@ -170,7 +170,7 @@ export function ToolLayer({
               aria-pressed={camera}
               onClick={() => {
                 if (camera) return;
-                audioUnlock(); // S7-17: the camera-mode tap is the user gesture
+                audioUnlock(); // the camera-mode tap is the user gesture
                 setToolMode("camera");
                 openCamera(true);
               }}
@@ -211,7 +211,7 @@ export function ToolLayer({
         <DiscardConfirm
           onReturn={() => setGuard(false)}
           onDiscard={() => {
-            toolAddCardsAbandoned(pendingEntries(getBatch())); // BL-235 shape, S3-16
+            toolAddCardsAbandoned(pendingEntries(getBatch())); // App Spec §22 shape
             discardBatch();
             setToolState({ lastAdded: null });
             setGuard(false);

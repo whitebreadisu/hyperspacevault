@@ -19,13 +19,12 @@ import {
 } from "../../vault/vaultModel";
 import type { CollectionToggles, VaultFilterState, VaultList } from "../../vault/vaultModel";
 
-// BL-247 S1-22 (+ S1-16 scope, S1-17 sort, S1-18 view): the Vault's view
-// state. Filters, search, scope and sort are plain React state -- never
-// persisted, as desktop (scope is transient by definition; sort is
-// session-only plain state in CardsPage). View + size are remembered for the
-// browser session (sessionStorage; desktop does not persist its view mode, a
-// session is the tiebreaker-compatible default). Market / Low is desktop's
-// persisted price kind (loadPriceKind / savePriceKind).
+// The Vault's view state. Filters, search, scope and sort are plain React
+// state -- never persisted, as desktop (scope is transient by definition;
+// sort is session-only plain state in CardsPage). View + size are remembered
+// for the browser session (sessionStorage; desktop does not persist its view
+// mode at all; App Spec §25.1). Market / Low is desktop's persisted price
+// kind (mobile/priceKind.ts over loadPriceKind / savePriceKind).
 
 export type ViewMode = "rows" | "gallery";
 export type RowSize = "none" | "sm" | "md" | "lg";
@@ -59,7 +58,7 @@ function loadPrefs(): ViewPrefs {
   }
 }
 
-/** S1-27: view_mode_changed.mode for a view + size pair. */
+/** view_mode_changed.mode for a view + size pair (App Spec §22). */
 export function viewModeOf(p: ViewPrefs): ViewModeChangedMode {
   return p.view === "gallery" ? `gallery_${p.gallerySize}` : `rows_${p.rowSize}`;
 }
@@ -78,7 +77,7 @@ export interface VaultView extends VaultList {
   prefs: ViewPrefs;
   priceKind: PriceMode;
   setQuery: (q: string) => void;
-  /** S2's Filters sheet writes facets through this (scope rule applied). */
+  /** The Filters sheet writes facets through this (scope rule applied). */
   setFilters: (next: FilterState) => void;
   setToggles: (next: CollectionToggles) => void;
   setScope: (scope: string | null) => void;
@@ -100,7 +99,7 @@ export function useVaultViewOver(
   const [state, setState] = useState<VaultFilterState>(freshFilterState);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT_STATE);
   const [prefs, setPrefs] = useState<ViewPrefs>(loadPrefs);
-  // S2-02: the shared phone price kind (card detail moves it too).
+  // The shared phone price kind (card detail moves it too).
   const [priceKind, setPriceKindShared] = usePriceKind();
 
   const updatePrefs = useCallback((patch: Partial<ViewPrefs>) => {
@@ -110,7 +109,7 @@ export function useVaultViewOver(
       return next;
     });
   }, []);
-  // S1-27: a user's view / size pick reports the new mode when it changed
+  // A user's view / size pick reports the new mode when it changed
   // (desktop InventorySummary: only a genuine switch is captured).
   const pickPrefs = useCallback(
     (patch: Partial<ViewPrefs>) => {
@@ -121,11 +120,11 @@ export function useVaultViewOver(
     [prefs, updatePrefs]
   );
 
-  // Review / deep-link params (rev4 MVault.jsx:420-447): ?set= writes the Set
+  // Deep-link params: ?set= writes the Set
   // facet, ?finish= scopes (one of the 14 values), ?q= searches, ?view= /
   // ?size= / ?gsize= pick the view. Applied once per distinct param set.
   const applied = useRef<string | null>(null);
-  // F6: a query set by the ?q= param is a deep link, not a search; its
+  // A query set by the ?q= param is a deep link, not a search; its
   // search_performed is skipped until the user types.
   const paramQuery = useRef<string | null>(null);
   const key = JSON.stringify(params);
@@ -165,7 +164,7 @@ export function useVaultViewOver(
     [cards, state, sort, setOrder, priceKind, limits]
   );
 
-  // S1-27: search_performed as desktop CardsPage -- 400 ms after the last
+  // search_performed as desktop CardsPage -- 400 ms after the last
   // keystroke, never for an empty box; length + result count only.
   const resultsRef = useRef(0);
   useEffect(() => {
@@ -208,7 +207,7 @@ export function useVaultViewOver(
     }, []),
     pickSort: useCallback(
       (column: SortColumn) => {
-        // FR5-05: the phone has no Set or Variants sort; the only way in
+        // The phone has no Set or Variants sort; the only way in
         // (pickSort is the one writer of this state -- no URL parameter,
         // nothing persisted) maps either onto "Set | #" ascending. A new
         // column lands on its own first direction (Cards Owned: most owned
@@ -230,7 +229,7 @@ export function useVaultViewOver(
   };
 }
 
-/** The Vault screen's view over the shared data instance (S1-12). */
+/** The Vault screen's view over the shared data instance. */
 export function useVaultView(params: Record<string, string> = {}): VaultView {
   const { cards, setOrder } = useVaultData();
   return useVaultViewOver(cards, setOrder, params);

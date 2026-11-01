@@ -7,17 +7,15 @@ from app.models.base import Base
 
 
 class TenantSettings(Base):
-    """BL-35: one row per tenant for tenant-wide (non-limits) settings --
-    currently just cap_mode, the hard/soft keep-limit enforcement toggle.
-    "hard" (default) blocks an increment at/over a variant's effective
-    keep-limit (app/services/inventory.py's pre-BL-35 behavior, unchanged);
-    "soft" commits the increment and flags the response over_limit=True
-    instead. Rows are created LAZILY -- there is no provisioning step
-    alongside tenant creation; absence of a row means "hard" (see
-    app/services/limits.py's effective_cap_mode / repositories/
-    tenant_settings.py's get_cap_mode). Distinct from tenant_card_limits
-    (BL-24, one row per (tenant, category, bucket) override cell) -- this
-    table is one row per tenant, full stop.
+    """One row per tenant for tenant-wide (non-limits) settings -- just cap_mode, the
+    hard/soft keep-limit enforcement toggle. "hard" (default) blocks an increment
+    at/over a variant's effective keep-limit (app/services/inventory.py); "soft" commits
+    the increment and flags the response over_limit=True instead. Rows are created
+    LAZILY -- there is no provisioning step alongside tenant creation; absence of a row
+    means "hard" (see app/services/limits.py's effective_cap_mode / repositories/
+    tenant_settings.py's get_cap_mode). Distinct from tenant_card_limits (one row per
+    (tenant, category, bucket) override cell) -- this table is one row per tenant, full
+    stop.
     """
 
     __tablename__ = "tenant_settings"

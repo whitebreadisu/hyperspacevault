@@ -1,5 +1,4 @@
-/* BL-247 S1-25: Leave Feedback (rev4 m-rev2.css:113-158 + m-rev3.css:226-235,
- * values verbatim; desktop FeedbackModal.css for the honeypot and the error
+/* Leave Feedback (desktop FeedbackModal.css for the honeypot and the error
  * text). The screen sits above the bottom bar, so only the top takes the
  * safe-area inset. Scoped under .m-app. */
 .m-app .m-fb {
@@ -147,7 +146,7 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
-/* R3-10: Submit takes its own drawn width; Cancel fills the rest, so the
+/* Submit takes its own drawn width; Cancel fills the rest, so the
  * pair always ends at the body's inner edge. */
 .m-app .m-fb__actions {
   display: grid;

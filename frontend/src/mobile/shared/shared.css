@@ -1,10 +1,9 @@
-/* BL-252 S6: the shared vault on the phone.
- * Amber = the narrowed-to-someone-else's state (R5-7; the owner's decided use
- * here): the Filters-on / strip-funnel amber family (vault.css .m-filterbtn--on,
- * header.css .m-vh__narrow): outline rgba(217,154,31,0.6), wash 0.12, text #f2c14e. */
+/* The shared vault on the phone (App Spec §25.6).
+ * Amber = the narrowed-to-someone-else's state: the Filters-on /
+ * strip-funnel amber family (vault.css .m-filterbtn--on, header.css
+ * .m-vh__narrow): outline rgba(217,154,31,0.6), wash 0.12, text #f2c14e. */
 
-/* ── S6-04 the bar while the share is shown: Vault + More, re-centred
- * (rev4 m-rev4-d.css 160-161). */
+/* ── The bar while the share is shown: Vault + More, re-centred. */
 .m-app .m-nav--shared .m-nav__row--shared {
   grid-template-columns: 1fr 1fr;
   padding: 2px 12px 0;
@@ -26,8 +25,8 @@
 .m-app .m-vswitch--open .m-vswitch__face {
   visibility: hidden;
 }
-/* Amber face: the share's name in the icon's place, no VAULT label (R5-7
- * default); a name too wide ends in an ellipsis. */
+/* Amber face: the share's name in the icon's place, no VAULT label; a name
+ * too wide ends in an ellipsis. */
 .m-app .m-vswitch__face--shared {
   padding: 0 4px;
 }
@@ -121,9 +120,9 @@
   text-overflow: ellipsis;
 }
 
-/* ── S6-03 the account slot in a share, anonymous: a Sign in text link where
- * desktop puts its Sign In button (rev4 m-rev4-d.css 163-168; 13 px / 0.04em
- * so the wordmark never truncates -- rev4 R4-8 finding). */
+/* ── The account slot in a share, anonymous: a Sign in text link where
+ * desktop puts its Sign In button (13 px / 0.04em so the wordmark never
+ * truncates). */
 .m-app .m-shared-signin {
   min-height: 44px;
   min-width: 44px;
@@ -146,8 +145,8 @@
   color: #fff;
 }
 
-/* ── S6-02 loading / rate-limited / invalid: one plain sentence in the normal
- * frame (rev4 m-rev4-d.css 177). */
+/* ── Loading / rate-limited / invalid: one plain sentence in the normal
+ * frame. */
 .m-app .m-shared-status__text {
   margin: 0;
   padding: 28px 20px;
@@ -157,7 +156,7 @@
   color: var(--color-text-muted);
 }
 
-/* ── S6-07 the parked vault: the other vault stays mounted (its filters,
+/* ── The parked vault: the other vault stays mounted (its filters,
  * scope and scroll survive), out of sight and out of reach. */
 .m-app .m-app__screen--parked {
   position: absolute;
@@ -166,10 +165,10 @@
   pointer-events: none;
 }
 
-/* CI round 1 (PR #217): with the share's "Sign in" text link beside Feedback the
- * wordmark had ~1 px of headroom at 390 and overflowed on Linux fonts. In the
+/* With the share's "Sign in" text link beside Feedback the wordmark has
+ * about 1 px of headroom at 390 px and overflows with Linux fonts. In the
  * shared header only, the wordmark's tracking eases from 0.1em to 0.06em
- * (R4-8: the wordmark is never truncated). */
+ * (the wordmark is never truncated). */
 .m-app .m-vh__top:has(.m-acct--shared) .m-vh__word {
   letter-spacing: 0.06em;
 }

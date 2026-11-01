@@ -1,15 +1,10 @@
-/* BL-248 stage 2A-1: the card detail screen. Consolidated from rev4
- * m-layout.css:50-59 (header base) + 330-417 (detail), m-rev1.css:252-284
- * (region), m-rev2.css:85-112 (X top-right, collapsed row, pull cue),
- * m-rev3.css:136-225 + 400-410 (R3-6 transform-only region, R3-8 amber
- * "n of m", R3-12 fixed header) and m-rev4.css:54-67 (table plate); the
- * rev-layer cascade collapsed to the final computed rule (plan A5). Desktop
- * rules the screen reuses are copied VERBATIM from CardPopup.css (rail
+/* The card detail screen (App Spec §25.2). Desktop rules the screen reuses
+ * are copied VERBATIM from CardPopup.css (rail
  * group label, rail item, ×N qty, flip, text panel, plate readout colours,
  * over-limit tag, mutation error) so nothing depends on the desktop sheet
  * being loaded. Scoped under .m-app.
  *
- * Motion rule (R3-6): the collapse animates ONLY transform and opacity
+ * Motion rule: the collapse animates ONLY transform and opacity
  * (visibility flips discretely at the end); nothing transitions height,
  * padding, top, left or margin. */
 
@@ -28,7 +23,7 @@
   touch-action: pan-y;
 }
 
-/* ── Header (m-layout.css:50-59 + 331-340; m-rev3.css:405): fixed ──────── */
+/* ── Header: fixed ─────────────────────────────────────────────────────── */
 .m-app .m-hdr {
   position: relative;
   flex: none;
@@ -78,7 +73,7 @@
   color: #d7dee9;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-/* BL-257: a SetLogo box (setLogoArt.ts SET_LOGO_BOX.detail, 92 x 30) in the
+/* A SetLogo box (setLogoArt.ts SET_LOGO_BOX.detail, 92 x 30) in the
  * same corner; the artwork takes the common area and is held to the box's
  * right edge, so every set's mark ends on the header's 16 px margin. */
 .m-app .m-hdr > .m-hdr__setlogo {
@@ -88,7 +83,7 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
 }
 
-/* ── The bar over the header: spacer, prev / n of m / next, X (rev2 D1) ── */
+/* ── The bar over the header: spacer, prev / n of m / next, X ──────────── */
 .m-app .m-detail__bar {
   position: absolute;
   top: 0;
@@ -134,12 +129,12 @@
   color: #cfd6e4;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-/* R3-8: the list is the Vault's narrowed list -> lit amber. */
+/* The list is the Vault's narrowed list -> lit amber. */
 .m-app .m-hdr__pos--narrowed {
   color: #f2c14e;
 }
 
-/* ── Viewport / track / page (m-rev3.css:138-145, 404-410) ─────────────── */
+/* ── Viewport / track / page ───────────────────────────────────────────── */
 .m-app .m-detail--r3 > .m-detail__viewport {
   position: relative;
   flex: 1;
@@ -170,7 +165,7 @@
   overflow-x: hidden;
 }
 
-/* ── The region: a constant 100 px layout box (m-rev3.css:153-215) ─────── */
+/* ── The region: a constant 100 px layout box ──────────────────────────── */
 .m-app .m-dreg.m-dreg3 {
   position: sticky;
   top: 0;
@@ -298,7 +293,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-/* Desktop's two-phase flip (CardPopup.css:454-478): 0.18 s + 0.18 s rotateY. */
+/* Desktop's two-phase flip (CardPopup.css): 0.18 s + 0.18 s rotateY. */
 @keyframes cp-flip-out {
   from {
     transform: rotateY(0deg);
@@ -348,7 +343,7 @@
     transform var(--m-collapse) var(--m-collapse-ease),
     visibility 0s linear var(--m-collapse);
 }
-/* FR1-08: "finish - SET ###" as one left group (it takes the ellipsis when
+/* "finish - SET ###" as one left group (it takes the ellipsis when
  * the line is tight), the selected printing's price at the right (never cut;
  * the rail's price face). */
 .m-app .m-dreg__cap {
@@ -393,7 +388,7 @@
 .m-app .m-dreg__cprice--none {
   color: var(--color-text-muted);
 }
-/* FR1-09 collapsed row, three columns beside the thumbnail: the finish label
+/* Collapsed row, three columns beside the thumbnail: the finish label
  * over the plate (natural width), then Market / Low over the price, right-
  * aligned. Both stacks sit inside the row's 80 px; no set / number here. */
 .m-app .m-dreg3__mini {
@@ -462,9 +457,9 @@
   align-items: flex-end;
 }
 /* The segment is drawn 34 px inside its 44 px targets (5 px clear each side).
- * BL-257 FR5-01 (F-14): the price sits 7 px under the drawn edge (was 2 px,
- * margin-top -3px). The pair is 64 px (44 + 2 + 18) and stays centred in the
- * row's 80 px by the row's align-items, so only the space between them grew. */
+ * The price sits 7 px under the drawn edge (5 px clear + margin-top 2px;
+ * App Spec §25.2). The pair is 64 px (44 + 2 + 18) and stays centred in the
+ * row's 80 px by the row's align-items. */
 .m-app .m-dreg__pval {
   margin-top: 2px;
   font-family: var(--font-mono);
@@ -502,7 +497,7 @@
   transform: translateY(-28px);
   transition-delay: 0s, 0s, 0.15s;
 }
-/* .cp-flip verbatim (CardPopup.css:516-529) + rev4 .m-flipbtn sizing. */
+/* Desktop's .cp-flip (CardPopup.css), with the phone's .m-flipbtn sizing. */
 .m-app .cp-flip {
   display: block;
   background: var(--color-btn-off);
@@ -526,14 +521,14 @@
   font-size: 12px;
 }
 
-/* ── The plate's hit box (the plate itself is the gallery plate, FR1-07) ─ */
+/* ── The plate's hit box (the plate itself is the gallery plate) ───────── */
 .m-app .m-plate-hit {
   display: block;
   width: 100%;
 }
 
 /* ── Body: under the 100 px box; expanded, a transform moves it down to
- * the region's full height. The C1 pull cue adds its shift on top. ─────── */
+ * the region's full height. The pull cue adds its shift on top. ────────── */
 .m-app .m-detail__body {
   padding: 16px 16px calc(36px + var(--sab));
   display: flex;
@@ -552,7 +547,7 @@
   transition: none;
 }
 
-/* ── Sections (m-layout.css:361-367) ───────────────────────────────────── */
+/* ── Sections ──────────────────────────────────────────────────────────── */
 .m-app .m-sec__head {
   display: flex;
   align-items: center;
@@ -582,8 +577,8 @@
   margin-left: auto;
 }
 
-/* ── Printings rail (m-layout.css:368-392 over desktop's rail items) ───── */
-/* CardPopup.css:298-306 verbatim. */
+/* ── Printings rail (over desktop's rail items) ────────────────────────── */
+/* Desktop's .cp-rail__group-label (CardPopup.css). */
 .m-app .cp-rail__group-label {
   font-family: var(--font-ui);
   font-size: 11.5px;
@@ -593,7 +588,7 @@
   color: var(--color-text-muted);
   line-height: 1.2;
 }
-/* CardPopup.css:314-338 verbatim (hover dropped: touch). */
+/* Desktop's .cp-rail__item (CardPopup.css), without hover (touch). */
 .m-app .cp-rail__item {
   display: flex;
   align-items: baseline;
@@ -616,7 +611,7 @@
   border-left-color: var(--color-primary);
   color: #ffffff;
 }
-/* CardPopup.css:359-368 verbatim. */
+/* Desktop's .cp-rail__item-qty (CardPopup.css). */
 .m-app .cp-rail__item-qty {
   font-weight: 700;
   font-size: 11px;
@@ -661,7 +656,7 @@
   text-align: left;
   color: inherit;
 }
-/* FR1-06: the whole row selects. The main button's hit area is stretched over
+/* The whole row selects. The main button's hit area is stretched over
  * the row (price and x N included) without nesting interactive elements; the
  * selected row's stepper sits above it so - / + keep their own action. */
 .m-app .m-print__main::after {
@@ -756,8 +751,8 @@
 .m-app .m-step__qty--on {
   color: #fff;
 }
-/* Desktop's plate readout colours (CardPopup.css:662-669): red only PAST
- * the keep-limit (FR1-05: at the limit is the normal colour), amber past it
+/* Desktop's plate readout colours (CardPopup.css): red only PAST the
+ * keep-limit (at the limit is the normal colour; ADR-0030), amber past it
  * in soft mode (declared later, so it wins over the red class). */
 .m-app .m-step__qty.cp-plate__count--at-limit {
   color: var(--color-danger);
@@ -765,7 +760,7 @@
 .m-app .m-step__qty.cp-plate__count--over-limit {
   color: var(--color-warning);
 }
-/* CardPopup.css:684-695 verbatim. */
+/* Desktop's .cp-plate__over-limit-tag (CardPopup.css). */
 .m-app .cp-plate__over-limit-tag {
   align-self: flex-start;
   font-family: var(--font-ui);
@@ -778,7 +773,7 @@
   border-radius: 3px;
   padding: 1px 5px;
 }
-/* CardPopup.css:71-85 (status error + mutation error), phone padding. */
+/* Desktop's status error + mutation error (CardPopup.css), phone padding. */
 .m-app .cp-status--error {
   color: var(--color-danger);
 }
@@ -790,8 +785,7 @@
   text-align: left;
 }
 
-/* ── Card text + facts (m-layout.css:404-417; .cp-text CardPopup.css:776-829
- * verbatim) ──────────────────────────────────────────────────────────── */
+/* ── Card text + facts (.cp-text is desktop's, CardPopup.css) ──────────── */
 .m-app .m-info__setrow {
   display: flex;
   align-items: center;
@@ -939,8 +933,7 @@
   font-size: 15px;
 }
 
-/* ── S2-08 body-slide swipe (m-rev3.css:139-143 + 420-436, the `body`
- * reading): the neighbour page sits one width aside on the track; the
+/* ── Body-slide swipe: the neighbour page sits one width aside on the track; the
  * header's titles + logo cross-dissolve on commit, opacity only. ───────── */
 .m-app .m-page--next {
   transform: translateX(100%);
@@ -980,7 +973,7 @@
   pointer-events: none;
 }
 
-/* ── S2-10: the plate as a button (m-layout.css:210) ───────────────────── */
+/* ── The plate as a button ─────────────────────────────────────────────── */
 .m-app .m-plate-hit--btn {
   height: 44px;
   padding: 8px 0;
@@ -992,8 +985,8 @@
   height: 44px;
 }
 
-/* ── S2-07 price history (m-layout.css:362-363 + 385-399; desktop
- * PriceHistoryPanel.css status / sparse / empty verbatim) ─────────────── */
+/* ── Price history (status / sparse / empty as desktop
+ * PriceHistoryPanel.css) ───────────────────────────────────────────────── */
 .m-app .m-sec__aside {
   margin-left: auto;
   font-family: var(--font-ui);
@@ -1143,8 +1136,8 @@
   margin-top: 6px;
 }
 
-/* ── S2-07b aspects: the icons are a 44 px button (m-layout.css:408) and
- * the sheet's rows (m-layout.css:289-290, 44 px floor) ────────────────── */
+/* ── Aspects: the icons are a 44 px button, and the sheet's rows (44 px
+ * floor) ──────────────────────────────────────────────────────────────── */
 .m-app button.m-info__aspects {
   min-width: 44px;
   background: none;
@@ -1167,7 +1160,7 @@
   border-top: none;
 }
 
-/* ── S2-10 Owned by finish (m-layout.css:251-259 + the R5-1 rows) ──────── */
+/* ── Owned by finish ───────────────────────────────────────────────────── */
 .m-app .m-dossier__head {
   display: flex;
   justify-content: space-between;
@@ -1237,7 +1230,7 @@
   width: 100%;
 }
 
-/* ── Reduced motion: the region snaps (S2-02). ─────────────────────────── */
+/* ── Reduced motion: the region snaps. ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .m-app .m-dreg3__bg,
   .m-app .m-dreg3__bg::after,

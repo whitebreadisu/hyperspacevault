@@ -33,32 +33,26 @@ import type { FilterState, SelectOption, AspectMatchMode } from "../utils/filter
 import "./FilterPanel.css";
 
 // Panel UI only — filter logic, domain constants, FilterState/DEFAULT_FILTERS,
-// applyFilters, and the BL-70 faceting helpers live in utils/filters.ts (RR-22).
+// applyFilters, and the faceting helpers live in utils/filters.ts.
 //
-// BL-111 F6 (design handoff §6, "collapsible sidebar" -- final,
-// prototypes/cards-screen/FilterPanelRestyled.jsx is the functional drop-in
-// reference): replaces the old top panel with a console-styled sidebar that
-// FLOATS over the table/gallery rather than squeezing its layout width --
-// the outer wrapper is `position:relative; height:0`, so it never occupies
-// flex space in CardsPage regardless of open/collapsed state (confirmed
-// against prototypes/filter-panel/FilterPanelOptions.dc.html Option C, whose
-// table stand-in is explicitly captioned "full width; sidebar floats
-// above"). Collapsing therefore doesn't change CardsTable/GalleryGrid's
-// measured width -- it was always full width -- it just stops visually
-// occluding it. MultiSelect/RangeSlider are reused completely unstyled (the
-// prototype's own comment: "Reuses the original file's MultiSelect +
-// RangeSlider globals") -- only the shell/aspects/search/checkboxes/reset
-// button are restyled here.
+// A collapsible console-styled sidebar (App Spec §5.6, §5.15). Outside the
+// docked state it FLOATS over the table/gallery as an overlay (its content
+// is absolutely positioned, so it takes no layout width and collapsing it
+// does not change CardsTable/GalleryGrid's measured width). In the docked
+// state (fitsDockedViewport) the expanded sidebar sits in-flow beside the
+// content; the docking rules live in FilterPanel.css and cards.css. The
+// sidebar styles the shell, aspects, search and reset button; the
+// MultiSelect/FinishFilter dropdowns share the `ifp-multi*` classes in
+// FilterPanel.css.
 
 // ── AspectPicker ──────────────────────────────────────────────────────────
 //
-// BL-90: aspects default empty (= unfiltered), matching every other facet,
-// so "everything lit up" is driven by `selected.size === 0` rather than
+// Aspects default empty (= unfiltered), matching every other facet, so
+// "everything lit up" is driven by `selected.size === 0` rather than
 // `selected.size === ASPECT_LIST.length`. The universe includes the
-// NO_ASPECT sentinel as an explicit "No Aspect" chit (BL-111 F6: rendered as
-// a circle-slash glyph per the design, was a text pill pre-restyle) and
-// options arrive already faceted (BL-70) via `facetedOptions`, same as every
-// other control.
+// NO_ASPECT sentinel as an explicit "No Aspect" chit (rendered as a
+// circle-slash glyph) and options arrive already faceted via
+// `facetedOptions`, same as every other control.
 
 interface AspectPickerProps {
   options: SelectOption[];
@@ -73,7 +67,7 @@ export function AspectPicker({ options, selected, onToggle }: AspectPickerProps)
       {options.map((opt) => {
         const isChecked = selected.has(opt.value);
         const isActive = noFilter || isChecked;
-        // BL-70 parity with MultiSelect: an inert (0-facet) option can't be
+        // Same rule as MultiSelect: an inert (0-facet) option can't be
         // newly added, but if it's already selected (a stale value) it
         // stays clickable so it can still be removed.
         const disabled = opt.inert && !isChecked;
@@ -109,7 +103,7 @@ export function AspectPicker({ options, selected, onToggle }: AspectPickerProps)
   );
 }
 
-// ── AspectModeControl (BL-130, issue #306) ─────────────────────────────────
+// ── AspectModeControl ──────────────────────────────────────────────────────
 //
 // Three-way segmented control -- [ Any | Within | Exact ] -- governing how
 // the aspect selection above is matched (see AspectMatchMode in
@@ -168,15 +162,10 @@ export function AspectModeControl({ mode, onChange }: AspectModeControlProps) {
 
 // ── FilterPanel ───────────────────────────────────────────────────────────
 
-/** BL-73 Stage 1: Table ↔ Gallery view toggle. Kept here (rather than moved)
- * purely because it's the type's original home -- InventorySummary and
- * CardsPage both import `ViewMode` from this module. The toggle CONTROL
- * itself no longer renders inside FilterPanel: BL-111 F6's sidebar
- * (FilterPanelRestyled.jsx) explicitly drops it ("view toggle NOT rendered
- * here -- it moves to InventorySummaryRestyled"), and InventorySummary
- * already grew its own copy in F3 (design handoff §3) wired to the same
- * CardsPage-owned viewMode/onViewModeChange -- so removing FilterPanel's
- * copy here doesn't lose the control, just the duplicate. */
+/** Table ↔ Gallery view mode. The type lives in this module because other
+ * modules import `ViewMode` from here; the toggle CONTROL itself is not in
+ * FilterPanel -- it renders in InventorySummary's actions slot (App Spec
+ * §5.6), wired to the CardsPage-owned viewMode/onViewModeChange. */
 export type ViewMode = "table" | "gallery";
 
 interface FilterPanelProps {
@@ -184,24 +173,21 @@ interface FilterPanelProps {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   cards: BaseCard[];
   children?: React.ReactNode;
-  /** BL-179 round 9 (owner): "Reset All Filters" clears EVERYTHING --
-   * FilterState plus any state living outside it (the completion popovers'
-   * base-set selections; round 11: the Collection checkboxes too). Called
-   * alongside the DEFAULT_FILTERS reset. */
+  /** "Reset All Filters" clears EVERYTHING -- FilterState plus any filter
+   * state living outside it (the CardsPage-owned Collection checkboxes).
+   * Called alongside the DEFAULT_FILTERS reset. */
   onResetAll?: () => void;
-  /** BL-179 round 11 (owner): how many out-of-FilterState filters are
-   * active -- the CardsPage-owned Collection checkboxes (one each) and the
-   * popover base-set selection (one when any). Feeds the collapsed rail's
-   * badge (they ARE applied filters) and keeps Reset active whenever > 0 so
-   * it can clear them. Supersedes round 9's boolean `resetAlsoClears`. */
+  /** How many out-of-FilterState filters are active -- the CardsPage-owned
+   * Collection checkboxes (one each). Feeds the rail and head badges (they
+   * ARE applied filters) and keeps Reset active whenever > 0 so it can
+   * clear them. */
   externalActiveCount?: number;
-  /** BL-235: fired synchronously, once per individual field a control here
+  /** Fired synchronously, once per individual field a control here
    * actually changes (search excluded -- CardsPage instruments that
    * separately as search_performed) -- CardsPage stashes the field name in a
    * ref and reads the post-change results_count/active_filter_count off its
    * own next render, since this component has no visibility into the
-   * filtered row count. Optional so every pre-existing call site/test
-   * renders unaffected. */
+   * filtered row count (event fields: App Spec §22). Optional. */
   onFieldChanged?: (field: string) => void;
 }
 
@@ -214,20 +200,17 @@ export function FilterPanel({
   externalActiveCount = 0,
   onFieldChanged,
 }: FilterPanelProps) {
-  // BL-111 F6 (superseded by BL-144, then BL-179 round 7): used to start
-  // OPEN unconditionally, then BL-144 keyed the initial state to the docked
-  // width breakpoint, read once at mount with deliberately no resize
-  // listener. BL-179 round 7 (owner) supersedes that state model: the
-  // docked state (fitsDockedViewport -- one-column tier fits AND both
-  // columns fit side by side) now asserts itself LIVE. Entering it
+  // Starts open exactly when the viewport is in the docked state
+  // (fitsDockedViewport -- one-column tier fits AND both columns fit side
+  // by side). The docked state asserts itself LIVE: entering it
   // auto-expands the panel; leaving it collapses back to the overlay rail;
   // within it, only the explicit « button collapses (no hover-collapse,
   // and a « collapse is respected until the state is left and re-entered).
   // See the docked-transition effect below.
   const [open, setOpen] = useState(() => fitsDockedViewport(window.innerWidth, window.innerHeight));
   const [sets, setSets] = useState<CardSet[]>([]);
-  // Base/long-tail set toggle (§5.1): defaults to base sets only; the
-  // header button inside the Set dropdown expands to all sets.
+  // Base/long-tail set toggle (App Spec §5.1): defaults to base sets only;
+  // the header button inside the Set dropdown expands to all sets.
   const [showAllSets, setShowAllSets] = useState(false);
   useEffect(() => {
     getSets()
@@ -237,35 +220,31 @@ export function FilterPanel({
 
   const update = (patch: Partial<FilterState>) => setFilters((prev) => ({ ...prev, ...patch }));
 
-  // BL-91: single-action reset back to DEFAULT_FILTERS -- search, every
-  // facet Set, and the cost/power/HP ranges, in one click. Deliberately does
-  // NOT touch ownedOnly/incompleteOnly (CardsPage-owned view-mode toggles,
-  // not part of FilterState) or any other view state (sort, etc.) -- those
-  // are out of scope per BL-91's resolved decision. `isDefaultFilterState`
-  // (utils/filters.ts) drives the disabled state below so the control
-  // doubles as a "filters are active" indicator.
+  // Single-action reset back to DEFAULT_FILTERS -- search, every facet
+  // Set, and the cost/power/HP ranges, in one click -- plus whatever
+  // onResetAll clears (the Collection checkboxes). It does NOT touch other
+  // view state (sort, view mode, etc.). `isDefaultFilterState`
+  // (utils/filters.ts) plus externalActiveCount drive the inert state below,
+  // so the control doubles as a "filters are active" indicator: it stays
+  // active when only the external filters are on.
   const isDefault = isDefaultFilterState(filters);
-  // BL-179 rounds 9/11 (owner): Reset clears FilterState AND everything
-  // wired through onResetAll (base-set selections, Collection checkboxes)
-  // -- and stays active when only those exist.
   const resetInert = isDefault && externalActiveCount === 0;
   const resetFilters = () => {
-    capture("filters_cleared", {}); // BL-235
+    capture("filters_cleared", {});
     setFilters(DEFAULT_FILTERS);
     onResetAll?.();
   };
 
   const toggleAspect = (value: string) => {
-    onFieldChanged?.("aspect"); // BL-235
+    onFieldChanged?.("aspect");
     setFilters((prev) => {
-      // BL-90: no snap-back -- deselecting the last active value is now a
-      // stable "unfiltered" state (size 0), not forced back to all-selected.
+      // No snap-back -- deselecting the last active value is a stable
+      // "unfiltered" state (size 0), not forced back to all-selected.
       const noFilter = prev.aspects.size === 0;
       let next: Set<string>;
       if (noFilter) {
         // Everything reads as implicitly active when unfiltered; clicking
-        // one narrows straight to just that value (same ergonomics as the
-        // old all-selected default, just anchored on empty instead of full).
+        // one narrows straight to just that value.
         next = new Set([value]);
       } else if (prev.aspects.has(value)) {
         next = new Set(prev.aspects);
@@ -278,14 +257,13 @@ export function FilterPanel({
     });
   };
 
-  // BL-173 review round 4 (owner, 2026-07-27), superseding the BL-164 rider:
-  // the Set dropdown now orders its values with the SAME logic as the Add
-  // Cards set picker (utils/setGrouping.ts's allSetsGroups /
-  // Set_Grouping_Context_2026-07-26.md): base sets in canonical-then-
-  // secondary display order (newest main set first, BL-258) with each set's
-  // Weekly Play container IMMEDIATELY after it (HMW, HMWP, ASH, ...), then
-  // the Exclusives in their subgroup order (Convention → Judge → Promos → Other promos).
-  // The whole base+WP block is `pinned`, so MultiSelect's existing divider
+  // The Set dropdown orders its values with the SAME logic as the Add
+  // Cards set picker (utils/setGrouping.ts's allSetsGroups): base sets in
+  // canonical-then-secondary display order (newest main set first, App Spec
+  // §5.1, ADR-0031) with each set's Weekly Play container IMMEDIATELY after
+  // it (HMW, HMWP, ASH, ...), then the Exclusives in their subgroup order
+  // (Convention → Judge → Promos → Other promos).
+  // The whole base+WP block is `pinned`, so MultiSelect's divider
   // primitive draws the one boundary before the Exclusives. Base view
   // (show-all off) stays the base sets only. Any future set code the
   // curated grouping doesn't know yet falls in at the end alphabetically
@@ -310,10 +288,9 @@ export function FilterPanel({
       pinned: baseBlockCodes.includes(code),
     };
   });
-  // BL-133 (issue #318): the Finish field's universe is shaped into a
-  // two-tier tree (pair rows/expandable groups/plain rows) instead of
-  // distinctFinishes' flat pinned list -- see buildFinishTree/
-  // shapeFinishTree in utils/filters.ts. FinishFilter.tsx does its own
+  // The Finish field's universe is shaped into a two-tier tree (pair
+  // rows/groups/plain rows) -- see buildFinishTree/shapeFinishTree in
+  // utils/filters.ts. FinishFilter.tsx does its own
   // faceted shaping internally (shapeFinishTree), so only the raw tree +
   // the facet-valid set are computed here, mirroring every other field's
   // `distinctX(cards)` + `facetValidValues(...)` pair below.
@@ -322,14 +299,15 @@ export function FilterPanel({
   const keywordOptions = distinctMulti(cards, "keywords");
   const traitOptions = distinctMulti(cards, "traits");
 
-  // BL-70: facet each dropdown against "every other active filter" (the
-  // dead-end-prevention rule -- own selection ignored), then fold the
-  // result + the current selection into what each MultiSelect actually
-  // renders. Every universe value is listed: one with no matches is greyed
-  // with "(0)" and cannot be added (a selected one stays removable). `cards` here is already toggle-narrowed
-  // by the caller (CardsPage folds ownedOnly/incompleteOnly in before
-  // passing it down), so facets automatically respect those toggles too.
-  // BL-90: aspects universe is the 6 real aspects plus the explicit
+  // Facet each dropdown against "every other active filter" (the
+  // dead-end-prevention rule -- own selection ignored; App Spec §5.6), then
+  // fold the result + the current selection into what each MultiSelect
+  // actually renders. Every universe value is listed: one with no matches
+  // is greyed with "(0)" and cannot be added (a selected one stays
+  // removable). `cards` here is already toggle-narrowed by the caller
+  // (CardsPage folds the Collection toggles in before passing it down), so
+  // facets automatically respect those toggles too.
+  // The aspects universe is the 6 real aspects plus the explicit
   // "No Aspect" pseudo-option; faceted identically to every other field --
   // its count is the aspectless cards in the current (other-filters-
   // applied) result set, same mechanism as any other value going inert.
@@ -380,22 +358,20 @@ export function FilterPanel({
     true
   );
 
-  // BL-179 round 11 (owner): the rail badge counts the external filters
-  // too -- the Collection checkboxes and base-set selection narrow the list
-  // exactly like any facet, so a collapsed rail must not read "0 filters"
-  // while they're active.
+  // The badges count the external filters too -- the Collection checkboxes
+  // narrow the list exactly like any facet, so a collapsed rail must not
+  // read "0 filters" while they're active.
   const activeCount = countActiveFilters(filters) + externalActiveCount;
 
-  // ── BL-121: vertical-tier model (design_handoff_filter_vertical/README.md
-  // §2) -- one resize listener drives a `data-vtier` attribute that
+  // ── Vertical-tier model (App Spec §5.6) -- one resize listener drives a
+  // `data-vtier` attribute that
   // FilterPanel.css reads to swap density (COMPACT) and, past that, a
   // designed two-column layout (TWO-COL) with a pinned-header internal-
   // scroll fallback for very short windows. tierForViewportHeight is the
   // pure avail -> tier decision (utils/filterPanelTiers.ts), unit-tested
   // independently of this component. No CSS media queries -- this is the
   // one source of truth for the thresholds.
-  // BL-226 round 3 (owner: right-aligned controls "shake" during resize):
-  // state holds the RESOLVED tier, not raw window.innerHeight -- the raw
+  // State holds the RESOLVED tier, not raw window.innerHeight -- the raw
   // value changes every frame of a drag, re-rendering this (heavy) panel
   // per-pixel and starving the frame budget; resolving inside the listener
   // means setState almost always receives the same value (React bails out),
@@ -409,20 +385,18 @@ export function FilterPanel({
   }, []);
   const twoCol = tier === "two-col" || tier === "fallback";
 
-  // ── BL-147 fix 5 (dev-review, BL-144-family finding): click-outside
-  // collapses the expanded panel, but ONLY in the below-breakpoint
-  // (non-docked/floating-overlay) presentation -- docked side-by-side mode
-  // is unaffected, matching the owner's brief. `docked` is a LIVE tracked
-  // width (unlike `open`'s own lazy-initializer-only read above), because
-  // this effect needs to know the CURRENT presentation, not just the one at
-  // mount, to attach/detach correctly as the window resizes across the
-  // breakpoint.
-  // BL-179 round 7 (owner): docked = the ONE-COLUMN sidebar and the
-  // full-width table genuinely coexist -- width (the docking pair arithmetic)
-  // AND height (tier still full/compact; a two-col/fallback tier's 452px
-  // sidebar never docks). Mirrors the CSS docking media query exactly.
-  // BL-226 round 3: same resolved-not-raw pattern as `tier` above -- the
-  // boolean flips only at the breakpoint, so per-pixel resize events bail.
+  // ── Click-outside collapses the expanded panel, but ONLY in the
+  // non-docked (floating-overlay) presentation -- docked side-by-side mode
+  // is unaffected. `docked` is LIVE tracked state (unlike `open`'s own
+  // lazy-initializer read above), because the effects below need the
+  // CURRENT presentation, not just the one at mount, to attach/detach
+  // correctly as the window resizes across the breakpoint.
+  // Docked = the ONE-COLUMN sidebar and the full-width table genuinely
+  // coexist -- width (the docking pair arithmetic) AND height (tier still
+  // full/compact; a two-col/fallback tier's 452px sidebar never docks).
+  // Mirrors the CSS docking media query exactly. Same resolved-not-raw
+  // pattern as `tier` above -- the boolean flips only at the breakpoint, so
+  // per-pixel resize events bail.
   const [docked, setDocked] = useState(() =>
     fitsDockedViewport(window.innerWidth, window.innerHeight)
   );
@@ -433,11 +407,11 @@ export function FilterPanel({
   }, []);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // BL-179 round 7 (owner): the docked state asserts itself on transitions.
-  // Entering it -- page load handled by `open`'s initializer above, resize/
-  // zoom here -- auto-expands the panel (the owner's "only case in which
-  // the filter is auto-expanded"); leaving it collapses to the overlay
-  // rail. Between transitions nothing competes with the user's own clicks:
+  // The docked state asserts itself on transitions. Entering it -- page
+  // load handled by `open`'s initializer above, resize/zoom here --
+  // auto-expands the panel (the only case in which the filter
+  // auto-expands); leaving it collapses to the overlay rail. Between
+  // transitions nothing competes with the user's own clicks:
   // a « collapse while docked sticks until the state is left and
   // re-entered.
   const prevDockedRef = useRef(docked);
@@ -455,8 +429,8 @@ export function FilterPanel({
       // click on it is "inside" here -- its own onClick handles closing,
       // this listener staying silent for that click is what keeps the
       // toggle a single state change instead of close-then-reopen flicker.
-      // Clicks inside a portaled filter dropdown (fix 6's
-      // FilterMenuPortal, e.g. MultiSelect/FinishFilter's menu, which
+      // Clicks inside a portaled filter dropdown (FilterMenuPortal,
+      // e.g. MultiSelect/FinishFilter's menu, which
       // renders under document.body, escaping this DOM subtree) also count
       // as "inside" -- interacting with a filter's own dropdown must not
       // collapse the panel out from under it.
@@ -472,25 +446,24 @@ export function FilterPanel({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [open, docked]);
 
-  // BL-179 round 5/6 (owner): overlay-mode hover-collapse -- the floating
-  // panel closes when the pointer settles on anything outside it; docked
-  // mode (both columns genuinely fit side by side -- the owner's stated
-  // exception) never auto-collapses. Deliberately a document-level
-  // `mouseover` (fires on whatever element the pointer ENTERS) rather than
-  // the sidebar's own mouseleave: leave-based dismissal misses the exit
-  // path through a portaled facet menu (DOM-outside the sidebar, so the
-  // sidebar's leave fires -- guarded -- when the pointer enters the menu,
-  // and never again when it exits the menu outward; round 5 shipped that
-  // hole). Guards: a held button (slider drag straying past the edge) is
-  // not a leave, and the portaled menus themselves count as inside.
+  // Overlay-mode hover-collapse -- the floating panel closes when the
+  // pointer settles on anything outside it; docked mode (both columns
+  // genuinely fit side by side) never auto-collapses. Deliberately a
+  // document-level `mouseover` (fires on whatever element the pointer
+  // ENTERS) rather than the sidebar's own mouseleave: leave-based dismissal
+  // misses the exit path through a portaled facet menu (DOM-outside the
+  // sidebar, so the sidebar's leave fires -- guarded -- when the pointer
+  // enters the menu, and never again when it exits the menu outward).
+  // Guards: a held button (slider drag straying past the edge) is not a
+  // leave, and the portaled menus themselves count as inside.
   //
-  // Round 8 (owner bug report): ARMED like the completion popovers -- the
-  // collapse fires only after the pointer has actually been inside the
-  // panel once per open. The rail and the expanded panel occupy different
-  // spots, so the expand click leaves the pointer "outside" the new panel
-  // and the very next mouseover collapsed it on the spot (open-flash-
-  // collapse). Click-away (the mousedown effect above) still covers a
-  // never-hovered panel.
+  // ARMED like the completion popovers -- the collapse fires only after the
+  // pointer has actually been inside the panel once per open. The rail and
+  // the expanded panel occupy different spots, so the expand click leaves
+  // the pointer "outside" the new panel and an unarmed listener would
+  // collapse it on the very next mouseover (open-flash-collapse).
+  // Click-away (the mousedown effect above) still covers a never-hovered
+  // panel.
   const hoverArmedRef = useRef(false);
   useEffect(() => {
     hoverArmedRef.current = false;
@@ -546,27 +519,26 @@ export function FilterPanel({
     />
   );
 
-  // BL-130: the three-way matching-mode control lives beside the aspect
-  // chits in every tier -- the single-column layout puts it in the
-  // "Aspects" group's own header row; the two-col layout's top span drops
-  // that label (§4/BL-121) but still needs the control, so it renders
-  // directly beside the chits there instead.
+  // The three-way matching-mode control lives beside the aspect chits in
+  // every tier -- the single-column layout puts it in the "Aspects" group's
+  // own header row; the two-col layout's top span drops that label but
+  // still needs the control, so it renders directly beside the chits there
+  // instead.
   const aspectModeEl = (
     <AspectModeControl
       mode={filters.aspectMode}
       onChange={(aspectMode) => {
-        onFieldChanged?.("aspect_mode"); // BL-235
+        onFieldChanged?.("aspect_mode");
         update({ aspectMode });
       }}
     />
   );
 
-  // BL-121 §1: regrouped per the vertical-tiers handoff -- Card = Set/
-  // Rarity/Finish, Gameplay = the four multi-selects (Type/Arenas/Keywords/
-  // Traits) then the three range sliders (Cost/Power/HP), Collection = the
-  // host checkboxes only. Field order within each group is settled by the
-  // handoff -- do not reorder. Applies at every tier (content change, not
-  // layout).
+  // Groups: Card = Set/Rarity/Finish, Gameplay = the four multi-selects
+  // (Type/Arenas/Keywords/Traits) then the three range sliders
+  // (Cost/Power/HP), Collection = the host checkboxes only. Field order
+  // within each group is a fixed design decision -- do not reorder. Applies
+  // at every tier (content, not layout).
   const cardGroup = (
     <div className="ifp-sidebar__group">
       <span className="ifp-sidebar__group-label">Card</span>
@@ -574,15 +546,14 @@ export function FilterPanel({
         label="Set"
         values={filters.set}
         onChange={(v) => {
-          onFieldChanged?.("set"); // BL-235
+          onFieldChanged?.("set");
           update({ set: v });
         }}
         options={facetedSetOptions}
         placeholder="All sets"
         showAllButton={false}
-        // BL-173 round 5 (owner): menu opens wide enough that no set label
-        // wraps -- same treatment the Finish menu got; control width
-        // unchanged.
+        // Menu opens wide enough that no set label wraps -- same treatment
+        // as the Finish menu; control width unchanged.
         menuMinWidth={320}
         menubarExtra={
           <button
@@ -601,7 +572,7 @@ export function FilterPanel({
         label="Rarity"
         values={filters.rarity}
         onChange={(v) => {
-          onFieldChanged?.("rarity"); // BL-235
+          onFieldChanged?.("rarity");
           update({ rarity: v });
         }}
         options={facetedRarityOptions}
@@ -611,7 +582,7 @@ export function FilterPanel({
         label="Finish"
         values={filters.finish}
         onChange={(v) => {
-          onFieldChanged?.("finish"); // BL-235
+          onFieldChanged?.("finish");
           update({ finish: v });
         }}
         tree={finishTree}
@@ -629,7 +600,7 @@ export function FilterPanel({
         label="Type"
         values={filters.type}
         onChange={(v) => {
-          onFieldChanged?.("type"); // BL-235
+          onFieldChanged?.("type");
           update({ type: v });
         }}
         options={facetedTypeOptions}
@@ -639,7 +610,7 @@ export function FilterPanel({
         label="Arenas"
         values={filters.arena}
         onChange={(v) => {
-          onFieldChanged?.("arena"); // BL-235
+          onFieldChanged?.("arena");
           update({ arena: v });
         }}
         options={facetedArenaOptions}
@@ -649,7 +620,7 @@ export function FilterPanel({
         label="Keywords"
         values={filters.keyword}
         onChange={(v) => {
-          onFieldChanged?.("keyword"); // BL-235
+          onFieldChanged?.("keyword");
           update({ keyword: v });
         }}
         options={facetedKeywordOptions}
@@ -660,7 +631,7 @@ export function FilterPanel({
         label="Traits"
         values={filters.trait}
         onChange={(v) => {
-          onFieldChanged?.("trait"); // BL-235
+          onFieldChanged?.("trait");
           update({ trait: v });
         }}
         options={facetedTraitOptions}
@@ -672,7 +643,7 @@ export function FilterPanel({
         max={COST_MAX}
         value={filters.costRange}
         onChange={(v) => {
-          onFieldChanged?.("cost"); // BL-235
+          onFieldChanged?.("cost");
           update({ costRange: v });
         }}
       />
@@ -681,7 +652,7 @@ export function FilterPanel({
         max={POWER_MAX}
         value={filters.powerRange}
         onChange={(v) => {
-          onFieldChanged?.("power"); // BL-235
+          onFieldChanged?.("power");
           update({ powerRange: v });
         }}
       />
@@ -690,7 +661,7 @@ export function FilterPanel({
         max={HP_MAX}
         value={filters.hpRange}
         onChange={(v) => {
-          onFieldChanged?.("hp"); // BL-235
+          onFieldChanged?.("hp");
           update({ hpRange: v });
         }}
       />
@@ -700,11 +671,9 @@ export function FilterPanel({
   const collectionGroup = (
     <div className="ifp-sidebar__group">
       <span className="ifp-sidebar__group-label">Collection</span>
-      {/* BL-115: "Only cards with no inventory" (ownedOnly's inverse) lives
-          in `children` alongside incompleteOnly/ownedOnly -- CardsPage-owned
-          state, same pl-toggle markup and requestSignIn routing. BL-121 §1:
-          Finish moved out of this group into Card -- Collection is the
-          three host-owned checkboxes only now. */}
+      {/* The Collection checkboxes arrive as `children` -- CardsPage-owned
+          state and pl-toggle markup. This group holds only those host-owned
+          checkboxes. */}
       {children}
     </div>
   );
@@ -723,15 +692,15 @@ export function FilterPanel({
   );
 
   // ── Arrangement per tier ──────────────────────────────────────────────
-  // Single-column (FULL/COMPACT): search, Aspects group (label + BL-130
-  // mode control sharing a header row, chits below), Card, Gameplay,
-  // Collection, Reset (under a divider) -- density-varied by CSS custom properties keyed off
-  // data-vtier (§3). Two-column (TWO-COL/fallback, §4): a top span (search +
-  // aspect chits + BL-130 mode control, no "Aspects" label), a 2-col grid
-  // (left: Card + Collection, right: Gameplay), and a footer row
-  // (Reset right, divider above the row) --
-  // the fallback tier additionally wraps the grid+footer in an internal
-  // scroll region while the head and top span stay pinned (§5).
+  // Single-column (FULL/COMPACT): search, Aspects group (label + mode
+  // control sharing a header row, chits below), Card, Gameplay, Collection,
+  // Reset (under a divider) -- density-varied by CSS custom properties
+  // keyed off data-vtier. Two-column (TWO-COL/fallback): a top span
+  // (search + aspect chits + mode control, no "Aspects" label), a 2-col
+  // grid (left: Card + Collection, right: Gameplay), and a footer row
+  // (Reset right, divider above the row) -- the fallback tier additionally
+  // wraps the grid+footer in an internal scroll region while the head and
+  // top span stay pinned.
   let body: React.ReactNode;
   if (!twoCol) {
     body = (
@@ -809,9 +778,8 @@ export function FilterPanel({
           <div className="ifp-sidebar__ring">
             <div className="ifp-sidebar__panel">
               <div className="ifp-sidebar__head">
-                {/* Owner round 4 (2026-08-16): the amber count badge joins
-                    the expanded head, right of the title -- same signal as
-                    the collapsed rail's badge. */}
+                {/* The amber count badge sits in the expanded head, right of
+                    the title -- same signal as the collapsed rail's badge. */}
                 <span className="ifp-sidebar__title-wrap">
                   <span className="ifp-sidebar__title">Filters</span>
                   {activeCount > 0 && <span className="ifp-sidebar__badge">{activeCount}</span>}

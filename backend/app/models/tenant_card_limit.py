@@ -15,7 +15,7 @@ from app.models.base import Base
 
 
 class TenantCardLimit(Base):
-    """BL-24: a tenant's OVERRIDE of the code-default per-variant keep-limit
+    """A tenant's OVERRIDE of the code-default per-variant keep-limit
     for one (type_category, limit_bucket) cell.
 
     type_category is "singleton" (Leader/Base) or "standard" (everything

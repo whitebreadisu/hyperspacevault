@@ -6,7 +6,7 @@ import type {
   ViewModeChangedMode,
 } from "../analytics/analytics";
 
-// BL-244 / BL-247 S1-27: the phone's analytics calls. Same events and
+// The phone's analytics calls (event registry: App Spec §22). Same events and
 // property shapes as the desktop call sites (App.tsx screen_viewed,
 // CardsPage sort_changed / finish_scope_changed / search_performed,
 // FilterPanel filters_cleared, FeedbackModal feedback_submitted,

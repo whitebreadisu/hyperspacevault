@@ -4,7 +4,7 @@ import type { ScopeChip as ScopeChipValue, ScopeMenuRow } from "../../utils/vari
 import { MIcon } from "../icons";
 import { Sheet, useSheetClose } from "../Sheet";
 
-// BL-247 S1-16: the finish scope (rev4 MScope.jsx; desktop
+// The finish scope (App Spec §25.1 Finish scope; desktop
 // VariantScopeControls + utils/variantScope.ts). The status-row chip reads
 // "All finishes" unscoped and, scoped, the amber pips glyph + desktop's short
 // name ("HS Foil"). It opens the scope menu as a sheet: "All finishes" (inert
@@ -12,7 +12,8 @@ import { Sheet, useSheetClose } from "../Sheet";
 // "Show all finishes…" for SCOPE_EXPANDED_ROWS. A pick closes the menu
 // (desktop). The scope itself writes the Finish facet (vaultModel.withScope).
 // Showcase (last pinned row) and the four extra finishes are one-value rows
-// drawn with one chip (BL-259): the menu is single-select and has no
+// drawn with one chip (ADR-0030; App Spec §25.1): the menu is
+// single-select and has no
 // check-box row.
 
 export const UNSCOPED_LABEL = "All finishes";

@@ -7,15 +7,15 @@ import { CardRow } from "./CardRow";
 import { GalleryCell } from "./GalleryCell";
 import type { GallerySize, RowSize, ViewMode } from "./useVaultView";
 
-// BL-247 S1-19 / S1-20 / S1-21: the Vault list -- virtualised rows (one
-// estimate per tier, measured after mount, as CardsTable.tsx:370-380) or
-// virtualised gallery lines of 1 / 2 / 3 cells; an empty list is one plain
-// sentence (desktop's, CardsTable.tsx:390 / GalleryGrid.tsx:402).
+// The Vault list -- virtualised rows (one estimate per tier, measured after
+// mount, as CardsTable.tsx does) or virtualised gallery lines of 1 / 2 / 3
+// cells; an empty list is one plain sentence (desktop's, as CardsTable.tsx
+// and GalleryGrid.tsx print it).
 
 /** Rendered ranges snap to blocks of BLOCK items (plus overscan), so a short
- * scroll -- the header's 28 px collapse trigger, the R3-13 cut changing the
- * scroll box -- re-renders the same rows and costs no layout (the S1-06
- * probe bound of <= 4 layouts per collapse / expand holds). */
+ * scroll -- the header's 28 px collapse trigger, the box cut changing the
+ * scroll box -- re-renders the same rows and costs no layout (a collapse /
+ * expand stays within the layout probe's bound of <= 4 layouts). */
 const BLOCK = 12;
 function blockRange(r: Range): number[] {
   if (r.count === 0) return [];

@@ -4,13 +4,14 @@ import type { ReleaseNoteSection, ReleaseNotesEntry } from "../../content/releas
 import { HEADER_STARFIELD_CODES } from "../../utils/headerStarfield";
 import "./NewArrivalsPage.css";
 
-/** BL-184: the "New Arrivals" release-notes surface -- App.tsx mounts this as
- * a peer pane alongside Cards/Deck Check/Settings (same always-mounted,
- * display-toggled shell pattern; see App.tsx's own doc comment). Unlike
+/** The release-notes surface (App Spec §20) -- App.tsx mounts this as
+ * a peer pane alongside Cards/Deck Check (always mounted and
+ * display-toggled, like them; see App.tsx's own doc comment). Unlike
  * those panes, App itself owns NOTHING about unread state here -- the seen-
  * marking (utils/releaseNotesSeen.ts's saveLastSeenKey) happens the instant
- * the view is OPENED (App's onOpenNotes handler, fired from either the
- * Header nav tab or the footer version label), not on this component's own
+ * the view is OPENED (App's openNotes handler, fired from either the
+ * Header's "[HSV] Updates" nav tab or its version label), not on this
+ * component's own
  * mount effect, so the cue clears in lockstep with the click rather than a
  * render tick later.
  *
@@ -18,7 +19,8 @@ import "./NewArrivalsPage.css";
  * inventing a fourth: AboutModal.css's clipped-corner "steel ring" shell
  * (`.about-shell`/`.about-modal` double clip-path) for the outer frame,
  * its circuit-tile `.about-body` backdrop for the content well, and
- * SectionSeparator's circuit-line seam between entries. Entry anchors use
+ * SectionSeparator's circuit-line seam between each release header and its
+ * content. Entry anchors use
  * the entry's own stable `key` (releaseNotesSeen.ts's identity) as the DOM
  * id, so the quicklink rail's targets and the unread-tracking identity never
  * drift apart. */
@@ -91,7 +93,7 @@ function NoteSection({ section }: { section: ReleaseNoteSection }) {
   );
 }
 
-/** Owner review round 1 (2026-08-02): each RELEASE header wears one of the
+/** Each RELEASE header wears one of the
  * shipped header starfields, assigned in canonical set order from the OLDEST
  * release up -- 1.0 = SOR, 1.1 = SHD, 1.2 = TWI, ... -- rotating back to SOR
  * once the pool (utils/headerStarfield.ts, canonical order already) is
@@ -129,9 +131,8 @@ function NoteEntry({ entry, starfieldCode }: { entry: ReleaseNotesEntry; starfie
         <span className="na-entry__date">{formatDisplayDate(entry.date)}</span>
       </header>
 
-      {/* Owner review round 1: the same circuit-line seam the app uses
-          between sections separates each version header from its content
-          (the between-entries seam below stays too). */}
+      {/* The same circuit-line seam the app uses between sections
+          separates each version header from its content. */}
       <div className="na-divider na-divider--inner" />
 
       {entry.kind === "release" ? (
@@ -162,10 +163,10 @@ export function NewArrivalsPage({ onOpenAbout }: Props) {
     <div className="screen na-screen">
       <div className="na-shell">
         <div className="na-panel">
-          {/* Owner review round 3: no page title -- "New Arrivals" already
-              reads from the app header's active nav tab; the quicklink rail
-              is the page's top edge, with the About & Legal chip riding its
-              right end. */}
+          {/* No page title -- the app header's active nav tab ("[HSV]
+              Updates") already names the view; the quicklink rail is the
+              page's top edge, with the About & Legal chip riding its right
+              end. */}
           <nav className="na-quicklinks" aria-label="Jump to release">
             {RELEASE_NOTES.map((entry) => (
               <button
@@ -189,7 +190,7 @@ export function NewArrivalsPage({ onOpenAbout }: Props) {
           </nav>
 
           <div className="na-body">
-            {/* Owner review round 2: no seam BETWEEN entries -- the next
+            {/* No seam BETWEEN entries -- the next
                 entry's starfield band + straddled inner seam carries the
                 break on its own. */}
             {RELEASE_NOTES.map((entry) => (

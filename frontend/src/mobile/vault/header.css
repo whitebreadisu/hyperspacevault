@@ -1,18 +1,13 @@
-/* BL-247 S1-05 / S1-06: the Vault's collapsing app header. Consolidated from
- * rev4 m-layout.css:49-84 (brand), m-rev1.css:55-89 (header, strip),
- * m-rev2.css:9-32 + 100-112 (wordmark, badge, funnel, pull cue),
- * m-rev3.css:15-88 + 115-119 (R3-6 overlay, R3-7 title row, R3-3 strip,
- * R3-13 cut) and m-rev4.css:35-53 (R4-5 static sky); values verbatim, the
- * rev-layer cascade collapsed to the final computed rule (plan A5).
+/* The Vault's collapsing app header (App Spec §25.1).
  *
- * Motion rule (R3-6 / R4-5): the collapse animates ONLY transform, opacity
+ * Motion rule: the collapse animates ONLY transform, opacity
  * and the sky's clip-path (visibility flips discretely at the end). Nothing
  * transitions height, padding, top or margin. 0.24 s ease-out. */
 
 .m-app {
   --m-collapse: 0.24s;
   --m-collapse-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  /* S1-15: half the circuit seam's height (70/2560 of the width, ~11 px). */
+  /* Half the circuit seam's height (70/2560 of the width, ~11 px). */
   --m-seam: 6px;
 }
 
@@ -32,7 +27,7 @@
   background: transparent;
   pointer-events: none;
 }
-/* R4-5: the starfield is its own STATIC layer; collapsing clips it from
+/* The starfield is its own STATIC layer; collapsing clips it from
  * below (paint only), so the strip shows the slice at the top of the open
  * header and the image never moves. Scrim = desktop index.css header. */
 .m-app .m-vh > .m-vh__sky {
@@ -51,7 +46,8 @@
 .m-app .m-vh--collapsed .m-vh > .m-vh__sky {
   clip-path: inset(0 0 var(--vh-delta, 0px) 0);
 }
-/* The sliding surface: transparent since R4-5; carries the seam + pull bar. */
+/* The sliding surface: transparent (the sky is its own layer); carries the
+ * seam + pull bar. */
 .m-app .m-vh > .m-vh__bg {
   position: absolute;
   inset: 0;
@@ -73,7 +69,7 @@
   margin: 0;
   transform: translateY(50%);
 }
-/* C1 / FR1-02: the deliberate pull -- an app-blue bar at the header's bottom
+/* The deliberate pull (App Spec §25.1 Collapse) -- an app-blue bar at the header's bottom
  * edge, shared by the vault and the card detail. Full width, filled by
  * scaleX(--pull) from the left (transform + opacity only, so iOS Safari
  * repaints it cleanly); no transition -- it tracks the finger. */
@@ -100,7 +96,7 @@
   position: relative;
   z-index: 2;
   pointer-events: auto;
-  /* S1-15: search mode fades and lifts the row; restore runs back. */
+  /* Search mode fades and lifts the row; restore runs back. */
   transition:
     opacity 0.15s ease,
     transform var(--m-collapse) var(--m-collapse-ease),
@@ -149,7 +145,8 @@
   transition-delay: 0.08s, 0.08s, 0s;
 }
 
-/* Brand stack (R3-7 + R4-10 brand tap; R5-2 tag line carries the version). */
+/* Brand stack (a tap opens the title chooser; the tag line carries the
+ * version). */
 .m-app .m-vh__brandtext {
   flex: 1 1 auto;
   min-width: 0;
@@ -195,7 +192,7 @@
 .m-app .m-vh__ver {
   text-transform: none;
 }
-/* Feedback (R3-7 text): the 40 px SWUButton, drawn at 40, hit at 44. */
+/* Feedback (text): the 40 px SWUButton, drawn at 40, hit at 44. */
 .m-app .m-vh__fb {
   flex: none;
   pointer-events: auto;
@@ -332,7 +329,7 @@
     visibility 0s linear var(--m-collapse);
 }
 
-/* ── The slot and the content below (R3-6 / R3-13) ─────────────────────── */
+/* ── The slot and the content below ────────────────────────────────────── */
 /* The layout slot is always the collapsed height; the content below is moved
  * down by the difference while expanded. */
 .m-app .m-vh__slot {
@@ -347,7 +344,7 @@
   transform: translateY(var(--vh-delta, 0px));
   transition: transform var(--m-collapse) var(--m-collapse-ease);
   will-change: transform;
-  /* R3-13: expanded and settled, the box is cut by the translate distance so
+  /* Expanded and settled, the box is cut by the translate distance so
    * it ends at the bar (set once per gesture by useHeaderSlot). */
   margin-bottom: var(--vh-cut, 0px);
 }
@@ -371,7 +368,7 @@
   transition: none;
 }
 
-/* ── Collection panel (m-layout.css:421-439; S1-23 adds the head controls) */
+/* ── Collection panel (head controls in completion.css) ──────────────────── */
 .m-app .m-summary {
   margin: 8px 0 0;
   background: rgba(211, 211, 212, 0.28);
@@ -454,12 +451,12 @@
   white-space: nowrap;
 }
 
-/* ── S1-15 search mode (R5-4) ──────────────────────────────────────────────
+/* ── Search mode (App Spec §25.1) ──────────────────────────────────────────
  * Focus in the search box: the app header and the collection panel go to
  * nothing (opacity + translate; the sky fades), the sliding surface carries
  * the seam up to the top edge, and the content below rises to sit under it
  * with the status row hidden. Transform + opacity only; the box the list
- * needs is grown ONCE at the class flip by the R3-13 cut mechanism (a margin
+ * needs is grown ONCE at the class flip by the box-cut mechanism (a margin
  * on .m-vault__below), never animated. --m-seam is the seam's half-height
  * (the separator is 70/2560 of the width, ~11 px at 390), so it sits whole
  * below the safe-area edge; --vs-hide is row two's full step (margin-top 2 +

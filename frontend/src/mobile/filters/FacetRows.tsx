@@ -5,13 +5,12 @@ import { SetLogo } from "../SetLogo";
 import { optionState } from "./filterModel";
 import type { RowChip } from "./filterModel";
 
-// BL-248 S2-13 (R4-3 compact rows; rev4 MFilters.jsx FacetRow / RarityRow,
-// m-rev4-b.css). One row per facet: a full-row button under everything opens
+// The Filters sheet's compact rows (App Spec §25.2). One row per facet: a full-row button under everything opens
 // the facet's picker; the label (86 px column), placeholder and chevron let
 // taps through to it; each selected value is a 44 px chip drawn 30 px on top
 // whose tap removes that value. Nothing selected = desktop's placeholder.
-// A base set's chip draws its logo through SetLogo (BL-257: the artwork
-// centred in a 54 x 18 box, equal area -- the logo's path is setLogoUrl's,
+// A base set's chip draws its logo through SetLogo (the artwork centred in
+// a 54 x 18 box, equal area -- the logo's path is setLogoUrl's,
 // the same one the row model carries in `logo`).
 
 export type FacetId = "set" | "collection" | "finish";
@@ -80,7 +79,7 @@ export function FacetRow({ id, label, placeholder, chips, onOpen, onRemove }: Fa
 
 /** Rarity stays inline: one row of the five badges (icon only; the name --
  * with "(0)" when it has no match under the other filters -- is the
- * aria-label), faceted as desktop (BL-70). */
+ * aria-label), faceted as desktop (App Spec §5.6). */
 export function RarityRow({
   options,
   selected,

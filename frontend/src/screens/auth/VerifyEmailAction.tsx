@@ -14,7 +14,7 @@ type LandingStatus =
   | "success-signed-out"
   | "failure"
   | "unsupported"
-  // BL-116 password reset states, independent of the verify-email states
+  // Password reset states, independent of the verify-email states
   // above -- reset never touches auth.currentUser or the cross-tab
   // broadcast, so none of the sync machinery above applies to it.
   | "reset-checking"
@@ -24,7 +24,7 @@ type LandingStatus =
 
 const PONG_TIMEOUT_MS = 400;
 
-/** BL-95 cross-tab sync: pings the shared BroadcastChannel and resolves
+/** Cross-tab sync: pings the shared BroadcastChannel and resolves
  * `true` if any *other* SWU tab answers with a pong within
  * PONG_TIMEOUT_MS -- see utils/authChannel.ts for why TAB_ID is required to
  * ignore this tab's own ping/pong pair. Resolves `false` on timeout (no
@@ -53,13 +53,12 @@ function waitForOtherTab(channel: BroadcastChannel): Promise<boolean> {
   });
 }
 
-/** BL-95: in-app landing for Firebase email-action links. BL-16's original
- * flow sent users to Firebase's hosted `__/auth/action` page -- a dead end
- * with no path back into the app. Customizing that page away (pointing the
- * action URL itself at our origin) turned out to be **blocked** on this
- * project: both the Identity Platform admin API
+/** In-app landing for Firebase email-action links. Firebase's hosted
+ * `__/auth/action` page on its own is a dead end with no path back into the
+ * app, and pointing the action URL itself at our origin is **blocked** on
+ * this project: both the Identity Platform admin API
  * (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`) and the Firebase Console UI reject
- * the change. So the link still lands on Google's hosted page first, which
+ * the change. So the link lands on Google's hosted page first, which
  * applies the oobCode itself and shows its own "Continue" button that
  * navigates to `actionCodeSettings.url` -- our origin, with a marker query
  * param (`?emailVerified=1`) appended by the sendEmailVerification call
@@ -67,10 +66,9 @@ function waitForOtherTab(channel: BroadcastChannel): Promise<boolean> {
  * the one place, app-wide, that reads `window.location.search` on boot for
  * either signal Firebase can hand back:
  *   - `mode=verifyEmail` + `oobCode`: a direct action link landed straight
- *     on our origin. This is the transition-safe path if the action-URL
- *     restriction is ever lifted (BL-97), and also covers any already-sent
- *     links from before this marker existed. `applyActionCode(auth,
- *     oobCode)` is called here -- the code has not been consumed yet.
+ *     on our origin (an emulator/local-dev link, or any link should the
+ *     action-URL restriction be lifted). `applyActionCode(auth, oobCode)`
+ *     is called here -- the code has not been consumed yet.
  *   - `emailVerified=1` with no `oobCode`: the continue-URL marker. Google's
  *     hosted handler already applied the code before redirecting here, so
  *     `applyActionCode` must NOT be called again (there is no code to apply,
@@ -85,7 +83,7 @@ function waitForOtherTab(channel: BroadcastChannel): Promise<boolean> {
  * page load without crashing: no params at all (the overwhelming majority of
  * loads), a supported mode, or an unrecognized/malformed one.
  *
- * BL-116 extends the same mechanism for `mode=resetPassword`: a direct
+ * The same mechanism serves `mode=resetPassword`: a direct
  * `mode=resetPassword` + `oobCode` link calls `verifyPasswordResetCode`
  * (returning the account email, shown on the form) then renders a
  * new-password form backed by `confirmPasswordReset` -- mirroring
@@ -113,7 +111,7 @@ function waitForOtherTab(channel: BroadcastChannel): Promise<boolean> {
  * resolution time, same pattern AuthContext.refreshEmailVerified uses)
  * rather than assuming one.
  *
- * BL-95 cross-tab sync: the link opens in a *new* tab, browser security
+ * Cross-tab sync: the link opens in a *new* tab, browser security
  * rules mean this code can't focus/reload the original tab, so this
  * component bridges the gap via BroadcastChannel (see utils/authChannel.ts)
  * instead. On success it announces `{type: "email-verified"}` so the
@@ -121,12 +119,12 @@ function waitForOtherTab(channel: BroadcastChannel): Promise<boolean> {
  * landing signed in, it also pings and waits up to PONG_TIMEOUT_MS for a
  * pong -- if another SWU tab answers, the success copy tells the user their
  * other window is already ready and offers Continue only as a secondary
- * option; no pong (or no BroadcastChannel support) falls back to the
- * original copy unchanged. The signed-out landing never pings -- if this
+ * option; no pong (or no BroadcastChannel support) shows the plain
+ * success copy. The signed-out landing never pings -- if this
  * tab itself isn't signed in, there's no reliable "other tab" story to tell.
  */
 
-/** BL-95 continue-URL marker: the shared success tail for both the oobCode
+/** The shared success tail for both the oobCode
  * path and the marker path (see the component docstring above for why they
  * converge here). By the time either caller invokes this, verification has
  * already happened -- this only broadcasts, refreshes local state, and
@@ -137,7 +135,7 @@ async function finishVerificationSuccess(
   refreshEmailVerified: () => Promise<void>,
   setStatus: (status: LandingStatus) => void
 ): Promise<void> {
-  // BL-95: announce unconditionally -- even a signed-out landing tab
+  // Announce unconditionally -- even a signed-out landing tab
   // should let a signed-in tab elsewhere know to refresh.
   channel?.postMessage({ type: "email-verified", tabId: TAB_ID });
 
@@ -151,7 +149,7 @@ async function finishVerificationSuccess(
 }
 
 interface Props {
-  /** BL-116: mirrors the CardsPage `onRequestSignIn` wiring in App.tsx --
+  /** Mirrors the CardsPage `onRequestSignIn` wiring in App.tsx --
    * called (never itself opening a modal) when the reset landing wants to
    * hand the user back to AuthModal, either after a successful password
    * change or from the expired/invalid-code screen's "request a new reset
@@ -164,7 +162,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
   const { refreshEmailVerified } = useAuth();
   const [status, setStatus] = useState<LandingStatus | null>(null);
 
-  // BL-116 password-reset form state -- populated once verifyPasswordResetCode
+  // Password-reset form state -- populated once verifyPasswordResetCode
   // resolves (reset-form) and consumed by handleResetSubmit below. Kept
   // separate from the verify-email states above; reset never touches
   // auth.currentUser or the BroadcastChannel sync machinery.
@@ -179,13 +177,13 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("mode");
     const oobCode = params.get("oobCode");
-    // BL-95 continue-URL marker: appended to actionCodeSettings.url by both
+    // Continue-URL marker: appended to actionCodeSettings.url by both
     // sendEmailVerification call sites. Only meaningful when there's no
     // oobCode -- see the component docstring for why the two never really
     // compete (a direct link carries mode+oobCode; Google's hosted handler's
     // Continue button carries only this marker).
     const emailVerifiedMarker = params.get("emailVerified") === "1";
-    // BL-116: same marker mechanism, reused for password reset -- see
+    // The same marker mechanism, for password reset -- see
     // AuthModal's handleSendReset. Firebase's hosted __/auth/action page
     // handles resetPassword's own new-password form when a direct oobCode
     // link isn't intercepted first, so a landing with this marker and no
@@ -222,7 +220,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
     }
 
     if (!oobCode && emailVerifiedMarker) {
-      // BL-95 continue-URL marker landing: Google's hosted __/auth/action
+      // Continue-URL marker landing: Google's hosted __/auth/action
       // page already applied the code before redirecting here via
       // actionCodeSettings.url -- do NOT call applyActionCode, there is no
       // oobCode to apply and the code is already consumed.
@@ -234,8 +232,8 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
       return () => channel?.close();
     }
 
-    // BL-116: a direct password-reset link (or an emulator/local-dev link,
-    // or a future link once BL-97 lifts the action-URL restriction) --
+    // A direct password-reset link (an emulator/local-dev link, or any
+    // link should the action-URL restriction be lifted) --
     // verify the code first (also returns the account email, shown on the
     // form below) before ever collecting a new password.
     if (mode === "resetPassword" && oobCode) {
@@ -251,7 +249,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
     }
 
     if (!oobCode && passwordResetMarker) {
-      // BL-116 continue-URL marker landing: Firebase's hosted page already
+      // Continue-URL marker landing: Firebase's hosted page already
       // collected the new password and completed the reset -- nothing left
       // to do here but report success (no account email to show, and no
       // form to build: only announcing an already-finished action).
@@ -265,16 +263,15 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // BL-153: `enabled: status !== null` reproduces the original effect's
-  // `if (status === null) return` early-out -- this component is always
-  // mounted (it renders null for the ordinary no-action-link case), so the
+  // `enabled: status !== null` -- this component is always mounted (it
+  // renders null for the ordinary no-action-link case), so the Escape
   // listener must not attach until there's actually something to dismiss.
   const dismiss = useCallback(() => setStatus(null), []);
   useModalDismiss(dismiss, { enabled: status !== null });
 
   if (status === null) return null;
 
-  /** BL-116: submit the new-password form on the reset-form screen.
+  /** Submit the new-password form on the reset-form screen.
    * `resetOobCode` was captured back when verifyPasswordResetCode resolved
    * (see the mount effect) -- confirmPasswordReset consumes it once, same
    * one-shot semantics as applyActionCode above. A code that expires (or
@@ -344,7 +341,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
           </>
         )}
 
-        {/* BL-95 cross-tab sync: shown only when another SWU tab answered
+        {/* Cross-tab sync: shown only when another SWU tab answered
             our ping -- see waitForOtherTab above. Continue is demoted to
             the secondary (.auth-cancel) style since the user may still
             prefer to keep working in this tab. */}
@@ -396,7 +393,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
           </>
         )}
 
-        {/* BL-116 password reset states below -- see the mount effect's
+        {/* Password reset states below -- see the mount effect's
             resetPassword/passwordReset-marker branches above. */}
         {status === "reset-checking" && (
           <>
@@ -445,7 +442,7 @@ export function VerifyEmailAction({ onRequestSignIn }: Props = {}) {
           </>
         )}
 
-        {/* BL-116: reached either from the direct oobCode form above or the
+        {/* Reached either from the direct oobCode form above or the
             passwordReset continue-URL marker landing (no form -- Firebase's
             hosted page already collected the new password itself), so
             resetAccountEmail may be null here; the copy doesn't depend on

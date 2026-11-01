@@ -14,10 +14,9 @@ import type { LimitsMatrix } from "./limits";
 export type RowId = string;
 
 /** Flat per-variant row the resolver needs to match a typed-in card_number
- * against the catalog (BL-44 Slice B). CardsPage derives this by flattening the
- * base-cards list fetch's nested variants. Any `CardWithQty[]` still satisfies
- * it structurally, so existing test fixtures built from `CardWithQty` keep
- * working unchanged. */
+ * against the catalog. CardsPage derives this by flattening the base-cards
+ * list fetch's nested variants. Any `CardWithQty[]` also satisfies it
+ * structurally, so test fixtures built from `CardWithQty` fit it. */
 export interface AddCardsCatalogEntry {
   id: number;
   name: string;
@@ -38,18 +37,18 @@ export interface AddCardsCatalogEntry {
   card_number: string;
   is_token: boolean;
   quantity: number;
-  /** Hotlinked official-CDN front image (BL-62 live preview) -- provenance,
-   * kept as the fallback CardImagePreview uses when front_images is absent
-   * (a stale cached catalog response) -- see utils/cardImages.ts. */
+  /** Hotlinked official-CDN front image for the live preview -- the stored
+   * URL, and the fallback AddCardsKeypad's CardImagePreview uses when
+   * front_images is absent (a stale cached catalog response) -- see
+   * utils/cardImages.ts. */
   front_image_url: string | null;
-  /** Same-origin renditions (BL-76 Phase 3), additive/optional. */
+  /** Same-origin renditions (ADR-0012), additive/optional. */
   front_images?: ImageRenditions | null;
-  /** BL-111 F7: the back-side hotlink -- Leaders preview their portrait back
-   * side in the console restyle's resolve-panel image (design handoff §7),
-   * matching GalleryGrid's cellImage rule (front_image_url on a card with no
-   * back stays null; not every variant carries one). */
+  /** The back-side hotlink -- Leaders preview their portrait back side in the
+   * resolve-panel image (App Spec §5.4), matching GalleryGrid's cellImage
+   * rule. Null on a card with no back; not every variant carries one. */
   back_image_url: string | null;
-  /** Same-origin back renditions (BL-76 Phase 3 shape), additive/optional. */
+  /** Same-origin back renditions (ADR-0012), additive/optional. */
   back_images?: ImageRenditions | null;
 }
 
@@ -72,14 +71,15 @@ export interface AddCardsCatalogEntry {
 // The set family scope: a selected set S gathers a printing when set_code === S
 // (S is the printing's home base set — pulls companion printings in) OR
 // source_set_code === S (S is where it was released — a long-tail selection
-// then sees only its own printings). See BL-80 for the "Weekly Play" language.
+// then sees only its own printings). App Spec §5.4 holds the full rules,
+// including the "Weekly Play" provenance term.
 
 export interface Row {
   id: RowId;
-  /** The source set this row was entered against (BL-61) — e.g. "SOR", "SECP".
+  /** The source set this row was entered against — e.g. "SOR", "SECP".
    * Carried per-row so a single batch can span multiple sets: changing the
-   * Add Cards modal's active set no longer needs to (and must not) touch
-   * rows already committed under a different set. Not to be confused with
+   * Add Cards modal's active set must not touch rows already committed
+   * under a different set (App Spec §5.4, cross-set batch). Not to be confused with
    * `setKey`, which is the *event* axis (Base Set vs Prerelease, etc.). */
   setCode: string;
   cardNumber: string;
@@ -105,11 +105,11 @@ export interface CardChoice {
 /** UI state for one of the Set / Stamp / Finish axes. `show` controls whether
  * the field renders at all; `options.length > 1` means render a <select>
  * (otherwise `value` is shown read-only); `needsPick` blocks commit.
- * BL-191: `defaulted` marks a value the resolver picked on the user's behalf
+ * `defaulted` marks a value the resolver picked on the user's behalf
  * (still overridable via the same <select>) rather than one the user
  * explicitly chose or the only option available — the keypad uses it to cue
- * verification. Optional and only set where an axis actually distinguishes
- * "defaulted" from "explicit"/"sole option" today (currently Finish only). */
+ * verification. Optional and only set where an axis distinguishes
+ * "defaulted" from "explicit"/"sole option" (Finish only). */
 export interface AxisView {
   show: boolean;
   value: string | null;
@@ -142,14 +142,14 @@ export type ResolveResult =
   | ({ status: "resolved"; variantId: number; type: string } & ResolveState);
 
 export interface InventoryStatus {
-  // BL-35: "amber" is soft-mode's over-effective-limit-but-still-added state
+  // "amber" is soft-mode's over-effective-limit-but-still-added state
   // -- distinct from "red" (which always means "blocked", whether by the
   // per-tenant limit in hard mode or by the unconditional 999 ceiling in
   // either mode). See inventoryStatus's mode parameter.
   color: "green" | "amber" | "red";
   owned: number;
   max: number;
-  /** BL-111 F7: the resolved variant's true effective limit
+  /** The resolved variant's true effective limit
    * (utils/limits.ts's effectiveLimit) -- null means "No limit". Distinct
    * from `max`, which substitutes the 999 ceiling for "No limit" (the
    * pre-check comparison value) -- the two-line inventory readout needs to
@@ -159,7 +159,7 @@ export interface InventoryStatus {
   /** owned + the count of this exact variant already in the batch through
    * and including this row -- what inventory would read immediately after
    * this row is added. Reuses the same `wouldBe` accounting the color
-   * decision below is already computed from (no duplicate walk of `rows`) --
+   * decision below is computed from (no duplicate walk of `rows`) --
    * the two-line readout's "AFTER ADD" value. */
   afterAdd: number;
 }
@@ -170,15 +170,15 @@ export interface VerificationItem {
   inv: InventoryStatus;
 }
 
-/** BL-151 S2b (§4-REV): the flattened per-row view AddCardsVerification's
- * table actually renders -- now the shared "Verify Cards" contract common to
- * both the manual (hand-typed) flow AND the precon-deck flow. VerificationItem
- * above still carries the FULL resolver state the keypad/axis pickers need;
- * VerificationRow is deliberately smaller -- exactly the handful of fields
- * the table cells read -- so a precon dry-run (which never touches this
- * axis resolver at all; its rows come back already resolved from the BL-54
- * import engine) can populate the identical shape from its own, completely
- * different source data (ImportReport rows, see utils/preconImport.ts's
+/** The flattened per-row view AddCardsVerification's table renders -- the
+ * shared "Verify Cards" contract common to both the manual (hand-typed) flow
+ * AND the precon-deck flow (App Spec §18). VerificationItem above carries the
+ * FULL resolver state the keypad/axis pickers need; VerificationRow is
+ * deliberately smaller -- exactly the handful of fields the table cells read
+ * -- so a precon dry-run (which never touches this axis resolver; its rows
+ * come back already resolved from the import engine, App Spec §17) can
+ * populate the identical shape from its own, completely different source
+ * data (ImportReport rows, see utils/preconImport.ts's
  * verificationRowsFromReport) without fabricating meaningless ResolveResult
  * internals it has no way to produce honestly. */
 export interface VerificationRow {
@@ -190,19 +190,20 @@ export interface VerificationRow {
   name: string;
   subtitle: string | null;
   /** The "Set" column's text -- manual: event + stamp (e.g. "Store Showdown
-   * · Top 8"); precon: the constant "Base Set" (§3's rows are always the
-   * Standard variant of their printed set). */
+   * · Top 8"); precon: the constant "Base Set" (every precon row is the
+   * Standard variant of its printed set, data/preconDecks.json). */
   setText: string;
   /** Colors the Set column the OP/tournament tint when true (manual only --
    * precon product decks never carry OP prints). */
   isOP: boolean;
   finishText: string;
-  /** Pre-formatted Inventory column text -- manual: "owned/max"; precon:
-   * "current → resulting" (the dry-run report's own before/after). */
+  /** Pre-formatted Inventory column text, "current → resulting" in both
+   * flows -- manual: owned → after add (unchanged for a blocked row); precon:
+   * the dry-run report's own before/after. */
   inventoryText: string;
   dotColor: "green" | "amber" | "red";
-  /** BL-35's soft-cap "will still be added" note idiom, reused as-is by
-   * precon's partially-trimmed rows. */
+  /** The soft-cap "will still be added" note idiom (manual flow, amber
+   * rows). */
   overLimitNote?: string | null;
   /** Reason column text, skip-section rows only. */
   skipReason?: string | null;
@@ -210,10 +211,9 @@ export interface VerificationRow {
 
 /** The manual flow's own VerificationItem -> VerificationRow adapter: a pure
  * flattening, never a reclassification (an item splitForVerification already
- * sorted into willAdd/willSkip stays there). `skipReason` is the same
- * constant for every manual skip row today -- passed in by the caller
- * (AddCardsModal) rather than hardcoded here, so this module carries no UI
- * copy of its own. */
+ * sorted into willAdd/willSkip stays there). `skipReason` is passed in by
+ * the caller (AddCardsModal passes one constant for every skip row) rather
+ * than hardcoded here, so this module carries no UI copy of its own. */
 export function toVerificationRow(
   item: VerificationItem,
   skipReason: string | null = null
@@ -228,9 +228,8 @@ export function toVerificationRow(
     setText: [resolved.set.value, resolved.stamp.value].filter(Boolean).join(" · "),
     isOP: resolved.channel !== "Retail",
     finishText: resolved.finish.value ?? "",
-    // Owner dev review 2026-07-26 (round 7): "current → resulting", the same
-    // display the precon flow's rows use (verificationRowsFromReport) --
-    // replaces the old "owned/max". A red row is BLOCKED (nothing adds, in
+    // "current → resulting", the same display the precon flow's rows use
+    // (verificationRowsFromReport). A red row is BLOCKED (nothing adds, in
     // both enforcement modes), so its resulting value is unchanged inventory,
     // not the afterAdd the batch would have produced.
     inventoryText: `${inv.owned} → ${inv.color === "red" ? inv.owned : inv.afterAdd}`,
@@ -240,14 +239,13 @@ export function toVerificationRow(
   };
 }
 
-/** BL-25: the Add Cards pre-check's per-variant cap. Pre-BL-24 this was a
- * pure function of base-card type (Leader/Base 1, else 3); it is now
- * bucket-aware and limits-aware -- the variant's bucket (finish ?? channel,
- * see utils/limits.ts) and category resolve against the tenant's effective
- * matrix, with "No limit" treated as the 999 technical ceiling. Stays a pure
+/** The Add Cards pre-check's per-variant cap: bucket-aware and
+ * limits-aware -- the variant's bucket (finish ?? channel, see
+ * utils/limits.ts) and category resolve against the tenant's effective
+ * matrix, with "No limit" treated as the 999 technical ceiling. A pure
  * function (the matrix is an argument, not module state): with no matrix
- * (anonymous / unfetched) or no bucket it returns the code defaults,
- * identical to the old constants. */
+ * (anonymous / unfetched) or no bucket it returns the code defaults
+ * (Leader/Base 1, else 3). */
 export function maxCopies(
   type: string,
   bucket: string | null = null,
@@ -262,7 +260,7 @@ export function maxCopies(
 
 const FROZEN_FINISHES: ReadonlySet<string> = new Set(FINISH_BUCKETS);
 
-// Tournament event prefixes (BL-80 vocabulary, confirmed 2026-07-05).
+// Tournament event prefixes (App Spec §5.4 vocabulary).
 const TOURNAMENT_EVENTS: Record<string, string> = {
   SS: "Store Showdown",
   PQ: "Planetary Qualifier",
@@ -281,7 +279,7 @@ const STANDALONE_EVENTS: Record<string, string> = {
 
 // Fallback event when the variant_type carries no tournament/prerelease prefix:
 // follow the backend-derived `channel` (which already folds in source_set_code,
-// so a SORP "Hyperspace" promo reads as Weekly Play, not Base Set). BL-80.
+// so a SORP "Hyperspace" promo reads as Weekly Play, not Base Set).
 const CHANNEL_TO_EVENT: Record<string, string> = {
   Retail: "Base Set",
   "Weekly Play": "Weekly Play",
@@ -303,11 +301,11 @@ export interface Decomposition {
  * when present, else the `channel` (so provenance encoded via source set — e.g.
  * a SORP Hyperspace Weekly-Play promo — lands in the right event).
  *
- * NOTE (deferred, BL-31/40): the 21 SEC "Serialized Prestige" senator cards are
- * three physical finishes (Carbonite / Gold / Rose Gold) that share this exact
- * variant_type and differ only by image-filename suffix — so they collapse here
- * (one representative). When that distinction is parsed out later, per Jeremy's
- * 2026-07-05 call the three values belong in the **Finish** axis, not Stamp. */
+ * NOTE: the 21 SEC "Serialized Prestige" senator cards are three physical
+ * finishes (Carbonite / Gold / Rose Gold) that share this exact variant_type
+ * and differ only by image-filename suffix — so they collapse here (one
+ * representative). If that distinction is parsed out, the three values belong
+ * in the **Finish** axis, not Stamp (App Spec §5.4). */
 export function decompose(variantType: string, channel: string): Decomposition {
   const finish = FROZEN_FINISHES.has(variantType)
     ? variantType
@@ -340,7 +338,7 @@ interface Dec extends Decomposition {
 }
 
 /** Exported for reuse by the keypad chip list and verification table, which
- * both group rows by `setCode` (BL-61). */
+ * both group rows by `setCode`. */
 export function groupBy<T>(items: T[], keyOf: (t: T) => string): Map<string, T[]> {
   const m = new Map<string, T[]>();
   for (const it of items) {
@@ -478,7 +476,7 @@ export function resolveRow(row: Row, catalog: AddCardsCatalogEntry[]): ResolveRe
 
   // ── Axis 4: Finish — defaults to the probable (non-foil) finish when >1,
   // overridable; required pick only when the option set has neither
-  // "Standard" nor "Hyperspace" to default to (BL-191). Foils exist at far
+  // "Standard" nor "Hyperspace" to default to (App Spec §5.16). Foils exist at far
   // lower quantities than their non-foil counterpart, so the non-foil member
   // is the probable intent for the SOR/SHD/TWI shared-number cases (one card
   // number for Standard/Standard Foil, a different number for
@@ -499,7 +497,7 @@ export function resolveRow(row: Row, catalog: AddCardsCatalogEntry[]): ResolveRe
           : null;
       if (probableFinish === null) {
         // Conservative guard: an exotic multi-finish set with neither
-        // Standard nor Hyperspace keeps the original required-pick behavior.
+        // Standard nor Hyperspace stays a required pick.
         return pending(name, subtitle, null, {
           card: cardAxis,
           set: setAxis,
@@ -546,7 +544,7 @@ function pending(
   return { status: "pending", variantId: null, type: null, name, subtitle, channel, ...axes };
 }
 
-/** BL-35: "hard" (default) treats at/over-the-effective-limit as a hard
+/** "hard" (default) treats at/over-the-effective-limit as a hard
  * block (red, willSkip); "soft" instead flags it (amber, stays in willAdd)
  * -- see InventoryStatus.color and splitForVerification. The 999
  * QUANTITY_CEILING blocks (red) unconditionally in both modes. A "No
@@ -563,7 +561,7 @@ export function inventoryStatus(
   const entry = catalog.find((c) => c.id === resolved.variantId);
   const owned = entry?.quantity ?? 0;
   const category = typeCategoryOf(resolved.type);
-  // BL-25: per-variant effective limit -- the variant's own bucket
+  // Per-variant effective limit -- the variant's own bucket
   // (finish ?? channel) resolved against the tenant's matrix. `entry` is
   // always found in practice (resolved.variantId came from this catalog);
   // the null-bucket fallback keeps the impossible branch on code defaults.
@@ -575,7 +573,7 @@ export function inventoryStatus(
   const idx = rows.indexOf(row);
   let pendingThroughThis = 0;
   for (let i = 0; i <= idx; i++) {
-    // Each row resolves against its own setCode (BL-61) — a cross-set batch
+    // Each row resolves against its own setCode — a cross-set batch
     // counts duplicate variants correctly even when rows span multiple sets.
     const rr = resolveRow(rows[i], catalog);
     if (rr.status === "resolved" && rr.variantId === resolved.variantId) {
@@ -617,7 +615,7 @@ export function splitForVerification(
     if (res.status !== "resolved") return;
     const inv = inventoryStatus(rows, row, res, catalog, limits, mode);
     const item: VerificationItem = { row, resolved: res, inv };
-    // BL-35: only a genuine block (red -- hard-mode over-limit, or the
+    // Only a genuine block (red -- hard-mode over-limit, or the
     // ceiling in either mode) skips; amber (soft-mode over-limit) stays in
     // willAdd, just flagged.
     if (inv.color === "red") willSkip.push(item);

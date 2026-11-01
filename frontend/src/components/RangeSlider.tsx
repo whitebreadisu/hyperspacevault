@@ -1,7 +1,7 @@
 import "./FilterPanel.css";
 
-// Dual-thumb range slider used by FilterPanel (extracted with RR-22's
-// logic/UI split). Styling lives in FilterPanel.css (`ifp-range*` classes).
+// Dual-thumb range slider used by FilterPanel. Styling lives in
+// FilterPanel.css (`ifp-range*` classes).
 
 interface RangeSliderProps {
   label: string;

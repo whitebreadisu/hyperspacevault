@@ -6,18 +6,18 @@ import { SettingsPage } from "../../screens/settings/SettingsPage";
 import { ShellHead } from "../more/ShellHead";
 import "./account.css";
 
-// BL-251 S5-01: Settings at #/more/settings. Desktop's SettingsPage renders
+// Settings at #/more/settings (App Spec §25.5). Desktop's SettingsPage renders
 // UNCHANGED (its `onDeleteAccount` prop is all it takes) inside the phone's
-// transactional card (plain rounded card, 3 px blue top bar -- skill, "Two
-// modal families"; rev4 m-rev4-d2.css 137-247). The card's head is ShellHead
-// (back chevron from More, X top-right otherwise -- S4-05 rule); SettingsPage's
-// own page heading is hidden by CSS because the head already says "Settings".
+// transactional card (plain rounded card, 3 px blue top bar; account.css
+// .m-acctcard). The card's head is ShellHead (back chevron from More, X
+// top-right otherwise); SettingsPage's own page heading is hidden by CSS
+// because the head already says "Settings".
 //
-// "Saved." (rev4 R4-13) does not exist on desktop's page, which is not edited:
-// the wrapper watches for the Save button tap followed by a new limits matrix
+// "Saved." does not exist on desktop's page, which is not edited: the
+// wrapper watches for the Save button tap followed by a new limits matrix
 // from LimitsContext (the PUT response -- a failed save leaves it untouched)
 // and portals a status line into the enforcement section, under the Save row.
-// Any other tap in the card clears it. BL-254 may fold "Saved." into desktop.
+// Any other tap in the card clears it.
 
 const CAPMODE_SECTION = '[aria-labelledby="settings-capmode-title"]';
 
@@ -48,7 +48,7 @@ export function SettingsScreen({ fromMore, onDeleteAccount }: Props) {
     }
   }, [cells, capMode]);
 
-  // S5 F2: a failed save shows desktop's own .settings-error alert; disarm so
+  // A failed save shows desktop's own .settings-error alert; disarm so
   // a later, unrelated limits refresh never reads as "Saved.".
   useEffect(() => {
     const root = rootRef.current;

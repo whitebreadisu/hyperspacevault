@@ -5,14 +5,13 @@ import { cellImage, pickRepresentative } from "./cardImage";
 import { GalleryPlate } from "./GalleryPlate";
 import type { GallerySize } from "./useVaultView";
 
-// BL-247 S1-20: one gallery cell (rev4 MVault.jsx:177-193; desktop
-// GalleryGrid.tsx GalleryCell 229-350 + PlateTotal 200-228). One tap target:
-// the art frame and the console plate. The art is the representative
-// printing per the Finish facet (desktop BL-201 -- a scope writes that facet,
-// so a scoped cell shows the lowest-numbered scoped printing). The plate:
-// pips fill from the scoped count while scoped (amber), the plate's green
-// ring + amber inner fill key off SCOPED completion while scoped, else
-// overall (BL-222); the total is the all-printings owned number only (no
+// One gallery cell (desktop GalleryGrid.tsx GalleryCell + PlateTotal). One
+// tap target: the art frame and the console plate. The art is the
+// representative printing per the Finish facet (as desktop -- a scope writes
+// that facet, so a scoped cell shows the lowest-numbered scoped printing).
+// The plate: pips fill from the scoped count while scoped (amber), the
+// plate's green ring + amber inner fill key off SCOPED completion while
+// scoped, else overall (utils/variantScope.ts playsetPlate); the total is the all-printings owned number only (no
 // "/limit"), green at a playset, muted at 0. Signed out: SIGN IN TO TRACK.
 
 const SIZES: Record<GallerySize, string> = {

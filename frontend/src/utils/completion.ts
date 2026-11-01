@@ -1,22 +1,20 @@
-// BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): pure completion-panel
-// math -- the four block metrics (Playset complete %, Set complete %,
-// Cards, Collection value) and their per-base-set breakdown rows, extracted
-// from InventorySummary.tsx so the calc rules are independently unit
-// testable (CLAUDE.md's test-disposition policy expects direct coverage of
-// calc rules, not just DOM assertions).
+// Pure completion-panel math (App Spec §5.13) -- the four block metrics
+// (Playset complete %, Set complete %, Cards, Collection value) and their
+// per-base-set breakdown rows, kept out of InventorySummary.tsx so the calc
+// rules have direct unit coverage, not just DOM assertions.
 //
-// Universe rules (owner-locked 2026-07-26):
-//   - Tokens are excluded from every metric (pre-existing rule, kept).
+// Universe rules (App Spec §5.13):
+//   - Tokens are excluded from every metric (App Spec §6).
 //   - The two completion PERCENTAGES are scoped to base cards whose home
 //     set (`card.set_code`) is one of the base sets (`baseSetCodes`,
 //     built from GET /api/sets' `is_base_set` flag). An "orphan" base card
 //     (its only printing lives in a non-base container set -- the known
 //     case is Zam's root in C26) is excluded from both percentages.
 //   - Cards and Collection value are NOT set-scoped -- every non-token card
-//     counts, orphans included. In practice this already covers nearly the
+//     counts, orphans included. In practice this covers nearly the
 //     whole catalog: only a handful of orphan base cards live outside the
-//     base sets at all (see BASE_SET_CODES's docstring,
-//     swuapi_transform.py) -- everything else's home set_code already IS a
+//     base sets at all (see the comment on BASE_SET_CODES,
+//     swuapi_transform.py) -- everything else's home set_code IS a
 //     base set, TS26-deck reprints included (a reprint's home set is its
 //     ORIGINAL set, not TS26 -- it's a separate base_card row already
 //     correctly attributed, no extra logic needed here).
@@ -76,11 +74,11 @@ export function variantPriceValue(
   return value ?? null;
 }
 
-/** Definition §3: per owned copy, that variant's own price (active mode) ×
+/** App Spec §5.13: per owned copy, that variant's own price (active mode) ×
  * its owned quantity; a variant with no price of its own falls back to the
  * card's own Standard-variant price (same mode); neither priced -> the
  * copy contributes $0 and the OWNED VARIANT (not each copy) counts once
- * toward "unpriced" -- mirrors CardPopup's rail-footer "(N unpriced)"
+ * toward "unpriced" -- mirrors CardPopupRail's footer "· N unpriced"
  * convention (counts distinct unpriced items, not raw quantity). */
 export function cardValue(
   card: InventoryCard,
@@ -190,9 +188,10 @@ export interface SetBreakdownRow extends SetMeta {
  * (already in display order, see utils/catalog.ts's orderSetCodes), each
  * scoped to `card.set_code === row.code` (a card's home set, per the file
  * header). A base set with zero cards in the current scope still renders
- * its row (0%/0/$0) -- the design's "No base-set cards in scope" empty
- * state is for when `orderedBaseSets` itself is empty (sets not loaded
- * yet), not for an individual zero-count set. */
+ * its row (0%/0/$0) -- the popover's "No base-set cards in scope" empty
+ * state (InventorySummary, the phone's SetsSheet) is for when no rows come
+ * back (`orderedBaseSets` itself empty, sets not loaded yet), not for an
+ * individual zero-count set. */
 export function buildSetBreakdown(
   cards: InventoryCard[],
   orderedBaseSets: SetMeta[],

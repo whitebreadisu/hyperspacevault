@@ -1,62 +1,42 @@
-// Console-styled Cost/Power/HP stat badge (BL-111 F1, design handoff
-// claude_design/design_handoff_swu_restyle/README.md §1 -- geometry, colors,
-// and numeral transforms are copied verbatim from the canonical prototype
-// prototypes/stat-badges/StatBadge.dc.html). Foundation component for the
-// screens-restyle arc: not wired into any screen yet (that lands in later
-// BL-111 features), so its only consumer in this PR is its own test suite.
+// Console-styled Cost/Power/HP stat badge. Geometry, colours and numeral
+// transforms are fixed design constants.
 //
 // All three shapes share one `viewBox="0 0 100 105"`. Cost renders at
 // `1.05 x size` tall with a uniform scale; Power/HP render at `1.1 x size`
 // tall with `preserveAspectRatio="none"` (a deliberate vertical stretch of
 // the narrower shapes). The numeral transforms below undo each shape's
-// stretch factor so all three numerals read as the same visual size --
-// see the prototype's `numTransform`/`numTransformTall` computation.
+// stretch factor so all three numerals read as the same visual size.
 //
-// BL-123: the numeral used to be a `<foreignObject>` wrapping an HTML
-// `<div>`/`<span>` pair (CSS `WebkitTextStroke` for the dark outline layer,
-// a second span for the fill layer). WebKit (Safari) renders `foreignObject`
-// children at *CSS-pixel* scale instead of the SVG viewBox scale its
-// siblings use, so the 54px numeral drew ~54 real px over a badge that's
-// often rendered well under 54px wide (size=22 in CardsTable) -- text the
-// size of the whole badge, spilling past its bottom-right corner. Chromium
-// and Firefox don't have this bug (verified: both scale foreignObject
-// content with the viewBox like every other SVG child), so it was invisible
-// in normal dev/CI browsing.
-//
-// Fixed with a native SVG `<text>` element instead -- text is SVG content,
-// so every engine scales it with the viewBox by construction; there's no
-// foreignObject/HTML boundary left to disagree about. `paintOrder="stroke"`
-// plus one `stroke`/`fill` pair replaces the old two-span stroke-then-fill
-// layering (a single element can't do "stroke layer, then fill layer" with
-// two colors any other way -- paint-order is the standard mechanism).
+// The numeral is a native SVG `<text>`, never a `<foreignObject>` holding
+// HTML. WebKit (Safari) renders `foreignObject` children at *CSS-pixel*
+// scale instead of the SVG viewBox scale its siblings use, so a 54px
+// numeral would draw ~54 real px over a badge that is often rendered well
+// under 54px wide (size=22 in CardsTable) -- text the size of the whole
+// badge, spilling past its bottom-right corner. Chromium and Firefox scale
+// foreignObject content with the viewBox like every other SVG child, so
+// the bug is invisible in normal dev/CI browsing. SVG text is SVG content,
+// so every engine scales it with the viewBox by construction.
+// `paintOrder="stroke"` plus one `stroke`/`fill` pair draws the dark
+// outline under the light fill: a single element cannot do "stroke layer,
+// then fill layer" in two colours any other way -- paint-order is the
+// standard mechanism.
 //
 // Centering: `dominant-baseline` has known cross-engine inconsistencies for
 // exact vertical centering, so this uses an explicit `y`/`dy` pair instead
-// (0 / "0.40em", tuned by pixel-diffing screenshots against the prior
-// foreignObject rendering in Chromium until the two matched -- see the
-// BL-123 PR description).
-// Per-type scale compensation (the old CSS `scale(0.9, 1.111)` /
-// `scale(0.9, 1.0605)` transforms) is now an SVG `transform` on the <text>
-// itself: `translate(50 52.5) scale(sx sy)` with the text drawn at local
-// `x=0 y=0/dy` -- SVG transform lists apply right-to-left to a point, so the
-// scale happens first (about the origin) and the translate moves that
-// already-scaled origin to the shape's center (50, 52.5), which is
-// equivalent to CSS's old `transform-origin: center` scale behavior on the
-// foreignObject div (which was itself centered at that same point via CSS
-// grid `placeItems: center`).
-// Owner dev review 2026-07-26 (round 4, +round 5): anchor y 52.5 -> 48 -> 44
-// — the numeral read low everywhere it renders (1 viewBox unit = size/100 px,
-// so the cumulative -8.5 units ≈ -3.9px at the popup's size-46 badges,
-// ≈ -1.9px at the table's 22). Owner-calibrated in two small steps from the
-// pixel-diffed BL-123 baseline above — deliberately NOT a re-derived
-// "perfect" centering (past attempts at that overshot).
+// (0 / "0.40em", tuned by pixel-diffing screenshots in Chromium).
+// Per-type scale compensation is an SVG `transform` on the <text> itself:
+// `translate(50 50) scale(sx sy)` with the text drawn at local `x=0 y=0/dy`
+// -- SVG transform lists apply right-to-left to a point, so the scale
+// happens first (about the origin) and the translate moves that
+// already-scaled origin to the anchor point (50, 50).
 const NUMERAL_FONT_FAMILY = "'Russo One','Arial Black',Arial,sans-serif";
 const NUMERAL_FONT_SIZE = 54;
-// Round 6: 44 overshot (owner) -- 46. Round 7: 47. Round 8: the 46/47 steps
-// were SUB-PIXEL (1 unit = size/100 px, so ~0.5px at the popup's 46) --
-// that's why the numeral "didn't move". Known bracket: 52.5 reads low,
-// 44 reads high; 50 is a visible step (~1.4px down from 47 at popup size)
-// just above the bracket midpoint. Calibrate in >=2-unit steps from here.
+// The anchor y (50) is a visual calibration, not the shape's geometric
+// centre (52.5): at 52.5 the numeral reads low, at 44 it reads high, and 50
+// sits just past the midpoint (48.25), slightly toward the low end. A re-derived "perfect"
+// centering overshoots. 1 viewBox unit = size/100 px (~0.5px at the
+// popup's size-46 badges), so a 1-unit change is sub-pixel: calibrate in
+// steps of 2 units or more.
 const NUMERAL_TRANSFORM_COST = "translate(50 50) scale(0.9 1.1110)";
 const NUMERAL_TRANSFORM_TALL = "translate(50 50) scale(0.9 1.0605)";
 
@@ -65,11 +45,11 @@ export type StatBadgeType = "cost" | "power" | "hp";
 interface Props {
   type: StatBadgeType;
   /** Cost/power/hp arrive as `number | null` from the catalog API (see
-   * utils/catalog.ts's BaseCard). BL-132 J2: both shipped consumers
-   * (CardsTable, CardPopup) now suppress the badge entirely for a null stat,
-   * so they never pass null anymore -- the "--" placeholder rendering below
-   * is kept as the component's defensive contract for any future caller
-   * rather than a path the app exercises. */
+   * utils/catalog.ts's BaseCard). Every consumer (CardsTable, CardPopup,
+   * the mobile CardInfo and CardRow) suppresses the badge for a null stat,
+   * so none passes null; the "—" placeholder rendering below is the
+   * component's defensive contract for any other caller, not a path the
+   * app exercises. */
   value: number | string | null;
   /** Rendered width in px; height is derived per-type. Default 40. */
   size?: number;

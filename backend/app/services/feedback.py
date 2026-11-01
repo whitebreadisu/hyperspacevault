@@ -1,6 +1,6 @@
-"""BL-126: POST /api/feedback business logic. See app/routers/feedback.py
-for the HTTP adapter and migration 0027 for the RLS shape the insert path
-relies on.
+"""POST /api/feedback business logic (App Spec §4.6, §12). See
+app/routers/feedback.py for the HTTP adapter and migration 0027 for the
+RLS shape the insert path relies on.
 """
 
 import os
@@ -23,7 +23,7 @@ def submit_feedback(
     anonymous/tenant-less session, the caller's real tenant id when
     authenticated. This function never re-derives it.
 
-    Honeypot (decision #5): a non-empty `website` field marks this as a bot
+    Honeypot: a non-empty `website` field marks this as a bot
     submission. The response is identical to a real success (never tips a
     bot off that it was caught), but nothing is stored and no notification
     fires -- returning here, before the DB write, is what "store nothing"
@@ -32,7 +32,7 @@ def submit_feedback(
     if payload.website:
         return FeedbackSubmitResponse()
 
-    # Consent semantics (owner decision #3): contact_ok=false means
+    # Consent semantics (App Spec §4.6): contact_ok=false means
     # genuinely anonymous, even for a signed-in caller -- tenant_id/email
     # are only ever attached to the row when contact_ok is true. An
     # anonymous caller's tenant_id is already None, so this is a no-op for
@@ -40,12 +40,11 @@ def submit_feedback(
     stored_tenant_id = tenant_id if payload.contact_ok else None
     stored_email = payload.contact_email if payload.contact_ok else None
 
-    # Server-side metadata only (decision #4): commit_sha comes from the
-    # backend's own environment, never the client. No such env var existed
-    # in this codebase before BL-126 -- terraform/modules/app/cloud_run.tf
-    # now wires COMMIT_SHA to var.backend_image_tag (already the deploying
-    # commit's github.sha); locally/in CI this is simply unset, so
-    # commit_sha is None there.
+    # Server-side metadata only (App Spec §4.6): commit_sha comes from the
+    # backend's own environment, never the client.
+    # terraform/modules/app/cloud_run.tf wires COMMIT_SHA to
+    # var.backend_image_tag (the deploying commit's github.sha); locally/in
+    # CI it is unset, so commit_sha is None there.
     commit_sha = os.environ.get("COMMIT_SHA")
 
     feedback_repo.insert_feedback(
@@ -57,14 +56,14 @@ def submit_feedback(
         commit_sha=commit_sha,
     )
 
-    # Decision #1: notification is best-effort AFTER the DB write commits
-    # above -- github_notify.notify never raises, so a notification
+    # The notification is best-effort AFTER insert_feedback has committed
+    # the row -- github_notify.notify never raises, so a notification
     # failure can never turn a persisted submission into an error
     # response. The timestamp here is this process's own clock, not a
     # read-back of the row's server-assigned created_at -- insert_feedback
-    # deliberately never reads the row back (see its docstring); the two
-    # values are for-humans-adjacent anyway (an issue body's "Submitted:"
-    # line), not something anything reconciles against the DB row.
+    # deliberately never reads the row back (see its docstring); the value
+    # is for humans (an issue body's "Submitted:" line), not something
+    # anything reconciles against the DB row.
     submitted_at = datetime.now(UTC).isoformat()
     github_notify.notify(
         message=payload.message,

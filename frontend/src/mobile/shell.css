@@ -1,8 +1,6 @@
-/* BL-247 S1-04 / S1-07 / S1-08 / S1-09: the phone shell -- bottom bar,
- * ComingSoon, account slot, title chooser, auth layer, unread cue, motion
- * catch-all. Consolidated from rev4 m-layout.css, m-rev1.css, m-rev4-d.css
- * and m-rev4-d2.css (plan A5); every value is carried verbatim from those
- * files or from the desktop CSS they cite. Scoped under .m-app. */
+/* The phone shell -- bottom bar, empty states, account slot, title chooser,
+ * auth layer, unread cue, motion catch-all. Desktop CSS is cited where a
+ * value is carried from it. Scoped under .m-app. */
 
 @keyframes m-fade {
   from {
@@ -18,7 +16,7 @@
   outline-offset: 2px;
 }
 
-/* ── Bottom bar (m-layout.css:85-97 + m-rev1.css:14-19, bar=one) ───────── */
+/* ── Bottom bar ─────────────────────────────────────────────────────────── */
 .m-app .m-nav {
   position: relative;
   flex: none;
@@ -26,7 +24,7 @@
   padding-bottom: var(--sab);
   z-index: 3;
 }
-/* S1-15 search mode (R5-4): the bar leaves the layout (one flip, the screen
+/* Search mode: the bar leaves the layout (one flip, the screen
  * grows to the frame's bottom = the keyboard's top edge) and slides down
  * until only its seam strip shows; transform + opacity only. */
 .m-app .m-nav {
@@ -125,7 +123,7 @@
   background: rgba(235, 226, 198, 0.45);
 }
 
-/* ── Empty / ComingSoon (m-layout.css:218-219) ──────────────────────────── */
+/* ── Empty state ────────────────────────────────────────────────────────── */
 .m-app .m-empty {
   padding: 40px 24px;
   text-align: center;
@@ -141,8 +139,8 @@
   margin: 0 0 6px;
 }
 
-/* ── Account slot (m-rev1.css:22-54; the menu is desktop UserMenu,
- * index.css:305-377, sized for touch: avatar 34 px in a 44 px hit, items
+/* ── Account slot (the menu is desktop UserMenu, index.css .app-header__menu,
+ * sized for touch: avatar 34 px in a 44 px hit, items
  * 48 px). The desktop .app-header__* rules apply as-is; these step them up. */
 .m-app .m-acct {
   position: relative;
@@ -205,9 +203,9 @@
   margin-right: -4px;
 }
 
-/* ── Title chooser (R5-2): the transactional family. Card values are
- * desktop AuthModal.css .auth-modal-card at rev4's phone sizes
- * (m-rev4-d2.css:140-147); the scrim is desktop's shared .modal-overlay. ── */
+/* ── Title chooser: the transactional family. Card values are desktop
+ * AuthModal.css .auth-modal-card at phone sizes; the scrim is desktop's
+ * shared .modal-overlay. ────────────────────────────────────────────────── */
 .m-app .m-chooser {
   position: fixed;
   inset: 0;
@@ -264,9 +262,9 @@
   width: 100%;
 }
 
-/* ── Auth layer (R4-13): desktop AuthModal unchanged, rev4's phone values
- * (m-rev4-d2.css:140-190): card min(100% - 32px, 420px), 16 px inputs,
- * 44 px controls, X top-right. ─────────────────────────────────────────── */
+/* ── Auth layer: desktop AuthModal unchanged, at phone values: card
+ * min(100%, 420px) inside a 16 px gutter, 16 px inputs, 44 px controls,
+ * X top-right. ──────────────────────────────────────────────────────────── */
 .m-app .m-authlayer .modal-overlay {
   padding: calc(12px + var(--sat)) 16px calc(12px + var(--sab));
   animation: m-fade 0.15s ease;
@@ -316,10 +314,10 @@
   margin-top: -6px;
 }
 
-/* ── Unread cue (R5-2 placement, D2-0 rule, m-rev4-d.css:106-146): a
- * separate absolutely-positioned copy of the text carrying a static cream
- * text-shadow; its ONLY animated property is opacity (2 s). The glyphs sit
- * above it inside an isolated box. Reduced motion: a steady glow. ──────── */
+/* ── Unread cue (App Spec §25.4): a separate absolutely-positioned copy of
+ * the text carrying a static cream text-shadow; its ONLY animated property is
+ * opacity (2 s). The glyphs sit above it inside an isolated box. Reduced
+ * motion: a steady glow. ──────── */
 @keyframes d2-cue-glow {
   0%,
   100% {
@@ -353,7 +351,7 @@
   animation: d2-cue-glow 2s ease-in-out infinite;
 }
 
-/* ── Motion catch-all (m-layout.css:650-653) ───────────────────────────── */
+/* ── Motion catch-all ───────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .m-app *,
   .m-app *::before,

@@ -1,4 +1,4 @@
-// BL-253 S7-02: the isolation headers of the scanner document -- ONE source
+// The isolation headers of the scanner document -- ONE source
 // for the Vite dev middleware (vite.config.ts) and the assertion that
 // firebase.json's `/scan/**` rule says the same thing (scanHeaders.test.ts).
 //
@@ -6,11 +6,11 @@
 // SharedArrayBuffer, which needs a cross-origin-isolated document (COOP
 // same-origin + COEP require-corp). A site-wide COEP would break Google
 // sign-in (the popup is cross-origin), so ONLY `/scan/` carries them; the main
-// document and its Permissions-Policy are untouched (plan A11).
+// document and its Permissions-Policy are untouched (App Spec §25.7 Headers).
 //
 // No DOM, no Node imports: this file is also loaded by vite.config.ts.
 
-/** The three isolation headers of the `/scan/**` rule (App Spec 24.4 / A11). */
+/** The three isolation headers of the `/scan/**` rule (App Spec §25.7 Headers). */
 export const ISOLATION_HEADERS: Record<string, string> = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "require-corp",
@@ -26,7 +26,7 @@ export const SCAN_DOCUMENT_HEADERS: Record<string, string> = {
 /** The vendored reader payload: immutable for a year. COEP (not only CORP)
  * is on these because the Paddle and Tesseract engines spawn Workers from
  * these URLs, and a worker script is only loaded under a COEP document when
- * its own response carries a COEP header (see the S7-03 log entry). */
+ * its own response carries a COEP header (App Spec §25.7 Headers). */
 export const VENDOR_HEADERS: Record<string, string> = {
   "Cache-Control": "public, max-age=31536000, immutable",
   "Cross-Origin-Resource-Policy": "same-origin",

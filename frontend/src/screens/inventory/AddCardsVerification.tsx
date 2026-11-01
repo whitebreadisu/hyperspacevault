@@ -3,19 +3,16 @@ import { groupBy } from "../../utils/addCardsResolver";
 import type { VerificationRow } from "../../utils/addCardsResolver";
 import type { CardSet } from "../../api/sets";
 
-/** BL-151 S2b (§4-REV): this is now the ONE "Verify Cards" screen for both
- * the manual (hand-typed) flow and the precon-deck flow -- previously the
- * precon flow rendered a visually-different sibling component
- * (AddCardsPreconVerification), which the owner's dev-review flagged as a
- * look-alike rather than a genuinely shared screen. Both callers now map
- * their own native data (VerificationItem for manual, ImportReport rows for
- * precon) into the same flattened VerificationRow shape before rendering
- * here -- see addCardsResolver.ts's toVerificationRow and
- * utils/preconImport.ts's verificationRowsFromReport for the two adapters. */
+/** The ONE "Verify Cards" screen for both the manual (hand-typed) flow and
+ * the precon-deck flow (App Spec §18). Both callers map their own native
+ * data (VerificationItem for manual, ImportReport rows for precon) into the
+ * same flattened VerificationRow shape before rendering here -- see
+ * addCardsResolver.ts's toVerificationRow and utils/preconImport.ts's
+ * verificationRowsFromReport for the two adapters. */
 
 // "SOR — Spark of Rebellion" once the set list has loaded, else just the
-// code. Labels the per-set groups in this table (BL-61 — a batch can span
-// multiple sets, so verification groups by set).
+// code. Labels the per-set groups in this table (a batch can span multiple
+// sets, so verification groups by set).
 function setLabel(code: string, sets: CardSet[]): string {
   const s = sets.find((x) => x.code === code);
   return s ? `${code} — ${s.name}` : code;
@@ -27,7 +24,7 @@ interface SectionProps {
   count: number;
   items: VerificationRow[];
   sets: CardSet[];
-  /** BL-151 S2b: an extra class for the precon flow's data-integrity section
+  /** An extra class for the precon flow's data-integrity section
    * (a left accent bar, see AddCardsModal.css's .ac-precon-verify__integrity)
    * -- undefined for every ordinary add/skip section in both flows. */
   extraClassName?: string;
@@ -100,10 +97,11 @@ function Section({ title, kind, count, items, sets, extraClassName }: SectionPro
                       <span className={`ac-dot ac-dot--${item.dotColor}`} aria-hidden="true" />
                       <span>{item.inventoryText}</span>
                     </span>
-                    {/* BL-35: soft-cap over-limit rows stay in "will add" --
+                    {/* Soft-cap over-limit rows stay in "will add" --
                         flagged here rather than moved to the skip section.
-                        BL-151 S2b: precon's partially-trimmed rows reuse this
-                        exact same note idiom (verificationRowsFromReport). */}
+                        Precon rows never carry this note: a trimmed precon
+                        row goes to the skip section with its reason
+                        (verificationRowsFromReport). */}
                     {item.overLimitNote && (
                       <div className="ac-verify__over-limit-note">{item.overLimitNote}</div>
                     )}
@@ -123,9 +121,10 @@ interface Props {
   willAdd: VerificationRow[];
   willSkip: VerificationRow[];
   sets: CardSet[];
-  /** BL-151 S2b: precon-only, optional -- unresolved/ambiguous ImportReport
-   * rows. Should never occur in practice (BL-151 S1's data is uuid-resolved
-   * at prep time, a hard invariant of the static precon data), so this
+  /** Precon-only, optional -- unresolved/ambiguous ImportReport rows. Should
+   * never occur in practice (every precon row is resolved to its swuapi_id
+   * at prep time, a hard invariant of the static precon data, App Spec §18;
+   * backend/scripts/verify_precon_decks.py re-proves it), so this
    * renders as its own prominent data-integrity section ahead of the two
    * standard ones whenever it's non-empty. Omitted entirely by the manual
    * flow, which has no such bucket. */

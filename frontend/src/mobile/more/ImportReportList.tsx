@@ -12,13 +12,13 @@ import {
 } from "./importFork";
 import type { ReasonCopy } from "./importFork";
 
-// BL-250 S4-11: the dry-run / commit report as a phone list. Same information
+// The dry-run / commit report as a phone list (App Spec §25.4). Same information
 // and copy as desktop ImportPreviewReport.tsx (totals, unrecognized columns,
 // the always-visible "Will be removed" danger section, Problem | Resolved
 // views, the problem-rows download, error + recommendation + possible
 // printings, resolved current -> resulting with trim / fallback / mismatch
 // notes), with its fixed-column tables ported into stacked rows.
-// TIEBREAKER S4-11 (paging): desktop scrolls a 360 px table; a phone has no
+// Paging: desktop scrolls a 360 px table; a phone has no
 // inner scroll, so rows render PAGE at a time with a 44 px "Show more".
 
 const PAGE = 100;

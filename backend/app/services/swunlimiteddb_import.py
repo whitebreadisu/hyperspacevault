@@ -1,12 +1,13 @@
-"""BL-186: sw-unlimited-db.com collection-export import adapter (XLSX).
+"""sw-unlimited-db.com collection-export import adapter (XLSX, App Spec
+§17.5).
 
-sw-unlimited-db's "Grouped" export ("Detailed" 500s consistently, per the
-BL-186 definition doc's owner session -- Grouped is the real, permanent
-ceiling for this source) is a WIDE spreadsheet: one row per BASE card
-(`Set`, `Base card id`, `Name`), followed by 21 fixed quantity columns, one
-per named variant/finish/promo-tier bucket. A row's identity is the base
+sw-unlimited-db's "Grouped" export (its "Detailed" export fails
+server-side, so Grouped is the ceiling for this source) is a WIDE
+spreadsheet: one row per BASE card (`Set`, `Base card id`, `Name`),
+followed by 21 fixed quantity columns, one per named
+variant/finish/promo-tier bucket. A row's identity is the base
 card; a printing's identity is `(Set, Base card id, <column name>)`, not a
-per-row field the way SWUDB's `IsFoil`/`Stamp` worked (see swudb_import.py).
+per-row field the way SWUDB's `IsFoil`/`Stamp` are (see swudb_import.py).
 Parsing this format is therefore a MELT first (one wide row -> up to 21
 candidate rows), not a straight row-by-row read.
 
@@ -18,29 +19,25 @@ one, and the row's own `Base card id` is the base card's number, not
 necessarily any resolved variant's own card_number). A resolved candidate
 carries only `swuapi_uuid` on its returned ParsedRow (set_code/card_number/
 variant_type stay None) and flows through
-`app.services.inventory_import.compute_import` completely UNCHANGED, via
-that module's existing "uuid known -> resolved" step. An unresolved/
+`app.services.inventory_import.compute_import` UNCHANGED, via that
+module's "uuid known -> resolved" step. An unresolved/
 ambiguous candidate carries its verdict on ParsedRow.preresolved_reason/
 preresolved_candidates instead, exactly like a SWUDB row -- see swudb_
 import.py's module docstring and inventory_import.py's `_resolve_row` for
 the shared contract both adapters stash into.
 
-Resolution is BASE-CARD-FIRST (the BL-186 definition doc's §10 owner
-finding, load-bearing): find the base card by (mapped_set,
+Resolution is BASE-CARD-FIRST (App Spec §17.5, load-bearing): find the
+base card by (mapped_set,
 normalized_number) -- base_cards joined via its set, NOT a variant's own
 (source_set_code, card_number) -- then select among THAT CARD's variants by
 the column's family. This is deliberately different from SWUDB's own
 (set, card_number) variant lookup (swudb_import._resolve_candidates): a
 promo/prerelease/Weekly-Play variant can carry a totally different own
-number in a different source_set_code than its base card (the doc's worked
-example: Vader's Prerelease Promo printing lands on the base sor/010 row,
-not on any row keyed by its own number). See app/repositories/
-inventory_import.py's get_base_card_variants_by_set_and_number for the bulk
-fetch this resolves against.
-
-The BL-186 definition doc (backlog-tracked analysis, not duplicated here)
-is authoritative for every judgment call below; each is called out inline
-as "§n" against that doc's section numbering.
+number in a different source_set_code than its base card (e.g. Vader's
+Prerelease Promo printing lands on the base sor/010 row, not on any row
+keyed by its own number). See app/repositories/inventory_import.py's
+get_base_card_variants_by_set_and_number for the bulk fetch this resolves
+against.
 """
 
 from __future__ import annotations
@@ -63,7 +60,7 @@ from app.services.inventory_io import (
 
 DATA_SHEET_NAME = "Data"
 
-# §2.1: the row-identity columns, plus the 21 fixed quantity columns in
+# The row-identity columns, plus the 21 fixed quantity columns in
 # their exported order. `Name` is descriptive only (never consulted for
 # resolution, same posture as inventory_io's own name/subtitle fields).
 IDENTITY_COLUMNS = ("Set", "Base card id", "Name")
@@ -91,26 +88,22 @@ QUANTITY_COLUMNS = (
     "Day two reward",
 )
 KNOWN_COLUMNS = set(IDENTITY_COLUMNS) | set(QUANTITY_COLUMNS)
-# §5.2/§10: header recognizability check -- Set and Base card id are the
+# Header recognizability check -- Set and Base card id are the
 # row's whole identity; Name/quantity columns are optional (a header with
 # zero populated quantity columns is still a recognizable, just empty,
 # export).
 REQUIRED_COLUMNS = {"Set", "Base card id"}
 
-# §3.1/§3.2/§10: base sets only, case-fold (.upper()) before lookup -- this
-# tool has no set-level promo concept (Weekly Play lives in its quantity
-# columns). Extension policy (ADR-0028, 2026-10-08): a new base set's printed
-# code is added at onboarding behind a 2-3 card (code, number) spot-check
-# against the catalog; a tool still carrying pre-release numbering is HELD
-# until street date. HMW was held on exactly that rule (the 2026-08-03
-# sample numbered #4 as Hijacked AT-ST, which the released set has at
-# #121) and mapped on 2026-10-12 (BL-245, feedback #38): a reporter's
-# post-release export (272 HMW rows, numbers 1-272) matched the catalog's
-# released numbering on every row -- #4 Grand Moff Tarkin (the tool labels
-# the double-sided leader by its back face, "The Death Star"), #121
-# Hijacked AT-ST, #272 Growth -- and all 359 of its (card, column)
-# candidates resolve to exactly one home-set variant. Anything else stays
-# unmapped, never guessed.
+# Base sets only, case-fold (.upper()) before lookup -- this tool has no
+# set-level promo concept (Weekly Play lives in its quantity columns).
+# Extension policy (ADR-0028): a new base set's printed code is added at
+# onboarding behind a 2-3 card (code, number) spot-check against the
+# catalog; a tool still carrying pre-release numbering is HELD until street
+# date. HMW passes that check on a post-release export: its numbering
+# matches the catalog's released numbering on every row (the tool labels
+# the double-sided leader #4 Grand Moff Tarkin by its back face, "The
+# Death Star"), and every (card, column) candidate resolves to exactly one
+# home-set variant. Anything else stays unmapped, never guessed.
 SET_CODE_MAP: dict[str, str] = {
     "SOR": "SOR",
     "SHD": "SHD",
@@ -125,7 +118,7 @@ SET_CODE_MAP: dict[str, str] = {
     "HMW": "HMW",
 }
 
-# §5.4/§10: columns that resolve to a single, direct variant_type on the
+# Columns that resolve to a single, direct variant_type on the
 # base card -- clean 1:1, no family ambiguity beyond the standard home-set/
 # ambiguous disambiguation every column goes through.
 _CLEAN_COLUMN_TO_TYPE: dict[str, str] = {
@@ -139,23 +132,23 @@ _CLEAN_COLUMN_TO_TYPE: dict[str, str] = {
     "Serialized Prestige": "Serialized Prestige",
 }
 
-# §10 owner finding: Organized Play is the Weekly Play family -- either the
-# variant's own type is literally "Weekly Play", OR it lives in the early-
-# era root-coded WP container set (BL-183: `<mapped_set>P`, e.g. SORP/JTLP).
+# Organized Play is the Weekly Play family (App Spec §17.5) -- either the
+# variant's own type is literally "Weekly Play" (this clause catches the
+# early sets' Weekly Play printings, which live in the base set), OR it
+# lives in the set's `<mapped_set>P` container set (e.g. SORP/JTLP).
 _WEEKLY_PLAY_COLUMN = "Organized Play"
 
-# §5.4/§10: Prerelease Promo resolves within the base card's "Prerelease"-
+# Prerelease Promo resolves within the base card's "Prerelease"-
 # family variants, preferring the exact "Prerelease Promo" type when both
 # Promo and Judge printings exist (a remaining multi-match is ambiguous).
 _PRERELEASE_COLUMN = "Prerelease Promo"
 
-# §6/§10 (owner-locked): columns that NEVER resolve in v1, surfaced as
-# unmapped_column if ever positive rather than guessed. Event Exclusive's
-# single observed real-world use (Vader's SORP_2) is a card-level anomaly,
-# not a general rule -- no confident family mapping exists for it. The
-# other 9 are the empirically-dead tournament/tier columns (0/2,255 rows in
-# the owner's real export) plus Organized Play Foil and the three reward
-# columns, none of which have ever been observed populated.
+# Columns that NEVER resolve, surfaced as unmapped_column if ever positive
+# rather than guessed (App Spec §17.5). Event Exclusive's single observed
+# real-world use (Vader's SORP_2) is a card-level anomaly, not a general
+# rule -- no confident family mapping exists for it. The other 10 --
+# Organized Play Foil, the six tournament/tier columns and the three reward
+# columns -- have never been observed populated in a real export.
 UNMAPPED_COLUMNS = frozenset(
     {
         "Event Exclusive",
@@ -174,7 +167,7 @@ UNMAPPED_COLUMNS = frozenset(
 
 
 def _is_token_id(raw: str) -> bool:
-    """BL-199: whether a raw `Base card id` names a TOKEN (T-prefixed,
+    """Whether a raw `Base card id` names a TOKEN (T-prefixed,
     e.g. T1). The prefix is the row's only token signal, and it's decisive:
     because _normalize_number strips it before lookup, a token row and a
     real-card row would otherwise land on the SAME (set, number) pair --
@@ -188,14 +181,14 @@ def _is_token_id(raw: str) -> bool:
 
 
 def _normalize_number(raw: str) -> str:
-    """§2.2: strips a leading `T` (token ids) before the same int-cast/
+    """Strips a leading `T` (token ids) before the same int-cast/
     re-stringify recipe swudb_import._normalize_number uses -- resolves
     inconsistent padding (within AND across sets in this format) uniformly.
     A token's `T`-prefix is stripped entirely, matching how our own
-    card_number field already stores tokens (BL-185 §3.4's P25_T002
-    finding: the T-prefixed collector number and the plain numeric
-    card_number are the same bare digits) -- tokenness itself is preserved
-    by the caller via _is_token_id above (BL-199), not by this string.
+    card_number field stores tokens (a T-prefixed collector number such as
+    P25_T002 and the plain numeric card_number are the same bare digits)
+    -- tokenness itself is preserved by the caller via _is_token_id above,
+    not by this string.
     Falls back to the T-stripped, stripped string when it isn't purely
     numeric -- never raises; an unparseable number just fails to find any
     base card downstream (unknown_set_and_number)."""
@@ -212,18 +205,17 @@ def _normalize_number(raw: str) -> str:
 class _Outcome:
     swuapi_uuid: str | None
     reason: str | None
-    # BL-200: full VariantMatch tuples, not bare swuapi_id strings -- see
+    # Full VariantMatch tuples, not bare swuapi_id strings -- see
     # inventory_io.ParsedRow.preresolved_candidates' own doc comment.
     candidates: list[VariantMatch]
 
 
 def _finish_family_resolution(family: list[VariantMatch], mapped_set: str) -> _Outcome:
-    """§10 step 2: disambiguate a column's family of candidates (already
-    narrowed to variants belonging to ONE base card) -- prefer the variant
-    whose source_set_code equals the row's mapped set (the home-set
-    printing); a remaining multi-match is the existing ambiguous_triple
-    bucket (the Serialized Prestige family is the expected case, per the
-    doc's §0.6/§9 Q3 census)."""
+    """Disambiguate a column's family of candidates (already narrowed to
+    variants belonging to ONE base card) -- prefer the variant whose
+    source_set_code equals the row's mapped set (the home-set printing); a
+    remaining multi-match is the ambiguous_triple bucket (the Serialized
+    Prestige family is the expected case)."""
     if not family:
         return _Outcome(None, "unknown_variant_for_column", [])
     if len(family) == 1:
@@ -244,14 +236,14 @@ def _finish_family_resolution(family: list[VariantMatch], mapped_set: str) -> _O
 def _resolve_column(
     base_card_variants: list[VariantMatch], column: str, mapped_set: str
 ) -> _Outcome:
-    """§5.4/§10: column -> family -> resolved/unresolved/ambiguous, applied
+    """Column -> family -> resolved/unresolved/ambiguous, applied
     to one base card's full variant list (already fetched base-card-first
     by the caller). Never touches the DB itself -- pure selection over the
     list the caller passed in."""
     if column in UNMAPPED_COLUMNS:
-        # §6/§10 (owner-locked): no confident family mapping exists for
-        # these columns -- surfaced as a problem row, never guessed, even
-        # when the base card and a plausible-looking candidate both exist.
+        # No confident family mapping exists for these columns -- surfaced
+        # as a problem row, never guessed, even when the base card and a
+        # plausible-looking candidate both exist.
         return _Outcome(None, "unmapped_column", [])
 
     if column in _CLEAN_COLUMN_TO_TYPE:
@@ -306,9 +298,8 @@ def _read_header(sheet) -> dict[str, int]:
 
 
 def _cell_quantity(value: object) -> int | None:
-    """§2.3/§10 (owner-locked): positive-only semantics -- blank/None
-    asserts nothing (never treated as zero/removal). A literal 0, should
-    one ever appear (none do in the owner's real export), is likewise
+    """Positive-only semantics (App Spec §17.5) -- blank/None asserts
+    nothing (never treated as zero/removal). A literal 0 is likewise
     ignored as no-claim -- returns None here exactly like a blank cell, so
     the melt step never emits a candidate for it. A non-numeric or
     negative cell is malformed and also ignored (no candidate) rather than
@@ -325,7 +316,7 @@ def _cell_quantity(value: object) -> int | None:
 
 
 def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
-    """§2/§5/§10. Reads the "Data" sheet from raw XLSX bytes (never
+    """Reads the "Data" sheet from raw XLSX bytes (never
     text-decoded -- the router's format-detection seam routes here BEFORE
     any utf-8 decode attempt, since this is a binary format). Refuses
     outright (never best-effort parsed) when the file isn't a readable
@@ -373,7 +364,7 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
         raw_set = str(raw_set).strip() if raw_set is not None else None
         raw_number = str(raw_number).strip() if raw_number is not None else None
         if not raw_set or not raw_number:
-            # §10: an unusable row identity (blank Set/Base card id) has no
+            # An unusable row identity (blank Set/Base card id) has no
             # positive-only claim to make regardless of quantity cells --
             # skip melting it. This format has no malformed_row concept
             # (see _cell_quantity's docstring); a garbage row simply melts
@@ -397,10 +388,10 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
 
     workbook.close()
 
-    # §5 steps 1-2 / §10: map every distinct (raw Set, raw Base card id) up
-    # front, so the base-card-first bulk lookup runs ONE query regardless
+    # Map every distinct (raw Set, raw Base card id) up front, so the
+    # base-card-first bulk lookup runs at most two queries regardless
     # of file size -- mirrors swudb_import.parse_swudb_csv's own bulk-map-
-    # then-lookup shape. BL-199: pairs are partitioned by tokenness (the
+    # then-lookup shape. Pairs are partitioned by tokenness (the
     # T- prefix _normalize_number strips is the row's only token signal --
     # see _is_token_id) and fetched in two token-split calls, so a token
     # row (T1) and a real-card row (1) sharing the same bare number never
@@ -426,16 +417,16 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
     }
 
     parsed_rows: list[ParsedRow] = []
-    # BL-186: every melted candidate becomes its own report row -- unlike
+    # Every melted candidate becomes its own report row -- unlike
     # canonical/SWUDB parsers, row_number here is a synthetic per-candidate
-    # sequence (a single spreadsheet row can melt into several candidates,
-    # §5.1), not the spreadsheet's own row index, so every candidate gets a
+    # sequence (a single spreadsheet row can melt into several candidates),
+    # not the spreadsheet's own row index, so every candidate gets a
     # distinct, stable ordinal.
     for ordinal, (cand, mapped) in enumerate(
         zip(candidates, mapped_by_candidate, strict=True), start=1
     ):
         if cand.column in UNMAPPED_COLUMNS:
-            # §6/§10: unmapped-column check runs before set/base-card
+            # The unmapped-column check runs before set/base-card
             # resolution -- a column with no confident family mapping is a
             # problem row regardless of whether its set/base-card would
             # otherwise resolve cleanly. variant_type is deliberately left
@@ -464,9 +455,9 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
             continue
 
         if mapped is None:
-            # §3/§10 (owner-locked): unmapped set (anything outside the
-            # mapped base sets) -- never guessed, same
-            # generic reason SWUDB's own unmapped-set case uses.
+            # Unmapped set (anything outside the mapped base sets) --
+            # never guessed, same generic reason SWUDB's own unmapped-set
+            # case uses.
             parsed_rows.append(
                 ParsedRow(
                     row_number=ordinal,
@@ -500,7 +491,7 @@ def parse_swunlimiteddb_xlsx(raw_bytes: bytes, db: Session) -> ParseResult:
         )
 
     notes = ParseNotes(unrecognized_columns=unrecognized)
-    # BL-186: reuses inventory_io's own duplicate-identity fold, same as
+    # Reuses inventory_io's own duplicate-identity fold, same as
     # swudb_import -- a resolved candidate already carries a swuapi_uuid by
     # this point, so two melted candidates resolving to the same variant
     # (e.g. the same base card entered twice, or two columns resolving to

@@ -9,8 +9,8 @@ from app.models.base import Base
 class BaseCard(Base):
     """One row per root printing (variant_of_uuid: null) per base set —
     the standard-bearing identity a card's full variant long tail anchors
-    to. See SWU_Standard_Variant_Mapping_Spec.md and
-    SWU_Catalog_Redesign_Spec.md §4.2."""
+    to. See the mapping spec (SWU_Standard_Variant_Mapping_Spec.md) and
+    App Spec §4.2."""
 
     __tablename__ = "base_cards"
 
@@ -38,8 +38,8 @@ class BaseCard(Base):
     epic_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     artist: Mapped[str | None] = mapped_column(String(200), nullable=True)
     swuapi_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
-    # Standard-anchor exception (mapping spec §6): nullable because a root's
-    # own variant_type can be non-Standard (currently 15 known cases).
+    # Standard-anchor exception (mapping spec §6, App Spec §10.6): nullable
+    # because a root's own variant_type can be non-Standard.
     standard_variant_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("card_variants.id"), nullable=True
     )

@@ -15,9 +15,9 @@ interface Props {
   onChangeSet: () => void;
 }
 
-/** Exported (BL-151 S2b) so AddCardsPreconBar -- built to mirror this
- * component exactly, per the owner's §4-REV dev-review feedback -- shares
- * the identical mark/starfield rendering rather than a drifting copy. */
+/** Exported so AddCardsPreconBar -- built to mirror this component exactly
+ * -- shares the identical mark/starfield rendering rather than a drifting
+ * copy. */
 export function SetMark({ code }: { code: string }) {
   return (
     <img
@@ -29,21 +29,19 @@ export function SetMark({ code }: { code: string }) {
   );
 }
 
-// Source-set picker (§5.1 / §5.4, restyled BL-164 §5): a custom logo-rail
-// listbox (SetDropdown) replaces the old native `<select>` + external "Show
-// all sets" button -- that toggle now lives inside the dropdown's own panel
-// footer (Set_Grouping_Context_2026-07-26.md).
+// Source-set picker (App Spec §5.1 / §5.4): a custom logo-rail listbox
+// (SetDropdown) whose own panel footer holds the "Show all sets" toggle
+// (App Spec §5.13).
 export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }: Props) {
   if (!setCode) {
     return (
       <div className="ac-setbar">
-        {/* BL-151 S2c (§4-REV2 point 1): "Add individual cards" -- paired
-            with AddCardsPreconBar's "Add a premade deck" so the two routes'
-            unlocked pickers read as an unmistakable choice when they're
-            shown side by side (AddCardsModal's .ac-chooser-row). The
-            `aria-label="Set"` below is deliberately UNCHANGED -- it's the
-            stable test-facing accessible name, decoupled from this visible
-            copy on purpose. */}
+        {/* "Add individual cards" -- paired with AddCardsPreconBar's "Add a
+            premade deck" so the two routes' unlocked pickers read as an
+            unmistakable choice when they're shown side by side
+            (AddCardsModal's .ac-chooser-row). SetDropdown's
+            `aria-label="Set"` is the stable test-facing accessible name,
+            deliberately decoupled from this visible copy. */}
         <span className="ac-setbar__label">Add individual cards</span>
         <div className="ac-setbar__select">
           <SetDropdown sets={sets} onChoose={onChoose} />
@@ -54,11 +52,11 @@ export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }
 
   const set = sets.find((s) => s.code === setCode);
   const starfieldCode = baseSetCodeFor(setCode, sets);
-  // "--ac-setbar-starfield" backs the CSS `var(--ac-setbar-starfield, url(tile))`
-  // fallback below (same technique the design prototype and the app header's
-  // own ASH strip, index.css's .app-header::before, both use for a
-  // single-background-size/-position rule that still works whether the
-  // per-set image resolves or not).
+  // "--ac-setbar-starfield" feeds AddCardsModal.css's
+  // `var(--ac-setbar-starfield, url(tile))` fallback (same technique as the
+  // app header's starfield, index.css's .app-header::before): one
+  // background-size/-position rule that works whether or not a per-set image
+  // resolves.
   const style = starfieldCode
     ? ({
         "--ac-setbar-starfield": `url(/images/starfields/starfield_${starfieldCode}.jpg)`,
@@ -67,19 +65,17 @@ export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }
 
   return (
     <div className="ac-setbar ac-setbar--locked" style={style}>
-      {/* Design handoff §7: "Change set" sits LEFT of the set logo once a set
-          is locked in (mirrors the console prototype's CSS `order:-1` trick,
-          done here by physical JSX order since we can edit the real markup
-          directly). */}
+      {/* "Change set" sits LEFT of the set logo once a set is locked in --
+          by physical JSX order, not a CSS `order` override. */}
       <button type="button" className="ac-setbar__change" onClick={onChangeSet}>
         Change set
       </button>
       {/* The header logo is always a BASE set's mark (logo assets exist per
           base set only): a Weekly Play or Exclusives selection shows the base
           set(s) its printings belong to -- several side by side, canonical
-          display order (newest first), when an Exclusives container spans base sets
-          (headerLogoCodesFor). An unmappable selection renders no logo at
-          all rather than a broken image. */}
+          display order (newest first), when an Exclusives container spans
+          base sets (headerLogoCodesFor; App Spec §5.4). An unmappable
+          selection renders no logo at all rather than a broken image. */}
       <span className="ac-setbar__marks">
         {headerLogoCodesFor(setCode, catalog).map((code) => (
           <SetMark key={code} code={code} />
@@ -93,8 +89,8 @@ export function AddCardsSetBar({ sets, catalog, setCode, onChoose, onChangeSet }
   );
 }
 
-/** BL-111 F7 (design handoff §7): the locked set bar's background becomes
- * that set's starfield center strip -- but a batch can be entered against a
+/** The locked set bar's background is that set's starfield center strip --
+ * but a batch can be entered against a
  * long-tail/companion set (e.g. "SORP" Weekly Play), which has no starfield
  * asset of its own (assets only exist per *base* set, public/images/
  * starfields/starfield_<SET>.jpg). Weekly-play codes are conventionally the

@@ -35,10 +35,10 @@ const PRECON_ENTRIES = preconEntries();
 
 interface PreconState {
   selection: PreconEntry | null;
-  /** P2: hard-mode users' trim/add-above choice. Meaningless (never sent) for
+  /** Hard-mode users' trim/add-above choice. Meaningless (never sent) for
    * soft/no-limit users, who always send "add_above" -- see effectivePreconCap
-   * below. Defaults to "trim" (§4: "Don't add copies above my keep-limits" is
-   * the default option). */
+   * below. Defaults to "trim" ("Don't add copies above my keep-limits" is the
+   * default option, App Spec §18). */
   capHandling: CapHandling;
   step: "select" | "preview";
   report: ImportReport | null;
@@ -55,9 +55,9 @@ function emptyPrecon(): PreconState {
 
 interface ModalState {
   // The set new entries attach to (drives the set bar + keypad entry form).
-  // Distinct from any given row's own `setCode` (BL-61) — switching this no
-  // longer touches rows already committed under a different set, so a batch
-  // can span multiple sets until commit.
+  // Distinct from any given row's own `setCode` — switching this never
+  // touches rows already committed under a different set, so a batch can
+  // span multiple sets until commit (App Spec §5.4, cross-set batch).
   activeSetCode: string | null;
   rows: Row[];
   phase: Phase;
@@ -81,20 +81,18 @@ function emptyRow(): Row {
 interface Props {
   catalog: AddCardsCatalogEntry[];
   onClose: () => void;
-  /** BL-196: widened from `() => void` -- CardsPage now passes an async
-   * function (awaiting its own refreshQuantities) so the commit-stage busy
-   * overlay's "Refreshing your Vault…" stage can hold through it. Callers
-   * that still return void/undefined (the EmailNotVerifiedError/precon-
-   * error partial-progress-refresh calls below, and every test's plain
-   * `vi.fn()`) keep working unchanged -- `await onCommitted()` on a
-   * void-returning function just resolves immediately. */
+  /** May return a promise: CardsPage passes an async function (awaiting its
+   * own refreshQuantities) so the commit-stage busy overlay's "Refreshing
+   * your Vault…" stage holds through it. A void-returning callback also
+   * works -- `await onCommitted()` on it just resolves immediately. The two
+   * email-not-verified refresh calls below do not await it. */
   onCommitted: () => void | Promise<void>;
 }
 
 export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
-  // BL-25/BL-35: the tenant's effective keep-limit matrix (null -> code
-  // defaults) and cap_mode (hard/soft), threaded into the pure resolver
-  // helpers below and into the keypad.
+  // The tenant's effective keep-limit matrix (null -> code defaults) and
+  // cap_mode (hard/soft), threaded into the pure resolver helpers below and
+  // into the keypad.
   const { limits, capMode } = useLimits();
   const [sets, setSets] = useState<CardSet[]>([]);
   const [state, setState] = useState<ModalState>({
@@ -105,34 +103,31 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   });
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
-  // BL-151 S2: the precon flow's own commit/preview lifecycle -- kept
-  // separate from the manual flow's committing/commitError above rather than
-  // shared, since the two flows drive genuinely different network calls
-  // (incrementCard loop vs. runImport) and can each be mid-flight
-  // independently of which surface is currently displayed.
+  // The precon flow's own commit/preview lifecycle -- kept separate from the
+  // manual flow's committing/commitError above rather than shared, since the
+  // two flows drive genuinely different network calls (adjustCard loop vs.
+  // runImport) and can each be mid-flight independently of which surface is
+  // currently displayed.
   const [previewingPrecon, setPreviewingPrecon] = useState(false);
   const [preconCommitting, setPreconCommitting] = useState(false);
   const [preconError, setPreconError] = useState<string | null>(null);
-  // BL-111 F7 (design handoff §7): close guard -- Cancel/X/Escape/backdrop
-  // with a non-empty batch raises a confirm instead of closing outright.
-  // `hasBatch` only counts *committed* rows (the keypad's in-progress draft
-  // doesn't count -- nothing typed but not yet added to the batch would be
-  // lost either way, but the confirm's copy talks about "cards you have
-  // entered", i.e. the committed batch). A close that follows a successful
-  // commit (handleCommit's own onClose() call below) never routes through
-  // requestClose, so it skips the confirm unconditionally -- nothing to
-  // guard once the batch has already been added.
-  // BL-151 (§4-REV carries this forward unchanged, §4-REV2 doesn't touch
-  // it): "a selected deck counts as batch in progress for the guard" --
-  // hasBatch covers both routes' in-progress state regardless of which one
-  // is currently locked/displayed.
+  // Close guard -- Cancel/X/Escape/backdrop with a non-empty batch raises a
+  // confirm instead of closing outright. `hasBatch` only counts *committed*
+  // rows (the keypad's in-progress draft doesn't count -- the confirm's copy
+  // talks about "cards you have entered", i.e. the committed batch). A close
+  // that follows a successful commit (handleCommit's own onClose() call
+  // below) never routes through requestClose, so it skips the confirm
+  // unconditionally -- nothing to guard once the batch has been added.
+  // A selected precon deck also counts as a batch in progress: hasBatch
+  // covers both routes' in-progress state regardless of which one is
+  // currently locked/displayed.
   const [confirming, setConfirming] = useState(false);
   const hasBatch = state.rows.some((r) => r.cardNumber) || state.precon.selection !== null;
-  // BL-235: add_cards_abandoned's pending_entries -- committed keypad rows
-  // plus 1 for a selected-but-uncommitted precon deck. Only ever read from
-  // the Discard & Close confirm button below, which is only reachable when
-  // hasBatch is true (requestClose), so this is always > 0 there -- matches
-  // the taxonomy's "count > 0 only" rule without a separate guard.
+  // add_cards_abandoned's pending_entries (App Spec §22) -- committed keypad
+  // rows plus 1 for a selected-but-uncommitted precon deck. Only ever read
+  // from the Discard & Close confirm button below, which is only reachable
+  // when hasBatch is true (requestClose), so the event never carries 0 and
+  // needs no separate guard.
   const pendingEntries =
     state.rows.filter((r) => r.cardNumber).length + (state.precon.selection !== null ? 1 : 0);
   const requestClose = useCallback(() => {
@@ -140,9 +135,9 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     else onClose();
   }, [hasBatch, onClose]);
 
-  // BL-196: the commit-stage busy overlay -- shared between the manual
-  // (handleCommit) and precon (handlePreconCommit) commit paths below, same
-  // "overlay state local to the surface" shape ImportExportPage's own
+  // The commit-stage busy overlay (App Spec §5.16) -- shared between the
+  // manual (handleCommit) and precon (handlePreconCommit) commit paths below,
+  // same "overlay state local to the surface" shape ImportExportPage's own
   // instance uses.
   const overlay = useBusyOverlay();
 
@@ -150,14 +145,14 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     getSets().then(setSets).catch(console.error);
   }, []);
 
-  // BL-153: Escape dismisses the close-guard confirm first (if it's up)
-  // before it can raise/trigger requestClose again -- same "nested state
-  // collapses first" shape as CardPopup's history panel. Backdrop-click
-  // dismiss reuses the same target-equality pattern CardPopup uses -- see
-  // useModalDismiss's docstring.
-  // BL-196: a no-op while the busy overlay is up -- it renders with no
-  // dismiss affordance of its own (BusyOverlay.tsx's doc comment), but the
-  // Escape LISTENER underneath it (this hook) stays attached the whole time
+  // Escape dismisses the close-guard confirm first (if it's up) before it
+  // can raise/trigger requestClose again -- same "nested state collapses
+  // first" shape as CardPopup's history panel. Backdrop-click dismiss reuses
+  // the same target-equality pattern CardPopup uses -- see useModalDismiss's
+  // docstring.
+  // A no-op while the busy overlay is up -- it renders with no dismiss
+  // affordance of its own (BusyOverlay.tsx's doc comment), but the Escape
+  // LISTENER underneath it (this hook) stays attached the whole time
   // regardless, so it has to explicitly ignore Escape itself rather than
   // relying on the overlay to swallow the keypress first.
   const onEscape = useCallback(() => {
@@ -167,16 +162,16 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   }, [overlay.stage, confirming, requestClose]);
   const { handleBackdropMouseDown } = useModalDismiss(onEscape, { onBackdropClick: requestClose });
 
-  // BL-61: neither of these touches `rows` — the batch is non-destructive
-  // across set changes, and can end up spanning multiple sets.
+  // Neither of these touches `rows` — the batch is non-destructive across
+  // set changes, and can end up spanning multiple sets.
   const setSet = useCallback((code: string) => {
     setState((s) => ({ ...s, activeSetCode: code, phase: "editing" }));
   }, []);
 
-  // BL-151 S2c (§4-REV2): "Change set" unlocks the SET BAR's own picker
-  // sub-state, but does NOT by itself clear the manual route lock -- if rows
-  // are still in the batch, `manualLocked` below stays true (the precon bar
-  // stays hidden; you're still mid-batch). Route locking is derived entirely
+  // "Change set" unlocks the SET BAR's own picker sub-state, but does NOT by
+  // itself clear the manual route lock (App Spec §18) -- if rows are still
+  // in the batch, `manualLocked` below stays true (the precon bar stays
+  // hidden; you're still mid-batch). Route locking is derived entirely
   // from state (manualLocked/preconLocked), not tracked as its own field, so
   // there's nothing else for this handler to touch.
   const changeSet = useCallback(() => {
@@ -215,12 +210,10 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     }));
   }, []);
 
-  // BL-151 S2c (§4-REV2): unlike the manual route, precon has no "residual"
-  // concept -- clearing the selection IS the precon route's full-clear
-  // condition (there's nothing else that could keep it locked), so "Change
-  // Deck" immediately returns to the side-by-side chooser (both bars
-  // reappear) the moment this runs, matching the owner's explicit "that's
-  // correct and intended" note.
+  // Unlike the manual route, precon has no "residual" concept -- clearing the
+  // selection IS the precon route's full-clear condition (there's nothing
+  // else that could keep it locked), so "Change Deck" immediately returns to
+  // the side-by-side chooser (both bars reappear) the moment this runs.
   const changePreconDeck = useCallback(() => {
     setState((s) => ({ ...s, precon: { ...s.precon, selection: null, step: "select" } }));
   }, []);
@@ -233,9 +226,9 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     setState((s) => ({ ...s, precon: { ...s.precon, step: "select" } }));
   }, []);
 
-  // P2: hard-mode users' explicit trim/add-above choice; soft/no-limit users
-  // always send "add_above" (§4 -- "no UI" for them, their over-limit
-  // indicators already communicate state post-refresh).
+  // Hard-mode users' explicit trim/add-above choice; soft/no-limit users
+  // always send "add_above" with no choice shown -- their over-limit
+  // indicators communicate state after the refresh (App Spec §18).
   const effectivePreconCap = capHandlingFor(capMode, state.precon.capHandling);
 
   async function handlePreconPreview() {
@@ -261,17 +254,15 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     if (!file || preconCommitting) return;
     setPreconCommitting(true);
     setPreconError(null);
-    // BL-196: the precon dry-run report already sitting in state has the
-    // exact batch size the verify screen's own "N of M cards will be added"
-    // hint shows -- recomputed here via verificationRowsFromReport directly
-    // (not the memoized preconVerifyRows below) since this function is
-    // declared above that useMemo in source order; reaching for the memo
-    // from here defeats React Compiler's ability to preserve it (verified
-    // empirically -- referencing a later-declared memo from an
-    // earlier-declared closure makes it bail on that memo entirely). `file`
-    // and `report` are always set together (handlePreconPreview's one
-    // setState call below), so `file` truthy here guarantees `report` is
-    // too.
+    // The precon dry-run report in state has the exact batch size the verify
+    // screen's own "N of M cards will be added" hint shows -- recomputed
+    // here via verificationRowsFromReport directly (not the memoized
+    // preconVerifyRows below) since this function is declared above that
+    // useMemo in source order; React Compiler bails on a memo that an
+    // earlier-declared closure references, so reaching for it from here
+    // would lose the memoization. `file` and `report` are always set
+    // together (handlePreconPreview's one setState call above), so `file`
+    // truthy here guarantees `report` is too.
     const count = state.precon.report
       ? verificationRowsFromReport(state.precon.report).willAdd.length
       : 0;
@@ -288,18 +279,20 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       );
     } catch (err) {
       if (err instanceof ImportApiError && err.code === "email_not_verified") {
-        // BL-16-equivalent gate: stop here and keep the modal open on the
+        // Email-verification gate: stop here and keep the modal open on the
         // same explanatory copy the manual flow's EmailNotVerifiedError
         // branch uses, rather than closing as if the import had succeeded.
         // onCommitted still fires directly (not through the overlay's
-        // settle, which only runs when the task itself resolved) -- the
-        // partial-progress refresh reason is unchanged from before BL-196.
+        // settle, which only runs when the task itself resolved). Unlike the
+        // manual branch there is no partial progress to pick up: the
+        // backend's require_verified_email dependency rejects the import
+        // before any write, so this refresh re-reads unchanged data.
         setPreconError("Verify your email to manage inventory -- see the banner above.");
         onCommitted();
         setPreconCommitting(false);
         return;
       }
-      // Any other ImportApiError (§4): surface it in the modal foot and stay
+      // Any other ImportApiError: surface it in the modal foot and stay
       // open -- unlike the manual flow's loop (which has no way to roll back
       // partial progress), a precon commit is one all-or-nothing transaction,
       // so nothing has changed server-side and there's nothing to refresh.
@@ -310,8 +303,8 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       return;
     }
     setPreconCommitting(false);
-    // BL-235: add_cards_committed for the precon route -- cards_added sums
-    // ACTUAL applied copies per resolved row (resulting_quantity minus
+    // add_cards_committed for the precon route (App Spec §22) -- cards_added
+    // sums ACTUAL applied copies per resolved row (resulting_quantity minus
     // current_quantity, floored at 0 -- a trimmed row applies fewer than the
     // deck's own quantity), distinct_cards is the resolved row count (each
     // report row is already one distinct printing). state.precon.report is
@@ -332,7 +325,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     onClose();
   }
 
-  // Each row resolves against its own setCode (BL-61) — no dependency on
+  // Each row resolves against its own setCode — no dependency on
   // which set is currently active in the set bar.
   const { canSubmit, hasErrors, willAdd, willSkip } = useMemo(() => {
     const resolutions = state.rows.map((r) => resolveRow(r, catalog));
@@ -347,8 +340,8 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     return { canSubmit, hasErrors, willAdd, willSkip };
   }, [state.rows, catalog, limits, capMode]);
 
-  // BL-151 S2b (§4-REV): manual willAdd/willSkip flattened into the shared
-  // VerificationRow shape AddCardsVerification now renders for both flows --
+  // Manual willAdd/willSkip flattened into the shared VerificationRow shape
+  // AddCardsVerification renders for both flows --
   // see addCardsResolver.ts's toVerificationRow doc comment for why this is
   // a pure flatten, not a reclassification.
   const manualVerifyRows = useMemo(
@@ -387,12 +380,12 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
     if (willAdd.length === 0 || committing) return;
     setCommitting(true);
     setCommitError(null);
-    // BL-196: batch size is already known at commit time (willAdd is the
-    // exact set of rows about to be incremented) -- the same figure the
-    // verification footer's "N of M cards will be added" hint uses.
+    // Batch size is known at commit time (willAdd is the exact set of rows
+    // about to be added) -- the same figure the verification footer's "N of
+    // M cards will be added" hint uses.
     const count = willAdd.length;
-    // BL-235: add_cards_committed's distinct_cards -- each willAdd row is
-    // one physical copy (a keypad entry is always a single card), so
+    // add_cards_committed's distinct_cards (App Spec §22) -- each willAdd row
+    // is one physical copy (a keypad entry is always a single card), so
     // multiple rows resolving to the same printing collapse to one variant
     // id here, same grouping the network loop below performs independently.
     const distinctCount = new Set(willAdd.map((w) => w.resolved.variantId)).size;
@@ -401,15 +394,13 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
         {
           task: async () => {
-            // BL-219 (issue #127): grouped by variant_id, one adjustCard
-            // call per DISTINCT variant instead of one incrementCard call
-            // per row -- a batch with several copies of the same printing
-            // (e.g. three rows all resolving to the same variant) now sends
-            // one delta=3 call instead of three delta=1 calls. Purely
-            // mechanical: this loop never inspected incrementCard's
-            // response (blocked/applied) before either -- willAdd's own
-            // pre-check (splitForVerification) already decided what belongs
-            // in this batch, and that contract is unchanged here.
+            // Grouped by variant_id: one adjustCard call per DISTINCT
+            // variant, so several copies of the same printing (e.g. three
+            // rows all resolving to the same variant) send one delta=3 call
+            // rather than three delta=1 calls (the debounced-delta adjust
+            // endpoint, App Spec §5.3 / §12). The loop does not inspect the
+            // response: willAdd's own pre-check (splitForVerification) has
+            // already decided what belongs in this batch.
             const deltaByVariant = new Map<number, number>();
             for (const { resolved } of willAdd) {
               deltaByVariant.set(
@@ -429,15 +420,14 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       );
     } catch (err) {
       if (err instanceof EmailNotVerifiedError) {
-        // BL-16: stop the batch and keep the modal open on an explanatory
+        // Stop the batch and keep the modal open on an explanatory
         // message instead of closing as if the whole commit had succeeded.
         // Still call onCommitted() (but not onClose()) -- some rows in the
         // batch may have already committed before the gate rejected the
         // rest, so the parent's data should refresh even though the modal
         // stays open for the user to see the error. Called directly (not
         // through the overlay's settle, which only runs when the task
-        // itself resolved without throwing) -- same reasoning as the precon
-        // flow's own email-not-verified branch above.
+        // itself resolved without throwing).
         setCommitError("Verify your email to manage inventory -- see the banner above.");
         onCommitted();
         setCommitting(false);
@@ -452,20 +442,19 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
       method: "keypad",
       cards_added: count,
       distinct_cards: distinctCount,
-    }); // BL-235
+    });
     onClose();
   }
 
   const totalResolved = willAdd.length + willSkip.length;
 
-  // BL-151 S2c (§4-REV2): route locking replaces S2b's "last-used-wins,
-  // both bars always visible" `activeSurface` model outright -- there is no
-  // separate tracked field for "which route is active" any more; it's
-  // derived fresh from the state that already exists for other reasons.
+  // Route locking (App Spec §18): there is no separate tracked field for
+  // "which route is active"; it's derived fresh from the state that exists
+  // for other reasons.
   //   - manual is locked the moment there's an active set OR any row already
   //     has a card number -- i.e. "Change Set" alone does NOT clear the
-  //     lock if rows are still in the batch (owner: "you're still
-  //     mid-batch"). Only clearing BOTH (no set, no rows) releases it.
+  //     lock if rows are still in the batch (you're still mid-batch). Only
+  //     clearing BOTH (no set, no rows) releases it.
   //   - precon is locked the moment a deck is selected -- unlike manual, it
   //     has no residual concept, so clearing the selection ("Change Deck")
   //     IS the full-clear condition; nothing else could keep it locked.
@@ -476,7 +465,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
   const preconLocked = state.precon.selection !== null;
   const route: "cards" | "precon" | null = manualLocked ? "cards" : preconLocked ? "precon" : null;
 
-  // BL-151 S2c: the header title's "Verify cards to add" copy applies
+  // The header title's "Verify cards to add" copy applies
   // whichever route's verification-equivalent step is showing -- the manual
   // flow's "verification" phase, or the precon flow's "preview" step.
   const showingVerifyTitle =
@@ -505,15 +494,14 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
           </button>
         </div>
 
-        {/* BL-111 F7 (design handoff §7): circuit separator straddling the
-            header/set-bar seam, same reusable pattern F2 built for the app
-            header/content seam. */}
+        {/* Circuit separator straddling the header/set-bar seam, the same
+            SectionSeparator App.tsx places at the app header/content seam. */}
         <SectionSeparator />
 
-        {/* BL-151 S2c (§4-REV2): route locking -- only the LOCKED route's
-            bar renders once a selection has been made; the other route's
-            bar is gone entirely (not just visually hidden) until the locked
-            route fully clears. Neither bar's own state (`activeSetCode`/
+        {/* Route locking (App Spec §18) -- only the LOCKED route's bar
+            renders once a selection has been made; the other route's bar is
+            gone entirely (not just visually hidden) until the locked route
+            fully clears. Neither bar's own state (`activeSetCode`/
             `rows` vs. `precon`) is ever touched by locking/unlocking the
             other, so nothing either side had in progress is lost across a
             round trip through the chooser. */}
@@ -536,12 +524,11 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
             onChangeDeck={changePreconDeck}
           />
         )}
-        {/* §4-REV2 point 1: neither route locked -- the initial/cleared
-            state offers both drop-downs SIDE BY SIDE (wraps at narrow
-            widths, .ac-chooser-row in AddCardsModal.css), each bar's own
-            unlocked-picker label copy making the split unmistakable
-            ("Add individual cards" / "Add a premade deck", set directly in
-            each component). */}
+        {/* Neither route locked -- the initial/cleared state offers both
+            drop-downs SIDE BY SIDE (wraps at narrow widths, .ac-chooser-row
+            in AddCardsModal.css), each bar's own unlocked-picker label copy
+            making the split unmistakable ("Add individual cards" / "Add a
+            premade deck", set directly in each component). */}
         {route === null && (
           <div className="ac-chooser-row">
             <AddCardsSetBar
@@ -581,10 +568,10 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
             />
           )}
 
-          {/* §4-REV P2: rendered ONLY for hard-cap-mode users. No need to
-              guard on `state.precon.selection` here (unlike the S2b
-              version) -- route can only BE "precon" when preconLocked is
-              true, which already means a selection exists. */}
+          {/* Rendered ONLY for hard-cap-mode users (App Spec §18). No need
+              to guard on `state.precon.selection` here -- route can only BE
+              "precon" when preconLocked is true, which already means a
+              selection exists. */}
           {route === "precon" && state.precon.step === "select" && capMode === "hard" && (
             <div className="ac-radio" role="radiogroup" aria-label="Keep-limit handling">
               <label className="ac-radio__option">
@@ -672,7 +659,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
               <>
                 {/* Route can only be "precon" with a selection already made
                     (preconLocked), so this is always "Ready to preview." --
-                    no more "nothing selected yet" branch to account for. */}
+                    there is no "nothing selected yet" branch. */}
                 <span className="ac-modal__foot-hint">Ready to preview.</span>
                 <span className="ac-modal__foot-spacer" />
                 <SWUButton size="sm" onClick={requestClose}>
@@ -683,7 +670,6 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
                   active={!previewingPrecon}
                   onClick={!previewingPrecon ? handlePreconPreview : undefined}
                 >
-                  {/* §4-REV2 point 3: "Preview Deck" -> "Preview adding deck". */}
                   {previewingPrecon ? "Previewing…" : "Preview adding deck"}
                 </SWUButton>
               </>
@@ -694,13 +680,11 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
                 </span>
                 <span className="ac-modal__foot-spacer" />
                 <SWUButton size="sm" onClick={backToPreconSelect}>
-                  {/* §4-REV2 point 3 (owner): hard-cap users go "back" to
-                      edit the keep-limit RULE, not the deck's own batch (you
-                      don't edit a premade deck's contents) -- "Edit keep-
-                      limit rule". Soft/no-limit users have no rule on screen
-                      at all, so labeling one would be actively wrong; this
-                      plain-"Back" variant for that case is an orchestrator
-                      call (not explicit in the owner's note), recorded here. */}
+                  {/* Hard-cap users go "back" to edit the keep-limit RULE,
+                      not the deck's own batch (you don't edit a premade
+                      deck's contents) -- "Edit keep-limit rule". Soft/
+                      no-limit users have no rule on screen at all, so they
+                      get a plain "Back". */}
                   {capMode === "hard" ? "Edit keep-limit rule" : "Back"}
                 </SWUButton>
                 <SWUButton size="sm" onClick={requestClose}>
@@ -716,7 +700,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
               </>
             )
           ) : (
-            // §4-REV2: neither route locked -- the side-by-side chooser is
+            // Neither route locked -- the side-by-side chooser is
             // showing above; nothing to preview/submit yet.
             <>
               <span className="ac-modal__foot-hint">
@@ -731,10 +715,9 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         </div>
       </div>
 
-      {/* BL-111 F7 (design handoff §7): console-styled close-guard confirm.
-          Rendered as a sibling overlay layer above the modal (not a nested
-          dialog inside it) so it isn't clipped by .ac-modal's own
-          clip-path. */}
+      {/* Console-styled close-guard confirm. Rendered as a sibling overlay
+          layer above the modal (not a nested dialog inside it) so it isn't
+          clipped by .ac-modal's own clip-path. */}
       {confirming && (
         <div
           className="ac-confirm-overlay modal-overlay modal-overlay--nested"
@@ -758,7 +741,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
                   size="sm"
                   active
                   onClick={() => {
-                    capture("add_cards_abandoned", { pending_entries: pendingEntries }); // BL-235
+                    capture("add_cards_abandoned", { pending_entries: pendingEntries });
                     setConfirming(false);
                     onClose();
                   }}
@@ -774,7 +757,7 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
         </div>
       )}
 
-      {/* BL-196: covers a manual or precon commit -- z-index 300 (see
+      {/* Covers a manual or precon commit -- z-index 300 (see
           BusyOverlay.css) clears both this modal (100) and the close-guard
           confirm above (200), which can in principle still be up
           underneath if a stray requestClose slipped through mid-commit. */}

@@ -1,8 +1,8 @@
 import type { SyntheticEvent } from "react";
 import type { ImageRenditions } from "../api/baseCards";
 
-// BL-146 (Design_SparseList_2026-07-25.md §3): same-origin serving prefix,
-// mirrors backend/app/services/image_paths.py's SERVE_PREFIX exactly.
+// Same-origin serving prefix, mirrors backend/app/services/image_paths.py's
+// SERVE_PREFIX exactly.
 const SERVE_PREFIX = "/images/";
 
 /** Client-side port of backend/app/services/image_paths.py's derive_stem --
@@ -22,18 +22,17 @@ function deriveStem(url: string): string {
   return dotIndex === -1 ? filename : filename.slice(0, dotIndex);
 }
 
-/** BL-146: client-side port of image_paths.py's object_paths/
+/** Client-side port of image_paths.py's object_paths/
  * same_origin_renditions -- computes the 3 same-origin serving URLs for one
  * side of a variant from its stored CDN URL, without a round trip through
- * the API. Exactly as correct as the server's derivation -- ADR-0012's own
- * amendment already established this as "read-time derivation...
- * deterministic and stateless by design" (0012-card-image-self-hosting.md),
- * so moving *where* it runs changes nothing about correctness. Used by
- * toInventoryCards (utils/inventory.ts) to populate list-row renditions now
- * that GET /api/base-cards no longer ships front_images/back_images at all
- * (Design_SparseList_2026-07-25.md §3's recommendation: derive, don't
- * relocate). See cardImages.test.ts for the fixture pinning this against
- * test_image_paths.py's exact-string assertions on the Python side. */
+ * the API. Exactly as correct as the server's derivation -- ADR-0012's
+ * amendment makes the object paths a pure function of the stored CDN URL
+ * (read-time derivation), so *where* it runs changes nothing about
+ * correctness. Used by toInventoryCards (utils/inventory.ts) to populate
+ * list-row renditions, because GET /api/base-cards ships no
+ * front_images/back_images (App Spec §12). See cardImages.test.ts for the
+ * fixture pinning this against test_image_paths.py's exact-string
+ * assertions on the Python side. */
 export function deriveRenditions(url: string): ImageRenditions {
   const stem = deriveStem(url);
   return {
@@ -47,7 +46,7 @@ export interface CardImageProps {
   src: string;
   srcSet?: string;
   sizes?: string;
-  /** One-shot last-resort fallback (BL-76 Phase 3 follow-up fix): swaps the
+  /** One-shot last-resort fallback: swaps the
    * failing <img> to the stored CDN URL. See makeCardImageErrorHandler. */
   onError?: (event: SyntheticEvent<HTMLImageElement>) => void;
 }
@@ -55,7 +54,8 @@ export interface CardImageProps {
 /** Which shape of candidate set to build. "thumb" is the small-cell case
  * (gallery cells, the Add Cards preview) -- 320/640 width candidates so the
  * browser picks based on the slot's CSS size × device pixel ratio. "large"
- * is the popup case (the unified CardPopup, BL-111 F5) -- the rendered
+ * is the popup case (CardPopup, the phone card page and the phone's one-up
+ * gallery) -- the rendered
  * slot is already ~640-wide, so width descriptors stop being useful there;
  * offering 640 (1x) and the full original (2x+) as a density switch lets a
  * high-DPR display pull the sharper source without guessing its exact
@@ -63,7 +63,7 @@ export interface CardImageProps {
  * output size). */
 export type CardImageSlot = "thumb" | "large";
 
-/** Client-side last-resort image fallback (BL-76 Phase 3 follow-up fix).
+/** Client-side last-resort image fallback.
  *
  * Why it exists: the backend's cache-miss 307 reconstructs the official CDN
  * URL from the stem alone, which is necessarily best-effort -- the CDN
@@ -99,13 +99,12 @@ export function makeCardImageErrorHandler(
 }
 
 /** Build <img> src/srcSet/sizes (+ the one-shot onError fallback above) for
- * one side of a variant (BL-76 Phase 3, ADR-0012). Prefers the derived
- * same-origin renditions; falls back to the plain hotlinked CDN URL when
- * they're absent -- e.g. a base-cards list response served from a stale CDN
- * cache entry from before this field existed (BL-101's public caching means
- * an old-shape response stays valid across this deploy, so every caller of
- * this util is safe against it by construction). Returns null when neither
- * is available for this side (e.g. back_image_url on a card with no back). */
+ * one side of a variant (ADR-0012). Prefers the derived same-origin
+ * renditions; falls back to the plain hotlinked CDN URL when they're absent
+ * -- e.g. a stale publicly cached base-cards response of an older shape, or
+ * a caller that passes no renditions, so every caller of this util is safe
+ * against it by construction. Returns null when neither is available for
+ * this side (e.g. back_image_url on a card with no back). */
 export function cardImageProps(
   images: ImageRenditions | null | undefined,
   fallbackUrl: string | null,

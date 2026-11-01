@@ -19,14 +19,13 @@ const DEFAULT_MAX_H = 396;
 const MIN_MAX_H = 180;
 const VIEWPORT_MARGIN = 26;
 
-/** BL-164 §5: the custom logo-rail listbox that replaces AddCardsSetBar's
- * unlocked-state native `<select>`. Portaled to `document.body` (the modal
- * shell's corner-cut clip-path would truncate an absolutely-positioned
- * child, same rationale as FilterMenuPortal's existing precedent) with
+/** AddCardsSetBar's unlocked-state picker: a custom logo-rail listbox
+ * grouped per utils/setGrouping.ts (App Spec §5.13). Portaled to
+ * `document.body` (the modal shell's corner-cut clip-path would truncate an
+ * absolutely-positioned child, same rationale as FilterMenuPortal) with
  * `position: fixed` coordinates derived from the trigger's own rect.
  * `aria-label="Set"` on both the trigger button and the listbox panel is the
- * stable test-facing accessible-name contract (Set_Grouping_Context's
- * "Fixed" list) -- unchanged by this restyle. */
+ * stable test-facing accessible-name contract. */
 export function SetDropdown({ sets, onChoose }: Props) {
   const [open, setOpen] = useState(false);
   const [showAllSets, setShowAllSets] = useState(false);

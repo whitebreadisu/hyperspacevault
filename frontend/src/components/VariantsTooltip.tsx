@@ -8,9 +8,8 @@ interface Props {
   setNameByCode: Record<string, string>;
 }
 
-/** Sort order for the tooltip lines (mock + redesign spec §5.1/§5.3 pattern):
- * the base card's own set first, then other sets, then card_number ascending
- * within each set. */
+/** Sort order for the tooltip lines: the base card's own set first, then
+ * other sets by set code, then card_number ascending within each set. */
 function sortVariants(card: BaseCard): BaseCard["variants"] {
   const numericNumber = (n: string) => {
     const v = Number(n);
@@ -38,11 +37,9 @@ export function VariantsTooltip({ card, setNameByCode }: Props) {
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      {/* BL-129 R2: the hover-target used to spell out the word "variants";
-          now it's the card's own variant count -- the border treatment and
-          hover popup are unchanged, only the visible text. aria-label keeps
-          the accessible name descriptive for screen readers even though the
-          rendered glyph is now a bare number. */}
+      {/* The hover target shows the card's variant count. aria-label keeps
+          the accessible name descriptive for screen readers since the
+          rendered glyph is a bare number. */}
       <button
         type="button"
         className="vt-button"

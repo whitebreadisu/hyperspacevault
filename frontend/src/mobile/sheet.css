@@ -1,6 +1,5 @@
-/* BL-247 S1-13: the bottom sheet (rev4 m-layout.css:225-245) plus the small
- * shared controls sheets use (m-layout.css:35-40 icon button, 302-311 choice
- * rows, 317-321 check rows). Values verbatim; scoped to .m-app. Motion is
+/* The bottom sheet (Sheet.tsx) plus the small shared controls sheets use
+ * (icon button, choice rows, check rows). Scoped to .m-app. Motion is
  * transform + opacity only: m-rise / m-sink move the panel, m-fade the scrim. */
 
 .m-app .m-sheethost {
@@ -159,7 +158,7 @@
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-/* ── Choice rows (m-layout.css:302-308) ─────────────────────────────────── */
+/* ── Choice rows ────────────────────────────────────────────────────────── */
 .m-app .m-choice {
   display: flex;
   flex-direction: column;
@@ -194,7 +193,7 @@
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
-/* ── Check rows (m-layout.css:317-319) ──────────────────────────────────── */
+/* ── Check rows ─────────────────────────────────────────────────────────── */
 .m-app .m-check {
   display: flex;
   align-items: center;
@@ -220,7 +219,7 @@
   border-color: var(--color-primary);
 }
 
-/* ── BL-249 S3-05: the optional pinned foot (m-layout.css:248) ────────── */
+/* ── The optional pinned foot ─────────────────────────────────────────── */
 .m-app .m-sheet__foot {
   flex: none;
   padding: 12px 16px calc(12px + var(--sab));
@@ -229,7 +228,7 @@
   justify-content: center;
 }
 
-/* ── BL-257 FR3-01: the set-logo box (SetLogo.tsx / setLogoArt.ts). The box is
+/* ── The set-logo box (SetLogo.tsx / setLogoArt.ts). The box is
  * fixed per surface; the PNG is placed inside it by its measured artwork
  * (inline left / top / width / height), so the artwork is centred and every
  * set's artwork takes the same area. The box clips transparent padding only. */

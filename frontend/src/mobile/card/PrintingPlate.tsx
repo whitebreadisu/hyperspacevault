@@ -3,8 +3,7 @@ import { scopeShortName } from "../../utils/variantScope";
 import { GalleryPlate } from "../vault/GalleryPlate";
 import { plateState } from "./cardDetailModel";
 
-// BL-257 FR1-07 (owner decisions 2026-10-12, ADR-0030; supersedes the S2-03 /
-// R5-5 chip-and-pips hybrid): the card-detail plate IS the gallery plate
+// ADR-0030, App Spec §25.2: the card-detail plate IS the gallery plate
 // (vault/GalleryPlate, the markup the Vault's gallery cell draws) and it
 // behaves EXACTLY like a gallery tile while the Vault is scoped to one finish,
 // with the SELECTED printing's finish as that scope (cardDetailModel
@@ -15,11 +14,8 @@ import { plateState } from "./cardDetailModel";
 //             green pips, amber inner wash);
 //   number -- the card's total owned across ALL printings (green when that
 //             total is a playset, muted at 0). It is not the selected
-//             printing's count, so it need not equal the stepper below it
-//             (owner-accepted).
+//             printing's count, so it need not equal the stepper below it.
 // Quantities are the shown ones, so a + / - tap moves the plate at once.
-// First built the same day with the selected printing's own quantity for
-// pips, ring and number; the owner changed it after the review (ADR-0030).
 // There is no all-finishes state here: a printing is always selected. Signed
 // out: the gallery's SIGN IN TO TRACK plate.
 
@@ -40,7 +36,7 @@ export function PrintingPlate({
   /** The selected printing's raw finish (`finish ?? variant_type`). */
   scope: string;
   isAuthenticated: boolean;
-  /** S2-10: the plate opens Owned by finish (rev4 MPlate onClick). */
+  /** The plate opens Owned by finish. */
   onClick?: () => void;
 }) {
   const s = plateState(variants, scope, type, isAuthenticated);

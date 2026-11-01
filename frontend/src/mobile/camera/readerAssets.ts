@@ -1,8 +1,7 @@
-// BL-253 S7-04: the vendored reader payload (plan A12), plain git under
-// frontend/public/vendor/scan/ -- copied from the BL-238 spike, never rebuilt.
-// Nothing here is requested until the camera needs it: the Paddle group when
-// the reader starts, the Tesseract group only on the first fallback need (the
-// spike loaded Tesseract at boot, app.js:1364 -- a deliberate change).
+// The vendored reader payload, plain git under frontend/public/vendor/scan/
+// -- shipped as built, never rebuilt (App Spec §25.7 Payload). Nothing here
+// is requested until the camera needs it: the Paddle group when the reader
+// starts, the Tesseract group only on the first fallback need.
 
 export const VENDOR_BASE = "/vendor/scan/";
 

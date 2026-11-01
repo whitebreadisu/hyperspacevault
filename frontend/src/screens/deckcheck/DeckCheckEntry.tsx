@@ -14,8 +14,7 @@ interface Props {
 }
 
 /** Best-effort provider label for the loading state's "Fetching deck from
- * <site>…" copy (Claude Design's deck-check-entry template, `loading`
- * state) -- purely cosmetic, the actual allowlist enforcement is the
+ * <site>…" copy -- purely cosmetic, the actual allowlist enforcement is the
  * backend's (deck_fetch.py). Falls back to a generic phrase for pasted
  * JSON or an unrecognized host, rather than guessing wrong. */
 function providerLabel(input: string): string {
@@ -24,24 +23,18 @@ function providerLabel(input: string): string {
   return "your deck source";
 }
 
-/** BL-142 entry screen -- Claude Design `templates/deck-check-entry`
- * (project 8145e927), DEFAULT-marked variant: `inputStyle: smart-single`
- * (ONE field for either a deck URL or pasted JSON -- NOT the two-input
- * variant) with `providerHints: inline`. Read from the pulled design file
- * (claude_design/extracted_2026-07-21/DeckCheckEntry.dc.html, reference
- * only, not committed) since DesignSync itself was unreachable from this
- * agent's session (see PR description). The five `screenState` values --
- * idle / loading / error-unsupported / error-fetch / error-json -- are
- * reproduced verbatim (including their exact copy) as this component's
- * loading/error states; `error-unsupported`/`error-json`/`error-fetch` map
- * onto the router's typed errors (deck_check.py's _typed_error) of the same
- * name plus `unknown` for anything else. No pricing-mode control appears in
- * this template -- BL-137's mode param defaults to "standard" with no entry-
- * screen switch, matching the design as pulled. */
+/** Deck Check entry screen (App Spec §5.11): ONE smart field for either a
+ * deck URL or pasted JSON (not two inputs), with the provider hints inline.
+ * States: idle / loading / three server errors / an unknown error. The
+ * server-error coach boxes map onto the router's typed errors
+ * (deck_check.py's _typed_error): `unsupported_url`, `fetch_failed`,
+ * `invalid_deck_json`, plus `unknown` for anything else. There is no
+ * pricing-mode control -- the API's mode param defaults to "standard" with
+ * no entry-screen switch. */
 export function DeckCheckEntry({ loading, error, onSubmit }: Props) {
   const [text, setText] = useState("");
   // JSON-syntax failures are caught before ever reaching the backend --
-  // the design's `error-json` state is a post-submission server response
+  // the `invalid_deck_json` state is a post-submission server response
   // ("parsed but no leader/deck inside"), so a raw parse failure is a
   // distinct, client-only case. It reuses the same red coach-box treatment
   // with adjusted copy rather than inventing a new visual state.

@@ -2,12 +2,12 @@ import { cardImageProps } from "../../utils/cardImages";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import type { PreconPreview } from "../../utils/preconPreview";
 
-// BL-164 §5 (owner-locked composition, hover preview to the left of the
-// precon dropdown's list): leader FRONT face, fully visible; the deck's base
-// card centered behind it, offset up so only its title bar peeks out
-// (reference: working/precon hover example.jpeg). Twin Suns/IBH variants
-// double up per PreconPreview's discriminated kinds -- see
-// utils/preconPreview.ts for the resolution/classification logic.
+// The precon hover preview's composition (App Spec §5.13; the panel sits to
+// the left of the precon dropdown's list): leader FRONT face, fully visible;
+// the deck's base card behind it, offset up so only its title bar peeks
+// out. Twin Suns/IBH variants double up per PreconPreview's discriminated
+// kinds -- see utils/preconPreview.ts for the resolution/classification
+// logic.
 
 const PREVIEW_SIZES = "220px";
 

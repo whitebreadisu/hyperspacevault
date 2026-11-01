@@ -14,24 +14,24 @@ import type { PriceMode } from "../../utils/variantScope";
 import { pickRepresentative } from "../vault/cardImage";
 import type { NavPosition } from "./navList";
 
-// BL-248 S2-01 / S2-02 / S2-04: the card-detail screen's pure rules. Ports of
-// desktop logic that lives inside desktop component files (desktop is not
-// edited; BL-254 folds these forks back):
-//   - entryVariant  = CardPopup.tsx pickInitialVariant / pickRepresentative
-//                     (BL-193), with the list's `?v=` printing first (R5-5);
+// The card-detail screen's pure rules (App Spec §25.2). Twins of desktop logic
+// that lives inside desktop component files -- a change to one side needs the
+// other:
+//   - entryVariant  = CardPopup.tsx pickInitialVariant / pickRepresentative,
+//                     with the list's `?v=` printing first;
 //   - orderPrintings / groupPrintings = cardPopupShared.ts orderVariants +
 //                     CardPopupRail.tsx groupBySet (typed for the catalogue's
 //                     InventoryVariant instead of VariantDetail);
 //   - railPrice     = CardPopupRail.tsx railPriceText;
-//   - starfieldSrc / setLogoSrc = CardPopup.tsx's private helpers;
-//   - regionGeom    = rev4 MCardDetail.jsx regionGeom (R3-6 arithmetic).
+//   - starfieldSrc / setLogoSrc = CardPopup.tsx's private helpers.
+// regionGeom is the phone's own: the art region's arithmetic.
 
 const finishOf = (v: InventoryVariant) => v.finish ?? v.variant_type;
 
 /** The printing the detail opens on: the printing the list showed (`?v=`,
  * a scoped row or a facet-driven gallery cell), else the scoped finish's
- * printing (desktop BL-193: a scoped Vault only picks the default printing,
- * R5-5), else the representative (Standard, else the first). */
+ * printing (as desktop: a scoped Vault only picks the default printing),
+ * else the representative (Standard, else the first). */
 export function entryVariant(
   card: InventoryCard,
   opts: { v?: number | null; scope?: string | null; finishes?: string[] | null } = {}
@@ -42,8 +42,8 @@ export function entryVariant(
     const shown = variants.find((x) => x.variant_id === opts.v);
     if (shown) return shown;
   }
-  // S2-09: from a gallery cell, the printing the cell displays (BL-201:
-  // the lowest-numbered printing carrying a Finish facet value).
+  // From a gallery cell, the printing the cell displays (the lowest-numbered
+  // printing carrying a Finish facet value, pickRepresentative).
   if (opts.finishes && opts.finishes.length) {
     const fs = new Set(opts.finishes);
     if (variants.some((x) => fs.has(finishOf(x)))) return pickRepresentative(variants, fs);
@@ -137,7 +137,8 @@ export function isLandscapeFront(card: Pick<InventoryCard, "type">): boolean {
   return card.type === "Leader" || card.type === "Base";
 }
 
-/** The region's collapsed layout height (R3-6): the box never changes. */
+/** The region's collapsed layout height (App Spec §25.2: the 100 px box
+ * never changes). */
 export const REG_MIN = 100;
 
 export interface RegionGeom {
@@ -153,7 +154,7 @@ export interface RegionGeom {
   flipTop: number;
 }
 
-/** rev4 regionGeom: pure arithmetic per card / printing / face, so nothing
+/** Pure arithmetic per card / printing / face, so nothing
  * is measured. Expanded art = 392 px tall portrait or 238 px tall landscape
  * (a base, a leader's front), centred; collapsed = an 80 px thumbnail. */
 export function regionGeom(
@@ -185,9 +186,9 @@ export function regionGeom(
 
 /** The stepper's limit rules, ported from desktop CardPopupInventory.tsx
  * InventoryPlate: `+` stops at the enforcement cap (hard) or the 999 ceiling
- * (soft); `−` stops at 0; the readout is red only PAST the keep-limit
- * (FR1-05: at the limit it keeps the normal colour) and amber ("Over limit")
- * past it in soft mode. */
+ * (soft); `−` stops at 0; the readout is red only PAST the keep-limit (at
+ * the limit it keeps the normal colour; ADR-0030, App Spec §25.2) and amber
+ * ("Over limit") past it in soft mode. */
 export function stepperState(
   variant: Pick<InventoryVariant, "finish" | "channel">,
   qty: number,
@@ -202,7 +203,7 @@ export function stepperState(
     rawLimit,
     incDisabled: capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap,
     decDisabled: qty <= 0,
-    // FR1-05: red is for a count PAST its limit only (at the limit = normal).
+    // Red is for a count PAST its limit only (at the limit = normal).
     pastLimit: rawLimit !== null && qty > rawLimit,
     softOverLimit: capMode === "soft" && rawLimit !== null && qty > rawLimit,
   };
@@ -246,7 +247,7 @@ export function plateState(
   };
 }
 
-/** S2-09 (rev4 M.navEntry, desktop BL-193 / BL-201): the printing a card
+/** The printing a card
  * opens on inside the list it was reached from -- `?v=` first; then, from a
  * gallery, the printing the cell displays; from rows, the scoped printing;
  * else the representative. Prev / next use the same rule for the neighbour. */

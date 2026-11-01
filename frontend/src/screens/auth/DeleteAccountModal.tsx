@@ -34,11 +34,11 @@ interface Props {
   onClose: () => void;
 }
 
-/** BL-87: two-level destructive confirmation, following ChangePasswordModal's
+/** Two-level destructive confirmation, following ChangePasswordModal's
  * modal/CSS grain (reuses AuthModal.css's .auth-modal-* classes plus the
- * .auth-danger-* modifiers below). Step 1 states the consequences and
- * collects the current password (reauth is required -- same Firebase
- * platform constraint BL-23 already works around); step 2 is a
+ * .auth-danger-* modifiers). Step 1 states the consequences and
+ * collects the current password (reauth is required -- the same Firebase
+ * recent-sign-in constraint ChangePasswordModal works around); step 2 is a
  * type-to-confirm gate ("DELETE", case-sensitive, exact match) whose
  * destructive button stays disabled until it matches.
  *
@@ -50,14 +50,17 @@ interface Props {
  * repeat purge deletes zero rows (idempotent) and only deleteUser() needs
  * to succeed. The reverse order would risk deleting the auth identity while
  * Postgres data survives, with no verified-token path left to reach it.
+ * The backend also rejects the purge for a token older than its recent-auth
+ * window (require_recent_auth on DELETE /api/account), so the client-side
+ * reauth here is not the only gate.
  *
- * BL-118 / ADR-0016 §3: the recent-auth gate above is provider-aware --
+ * ADR-0016 §3: the recent-auth gate above is provider-aware --
  * `passwordProvider` is false for a Google-only account (born via Google
  * sign-in, no password ever set), so step 1 skips the current-password
- * field entirely and reauthenticates via reauthenticateWithPopup(user, new
- * GoogleAuthProvider()) instead, right before the same purge-then-delete
- * sequence below. Everything past "reauthenticate, however it happened" is
- * unchanged. */
+ * field entirely and the final confirm reauthenticates via
+ * reauthenticateWithPopup(user, new GoogleAuthProvider()) instead, right
+ * before the same purge-then-delete sequence. Everything past
+ * "reauthenticate, however it happened" is the same for both providers. */
 export function DeleteAccountModal({ onClose }: Props) {
   const { user } = useAuth();
   const passwordProvider = hasPasswordProvider(user);
@@ -67,9 +70,9 @@ export function DeleteAccountModal({ onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // BL-153: submitting-guard lives inside the callback (not `enabled`) so
-  // the listener stays attached and just no-ops while submitting, matching
-  // the original always-attached effect -- see useModalDismiss's docstring.
+  // The submitting-guard lives inside the callback (not `enabled`) so the
+  // Escape listener stays attached and just no-ops while submitting -- see
+  // useModalDismiss's docstring.
   const dismissUnlessSubmitting = useCallback(() => {
     if (!submitting) onClose();
   }, [onClose, submitting]);
@@ -98,7 +101,7 @@ export function DeleteAccountModal({ onClose }: Props) {
           await reauthenticateWithPopup(user, new GoogleAuthProvider(), googleResolver);
         }
       } catch (err) {
-        // BL-118: a Google reauth popup the user closed themselves
+        // A Google reauth popup the user closed themselves
         // (auth/popup-closed-by-user etc.) describes to `null` -- see
         // describeGoogleAuthError -- so this silently returns to step 1
         // rather than showing an alarming "something went wrong" for a
@@ -163,7 +166,7 @@ export function DeleteAccountModal({ onClose }: Props) {
                 />
               </label>
             ) : (
-              // BL-118: Google-only account -- no password to collect.
+              // Google-only account -- no password to collect.
               // Reauthentication happens via a Google popup on final
               // confirm instead (see handleDelete).
               <p className="auth-success">

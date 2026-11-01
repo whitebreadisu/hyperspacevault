@@ -1,4 +1,4 @@
-// BL-257 FR1-07: the console plate's markup (desktop GalleryGrid.tsx plate +
+// The console plate's markup (desktop GalleryGrid.tsx plate +
 // PlateTotal; classes = cards.css .gallery-plate, verbatim in vault.css),
 // drawn once for the two surfaces that show it: the Vault's gallery cell and
 // the card detail. The callers decide the numbers; this draws them.

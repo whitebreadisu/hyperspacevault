@@ -5,11 +5,11 @@ import type {
   ImportRowReport,
 } from "../../api/inventoryImportExport";
 
-// BL-250 S4-11: FORK of the module-private copy and helpers in desktop
+// FORK of the module-private copy and helpers in desktop
 // screens/importexport/ImportPreviewReport.tsx (REASON_TEXT, GENERIC_REASON_TEXT,
 // candidateLabel, MISMATCH_TEXT, cardLabel) and ImportExportPage.tsx
-// (problemRowsCsv, MODE/CAP options, fileFormat). Copied unchanged -- desktop
-// is not edited (brief rule 7); BL-254 folds the forks back into one source.
+// (problemRowsCsv, MODE/CAP options, fileFormat). The two copies must stay
+// identical: a change to one side needs the other.
 
 export interface ReasonCopy {
   error: string;
@@ -68,21 +68,19 @@ export const REASON_TEXT: Record<string, ReasonCopy> = {
   },
 };
 
-/** BL-200: the `?? row.reason` fallback used to render a raw snake_case
- * code verbatim whenever REASON_TEXT was missing an entry -- now that every
- * reason code the backend sends is covered above, this only fires for a
- * future/unrecognized code this build doesn't know about yet, but it must
- * still never show system vocabulary. Not itself drafted in the BL-200
- * census (every code it censused now has a real entry above); written to
- * match the census's stated voice (casual-but-competent, no raw codes). */
+/** The fallback for a reason code REASON_TEXT does not cover. Every code the
+ * backend sends has an entry above, so this only fires for a future code
+ * this build does not know yet; it must still never show system vocabulary
+ * (a raw snake_case code). Same voice as the entries: casual-but-competent,
+ * no raw codes. */
 export const GENERIC_REASON_TEXT: ReasonCopy = {
   error: "This row couldn't be imported, and we don't have a more specific reason to show yet.",
   recommendation: "It's safe to skip for now — everything else in the file still went through.",
 };
 
-/** BL-200 candidate display: "SET number · variant type · name", subtitle
- * appended when present -- the ambiguous-row candidates used to render as
- * bare swuapi UUIDs (see the census's "Candidate display" section). */
+/** Candidate display: "SET number · variant type · name", subtitle appended
+ * when present -- an ambiguous row's candidates read as cards, never as bare
+ * swuapi UUIDs. */
 export function candidateLabel(card: ImportRowCard): string {
   const identity = [card.set_code, card.card_number].filter(Boolean).join(" ");
   const parts = [identity, card.variant_type].filter((p): p is string => !!p);
@@ -92,18 +90,15 @@ export function candidateLabel(card: ImportRowCard): string {
   return parts.join(" · ");
 }
 
-/** BL-200 §C2: the resolved-row "heads-up" flag used to hardcode "uuid/
- * triple mismatch" for every format, which was actively wrong for SWUDB/
- * XLSX rows (they never carried a uuid or a triple -- their mismatch is a
- * foil/stamp disagreement instead). The census's own recommendation is one
- * honest string that covers both without naming uuid/triple/foil internals
- * ("if the owner wants precision later, the flag would need a format-aware
- * split in the payload" -- not requested yet), so this replaces the old
- * per-format-wrong string rather than branching on format. */
+/** The resolved-row "heads-up" flag. One string for every format, naming no
+ * uuid / triple / foil internals: for a canonical file the mismatch is a
+ * uuid / triple disagreement, but SWUDB / XLSX rows carry no uuid or triple
+ * (their mismatch is a foil / stamp disagreement). The payload does not say
+ * which kind, so the copy cannot branch on it. */
 export const MISMATCH_TEXT =
   "heads-up — some details in this row didn't fully agree, so double-check it landed on the right printing";
 
-/** §7.3's `card` fragment renders as whatever identity the row actually
+/** A report row's `card` fragment renders as whatever identity the row actually
  * carried -- resolved rows always have set_code/card_number/variant_type
  * (the canonical DB identity); unresolved/ambiguous rows may have only a
  * uuid, only a partial triple, or nothing at all. */
@@ -116,11 +111,11 @@ export function cardLabel(card: ImportRowCard): string {
   return "Row with no recognizable identity";
 }
 
-/** §8.2c's "Download problem rows (CSV)" button -- built client-side from
- * whatever report is currently on screen (dry_run preview or a commit's
- * still-returned report), never a server round trip. Column set mirrors
- * §7.3's row shape closely enough that a fixed-up file could be re-imported
- * by hand. */
+/** The "Download problem rows (CSV)" button (App Spec §17.3: a
+ * client-generated reject CSV) -- built from whatever report is currently on
+ * screen (dry_run preview or a commit's still-returned report), never a
+ * server round trip. The column set mirrors the report row's shape closely
+ * enough that a fixed-up file could be re-imported by hand. */
 export function problemRowsCsv(rows: ImportRowReport[]): string {
   const header = [
     "row_number",
@@ -144,12 +139,9 @@ export function problemRowsCsv(rows: ImportRowReport[]): string {
       r.card.variant_type ?? "",
       r.card.swuapi_uuid ?? "",
       r.file_quantity ?? "",
-      // BL-200: `candidates` widened from bare uuid strings to full card
-      // records (ImportPreviewReport now renders them as real cards) --
-      // this CSV column stays UUIDs (the census's own suggested option:
-      // "keep UUIDs there since that file is for machine round-trips"),
-      // since it's a data file meant for re-import, not a screen read by a
-      // person.
+      // `candidates` are full card records (the screen renders them as
+      // cards); this CSV column carries their UUIDs, since the file is for
+      // machine round-trips and re-import, not a screen read by a person.
       (r.candidates ?? []).map((c) => c.swuapi_uuid ?? "").join("|"),
     ]
       .map(quote)
@@ -158,7 +150,7 @@ export function problemRowsCsv(rows: ImportRowReport[]): string {
   return [header.map(quote).join(","), ...lines].join("\r\n");
 }
 
-/** BL-235: import_dry_run/import_committed's `format` -- the uploaded
+/** import_dry_run's `format` (App Spec §22) -- the uploaded
  * file's extension, distinct from `mode` (merge_add/replace/replace_all,
  * import_committed's own property). */
 export function fileFormat(file: File): string {

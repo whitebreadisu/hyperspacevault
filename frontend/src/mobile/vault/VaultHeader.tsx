@@ -5,18 +5,18 @@ import { formatVersionLabel } from "../../utils/version";
 import { MIcon } from "../icons";
 import { SWUButton } from "../../components/SWUButton";
 
-// BL-247 S1-05 / S1-06 / S1-07: the Vault's app header (rev4 MVault.jsx:480-530
-// + MHome.jsx:63-75). Expanded: brand stack ("[HSV] Hyperspace Vault" over
-// `Unofficial Fan Project [v#.#.#]`, R5-2) -- tapping it opens the title
+// The Vault's app header (App Spec §25.1). Expanded: brand stack ("[HSV]
+// Hyperspace Vault" over `Unofficial Fan Project [v#.#.#]`) -- tapping it
+// opens the title
 // chooser -- then the text Feedback SWUButton and the account slot on the
 // same row, and the collection panel below. Collapsed: the strip -- the
 // [HSV] badge (opens the chooser), the amber funnel only when narrowed,
 // completion %, ten ticks, "n cards", value without cents, chevron; a tap
 // anywhere on the strip but the badge expands.
 //
-// Layers (R3-6 / R4-5): `.m-vh__sky` is the STATIC starfield (clipped from
-// below on collapse, never moved); `.m-vh__bg` slides up by --vh-delta and
-// carries the circuit seam and the C1 pull bar; the panel slides and fades.
+// Layers: `.m-vh__sky` is the STATIC starfield (clipped from below on
+// collapse, never moved); `.m-vh__bg` slides up by --vh-delta and carries the
+// circuit seam and the pull bar; the panel slides and fades.
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
@@ -27,7 +27,7 @@ export interface StripSummary {
   value: number;
   /** Totals are narrowed by a filter (the amber funnel). */
   narrowed: boolean;
-  /** Signed out: the readout shows em dashes and empty ticks (S1-23). */
+  /** Signed out: the readout shows em dashes and empty ticks. */
   authed?: boolean;
 }
 

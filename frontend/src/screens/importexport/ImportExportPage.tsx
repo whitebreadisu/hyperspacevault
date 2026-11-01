@@ -20,22 +20,21 @@ import { capture } from "../../analytics/analytics";
 import "./ImportExportPage.css";
 
 interface Props {
-  /** BL-54 S3 (§8.2e): the success state's "back to Vault" link, and the
-   * only way this pane can be left besides Header's Vault tab (App owns
-   * activeView, same App-owns-the-pane-switch pattern SettingsPage's
-   * onNavigateCards wiring already uses via Header). */
+  /** The success state's "Back to Vault" button -- the only way this pane
+   * can be left besides the Header's Vault tab (App owns activeView; the
+   * Header's onNavigateCards uses the same App-owned pane switch). */
   onBackToVault: () => void;
-  /** BL-196: the Vault's (CardsPage's) own quantities refetch, threaded down
+  /** The Vault's (CardsPage's) own quantities refetch, threaded down
    * through App.tsx via a ref-registration (CardsPage stays mounted the
-   * whole time -- see App.tsx's onQuantitiesRefreshReady -- so it never
-   * re-fetched on an import commit before this existed). The commit-stage
+   * whole time -- see App.tsx's onQuantitiesRefreshReady -- so it does not
+   * refetch on its own after an import commit). The commit-stage
    * busy overlay awaits it during its "Refreshing your Vault…" stage before
    * dismissing. Optional so this pane still renders standalone (e.g. tests
    * that don't wire App.tsx) -- omitting it just skips the refresh await. */
   onImported?: () => Promise<void>;
 }
 
-/** BL-196: the three server-generated downloads (export JSON/CSV, catalog
+/** The three server-generated downloads (export JSON/CSV, catalog
  * reference) give zero feedback while the file is generated server-side --
  * a per-button busy state (not the full-screen BusyOverlay: nothing is
  * being APPLIED here, a blocking overlay would be the wrong weight for a
@@ -47,7 +46,7 @@ type DownloadKind = "json" | "csv" | "reference";
 
 type Step = "configure" | "preview" | "success";
 
-/** BL-235: import_dry_run/import_committed's `format` -- the uploaded
+/** import_dry_run's `format` property (App Spec §22) -- the uploaded
  * file's extension, distinct from `mode` (merge_add/replace/replace_all,
  * import_committed's own property). */
 function fileFormat(file: File): string {
@@ -84,11 +83,11 @@ const CAP_OPTIONS: { value: CapHandling; label: string }[] = [
   { value: "trim", label: "Trim to my keep-limits" },
 ];
 
-/** §8.2c's "Download problem rows (CSV)" button -- built client-side from
+/** The "Download problem rows (CSV)" file -- built client-side from
  * whatever report is currently on screen (dry_run preview or a commit's
  * still-returned report), never a server round trip. Column set mirrors
- * §7.3's row shape closely enough that a fixed-up file could be re-imported
- * by hand. */
+ * the report's row shape (ImportRowReport) closely enough that a fixed-up
+ * file could be re-imported by hand. */
 function problemRowsCsv(rows: ImportRowReport[]): string {
   const header = [
     "row_number",
@@ -112,12 +111,10 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
       r.card.variant_type ?? "",
       r.card.swuapi_uuid ?? "",
       r.file_quantity ?? "",
-      // BL-200: `candidates` widened from bare uuid strings to full card
-      // records (ImportPreviewReport now renders them as real cards) --
-      // this CSV column stays UUIDs (the census's own suggested option:
-      // "keep UUIDs there since that file is for machine round-trips"),
-      // since it's a data file meant for re-import, not a screen read by a
-      // person.
+      // `candidates` are full card records (ImportPreviewReport renders
+      // them as cards); this CSV column keeps only their UUIDs, since it's
+      // a data file meant for machine round-trips and re-import, not a
+      // screen read by a person.
       (r.candidates ?? []).map((c) => c.swuapi_uuid ?? "").join("|"),
     ]
       .map(quote)
@@ -126,18 +123,19 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
   return [header.map(quote).join(","), ...lines].join("\r\n");
 }
 
-/** BL-54 S3 -- Definition_ImportExport_2026-07-22.md §8.2's Import / Export
- * screen. App.tsx mounts this only for signed-in, verified users (§8.1 P9)
- * -- no anonymous/unverified gate lives in this component itself, unlike
- * DeckCheckPage's own in-place sign-in prompt. Three sections top to bottom:
- * export downloads, the catalog reference download, and the import stepper
- * (configure -> preview -> success), matching the Settings-pane visual
+/** The Import / Export screen (App Spec §17.3). App.tsx mounts this only
+ * for signed-in, verified users (the whole surface is verified-email
+ * gated) -- no anonymous/unverified gate lives in this component itself,
+ * unlike DeckCheckPage's own in-place sign-in prompt. Two sections top to
+ * bottom: Export (the JSON/CSV downloads plus the catalog reference
+ * callout; configure step only) and the import stepper (configure ->
+ * preview -> success), matching the Settings-pane visual
  * idiom (.screen/.screen-heading from cards.css, section chrome mirroring
  * SettingsPage.css's .settings-section vocabulary under ie- class names). */
 export function ImportExportPage({ onBackToVault, onImported }: Props) {
   const [step, setStep] = useState<Step>("configure");
   const [file, setFile] = useState<File | null>(null);
-  // Owner review 2026-08-03: NO defaults on merge mode or the keep-limits
+  // NO defaults on merge mode or the keep-limits
   // rule -- both choices matter enough that the user must actively pick
   // each before Preview unlocks (null = not yet chosen; the radios render
   // unselected until then).
@@ -149,14 +147,14 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [committing, setCommitting] = useState(false);
-  // Owner dev-review 2026-07-23: the catalog-reference button lives inside
-  // the Import section now, so a download error has to surface next to the
-  // button that caused it -- `source` picks which section renders it.
+  // The catalog-reference button sits in its own callout beside the export
+  // buttons, so a download error surfaces next to the button that caused
+  // it -- `source` picks which spot renders it.
   const [downloadError, setDownloadError] = useState<{
     source: "export" | "reference";
     message: string;
   } | null>(null);
-  // BL-196: which download button(s) are currently in flight -- button-level
+  // Which download button(s) are currently in flight -- button-level
   // busy state (label swap), independent of the full-screen BusyOverlay.
   const [downloadingKinds, setDownloadingKinds] = useState<ReadonlySet<DownloadKind>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,7 +178,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       const { blob, filename } =
         kind === "reference" ? await downloadCatalogReference() : await exportInventory(kind);
       downloadBlob(blob, filename);
-      // BL-235: only the two real inventory exports count -- the catalog
+      // Only the two real inventory exports count -- the catalog
       // reference download isn't the user's own data.
       if (kind !== "reference") capture("export_performed", { format: kind });
     } catch (err) {
@@ -205,7 +203,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     setPreviewing(true);
     setFileError(null);
     try {
-      // BL-196: dry_run never mutates inventory, so there's no "Refreshing
+      // dry_run never mutates inventory, so there's no "Refreshing
       // your Vault…" stage here -- just the one message through to the
       // preview report's own render (the trailing double-rAF inside run()
       // still covers that render's paint before the overlay comes down).
@@ -220,7 +218,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
         format: fileFormat(file),
         rows: result.totals.rows,
         error_rows: result.totals.rows - result.totals.resolved,
-      }); // BL-235
+      });
     } catch (err) {
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong reading that file."
@@ -243,7 +241,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     if (!file || !mode || !capHandling || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
-    // BL-196: the dry_run report already sitting in state has the exact
+    // The dry_run report already sitting in state has the exact
     // "Cards" figure the preview screen shows -- same totalCardsFromReport
     // ImportPreviewReport itself renders from, so the overlay's count and
     // the report's own headline total never drift apart.
@@ -254,8 +252,10 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
         {
           task: () => runImport(file, mode, capHandling, "commit"),
           settleStage: { message: "Refreshing your Vault…" },
-          // onImported/refreshQuantities already swallows its own errors
-          // (App.tsx/CardsPage.tsx) -- nothing further to catch here.
+          // onImported (CardsPage's refreshQuantities, via App.tsx) does not
+          // catch its own errors: a refresh failure propagates out of
+          // overlay.run into the catch below, which then reports a commit
+          // error although the commit itself succeeded.
           settle: async () => {
             await onImported?.();
           },
@@ -263,7 +263,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       );
       setSuccessReport(result);
       setStep("success");
-      capture("import_committed", { mode, rows_applied: result.totals.resolved }); // BL-235
+      capture("import_committed", { mode, rows_applied: result.totals.resolved });
     } catch (err) {
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."
@@ -303,17 +303,16 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
 
   return (
     <div className="screen ie-screen">
-      {/* Owner dev-review 2026-07-23: no in-pane "Import / Export" heading
+      {/* No in-pane "Import / Export" heading
        * -- the Header's active tab already names the view. */}
 
-      {/* BL-202 round 3 (owner): the Export section only renders on the
+      {/* The Export section only renders on the
        * configure step -- once the import flow starts (preview/confirm),
        * the page is the import's alone. */}
       {step === "configure" && (
         <section className="ie-section" aria-labelledby="ie-export-title">
-          {/* BL-202 round 2 (owner, 2026-08-05): the catalog reference moved
-           * from the Import head's corner (its 2026-07-23 home) into Export --
-           * it IS a download, so it sits with the other downloads now. */}
+          {/* The catalog reference sits in Export -- it IS a download, so it
+           * sits with the other downloads. */}
           <div className="ie-section__head ie-section__head--split">
             <div className="ie-section__head-main">
               <h2 className="ie-section__title" id="ie-export-title">
@@ -373,9 +372,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       )}
 
       <section className="ie-section" aria-labelledby="ie-import-title">
-        {/* BL-202 round 3: no head-main wrapper here -- its flex-basis is a
-         * WIDTH in Export's split row, but inside this column head it became
-         * a 320px HEIGHT basis, inflating empty space on the preview step. */}
+        {/* No head-main wrapper here -- its flex-basis is a WIDTH in
+         * Export's split row, but inside this column head it would be a
+         * 320px HEIGHT basis, inflating empty space on the preview step. */}
         <div className="ie-section__head">
           <h2 className="ie-section__title" id="ie-import-title">
             {step === "preview" ? "Import preview" : "Import"}
@@ -384,12 +383,11 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             Preview changes before anything is written — nothing commits until you confirm.
           </p>
           {step === "configure" && (
-            // BL-173 review round 4 (owner): imports expect the
-            // HyperspaceVault format -- say so up front. BL-185/BL-186
-            // follow-up (owner, 2026-08-03): SWUDB + SW-Unlimited-DB
-            // exports now import natively, so the amber migration tip
-            // leads with upload-as-is and keeps the catalog-CSV + AI
-            // conversion as the everything-else path.
+            // Imports expect the HyperspaceVault format -- say so up front.
+            // SWUDB + SW-Unlimited-DB exports import natively (App Spec
+            // §17.5), so the amber migration tip leads with upload-as-is
+            // and keeps the catalog-CSV + AI conversion as the
+            // everything-else path.
             <div className="ie-format-notes">
               <p className="ie-format-note">
                 Imports use the <strong>[HSV] HyperspaceVault format</strong> — the files Export
@@ -405,8 +403,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             </div>
           )}
           {step === "configure" && (
-            // Owner dev-review 2026-07-23: the native file input never
-            // matched the app chrome -- it's visually hidden (kept in the
+            // The native file input doesn't match the app chrome -- it's
+            // visually hidden (kept in the
             // a11y tree, still label-associated) behind an SWUButton that
             // forwards its click, with the chosen filename echoed beside
             // it.
@@ -414,13 +412,13 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
               <label className="ie-field-label" htmlFor="ie-file-input">
                 File (.json, .csv, or .xlsx)
               </label>
-              {/* BL-186: accept widened to include .xlsx (sw-unlimited-db's
-                    collection-export format) alongside the existing canonical
-                    .json/.csv and SWUDB's own .csv export -- the backend's
-                    format-detection seam (routers/inventory.py's
-                    _looks_like_xlsx) already routes any .xlsx upload to the
-                    new adapter regardless of this attribute; this is
-                    browser-side file-picker filtering only. */}
+              {/* accept includes .xlsx (sw-unlimited-db's collection-export
+                    format) alongside the canonical .json/.csv and SWUDB's
+                    own .csv export -- the backend's format-detection seam
+                    (routers/inventory.py's _looks_like_xlsx) routes any
+                    .xlsx upload to its adapter regardless of this
+                    attribute; this is browser-side file-picker filtering
+                    only. */}
               <input
                 id="ie-file-input"
                 ref={fileInputRef}
@@ -447,7 +445,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
 
         {step === "configure" && (
           <div className="ie-form">
-            {/* BL-202 round 3 (owner): Merge mode and Keep-limits sit
+            {/* Merge mode and Keep-limits sit
              * side-by-side (wrapping back to a stack on narrow widths). */}
             <div className="ie-radio-row">
               <div className="ie-radio-group" role="radiogroup" aria-label="Merge mode">
@@ -530,9 +528,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
               </label>
             )}
 
-            {/* BL-200 (census D4): Confirm used to just gray out with no
-             * explanation when nothing in the file resolved -- the user had
-             * to infer why from the totals row. */}
+            {/* When nothing in the file resolved, say why Confirm is
+             * unavailable instead of leaving the user to infer it from the
+             * totals row. */}
             {report.totals.resolved === 0 && (
               <p className="ie-note">
                 Nothing in this file could be matched to the catalog, so there&apos;s nothing to
@@ -541,9 +539,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             )}
 
             <div className="ie-actions">
-              {/* BL-202 round 2 (owner): was an "Edit options" text link --
-               * now a real button, same behavior (back to the configure
-               * step; the picked file and options survive untouched). */}
+              {/* Back to the configure step; the picked file and options
+               * survive untouched. */}
               <SWUButton size="sm" onClick={() => setStep("configure")}>
                 Cancel
               </SWUButton>

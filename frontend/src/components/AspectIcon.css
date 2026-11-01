@@ -1,10 +1,8 @@
-/* ── AspectIcon styled tooltip (owner dev review 2026-07-26, round 4;
- * restyled round 5) ────────────────────────────────────────────────────────
+/* ── AspectIcon styled tooltip ─────────────────────────────────────────────
  * Opt-in (`tooltip` prop): the Cards table's aspect cell and CardPopup's
  * aspect row hover a bubble with the aspect name, replacing the native title
- * there. Round 5 owner call: match the INVENTORY dossier's console look
- * (.gallery-dossier -- angled-corner clip, 1px steel ring layer, dark
- * circuit-tile inner) rather than the earlier VariantsTooltip styling.
+ * there. Matches the INVENTORY dossier's console look (.gallery-dossier --
+ * angled-corner clip, 1px steel ring layer, dark circuit-tile inner).
  * Pure CSS :hover -- no JS state. Positioned BELOW the icon. */
 .aspect-tip {
   position: relative;

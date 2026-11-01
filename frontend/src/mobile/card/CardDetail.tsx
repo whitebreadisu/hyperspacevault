@@ -33,24 +33,22 @@ import type { Stepper } from "./useStepper";
 import "../vault/vault.css";
 import "./card.css";
 
-// BL-248 stage 2A-1 + 2A-2: the card detail screen at #/card/<id>[?v=<id>]
-// (rev4 MCardDetail.jsx; desktop CardPopup.tsx is the tiebreaker). A layer
-// over the Vault, which stays mounted beneath it (its filters, scope,
-// scroll position and list survive the visit, as under desktop's popup).
+// The card detail screen at #/card/<id>[?v=<id>] (App Spec §25.2; desktop
+// CardPopup.tsx is the tiebreaker). A layer over the Vault, which stays
+// mounted beneath it (its filters, scope, scroll position and list survive
+// the visit, as under desktop's popup).
 //   - Fixed header (never collapses, never slides): the set's starfield
 //     under desktop's scrim, the card's name / subtitle, the set logo. Over
 //     it, the bar: a spacer left, prev / "n of m" / next centred (amber
-//     "n of m" while the Vault list is narrowed, R3-8), X top-right.
+//     "n of m" while the Vault list is narrowed), X top-right.
 //   - Opens on the printing the list showed (?v=), else the list's entry
-//     printing (S2-09: scoped printing from rows, displayed printing from a
-//     gallery), else the representative (R5-5).
+//     printing (scoped printing from rows, displayed printing from a
+//     gallery), else the representative.
 //   - Body = CardPage: the collapsing region with the plate (the gallery
-//     tile's plate scoped to the selected printing's finish, FR1-07; tap =
-//     Owned by finish, S2-10), the printings rail +
-//     stepper, price history (S2-07), the card text (aspects tap = Aspects
-//     sheet, S2-07b).
-//   - S2-08 body-slide swipe (R5 switch swipe=body; rev4 R3-9 carousel in
-//     the `body` reading): the region and everything below slide as one
+//     tile's plate scoped to the selected printing's finish, ADR-0030; tap =
+//     Owned by finish), the printings rail + stepper, price history, the
+//     card text (aspects tap = Aspects sheet).
+//   - Body-slide swipe: the region and everything below slide as one
 //     layer with the neighbour's page one width aside; release past 70 px or
 //     a quick flick commits (0.2 s, transform only) and the route changes
 //     when the motion ends; short of that it snaps back; at either end the
@@ -89,7 +87,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const nav: NavPosition = navPosition(id, readNav(), fallback);
 
   // Hand-offs from the previous card (a committed swipe / chevron) and the
-  // opener (S2-11 source); peeked in initialisers, cleared after mount.
+  // opener (the analytics source); peeked in initialisers, cleared after mount.
   const [arrive] = useState(peekArrive);
   const [source] = useState(peekOpenSource);
   useEffect(() => clearHandoffs(), []);
@@ -111,8 +109,8 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     };
   }, [id]);
 
-  // S2-11: card_popup_opened once per card visit (desktop fires it per
-  // detail load, CardPopup.tsx:255), with how it was opened.
+  // card_popup_opened once per card visit (desktop fires it per detail load
+  // in CardPopup.tsx), with how it was opened (App Spec §22).
   const sent = useRef(false);
   const setCode = card?.set_code;
   useEffect(() => {
@@ -129,7 +127,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     card && variant ? regionGeom(card, variant, showBack && !!variant.back_image_url) : null;
 
   // The body's translate adds --d-delta of scroll room while expanded; the
-  // collapse rule must not count it (rev4 deltaRef).
+  // collapse rule must not count it.
   const { scrollEl, collapsed, expand, pull, pullStyle } = useCollapse(
     params.collapsed === "1" || !!arrive?.collapsed,
     320,
@@ -137,7 +135,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     geom ? geom.delta : 0
   );
   const rawStepper = useStepper(patchQuantity);
-  // S2-11: quantity_changed as desktop's popup (CardPopupInventory.tsx:347).
+  // quantity_changed as desktop's popup (CardPopupInventory.tsx).
   const stepper: Stepper = {
     ...rawStepper,
     increment: (v) => {
@@ -161,11 +159,11 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     setShowBack(false);
   };
 
-  // ── S2-08: the swipe ────────────────────────────────────────────────────
+  // ── The swipe ───────────────────────────────────────────────────────────
   const trackRef = useRef<HTMLDivElement>(null);
   const t = useRef<TouchState | null>(null);
   const busy = useRef(false);
-  // F1: false once the layer is gone, so a slide's pending finish (timer /
+  // False once the layer is gone, so a slide's pending finish (timer /
   // transitionend) can never route to the neighbour after a close.
   const alive = useRef(true);
   useEffect(() => {
@@ -174,7 +172,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       alive.current = false;
     };
   }, []);
-  // F4: focus moves to the close control on open; on a real close (not a
+  // Focus moves to the close control on open; on a real close (not a
   // swipe / chevron hand-off to the neighbour, which sets `arrive`) it
   // returns to the control that opened the card.
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -315,7 +313,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
 
   const starfield = card ? starfieldSrc(card.set_code) : null;
   // The set whose logo shows (desktop CardPopup's rule: the printing's source
-  // set when it has a logo, else the card's set). BL-257: drawn by SetLogo.
+  // set when it has a logo, else the card's set), drawn by SetLogo.
   const hasLogo = (code: string) => (setLogoSrc(code) ? code : null);
   const logo = card
     ? ((variant && hasLogo(variant.source_set_code)) ?? hasLogo(card.set_code))

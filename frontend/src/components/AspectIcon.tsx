@@ -1,6 +1,6 @@
 // Imported (not referenced by public/ URL) so the bundler owns these assets:
-// the real app gets content-hashed files, and the Claude Design bundle inlines
-// them as data-URIs — both render without depending on a /images/ server path.
+// the app gets content-hashed files and does not depend on a /images/ server
+// path.
 import Command from "../assets/aspects/SWH_Aspects_Command.png";
 import Aggression from "../assets/aspects/SWH_Aspects_Aggression.png";
 import Cunning from "../assets/aspects/SWH_Aspects_Cunning.png";
@@ -22,10 +22,10 @@ import "./AspectIcon.css";
 interface Props {
   aspect: string;
   size?: number;
-  /** Owner dev review 2026-07-26 (round 4): opt-in design-aligned hover
-   * tooltip with the aspect name (Cards table + CardPopup) -- replaces the
-   * native title bubble at those call sites. Callers that don't opt in
-   * (FilterPanel's aspect picker) keep the native title unchanged. */
+  /** Opt-in styled hover tooltip with the aspect name (Cards table +
+   * CardPopup) -- replaces the native title bubble at those call sites.
+   * Every other caller (FilterPanel's aspect picker, BusyOverlay, the
+   * mobile surfaces) keeps the native title. */
   tooltip?: boolean;
 }
 
@@ -49,7 +49,7 @@ export function AspectIcon({ aspect, size = 24, tooltip = false }: Props) {
   return (
     <span className="aspect-tip">
       {img}
-      {/* Two layers, dossier-style (round 5): the outer bubble is the steel
+      {/* Two layers, dossier-style: the outer bubble is the steel
           ring + shadow, the inner carries the tile fill and the text. */}
       <span className="aspect-tip__bubble" role="tooltip">
         <span className="aspect-tip__bubble-inner">{aspect}</span>

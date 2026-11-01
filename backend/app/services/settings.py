@@ -1,12 +1,12 @@
-"""BL-24: GET/PUT /api/settings/limits -- the effective per-tenant
+"""GET/PUT /api/settings/limits (App Spec §4.5) -- the effective per-tenant
 inventory-limit matrix (code defaults merged with the tenant's override
 rows). See app/services/limits.py for the shared category/bucket
 vocabulary and defaults that app/services/inventory.py's enforcement also
 draws from, keeping the two from drifting apart.
 
-BL-35 extends the same GET/PUT round-trip with cap_mode (hard/soft keep-
-limit enforcement) rather than adding separate endpoints -- one settings
-round-trip for the whole tenant-configuration surface.
+The same GET/PUT round-trip carries cap_mode (hard/soft keep-limit
+enforcement) rather than separate endpoints -- one settings round-trip for
+the whole tenant-configuration surface.
 """
 
 from sqlalchemy.orm import Session

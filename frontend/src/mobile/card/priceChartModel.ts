@@ -1,11 +1,11 @@
 import type { PriceHistoryPoint, PriceHistoryRange } from "../../api/baseCards";
 
-// BL-248 S2-07: the price chart's pure rules. Data handling = desktop
+// The price chart's pure rules. Data handling = desktop
 // PriceHistoryPanel.tsx (ranges, per-range fetch, null markets dropped, the
-// 0.12 pad, the sparse rule, formatUsd / formatAsOf); drawing geometry = rev4
-// MPriceChart.jsx (342 x 176 viewBox, left axis gutter, three dashed grid
-// lines with mono labels, start / end date labels). Desktop's crosshair
-// follows onMouseMove (PriceHistoryPanel.tsx:144-151), which a finger cannot
+// 0.12 pad, the sparse rule, formatUsd / formatAsOf); drawing geometry is the
+// phone's own (342 x 176 viewBox, left axis gutter, three dashed grid lines with
+// mono labels, start / end date labels). Desktop's crosshair follows
+// onMouseMove (PriceHistoryPanel.tsx), which a finger cannot
 // do; `nearestIndex` is the same fraction -> nearest point rule, fed by a
 // pointer down / move instead (the one replacement idiom).
 
@@ -59,7 +59,7 @@ export function formatAsOf(iso: string | null | undefined): string {
   });
 }
 
-/** rev4 axis date ("Sep 26"). */
+/** The axis date ("Sep 26"). */
 export function formatShort(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;

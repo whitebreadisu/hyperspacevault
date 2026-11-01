@@ -21,15 +21,16 @@ interface Props {
   onClose: () => void;
 }
 
-/** BL-23: change-password modal opened from the avatar menu (UserMenu). Reuses
+/** Change-password modal, opened from the avatar menu (UserMenu) on desktop and
+ * from the phone's AccountLayer. Reuses
  * AuthModal's overlay/card/form CSS classes rather than forking new ones --
  * same visual family, different field set. Firebase requires a *recent*
  * sign-in for sensitive account operations like updatePassword, so this
  * always reauthenticates with the current password immediately beforehand
  * (reauthenticateWithCredential) rather than relying on session recency.
  * Client-side only -- no backend call, matching AuthModal's grain. Pulls
- * `user` from AuthContext directly (this modal is only ever rendered while
- * authenticated, from App.tsx) instead of threading it down as a prop. */
+ * `user` from AuthContext directly (this modal is only opened from signed-in
+ * account controls) instead of threading it down as a prop. */
 export function ChangePasswordModal({ onClose }: Props) {
   const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -92,7 +93,7 @@ export function ChangePasswordModal({ onClose }: Props) {
   }
 
   return (
-    // BL-153 straggler -- see AuthModal.tsx's primary render note.
+    // `modal-overlay` is load-bearing -- see AuthModal.tsx's primary render note.
     <div className="auth-modal-overlay modal-overlay" onClick={onClose}>
       <div
         className="auth-modal-card"

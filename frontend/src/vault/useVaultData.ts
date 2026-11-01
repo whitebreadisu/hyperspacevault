@@ -34,21 +34,21 @@ export interface VaultData {
   /** The sparse variant id -> quantity map as fetched (absent = 0); desktop's
    * read-only popup reads quantities from it directly. */
   quantities: Record<number, number>;
-  /** BL-252 S6-05: the share's data (desktop CardsPage `readOnly`): the
-   * quantities are the share owner's, nothing here may mutate them. */
+  /** The share's data (CardsPage `readOnly`): the quantities are the share
+   * owner's, nothing here may mutate them. */
   readOnly: boolean;
   sets: CardSet[];
   setOrder: SetOrderMap;
   setNameByCode: Record<string, string>;
-  /** Quantities are real (desktop CardsPage `hasData` = signed in OR a
-   * share): true for the share's instance whoever is viewing. */
+  /** Quantities are real (`hasData` = signed in OR a share): true for the
+   * share's instance whoever is viewing. */
   isAuthenticated: boolean;
   /** Catalogue or (signed-in) quantities still in flight. */
   loading: boolean;
   error: string | null;
-  /** Re-reads the caller's quantities (after a mutation; S2/S3). */
+  /** Re-reads the caller's quantities (after a mutation). */
   refreshQuantities: () => Promise<void>;
-  /** BL-248 S2-05: writes one variant's server-confirmed quantity (the
+  /** Writes one variant's server-confirmed quantity (the
    * adjust endpoint's returned `quantity`) into the shared map, so every
    * screen re-renders from it without a full re-fetch. */
   patchQuantity: (variantId: number, quantity: number) => void;
@@ -66,11 +66,11 @@ export function mergeQuantities(
   }));
 }
 
-/** `shareToken` (BL-252 S6-01): the shared vault's own instance -- desktop's
- * SharedVaultPage mounts a second CardsPage with `shareToken`, which reads
- * the share owner's quantities (GET /api/shared/{token}/quantities, plain
- * fetch, no auth) and is read-only. The catalogue and sets are fetched per
- * instance, as desktop's two CardsPage panes do. */
+/** `shareToken`: the shared vault's own instance (desktop's SharedVaultPage
+ * mounts a second CardsPage with `shareToken`; the phone builds one in
+ * MobileApp's share scope). It reads the share owner's quantities
+ * (GET /api/shared/{token}/quantities, plain fetch, no auth) and is
+ * read-only. The catalogue and sets are fetched per instance. */
 export function useVaultDataSource(
   isAuthenticated: boolean,
   shareToken: string | null = null
@@ -109,7 +109,7 @@ export function useVaultDataSource(
   }, []);
 
   const refreshQuantities = useCallback(async () => {
-    // Desktop CardsPage: shareToken wins outright, checked before auth.
+    // shareToken wins outright, checked before auth.
     if (!readOnly && !isAuthenticated) {
       setQuantities({});
       return;
@@ -189,7 +189,7 @@ export function VaultDataProvider({
   return createElement(VaultDataContext.Provider, { value }, children);
 }
 
-/** BL-252 S6-01: provides an already-built instance (the shared vault's,
+/** Provides an already-built instance (the shared vault's,
  * built once in MobileApp's share scope and read by its pane, card layer and
  * Owned-by-finish host). */
 export function VaultDataValue({ value, children }: { value: VaultData; children: ReactNode }) {

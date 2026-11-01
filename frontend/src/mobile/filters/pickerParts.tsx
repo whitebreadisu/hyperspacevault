@@ -6,9 +6,8 @@ import { SWUButton } from "../../components/SWUButton";
 import { Sheet, useSheetClose } from "../Sheet";
 import { optionState } from "./filterModel";
 
-// BL-248 stage 2B-2: the pickers' shared parts (rev4 MFilters.jsx Chip /
-// CheckRow / PickerSheet frame, MFilterPickers.jsx FacetPickerSheet). A
-// picker is a Sheet over Filters: X top-right, the facet in a scrolling
+// The pickers' shared parts: chip, check row, picker frame. A picker is a
+// Sheet over Filters: X top-right, the facet in a scrolling
 // body, Done in a pinned foot (the shared Sheet has no footer slot, so the
 // body splits in CSS exactly as the Filters sheet does).
 
@@ -48,7 +47,7 @@ export function FChip({
   );
 }
 
-/** Check row: a 48 px switch row (rev4 CheckRow). `teaser` = desktop's
+/** Check row: a 48 px switch row. `teaser` = desktop's
  * anonymous pl-toggle (greyed, aria-disabled, still tappable). */
 export function CheckRow({
   on,

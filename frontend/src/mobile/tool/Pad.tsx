@@ -28,21 +28,21 @@ import { addPadEntry, padKey, setPadCompact, setPadPick, useToolState } from "./
 import { toolKeypadToggled } from "./toolAnalytics";
 import { resolveRow } from "../../utils/addCardsResolver";
 
-// BL-249 S3-02 .. S3-05: the keypad (rev4 MPad.jsx, R4-6 collide=deck, D2
-// verify=1, F-1) on desktop's resolver (AddCardsKeypad.tsx). Lower part =
-// the deck: entry row (set button · number · Verify) over the Russo One key
+// The keypad (App Spec §25.3) on desktop's resolver (AddCardsKeypad.tsx).
+// Lower part = the deck: entry row (set button · number · Verify) over the Russo One key
 // grid. Upper part = the result zone: idle text, the resolved card panel
 // (art, name / subtitle, set · number · printing, pips + readout, desktop's
 // axis choices as chips, Card details / Add to batch pinned at the bottom),
-// "Not in this set", or the card just added ("In batch"). BL-270: the deck
-// keeps its size while a number resolves (R4-6's automatic shrink is gone);
-// the zone scrolls, and when its content does not fit a fold tab on the
+// "Not in this set", or the card just added ("In batch"). The deck keeps its
+// size while a number resolves (it never shrinks on its own); the zone
+// scrolls, and when its content does not fit a fold tab on the
 // deck's top edge lets the user shrink the deck (one class flip, no
 // transition) and restore it. The choice sticks for the session.
 
-/** BL-270: the band the fold tab takes at the zone's bottom (px) -- the
- * zone's bottom padding grows by this while the tab shows, so the tab never
- * covers the pinned Add row. Kept in step with tool.css `--m-fold`. */
+/** The band the fold tab takes at the zone's bottom (px) -- the zone's
+ * bottom padding grows by this while the tab shows, so the tab never covers
+ * the pinned Add row. Kept in step with tool.css `.m-pad--fold`'s `--m-zpb`
+ * (10 px + this). */
 const FOLD_BAND = 28;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clr", "0", "del"];
@@ -66,8 +66,8 @@ function Keys({ rest }: { rest: boolean }) {
   );
 }
 
-/** S3-03: rev4 F-1 readout with desktop's numbers. The fraction stays here
- * (the one surface that keeps "n/m", R4-7). */
+/** The readout with desktop's numbers (padModel.ts Readout). The fraction
+ * stays here (the one surface that keeps "n/m"). */
 function ReadoutLines({ r }: { r: Readout }) {
   if (r.limit === null) {
     return (
@@ -107,8 +107,8 @@ function ReadoutLines({ r }: { r: Readout }) {
   );
 }
 
-/** rev4 MPips size lg: the card's playset pips (owned total, playset size
- * per card type), no count chip (R4-7: no chip in the keypad panel). */
+/** The card's playset pips at the large size (owned total, playset size
+ * per card type), no count chip (the keypad panel carries none). */
 function Pips({ card, signedIn }: { card: InventoryCard; signedIn: boolean }) {
   const size = getPlaysetSize(card.type);
   const owned = signedIn ? cardOwnedTotalFromVariants(card.variants) : 0;
@@ -138,7 +138,7 @@ export interface IdentProps {
   signedIn: boolean;
   choices: PadChoice[];
   hint: { text: string; attn: boolean } | null;
-  /** S3-04: a finish-only share's cue with a Change link (chips folded). */
+  /** A finish-only share's cue with a Change link (chips folded). */
   note: { text: string; onChange: () => void } | null;
   compact: boolean;
   justAdded: number;
@@ -146,24 +146,24 @@ export interface IdentProps {
   canAdd: boolean;
   onAdd: () => void;
   onDetails: (() => void) | null;
-  /** BL-253 S7-17: the camera's hold shows "In batch n" (copies of this
+  /** The camera's hold shows "In batch n" (copies of this
    * printing waiting) and hides Add. */
   inBatch?: number;
   hideAdd?: boolean;
-  /** BL-262 (camera only): the art to show while `variant` is still being
+  /** Camera only: the art to show while `variant` is still being
    * chosen among the read's printings. The keypad never passes it. */
   artVariant?: InventoryVariant | null;
-  /** BL-262 (camera only): a chip tap goes here instead of straight to the
+  /** Camera only: a chip tap goes here instead of straight to the
    * pad's picks (the camera stores the pick, then may add). */
   onPick?: (axis: PadChoice["axis"], value: string) => void;
-  /** BL-262 (camera only): a line in the hint's style with no choice under
+  /** Camera only: a line in the hint's style with no choice under
    * it -- why a recognised card cannot be added as read (a token; a read
    * with a printing missing). The keypad never passes it. */
   notice?: { text: string; attn: boolean } | null;
 }
 
-/** rev4 MIdentified (R4-6 compact variant), desktop's axes as chip groups.
- * BL-253 S7-14: exported -- the camera's prompt is this same panel. */
+/** The identified-card panel (with a compact variant), desktop's axes as
+ * chip groups. Exported -- the camera's prompt is this same panel. */
 export function Identified(p: IdentProps) {
   const art = p.variant ?? p.artVariant ?? null;
   const img = p.card && art ? cellImage(p.card, art, "thumb", "200px") : null;
@@ -308,10 +308,9 @@ export function Identified(p: IdentProps) {
   );
 }
 
-/** The entry row's Verify button (rev4 D2 LogButton, verify=1): the count
- * badge alone carries the amber ring while entries wait; dimmed and
- * aria-disabled while there are none, so the row never shifts. The Verify
- * cards sheet it opens is stage 3c (S3-12). */
+/** The entry row's Verify button: the count badge alone carries the amber
+ * ring while entries wait; dimmed and aria-disabled while there are none, so
+ * the row never shifts. It opens the Verify cards sheet (VerifySheet.tsx). */
 export function VerifyButton({ n, onOpen }: { n: number; onOpen: () => void }) {
   return (
     <button
@@ -358,7 +357,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   const batch = useBatch();
   const catalog = useMemo(() => toCatalog(cards), [cards]);
   const [chooserOpen, setChooserOpen] = useState(false);
-  // S3-04: which number's folded finish choices were unfolded by Change.
+  // Which number's folded finish choices were unfolded by Change.
   const numKey = st.setCode + "|" + st.num;
   const [changeFor, setChangeFor] = useState<string | null>(null);
 
@@ -405,7 +404,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
     });
   };
 
-  // Hardware keyboard (rev4 MPad): digits, Backspace, Enter = Add. Ignored
+  // Hardware keyboard: digits, Backspace, Enter = Add. Ignored
   // while a sheet or the card layer is over the pad, or a field has focus.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -442,8 +441,8 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
     resultZone = true;
     const res = view.resolved;
     const canAdd = padAddable(view) !== null;
-    // S3-04: a number shared only by finishes keeps desktop's non-foil
-    // default (BL-191) -- the cue + a Change link; Change unfolds the chips.
+    // A number shared only by finishes keeps desktop's non-foil
+    // default (the resolver's) -- the cue + a Change link; Change unfolds the chips.
     const finishOnly =
       view.choices.length === 1 &&
       view.choices[0].axis === "finish" &&
@@ -523,7 +522,7 @@ export function Pad({ onRequestSignIn, onOpenCard, onOpenVerify }: PadProps) {
   }
   if (!zone) zone = <IdleZone setName={setNameByCode[st.setCode] ?? st.setCode} />;
 
-  // ── BL-270: does the zone's content fit above the deck? ──
+  // ── Does the zone's content fit above the deck? ──
   const zoneRef = useRef<HTMLDivElement>(null);
   const zoneInRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);

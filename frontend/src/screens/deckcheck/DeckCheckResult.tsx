@@ -27,20 +27,20 @@ function usd(n: number | null): string {
 }
 
 /** Total missing COPIES (not distinct cards) across a scope's missing list --
- * matches the design's "N missing" language on the buy button and tile
- * fraction ("47/50 owned"), which counts copies, not card rows. */
+ * matches the "Buy N missing" button and the tile fraction ("47/50 owned"),
+ * which count copies, not card rows. */
 function missingCopies(scope: ScopeResult): number {
   return scope.missing.reduce((sum, m) => sum + Math.max(0, m.need - m.have), 0);
 }
 
 /** Common row shape both list modes render through -- MissingCard and
- * DeckCardEntry carry identical need/have/unit_price fields (BL-142's
- * all_cards is a strict superset of missing, verified backend-side), so a
+ * DeckCardEntry carry identical need/have/unit_price fields (all_cards is
+ * a strict superset of missing, verified backend-side), so a
  * single DeckCardRow can render either without needing the row's own
  * subtotal/line_value: the per-row cost is always unit_price * (need -
  * have) -- zero (rendered as an em dash, never "$0.00") for a fully-owned
- * row, which is exactly how the design's ALL CARDS rows show no dollar
- * figure for cards you already own in full. */
+ * row, so ALL CARDS rows show no dollar figure for cards you already own
+ * in full. */
 interface DisplayRow {
   key: string;
   name: string;
@@ -63,8 +63,8 @@ function toDisplayRows(
   }));
 }
 
-/** ALL CARDS mode: missing cards first (so the 6-row cap never hides an
- * actionable row behind fully-owned ones), fully-owned cards after --
+/** ALL CARDS mode: missing cards first (so the actionable rows lead the
+ * list), fully-owned cards after --
  * Array.prototype.sort is stable, so each group keeps its own original
  * relative order. */
 function orderAllCardsEntries(entries: DeckCardEntry[]): DeckCardEntry[] {
@@ -87,12 +87,10 @@ function ScopeColumn({ label, scope, size, showAll }: ScopeColumnProps) {
   const owned = Math.max(0, size - miss);
   const color = scope.buildable ? GREEN : RED;
 
-  // BL-147 dev-review fix (BL-142 review finding, owner override): the
-  // design's 6-row cap + "+N more cards" overflow row are retired entirely
-  // -- every row renders, in both MISSING ONLY and ALL CARDS mode. Long
-  // scrolling lists are explicitly accepted "for now" (owner decision,
-  // 2026-07-21) rather than reintroducing a cap or an internal scroll
-  // region; .dcr-list has no max-height/overflow, so the page simply grows.
+  // Deliberately, every row renders, in both MISSING ONLY and ALL CARDS
+  // mode -- no row cap, no "+N more" overflow row and no internal scroll
+  // region; .dcr-list has no max-height/overflow, so the page simply grows
+  // with a long list.
   const rows = showAll
     ? toDisplayRows(orderAllCardsEntries(scope.all_cards))
     : toDisplayRows(scope.missing);
@@ -189,30 +187,21 @@ function DeckCardRow({ row }: { row: DisplayRow }) {
   );
 }
 
-/** BL-142 result screen -- Claude Design `templates/deck-check-result`
- * (project 8145e927), DEFAULT-marked variant: `celebration: subtle` (a
- * banner row, NOT the full-screen takeover), `deckValuePlacement:
- * scope-cards`. Read from the pulled design file
- * (claude_design/extracted_2026-07-21/DeckCheckResult.dc.html, reference
- * only, not committed) since DesignSync itself was unreachable from this
- * agent's session that first built this screen (see PR #363's description).
- *
- * PR #363 shipped this screen with two deliberate cuts, both since restored
- * by the API extension backing this build (owner decision, issue #354):
- *  1. The MISSING ONLY / ALL CARDS toggle -- `scopes.*.all_cards` is now a
+/** Deck Check result screen (App Spec §5.11). Full buildability is a
+ * banner row, not a full-screen takeover. Beyond the missing list it
+ * renders:
+ *  1. The MISSING ONLY / ALL CARDS toggle -- `scopes.*.all_cards` is a
  *     complete per-scope card list (owned rows included), so ALL CARDS mode
  *     switches each ScopeColumn's row source from `missing` to `all_cards`
- *     (ordered missing-first so the row cap never hides an actionable row).
- *  2. The scope-tile market value line ("MAIN DECK VALUE $x") -- now backed
- *     by `scopes.*.deck_value`, the scope's complete-decklist value
- *     (present regardless of ownership, unlike missing_total).
+ *     (ordered missing-first, see orderAllCardsEntries).
+ *  2. The scope-tile market value line ("MAIN DECK VALUE $x") -- backed by
+ *     `scopes.*.deck_value`, the scope's complete-decklist value (present
+ *     regardless of ownership, unlike missing_total).
  *
- * The prototype's three "resultState" scenarios (partial / main-buildable /
- * all-buildable / unrecognized / empty-inventory) are mutually-exclusive
- * *preview* scenarios for the design tool; real responses can combine them
- * (e.g. some unrecognized cards AND a fully-buildable main scope), so this
- * component derives each banner/color independently from the real payload
- * rather than switching on one named state. */
+ * Real responses can combine conditions (e.g. some unrecognized cards AND
+ * a fully-buildable main scope), so this component derives each banner and
+ * colour independently from the payload rather than switching on one named
+ * state. */
 export function DeckCheckResult({ result, onCheckAnother }: Props) {
   const { deck, unrecognized, scopes, pricing } = result;
   const [showAll, setShowAll] = useState(false);
@@ -220,12 +209,12 @@ export function DeckCheckResult({ result, onCheckAnother }: Props) {
   const allBuildable = scopes.together.buildable && unrecognized.length === 0;
   const unrecognizedCopies = unrecognized.reduce((sum, u) => sum + u.count, 0);
   const totalCopies = deck.main_count + deck.side_count;
-  // Proxy for the prototype's "empty-inventory" scenario: every single copy
-  // in the deck (main + side) is missing -- i.e. nothing in this deck is
-  // owned yet. There's no account-wide "is the Vault empty" flag in the
-  // contract, so this is scoped to "empty for this deck" rather than
-  // "empty account-wide" -- matches the design's own copy, which is itself
-  // phrased in terms of this deck ("here's the deck's full list").
+  // "Starting fresh": every single copy in the deck (main + side) is
+  // missing -- i.e. nothing in this deck is owned yet. There's no
+  // account-wide "is the Vault empty" flag in the contract, so this is
+  // scoped to "empty for this deck" rather than "empty account-wide" --
+  // matching the banner copy, which is phrased in terms of this deck
+  // ("Nothing in your Vault yet for this deck").
   const missingCopiesTotal = missingCopies(scopes.together);
   const startingFresh = missingCopiesTotal > 0 && missingCopiesTotal === totalCopies;
 

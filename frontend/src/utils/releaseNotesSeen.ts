@@ -1,4 +1,4 @@
-// BL-184: "New Arrivals" unread tracking. Persists which release-notes entry
+// "New Arrivals" unread tracking (App Spec §20). Persists which release-notes entry
 // the viewer has already seen via localStorage, following the SAME
 // best-effort degrade-gracefully shape as utils/variantScope.ts's
 // loadPriceKind/savePriceKind (itself modeled on utils/headerStarfield.ts's

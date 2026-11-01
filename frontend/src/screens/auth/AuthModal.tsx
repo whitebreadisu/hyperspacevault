@@ -19,11 +19,11 @@ import "./AuthModal.css";
 
 type Mode = "login" | "signup";
 
-// BL-116: a third top-level screen alongside the login/signup form and the
-// signup "check your email" screen above -- "forgot-email" is the reset
-// address entry, "forgot-sent" is its confirmation. Kept separate from
-// `Mode` since neither forgot-password screen has a login/signup toggle of
-// its own; they're reached FROM the login form and return TO it.
+// The forgot-password flow's screens beside the login/signup form:
+// "forgot-email" is the reset address entry, "forgot-sent" is its
+// confirmation. Kept separate from `Mode` since neither forgot-password
+// screen has a login/signup toggle of its own; they're reached FROM the
+// login form and return TO it.
 type Screen = "credentials" | "forgot-email" | "forgot-sent";
 
 const FRIENDLY_ERRORS: Record<string, string> = {
@@ -31,7 +31,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   "auth/user-not-found": "No account found for that email.",
   "auth/wrong-password": "Incorrect password.",
   "auth/invalid-credential": "Incorrect email or password.",
-  // BL-118 / ADR-0016 §2: this code is only reachable from the signup path
+  // ADR-0016 §2: this code is only reachable from the signup path
   // (createUserWithEmailAndPassword). Enumeration protection means we can't
   // pre-flight-detect which provider actually owns the address (no
   // fetchSignInMethodsForEmail lookup), so the copy can't say *which* other
@@ -43,7 +43,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   "auth/weak-password": "Password must be at least 6 characters.",
 };
 
-// BL-116: deliberately narrower than FRIENDLY_ERRORS above -- see
+// Deliberately narrower than FRIENDLY_ERRORS above -- see
 // handleSendReset's catch clause for why. Only codes that describe a
 // client-side input problem (bad format) or a transient failure (rate
 // limit, network) are safe to surface distinctly for password reset; an
@@ -61,35 +61,35 @@ function describeError(err: unknown): string {
 
 interface Props {
   onClose: () => void;
-  /** BL-16: called synchronously, *before* createUserWithEmailAndPassword is
-   * even invoked, so App can flag "a signup is in flight" ahead of Firebase's
-   * onAuthStateChanged notification. Without this, App's existing
+  /** Called synchronously, *before* createUserWithEmailAndPassword is
+   * even invoked, so the shell can flag "a signup is in flight" ahead of
+   * Firebase's onAuthStateChanged notification. Without this, the shell's
    * auto-close-on-auth effect (which exists so the modal "closes regardless
    * of how auth resolved") would close the modal the instant the new user
    * is signed in -- before the "check your email" screen below ever
-   * renders. Optional so every pre-existing `<AuthModal onClose={...} />`
-   * call site (this file's own login-flow tests included) keeps compiling
-   * unchanged. */
+   * renders. Optional so a login-only `<AuthModal onClose={...} />` (this
+   * file's own login-flow tests included) needs no handler. */
   onSignedUp?: () => void;
-  /** BL-118 / ADR-0016 §1: mirrors onSignedUp's contract -- called as soon
+  /** ADR-0016 §1: mirrors onSignedUp's contract -- called as soon
    * as a Google sign-in is recognized as an auto-link onto an existing
    * account (see handleGoogleSignIn), before this component transitions to
-   * the "linked" notice screen, so App can suppress its auto-close-on-auth
-   * effect for that one transition the same way it does mid-signup. Without
-   * this, the notice screen below would never actually be seen -- App would
-   * close the modal the instant `user` updates. Optional for the same
-   * reason onSignedUp is. */
+   * the "linked" notice screen, so the shell can suppress its
+   * auto-close-on-auth effect for that one transition the same way it does
+   * mid-signup. Without this, the notice screen below would never actually
+   * be seen -- the shell would close the modal the instant `user` updates.
+   * Optional for the same reason onSignedUp is. */
   onGoogleLinked?: () => void;
 }
 
-/** Sign-in / create-account modal (BL-56 §5.5). Replaces the old full-screen
- * AuthScreen gate -- opened from the header's Sign In control, over the
- * anonymous Cards view. On a successful login, Firebase's onAuthStateChanged
- * updates AuthContext's `user`; App closes this modal from that transition
- * (see App.tsx), not from a callback out of here. Signup instead lands on
- * its own "check your email" screen below (BL-16) -- the account is created
- * and the user is signed in immediately, same as before, but the modal now
- * waits for an explicit dismiss instead of vanishing the moment auth
+/** Sign-in / create-account modal, opened over the app (the header's Sign In
+ * control, or any signed-out surface's sign-in request: App.tsx's
+ * setAuthModalOpen callers, MobileApp's openSignIn). On a
+ * successful login, Firebase's onAuthStateChanged updates AuthContext's
+ * `user`; the shell closes this modal from that transition (App.tsx;
+ * MobileApp.tsx mounts it through AuthLayer), not from a callback out of
+ * here. Signup instead lands on its own "check your email" screen below --
+ * the account is created and the user is signed in immediately, but the
+ * modal waits for an explicit dismiss instead of vanishing the moment auth
  * resolves, so the verification message actually gets seen. */
 export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
   const [mode, setMode] = useState<Mode>("login");
@@ -99,14 +99,14 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [verificationSentTo, setVerificationSentTo] = useState<string | null>(null);
 
-  // BL-118: Google sign-in state, independent of the email/password submit
+  // Google sign-in state, independent of the email/password submit
   // state above -- both actions live on the same credentials screen but are
   // mutually exclusive user gestures, so they share the one `error` banner
   // rather than each needing their own.
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [googleLinkedNotice, setGoogleLinkedNotice] = useState(false);
 
-  // BL-116 forgot-password state, independent of the login/signup fields
+  // Forgot-password state, independent of the login/signup fields
   // above -- `resetEmail` starts as a copy of `email` (prefilled) at the
   // moment "Forgot password?" is clicked, not bound to it, so editing one
   // never mutates the other.
@@ -124,16 +124,16 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     try {
       if (mode === "login") {
         await signInWithEmailAndPassword(auth, email, password);
-        capture("login_completed", { provider: "password" }); // BL-235
+        capture("login_completed", { provider: "password" });
       } else {
         onSignedUp?.();
         const credential = await createUserWithEmailAndPassword(auth, email, password);
-        capture("signup_completed", { provider: "password" }); // BL-235
+        capture("signup_completed", { provider: "password" });
         try {
-          // BL-95: the action link still goes through Firebase's hosted
-          // __/auth/action page (customizing the action URL itself is
-          // confirmed blocked on this project -- see VerifyEmailAction's
-          // docstring), but its "Continue" button navigates here afterward.
+          // The action link goes through Firebase's hosted __/auth/action
+          // page (customizing the action URL itself is blocked on this
+          // project -- see VerifyEmailAction's docstring), but its
+          // "Continue" button navigates here afterward.
           // The `emailVerified=1` marker tells VerifyEmailAction that
           // landing means verification just completed, without needing an
           // oobCode to apply.
@@ -155,7 +155,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     }
   }
 
-  /** BL-118 / ADR-0016: Google sign-in via popup, with a redirect fallback
+  /** ADR-0016: Google sign-in via popup, with a redirect fallback
    * for the one popup failure mode that isn't the user's own doing --
    * `auth/popup-blocked` (the browser itself refused to open it). Every
    * other popup failure (closed by the user, a real provider error) is left
@@ -178,7 +178,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
    * earlier session; either way the notice is factually accurate. A
    * redirect completing on reload (getRedirectResult, see AuthContext) can't
    * show this notice -- this component won't still be mounted by then; that
-   * gap is accepted as a fallback-path limitation (see PR description). */
+   * gap is an accepted fallback-path limitation. */
   async function handleGoogleSignIn() {
     setError(null);
     setGoogleSubmitting(true);
@@ -198,7 +198,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
       }
 
       const info = getAdditionalUserInfo(result);
-      // BL-235: isNewUser is true only for a genuinely fresh account --
+      // isNewUser is true only for a genuinely fresh account --
       // reliably distinguishes signup from login for the Google popup path
       // (the "linked to an existing account" auto-link case below is itself
       // a login: the account already existed).
@@ -219,7 +219,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     }
   }
 
-  /** BL-116: request a password reset email. Mind email enumeration --
+  /** Request a password reset email. Mind email enumeration --
    * Firebase's email-enumeration-protection setting (on by default for
    * newer projects) makes sendPasswordResetEmail resolve successfully even
    * for an unknown address, but a project *without* that protection can
@@ -233,9 +233,9 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     setResetError(null);
     setResetSubmitting(true);
     try {
-      // BL-116: reuses the BL-95 continue-URL marker mechanism -- action
-      // URL customization is confirmed blocked on this project (see
-      // VerifyEmailAction's docstring), so a real reset link still bounces
+      // The same continue-URL marker mechanism as the signup verification
+      // send -- action URL customization is blocked on this project (see
+      // VerifyEmailAction's docstring), so a real reset link bounces
       // through Firebase's hosted __/auth/action page first. Its own
       // "Continue" button, once the hosted page finishes the reset itself,
       // carries this marker back to our origin so the in-app landing can
@@ -342,7 +342,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
     );
   }
 
-  // BL-118 / ADR-0016 §1: shown once a Google sign-in is recognized as an
+  // ADR-0016 §1: shown once a Google sign-in is recognized as an
   // auto-link onto an existing password account -- see handleGoogleSignIn's
   // docstring for how "linked" is detected. Checked ahead of
   // verificationSentTo below since the two are mutually exclusive (Google
@@ -401,10 +401,9 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
   }
 
   return (
-    // BL-153 stragglers (owner dev review 2026-07-26): this primary-form
-    // render (and ChangePasswordModal's) missed the shared class when the
-    // per-modal overlay rules were consolidated -- without it the overlay
-    // has no styling at all and the card sits bottom-left in page flow.
+    // Every render here carries the shared `modal-overlay` class (as does
+    // ChangePasswordModal's) -- without it the overlay has no styling at
+    // all and the card sits bottom-left in page flow.
     <div className="auth-modal-overlay modal-overlay" onClick={onClose}>
       <div
         className="auth-modal-card"
@@ -454,7 +453,7 @@ export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
             />
           </label>
 
-          {/* BL-116: login-only -- signup has no account yet to reset. */}
+          {/* Login-only -- signup has no account yet to reset. */}
           {mode === "login" && (
             <button
               type="button"

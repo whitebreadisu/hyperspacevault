@@ -5,8 +5,8 @@ import { FilterMenuPortal, isInsideFilterMenuPortal } from "./FilterMenuPortal";
 import { useModalDismiss } from "../hooks/useModalDismiss";
 import "./FilterPanel.css";
 
-// Generic multi-select dropdown used by FilterPanel (extracted with RR-22's
-// logic/UI split). Styling lives in FilterPanel.css (`ifp-multi*` classes).
+// Generic multi-select dropdown used by FilterPanel. Styling lives in
+// FilterPanel.css (`ifp-multi*` classes).
 
 interface MultiSelectProps {
   label: string;
@@ -16,15 +16,15 @@ interface MultiSelectProps {
   placeholder?: string;
   searchable?: boolean;
   /** Optional extra control rendered in the dropdown's menubar, alongside
-   * All/Clear (e.g. the base/long-tail set toggle, §5.1). Purely additive —
-   * existing callers that omit this prop are unaffected. */
+   * All/Clear (e.g. the base/long-tail set toggle, App Spec §5.1). Callers
+   * that omit it get no extra control. */
   menubarExtra?: React.ReactNode;
-  /** BL-173 review round 4 (owner): the Set field drops its "All" button —
-   * selecting every value is behaviorally identical to Clear (both are the
-   * unfiltered state), so one of the pair is enough and the owner kept
-   * Clear. Default true: every other field keeps All untouched. */
+  /** The Set field drops its "All" button — selecting every value is
+   * behaviorally identical to Clear (both are the unfiltered state), so one
+   * of the pair is enough and Clear stays. Default true: every other field
+   * shows All. */
   showAllButton?: boolean;
-  /** BL-173 round 5 (owner): optional floor for the dropdown MENU's width
+  /** Optional floor for the dropdown MENU's width
    * (passed through to FilterMenuPortal) — the control keeps its sidebar
    * width; only the opened results widen so long labels don't wrap. */
   menuMinWidth?: number;
@@ -49,11 +49,11 @@ export function MultiSelect({
 
   useEffect(() => {
     if (!open) return undefined;
-    // BL-147 fix 6: the menu now portals to document.body (FilterMenuPortal,
-    // below), so it's no longer a DOM descendant of `ref` -- a click inside
-    // the portaled menu must also count as "inside" here, or every item
-    // click would close the dropdown out from under itself before the
-    // click handler on that item ever fires.
+    // The menu portals to document.body (FilterMenuPortal, below), so it is
+    // not a DOM descendant of `ref` -- a click inside the portaled menu must
+    // also count as "inside" here, or every item click would close the
+    // dropdown out from under itself before the click handler on that item
+    // ever fires.
     const onDocDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (ref.current && !ref.current.contains(target) && !isInsideFilterMenuPortal(e.target)) {
@@ -66,9 +66,9 @@ export function MultiSelect({
     };
   }, [open]);
 
-  // BL-153: Escape-key dismissal only, extracted to the shared hook -- see
-  // FinishFilter.tsx's identical comment for why the outside-mousedown
-  // detection above stays local instead of also moving into the hook.
+  // Only Escape-key dismissal comes from the shared hook -- see
+  // FinishFilter.tsx's comment for why the outside-mousedown detection
+  // above stays local instead of also moving into the hook.
   const closeDropdown = useCallback(() => setOpen(false), []);
   useModalDismiss(closeDropdown, { enabled: open });
 
@@ -108,17 +108,15 @@ export function MultiSelect({
     }
   };
 
-  // BL-111 dev-review wave 1 fix 3 (owner decision, ASCII preview approved):
-  // the trigger text itself now carries the field's label ("Set — All sets",
-  // "Set — SOR, JTL") -- the separate label row above the control is gone,
-  // shortening the sidebar. Selection text is the raw *values* joined by
-  // comma (not labelFor's looked-up label) -- for most fields value and
+  // The trigger text itself carries the field's label ("Set — All sets",
+  // "Set — SOR, JTL"), so there is no separate label row above the control
+  // and the sidebar stays short. Selection text is the raw *values* joined
+  // by comma (not the looked-up option label) -- for most fields value and
   // label are identical short strings (Rarity's "Common"/"Rare", etc.), but
   // Set's values are short codes ("SOR") while its labels are the long
-  // "SOR — Spark of Rebellion" form; the compact code list is what the
-  // approved preview shows, so raw values are used uniformly. "All selected"
-  // reads the same as "none selected" (both are the unfiltered state),
-  // matching the pre-existing summary logic this replaces.
+  // "SOR — Spark of Rebellion" form; the compact code list is the intended
+  // trigger text, so raw values are used uniformly. "All selected" reads
+  // the same as "none selected" (both are the unfiltered state).
   const isPlaceholder = values.size === 0 || values.size === norm.length;
   const selectionText = isPlaceholder ? placeholder : [...values].join(", ");
   const triggerText = `${label} — ${selectionText}`;
@@ -215,14 +213,13 @@ export function MultiSelect({
               {visible.length === 0 && <div className="ifp-multi__empty">No matches</div>}
               {visible.map(({ value, label: optLabel, inert, pinned }, i) => {
                 const checked = values.has(value);
-                // BL-129 R6b: divider renders between a pinned option and the
-                // next one only when that next one isn't pinned -- i.e.
-                // exactly at the pinned/alphabetized boundary, and only if
-                // there's a "next" at all. That self-limits it to "both
-                // sections non-empty": an options list that's all pinned (no
-                // rest) or has no pinned entries (every field but Finish, or
-                // Finish itself narrowed to just its alphabetized remainder
-                // by search/facets) never satisfies this and renders none.
+                // Divider renders between a pinned option and the next one
+                // only when that next one isn't pinned -- i.e. exactly at the
+                // pinned/unpinned boundary, and only if there's a "next" at
+                // all. That self-limits it to "both sections non-empty": an
+                // options list that's all pinned (Set with the long-tail
+                // toggle off) or has no pinned entries (every field but Set)
+                // never satisfies this and renders none.
                 const showDivider = pinned && i + 1 < visible.length && !visible[i + 1]?.pinned;
                 return (
                   <React.Fragment key={value}>
@@ -234,7 +231,7 @@ export function MultiSelect({
                       onClick={() => toggle(value)}
                       role="option"
                       aria-selected={checked}
-                      // BL-70: an inert (0-facet) option can't be newly added
+                      // An inert (0-facet) option can't be newly added
                       // -- but if it's already selected (a stale multi-select
                       // value), it stays clickable so it can still be removed.
                       disabled={inert && !checked}

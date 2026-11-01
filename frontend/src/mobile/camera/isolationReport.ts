@@ -1,25 +1,25 @@
-// BL-253 S7-03: what the scanner document can say about its own isolation --
-// the numbers the stage-7a proof reports (and the owner's-phone proof reads in
-// the LAN rounds): crossOriginIsolated, SharedArrayBuffer, the core count, the
-// thread count onnxruntime-web will be given, and wasm SIMD.
+// What the scanner document can say about its own isolation
+// (`window.__scan.isolation`, App Spec §25.7 Isolation): crossOriginIsolated,
+// SharedArrayBuffer, the core count, the thread count onnxruntime-web will be
+// given, and wasm SIMD.
 
 export interface IsolationReport {
   crossOriginIsolated: boolean;
   sharedArrayBuffer: boolean;
   hardwareConcurrency: number | null;
   /** The ort thread count: min(4, hardwareConcurrency) when isolated, else 1
-   * (paddle-reader.js:25, ported verbatim). */
+   * (App Spec §25.7 Isolation). */
   threads: number;
-  /** WebAssembly SIMD supported (the spike's app.js:1249 probe). */
+  /** WebAssembly SIMD supported. */
   simd: boolean | null;
 }
 
-/** paddle-reader.js:25 -- `crossOriginIsolated ? max(1, min(4, hwc || 1)) : 1`. */
+/** `crossOriginIsolated ? max(1, min(4, hwc || 1)) : 1`. */
 export function ortThreads(isolated: boolean, hardwareConcurrency: number | null | undefined) {
   return isolated ? Math.max(1, Math.min(4, hardwareConcurrency || 1)) : 1;
 }
 
-/** app.js:1249: validate a module that uses a v128 instruction. */
+/** Validate a module that uses a v128 instruction. */
 export function wasmSimdSupported(): boolean | null {
   try {
     return WebAssembly.validate(

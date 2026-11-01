@@ -6,7 +6,7 @@ from app.http_cache import tenant_no_store
 from app.schemas.settings_schema import LimitsResponse, LimitsUpdateRequest
 from app.services import settings as settings_service
 
-# BL-24: tenant_no_store router-wide, matching inventory.py -- every
+# tenant_no_store router-wide, matching inventory.py -- every
 # response here (the effective limits matrix) is per-tenant.
 router = APIRouter(
     prefix="/api/settings",
@@ -20,10 +20,10 @@ def get_limits(db: Session = Depends(get_db)):
     return settings_service.get_effective_limits(db)
 
 
-# Not gated by require_verified_email (unlike POST /api/inventory/{id}/
-# {increment,decrement} and the BL-54 import/export surface): OWNER-DECIDED
-# 2026-07-23 (Jeremy), deliberate and settled -- the gate protects
-# inventory data writes; account-scoped configuration sits outside it.
+# Not gated by require_verified_email (unlike the inventory data writes
+# under /api/inventory and the import/export surface): a settled decision
+# (ADR-0034) -- the gate protects inventory data writes; account-scoped
+# configuration sits outside it.
 # Rationale: this route is RLS-isolated to the caller's own tenant, its
 # payload is validated and bounded, and everything limits config
 # *influences* is already verified-gated, so an unverified account's

@@ -5,9 +5,7 @@ import { setFacetAfterRowTap } from "../../utils/filters";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { publishNav, setOpener, setOpenSource } from "../card/navList";
 import { go } from "../router";
-// ── RUN 2B BEGIN (import) ── the Filters sheet replaces the ComingSoon Sheet
 import { FiltersSheet } from "../filters/FiltersSheet";
-// ── RUN 2B END (import) ──
 import { CompletionHeader } from "./CompletionHeader";
 import { completionView } from "./completionModel";
 import type { TotalsScope } from "./completionModel";
@@ -22,11 +20,9 @@ import type { StripSummary } from "./VaultHeader";
 import { VaultStatus } from "./VaultStatus";
 import "./vault.css";
 
-// BL-247 stage 1b: the Vault screen's contents -- the status rows (S1-14),
-// the list (S1-19 / S1-20 / S1-21), the scope / sort / filters sheets
-// (S1-16 / S1-17; Filters is a ComingSoon sheet until S2) and search mode
-// (S1-15) -- inside the 1a-s header frame (VaultScreen). Stage 1c: the
-// completion panel + strip readout (S1-23) and the by-set sheet (S1-24).
+// The Vault screen's contents (App Spec §25.1) -- the status rows, the list,
+// the scope / sort / filters / by-set sheets, search mode, the completion
+// panel and the strip readout -- inside the header frame (VaultScreen).
 
 type SheetName = "scope" | "sort" | "filters" | "sets" | null;
 const SHEETS: SheetName[] = ["scope", "sort", "filters", "sets"];
@@ -39,11 +35,10 @@ interface Props {
   onOpenFeedback: () => void;
   /** Search mode collapses the bottom bar too (MobileApp owns the bar). */
   onSearchMode: (on: boolean) => void;
-  // ── RUN 2B BEGIN (signin prop) ── MobileApp's openSignIn, threaded through
-  /** Signed out, the Filters sheet's Collection row routes to sign in. */
+  /** Signed out, the Filters sheet's Collection row routes to sign in
+   * (MobileApp's openSignIn). */
   onRequestSignIn?: () => void;
-  // ── RUN 2B END (signin prop) ──
-  /** BL-252 S6-03: the title slot's text -- "<Name>'s collection" for a
+  /** The title slot's text -- "<Name>'s collection" for a
    * share (desktop's tab text); "Your collection" otherwise. */
   collectionLabel?: string;
 }
@@ -55,9 +50,7 @@ export function Vault({
   onOpenChooser,
   onOpenFeedback,
   onSearchMode,
-  // ── RUN 2B BEGIN (signin destructure) ──
   onRequestSignIn,
-  // ── RUN 2B END (signin destructure) ──
   collectionLabel,
 }: Props) {
   const { isAuthenticated, loading, sets, setOrder, setNameByCode } = useVaultData();
@@ -76,8 +69,8 @@ export function Vault({
     if (asSheet(params.sheet)) setSheet(asSheet(params.sheet));
   }
 
-  // S1-23 / S1-24: desktop CardsPage's completion universe (BL-163) -- the
-  // base sets by is_base_set, in display order for the by-set rows.
+  // Desktop CardsPage's completion universe -- the base sets by is_base_set,
+  // in display order for the by-set rows.
   const { baseSetCodes, orderedBaseSets } = useMemo(
     () => baseSetLists(sets, setOrder, setNameByCode),
     [sets, setOrder, setNameByCode]
@@ -124,12 +117,12 @@ export function Vault({
   }, [searching, onSearchMode]);
   useEffect(() => () => onSearchMode(false), [onSearchMode]);
 
-  // S2-01: the detail browses the list it was opened from (rev4 M.navList,
-  // set on the tap): its ids in the current order, whether it is narrowed
+  // The detail browses the list it was opened from (published on the tap):
+  // its ids in the current order, whether it is narrowed
   // (amber "n of m"), and the scope (it picks each card's default printing).
   const openCard = useCallback(
     (card: InventoryCard, variant: InventoryVariant | null) => {
-      // S2-09 / S2-11: the surface (row or gallery cell) decides the
+      // The surface (row or gallery cell) decides the
       // neighbour entry printing and card_popup_opened.source.
       const source = vv.prefs.view === "gallery" ? "gallery" : "row";
       publishNav({
@@ -219,10 +212,8 @@ export function Vault({
         />
       ) : null}
       {
-        // ── RUN 2B BEGIN ──
-        // BL-248 S2-12: the Filters sheet. Signed out, the Collection row
-        // closes Filters and opens MobileApp's sign-in (onRequestSignIn,
-        // threaded from MobileApp's RUN 2B (signin) block).
+        // The Filters sheet. Signed out, the Collection row closes Filters
+        // and opens MobileApp's sign-in (onRequestSignIn).
         sheet === "filters" ? (
           <FiltersSheet
             vv={vv}
@@ -233,7 +224,6 @@ export function Vault({
             }}
           />
         ) : null
-        // ── RUN 2B END ──
       }
     </>
   );

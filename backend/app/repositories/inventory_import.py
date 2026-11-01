@@ -10,24 +10,24 @@ from app.models.card_variant import CardVariant
 from app.models.inventory import Inventory
 from app.models.set_model import CardSet
 
-# BL-54 S2 (§4): a row of everything the resolution engine and report
-# builder need about a matched variant -- avoids re-querying BaseCard for
-# name/subtitle/type per row once a variant is found.
+# A row of everything the resolution engine and report builder need about a
+# matched variant -- avoids re-querying BaseCard for name/subtitle/type per
+# row once a variant is found.
 VariantMatch = tuple[
     CardVariant, str, str | None, str
 ]  # (variant, name, subtitle, base_card_type)
 
-# BL-203: Postgres parses each (a, b, c) row constructor of a composite IN
-# recursively, so one statement carrying ~1500+ of them exceeds the default
-# 2048kB max_stack_depth and the whole query is rejected
-# (psycopg2.errors.StatementTooComplex -- the 2026-08-11 prod incident: a
-# 1500+-card collection import 500'd on all ten attempts). Every tuple_()
-# lookup below therefore runs in chunks; scalar .in_() lists (uuids,
-# variant_ids) are flat and don't recurse, so they stay single-query.
-# Chunking bounds statement complexity permanently, unlike raising
-# max_stack_depth, which only moves the ceiling. The ceiling is
-# environment-dependent: prod (Cloud SQL) rejected a 1,500+-triple file,
-# while the dev-image Postgres survives 5,000 and rejects 10,000 -- so 500
+# Postgres parses each (a, b, c) row constructor of a composite IN
+# recursively, so one statement carrying ~1500+ of them would exceed the
+# default 2048kB max_stack_depth and the whole query would be rejected
+# (psycopg2.errors.StatementTooComplex, which would surface as a 500 on
+# import). Every tuple_() lookup below therefore runs in chunks; scalar
+# .in_() lists (uuids, variant_ids) are flat and don't recurse, so they stay
+# single-query. Chunking bounds statement complexity permanently, unlike
+# raising max_stack_depth, which only moves the ceiling. The ceiling is
+# environment-dependent: a single statement with 1,500+ triples exceeds the
+# limit on prod (Cloud SQL), while the dev-image Postgres survives 5,000 and
+# rejects 10,000 -- so 500
 # sits ~3x below the smallest count known to crash anywhere and ~20x below
 # the locally measured threshold.
 _TUPLE_IN_CHUNK_SIZE = 500
@@ -49,8 +49,9 @@ def _current_tenant_id(db: Session) -> int:
 
 
 def get_variants_by_uuids(db: Session, uuids: list[str]) -> dict[str, VariantMatch]:
-    """§4 step 1: bulk uuid lookup for every distinct swuapi_uuid the file's
-    rows carry, keyed by swuapi_id -- one query regardless of file size."""
+    """Resolution step 1, uuid first (App Spec §17.2): bulk uuid lookup for
+    every distinct swuapi_uuid the file's rows carry, keyed by swuapi_id --
+    one query regardless of file size."""
     if not uuids:
         return {}
     rows = (
@@ -68,11 +69,12 @@ def get_variants_by_uuids(db: Session, uuids: list[str]) -> dict[str, VariantMat
 def get_variants_by_triples(
     db: Session, triples: list[tuple[str, str, str]]
 ) -> dict[tuple[str, str, str], list[VariantMatch]]:
-    """§4 step 2: bulk triple lookup (set_code, card_number, variant_type)
-    -> every matching variant (usually exactly one; the Serialized Prestige
-    trio is the known ambiguous shape, §10 case 3). Composite IN via
-    tuple_(), chunked (BL-203) -- one query per _TUPLE_IN_CHUNK_SIZE
-    distinct triples in the file."""
+    """Resolution step 2, triple fallback (App Spec §17.2): bulk triple
+    lookup (set_code, card_number, variant_type) -> every matching variant
+    (usually exactly one; the Serialized Prestige trio is the known
+    ambiguous shape). Composite IN via tuple_(), chunked (see
+    _TUPLE_IN_CHUNK_SIZE) -- one query per _TUPLE_IN_CHUNK_SIZE distinct
+    triples in the file."""
     if not triples:
         return {}
     grouped: dict[tuple[str, str, str], list[VariantMatch]] = defaultdict(list)
@@ -98,23 +100,23 @@ def get_variants_by_triples(
 def get_variants_by_set_and_number(
     db: Session, pairs: list[tuple[str, str]]
 ) -> dict[tuple[str, str], list[VariantMatch]]:
-    """BL-185 §6 step 3: bulk (set_code, card_number) lookup for the SWUDB
-    import adapter -- mirrors get_variants_by_triples above, but without
+    """Bulk (set_code, card_number) lookup for the SWUDB import adapter
+    (App Spec §17.5) -- mirrors get_variants_by_triples above, but without
     the variant_type leg of the triple, since SWUDB's own raw identity
     (Set, CardNumber, IsFoil, Stamp) never carries a variant_type at all.
     IsFoil/Stamp disambiguate the returned candidate list in app/services/
     swudb_import.py, not here -- this is a plain bulk lookup, same shape as
     get_variants_by_triples (usually one candidate; multiple is the
-    expected-collision case, §5).
+    expected-collision case).
 
-    BL-199: token base cards are excluded here, not in the adapter's
-    resolution -- tokens are numbered run-locally INSIDE base sets (SOR 1
-    is both Director Krennic and the Experience token), and a SWUDB row's
-    plain CardNumber always means the real card: SWUDB's own token ids are
-    T-prefixed (the BL-185 doc's §3.4 P25_T002 finding), which this
-    adapter's _normalize_number leaves non-numeric so they land in
-    unknown_set_and_number rather than resolving -- tokens stay out of
-    SWUDB import entirely, honestly on both sides."""
+    Token base cards are excluded here, not in the adapter's resolution --
+    tokens are numbered run-locally INSIDE base sets (SOR 1 is both
+    Director Krennic and the Experience token), and a SWUDB row's plain
+    CardNumber always means the real card: SWUDB's own token ids are
+    T-prefixed (e.g. P25_T002), which swudb_import._normalize_number leaves
+    non-numeric so they land in unknown_set_and_number rather than
+    resolving -- tokens stay out of SWUDB import entirely, honestly on both
+    sides."""
     if not pairs:
         return {}
     grouped: dict[tuple[str, str], list[VariantMatch]] = defaultdict(list)
@@ -137,25 +139,25 @@ def get_variants_by_set_and_number(
 def get_base_card_variants_by_set_and_number(
     db: Session, pairs: list[tuple[str, str]], *, tokens: bool = False
 ) -> dict[tuple[str, str], list[VariantMatch]]:
-    """BL-186 §5/§10 step 1: bulk (mapped_set_code, base_card_number) ->
-    EVERY variant belonging to that base card, regardless of each
-    variant's OWN source_set_code/card_number -- the base-card-first
-    lookup the sw-unlimited-db adapter needs (app/services/
-    swunlimiteddb_import.py). This is deliberately NOT the same shape as
-    get_variants_by_set_and_number above (BL-185's lookup keys on a
+    """Bulk (mapped_set_code, base_card_number) -> EVERY variant belonging
+    to that base card, regardless of each variant's OWN
+    source_set_code/card_number -- the base-card-first lookup the
+    sw-unlimited-db adapter needs (app/services/swunlimiteddb_import.py,
+    App Spec §17.5). This is deliberately NOT the same shape as
+    get_variants_by_set_and_number above (the SWUDB lookup keys on a
     VARIANT's own (source_set_code, card_number)) -- sw-unlimited-db's
     row identity is the BASE card, and a promo/prerelease/Weekly-Play
     variant on that base card can live at a completely different own-
-    number in a different source_set_code (the BL-186 definition doc's
-    §10 finding: the Vader prerelease printing lands on the base sor/010
-    row, not on its own SOR/1 identity). The adapter filters this
-    per-base-card variant list down to a column's family and disambiguates
-    (home-set preference, then ambiguous) itself -- this function only
-    does the bulk fetch, mirroring the split between get_variants_by_
-    set_and_number and swudb_import._resolve_candidates.
+    number in a different source_set_code (e.g. the Vader prerelease
+    printing lands on the base sor/010 row, not on its own SOR/1
+    identity). The adapter filters this per-base-card variant list down to
+    a column's family and disambiguates (home-set preference, then
+    ambiguous) itself -- this function only does the bulk fetch, mirroring
+    the split between get_variants_by_set_and_number and
+    swudb_import._resolve_candidates.
 
-    BL-199: `tokens` selects which side of the base_cards.is_token split
-    to fetch -- token base cards are numbered run-locally inside base sets
+    `tokens` selects which side of the base_cards.is_token split to
+    fetch -- token base cards are numbered run-locally inside base sets
     (ASH 1 is both The Armorer and the Mandalorian token), and the XLSX
     adapter strips the T- prefix off token ids before lookup, so WITHOUT
     the split a token row and a real-card row land on the same (set,
@@ -203,10 +205,11 @@ def get_current_quantities(db: Session, variant_ids: list[int]) -> dict[int, int
 
 
 def get_owned_rows_excluding(db: Session, excluded_variant_ids: set[int]):
-    """§5/§7.3 `replace_all`: every currently-owned (quantity >= 1) row for
-    the caller's tenant whose variant isn't among the file's resolved
-    variants -- the removal itemization (`totals.removed_by_replace_all` +
-    the `removed` list). RLS scopes to the caller's tenant via `db`."""
+    """`replace_all` (App Spec §17.2): every currently-owned
+    (quantity >= 1) row for the caller's tenant whose variant isn't among
+    the file's resolved variants -- the removal itemization
+    (`totals.removed_by_replace_all` + the `removed` list). RLS scopes to
+    the caller's tenant via `db`."""
     query = (
         db.query(
             Inventory.variant_id,
@@ -232,8 +235,8 @@ def get_owned_rows_excluding(db: Session, excluded_variant_ids: set[int]):
 
 
 def apply_quantities(db: Session, updates: dict[int, int]) -> None:
-    """§7.2 commit stage: writes each resolved row's target quantity.
-    Deliberately does NOT call db.commit() -- the whole import (this
+    """Commit stage (App Spec §17.2): writes each resolved row's target
+    quantity. Deliberately does NOT call db.commit() -- the whole import (this
     function plus any replace_all removals) is applied inside the single
     request-scoped transaction the router commits exactly once, so a
     mid-way failure rolls back everything (unlike upsert_increment/

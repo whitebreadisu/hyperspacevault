@@ -7,15 +7,12 @@ interface Props {
   disabled?: boolean;
 }
 
-/** BL-118: Google's branding guidelines specify the button text ("Sign in
- * with Google" / "Sign up with Google" -- Google publishes both variants,
- * chosen by the caller to match AuthModal/DeleteAccountModal's own
- * login-vs-signup or sign-in-vs-reauth copy), the logo (GoogleIcon, unscaled
- * multi-color mark), and roughly this button shape -- dark-theme variant
- * since this app's modals are dark surfaces (.auth-modal-card's --bg-surface
- * is dark; see AuthModal.css). Reused as-is by DeleteAccountModal's
- * Google-reauth path so both call sites render an identical, recognizable
- * button rather than two near-duplicates. */
+/** Google's branding guidelines specify the button text ("Sign in with
+ * Google" / "Sign up with Google" -- Google publishes both variants; the
+ * caller picks one to match its own login-vs-signup copy, as AuthModal
+ * does), the logo (GoogleIcon, unscaled multi-color mark), and roughly this
+ * button shape -- dark-theme variant since this app's modals are dark
+ * surfaces (.auth-modal-card's --bg-surface is dark; see AuthModal.css). */
 export function GoogleAuthButton({ label, onClick, disabled }: Props) {
   return (
     <button type="button" className="google-auth-button" onClick={onClick} disabled={disabled}>

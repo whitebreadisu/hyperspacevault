@@ -560,7 +560,7 @@ describe("FR5-03 camera-start focusing state (F-16)", () => {
     // PORT (BL-262 stage 2): the section ends at the Target doc, reworded.
     const end = flow.indexOf("/** What a read identified");
     expect(end).toBeGreaterThan(0);
-    const settleSrc = flow.slice(flow.indexOf("FR5-03"), end);
+    const settleSrc = flow.slice(flow.indexOf("export const SETTLE_MS"), end);
     expect(settleSrc.length).toBeGreaterThan(500);
     expect(settleSrc).not.toMatch(/scan[A-Z]\w*\(|capture\(|vibrate|toast/i);
     const analytics = readFileSync("src/mobile/camera/scanAnalytics.ts", "utf8");

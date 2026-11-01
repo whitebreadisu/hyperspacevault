@@ -29,8 +29,7 @@ import { cameraScreenViewed, scanFallbackKeypad } from "./scanAnalytics";
 import type { ScanDebug } from "./scanBoot";
 import "./camera.css";
 
-// BL-253 S7-10 .. S7-17: the camera screen (rev4 MCamera.jsx, rendered
-// reference; the spike's behaviour). Body of the tool layer in camera mode:
+// The camera screen (App Spec §25.7). Body of the tool layer in camera mode:
 // the live preview (a real <video playsinline muted autoplay>, object-fit
 // cover) under the guide (bottom-right corner outline, the group box, the
 // surroundings dimmed for the user only -- the reader samples the <video>),
@@ -40,7 +39,7 @@ import "./camera.css";
 // card layer is up; the stream stops when the page hides or the screen leaves.
 // No toast, no haptics, no zoom control, no orientation toggle, no demo strip.
 
-const FLASH_MS = 180; // app.js:961-965 bigFlash
+const FLASH_MS = 180; // the cue's flash (App Spec §25.7 Cue)
 const PARTIAL_SETS = /^[A-Z0-9]{2,5}$/;
 
 interface Bound extends CameraScreenProps {
@@ -64,7 +63,7 @@ function useSize(el: HTMLElement | null): { w: number; h: number } {
   return s;
 }
 
-/** FR5-03 (F-16): `settling` draws the guide's lines dim (the corner outline
+/** `settling` draws the guide's lines dim (the corner outline
  * and the group box with its markers) until the picture first sharpens. The
  * shade around the card is the card span's own shadow and does not change. */
 function Guide({
@@ -126,8 +125,8 @@ function Panel({ children, tone }: { children: ReactNode; tone?: string | null }
   );
 }
 
-/** S7-11: one +/-4 mm slider (index.html:39-40): `input` re-lays the guide
- * out live, the native `change` (the release) persists (app.js:1303-1306). */
+/** One +/-4 mm slider: `input` re-lays the guide out live, the native
+ * `change` (the release) persists. */
 function OffsetSlider({
   label,
   aria,
@@ -171,8 +170,8 @@ function OffsetSlider({
 const commitH = (v: number) => setScanSettings({ boxOffsetMm: v });
 const commitV = (v: number) => setScanSettings({ boxOffsetVMm: v });
 
-/** S7-11: the "Guide alignment" sheet (X top-right): the two sliders and a
- * reset to 0. Zoom / torch / focus controls are out (ruling 6). */
+/** The "Guide alignment" sheet (X top-right): the two sliders and a
+ * reset to 0. Zoom / torch / focus controls are not built (App Spec §24.2). */
 function AlignSheet({
   live,
   onLive,
@@ -243,8 +242,8 @@ function PickPanel({
       </p>
       <div className="m-cam__picks" role="group" aria-label="Pick the card you have">
         {phase.rows.map((r) => {
-          // The row's card is what its printings identify (BL-262: the same
-          // rule the found panel and the add use once the row is picked).
+          // The row's card is what its printings identify (the same rule the
+          // found panel and the add use once the row is picked).
           const id = readIdentity(r.vids, cards, NO_PICKS, true);
           const one = id.kind === "card" || id.kind === "token" ? id : null;
           const card = one ? one.card : null;
@@ -319,7 +318,7 @@ function FoundPanel({
   const hold = phase.kind === "hold";
   const t = phase.target;
   const entry = hold && phase.entryId ? (batch.find((e) => e.id === phase.entryId) ?? null) : null;
-  // BL-262: the panel is the card the strip identified -- the read's printings
+  // The panel is the card the strip identified -- the read's printings
   // with the choices made here (the controller's add makes the same call). In
   // the hold it is the printing that went into the batch.
   const id =
@@ -360,7 +359,7 @@ function FoundPanel({
       />
     );
   } else if (id.kind === "token") {
-    // A token is recognised and named, never added (owner 2026-10-13): the
+    // A token is recognised and named, never added (App Spec §24.2): the
     // card panel on the token with Add to batch unavailable and one line
     // saying why. Wrong card and the Keypad link stay as they are.
     const shown = id.printings[0];
@@ -472,12 +471,12 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
 
   useEffect(() => ctl.mount(), [ctl]);
 
-  // S7-18: screen_viewed {screen: "camera"} once per mount.
+  // screen_viewed {screen: "camera"} once per mount.
   useEffect(() => {
     cameraScreenViewed();
   }, []);
 
-  // S7-17: iOS starts audio only inside a user gesture -- any tap while the
+  // iOS starts audio only inside a user gesture -- any tap while the
   // camera is up unlocks it (the camera-mode tap in ToolLayer already did when
   // the mode was switched inside this document).
   useEffect(() => {
@@ -486,20 +485,20 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
     return () => document.removeEventListener("pointerdown", on, { capture: true });
   }, []);
 
-  // Reading pauses while anything is over the preview. FR5-06: the rotate
-  // screen (a phone on its side) is one more cover -- the read loop pauses,
-  // the stream keeps running, so turning upright restarts nothing.
+  // Reading pauses while anything is over the preview. The rotate screen (a
+  // phone on its side) is one more cover -- the read loop pauses, the stream
+  // keeps running, so turning upright restarts nothing.
   const sideways = usePhoneSideways();
   const blocked = covered || busy || alignOpen || sideways;
-  // Review FR5 N2: a layout effect -- the block lands in the commit that
-  // shows the cover, before the browser can deliver another frame's read (a
-  // passive effect ran a render later, and with Fast add a read accepted in
-  // that gap was an automatic add under the rotate screen).
+  // A layout effect, not a passive one: the block lands in the commit that
+  // shows the cover, before the browser can deliver another frame's read. A
+  // passive effect runs a render later, and with Fast add a read accepted in
+  // that gap would be an automatic add under the rotate screen.
   useLayoutEffect(() => {
     ctl.setBlocked(blocked);
   }, [ctl, blocked, phase.kind]);
 
-  // The flash (rev4 .m-camflash): on for 180 ms (app.js:961-965), then the .35 s fade.
+  // The flash (.m-camflash): on for 180 ms, then the .35 s fade.
   useEffect(() => {
     if (!snap.flashAt) return undefined;
     const on = setTimeout(() => setFlashOn(true), 0);
@@ -510,7 +509,7 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
     };
   }, [snap.flashAt]);
 
-  // S7-16: what a leave to the keypad prefills (+ scan_fallback_keypad).
+  // What a leave to the keypad prefills (+ scan_fallback_keypad).
   const partial: { code: string | null; num: string | null } | null =
     phase.kind === "found" || phase.kind === "hold"
       ? { code: phase.target.setCode, num: phase.target.cardNumber }
@@ -531,7 +530,7 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
 
   const g = size.w ? layoutGuide(size.w, size.h, vdim.w, vdim.h, live.h, live.v) : null;
 
-  // FR5-03: from a stream start until the picture first sharpens (or 3 s).
+  // From a stream start until the picture first sharpens (or 3 s).
   const settling = snap.settle === "settling";
 
   // Meter words.
@@ -665,8 +664,8 @@ function CameraScreen({ covered, busy, onRequestSignIn, onOpenCard, onOpenVerify
   );
 }
 
-/** S7-16: the keypad route for a partial read (`#/pad?set=&num=` only when
- * the set exists -- rev4 MCamera.jsx:143-152), sending scan_fallback_keypad. */
+/** The keypad route for a partial read (`#/pad?set=&num=` only when the set
+ * exists -- App Spec §25.7 Flow), sending scan_fallback_keypad. */
 export function keypadRoute(
   partial: { code: string | null; num: string | null } | null,
   setNameByCode: Record<string, string>
@@ -679,7 +678,7 @@ export function keypadRoute(
   return "#/pad";
 }
 
-/** S7-10: the screen bound to the scanner document's reader (scanBoot
+/** The screen bound to the scanner document's reader (scanBoot
  * registers it into the tool layer's camera slot). */
 export function bindCameraScreen(scan: ScanDebug): ComponentType<CameraScreenProps> {
   function BoundCameraScreen(p: CameraScreenProps) {

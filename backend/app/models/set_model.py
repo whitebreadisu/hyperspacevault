@@ -10,8 +10,8 @@ class CardSet(Base):
     """All swuapi sets — base (SOR, SHD, ...) and long-tail container sets
     (Weekly Play, Judge Program, Promo, Convention Exclusive, ...) alike.
     is_base_set is curated, not derived, because the derived rule ("contains
-    >=1 root") misfires on C26 (mostly a container, but holds the lone Zam
-    Wesell orphan root). See SWU_Catalog_Redesign_Spec.md §4.1."""
+    >=1 root") misfires whenever a container set (e.g. C26) carries a stray
+    orphan root. See App Spec §4.1."""
 
     __tablename__ = "sets"
 

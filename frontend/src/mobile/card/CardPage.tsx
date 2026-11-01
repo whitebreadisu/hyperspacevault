@@ -12,11 +12,11 @@ import { PriceChart } from "./PriceChart";
 import { Printings } from "./Printings";
 import type { Stepper } from "./useStepper";
 
-// BL-248 S2-08: one card's page -- the collapsing region and the body
-// (printings rail, price history, card text) -- split out of CardDetail so
-// the body-slide swipe can draw the neighbour beside the current card (rev4
-// MCardDetail.jsx CardPage). The header is NOT part of the page: it stays
-// fixed while pages slide under it (R5 switch swipe=body). A `ghost` page is
+// One card's page -- the collapsing region and the body (printings rail,
+// price history, card text) -- a component of its own so the body-slide
+// swipe can draw the neighbour beside the current card. The header is NOT
+// part of the page: it stays fixed while pages slide under it (App Spec
+// §25.2 "Swipe between cards"). A `ghost` page is
 // the neighbour during a swipe or a chevron move: at the top, on its entry
 // printing, in the current page's collapse state, inert, no fetches.
 
@@ -56,7 +56,7 @@ export interface CardPageProps {
   onOpenFinish?: () => void;
   onOpenAspects?: (aspects: string[]) => void;
   onChartEngage?: () => void;
-  /** BL-252 S6-05: a shared vault's card (×N, no stepper). */
+  /** A shared vault's card (×N, no stepper). */
   readOnly?: boolean;
 }
 
@@ -67,7 +67,7 @@ export function CardPage(p: CardPageProps) {
     "--d-delta": geom.delta + "px",
     ...(ghost ? null : p.pullStyle),
   } as CSSProperties;
-  // FR1-07: the plate counts across every printing, at the quantities the
+  // The plate counts across every printing, at the quantities the
   // stepper shows (optimistic while a batch is open).
   const shownVariants = card.variants.map((v) => {
     const quantity = p.stepper.qtyOf(v);

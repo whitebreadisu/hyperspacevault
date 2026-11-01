@@ -1,8 +1,7 @@
-// BL-253 S7-10: camera start / stop (spike app.js:107-149, 250-261), without
-// the spike's device / resolution pickers and research logging. The request
-// is the spike's: facingMode environment, ideal 3840 x 2160, no audio. On
-// start the zoom is put back to 1.0 if the camera did not start there -- the
-// only zoom ever applied (no automatic zoom; Spec 24.2). A track the phone
+// Camera start / stop. No device or resolution picker. The request:
+// facingMode environment, ideal 3840 x 2160, no audio. On start the zoom is
+// put back to 1.0 if the camera did not start there -- the only zoom ever
+// applied (no automatic zoom; App Spec §24.2). A track the phone
 // ends -> "ended" (the screen offers Start); permission denied / no camera ->
 // an inline state with "Use the keypad" (never `alert`). The page going
 // hidden stops the stream (and the screen stops the loop).
@@ -36,7 +35,8 @@ export interface StreamDeps {
   attach(s: StreamLike | null): void;
 }
 
-/** app.js:112-115 (the spike's "4k" choice, its default). */
+/** The capture request: the rear camera at an ideal 4k (3840 x 2160); Safari
+ * grants a 4K portrait stream (ADR-0029 Context). */
 export const STREAM_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: { facingMode: "environment", width: { ideal: 3840 }, height: { ideal: 2160 } },
@@ -104,7 +104,7 @@ export class CameraStream {
     void this.resetZoom();
   }
 
-  /** app.js:250-261 resetNativeZoom: back to 1.0 only if it is not. */
+  /** Zoom back to 1.0, only if it is not there. */
   private async resetZoom(): Promise<void> {
     const t = this.track;
     try {

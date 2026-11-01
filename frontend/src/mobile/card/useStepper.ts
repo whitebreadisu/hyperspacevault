@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
 import type { InventoryVariant } from "../../utils/inventory";
 
-// BL-248 S2-05: the detail's stepper mutation -- desktop
-// CardPopupInventory.tsx useInventoryMutation's semantics (BL-219): every
+// The detail's stepper mutation -- desktop
+// CardPopupInventory.tsx useInventoryMutation's semantics: every
 // tap moves the shown quantity at once (optimistic), taps on one printing
 // batch into ONE adjustCard(variantId, delta) call 400 ms after the last tap,
 // the server's returned quantity is authoritative (a hard cap may clamp it),

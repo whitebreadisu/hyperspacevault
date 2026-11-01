@@ -8,14 +8,15 @@ import { Sheet, useSheetClose } from "../Sheet";
 import { PriceSeg, Ticks } from "./CompletionHeader";
 import { wholeMoney } from "./completionModel";
 
-// BL-247 S1-24: Completion by set (rev4 MSheet.jsx:105-155; CSS m-rev2.css:
-// 65-80, m-rev4.css:68-88). One row per base set, in display order (newest first): the set
-// image (BL-257 FR3-01: laid out by its artwork -- SetLogo) and three equal facts (Playsets % + ticks, Cards, Value). Rows =
-// desktop buildSetBreakdown over desktop's breakdownCards universe -- every
-// narrowing except the Set facet (BL-224: the rows are the Set facet's own
-// menu, so a menu never filters itself). Its own Market / Low segment (the
-// header's control: drawn 34 / hit 44, same widths, never amber). A row tap
-// writes the Set facet to that set and closes the sheet.
+// Completion by set (App Spec §25.1). One row per base set, in display order
+// (newest first): the set image (laid out by its artwork -- SetLogo) and
+// three equal facts (Playsets % + ticks, Cards, Value). Rows = desktop
+// buildSetBreakdown over desktop's breakdownCards universe -- every narrowing
+// except the Set facet (the rows are the Set facet's own menu, so a menu
+// never filters itself). Its own Market / Low segment (the header's control:
+// drawn 34 / hit 44, same widths, never amber). A row tap sets the Set facet
+// to that set, or clears it when that set is the only one selected (Vault.tsx
+// onPickSet, utils/filters.ts setFacetAfterRowTap), and closes the sheet.
 
 const EM_DASH = "—";
 

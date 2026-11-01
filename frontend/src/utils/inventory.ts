@@ -36,30 +36,21 @@ export function cardOwnedTotalFromVariants(variants: InventoryVariant[]): number
   return variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
 }
 
-/** BL-44 Slice B (ADR-0005): builds the same InventoryCard shape/inventory-map
- * `groupWithInventory` used to build (see git history), but from the
- * base-cards *list* endpoint's already-nested-by-base-card response instead
- * of a flat per-variant CardWithQty[] that had to be grouped client-side.
- * There is no grouping pass here -- each entry in `baseCards` already *is*
- * one base card; this only reshapes field names and rebuilds the
- * `inventory: variant_id -> quantity` map (still keyed by variant id, still
- * fed straight from each variant's `quantity`) that PlaysetCell (screens/
- * cards/PlaysetCell.tsx -- the merged Playset/Inventory cell, BL-162) and
- * the completion math (isPlaysetComplete/isOwned) all read.
- * One fetch (getBaseCardsList) now serves both auth states: quantity is real
- * when signed in and 0 across the board when anonymous (server-side,
- * optional-auth), so this same mapping is correct for both.
- *
- * BL-146: parameter type changed from BaseCardDetail[] (the fat detail
- * shape) to BaseCardCatalogWithQuantity[] (the slim list shape + merged
- * quantity, api/baseCards.ts) -- the list endpoint never actually returned
- * BaseCardDetail's fields even before this split (quantity itself was
- * always a client-side merge, see CardsPage.tsx), but the two shapes were
- * structurally compatible by coincidence until the list slimmed down.
- * front_images/back_images are now computed here via deriveRenditions
- * (utils/cardImages.ts) instead of read off the response, since the API no
- * longer ships them on the list at all (Design_SparseList_2026-07-25.md
- * §3). */
+/** Builds the InventoryCard list (ADR-0005) from the base-cards *list*
+ * endpoint's already-nested-by-base-card response (App Spec §12), with the
+ * caller's quantities merged in client-side (BaseCardCatalogWithQuantity,
+ * api/baseCards.ts -- the slim list shape, not the detail shape). There is
+ * no grouping pass here -- each entry in `baseCards` already *is* one base
+ * card; this only reshapes field names and builds the
+ * `inventory: variant_id -> quantity` map (keyed by variant id, fed
+ * straight from each variant's `quantity`) that PlaysetCell
+ * (screens/cards/PlaysetCell.tsx) and the completion math
+ * (isPlaysetComplete/isOwned) read. Quantity is whatever the caller merged
+ * (vault/useVaultData.ts: the viewer's own, a share owner's, or 0 across
+ * the board when anonymous), so this same mapping is correct for every
+ * case. front_images/back_images are computed here via
+ * deriveRenditions (utils/cardImages.ts), because the list ships no
+ * renditions. */
 export function toInventoryCards(
   baseCards: BaseCardCatalogWithQuantity[],
   setOrder: SetOrderMap = {}
@@ -80,7 +71,7 @@ export function toInventoryCards(
         front_images: v.front_image_url ? deriveRenditions(v.front_image_url) : undefined,
         back_images: v.back_image_url ? deriveRenditions(v.back_image_url) : undefined,
         quantity: v.quantity,
-        // BL-163: passthrough so utils/completion.ts's Collection-value calc
+        // Passthrough so utils/completion.ts's Collection-value calc
         // can read each owned variant's own price.
         price: v.price,
       };

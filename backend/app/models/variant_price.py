@@ -8,20 +8,19 @@ from app.models.base import Base
 
 
 class VariantPrice(Base):
-    """BL-136: one row per variant per day (Definition_Pricing_2026-07-16.md
-    §2). Composite PK (variant_id, as_of) is the natural idempotency key for
-    both the daily sync job (ON CONFLICT DO UPDATE -- a same-day re-run is a
-    no-op past the first write) and the backfill job (ON CONFLICT DO NOTHING
-    -- a historical day, once inserted, never changes). The current price
-    for a variant is simply the row with the max as_of; the same table
-    serves the price-history endpoint's whole series.
+    """One row per variant per day (App Spec §16.2). Composite PK (variant_id, as_of) is
+    the natural idempotency key for both the daily sync job (ON CONFLICT DO UPDATE -- a
+    same-day re-run is a no-op past the first write) and the backfill job (ON CONFLICT
+    DO NOTHING -- a historical day, once inserted, never changes). The current price for
+    a variant is the row with the max as_of, but request-time reads take it from
+    variant_latest_prices, never from a scan here (App Spec §16.5); this table serves
+    the price-history endpoint's whole series.
 
     Global catalog data like tcgplayer_products -- no tenant_id, no RLS.
     market/low/mid/high are all nullable because tcgcsv price rows
     occasionally omit a tier (e.g. no listings in that band that day); the
-    decided policy is "the price still ships with its as_of, never blanks"
-    at the API layer, which is a null-per-field concern, not a
-    null-the-whole-row concern."""
+    API-layer policy "the price still ships with its as_of, never blanks"
+    is a null-per-field concern, not a null-the-whole-row concern."""
 
     __tablename__ = "variant_prices"
     __table_args__ = (

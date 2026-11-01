@@ -6,11 +6,9 @@ import { MIcon } from "../icons";
 import { go } from "../router";
 import "./more.css";
 
-// BL-250 S4-01: More at #/more (rev4 MMore.jsx 12-33 + m-layout.css 497-515,
-// m-rev1.css 285-288, m-rev4-d.css 147-158). The brand block at the top is an
-// About button (rev4 D1: one brand button); the account slot sits beside it
-// as on the Vault. Groups: Collection (Import & Export, Sharing, the Deck
-// Check sentence -- R4-14.1), Account (signed in: Settings, Change Password
+// More at #/more (App Spec §25.4). The brand block at the top is one About
+// button; the account slot sits beside it as on the Vault. Groups:
+// Collection (Import & Export, Sharing, the Deck Check sentence), Account (signed in: Settings, Change Password
 // for password accounts), Hyperspace Vault (About & Legal, [HSV] Updates,
 // Leave Feedback), then Log Out -- or Sign in when signed out. Entry names
 // are desktop's (UserMenu, Header). Gating is desktop's: Import & Export and
@@ -18,18 +16,18 @@ import "./more.css";
 // sign-in (CardsPage's aria-disabled SWUButtons); Import & Export is also
 // inert for a signed-in, unverified account and explains itself inline
 // (CardsPage .ie-entry-nudge). The Updates row pulses only when More was
-// opened before the title (R5-2; `updatesCue`).
+// opened before the title (`updatesCue`).
 //
-// BL-252 S6-06: inside a share (`inShare`) the rows that act on the viewer's
-// own vault or account are absent -- Import & Export, Sharing, Settings,
-// Change Password (rev4 R4-8 / BLOCKED_IN_SHARE; their routes land here) --
+// Inside a share (`inShare`) the rows that act on the viewer's own vault or
+// account are absent -- Import & Export, Sharing, Settings, Change Password
+// (MobileApp.tsx BLOCKED_IN_SHARE; their routes land here) --
 // About & Legal, Updates and Leave Feedback stay, and Log Out (or Sign in).
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
 /** Desktop CardsPage .ie-entry-nudge, minus its "— see the banner above."
- * tail: the phone's verify-email banner lives under the Vault header (S5-08),
- * not on More, so the clause stays out (orchestrator ruling, S4-01d). */
+ * tail: the phone's verify-email banner lives under the Vault header, not on
+ * More, so the clause stays out (App Spec §25.4 Gating). */
 export const IE_UNVERIFIED_NUDGE = "Verify your email to import or export your collection.";
 
 export interface MoreScreenProps {
@@ -40,7 +38,7 @@ export interface MoreScreenProps {
   account: ReactNode;
   onSignIn: () => void;
   onLogout: () => void;
-  /** The shared vault is shown (S6-06). */
+  /** The shared vault is shown. */
   inShare?: boolean;
 }
 

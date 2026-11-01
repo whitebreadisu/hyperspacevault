@@ -1,4 +1,4 @@
-/* BL-257 FR5-06: the rotate screen (a phone held on its side). A <body>
+/* The rotate screen (a phone held on its side; App Spec §25.0). A <body>
  * child, not inside .m-app, so nothing here is scoped to .m-app and the
  * safe-area insets are read directly. Above every phone layer: the sheets and
  * the title chooser (100), the discard confirm (120), the busy overlay (300).

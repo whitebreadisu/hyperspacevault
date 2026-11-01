@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-/** BL-196: staged status shown by BusyOverlay while a large inventory apply
+/** Staged status shown by BusyOverlay while a large inventory apply
  * (Import dry_run/commit, Add Cards / precon commit) is in flight. `sub` is
  * optional (e.g. a card count) -- callers that don't need it just omit it. */
 export interface BusyStage {
@@ -22,8 +22,8 @@ function doubleRaf(): Promise<void> {
 }
 
 export interface RunStagedOptions<T> {
-  /** The async work to show the initial stage for (e.g. runImport,
-   * incrementCard in a loop). */
+  /** The async work to show the initial stage for (e.g. runImport, an
+   * adjustCard loop). */
   task: () => Promise<T>;
   /** If provided, the overlay switches to this stage once `task` resolves,
    * before `settle` runs -- e.g. "Refreshing your Vault…" while the
@@ -51,13 +51,11 @@ export interface UseBusyOverlayResult {
   hide(): void;
 }
 
-/** BL-196: one hook, three call sites (ImportExportPage's dry_run/commit,
- * AddCardsModal's manual/precon commit) -- overlay state stays local to
+/** One hook per surface that runs a large apply (ImportExportPage's
+ * dry_run/commit, AddCardsModal's manual/precon commit, and the phone's
+ * ImportExportScreen and VerifySheet) -- overlay state stays local to
  * whichever surface renders it, no global store. Each surface pairs this
- * with its own `<BusyOverlay stage={overlay.stage} />`. (The variant-pick
- * era's DEV affordances -- hold/previewStage/the corner switcher -- were
- * stripped 2026-08-03 when the owner locked the orbit variant; git history
- * has them.) */
+ * with its own `<BusyOverlay stage={overlay.stage} />`. */
 export function useBusyOverlay(): UseBusyOverlayResult {
   const [stage, setStage] = useState<BusyStage | null>(null);
 

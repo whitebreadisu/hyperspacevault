@@ -1,11 +1,11 @@
-// BL-235: PostHog product analytics -- the single seam between the app and
+// PostHog product analytics (ADR-0027) -- the single seam between the app and
 // posthog-js. Components import { capture } from here and never touch the
 // SDK directly, so the taxonomy stays enforceable (event names are a closed
 // union) and the whole subsystem no-ops wherever analytics isn't running.
 //
 // The full taxonomy contract (questions each event answers, property rules,
-// riders) lives in the App Spec's analytics section; event names/properties
-// here must stay in lockstep with it.
+// riders) lives in App Spec §22; event names/properties here must stay in
+// lockstep with it.
 import posthog from "posthog-js";
 import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
 
@@ -40,13 +40,13 @@ export type AnalyticsEvent =
   | "deck_check_run"
   | "share_created"
   | "share_link_viewed"
-  // BL-253 S7-18 (BL-244, additive): the phone camera (enums + booleans only;
-  // never OCR text, keys, card names or images)
+  // the phone camera (enums + booleans only; never OCR text, keys, card
+  // names or images)
   | "scan_recognised"
   | "scan_decision"
   | "scan_pick_shown"
   | "scan_fallback_keypad"
-  // BL-270: the phone keypad's fold tab (user-chosen deck size)
+  // the phone keypad's fold tab (user-chosen deck size)
   | "pad_keypad_toggled";
 
 // Property values are enums/counts only -- no raw user-typed text, no PII
@@ -66,15 +66,15 @@ const ANALYTICS_HOSTNAMES = ["hyperspacevault.com", "www.hyperspacevault.com"];
 
 let initialized = false;
 
-/** BL-244 / BL-247 S1-11: the values screen_viewed.screen takes. Additive
- * only -- existing desktop values (vault, deck_check, new_arrivals,
- * shared_view, settings, import_export) are unchanged and never renamed; the
- * rest are the phone app's. */
+/** The values screen_viewed.screen takes (App Spec §22). Additive only: a
+ * value is never renamed. Desktop sends vault, deck_check, new_arrivals,
+ * shared_view, settings and import_export; App Spec §22 lists which values
+ * the phone sends. */
 export const SCREEN_VIEWED_SCREENS = [
   "vault",
   "card",
   "tool",
-  // BL-253 S7-18: the camera mode of the tool (the isolated /scan/ document).
+  // The camera mode of the tool (the isolated /scan/ document).
   "camera",
   "more",
   "feedback",
@@ -91,9 +91,9 @@ export const SCREEN_VIEWED_SCREENS = [
 ] as const;
 export type ScreenViewedScreen = (typeof SCREEN_VIEWED_SCREENS)[number];
 
-/** BL-244 / BL-247 S1-27: the values view_mode_changed.mode takes. Additive
- * only -- desktop's "table" / "gallery" (InventorySummary ViewToggle) are
- * unchanged; the rest are the phone Vault's view + size pairs. */
+/** The values view_mode_changed.mode takes. Additive only -- desktop sends
+ * "table" / "gallery" (InventorySummary's view toggle); the rest are the
+ * phone Vault's view + size pairs. */
 export const VIEW_MODE_CHANGED_MODES = [
   "table",
   "gallery",
@@ -107,11 +107,11 @@ export const VIEW_MODE_CHANGED_MODES = [
 ] as const;
 export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
 
-/** BL-257 FR5-06: `layout` is the phone gate itself -- the one function
- * `isPhoneLayout()` (mobile/useIsPhone.ts), which is no longer a single media
- * query (narrow viewport, OR a touch-primary device whose screen's short side
- * is at most 500 px), so it cannot be mirrored as a literal here. A phone held
- * on its side reports `phone`. */
+/** `layout` is the phone gate itself -- the one function `isPhoneLayout()`
+ * (mobile/useIsPhone.ts; App Spec §25.0, ADR-0030), which is not a single
+ * media query (narrow viewport, OR a touch-primary device whose screen's
+ * short side is at most 500 px), so it cannot be mirrored as a literal here.
+ * A phone held on its side reports `phone`. */
 function currentLayout(): "phone" | "desktop" {
   return isPhoneLayout() ? "phone" : "desktop";
 }
@@ -140,8 +140,9 @@ export function initAnalytics(): void {
     // localStorage only -- no analytics cookies.
     persistence: "localStorage",
     autocapture: true,
-    // SPA with pane switching, not URL routing -- screen_viewed (App.tsx)
-    // is the navigation signal; $pageview would only ever fire once.
+    // SPA with pane switching, not URL routing -- screen_viewed (App.tsx,
+    // and the phone router in MobileApp) is the navigation signal; $pageview
+    // would only ever fire once.
     capture_pageview: false,
     capture_pageleave: true,
     session_recording: {

@@ -1,8 +1,8 @@
 import type { InventoryCard } from "../../utils/inventory";
 import { playsetPlate } from "../../utils/variantScope";
 
-// BL-247 S1-19: the row's count chip + pips -- desktop's DOM and rules, ported
-// from screens/cards/PlaysetCell.tsx:54-130 (the cell's <td>, click-to-edit
+// The row's count chip + pips -- desktop's DOM and rules, as
+// screens/cards/PlaysetCell.tsx draws them (the cell's <td>, click-to-edit
 // and hover dossier stay desktop-only; the row itself is the tap target).
 // Chip = owned TOTAL only (never the scope): --complete at a playset (over
 // included), --empty at 0, --signed-out "—" anonymous. Pips fill from the

@@ -52,10 +52,10 @@ app = FastAPI(
     **_docs_kwargs,
 )
 
-# BL-99: gzip response bodies when the client advertises Accept-Encoding:
-# gzip. Transport-only -- no route, response model, or Cache-Control header
-# changes (RR-3's catalog_cache/tenant_no_store in app/http_cache.py are
-# orthogonal to this and stay unaffected; Firebase Hosting already emits
+# Gzip response bodies when the client advertises Accept-Encoding: gzip
+# (Platform Spec §3.15). Transport-only -- no route, response model, or
+# Cache-Control header depends on it (catalog_cache/tenant_no_store in
+# app/http_cache.py are orthogonal to this; Firebase Hosting already emits
 # Vary: accept-encoding, so the CDN is primed to cache the gzipped and
 # identity variants separately).
 #
@@ -75,9 +75,9 @@ app = FastAPI(
 # chunk. GZipMiddleware's minimum_size gate only applies on the
 # non-streaming path (`len(body) < minimum_size and not more_body`); once
 # more_body is True it falls into the "streaming response" branch, which
-# compresses unconditionally regardless of size. Verified empirically: with
-# GZip added *after* log_requests (outermost), a 33-byte 404 body came back
-# with Content-Encoding: gzip -- minimum_size was silently defeated. With
+# compresses unconditionally regardless of size. With GZip added *after*
+# log_requests (outermost), a 33-byte 404 body comes back with
+# Content-Encoding: gzip -- minimum_size is silently defeated. With
 # GZip innermost (this ordering), it sees the route's real single-shot
 # response directly (via ExceptionMiddleware), the non-streaming branch
 # applies, and minimum_size is honored correctly; log_requests then reads
@@ -97,14 +97,14 @@ app.add_middleware(
 
 app.middleware("http")(log_requests)
 
-# BL-157/A4-14: response-hardening headers on every response (see
-# app/middleware.py's security_headers docstring for the header list and
-# why no CSP). Registered after log_requests/CORS/GZip -- ordering among
+# Response-hardening headers on every response (see the comment above
+# security_headers in app/middleware.py for the header list and why no
+# CSP). Registered after log_requests/CORS/GZip -- ordering among
 # these three doesn't matter functionally (it only sets response headers,
 # never reads/rewrites the body), so it rides along in registration order.
 app.middleware("http")(security_headers)
 
-# Client address (BL-273): added LAST, so it is the outermost middleware and
+# Client address: added LAST, so it is the outermost middleware and
 # every later layer and consumer of request.client.host sees the resolved
 # caller. Ingress is INGRESS_TRAFFIC_ALL: anyone can reach the Cloud Run URL
 # directly and forge any leading X-Forwarded-For entry. The Google front end
@@ -112,7 +112,8 @@ app.middleware("http")(security_headers)
 # more hop (the real client is then second from the right). The resolver
 # walks from the right and takes the Hosting position only when the rightmost
 # entry is a Google front-door address (app/forwarded.py has the rule and the
-# measured paths). Replaces uvicorn's ProxyHeadersMiddleware(trusted_hosts="*").
+# measured paths). uvicorn's ProxyHeadersMiddleware(trusted_hosts="*") is not
+# used: trusting every hop, it takes the leftmost, forgeable entry.
 app.add_middleware(ForwardedClientMiddleware)
 
 app.include_router(sets_router.router)

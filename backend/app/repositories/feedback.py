@@ -21,7 +21,8 @@ def insert_feedback(
     `INSERT ... RETURNING` against an anonymous row would raise the exact
     same "new row violates row-level security policy" error as a WITH
     CHECK failure, even though the INSERT's own WITH CHECK passes cleanly
-    on its own (confirmed empirically while building this migration).
+    on its own (Postgres applies SELECT policies to the rows RETURNING
+    reads back).
     Skipping RETURNING here sidesteps that asymmetry entirely rather than
     special-casing anonymous vs. consented inserts -- nothing here needs
     the DB-assigned id/created_at back; app/services/feedback.py times the

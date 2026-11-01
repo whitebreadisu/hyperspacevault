@@ -11,14 +11,12 @@ import { railPrice } from "./cardDetailModel";
 import type { RegionGeom } from "./cardDetailModel";
 import { PrintingPlate } from "./PrintingPlate";
 
-// BL-248 S2-02: the collapsing art region (rev4 MCardDetail.jsx Region,
-// m-rev3.css:136-225). Every box keeps a fixed layout: the region is sticky
+// The collapsing art region (App Spec §25.2). Every box keeps a fixed layout: the region is sticky
 // with a constant 100 px layout box; its expanded surface, art and plate
 // overflow below it, and collapsing moves them with transform + opacity only
 // (the surface slides up by --d-delta, the art translates + scales to the
 // 80 px thumbnail from its top-left corner, the expanded plate block fades
-// and lifts, the collapsed row fades in). BL-257 FR1-08 / FR1-09: the
-// expanded caption reads "finish - SET ###" at the left and the selected
+// and lifts, the collapsed row fades in). The expanded caption reads "finish - SET ###" at the left and the selected
 // printing's price (per Market / Low) at the right; the collapsed row is
 // three columns -- thumbnail | finish label over the plate | Market / Low
 // over the price -- with no set / number. Tap the collapsed art (or pull from the top)
@@ -37,12 +35,12 @@ interface Props {
   collapsed: boolean;
   onExpand: () => void;
   /** Every printing of the card with the quantity to show (the stepper's
-   * optimistic quantities included): the plate counts across them (FR1-07). */
+   * optimistic quantities included): the plate counts across them. */
   shownVariants: InventoryVariant[];
   isAuthenticated: boolean;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
-  /** S2-10: the plate opens Owned by finish (signed in only). */
+  /** The plate opens Owned by finish (signed in only). */
   onOpenFinish?: () => void;
 }
 

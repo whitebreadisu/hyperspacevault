@@ -1,19 +1,21 @@
 import type { BatchRow } from "./batch";
 import type { ToolMode } from "./toolStore";
 
-// BL-253 S7-08: the batch survives the document hop. The camera runs in the
-// isolated /scan/ document (an in-app layer cannot be cross-origin isolated),
-// and a full navigation empties every module store -- so the batch rows and
-// the tool fields that must outlive the hop (mode, set, precon deck) are
-// mirrored to sessionStorage, `hsv.tool.v1`, on every change and rehydrated
-// by both documents at load (and on a bfcache `pageshow`, because the other
-// document may have changed the batch while this one was frozen).
+// The batch survives the document hop (App Spec §25.7, "State across
+// documents"). The camera runs in the isolated /scan/ document (an in-app layer
+// cannot be cross-origin isolated), and a full navigation empties every module
+// store -- so the batch rows and the tool fields that must outlive the hop
+// (mode, set, precon deck) are mirrored to sessionStorage, `hsv.tool.v1`, on
+// every change and rehydrated by both documents at load (and on a bfcache
+// `pageshow`, because the other document may have changed the batch while this
+// one was frozen).
 //
 // sessionStorage is per tab and origin-wide: /scan/ and / share it, and a new
-// tab starts empty (the batch is a session thing, as S3 built it). Every
-// read and write is try/catch'd and versioned: an unreadable, corrupt or
+// tab starts empty (the batch belongs to the tab's session). Every read and
+// write is try/catch'd and versioned: an unreadable, corrupt or
 // foreign-version value is treated as absent, a blocked store makes the
-// mirror a no-op -- the page works exactly as it did before this module.
+// mirror a no-op -- the page still works; only the batch and the tool state
+// do not outlive a hop.
 //
 // Leaf module: it imports only TYPES from batch.ts / toolStore.ts (which call
 // into it), so there is no import cycle.

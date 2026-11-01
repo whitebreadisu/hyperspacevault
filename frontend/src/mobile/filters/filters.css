@@ -1,10 +1,7 @@
-/* BL-248 stage 2B-1: the Filters sheet. Values verbatim from rev4
- * m-layout.css:291-299 / 309-315 / 329 (sheet foot, filter groups, footer),
- * m-rev3.css:236-246 / 282-339 (motion rule, inert, disclosure, Reset) and
- * m-rev4-b.css (R4-3 compact rows, Rarity inline, Gameplay head). Scoped to
- * .m-app. Motion: inside the sheet only transform and opacity animate. */
+/* The Filters sheet (App Spec §25.2). Scoped to .m-app. Motion: inside the
+ * sheet only transform and opacity animate. */
 
-/* ── Motion rule (rev4 m-rev3.css:238-241): colour changes are instant. ─── */
+/* ── Motion rule: colour changes are instant. ────────────────────────── */
 .m-app .m-sheet-layer--filters .m-filters__scroll *,
 .m-app .m-sheet-layer--filters .m-resetbtn,
 .m-app .m-sheet-layer--picker .m-sheet__body * {
@@ -12,9 +9,8 @@
 }
 
 /* ── Frame: the shared Sheet has no footer slot, so the Filters content
- * splits its body into a scrolling region + a pinned foot (m-layout.css:
- * 244-245 .m-sheet__body / .m-sheet__foot values). Height = content up to
- * the sheet's 86 % (sheetfit=content). ────────────────────────────────── */
+ * splits its body into a scrolling region + a pinned foot. Height = content up to
+ * the sheet's 86 %. ───────────────────────────────────────────────────── */
 .m-app .m-sheet-layer--filters .m-sheet__body {
   display: flex;
   flex-direction: column;
@@ -44,7 +40,7 @@
   justify-content: center;
 }
 
-/* ── Groups (m-layout.css:309-311) ───────────────────────────────────── */
+/* ── Groups ──────────────────────────────────────────────────────────── */
 .m-app .m-fgroup {
   padding: 14px 0 16px;
   border-top: 1px solid rgba(211, 211, 212, 0.12);
@@ -57,7 +53,7 @@
   padding-top: 4px;
 }
 
-/* ══ R4-3 compact rows: label | selected chips | chevron (m-rev4-b.css) ══ */
+/* ══ Compact rows: label | selected chips | chevron ═════════════════════ */
 .m-app .m-sheet-layer--fcompact .m-frow4 {
   position: relative;
   flex-direction: row;
@@ -80,7 +76,7 @@
   border: none;
   cursor: pointer;
 }
-/* A clickable row is signalled by its wash (skill: never by blue text). */
+/* A clickable row is signalled by its wash, never by blue text. */
 .m-app .m-frow4__open:active {
   background: rgba(37, 99, 235, 0.12);
 }
@@ -164,15 +160,14 @@
 .m-app .m-fsel:active .m-fsel__in {
   transform: translateY(1px);
 }
-/* (BL-257: a base set's chip holds a SetLogo box -- setLogoArt.ts
- * SET_LOGO_BOX.fsel, 54 x 18 -- in place of the height-fitted PNG and its
- * per-set LAW / IBH overrides; .m-fsel__logo is the <img> inside it.) */
+/* (A base set's chip holds a SetLogo box -- setLogoArt.ts
+ * SET_LOGO_BOX.fsel, 54 x 18; .m-fsel__logo is the <img> inside it.) */
 .m-app .m-fsel__x {
   flex: none;
   color: rgba(255, 255, 255, 0.72);
 }
 /* Scoped (the Finish value the scope wrote; the Collection toggles while
- * scoped): the scope's amber, as the B2 vocabulary. */
+ * scoped): the scope's amber. */
 .m-app .m-fsel--scoped .m-fsel__in {
   background: rgba(217, 154, 31, 0.16);
   border-color: rgba(217, 154, 31, 0.6);
@@ -204,8 +199,7 @@
   display: block;
 }
 
-/* Inert (0 matches under the other filters): greyed, "(0)", not addable
- * (m-rev3.css:247-250). */
+/* Inert (0 matches under the other filters): greyed, "(0)", not addable. */
 .m-app .m-fchip--inert {
   opacity: 0.38;
 }
@@ -216,7 +210,7 @@
   cursor: default;
 }
 
-/* ══ R4-2 Gameplay disclosure (m-rev3.css:303-308 + m-rev4-b.css) ═══════ */
+/* ══ Gameplay disclosure ════════════════════════════════════════════════ */
 @keyframes m-layer {
   from {
     opacity: 0;
@@ -283,8 +277,8 @@
   color: #cfd6e4;
 }
 /* The hint is nowrap + ellipsis; a zero basis keeps its full text width out
- * of the head's min-content (it widened the sheet's inner layer past the
- * viewport in rev4). */
+ * of the head's min-content (otherwise it widens the sheet's inner layer
+ * past the viewport). */
 .m-app .m-fgame__head .m-fmore__hint {
   flex: 1 1 0;
   width: 0;
@@ -307,8 +301,7 @@
   padding-top: 10px;
 }
 
-/* ── Footer: Reset (amber outline idiom, inert at default) + Show N
- * (m-layout.css:329, m-rev3.css:325-339). ─────────────────────────────── */
+/* ── Footer: Reset (amber outline idiom, inert at default) + Show N. ──── */
 .m-app .m-filterfoot {
   width: 100%;
   display: flex;
@@ -355,12 +348,9 @@
   transform: none;
 }
 
-/* ══ Stage 2B-2: pickers + the Gameplay body ═════════════════════════════
- * Values verbatim from rev4 m-layout.css:111-139 / 314-327 (segmented,
- * chips, groups, check, aspect chits, picker rows), m-rev2.css:82-83,
- * m-rev3.css:243-319 / 335-338 / 394-396 and m-rev4-b.css:78-88. The scope
- * menu's shared rows (.m-flink, .m-ftree, .m-ffin*, .m-fnote, .m-fcheck)
- * are S1's (vault.css) and are not repeated. */
+/* ══ Pickers + the Gameplay body ═════════════════════════════════════════
+ * The scope menu's shared rows (.m-flink, .m-ftree, .m-ffin*, .m-fnote,
+ * .m-fcheck) live in vault.css and are not repeated. */
 
 /* ── Picker frame: X top-right, scrolling facet, Done pinned in the foot.
  * The shared Sheet has no footer slot, so the body splits as Filters does.
@@ -409,8 +399,7 @@
   align-self: auto;
 }
 
-/* ── Groups inside pickers / Gameplay (m-layout.css:316, m-rev2.css:82,
- * m-rev3.css:243) ───────────────────────────────────────────────────── */
+/* ── Groups inside pickers / Gameplay ─────────────────────────────────── */
 .m-app .m-fgroup--b1 {
   gap: 10px;
 }
@@ -428,7 +417,7 @@
   letter-spacing: 0.1em;
 }
 
-/* ── Chips (m-layout.css:134-139, m-rev2.css:83) ─────────────────────── */
+/* ── Chips ─────────────────────────────────────────────────────────────── */
 .m-app .m-chipwrap {
   display: flex;
   flex-wrap: wrap;
@@ -441,12 +430,11 @@
 .m-app .m-setfacet__chip {
   min-width: 96px;
 }
-/* (BL-257: the chip holds a SetLogo box -- setLogoArt.ts SET_LOGO_BOX.chip,
- * 80 x 24, so every base-set chip is 106 px wide, three to a row --
- * in place of the height-fitted PNG and its per-set LAW / IBH overrides;
+/* (The chip holds a SetLogo box -- setLogoArt.ts SET_LOGO_BOX.chip,
+ * 80 x 24, so every base-set chip is 106 px wide, three to a row;
  * .m-chip__logo is the <img> inside it.) */
 
-/* ── Check rows (m-rev3.css:246-254, 261-262, 394-396) ─────────────────── */
+/* ── Check rows ────────────────────────────────────────────────────────── */
 .m-app .m-fcheck--inert,
 .m-app .m-faspect--inert {
   opacity: 0.38;
@@ -494,8 +482,7 @@
   color: #f2c14e;
 }
 
-/* ── Finish tree, the parts the scope menu does not use (m-rev3.css:
- * 282-293) ──────────────────────────────────────────────────────────── */
+/* ── Finish tree, the parts the scope menu does not use ────────────────── */
 .m-app .m-ffin__kid .m-fcheck__text {
   font-family: var(--font-ui);
   font-size: 14px;
@@ -525,8 +512,7 @@
   border-top: 1px solid rgba(211, 211, 212, 0.06);
 }
 
-/* ── Aspects: seven chits (six aspects + No Aspect), empty = all lit
- * (m-layout.css:322-324, m-rev3.css:265-271) ───────────────────────── */
+/* ── Aspects: seven chits (six aspects + No Aspect), empty = all lit ──── */
 .m-app .m-aspectpick {
   display: flex;
   justify-content: space-between;
@@ -586,8 +572,7 @@
   text-overflow: ellipsis;
 }
 
-/* ── Arena sub-group + Keyword / Trait rows (m-layout.css:325-327,
- * m-rev3.css:301-304) ────────────────────────────────────────────────── */
+/* ── Arena sub-group + Keyword / Trait rows ────────────────────────────── */
 .m-app .m-fsub {
   display: flex;
   flex-direction: column;
@@ -616,7 +601,7 @@
   color: var(--color-text-muted);
   text-align: left;
 }
-/* A clickable row is signalled by its wash (skill: never by blue text). */
+/* A clickable row is signalled by its wash, never by blue text. */
 .m-app .m-frow:active {
   background: rgba(37, 99, 235, 0.12);
 }
@@ -639,8 +624,7 @@
   color: #fff;
 }
 
-/* ── Range: one track, two 44 px thumbs, numeric readout (m-rev3.css:
- * 306-319) ──────────────────────────────────────────────────────────── */
+/* ── Range: one track, two 44 px thumbs, numeric readout ───────────────── */
 .m-app .m-range {
   padding: 4px 0 0;
 }
@@ -712,8 +696,7 @@
   color: var(--color-text-muted);
 }
 
-/* ── Keyword / Trait picker: search pinned at the top (m-rev3.css:
- * 335-338; the empty line = m-layout.css .m-dossier__empty values) ───── */
+/* ── Keyword / Trait picker: search pinned at the top ──────────────────── */
 .m-app .m-picker {
   display: flex;
   flex-direction: column;

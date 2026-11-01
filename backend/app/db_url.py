@@ -1,4 +1,4 @@
-"""Database URL normalisation (BL-265).
+"""Database URL normalisation.
 
 SQLAlchemy 2.1 changed the driver a bare ``postgresql://`` URL selects from
 psycopg2 to psycopg (v3). Every URL this app is handed -- `.env`, CI, Cloud

@@ -1,16 +1,15 @@
-"""BL-136: shared tcgcsv.com HTTP client -- used by the mapping builder
-(run_tcgplayer_mapping.py, P1), the daily sync job (app.jobs.price_sync,
-P2), and the history backfill job (app.jobs.price_backfill, P3).
+"""Shared tcgcsv.com HTTP client (App Spec §16.1) -- used by the mapping
+builder (run_tcgplayer_mapping.py), the daily sync job
+(app.jobs.price_sync), and the history backfill job
+(app.jobs.price_backfill).
 
-tcgcsv.com's own fair-use guidance (Spike_TCGCSV_Pricing_2026-07-16.md §2,
-REPORTED from /faq: recommends `time.sleep(0.25)` and "a clearly
-identifiable User-Agent") is a hard constraint per the BL-136 brief, not a
-suggestion -- every request through this module carries the User-Agent
-below and every caller that issues more than one request must throttle
-between them via `throttle()`. All fetches are sequential (no concurrency)
-by construction: this module has no async/thread-pool machinery at all.
+Every request through this module carries the identifying User-Agent
+below, and every caller that issues more than one request must throttle
+between them via `throttle()`, which sleeps MIN_REQUEST_INTERVAL_SECONDS
+(0.1 s). All fetches are sequential (no concurrency) by construction: this
+module has no async/thread-pool machinery at all.
 
-Star Wars: Unlimited's tcgcsv categoryId is 79 (spike §1.2, live-verified).
+Star Wars: Unlimited's tcgcsv categoryId is 79 (App Spec §16.1).
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ import httpx
 BASE_URL = "https://tcgcsv.com"
 CATEGORY_ID = 79
 USER_AGENT = "SWUInventoryManager/1.0"
-MIN_REQUEST_INTERVAL_SECONDS = 0.1  # >=100ms between requests, per the brief
+MIN_REQUEST_INTERVAL_SECONDS = 0.1  # >=100ms between requests
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
@@ -59,7 +58,7 @@ class TcgcsvClient:
 
     def last_updated(self) -> str:
         """GET /last-updated.txt -- an ISO-8601-ish timestamp string, e.g.
-        "2026-07-15T20:05:27+0000" (spike §2, live-verified)."""
+        "2026-07-15T20:05:27+0000"."""
         response = self._client.get("/last-updated.txt")
         response.raise_for_status()
         return response.text.strip()
@@ -87,14 +86,11 @@ class TcgcsvClient:
         return response.json()["results"]
 
 
-# Root-set tcgcsv groupId map (spike §1.3, live-verified 2026-07-16 group
-# list). Every catalog `sets.code` with is_base_set=true has an exact
-# name match to one tcgcsv group -- confirmed directly against the dev DB
-# during this build (10 codes, 10 matches, no fuzzy resolution needed).
-# The 19 remaining promo/convention/tier codes (SORP, C24, J25, ...) have no
-# confirmed 1:1 tcgcsv-groupId mapping (spike §1.3/§4.1) and are
-# deliberately out of scope here -- building that mapping is separate
-# follow-on work.
+# Root-set tcgcsv groupId map: every catalog `sets.code` with
+# is_base_set=true has an exact name match to one tcgcsv group (no fuzzy
+# resolution). Weekly Play groups are in WEEKLY_PLAY_GROUP_IDS below; the
+# other promo/convention/tier codes (C24, J25, ...) have no confirmed 1:1
+# tcgcsv-groupId mapping and are not priced.
 ROOT_SET_GROUP_IDS: dict[str, int] = {
     "SOR": 23405,
     "SHD": 23488,
@@ -109,19 +105,15 @@ ROOT_SET_GROUP_IDS: dict[str, int] = {
     "TS26": 24622,
 }
 
-# Weekly Play tcgcsv groupId map (BL-174, live-verified 2026-07-27 against
-# the category-79 groups endpoint --
-# specification_documents/analysis/Pricing_Coverage_NonCore_Finishes_2026-07-27.md).
-# Keyed by the WP set-code convention (root-set code + "P", e.g. "SORP")
-# used elsewhere in the codebase (app.services.set_order.CURATED_EXPORT_
-# SET_ORDER, app.ingestion.swuapi_classify's `source_set_code.endswith("P")`
-# channel rule). CAVEAT (BL-183): card_variants.source_set_code carries the
-# "P" code only from JTL onward -- the first three sets' WP printings are
-# ROOT-coded (SOR/SHD/TWI) on our side, which is why run_tcgplayer_mapping's
-# WP pass sources variants from BOTH the "P" code and its root companion.
-# IBH and TS26 never had a Weekly Play program (starter-deck-only releases)
-# -- confirmed absent from the live groups listing -- so there are
-# deliberately no IBHP/TS26P keys here.
+# Weekly Play tcgcsv groupId map (App Spec §16.3b), checked against the category-79
+# groups endpoint. Keyed by the WP set-code convention (root-set code + "P", e.g.
+# "SORP") used elsewhere in the codebase (app.services.set_order's
+# CURATED_EXPORT_SET_ORDER, app.ingestion.swuapi_classify's
+# `source_set_code.endswith("P")` channel rule). CAVEAT: card_variants.source_set_code carries the "P" code only from JTL onward
+# -- the first three sets' WP printings are ROOT-coded (SOR/SHD/TWI) on our side, which
+# is why run_tcgplayer_mapping's WP pass sources variants from BOTH the "P" code and its
+# root companion. IBH and TS26 have no Weekly Play program (starter-deck-only releases;
+# absent from the groups listing), so there are deliberately no IBHP/TS26P keys here.
 WEEKLY_PLAY_GROUP_IDS: dict[str, int] = {
     "SORP": 23451,
     "SHDP": 23555,
@@ -134,12 +126,12 @@ WEEKLY_PLAY_GROUP_IDS: dict[str, int] = {
     "HMWP": 24897,
 }
 
-# BL-174: the single fetch-scope source of truth shared by the mapping
-# builder (app.ingestion.run_tcgplayer_mapping.run()), the daily price sync
-# job (app.jobs.price_sync.run_sync()), and -- since BL-183/BL-175 step 1
-# -- the history backfill job (app.jobs.price_backfill.py) as well:
-# deliberately not independently-maintained lists (the coverage analysis
-# above flagged exactly that fork risk). The backfill's archive walk
+# The single fetch-scope source of truth shared by the mapping builder
+# (app.ingestion.run_tcgplayer_mapping.run()), the daily price sync job
+# (app.jobs.price_sync.run_sync()), and the history backfill job
+# (app.jobs.price_backfill.py): deliberately not independently-maintained
+# lists, which could fork so that a job fetches groups the mapping does not
+# cover, or misses groups it does. The backfill's archive walk
 # extracts these groups' price files per day, so newly mapped WP-group
 # variants gain history on a `--start`-forced re-walk (per-(variant, date)
 # inserts are ON CONFLICT DO NOTHING -- already-walked days only add rows

@@ -21,10 +21,9 @@ import {
   W,
 } from "./priceChartModel";
 
-// BL-248 S2-07: price history for the selected printing (rev4
-// MPriceChart.jsx at phone size over desktop PriceHistoryPanel.tsx's data:
-// getPriceHistory per range, 30D / 90D / 1Y / All, 90D default, line chart
-// only -- owner decision). The readout above the plot shows the latest point
+// Price history for the selected printing (App Spec §25.2), over desktop
+// PriceHistoryPanel.tsx's data: getPriceHistory per range, 30D / 90D / 1Y /
+// All, 90D default, line chart only. The readout above the plot shows the latest point
 // until a finger touches the plot: a pointer down / move sets the reading to
 // the nearest point and it stays where the finger lifts (desktop's hover
 // crosshair has no touch equivalent; this is the replacement idiom). The plot

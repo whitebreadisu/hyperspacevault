@@ -2,24 +2,24 @@ import { useEffect, useState } from "react";
 import { SWUButton } from "../components/SWUButton";
 import { go } from "./router";
 
-// BL-247 S1-08: the header's account slot (rev4 MHome.jsx:77-117 = desktop
-// UserMenu.tsx). Signed out: a "Sign in" SWUButton (desktop voice) that opens
-// the auth layer. Signed in: the avatar bubble (initial) opening desktop's
-// menu -- email row, Settings, Change Password (password accounts only),
-// About & Legal, Log Out. Closes on a scrim tap, Escape or any item.
+// The header's account slot (desktop UserMenu.tsx at phone size). Signed
+// out: a "Sign in" SWUButton (desktop voice) that opens the auth layer. Signed
+// in: the avatar bubble (initial) opening desktop's menu -- email row,
+// Settings, Change Password (password accounts only), About & Legal, Log Out.
+// Closes on a scrim tap, Escape or any item.
 //
-// BL-252 S6-03: inside a share (the shared vault shown) an anonymous viewer
-// gets a Sign in TEXT link (rev4 R4-8, 13 px / 0.04em so the wordmark never
-// truncates); a signed-in viewer keeps the bubble. Its Settings / Change
-// Password leave the share first (`onLeaveShare`), as desktop's avatar menu
-// switches the pane away from the shared view.
+// Inside a share (the shared vault shown) an anonymous viewer gets a Sign in
+// TEXT link (13 px / 0.04em so the wordmark never truncates); a signed-in
+// viewer keeps the bubble. Its Settings / Change Password leave the share first
+// (`onLeaveShare`), as desktop's avatar menu switches the pane away from the
+// shared view.
 
 interface Props {
   email: string | null;
   hasPasswordProvider: boolean;
   onSignIn: () => void;
   onLogout: () => void;
-  /** The shared vault is shown (S6-03). */
+  /** The shared vault is shown. */
   shared?: boolean;
   /** Shows the viewer's own vault again (before an account screen opens). */
   onLeaveShare?: () => void;

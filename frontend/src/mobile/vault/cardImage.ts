@@ -2,14 +2,13 @@ import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps, CardImageSlot } from "../../utils/cardImages";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 
-// BL-247 S1-19 / S1-20: which printing a row or gallery cell shows, and its
-// image. Ports of desktop screens/cards/GalleryGrid.tsx pickRepresentative
-// (84-105) and cellImage (123-169), which that file keeps private; the rules
-// are unchanged -- only the slot / sizes are parameters, for the phone's
-// thumbnail and gallery widths.
+// Which printing a row or gallery cell shows, and its image. Twins of
+// desktop screens/cards/GalleryGrid.tsx pickRepresentative and cellImage,
+// which that file keeps private; the rules are the same -- only the slot /
+// sizes are parameters, for the phone's thumbnail and gallery widths.
 
 /** The cell's printing: with any Finish facet value set, the lowest-numbered
- * printing carrying one (BL-201); otherwise Standard, else the first. */
+ * printing carrying one; otherwise Standard, else the first. */
 export function pickRepresentative(
   variants: InventoryVariant[],
   activeFinishes?: Set<string>

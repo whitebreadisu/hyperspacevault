@@ -25,13 +25,9 @@ from app.services.pricing import (
     to_price_info,
 )
 
-# BL-102: get_cards/get_card_by_id/_to_response (the flat CardResponse read
-# path behind GET /api/cards*) retired -- runtime-dead since BL-56/BL-44
-# Slice B. Git history has them if a flat variant read API is ever wanted.
-
 
 def _renditions(url: str | None) -> ImageRenditions | None:
-    """BL-76 Phase 3: derive the additive srcset field from a stored CDN
+    """Derive the additive srcset field from a stored CDN
     URL, or None when this side has no image at all (e.g. most
     non-double-sided cards have no back_image_url)."""
     return ImageRenditions(**same_origin_renditions(url)) if url else None
@@ -110,41 +106,34 @@ def get_base_cards(
     rarity: str | None = None,
     pricing: str = "standard",
 ) -> tuple[list[BaseCardCatalogResponse], PricingEnvelope]:
-    """BL-44 Slice A payload-shrink endpoint: every base card with its
-    nested variant long tail (ADR-0005).
+    """The catalog list: every base card with its nested variant long tail
+    (ADR-0005; App Spec §12, Base cards).
 
-    BL-100: built from plain Core rows instead of hydrated ORM objects --
-    the list endpoint materializes ~2.3k base cards + ~8.4k variants per
-    request, and ORM hydration alone was 62% of its generation time. The
-    single-card detail path below keeps the ORM version (one card's worth
-    of objects is negligible).
+    Built from plain Core rows instead of hydrated ORM objects -- the list
+    endpoint materializes thousands of base cards and variants per request,
+    and ORM hydration at that volume is a large share of its generation
+    time. The single-card detail path above keeps the ORM version (one
+    card's worth of objects is negligible).
 
-    BL-101: catalog shape only (no per-tenant quantity) -- quantities come
-    from GET /api/inventory/quantities and are merged client-side, which is
-    what lets this endpoint be publicly cached.
+    Catalog shape only (no per-tenant quantity) -- quantities come from
+    GET /api/inventory/quantities and are merged client-side, which is what
+    lets this endpoint be publicly cached.
 
-    BL-136 P4: also returns a PricingEnvelope (list-level source/as_of/
-    unpriced_count -- the router ships it as response headers, see
+    Also returns a PricingEnvelope (list-level source/as_of/unpriced_count
+    -- the router ships it as response headers, see
     app.services.pricing.PricingEnvelope.as_headers). `pricing` selects
     each card's display_price aggregate ("standard" or "cheapest"); an
     unrecognized value falls back to "standard" rather than erroring, same
     posture as other tolerant query-param handling in this codebase.
 
-    BL-146 (Design_SparseList_2026-07-25.md §8-Q2): the response schema
-    dropped the per-variant `price` field for a while, but this function
-    still calls pricing_repo.get_latest_prices(db) for every priced variant
-    on every list request -- that single un-joined query already feeds
-    display_price's aggregation (variant_type_prices below), which stays on
-    the list, so there was no separate "price join" on this path to skip.
-
-    BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): `price` is
-    re-attached to CardVariantCatalogResponse below -- the Collection-value
-    completion panel needs per-variant PriceInfo (market + low) across the
-    whole catalog to compute owned-copy value with a Standard-price
+    One un-joined pricing_repo.get_latest_prices(db) call reads every
+    priced variant's latest price. Each variant's PriceInfo feeds both the
+    card-level display_price aggregate (variant_type_prices below) and the
+    per-variant `price` on CardVariantCatalogResponse -- the completion
+    panel's Collection value needs per-variant PriceInfo (market + low)
+    across the whole catalog to value owned copies with a Standard-price
     fallback, which display_price's one-pick-per-card aggregate can't
-    supply. No new query: `price_info` was already being computed in the
-    loop below for variant_type_prices; this just also puts it on the
-    response object."""
+    supply (App Spec §5.13, §12)."""
     rows = card_repo.get_base_card_list_rows(
         db, set_code=set_code, type=type, rarity=rarity
     )
@@ -169,15 +158,9 @@ def get_base_cards(
     variant_type_prices: dict[int, list[VariantTypePrice]] = defaultdict(list)
     for v in rows.variant_rows:
         classification = classify_variant(v.variant_type, v.source_set_code)
-        # BL-146: price_info is still computed for every variant -- it feeds
-        # variant_type_prices below, which compute_display_price needs to
-        # build the card-level display_price aggregate (kept on the list,
-        # Design_SparseList_2026-07-25.md §8-Q2). Only the *response-level*
-        # per-variant `price` field is gone: pricing_repo.get_latest_prices
-        # (called once above, outside this loop) already reads every priced
-        # variant unconditionally in one query for that same aggregation, so
-        # there is no separate per-variant price join left to skip here --
-        # see this function's docstring for the full §8-Q2 finding.
+        # One PriceInfo per variant, from the single get_latest_prices read
+        # above: it goes on the variant's response `price` and into
+        # variant_type_prices for the card-level display_price aggregate.
         price_info = to_price_info(price_rows.get(v.id))
         variants[v.base_card_id].append(
             CardVariantCatalogResponse(
@@ -241,9 +224,8 @@ def get_price_history(
     """None means "no such (base_card_id, variant_id) pairing" -- the
     router turns that into a 404. An empty `series` (variant is real but
     has no priced days, or none in the requested window) is a normal 200,
-    not an error -- the price-history chart's own empty state (per the
-    definition package's UI prompt pack) is the frontend's job to render,
-    not this endpoint's to fail over."""
+    not an error -- the price-history chart's own empty state is the
+    frontend's job to render, not this endpoint's to fail over."""
     if not pricing_repo.variant_belongs_to_base_card(db, variant_id, base_card_id):
         return None
     rows = pricing_repo.get_price_history(db, variant_id, range_)

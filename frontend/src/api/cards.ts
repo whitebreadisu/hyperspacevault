@@ -1,10 +1,10 @@
 import type { ImageRenditions } from "./baseCards";
 
-/** BL-102: getCards()/CardFilters retired with GET /api/cards (runtime-dead
- * since BL-56/BL-44 Slice B — the app fetches /api/base-cards instead). The
- * Card interface stays: CardWithQty (api/inventory.ts) extends it, and the
- * Add Cards resolver test fixtures are deliberately typed against that
- * flat-variant shape (see utils/addCardsResolver.ts's contract note). */
+/** The flat one-row-per-variant card shape. No endpoint returns it (the app
+ * reads /api/base-cards); it exists because CardWithQty (api/inventory.ts)
+ * extends it, and the Add Cards resolver test fixtures are deliberately
+ * typed against that flat-variant shape (see utils/addCardsResolver.ts's
+ * contract note). */
 export interface Card {
   id: number;
   base_card_id: number;
@@ -25,8 +25,8 @@ export interface Card {
   swuapi_id: string;
   front_image_url: string | null;
   back_image_url: string | null;
-  /** BL-76 Phase 3 -- additive/optional, see api/baseCards.ts's
-   * CatalogVariant doc comment for why `?:` and not just `| null`. */
+  /** Additive/optional -- see api/baseCards.ts's VariantDetail doc comment
+   * for why `?:` and not just `| null`. */
   front_images?: ImageRenditions | null;
   back_images?: ImageRenditions | null;
   stamp_group: string | null;

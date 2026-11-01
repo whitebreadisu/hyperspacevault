@@ -10,14 +10,14 @@ export interface Variant {
   card_number: string;
   front_image_url: string | null;
   back_image_url: string | null;
-  /** BL-76 Phase 3 / BL-146: no longer sourced from the API (which stopped
-   * shipping these on the list, Design_SparseList_2026-07-25.md §3) --
-   * toInventoryCards (utils/inventory.ts) computes them client-side via
-   * utils/cardImages.ts's deriveRenditions. Optional because a null source
-   * URL (e.g. most cards have no back_image_url) yields no renditions. */
+  /** Not sourced from the API (the list ships no renditions, App Spec §12)
+   * -- toInventoryCards (utils/inventory.ts) computes them client-side via
+   * utils/cardImages.ts's deriveRenditions (ADR-0012). Optional because a
+   * null source URL (e.g. most cards have no back_image_url) yields no
+   * renditions. */
   front_images?: ImageRenditions | null;
   back_images?: ImageRenditions | null;
-  /** BL-163: this variant's own market/low price, passed through from
+  /** This variant's own market/low price, passed through from
    * CatalogVariant -- see that interface's doc comment for the
    * undefined-vs-null distinction. Used by utils/completion.ts's
    * Collection-value calc. */
@@ -50,17 +50,17 @@ export function parseCardDisplay(card: BaseCard): { displayName: string; subtitl
   return { displayName: card.name, subtitle: card.subtitle };
 }
 
-/** set_code → release_date (nullable ISO date string), used to order sets by
- * release for the standard sort (redesign spec §5.2/§5.3). Built by callers
+/** set_code → release_date (nullable ISO date string), used to order sets
+ * outside the fixed set order for the standard sort (App Spec §5.1). Built by callers
  * from `getSets()` so catalog.ts doesn't depend on the sets API directly. */
 export type SetOrderMap = Record<string, string | null>;
 
-/** Display rank for one set code (BL-258, owner 2026-10-12: newest main sets
+/** Display rank for one set code (App Spec §5.1, ADR-0031: newest main sets
  * first). Precedence: (a) a base set -> its index in `BASE_SET_ORDER`
  * (utils/setGrouping.ts, the single definition: main block newest first, then
  * IBH, TS26); (b) a Weekly Play code whose base is in that list -> directly
- * after its base; (c) anything else keeps its old relative order after every
- * (a)/(b) set -- `release_date` ascending when present, else alphabetical.
+ * after its base; (c) anything else sorts after every (a)/(b) set --
+ * `release_date` ascending when present, else alphabetical.
  * An explicit `release_date` never reorders (a)/(b) sets. Shared by
  * sortBaseCards, orderSetCodes (completion rows), cardSort and variantScope
  * so there is one rank rule. */
@@ -78,8 +78,9 @@ export function setReleaseRank(setCode: string, setOrder: SetOrderMap): [number,
 }
 
 /** Orders a list of set codes in display order (see setReleaseRank) --
- * BL-163: used to put the completion panel's base-set breakdown rows in
- * display order (newest main set first), the same rule sortBaseCards applies at the card level. */
+ * used to put the completion panel's base-set breakdown rows in display
+ * order (newest main set first), the same rule sortBaseCards applies at the
+ * card level. */
 export function orderSetCodes(codes: string[], setOrder: SetOrderMap = {}): string[] {
   return [...codes].sort((a, b) => {
     const [aTier, aKey] = setReleaseRank(a, setOrder);
@@ -93,8 +94,8 @@ export function orderSetCodes(codes: string[], setOrder: SetOrderMap = {}): stri
 /** Standard sort: (1) set in display order (newest main set first; see
  * setReleaseRank) —
  * (2) tokens last within a set, (3) base_card_number ascending (numeric).
- * Shared by the unified Cards view (BL-56) — see
- * screens/cards/CardsPage.tsx / CardsTable.tsx. */
+ * The Vault's default order: toInventoryCards (utils/inventory.ts) and
+ * sortCardsByScope (utils/variantScope.ts, unscoped) both use it. */
 export function sortBaseCards<T extends BaseCard>(cards: T[], setOrder: SetOrderMap = {}): T[] {
   return cards.slice().sort((a, b) => {
     const [aTier, aKey] = setReleaseRank(a.set_code, setOrder);

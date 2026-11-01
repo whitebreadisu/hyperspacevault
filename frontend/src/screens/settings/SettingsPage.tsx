@@ -17,54 +17,48 @@ import { CapStepper } from "./CapStepper";
 import { analyticsActive, hasOptedOut, setOptedOut } from "../../analytics/analytics";
 import "./SettingsPage.css";
 
-/** BL-25/BL-35/ADR-0013: dedicated full-page settings surface (not a modal),
- * reachable from the avatar menu's Settings item -- App.tsx hosts it as a
- * second pane alongside the Cards view (same always-mounted, display-toggled
- * shell pattern).
+/** Dedicated full-page settings surface (App Spec §4.5; ADR-0013, ADR-0018),
+ * not a modal. On desktop it is reachable from the avatar menu's Settings
+ * item -- App.tsx mounts it as a pane once signed in and display-toggles it
+ * like the other panes; on the phone, mobile/account/SettingsScreen.tsx
+ * renders it (App Spec §25.5).
  *
- * ADR-0013 trims the original BL-25 15x2 per-bucket grid and the BL-35
- * hard/soft radio down to a single three-way "Keep-limit enforcement"
- * control (Hard cap / Soft cap / No limits). The backend keeps its full
- * per-bucket override contract (GET/PUT /api/settings/limits -- 15 buckets x
- * 2 categories, plus cap_mode) completely unchanged; this control is now the
- * only frontend surface that writes to it. "No limits" has no dedicated
- * cap_mode of its own -- it is expressed as cap_mode "hard" with every one of
- * the 30 cells overridden to max_quantity: null, which the enforcement
- * pre-checks (addCardsResolver, CardPopup) already resolve to the
- * unconditional 999 ceiling everywhere, so nothing downstream of the matrix
- * needs to change.
+ * Keep-limit enforcement is a single three-way control (Hard cap / Soft cap
+ * / No limits, ADR-0013). The backend keeps its full per-bucket override
+ * contract (GET/PUT /api/settings/limits -- 15 buckets x 2 categories, plus
+ * cap_mode); this page is the only frontend surface that writes to it. "No
+ * limits" has no dedicated cap_mode of its own -- it is expressed as
+ * cap_mode "hard" with every one of the 30 cells overridden to
+ * max_quantity: null, which the enforcement pre-checks (addCardsResolver,
+ * CardPopup) resolve to the unconditional 999 ceiling everywhere, so
+ * nothing downstream of the matrix needs a special case.
  *
- * Save model unchanged: an explicit Save/Discard for the whole page (not an
- * immediate save on radio click), matching the rest of the app's mutation
- * pattern (Add Cards commits a batch, modals submit forms).
+ * Save model: an explicit Save/Discard for the whole page (not an immediate
+ * save on radio click), matching the rest of the app's mutation pattern
+ * (Add Cards commits a batch, modals submit forms).
  *
- * BL-182 extends the three-way control with two numeric cap steppers
- * (Leaders & Bases / all other cards) so the keep-limits themselves are
- * user-defined rather than the fixed 1/3 code defaults. This replaces the
- * ADR-0013-era behavior where hard/soft saved overrides: [] unconditionally
- * (wiping any numeric overrides down to the code defaults) -- hard/soft now
- * save 15-row overrides per category that differs from its default (floor 1
- * for Leaders & Bases, floor 3 for everything else; both ceilinged at the
- * existing QUANTITY_CEILING of 999), and a category left at its default
- * still contributes zero override rows, so a plain hard/soft pick with both
- * steppers untouched round-trips as overrides: [] exactly as before. "No
- * limits" is unchanged: still the all-30-cells-null payload with cap_mode
- * "hard", and its steppers go inert (present, disabled) rather than
- * disappearing. A fetched matrix only displays a raised stepper value when
- * ALL 15 buckets of that category carry the SAME non-null override -- any
- * other shape (no overrides, partial, mixed values, or a null mixed in,
- * including a matrix from a prior pre-BL-182 session or a non-UI client)
+ * Two numeric cap steppers (Leaders & Bases / all other cards, ADR-0018)
+ * make the keep-limits themselves user-defined rather than the fixed 1/3
+ * code defaults. Hard/soft save 15-row overrides per category that differs
+ * from its default (floor 1 for Leaders & Bases, floor 3 for everything
+ * else; both ceilinged at QUANTITY_CEILING, 999), and a category left at
+ * its default contributes zero override rows, so a plain hard/soft pick with
+ * both steppers untouched saves overrides: []. "No limits" is the
+ * all-30-cells-null payload with cap_mode "hard", and its steppers go inert
+ * (present, disabled) rather than disappearing. A fetched matrix only
+ * displays a raised stepper value when ALL 15 buckets of that category
+ * carry the SAME non-null override -- any other shape (no overrides,
+ * partial, mixed values, or a null mixed in, e.g. from a non-UI client)
  * displays the category default and normalizes to it on the next save. The
- * control still owns the full per-bucket override contract; this just moves
- * the two numbers it writes from hardcoded constants to page state.
+ * control owns the full per-bucket override contract.
  *
- * BL-129 R5: a "danger zone" section at the bottom of the page now holds the
- * Delete Account trigger, relocated from the avatar dropdown (UserMenu) --
- * Jeremy's dev review found it too easy to reach accidentally from the
- * everyday account menu. DeleteAccountModal + its App-owned open state are
- * completely unchanged (BL-87); only the trigger's source moved, the same
- * way Settings/Change Password/About items already thread a callback down
- * from App rather than owning modal state locally. */
+ * A "danger zone" section at the bottom of the page holds the Delete
+ * Account trigger, kept out of the everyday avatar menu so it is hard to
+ * reach by accident. The shell owns DeleteAccountModal's open state
+ * (App.tsx's deleteAccountModalOpen on desktop, MobileApp's `#/more/delete`
+ * route on the phone); this page only calls onDeleteAccount, the same way
+ * the Settings/Change Password/About items thread a callback down rather
+ * than owning modal state locally. */
 
 type Selection = CapMode | "none";
 
@@ -90,31 +84,32 @@ const OPTIONS: { value: Selection; title: string; description: string }[] = [
 /** The three-way control's derived current state: a fetched matrix where
  * EVERY cell is max_quantity: null displays as "No limits" regardless of
  * cap_mode -- that is exactly how this control itself expresses "No limits"
- * on save. Anything else displays as the fetched cap_mode. A matrix with
- * mixed numeric overrides (only reachable via a non-UI client, or a session
- * from before ADR-0013) therefore falls back to displaying its cap_mode --
- * acceptable, since the control owns the contract now. */
+ * on save. Anything else displays as the fetched cap_mode, including a
+ * matrix with numeric overrides (the stepper overrides this page writes, or
+ * per-bucket values only a non-UI client can write) -- acceptable, since
+ * the control owns the contract. */
 function deriveSelection(cells: LimitCell[], capMode: CapMode): Selection {
   if (cells.length > 0 && cells.every((cell) => cell.max_quantity === null)) return "none";
   return capMode;
 }
 
-/** BL-182: the floor each category's stepper can't go below -- the same
- * code default as its unconfigured value (utils/limits.ts DEFAULT_LIMITS),
- * matching the spec's "Leaders & Bases floor 1 / everything else floor 3". */
+/** The floor each category's stepper can't go below -- the same code
+ * default as its unconfigured value (utils/limits.ts DEFAULT_LIMITS),
+ * matching App Spec §4.5's "Leaders & Bases (floor 1) / All other cards
+ * (floor 3)". */
 const CATEGORY_FLOOR: Record<TypeCategory, number> = DEFAULT_LIMITS;
 
 function clamp(value: number, floor: number, ceiling: number): number {
   return Math.min(ceiling, Math.max(floor, value));
 }
 
-/** BL-182: a category's displayed cap. Only a matrix where ALL 15 of that
+/** A category's displayed cap. Only a matrix where ALL 15 of that
  * category's buckets carry the exact same non-null override value displays
  * that value (clamped into [floor, ceiling] in case a non-UI client wrote
  * something outside the current stepper bounds); no overrides, a partial
  * set, mixed values, or a null mixed in (including the all-null "No limits"
  * matrix, a subset of "all null") all fall back to the category default --
- * the API-era per-bucket precision the control no longer expresses. */
+ * per-bucket precision the control does not express. */
 function deriveCap(cells: LimitCell[], category: TypeCategory): number {
   const values = cells
     .filter((cell) => cell.type_category === category)
@@ -155,10 +150,9 @@ function allCellsUnlimited(): LimitOverrideInput[] {
   return overrides;
 }
 
-/** BL-182: the hard/soft override payload -- 15 rows per category whose cap
+/** The hard/soft override payload -- 15 rows per category whose cap
  * differs from its default, none for a category left at its default (so
- * both steppers untouched still saves overrides: [], matching the pre-BL-182
- * behavior byte for byte). */
+ * both steppers untouched saves overrides: [], App Spec §4.5). */
 function buildCapOverrides(singletonCap: number, standardCap: number): LimitOverrideInput[] {
   const caps: Record<TypeCategory, number> = { singleton: singletonCap, standard: standardCap };
   const overrides: LimitOverrideInput[] = [];
@@ -183,8 +177,9 @@ function describeError(err: unknown): string {
 }
 
 interface Props {
-  /** BL-129 R5: opens the App-owned DeleteAccountModal -- same
-   * App-owns-the-modal-state pattern as every other Settings/menu callback
+  /** Opens DeleteAccountModal, whose open state the shell owns (App.tsx on
+   * desktop, MobileApp's `#/more/delete` route on the phone) -- the same
+   * shell-owns-the-modal-state pattern as every other Settings/menu callback
    * (onOpenSettings, onChangePassword, onOpenAbout). */
   onDeleteAccount: () => void;
 }
@@ -194,7 +189,7 @@ export function SettingsPage({ onDeleteAccount }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // BL-235: mirrors posthog-js's persisted opt-out state (see the analytics
+  // Mirrors posthog-js's persisted opt-out state (see the analytics
   // section below for why this sits outside the page's Save model).
   const [analyticsShared, setAnalyticsShared] = useState(() => !hasOptedOut());
 
@@ -265,7 +260,7 @@ export function SettingsPage({ onDeleteAccount }: Props) {
     <div className="screen settings-screen">
       <h1 className="screen-heading">Settings</h1>
 
-      {/* BL-182 round 2: the keep-limits themselves get their own section
+      {/* The keep-limits themselves get their own section
           (concept explainer + the two category steppers), ABOVE enforcement --
           what the limit IS before what happens AT it. One shared draft/save
           still spans both sections; the action row stays at the bottom of the
@@ -365,7 +360,7 @@ export function SettingsPage({ onDeleteAccount }: Props) {
         </div>
       </section>
 
-      {/* BL-235: usage-analytics opt-out. Deliberately OUTSIDE the page's
+      {/* Usage-analytics opt-out (App Spec §22). Deliberately OUTSIDE the page's
           Save/Discard batch model -- the choice is browser-local (posthog-js
           persists it in localStorage; analytics identity is per-browser, so
           the opt-out is too) and takes effect immediately on toggle. Inert
@@ -402,12 +397,12 @@ export function SettingsPage({ onDeleteAccount }: Props) {
         </label>
       </section>
 
-      {/* BL-129 R5: danger zone -- visually separated (own section, danger
-          border/heading) from the routine keep-limit control above, holding
-          the Delete Account trigger that used to live in the avatar
-          dropdown. The button itself only calls onDeleteAccount; App still
-          owns DeleteAccountModal's open state and the modal's own
-          two-step confirm flow (BL-87) is completely unchanged. */}
+      {/* Danger zone -- visually separated (own section, danger
+          border/heading) from the routine controls above, holding the
+          Delete Account trigger. The button only calls onDeleteAccount;
+          the shell owns DeleteAccountModal's open state (App.tsx on
+          desktop, the `#/more/delete` route on the phone), and the modal
+          runs its own two-step confirm flow. */}
       <section
         className="settings-section settings-section--danger"
         aria-labelledby="settings-danger-title"

@@ -1,37 +1,27 @@
-"""BL-136 P1: the era-aware name+tier join between our catalog's card_
-variants and tcgcsv's (productId, subTypeName) price keys --
-Spike_TCGCSV_Pricing_2026-07-16.md §4.2/§4.3, decided in
-Definition_Pricing_2026-07-16.md §2/§6.
+"""The era-aware name+tier join between our catalog's card_variants and
+tcgcsv's (productId, subTypeName) price keys (App Spec §16.1, §16.3b).
 
 Pure/DB-free (mirrors app.ingestion.swuapi_transform's split: this module
 does the join logic against plain dicts; run_tcgplayer_mapping.py is the
-DB+HTTP entrypoint). Original scope was the 4 "core" finishes (Standard,
-Standard Foil, Hyperspace, Hyperspace Foil) on the 10 root sets in
-tcgcsv_client.ROOT_SET_GROUP_IDS -- Showcase/Prestige/Weekly Play/promo-tier
-variant_types and the 19 non-root set codes were explicitly out of scope
-(spike §4.4/§1.3), matching what the spike measured match rates against.
+DB+HTTP entrypoint).
 
-Key finding this reimplements (spike §4.2): tcgcsv's per-tier numbering is
-NOT a stable join key across set eras (SOR/SHD-era Hyperspace/Foil share a
-productId with Standard via subTypeName; JTL+-era gives all four tiers
-separate productIds disambiguated only by a name suffix). The join key here
-is normalized card name + a tier suffix parsed from the tcgcsv product
-name, cross-checked against subTypeName -- robust to both conventions
-without needing to know which era a given set belongs to.
+tcgcsv's per-tier numbering is NOT a stable join key across set eras (SOR/SHD-era
+Hyperspace/Foil share a productId with Standard via subTypeName; JTL+-era gives all four
+tiers separate productIds disambiguated only by a name suffix). The join key here is
+normalized card name + a tier suffix parsed from the tcgcsv product name, cross-checked
+against subTypeName -- robust to both conventions without needing to know which era a
+given set belongs to.
 
-BL-174 (2026-07-27) widens the scope in two ways, per
-specification_documents/analysis/Pricing_Coverage_NonCore_Finishes_2026-07-27.md:
-(1) the suffix vocabulary and CORE_VARIANT_TYPES now also resolve Showcase/
-Standard Prestige/Foil Prestige/Serialized Prestige products -- these are
-fetched from the SAME 10 root-set groups as the original four finishes, no
-new fetches required, just previously unparsed by parse_tier_suffix/
-resolve_variant_type. (2) a parallel Weekly Play resolution path
-(resolve_weekly_play_variant_type, threaded through build_mapping's new
-resolve_fn/target_variant_types parameters) covers the 8 "P"-coded
+Scope has two passes: (1) the root-set pass resolves the four core
+finishes plus Showcase/Standard Prestige/Foil Prestige/Serialized Prestige
+(CORE_VARIANT_TYPES), all fetched from the root-set groups in
+tcgcsv_client.ROOT_SET_GROUP_IDS; (2) a parallel Weekly Play resolution
+path (resolve_weekly_play_variant_type, passed through build_mapping's
+resolve_fn/target_variant_types parameters) covers the "P"-coded
 container-set groups in tcgcsv_client.WEEKLY_PLAY_GROUP_IDS, which use a
 DIFFERENT (suffix-ignoring) precedence rule than the root-set path -- see
 that function's docstring. Promo/tournament tiers (Judge/Convention/PQ-RQ-
-SQ-GC-SS stamp tiers) remain out of scope.
+SQ-GC-SS stamp tiers) are not mapped.
 """
 
 from __future__ import annotations
@@ -41,11 +31,10 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-# Finishes this mapping builder targets -- FROZEN_FINISHES' retail subset
-# (app.ingestion.swuapi_classify) minus nothing: the original 4 finishes
-# the spike measured (Standard/Standard Foil/Hyperspace/Hyperspace Foil)
-# plus BL-174's Prestige/Showcase widening (Standard Prestige/Foil
-# Prestige/Serialized Prestige/Showcase). This is the default
+# Finishes this mapping builder targets -- all of FROZEN_FINISHES
+# (app.ingestion.swuapi_classify): the 4 core finishes (Standard/Standard
+# Foil/Hyperspace/Hyperspace Foil) plus Standard Prestige/Foil
+# Prestige/Serialized Prestige/Showcase. This is the default
 # target_variant_types for build_mapping -- the root-set pass. Weekly Play
 # ("Weekly Play"/"Weekly Play Foil", not in FROZEN_FINISHES -- they're a
 # channel, not a retail finish) is a SEPARATE pass with its own target set,
@@ -67,7 +56,7 @@ CORE_VARIANT_TYPES = {
 # mistakenly parsed as "(Hyperspace)"/"(Prestige)" plus leftover text (the
 # trailing `\)` anchor actually makes this order-independent for
 # correctness -- see parse_tier_suffix's docstring -- kept longest-first
-# anyway for readability, matching the convention this pattern started with).
+# anyway for readability).
 _SUFFIX_RE = re.compile(
     r"\s*\("
     r"(hyperspace foil|prestige foil|hyperspace|serialized|showcase|prestige|foil)"
@@ -75,13 +64,13 @@ _SUFFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Base-card compound products (spike §4.2/4.3): tcgcsv represents a
+# Base-card compound products: tcgcsv represents a
 # double-sided Base as two-to-four "<name> // <side>" products (one per
 # side, each optionally Hyperspace-suffixed). Our catalog has only ONE
 # variant row per tier (no separate Shield/Experience variant), so a
 # prefix match must pick one side as canonical. "Shield" is preferred
-# (arbitrary but consistent -- documented decision, no strong signal either
-# way in the source data) with "Experience" as a fallback when a set's
+# (arbitrary but consistent -- no strong signal either way in the source
+# data) with "Experience" as a fallback when a set's
 # Base product only has an Experience-side listing.
 BASE_SIDE_PREFERENCE = ("shield", "experience")
 
@@ -89,9 +78,9 @@ BASE_SIDE_PREFERENCE = ("shield", "experience")
 def normalize_name(name: str) -> str:
     """Unicode-normalize a card/product name for comparison: strip
     diacritics (NFKD decompose + drop combining marks) and fold curly
-    quotes to straight ones (spike §4.3's finding #3 -- the catalog
-    preserves "Chirrut Imwe"'s circumflex and curly quotes, tcgcsv strips/
-    straightens them), collapse whitespace, lowercase."""
+    quotes to straight ones (the catalog preserves "Chirrut Imwe"'s
+    circumflex and curly quotes, tcgcsv strips/straightens them), collapse
+    whitespace, lowercase."""
     folded = (
         name.replace("‘", "'").replace("’", "'").replace("“", '"').replace("”", '"')
     )
@@ -106,7 +95,7 @@ def parse_tier_suffix(normalized_name: str) -> tuple[str, str | None]:
     "prestige foil" | "prestige" | "serialized" | "showcase" | None.
     Longest-alternative-first regex so "(Hyperspace Foil)" isn't mistakenly
     parsed as "(Hyperspace)" plus leftover text (and likewise "(Prestige
-    Foil)" vs "(Prestige)", BL-174)."""
+    Foil)" vs "(Prestige)")."""
     match = _SUFFIX_RE.search(normalized_name)
     if match is None:
         return normalized_name, None
@@ -114,8 +103,8 @@ def parse_tier_suffix(normalized_name: str) -> tuple[str, str | None]:
 
 
 def resolve_variant_type(suffix: str | None, sub_type_name: str) -> str | None:
-    """(name-suffix, subTypeName) -> our variant_type vocabulary, per spike
-    §4.2's two conventions:
+    """(name-suffix, subTypeName) -> our variant_type vocabulary, per
+    tcgcsv's two era conventions:
 
     - SOR/SHD-era: Standard's two finishes share one productId, split only
       by subTypeName (no name suffix); Hyperspace is a separate productId
@@ -126,9 +115,8 @@ def resolve_variant_type(suffix: str | None, sub_type_name: str) -> str | None:
       labeling it either way), so the name suffix wins outright once it
       names foil explicitly.
 
-    BL-174 extends the same two conventions to the four "chase" finishes,
-    live-verified 2026-07-27 against the root-set CSVs
-    (tcgcsv_files/*ProductsAndPrices.csv):
+    The same two conventions extend to the four "chase" finishes, as the
+    root-set CSVs show (tcgcsv_files/*ProductsAndPrices.csv):
 
     - "(Showcase)" and "(Serialized)" are each a SINGLE tcgcsv product per
       card with no sibling foil/non-foil split (every sample's subTypeName
@@ -143,8 +131,8 @@ def resolve_variant_type(suffix: str | None, sub_type_name: str) -> str | None:
       -- SEC's "Senator Chuchi - Voice for the Voiceless" carries all
       three tiers as three distinct productIds, none sharing one), but is
       handled the same defensive way Hyperspace's Foil row is (-> Foil
-      Prestige) rather than silently dropped, in case a future set's data
-      ever does carry it.
+      Prestige) rather than silently dropped, in case a set's data ever
+      does carry it.
     - "(Prestige Foil)" -- like "(Hyperspace Foil)" -- always resolves to
       Foil Prestige regardless of subTypeName.
 
@@ -186,7 +174,7 @@ def resolve_variant_type(suffix: str | None, sub_type_name: str) -> str | None:
 def resolve_weekly_play_variant_type(
     suffix: str | None, sub_type_name: str
 ) -> str | None:
-    """BL-174 Part B: the (name-suffix, subTypeName) -> variant_type
+    """The (name-suffix, subTypeName) -> variant_type
     resolver for Weekly Play promo groups -- a DELIBERATELY DIFFERENT
     precedence rule from resolve_variant_type above. `suffix` is accepted
     (same call shape as resolve_variant_type, so both can be passed
@@ -195,7 +183,7 @@ def resolve_weekly_play_variant_type(
     Foil".
 
     Grounded in the local WP snapshots
-    (tcgcsv_files/*WeeklyPlayPromos*.csv, verified 2026-07-27), which show
+    (tcgcsv_files/*WeeklyPlayPromos*.csv), which show
     two different tcgcsv conventions across eras, neither of which the
     name suffix can be trusted to disambiguate:
 
@@ -302,12 +290,12 @@ def build_product_candidates(
     resolved to no known tier (resolve_fn returned None).
 
     group_id is threaded through explicitly rather than read off the price
-    row -- tcgcsv's /prices response (spike §1.5) doesn't carry a groupId
+    row -- tcgcsv's /prices response doesn't carry a groupId
     field, only productId/subTypeName/the four price tiers.
 
     resolve_fn is the (suffix, subTypeName) -> variant_type function to
     apply -- defaults to resolve_variant_type (the root-set core/Prestige/
-    Showcase precedence). BL-174's Weekly Play mapping pass injects
+    Showcase precedence). The Weekly Play mapping pass injects
     resolve_weekly_play_variant_type instead (a DIFFERENT precedence that
     ignores suffix -- see that function's docstring)."""
     name_by_product_id = {p["productId"]: p["name"] for p in products}
@@ -376,7 +364,7 @@ def build_mapping(
     target_variant_types: set[str] = CORE_VARIANT_TYPES,
     resolve_fn: Callable[[str | None, str], str | None] = resolve_variant_type,
 ) -> MappingResult:
-    """The full P1 join for one tcgcsv group: catalog variants whose
+    """The full mapping join for one tcgcsv group: catalog variants whose
     variant_type is in target_variant_types (non-token) x tcgcsv products+
     prices for that group -> MatchRow per resolved variant, ExceptionRow
     per catalog variant with no matching product.
@@ -384,7 +372,7 @@ def build_mapping(
     target_variant_types/resolve_fn default to the root-set pass (Standard/
     Standard Foil/Hyperspace/Hyperspace Foil/Showcase/Standard Prestige/
     Foil Prestige/Serialized Prestige, resolved via the suffix-wins
-    resolve_variant_type). BL-174's Weekly Play pass calls this with
+    resolve_variant_type). The Weekly Play pass calls this with
     target_variant_types={"Weekly Play", "Weekly Play Foil"} and
     resolve_fn=resolve_weekly_play_variant_type instead --
     run_tcgplayer_mapping.run() picks the pair per set_code."""

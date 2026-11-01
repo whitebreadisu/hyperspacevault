@@ -1,11 +1,10 @@
-// BL-253 S7-11: the strip guide v2 geometry (App Spec 24.3), a pure port of
-// the spike's layoutGuideV2 / guideRectInVideo (app.js:300-342, 384-392,
-// v0.5.5). Millimetres from the card's bottom-right corner; the outline is
-// anchored on the group's nominal centre (W/2, 0.62 H); the drawn box and the
-// OCR crop carry the tuned shifts (-2.2 mm horizontal, +2.1 mm up) plus the
-// user's two guide-alignment sliders. Numbers verbatim (ADR-0029: the spike is
-// the seed). Landscape constants are ported but unused -- portrait only
-// (orchestrator ruling 7; rev4 removed the orientation toggle).
+// The strip guide geometry (App Spec §24.3), pure. Millimetres from the
+// card's bottom-right corner; the outline is anchored on the group's nominal
+// centre (W/2, 0.62 H); the drawn box and the OCR crop carry the tuned shifts
+// (-2.2 mm horizontal, +2.1 mm up) plus the user's two guide-alignment
+// sliders. The numbers are the measured, tested ones (ADR-0029: the guide
+// uses the fractions of App Spec §24.3 as tested). Landscape constants are
+// kept but unused -- portrait only (App Spec §25.7 Guide).
 
 export interface Geom {
   cardW: number;
@@ -47,15 +46,16 @@ export const GEOM: { portrait: Geom; landscape: Geom } = {
   },
 };
 
-/** Stream px of strip text the guide implies (app.js:304). */
+/** Stream px of strip text the guide implies. */
 export const TARGET_TEXT_STREAM_PX = 45;
 /** OCR crop = group box + 5% of the card width on every side = 3.15 mm. */
 export const CROP_PAD_MM = 0.05 * 63;
-/** The drawn box is 15% larger than the group on every side (v0.5.3). */
+/** The drawn box is 15% larger than the group on every side. */
 export const BOX_EXTRA = 0.15;
-/** v0.5.4 -1.4 (run_6 crops) + v0.5.5 -0.8 (owner screenshot). */
+/** Horizontal shift of the box and crop against the outline, tuned on
+ * captured crops and a phone screenshot (App Spec §25.7 Guide). */
 export const BOX_BASE_SHIFT_MM = -2.2;
-/** v0.5.5: the printed line sits ~2 mm higher than designed (promo templates). */
+/** The printed line sits ~2 mm higher than designed (promo templates). */
 export const BOX_BASE_SHIFT_V_MM = 2.1;
 
 export interface Rect {
@@ -82,9 +82,8 @@ export interface GuideLayout {
   impliedTextPx: number;
 }
 
-/** app.js:321-342 layoutGuideV2. `offsetMm` / `offsetVMm` = the sliders
- * (+ = right / + = up). vw x vh = the video stream (2160 x 3840 before the
- * first frame, as the spike). */
+/** `offsetMm` / `offsetVMm` = the sliders (+ = right / + = up). vw x vh =
+ * the video stream (2160 x 3840 before the first frame). */
 export function layoutGuide(
   W: number,
   H: number,
@@ -136,8 +135,11 @@ export function layoutGuide(
   };
 }
 
-/** app.js:384-392: the crop (stage CSS px) in full-resolution video px under
- * `object-fit: cover`, clamped to the frame; null before the first frame. */
+/** The crop (stage CSS px) in full-resolution video px under
+ * `object-fit: cover`; null before the first frame. The origin is floored at
+ * 0 and the size trimmed to the frame's far edges, which assumes the crop
+ * overlaps the frame (the guide always sits inside the stage); a crop wholly
+ * outside it would come back with a negative size. */
 export function guideRectInVideo(
   g: GuideLayout,
   vw: number,

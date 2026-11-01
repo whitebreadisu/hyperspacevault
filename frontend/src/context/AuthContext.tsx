@@ -16,10 +16,10 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   logout: () => Promise<void>;
-  /** BL-16: mirrors user.emailVerified, but as its own piece of state --
+  /** Mirrors user.emailVerified, but as its own piece of state --
    * see refreshEmailVerified below for why. */
   emailVerified: boolean;
-  /** BL-16: re-fetches the current user's verification status from Firebase
+  /** Re-fetches the current user's verification status from Firebase
    * and force-refreshes the cached ID token so the backend's next request
    * sees the updated `email_verified` claim too.
    *
@@ -57,26 +57,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // BL-118: completes a signInWithRedirect Google sign-in that fell back
-  // from a blocked popup (AuthModal's handleGoogleSignIn is the only caller
-  // of signInWithRedirect in this app). A blocked-popup redirect navigates
-  // the whole browser away and back -- AuthModal itself doesn't survive that
+  // Completes a signInWithRedirect Google sign-in that fell back from a
+  // blocked popup (AuthModal's handleGoogleSignIn is the only caller of
+  // signInWithRedirect in this app). A blocked-popup redirect navigates the
+  // whole browser away and back -- AuthModal itself doesn't survive that
   // round trip (the SPA reloads from scratch), so nothing left over there
   // can pick up the result; this runs from AuthProvider, which always mounts
-  // on load, instead. BL-263 (2.0.1): Auth now starts without the
-  // popup/redirect resolver (src/firebase.ts), so Auth's own start-up no
-  // longer completes a pending redirect -- this call, given googleResolver,
-  // is what completes it, and onAuthStateChanged above then reports the
-  // signed-in user. It runs only when AuthModal marked a redirect as pending
+  // on load, instead. Auth starts without the popup/redirect resolver
+  // (src/firebase.ts, Platform Spec §1.8), so Auth's own start-up does not
+  // complete a pending redirect -- this call, given googleResolver, is what
+  // completes it, and onAuthStateChanged above then reports the signed-in
+  // user. It runs only when AuthModal marked a redirect as pending
   // (takeGoogleRedirectPending), so a normal load never fetches the resolver
   // from apis.google.com. Its resolved value is otherwise unused beyond the
-  // analytics below; errors (e.g. a collision) are swallowed. A known gap (see BL-118 PR
-  // description): unlike the popup path, there's no modal left mounted here
-  // to show the ADR-0016 "linked to an existing account" notice for a
-  // redirect completion -- the error is swallowed rather than surfaced,
-  // since there's nowhere in this component to put it.
+  // analytics below; errors (e.g. a collision) are swallowed. Known gap:
+  // unlike the popup path, there's no modal left mounted here to show the
+  // ADR-0016 "linked to an existing account" notice for a redirect
+  // completion -- the error is swallowed rather than surfaced, since there's
+  // nowhere in this component to put it.
   useEffect(() => {
-    // BL-235: signup_completed/login_completed for the signInWithRedirect
+    // signup_completed/login_completed (App Spec §22) for the signInWithRedirect
     // fallback -- the ONE real Google-sign-in completion this effect ever
     // observes (per Firebase's own contract, `result` is non-null only
     // immediately after a redirect returns; every other load, including
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  // BL-95: cross-tab sync. The verification email link opens a *new* tab
+  // Cross-tab sync. The verification email link opens a *new* tab
   // (see VerifyEmailAction's docstring) -- this tab's own stale
   // "unverified" banner/state has no other way to learn the email got
   // verified. This is the "original tab" half of the sync: it listens on

@@ -6,7 +6,7 @@ import { getSharedLimits } from "../api/sharedView";
 import { toMatrix } from "../utils/limits";
 import type { LimitsMatrix } from "../utils/limits";
 
-/** BL-35: what an unauthenticated / not-yet-fetched / failed-fetch tenant
+/** What an unauthenticated / not-yet-fetched / failed-fetch tenant
  * resolves to -- mirrors the backend's own no-tenant_settings-row default
  * (repositories/tenant_settings.py's DEFAULT_CAP_MODE), so pre-auth and
  * pre-fetch behavior is byte-identical to hard mode. */
@@ -21,7 +21,7 @@ interface LimitsContextValue {
   /** The same matrix as the raw cell list (GET response order) -- what the
    * settings grid renders from, since it also needs is_default per cell. */
   cells: LimitCell[] | null;
-  /** BL-35: the tenant's keep-limit enforcement mode. "hard" (default)
+  /** The tenant's keep-limit enforcement mode. "hard" (default)
    * blocks an increment at/over a variant's effective limit; "soft" commits
    * it and flags the response over_limit=True instead. Defaults to "hard"
    * when anonymous / not yet fetched / fetch failed. */
@@ -40,7 +40,7 @@ interface LimitsContextValue {
 /** Default value doubles as the anonymous/standalone behavior: limits stay
  * null (code defaults), capMode stays "hard", and mutations are no-ops.
  * Components can therefore consume useLimits() without a provider (unit
- * tests, pre-auth renders) and get exactly the pre-BL-25 constants -- unlike
+ * tests, pre-auth renders) and get exactly the code defaults -- unlike
  * useAuth, which throws, because auth has no meaningful "no provider"
  * fallback while limits do (the code defaults). */
 const DEFAULT_VALUE: LimitsContextValue = {
@@ -59,16 +59,17 @@ interface Props {
    * CardsPage receives isAuthenticated as a prop. Ignored when `shareToken`
    * is set (see that prop's own doc comment). */
   isAuthenticated: boolean;
-  /** BL-205: when set, this provider serves the READ-ONLY shared-vault
+  /** When set, this provider serves the READ-ONLY shared-vault
    * limits (GET /api/shared/{token}/limits, the share's OWNER-tenant
    * matrix) instead of the caller's own tenant limits -- independent of
    * `isAuthenticated`. A signed-in viewer browsing someone else's share
    * still sees the OWNER's limits, not their own; an anonymous viewer sees
-   * the same real matrix a signed-in owner would (§19.1: "full fidelity").
-   * `save()` is a no-op while set (mutation is owner-only; SharedVaultPage
-   * never mounts a Settings pane that could call it, this is a defensive
-   * second gate). SharedVaultPage nests a SEPARATE LimitsProvider around
-   * just its own CardsPage subtree with this set -- React context lookup is
+   * the same real matrix a signed-in owner would (App Spec §19.1: "full
+   * fidelity"). `save()` is a no-op while set (mutation is owner-only; the
+   * share views never mount a Settings pane that could call it, this is a
+   * defensive second gate). SharedVaultPage nests a SEPARATE LimitsProvider
+   * around just its own CardsPage subtree with this set (the phone's share
+   * scope in MobileApp does the same) -- React context lookup is
    * nearest-provider-wins, so it shadows the app-wide provider (App.tsx's
    * LimitsGate) for that subtree only, without either provider needing to
    * know about the other. */
@@ -76,14 +77,14 @@ interface Props {
   children: ReactNode;
 }
 
-/** BL-25: fetches the effective keep-limit matrix once authenticated
- * (mirroring CardsPage's quantities fetch: auth-gated, cleared on sign-out)
- * and provides it to the enforcement pre-checks (Add Cards resolver,
- * CardPopup's stepper) and the settings grid. A fetch failure
+/** Fetches the effective keep-limit matrix once authenticated (mirroring
+ * vault/useVaultData.ts's quantities fetch: auth-gated, cleared on sign-out)
+ * and provides it to the enforcement pre-checks (Add Cards, the card popup,
+ * the phone's tool and card detail) and the settings grid. A fetch failure
  * degrades to the code defaults rather than blocking the app -- the backend
  * still enforces the real limits on every increment.
  *
- * BL-35: the same GET/PUT round trip also carries cap_mode (hard/soft
+ * The same GET/PUT round trip also carries cap_mode (hard/soft
  * enforcement), so this provider exposes it alongside the matrix rather
  * than needing a second fetch. */
 export function LimitsProvider({ isAuthenticated, shareToken, children }: Props) {
@@ -91,7 +92,7 @@ export function LimitsProvider({ isAuthenticated, shareToken, children }: Props)
   const [capMode, setCapMode] = useState<CapMode>(DEFAULT_CAP_MODE);
 
   const refresh = useCallback(async () => {
-    // BL-205: shareToken wins outright, checked before isAuthenticated --
+    // shareToken wins outright, checked before isAuthenticated --
     // see this prop's own doc comment for why the two are independent.
     if (shareToken) {
       try {
@@ -125,7 +126,7 @@ export function LimitsProvider({ isAuthenticated, shareToken, children }: Props)
     void refresh();
   }, [refresh]);
 
-  // BL-205: a no-op while shareToken is set -- see this provider's
+  // A no-op while shareToken is set -- see this provider's
   // `shareToken` doc comment for why (defensive second gate; nothing in
   // viewer mode ever calls save() in practice since no Settings pane is
   // mounted there).

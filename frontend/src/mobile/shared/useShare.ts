@@ -4,7 +4,7 @@ import { loadShareSession, saveShareSession } from "../../utils/shareSession";
 import { parseShareRouteToken } from "../../utils/shareRoute";
 import { capturePhone } from "../phoneAnalytics";
 
-// BL-252 S6-01 / S6-02: the phone's share session -- desktop App.tsx's
+// The phone's share session (App Spec §25.6) -- desktop App.tsx's
 // shareToken / shareName state + SharedVaultPage's resolve, in one hook.
 //   - The tab's session (utils/shareSession.ts, sessionStorage) seeds the
 //     token + name, so a share opened earlier in this tab survives a reload
@@ -16,7 +16,7 @@ import { capturePhone } from "../phoneAnalytics";
 //   - The token resolves via api/sharedView.ts (GET /api/shared/{token}, no
 //     auth) whenever one is held, as SharedVaultPage does on mount; success
 //     persists the session (saveShareSession) and reports share_link_viewed.
-// Status copy (S6-02) lives in SharedStatus.tsx, verbatim from
+// Status copy lives in SharedStatus.tsx, verbatim from
 // SharedVaultPage.tsx.
 
 export type ShareStatus = "loading" | "ready" | "invalid" | "rate-limited";
@@ -56,7 +56,7 @@ export function useShare(): ShareState {
         setName(data.name);
         saveShareSession({ token, name: data.name });
         setStatus("ready");
-        // S6-08: desktop's event (SharedVaultPage), + layout.
+        // Desktop's event (SharedVaultPage), + layout.
         capturePhone("share_link_viewed");
       })
       .catch((err) => {
