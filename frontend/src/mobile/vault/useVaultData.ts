@@ -18,13 +18,12 @@ import type { SetOrderMap } from "../../utils/catalog";
 import { toInventoryCards } from "../../utils/inventory";
 import type { InventoryCard } from "../../utils/inventory";
 
-// BL-247 S1-12: the phone's one shared catalogue + quantities instance. Same
-// fetches and merge as desktop CardsPage.tsx:334-410 -- the publicly cached
-// list (getBaseCardsList), the caller's sparse quantities (getQuantities,
-// signed in only; anonymous = every quantity 0, no fetch), the sets
-// (getSets -> setOrder / setNameByCode / sets) -- then toInventoryCards
-// (utils/inventory.ts). MobileApp owns ONE provider so the Vault (S1),
-// card detail (S2) and the tool (S3) read and refresh the same data.
+// The one catalogue + quantities source for both the desktop Cards page and the
+// phone: the publicly cached list (getBaseCardsList), the caller's sparse
+// quantities (getQuantities, signed in only; anonymous = every quantity 0, no
+// fetch), the sets (getSets -> setOrder / setNameByCode / sets), then
+// toInventoryCards (utils/inventory.ts). MobileApp owns ONE provider so the
+// Vault, card detail and the tool read and refresh the same data.
 
 export interface VaultData {
   /** Every base card, merged with the caller's quantities (0 when anonymous). */
@@ -55,8 +54,8 @@ export interface VaultData {
   patchQuantity: (variantId: number, quantity: number) => void;
 }
 
-/** The desktop merge (CardsPage.tsx `baseCards`): slim catalogue variants +
- * quantity, 0 for anything absent from the sparse map. */
+/** Slim catalogue variants + quantity, 0 for anything absent from the sparse
+ * map. */
 export function mergeQuantities(
   catalog: BaseCardCatalog[],
   quantities: Record<number, number>
@@ -102,7 +101,7 @@ export function useVaultDataSource(
         if (live) setSets(s);
       })
       .catch(() => {
-        /* desktop logs and carries on with display-order fallbacks */
+        /* a sets failure leaves the display-order fallbacks in place */
       });
     return () => {
       live = false;

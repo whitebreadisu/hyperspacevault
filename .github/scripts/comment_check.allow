@@ -213,9 +213,9 @@ frontend/src/mobile/vault/VaultStatus.tsx 1
 frontend/src/mobile/vault/cardImage.ts 2
 frontend/src/mobile/vault/completionModel.ts 2
 frontend/src/mobile/vault/useCollapse.ts 2
-frontend/src/mobile/vault/useVaultData.ts 5
+frontend/src/mobile/vault/useVaultData.ts 4
 frontend/src/mobile/vault/useVaultView.ts 1
-frontend/src/mobile/vault/vaultModel.ts 3
+frontend/src/mobile/vault/vaultModel.ts 2
 frontend/src/scan.tsx 1
 frontend/src/screens/about/AboutModal.tsx 3
 frontend/src/screens/auth/AuthModal.tsx 19
