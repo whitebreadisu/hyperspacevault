@@ -1869,6 +1869,40 @@ describe("CardsTable width tiers (BL-226, CREATE)", () => {
     expect(screen.queryByRole("columnheader", { name: "Keyword" })).toBeNull();
   });
 
+  it("AUTO re-measures when rows come back after an empty result", () => {
+    // An empty result swaps the table for a placeholder; the table that comes
+    // back is a new element and must be measured again, or AUTO keeps the
+    // width it last saw (in a browser, 0 from the removed element).
+    const props = {
+      setNameByCode: SET_NAMES,
+      isAuthenticated: true,
+      onSelectCard: vi.fn(),
+      onSelectInventory: vi.fn(),
+    };
+    mockResizeObserverWidth.current = 550;
+    const { rerender } = render(<CardsTable cards={[mockCard]} {...props} />);
+    expect(headerNames().length).toBeLessThan(15);
+    rerender(<CardsTable cards={[]} {...props} />);
+    expect(screen.getByText("No cards match the current filters.")).toBeTruthy();
+    mockResizeObserverWidth.current = 1600;
+    rerender(<CardsTable cards={[mockCard]} {...props} />);
+    expect(headerNames()).toHaveLength(15);
+  });
+
+  it("AUTO ignores a zero-width reading (an element leaving the page)", () => {
+    mockResizeObserverWidth.current = 0;
+    render(
+      <CardsTable
+        cards={[mockCard]}
+        setNameByCode={SET_NAMES}
+        isAuthenticated={true}
+        onSelectCard={vi.fn()}
+        onSelectInventory={vi.fn()}
+      />
+    );
+    expect(headerNames()).toHaveLength(15);
+  });
+
   it("a manual override wins outright over AUTO, even when the measured width would fit Full", () => {
     mockResizeObserverWidth.current = 1600;
     render(
