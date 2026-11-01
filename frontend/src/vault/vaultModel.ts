@@ -1,64 +1,24 @@
-import { countActiveFilters } from "../../components/FilterPanel";
-import type { BaseCard, SetOrderMap } from "../../utils/catalog";
-import { nextSortState, sortCards } from "../../utils/cardSort";
-import type { SortColumn, SortState } from "../../utils/cardSort";
-import { applyFilters, DEFAULT_FILTERS, matchesQuery } from "../../utils/filters";
-import type { FilterState } from "../../utils/filters";
-import type { InventoryCard } from "../../utils/inventory";
-import type { LimitsMatrix } from "../../utils/limits";
+import type { BaseCard, SetOrderMap } from "../utils/catalog";
+import { sortCards } from "../utils/cardSort";
+import type { SortState } from "../utils/cardSort";
+import { applyFilters, countActiveFilters, DEFAULT_FILTERS, matchesQuery } from "../utils/filters";
+import type { FilterState } from "../utils/filters";
+import type { InventoryCard } from "../utils/inventory";
+import type { LimitsMatrix } from "../utils/limits";
 import {
   applyCollectionToggles,
   isFinishSetScopedTo,
   SCOPE_EXPANDED_ROWS,
   SCOPE_PINNED_ROWS,
   sortCardsByScope,
-} from "../../utils/variantScope";
-import type { CollectionToggles, PriceMode, ValueDisplayMode } from "../../utils/variantScope";
+} from "../utils/variantScope";
+import type { CollectionToggles, PriceMode, ValueDisplayMode } from "../utils/variantScope";
+import { phoneSortState } from "../mobile/vault/phoneSort";
 
 // BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
 // desktop's own types and utilities (filters.ts, variantScope.ts,
 // cardSort.ts, limits.ts). useVaultView.ts holds the state; everything that
 // decides what the list shows lives here so it is unit-testable.
-
-/** BL-257 FR5-05 (F-17): the sorts the phone offers -- the shared model's
- * columns without `set` (the phone's "Set | #" sort, `number`, already orders
- * by set and then number) and without `variants` (desktop's sort by number of
- * printings; the phone's fifth row is `owned`, copies owned). */
-export type PhoneSortColumn = Exclude<SortColumn, "set" | "variants">;
-export interface PhoneSortState {
-  column: PhoneSortColumn;
-  direction: SortState["direction"];
-}
-
-/** The sort the phone shows and applies for `s`. A `set` or `variants` sort
- * (not offered on the phone; the shared sort model keeps both for desktop)
- * becomes the default order, `number` ascending -- which is what "Set
- * ascending" was. Every other state is returned as it is (same object). */
-export function phoneSortState(s: SortState): PhoneSortState {
-  return s.column === "set" || s.column === "variants"
-    ? { column: "number", direction: "asc" }
-    : (s as PhoneSortState);
-}
-
-/** The direction a phone sort lands on at its FIRST tap, where that is not
- * ascending (owner decision 2026-10-12 after review): Cards Owned starts at
- * the most owned. Every other sort starts ascending, as on desktop. */
-export const PHONE_FIRST_DIRECTION: Partial<Record<PhoneSortColumn, SortState["direction"]>> = {
-  owned: "desc",
-};
-
-/** A pick in the phone's Sort sheet. As desktop's `nextSortState` -- the
- * active column flips, a `set` / `variants` pick becomes "Set | #" ascending
- * (phoneSortState) -- except that a newly picked column lands on its own
- * first direction (PHONE_FIRST_DIRECTION, else ascending). Phone only:
- * desktop's headers keep calling `nextSortState`, which is unchanged. */
-export function nextPhoneSort(current: SortState, picked: SortColumn): PhoneSortState {
-  const next = phoneSortState(nextSortState(current, picked));
-  const fresh = picked !== current.column && next.column === picked;
-  return fresh
-    ? { column: next.column, direction: PHONE_FIRST_DIRECTION[next.column] ?? "asc" }
-    : next;
-}
 
 /** The Collection toggles the Filters sheet edits. */
 export type { CollectionToggles };
@@ -69,6 +29,21 @@ export const NO_TOGGLES: CollectionToggles = {
   unowned: false,
   overcap: false,
 };
+
+/** Desktop CardsPage's mutual exclusions, applied on the way in: Own clears
+ * Don't own; Don't own clears Own and Over limit; Over limit clears Don't
+ * own. Turning a toggle off clears nothing. */
+export function withToggle(t: CollectionToggles, key: keyof CollectionToggles): CollectionToggles {
+  const on = !t[key];
+  const next = { ...t, [key]: on };
+  if (on && key === "owned") next.unowned = false;
+  if (on && key === "unowned") {
+    next.owned = false;
+    next.overcap = false;
+  }
+  if (on && key === "overcap") next.unowned = false;
+  return next;
+}
 
 export interface VaultFilterState {
   filters: FilterState;

@@ -3,7 +3,7 @@ import { useLimits } from "../../context/LimitsContext";
 import { SWUButton } from "../../components/SWUButton";
 import { capturePhone } from "../phoneAnalytics";
 import { Sheet, useSheetClose } from "../Sheet";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import type { VaultView } from "../vault/useVaultView";
 import { FacetPicker } from "./FacetPicker";
 import type { PickerId } from "./FacetPicker";

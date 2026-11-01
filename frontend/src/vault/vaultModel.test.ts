@@ -1,23 +1,21 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BaseCardCatalogWithQuantity } from "../../api/baseCards";
-import { nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
-import { DEFAULT_FILTERS, matchesQuery } from "../../utils/filters";
-import { toInventoryCards } from "../../utils/inventory";
-import { SORT_LABELS, SORT_ORDER, sortLabel } from "./SortSheet";
-import { useVaultViewOver } from "./useVaultView";
+import type { BaseCardCatalogWithQuantity } from "../api/baseCards";
+import { nextSortState, DEFAULT_SORT_STATE } from "../utils/cardSort";
+import { DEFAULT_FILTERS, matchesQuery } from "../utils/filters";
+import { toInventoryCards } from "../utils/inventory";
+import { SORT_LABELS, SORT_ORDER, sortLabel } from "../mobile/vault/SortSheet";
+import { useVaultViewOver } from "../mobile/vault/useVaultView";
 import {
   activeFilterCount,
   buildVaultList,
   freshFilterState,
   isNarrowed,
-  nextPhoneSort,
-  PHONE_FIRST_DIRECTION,
-  phoneSortState,
   SCOPE_VALUES,
   withFilters,
   withScope,
 } from "./vaultModel";
+import { nextPhoneSort, PHONE_FIRST_DIRECTION, phoneSortState } from "../mobile/vault/phoneSort";
 
 type V = BaseCardCatalogWithQuantity["variants"][number];
 const v = (id: number, finish: string, num: string, qty = 0, market?: number, set = "SOR"): V =>

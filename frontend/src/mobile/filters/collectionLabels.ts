@@ -1,4 +1,4 @@
-import type { CollectionToggles } from "../vault/vaultModel";
+import type { CollectionToggles } from "../../vault/vaultModel";
 
 /** rev4 CollectionFacet: the four Collection toggles in desktop's order with
  * the phone's labels (desktop CardsPage pl-toggle order; rev4 wording). */

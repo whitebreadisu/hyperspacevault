@@ -7,7 +7,7 @@ import { MIcon } from "../icons";
 import { SetLogo } from "../SetLogo";
 import { SWUButton } from "../../components/SWUButton";
 import { cellImage } from "../vault/cardImage";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import {
   entryRow,
   padAddable,

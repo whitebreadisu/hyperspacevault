@@ -29,7 +29,7 @@ import {
 } from "../../api/inventoryImportExport";
 import type { ImportMode, ImportReport } from "../../api/inventoryImportExport";
 import { resetRouterForTest } from "../router";
-import { VaultDataProvider } from "../vault/useVaultData";
+import { VaultDataProvider } from "../../vault/useVaultData";
 import { ImportExportScreen } from "./ImportExportScreen";
 
 function report(stage: "dry_run" | "commit", mode: ImportMode, resolved = 2): ImportReport {

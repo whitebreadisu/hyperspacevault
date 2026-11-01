@@ -13,7 +13,7 @@ import {
   weeklyPlayCodeFor,
 } from "../../utils/setGrouping";
 import { setPickerGroups } from "../filters/filterModel";
-import { mergeQuantities } from "../vault/useVaultData";
+import { mergeQuantities } from "../../vault/useVaultData";
 import {
   PRECON_ENTRIES,
   padNumbers,

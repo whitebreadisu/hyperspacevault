@@ -37,7 +37,7 @@ import { ToolLayer } from "./tool/ToolLayer";
 import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
-import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "./vault/useVaultData";
+import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "../vault/useVaultData";
 import { Vault } from "./vault/Vault";
 import "./mobile.css";
 import "./shell.css";

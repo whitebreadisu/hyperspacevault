@@ -24,7 +24,7 @@ import qtyJson from "../../../e2e/mobile/fixtures/quantities.json";
 import setsJson from "../../../e2e/mobile/fixtures/sets.json";
 import { toInventoryCards } from "../../utils/inventory";
 import { cardsForEntry } from "../../utils/preconImport";
-import { mergeQuantities } from "../vault/useVaultData";
+import { mergeQuantities } from "../../vault/useVaultData";
 import { addCopy, addDeck, batchView, getBatch, resetBatchForTest } from "./batch";
 import type { NewBatchRow } from "./batch";
 import {

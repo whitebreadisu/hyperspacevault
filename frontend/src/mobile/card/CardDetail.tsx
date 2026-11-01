@@ -12,7 +12,7 @@ import { usePriceKind } from "../priceKind";
 import { back, go } from "../router";
 import { SetLogo } from "../SetLogo";
 import { prefersReducedMotion, useCollapse } from "../vault/useCollapse";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { AspectsSheet } from "./AspectsSheet";
 import { CardPage, READ_ONLY_STEPPER } from "./CardPage";
 import { navEntryVariant, regionGeom, setLogoSrc, starfieldSrc } from "./cardDetailModel";

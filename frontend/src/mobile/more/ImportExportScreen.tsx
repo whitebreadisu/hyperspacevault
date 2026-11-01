@@ -17,7 +17,7 @@ import { MIcon } from "../icons";
 import { SWUButton } from "../../components/SWUButton";
 import { capturePhone, phoneScreenViewed } from "../phoneAnalytics";
 import { go } from "../router";
-import { useVaultData } from "../vault/useVaultData";
+import { useVaultData } from "../../vault/useVaultData";
 import { ImportReportList } from "./ImportReportList";
 import { CAP_OPTIONS, MODE_OPTIONS, fileFormat, problemRowsCsv } from "./importFork";
 import { ShellHead } from "./ShellHead";

@@ -9,7 +9,7 @@ import { toInventoryCards } from "../../utils/inventory";
 import { capHandlingFor, FINISH_BUCKETS, matrixKey } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import { printingReadout } from "../camera/readIdentity";
-import { mergeQuantities } from "../vault/useVaultData";
+import { mergeQuantities } from "../../vault/useVaultData";
 import type { BatchRow } from "./batch";
 import { padReadout, padView, toCatalog } from "./padModel";
 import { NO_PICKS } from "./toolStore";

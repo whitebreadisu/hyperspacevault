@@ -145,6 +145,36 @@ export function isDefaultFilterState(filters: FilterState): boolean {
   );
 }
 
+/** Active-filter count for the collapsed rail's badge -- every
+ * facet Set with a selection, a non-empty search, and every range narrowed
+ * off its full [0, max] span counts once. Mirrors `isDefaultFilterState`'s
+ * field list but returns a count instead of a boolean (the rail wants "how
+ * many", the Reset button wants "any"). Exported so CardsPage can
+ * compute the SAME total for filter_applied's active_filter_count rather
+ * than re-deriving it. */
+export function countActiveFilters(filters: FilterState): number {
+  let n = 0;
+  if (filters.search.trim()) n++;
+  // The mode change alone (no selection) has no filtering effect
+  // (matchesAspectMode's empty-selection short-circuit), so it doesn't earn
+  // its own bump -- it counts as part of the same "Aspects" bucket the
+  // selection already occupies, same one-bump-per-group shape as every
+  // other field below.
+  if (filters.aspects.size > 0 || filters.aspectMode !== DEFAULT_FILTERS.aspectMode) n++;
+  if (filters.set.size > 0) n++;
+  if (filters.type.size > 0) n++;
+  if (filters.rarity.size > 0) n++;
+  if (filters.finish.size > 0) n++;
+  if (filters.keyword.size > 0) n++;
+  if (filters.trait.size > 0) n++;
+  if (filters.arena.size > 0) n++;
+  const rangeActive = (r: [number, number], max: number) => r[0] !== 0 || r[1] !== max;
+  if (rangeActive(filters.costRange, COST_MAX)) n++;
+  if (rangeActive(filters.powerRange, POWER_MAX)) n++;
+  if (rangeActive(filters.hpRange, HP_MAX)) n++;
+  return n;
+}
+
 // ── matchesAspectMode (BL-130) ──────────────────────────────────────────────
 //
 // `cardAspects` is a card's *effective* aspect representation -- its real
