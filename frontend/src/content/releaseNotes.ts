@@ -38,6 +38,39 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-302 (desktop search and filters behave like the phone: card-number
+    // search, spaces-only search, 0-match values shown greyed, set-row tap
+    // replaces and a second tap clears, App Spec 5.6 / 5.15 / 25.1) + BL-304
+    // (only production creates feedback issues) + BL-292..298 (WS-4 code
+    // craftsmanship). Owner said "promote" 2026-11-01; date = promote day
+    // (America/Chicago).
+    kind: "release",
+    key: "2.2",
+    version: "2.2",
+    date: "2026-11-01",
+    title: "Search and filters, in step",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            title: "Same search, every screen",
+            body: "Search and filters now behave the same on mobile and desktop, plus a small fix for searches made of only spaces.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "The boring stuff",
+            body: "A round of code cleanup, stronger type checks and more tests behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-273 (per-IP limiters keyed on a client-forgeable X-Forwarded-For
     // entry; trusted-proxy resolver, Platform Spec 3.5 / 5.4) + BL-275 idea 1
     // (robots.txt, sitemap, Search Console) + BL-279 WS-3 (journeys, platform
