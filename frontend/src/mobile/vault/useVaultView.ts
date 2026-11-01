@@ -9,7 +9,7 @@ import type { ViewModeChangedMode } from "../../analytics/analytics";
 import { capturePhone, phoneViewMode } from "../phoneAnalytics";
 import { usePriceKind } from "../priceKind";
 import { useVaultData } from "../../vault/useVaultData";
-import { nextPhoneSort } from "./phoneSort";
+import { nextPhoneSort, phoneSortState } from "./phoneSort";
 import {
   buildVaultList,
   freshFilterState,
@@ -155,7 +155,13 @@ export function useVaultViewOver(
   }, [key, updatePrefs]);
 
   const list = useMemo(
-    () => buildVaultList(cards, state, sort, { setOrder, priceKind, limits }),
+    () =>
+      buildVaultList(cards, state, sort, {
+        setOrder,
+        priceKind,
+        limits,
+        sortPolicy: phoneSortState,
+      }),
     [cards, state, sort, setOrder, priceKind, limits]
   );
 

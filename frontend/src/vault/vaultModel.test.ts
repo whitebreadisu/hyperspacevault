@@ -78,7 +78,12 @@ const CARDS = toInventoryCards(
   ],
   SET_ORDER
 );
-const CTX = { setOrder: SET_ORDER, priceKind: "market" as const, limits: null };
+const CTX = {
+  setOrder: SET_ORDER,
+  priceKind: "market" as const,
+  limits: null,
+  sortPolicy: phoneSortState,
+};
 
 describe("S1-22 Filter model wiring", () => {
   it("narrowed = any facet, toggle or a search; fresh state is not narrowed", () => {

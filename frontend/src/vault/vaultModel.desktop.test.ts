@@ -17,6 +17,7 @@ import {
   withScope,
 } from "./vaultModel";
 import type { VaultFilterState } from "./vaultModel";
+import { phoneSortState } from "../mobile/vault/phoneSort";
 
 // What the desktop Cards page (screens/cards/CardsPage.tsx) shows for a fixed
 // input, pinned as literal ids and counts against the shared vault model with
@@ -102,7 +103,12 @@ const CARDS: InventoryCard[] = toInventoryCards(
   SET_ORDER
 );
 /** The phone's context: every option at its default. */
-const CTX = { setOrder: SET_ORDER, priceKind: "market" as const, limits: null };
+const CTX = {
+  setOrder: SET_ORDER,
+  priceKind: "market" as const,
+  limits: null,
+  sortPolicy: phoneSortState,
+};
 /** The desktop's context: the sort applied as handed, Unit value mode. */
 const DESKTOP = { ...CTX, sortPolicy: desktopSortPolicy, unitMode: "unit" as const };
 const ids = (cards: InventoryCard[]) => cards.map((c) => c.base_card_id);

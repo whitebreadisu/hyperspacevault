@@ -13,7 +13,6 @@ import {
   sortCardsByScope,
 } from "../utils/variantScope";
 import type { CollectionToggles, PriceMode, ValueDisplayMode } from "../utils/variantScope";
-import { phoneSortState } from "../mobile/vault/phoneSort";
 
 // BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
 // desktop's own types and utilities (filters.ts, variantScope.ts,
@@ -150,9 +149,9 @@ export interface VaultListContext {
   setOrder: SetOrderMap;
   priceKind: PriceMode;
   limits: LimitsMatrix | null;
-  /** How the handed sort is applied. Default: phoneSortState, so the list is
-   * ordered by the sort the phone shows; desktop passes desktopSortPolicy. */
-  sortPolicy?: (s: SortState) => SortState;
+  /** How the handed sort is applied: the phone passes phoneSortState (its list
+   * follows the sort it shows), desktop passes desktopSortPolicy. */
+  sortPolicy: (s: SortState) => SortState;
   /** What the Value sort reads. Default "unit" (the phone has no switch);
    * desktop passes its Unit/Collection switch. */
   unitMode?: ValueDisplayMode;
@@ -170,7 +169,7 @@ export function buildVaultList(
   const defaultIndex = new Map(all.map((c, i) => [c.base_card_id, i]));
   const toggled = applyCollectionToggles(all, s.toggles, s.scope, ctx.limits);
   const filtered = facetAndSearch(toggled, s);
-  const list = sortCards(filtered, (ctx.sortPolicy ?? phoneSortState)(sort), {
+  const list = sortCards(filtered, ctx.sortPolicy(sort), {
     scope: s.scope,
     valueMode: ctx.priceKind,
     unitMode: ctx.unitMode ?? "unit",
