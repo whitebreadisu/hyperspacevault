@@ -56,7 +56,7 @@ backend/app/schemas/settings_schema.py 4
 backend/app/services/account.py 1
 backend/app/services/cards.py 10
 backend/app/services/catalog.py 1
-backend/app/services/deck_check.py 3
+backend/app/services/deck_check.py 1
 backend/app/services/deck_cost.py 4
 backend/app/services/deck_diff.py 3
 backend/app/services/deck_fetch.py 1

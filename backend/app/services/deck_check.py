@@ -36,6 +36,7 @@ from app.services.deck_resolution import (
     build_slotted_refs,
     resolve_slotted_refs,
 )
+from app.services.pricing import VariantTypePrice
 
 DEFAULT_MODE = "standard"
 PASTED_SOURCE = "pasted"
@@ -75,144 +76,38 @@ def check_deck(
     main_diff, side_diff, _together_diff_unused = deck_diff.diff_scopes(
         main_needs, side_needs, owned
     )
-    # BL-142: full-card-list build for the ALL CARDS toggle + deck-value
-    # extension. `owned` baselines mirror diff_scopes exactly -- raw owned
-    # for main, remaining_after_main(...) for side -- so a card's "have" in
-    # the full list always agrees with the missing-only diff's.
+    # Full-card-list build for the ALL CARDS toggle + deck value. `owned`
+    # baselines mirror diff_scopes exactly -- raw owned for main,
+    # remaining_after_main(...) for side -- so a card's "have" in the full
+    # list always agrees with the missing-only diff's.
     main_all_entries = deck_diff.full_entries(main_needs, owned)
     side_all_entries = deck_diff.full_entries(
         side_needs, deck_diff.remaining_after_main(main_needs, owned)
     )
 
-    def _card_summary(base_card_id: int) -> CardSummary | None:
-        ref = card_refs.get(base_card_id)
-        if ref is None:
-            return None
-        return CardSummary(
-            base_card_id=ref.id,
-            set_code=ref.set_code,
-            base_card_number=ref.base_card_number,
-            name=ref.name,
-            subtitle=ref.subtitle,
-            type=ref.type,
-            front_image_url=ref.front_image_url,
-        )
-
-    def _price_for(base_card_id: int) -> deck_cost.CardPrice:
-        return deck_cost.price_missing_card(variant_prices.get(base_card_id, []), mode)
-
-    def _scope_result(
-        missing_entries: list[MissingEntry],
-        all_entries: list[MissingEntry],
-        buildable: bool,
-    ) -> tuple[ScopeResult, date | None]:
-        missing_cards: list[MissingCard] = []
-        cart_lines: list[deck_cost.CartLine] = []
-        missing_total = 0.0
-        unpriced_count = 0
-        latest_as_of: date | None = None
-        for entry in missing_entries:
-            summary = _card_summary(entry.base_card_id)
-            price = _price_for(entry.base_card_id)
-            missing_qty = entry.need - entry.have
-            subtotal: float | None
-            if price.unit_price is None:
-                unpriced_count += 1
-                subtotal = None
-            else:
-                subtotal = round(price.unit_price * missing_qty, 2)
-                missing_total += subtotal
-                if price.as_of is not None and (
-                    latest_as_of is None or price.as_of > latest_as_of
-                ):
-                    latest_as_of = price.as_of
-            if summary is not None:
-                missing_cards.append(
-                    MissingCard(
-                        card=summary,
-                        need=entry.need,
-                        have=entry.have,
-                        unit_price=price.unit_price,
-                        price_basis=price.price_basis,
-                        subtotal=subtotal,
-                    )
-                )
-                # TCGplayer product names include the subtitle as
-                # "Name - Subtitle" (verified against tcgcsv product data,
-                # e.g. "Han Solo - Hibernation Sick") -- a bare "Han Solo"
-                # matches nothing in Mass Entry (owner repro, 2026-07-21).
-                cart_lines.append(
-                    deck_cost.CartLine(
-                        qty=missing_qty,
-                        name=(
-                            f"{summary.name} - {summary.subtitle}"
-                            if summary.subtitle
-                            else summary.name
-                        ),
-                        set_code=summary.set_code,
-                    )
-                )
-
-        # BL-142: the full card list (ALL CARDS toggle) + deck value (scope-
-        # tile market value). Priced at unit_price * NEED (the value of
-        # owning every copy the deck calls for), unlike missing_total's
-        # unit_price * missing_qty -- an already-owned card still
-        # contributes its full value to deck_value, which is the whole
-        # point of a "what's this deck worth" number.
-        all_cards: list[DeckCardEntry] = []
-        deck_value = 0.0
-        unpriced_value_count = 0
-        for entry in all_entries:
-            summary = _card_summary(entry.base_card_id)
-            if summary is None:
-                continue
-            price = _price_for(entry.base_card_id)
-            line_value: float | None
-            if price.unit_price is None:
-                unpriced_value_count += 1
-                line_value = None
-            else:
-                line_value = round(price.unit_price * entry.need, 2)
-                deck_value += line_value
-                if price.as_of is not None and (
-                    latest_as_of is None or price.as_of > latest_as_of
-                ):
-                    latest_as_of = price.as_of
-            all_cards.append(
-                DeckCardEntry(
-                    card=summary,
-                    need=entry.need,
-                    have=entry.have,
-                    unit_price=price.unit_price,
-                    price_basis=price.price_basis,
-                    line_value=line_value,
-                )
-            )
-
-        return (
-            ScopeResult(
-                buildable=buildable,
-                missing=missing_cards,
-                missing_total=round(missing_total, 2),
-                unpriced_count=unpriced_count,
-                cart_url=deck_cost.build_cart_url(cart_lines),
-                all_cards=all_cards,
-                deck_value=round(deck_value, 2),
-                unpriced_value_count=unpriced_value_count,
-            ),
-            latest_as_of,
-        )
-
-    main_scope, main_as_of = _scope_result(
-        main_diff.missing, main_all_entries, main_diff.buildable
+    main_scope, main_as_of = build_scope_result(
+        main_diff.missing,
+        main_all_entries,
+        main_diff.buildable,
+        card_refs=card_refs,
+        variant_prices=variant_prices,
+        mode=mode,
     )
-    side_scope, side_as_of = _scope_result(
-        side_diff.missing, side_all_entries, side_diff.buildable
+    side_scope, side_as_of = build_scope_result(
+        side_diff.missing,
+        side_all_entries,
+        side_diff.buildable,
+        card_refs=card_refs,
+        variant_prices=variant_prices,
+        mode=mode,
     )
-    together_scope, together_as_of = _scope_result(
+    together_scope, together_as_of = build_scope_result(
         main_diff.missing + side_diff.missing,
         main_all_entries + side_all_entries,
         main_diff.buildable and side_diff.buildable,
+        card_refs=card_refs,
+        variant_prices=variant_prices,
+        mode=mode,
     )
 
     overall_as_of = max(
@@ -227,6 +122,142 @@ def check_deck(
             main=main_scope, side=side_scope, together=together_scope
         ),
         pricing=PricingInfo(mode=mode, source=PRICING_SOURCE, as_of=overall_as_of),
+    )
+
+
+def _card_summary(
+    card_refs: dict[int, deck_check_repo.BaseCardRef], base_card_id: int
+) -> CardSummary | None:
+    ref = card_refs.get(base_card_id)
+    if ref is None:
+        return None
+    return CardSummary(
+        base_card_id=ref.id,
+        set_code=ref.set_code,
+        base_card_number=ref.base_card_number,
+        name=ref.name,
+        subtitle=ref.subtitle,
+        type=ref.type,
+        front_image_url=ref.front_image_url,
+    )
+
+
+# The three keyword-only lookups are the per-deck context check_deck resolves once;
+# bundling them into an object would only rename the same six inputs.
+def build_scope_result(  # noqa: PLR0913
+    missing_entries: list[MissingEntry],
+    all_entries: list[MissingEntry],
+    buildable: bool,
+    *,
+    card_refs: dict[int, deck_check_repo.BaseCardRef],
+    variant_prices: dict[int, list[VariantTypePrice]],
+    mode: str,
+) -> tuple[ScopeResult, date | None]:
+    """Pure (no DB): prices one scope's missing cards and its full card
+    list under `mode`, builds the cart lines, and sums the totals. Returns
+    the ScopeResult plus the newest price `as_of` among the priced cards it
+    touched (None when none were priced). A card with no entry in
+    `card_refs` still counts toward the totals but gets no row or cart
+    line."""
+    missing_cards: list[MissingCard] = []
+    cart_lines: list[deck_cost.CartLine] = []
+    missing_total = 0.0
+    unpriced_count = 0
+    latest_as_of: date | None = None
+    for entry in missing_entries:
+        summary = _card_summary(card_refs, entry.base_card_id)
+        price = deck_cost.price_missing_card(
+            variant_prices.get(entry.base_card_id, []), mode
+        )
+        missing_qty = entry.need - entry.have
+        subtotal: float | None
+        if price.unit_price is None:
+            unpriced_count += 1
+            subtotal = None
+        else:
+            subtotal = round(price.unit_price * missing_qty, 2)
+            missing_total += subtotal
+            if price.as_of is not None and (
+                latest_as_of is None or price.as_of > latest_as_of
+            ):
+                latest_as_of = price.as_of
+        if summary is not None:
+            missing_cards.append(
+                MissingCard(
+                    card=summary,
+                    need=entry.need,
+                    have=entry.have,
+                    unit_price=price.unit_price,
+                    price_basis=price.price_basis,
+                    subtotal=subtotal,
+                )
+            )
+            # TCGplayer product names include the subtitle as
+            # "Name - Subtitle" (verified against tcgcsv product data,
+            # e.g. "Han Solo - Hibernation Sick") -- a bare "Han Solo"
+            # matches nothing in Mass Entry (owner repro, 2026-07-21).
+            cart_lines.append(
+                deck_cost.CartLine(
+                    qty=missing_qty,
+                    name=(
+                        f"{summary.name} - {summary.subtitle}"
+                        if summary.subtitle
+                        else summary.name
+                    ),
+                    set_code=summary.set_code,
+                )
+            )
+
+    # The full card list (ALL CARDS toggle) and deck value (scope-tile
+    # market value). Priced at unit_price * NEED (the value of owning every
+    # copy the deck calls for), unlike missing_total's unit_price *
+    # missing_qty -- an already-owned card still contributes its full value
+    # to deck_value, which is the whole point of a "what's this deck worth"
+    # number.
+    all_cards: list[DeckCardEntry] = []
+    deck_value = 0.0
+    unpriced_value_count = 0
+    for entry in all_entries:
+        summary = _card_summary(card_refs, entry.base_card_id)
+        if summary is None:
+            continue
+        price = deck_cost.price_missing_card(
+            variant_prices.get(entry.base_card_id, []), mode
+        )
+        line_value: float | None
+        if price.unit_price is None:
+            unpriced_value_count += 1
+            line_value = None
+        else:
+            line_value = round(price.unit_price * entry.need, 2)
+            deck_value += line_value
+            if price.as_of is not None and (
+                latest_as_of is None or price.as_of > latest_as_of
+            ):
+                latest_as_of = price.as_of
+        all_cards.append(
+            DeckCardEntry(
+                card=summary,
+                need=entry.need,
+                have=entry.have,
+                unit_price=price.unit_price,
+                price_basis=price.price_basis,
+                line_value=line_value,
+            )
+        )
+
+    return (
+        ScopeResult(
+            buildable=buildable,
+            missing=missing_cards,
+            missing_total=round(missing_total, 2),
+            unpriced_count=unpriced_count,
+            cart_url=deck_cost.build_cart_url(cart_lines),
+            all_cards=all_cards,
+            deck_value=round(deck_value, 2),
+            unpriced_value_count=unpriced_value_count,
+        ),
+        latest_as_of,
     )
 
 

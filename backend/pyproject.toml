@@ -44,7 +44,6 @@ extend-immutable-calls = [
 "app/repositories/feedback.py" = ["PLR09"]
 "app/routers/base_cards.py" = ["PLR09"]
 "app/routers/inventory.py" = ["PLR09"]
-"app/services/deck_check.py" = ["PLR09"]
 "app/services/inventory_import.py" = ["PLR09"]
 "app/services/swudb_import.py" = ["PLR09"]
 "app/services/swunlimiteddb_import.py" = ["PLR09"]
