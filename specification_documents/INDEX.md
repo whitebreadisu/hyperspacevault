@@ -1,11 +1,11 @@
-<!-- generated 2026-11-01 by .github/scripts/docs_index.mjs from 83a0297 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-01 by .github/scripts/docs_index.mjs from c298ab8 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 253,338 B (LF) · 25 h2 · 77 h3
+Total 253,493 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -62,7 +62,7 @@ Total 253,338 B (LF) · 25 h2 · 77 h3
 | h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 485 | 639 |  |  | `backend/alembic/versions` |  |
 | h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 492 | 3,833 |  | 0002, 0014 |  |  |
 | h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 505 | 2,830 |  |  | `backend/app`, `backend/app/db_url.py` |  |
-| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 528 | 21,920 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
+| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 528 | 22,075 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
 | h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 542 | 256 |  |  |  |  |
 | h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 550 | 5,563 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` |  |
 | h3 | [§Inventory — `/api/inventory`](SWU_Application_Spec.md#inventory--apiinventory) | 563 | 3,261 |  |  |  |  |
@@ -70,7 +70,7 @@ Total 253,338 B (LF) · 25 h2 · 77 h3
 | h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 594 | 1,739 |  |  |  |  |
 | h3 | [§Deck check — `/api/deck-check`](SWU_Application_Spec.md#deck-check--apideck-check) | 611 | 2,910 |  | 0015 |  |  |
 | h3 | [§Account — `/api/account`](SWU_Application_Spec.md#account--apiaccount) | 626 | 1,860 |  |  |  |  |
-| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 633 | 2,514 |  | 0008 | `backend/app/rate_limit.py`, `backend/app/services/feedback.py`, `backend/app/services/github_notify.py`, `specification_documents/backlog` |  |
+| h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 633 | 2,669 |  | 0008 | `backend/app/rate_limit.py`, `backend/app/services/feedback.py`, `backend/app/services/github_notify.py`, `specification_documents/backlog` |  |
 | h3 | [§Analytics relay — `/api/relay` (BL-235, v1.4.2)](SWU_Application_Spec.md#analytics-relay--apirelay-bl-235-v142) | 644 | 602 |  | 0027 |  |  |
 | h2 | [§13. Ingestion pipeline](SWU_Application_Spec.md#13-ingestion-pipeline) | 653 | 3,108 | 2026-07-25 Inventory snapshot — retired , replaced | 0002, 0004 | `backend/app/ingestion`, `backend/app/ingestion/bootstrap.py` |  |
 | h2 | [§14. Environment](SWU_Application_Spec.md#14-environment) | 669 | 663 |  |  |  |  |
@@ -115,7 +115,7 @@ Total 253,338 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 139,949 B (LF) · 6 h2 · 43 h3
+Total 140,877 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -139,15 +139,15 @@ Total 139,949 B (LF) · 6 h2 · 43 h3
 | h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 242 | 12,820 | 2026-07-15 Mechanism | 0007, 0011, 0017, 0033, 0037 | `.github/actions/promote-prod/action.yml`, `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `.github/workflows/release-train.yml`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 254 | 950 |  | 0022 |  |  |
 | h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 266 | 14,645 |  | 0020, 0033, 0035, 0036, 0037 | `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/scripts/platform_assert.mjs`, `.github/scripts/release_notes.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `.github/workflows/release-train.yml`, `.github/workflows/verify-engines.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `backend/scripts/refresh_google_ranges.py`, `backend/scripts/verify_tenant.py`, `frontend/e2e/journeys`, `frontend/e2e/verify/seed.mjs`, `frontend/src`, `frontend/src/content`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
-| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 315 | 37,173 |  |  |  |  |
+| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 315 | 38,101 |  |  |  |  |
 | h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 317 | 904 |  | 0006 | `terraform/environments/dev` |  |
 | h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 327 | 388 |  |  | `terraform/state` |  |
 | h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 331 | 733 |  |  |  |  |
 | h3 | [§3.4 IAM](SWU_Platform_Spec.md#34-iam) | 338 | 2,971 |  |  |  |  |
 | h3 | [§3.4a Pricing infrastructure (BL-136/BL-139)](SWU_Platform_Spec.md#34a-pricing-infrastructure-bl-136bl-139) | 372 | 1,560 |  |  | `terraform/modules/app/pricing_jobs.tf` |  |
-| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 381 | 4,233 | 2026-10-28 As-built |  | `backend/app/data/google_ranges.json`, `backend/app/forwarded.py`, `backend/scripts/refresh_google_ranges.py` |  |
+| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 381 | 4,782 | 2026-10-28 As-built |  | `backend/app/data/google_ranges.json`, `backend/app/forwarded.py`, `backend/app/services/github_notify.py`, `backend/scripts/refresh_google_ranges.py` |  |
 | h3 | [§3.6 Cloud SQL](SWU_Platform_Spec.md#36-cloud-sql) | 413 | 3,753 | 2026-07-24 D4 — prod Cloud SQL tier |  | `backend/app/database.py`, `terraform/environments/prod/main.tf` |  |
-| h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 433 | 4,327 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
+| h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 433 | 4,706 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
 | h3 | [§3.8 Artifact Registry](SWU_Platform_Spec.md#38-artifact-registry) | 452 | 211 |  |  |  |  |
 | h3 | [§3.9 Firebase & Identity Platform](SWU_Platform_Spec.md#39-firebase--identity-platform) | 456 | 3,077 |  | 0016 | `frontend/firebase.json` |  |
 | h3 | [§3.10 Custom domain](SWU_Platform_Spec.md#310-custom-domain) | 463 | 2,476 | 2026-07-20 BL-127 — `hyperspacevault.com`, a stand- |  | `terraform/modules/app/firebase.tf` |  |
