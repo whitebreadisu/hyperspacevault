@@ -16,8 +16,8 @@ def _current_tenant_id(db: Session) -> int:
 
 
 def get_quantities(db: Session) -> list[tuple[int, int]]:
-    """BL-101: the caller's sparse (variant_id, quantity) rows -- the
-    per-tenant half of the catalog/quantity split. RLS scopes the rows to
+    """The caller's sparse (variant_id, quantity) rows -- the per-tenant
+    half of the catalog/quantity split (App Spec §12). RLS scopes the rows to
     the session's tenant; the frontend merges these onto the (publicly
     cached) catalog list and treats every missing variant_id as 0."""
     return [
@@ -26,11 +26,6 @@ def get_quantities(db: Session) -> list[tuple[int, int]]:
         .order_by(Inventory.variant_id)
         .all()
     ]
-
-
-# BL-102: get_variants_with_inventory (the whole-catalog join behind
-# GET /api/inventory) retired -- runtime-dead since BL-56; get_quantities
-# above is its designed replacement (BL-101).
 
 
 def get_variant_with_inventory(db: Session, variant_id: int) -> CardVariant | None:
@@ -51,11 +46,12 @@ def get_variant_with_inventory(db: Session, variant_id: int) -> CardVariant | No
 def get_base_card_total(db: Session, base_card_id: int) -> int:
     """Sum of inventory.quantity across every variant of one base card.
 
-    BL-24: no longer used for blocking (each variant's own quantity is
-    compared to its own effective limit instead -- see
-    services/inventory.py's increment_card) -- this now backs only
-    "playset_complete", which stays "3 total copies across every variant of
-    this base card" regardless of the effective per-variant limit."""
+    Not used for blocking (each variant's own quantity is compared to its
+    own effective limit instead -- see services/inventory.py's
+    increment_card); this backs only "playset_complete" for non-singleton
+    cards, which means "COMPLETION_PLAYSET_SIZE (3) total copies across
+    every variant of this base card" regardless of the effective
+    per-variant limit."""
     result = (
         db.query(func.sum(func.coalesce(Inventory.quantity, 0)))
         .select_from(CardVariant)
@@ -87,13 +83,13 @@ def upsert_increment(db: Session, variant_id: int) -> Inventory:
 
 
 def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
-    """BL-219: atomically insert-or-adjust the (tenant_id, variant_id) row
-    by an arbitrary signed `delta` in a single statement -- extends
-    upsert_increment/upsert_decrement's ON CONFLICT pattern (still one
-    atomic write, no lost updates under concurrent adjusts) to a caller-
-    resolved delta instead of a fixed +-1, floor/ceiling clamped in the same
-    SQL expression via GREATEST/LEAST (mirrors upsert_decrement's floor
-    clamp, extended with a ceiling too).
+    """Atomically insert-or-adjust the (tenant_id, variant_id) row by an
+    arbitrary signed `delta` in a single statement -- upsert_increment/
+    upsert_decrement's ON CONFLICT pattern (one atomic write, no lost
+    updates under concurrent adjusts) applied to a caller-resolved delta
+    instead of a fixed +-1, floor/ceiling clamped in the same SQL
+    expression via GREATEST/LEAST (upsert_decrement's floor clamp plus a
+    ceiling).
 
     `delta` here is the SERVICE layer's already-resolved `applied` amount
     (services/inventory.py's adjust_card/_resolve_adjust already clamped it
@@ -103,10 +99,9 @@ def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
     concurrent write raced the earlier read, the write below still can never
     push the stored quantity out of bounds, but the limit/ceiling *decision*
     that produced `delta` can be marginally stale under that race -- the
-    same tolerated posture increment_card's existing pre-read-then-atomic-
-    write already has today (BL-219's spec explicitly notes this: the ON
-    CONFLICT write is already atomic, so cross-call serialization isn't
-    needed for correctness)."""
+    same tolerated posture as increment_card's pre-read-then-atomic-write:
+    the ON CONFLICT write is atomic, so cross-call serialization isn't
+    needed for correctness."""
     tenant_id = _current_tenant_id(db)
     table = cast(Table, Inventory.__table__)
     stmt = (
@@ -129,7 +124,7 @@ def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
 
 
 def get_export_rows(db: Session):
-    """BL-54 S1 (§7.1): every inventory row with quantity >= 1, joined to
+    """Every inventory row with quantity >= 1 (App Spec §17.1), joined to
     its variant + base card. The ORDER BY here is only a stable base; the
     export's final Vault-matching order (curated set groups, numeric card
     number) is applied by services/inventory.py via

@@ -7,9 +7,8 @@ import { capturePhone } from "./phoneAnalytics";
 import { backOr } from "./router";
 import "./feedback.css";
 
-// BL-247 S1-25: Leave Feedback at #/more/feedback (rev4 MMore.jsx:73-136;
-// CSS m-rev2.css:113-158, m-rev3.css:226-235). Steel-ring console shell at
-// full-shell scale (18 / 17 px cuts), X top-right. Behaviour and copy are
+// Leave Feedback at #/more/feedback. Steel-ring console shell at full-shell
+// scale (18 / 17 px cuts, feedback.css), X top-right. Behaviour and copy are
 // desktop FeedbackModal.tsx's, verbatim: free-form message; the contact
 // checkbox reveals "Your Email" (prefilled from the account, editable);
 // Submit only with a message and, when contact is ticked, a plausible email
@@ -24,7 +23,7 @@ export function FeedbackScreen({
   fromMore = false,
 }: {
   onClose: () => void;
-  /** S4 F3: reached from More -> a left back chevron to #/more (like every
+  /** Reached from More -> a left back chevron to #/more (like every
    * More sub-page); reached from the Vault header -> the X top-right. */
   fromMore?: boolean;
 }) {
@@ -74,7 +73,7 @@ export function FeedbackScreen({
         website,
       });
       setSucceeded(true);
-      capturePhone("feedback_submitted"); // BL-235 / S1-27
+      capturePhone("feedback_submitted"); // App Spec §22
     } catch {
       setError("Something went wrong sending your feedback. Please try again.");
     } finally {

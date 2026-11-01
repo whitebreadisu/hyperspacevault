@@ -1,7 +1,6 @@
-"""BL-137 D3: the three-scope buildability diff
-(Definition_DeckCheck_2026-07-16.md §4). Pure -- operates on plain dicts of
-base_card_id -> int, no DB/ORM, so the named acceptance case is a
-one-function unit test with no fixtures.
+"""The three-scope buildability diff (App Spec §12, Deck check). Pure --
+operates on plain dicts of base_card_id -> int, no DB/ORM, so the named
+acceptance case is a one-function unit test with no fixtures.
 
 Sequential math: main scope runs against the full owned quantity; side
 scope runs against owned quantity MINUS whatever main *needed* (not
@@ -45,10 +44,10 @@ def remaining_after_main(
     main_needs: dict[int, int], owned: dict[int, int]
 ) -> dict[int, int]:
     """Owned quantities after reserving whatever main *needs* (not what it
-    actually has) -- the sequential math's middle step, exposed publicly
-    (BL-142) so the ALL CARDS full-card-list build can compute the side
-    scope's 'have' baseline the same way the missing-only diff already
-    does, without re-deriving or duplicating the reservation rule."""
+    actually has) -- the sequential math's middle step, public so the ALL
+    CARDS full-card-list build computes the side scope's 'have' baseline
+    the same way the missing-only diff does, without re-deriving or
+    duplicating the reservation rule."""
     return {
         base_card_id: max(qty - main_needs.get(base_card_id, 0), 0)
         for base_card_id, qty in owned.items()
@@ -65,7 +64,7 @@ def diff_scopes(
     every variant/printing before this function ever sees it). Returns
     (main, side, together).
 
-    Named acceptance case (Definition_DeckCheck §4): main_needs={X: 2},
+    Named acceptance case (App Spec §12): main_needs={X: 2},
     side_needs={X: 1}, owned={X: 2} -> main buildable (2 of 2), side NOT
     (0 of 1 remaining after main's 2 are reserved), together NOT.
     """
@@ -80,7 +79,7 @@ def diff_scopes(
 
 
 def full_entries(needs: dict[int, int], owned: dict[int, int]) -> list[MissingEntry]:
-    """BL-142: every card in a needs pool, not just the missing ones -- the
+    """Every card in a needs pool, not just the missing ones -- the
     ALL CARDS toggle needs owned/fully-owned rows alongside missing rows to
     render a complete deck list. Reuses MissingEntry's (base_card_id, need,
     have) shape (a card with have >= need is simply a non-missing entry

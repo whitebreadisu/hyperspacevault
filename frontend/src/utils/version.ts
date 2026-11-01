@@ -1,4 +1,5 @@
-// BL-184: pure formatting for the footer version label. `__APP_VERSION__` is
+// Pure formatting for the version label (the desktop Header and the phone
+// screens, App Spec §20). `__APP_VERSION__` is
 // package.json's "version" field, baked in at build time (vite.config.ts's
 // `define`) -- this module only formats the string, it never reads the
 // build-time global itself, so it stays trivially unit-testable.

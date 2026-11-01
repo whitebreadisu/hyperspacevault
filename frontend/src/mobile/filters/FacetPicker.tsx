@@ -12,9 +12,8 @@ import type { filterActions } from "./filterModel";
 import type { FacetId } from "./FacetRows";
 import { CheckRow, FChip, PickerFrame, zero } from "./pickerParts";
 
-// BL-248 stage 2B-2 (S2-17 / S2-18 / S2-19 pickers; rev4 MFilterPickers.jsx
-// + MFilters.jsx SetFacet / CollectionFacet / FinishTree / PickerSheet). A
-// picker opens over Filters (X top-right, Done) and edits the Vault's state
+// The facet pickers (App Spec §25.2: Set, Collection, Finish, Keyword /
+// Trait). A picker opens over Filters (X top-right, Done) and edits the Vault's state
 // live through the same actions as the rows. Local UI state (Show all sets,
 // expanded finish families, the search box) starts fresh on every open, as
 // desktop resets its menus on close.
@@ -28,7 +27,7 @@ export interface PickerProps {
   f: FilterState;
   toggles: CollectionToggles;
   scope: string | null;
-  /** The facet universe (toggles + search; S2-15 facetBase). */
+  /** The facet universe (toggles + search; filterModel facetBase). */
   facetCards: InventoryCard[];
   /** Every card (the Finish tree and Keyword / Trait universes). */
   all: InventoryCard[];
@@ -45,7 +44,7 @@ export function FacetPicker(p: PickerProps) {
   return <ListPicker {...p} field={p.id} />;
 }
 
-// ── S2-17 Set picker (desktop FilterPanel Set facet + its menubar) ──────────
+// ── Set picker (desktop FilterPanel Set facet + its menubar) ────────────────
 function SetPicker({ f, facetCards, sets, setNameByCode, act, onClose }: PickerProps) {
   const [all, setAll] = useState(false);
   const groups = useMemo(() => setPickerGroups(sets), [sets]);
@@ -126,7 +125,7 @@ function SetPicker({ f, facetCards, sets, setNameByCode, act, onClose }: PickerP
   );
 }
 
-// ── S2-18 Collection picker (CardsPage's four toggles + exclusions) ─────────
+// ── Collection picker (CardsPage's four toggles + exclusions) ───────────────
 function CollectionPicker({ toggles, scope, act, onClose }: PickerProps) {
   const n = COLLECTION_LONG.filter(([k]) => toggles[k]).length;
   return (
@@ -156,7 +155,7 @@ function CollectionPicker({ toggles, scope, act, onClose }: PickerProps) {
   );
 }
 
-// ── S2-18 Finish picker (desktop FinishFilter's two-tier tree) ──────────────
+// ── Finish picker (desktop FinishFilter's two-tier tree) ────────────────────
 function FinishPicker({ f, facetCards, all, act, onClose }: PickerProps) {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const tree = useMemo(() => buildFinishTree(all), [all]);
@@ -340,7 +339,7 @@ function FinishRow({
   );
 }
 
-// ── S2-19 Keyword / Trait picker (desktop MultiSelect `searchable`) ─────────
+// ── Keyword / Trait picker (desktop MultiSelect `searchable`) ───────────────
 function ListPicker({
   field,
   f,

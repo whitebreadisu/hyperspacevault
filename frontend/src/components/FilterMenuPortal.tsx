@@ -2,17 +2,13 @@ import { useLayoutEffect, useState } from "react";
 import type { RefObject } from "react";
 import { createPortal } from "react-dom";
 
-// BL-147 dev-review fix (fix 6, BL-144-family finding): the filter
-// sidebar's outer `.ifp-sidebar__ring` clips descendant paint to its own
-// angled-corner polygon (design idiom, not accidental overflow -- see
-// FilterPanel.css's own comment on that rule) -- any dropdown menu
-// (MultiSelect.tsx / FinishFilter.tsx's shared `.ifp-multi__menu`) that
-// would visually extend past the ring's bottom edge got cut off there
-// instead of rendering in full. Same root cause class as BL-45's existing
-// portal precedent for VariantsTooltip: an absolutely-positioned popover
-// nested inside a clipping/overflow ancestor.
+// The filter sidebar's outer `.ifp-sidebar__ring` clips descendant paint to
+// its own angled-corner polygon (design idiom, not accidental overflow --
+// see FilterPanel.css's file header), so a dropdown menu
+// (MultiSelect.tsx / FinishFilter.tsx's shared `.ifp-multi__menu`) rendered
+// in place would be cut off at the ring's bottom edge.
 //
-// Fix: portal the menu to `document.body` (`position: fixed`, coordinates
+// So the menu is portaled to `document.body` (`position: fixed`, coordinates
 // computed from the trigger button's own `getBoundingClientRect()`) so it
 // escapes the ring's clip-path -- and every other overflow/stacking
 // ancestor -- entirely. Position is recomputed on open, window resize, and
@@ -20,19 +16,18 @@ import { createPortal } from "react-dom";
 // internal `.ifp-sidebar__scroll-region` scrolling).
 //
 // The portaled root carries FILTER_MENU_PORTAL_ATTR so FilterPanel.tsx's
-// own outside-click handling (fix 5) -- and MultiSelect/FinishFilter's
-// pre-existing per-field outside-click, which also breaks once its menu is
-// no longer a DOM descendant of the field's own ref -- can both treat a
-// click landing in the portaled menu as "inside" via
+// own outside-click handling and MultiSelect/FinishFilter's per-field
+// outside-click (the menu is not a DOM descendant of the field's own ref)
+// can all treat a click landing in the portaled menu as "inside" via
 // isInsideFilterMenuPortal, without needing a second ref threaded through.
 export const FILTER_MENU_PORTAL_ATTR = "data-ifp-menu-portal";
 
 /** True if `target` is inside any portaled filter-menu root (or not an
  * Element at all, e.g. a synthetic event with a non-Element target -- never
  * treated as inside in that case). Shared by MultiSelect/FinishFilter's own
- * outside-click handling and FilterPanel's panel-level outside-click
- * (fix 5), so both agree on what counts as "still interacting with a
- * filter control" once menus are portaled. */
+ * outside-click handling, FilterPanel's panel-level outside-click and
+ * VariantScopeControls (screens/cards), so all agree on what counts as
+ * "still interacting with a filter control". */
 export function isInsideFilterMenuPortal(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(`[${FILTER_MENU_PORTAL_ATTR}]`) !== null;
 }
@@ -45,27 +40,28 @@ interface FilterMenuPortalProps {
   /** The owning field's own label (MultiSelect/FinishFilter's `label` prop,
    * e.g. "Set", "Keywords") -- stamped onto the portaled root as
    * `data-ifp-field`. Multiple dropdowns can be open at once (no mutual-
-   * exclusivity between fields), and every portaled menu now lands as a
+   * exclusivity between fields), and every portaled menu lands as a
    * sibling under `document.body` rather than nested under its own field's
-   * `.ifp-field` -- this is what lets a test (or any future code) still
-   * scope to "the menu belonging to field X" via
-   * `[data-ifp-field="Set"]` instead of DOM containment. */
+   * `.ifp-field` -- this is what lets a test (or any other code) scope to
+   * "the menu belonging to field X" via `[data-ifp-field="Set"]` instead of
+   * DOM containment. */
   fieldLabel: string;
-  /** BL-173 review round 4 (owner): optional floor for the MENU's width,
+  /** Optional floor for the MENU's width,
    * independent of the trigger. The menu still matches the trigger's width
    * by default (`width: rect.width`); a larger minWidth lets content-heavy
    * menus (Finish's Prestige label + three chips on one row) render wider
    * than the sidebar control without touching the control itself. Safe to
    * widen rightward: the sidebar sits at the layout's left edge. */
   minWidth?: number;
-  /** BL-179 round 5 (owner): hover-dismiss, the completion popovers'
-   * pattern applied to the facet menus. Fires when the pointer leaves the
+  /** Hover-dismiss, the completion popovers' pattern applied to the facet
+   * menus. Fires when the pointer leaves the
    * portaled menu -- EXCEPT when it leaves back onto the owning field's own
    * control (`.ifp-multi`), which shouldn't count as abandoning the menu.
    * The 4px trigger-to-menu gap is bridged in CSS
    * (`.ifp-multi__menu--portal::before`) so crossing it never fires a
-   * leave at all (round 4's twitch lesson). Optional: menus opened by
-   * callers that don't pass it keep click-away/Esc-only dismissal. */
+   * leave at all (otherwise the menu would close while the pointer travels
+   * from trigger to menu). Optional: menus opened by callers that don't
+   * pass it keep click-away/Esc-only dismissal. */
   onHoverDismiss?: () => void;
   children: React.ReactNode;
 }

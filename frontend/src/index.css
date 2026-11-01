@@ -6,7 +6,7 @@
   box-sizing: border-box;
 }
 
-/* BL-152: @property registrations for the two custom color properties the
+/* @property registrations for the two custom color properties the
    SWU button hover glow animates (--color-primary, --color-button-edge) --
    without a registered syntax, browsers treat custom properties as opaque
    tokens and cannot tween them through a `transition`, so a color change
@@ -25,14 +25,12 @@
 }
 
 :root {
-  /* BL-122: the browser's default UA scrollbar (page-level and any native
-     control that draws its own, e.g. <select>) renders in its *light*
-     variant regardless of the app's own dark theme unless told otherwise --
+  /* The browser's default UA scrollbar (page-level and any native control
+     that draws its own, e.g. <select>) renders in its *light* variant
+     regardless of the app's own dark theme unless told otherwise --
      `color-scheme` is the standard hook for that. Set at :root (not scoped
-     to .app-layout) so the page-level scrollbar itself goes dark too, which
-     is the actual jarring case this fixes; a side effect (accepted/desired,
-     not incidental) is that native controls like SetSelector's <select>
-     also start rendering dark chrome. */
+     to .app-layout) so the page-level scrollbar itself goes dark too; native
+     controls such as <select> rendering dark chrome as well is intended. */
   color-scheme: dark;
   --bg-page: #090b14;
   --bg-surface: #0f1528;
@@ -46,16 +44,15 @@
   --color-text: #e6e6e6;
   --color-text-muted: #6b7a99;
   --color-border: #1e2748;
-  /* BL-87: destructive-action red, matching the value AuthModal.css's
-     .auth-error already uses inline -- promoted to a variable so
-     Delete Account's menu item + modal can share it explicitly. */
+  /* Destructive-action red (the value AuthModal.css's .auth-error uses),
+     shared by the destructive controls such as Delete Account. */
   --color-danger: #f87171;
   --color-danger-dim: #ef4444;
-  /* BL-35: soft-cap "over your keep-limit, still added" warning state --
+  /* Soft-cap "over your keep-limit, still added" warning state --
      distinct from --color-danger (a genuine block). */
   --color-warning: #d99a1f;
   --color-warning-dim: #b9800f;
-  /* BL-122: steel-ring family (rgba(211,211,212,X)) already used for the
+  /* Steel-ring family (rgba(211,211,212,X)), the colour of the
      circuit-separator, gallery plate/dossier rings, and CardPopup's ring
      geometry -- reused here as the internal-scrollbar thumb color so the
      scrollbars read as the same console chrome instead of a new material. */
@@ -76,16 +73,13 @@ body {
 }
 
 /* ── App layout ─────────────────────────────────────────── */
-/* BL-111 F3 (design handoff §3): black circuit-tile page background, shared
- * across the whole app shell rather than scoped to just the Cards screen --
- * Header/SectionSeparator (F2) are already App-level shared chrome, so this
- * follows the same precedent instead of duplicating the tile per-screen.
- * (Settings inherits it too; its own panel already has a solid
- * `--bg-surface` background, so this reads as a shared "console" backdrop,
- * not a regression -- see the PR description.) `background-attachment:
- * fixed` matches the design handoff verbatim; .app-layout itself never
- * scrolls (its children scroll internally), so it's a no-op here in
- * practice but kept for fidelity/future-proofing. */
+/* Black circuit-tile page background, shared across the whole app shell
+ * rather than scoped to one screen -- Header/SectionSeparator are App-level
+ * shared chrome too, so the tile is not duplicated per screen. Panels with
+ * their own solid `--bg-surface` background (e.g. Settings) read it as a
+ * shared "console" backdrop. `background-attachment: fixed` is a no-op in
+ * practice (.app-layout itself never scrolls; its children scroll
+ * internally) but keeps the tile fixed if that changes. */
 .app-layout {
   display: flex;
   flex-direction: column;
@@ -107,7 +101,7 @@ body {
 }
 
 /* ── Header ─────────────────────────────────────────────── */
-/* BL-111 F3: position:relative so the ::before starfield layer below can
+/* position:relative so the ::before starfield layer below can
  * anchor to the header's own box. */
 .app-header {
   position: relative;
@@ -119,8 +113,8 @@ body {
   justify-content: space-between;
 }
 
-/* Starfield center strip under a left-to-right dark gradient (design
- * handoff §3). BL-165: the art is randomly selected once per app open --
+/* Starfield center strip under a left-to-right dark gradient. The art is
+ * randomly selected once per app open --
  * App sets `--header-starfield` on the document root at mount
  * (utils/headerStarfield.ts, no-repeat-of-last pool of the ten shipped
  * starfields); ASH stays the no-JS/no-var fallback via var()'s second
@@ -147,14 +141,11 @@ body {
   position: relative;
   padding: 14px 32px 0;
   font-family: var(--font-ui);
-  /* Owner dev-review 2026-07-23: brand line bumped 13px -> 16px (the tag
-   * line below it stays 10px). */
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  /* Owner dev review 2026-07-26: white over the rotating starfield (see
-   * .nav-tab's note). */
+  /* White over the rotating starfield (see .nav-tab's note). */
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   display: flex;
@@ -163,13 +154,12 @@ body {
   gap: 3px;
 }
 
-/* BL-227 round 2 (owner, 2026-08-16): the wordmark + BL-125's "Unofficial
- * Fan Project" line are ONE About button now, hover animating together.
- * The button inherits the brand's own type (set on .app-header__brand) and
- * reproduces its two-line column layout internally. Hover = the header
- * links' shared language: a brightened take on the SWU button's wake blue
- * (#3b82f6 vs .swu-btn's #2563eb) with a brighter, more pronounced glow --
- * owner-dialed past the button's own 9px/0.45 flare. */
+/* The wordmark + the "Unofficial Fan Project" line are ONE About button,
+ * hover animating together. The button inherits the brand's own type (set
+ * on .app-header__brand) and reproduces its two-line column layout
+ * internally. Hover = the header links' shared language: a brightened take
+ * on the SWU button's wake blue (#3b82f6 vs .swu-btn's #2563eb) with a
+ * brighter, more pronounced glow than the button's own 9px/0.45 flare. */
 .app-header__brand-link {
   background: transparent;
   border: none;
@@ -196,7 +186,7 @@ body {
   filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
 }
 
-/* BL-125's disclaimer line, now a span INSIDE the About button above --
+/* The disclaimer line, a span INSIDE the About button above --
  * keeps its own smaller type, follows the button's color states. */
 .app-header__brand-tag {
   font-family: var(--font-ui);
@@ -208,28 +198,25 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
-/* BL-184: version label, a third item appended to the brand column below
-   .app-header__brand-tag -- same layout idiom (flex-column, 3px gap, set on
-   the shared .app-header__brand parent), same idle-color relationship
-   (--color-text-muted at rest, brightening on hover/focus) as the tag above,
-   just a size step down (this is metadata about the metadata). Opens the
-   "New Arrivals" release-notes view (App-owned view switch, see
-   App.tsx/screens/notes/NewArrivalsPage.tsx); visible for anonymous visitors
-   too, and the permanent re-entry point once the nav tab (below) is gone. */
+/* Version label, the item after the About button in the brand column --
+   same layout idiom (flex-column, 3px gap, set on the shared
+   .app-header__brand parent). Opens the release-notes view (App-owned view
+   switch, see App.tsx/screens/notes/NewArrivalsPage.tsx); visible for
+   anonymous visitors too, and the permanent re-entry point while the
+   "[HSV] Updates" nav tab (below) is hidden. */
 .app-header__version {
   background: transparent;
   border: none;
   padding: 0;
   margin: 0;
   font-family: var(--font-ui);
-  /* Owner review round 1 (2026-08-02): 9px read as fine print -- one step
-     BELOW the brand tag was too far down the hierarchy for a click target. */
+  /* Larger than the 10px brand tag: smaller sizes read as fine print, not
+     as a click target. */
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  /* Owner round 2026-08-16 (supersedes round 6's amber-at-rest): white like
-     the rest of the header text; the unread --cue state below stays the
-     amber pulse (it's the notification signal, not the label's identity). */
+  /* White like the rest of the header text; the unread --cue state below
+     adds the pulse (the notification signal, not the label's identity). */
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   cursor: pointer;
@@ -238,18 +225,17 @@ body {
     filter 0.3s ease;
 }
 
-/* Owner round 2026-08-16: hover wakes to the SWU button's own app blue
-   (#2563eb, .swu-btn:hover) + its exact drop-shadow glow -- same treatment
-   as .app-header__brand-tag above; the two header links share one hover
-   language. */
+/* Hover: the same treatment as .app-header__brand-link above (the
+   brightened wake blue #3b82f6 + the pronounced glow); the two header
+   links share one hover language. */
 .app-header__version:hover,
 .app-header__version:focus-visible {
   color: #3b82f6;
   filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
 }
 
-/* Owner review round 5 (2026-08-02): "Release Notes" rides after the version
-   number inside the SAME button/link -- smaller, spaced off the number,
+/* "[Release Notes]" rides after the version number inside the SAME
+   button/link -- smaller, spaced off the number,
    inheriting the button's color states (rest/hover/cue) so the pair reads
    as one label. */
 .app-header__version-sub {
@@ -260,12 +246,11 @@ body {
   text-transform: uppercase;
 }
 
-/* BL-184: subtle unread cue -- a gentle glow pulse rather than a bouncing
-   badge (owner's explicit "keep it SUBTLE" call). BL-227 round 2 (owner,
-   2026-08-16): the version label's cue drops the amber entirely -- white
-   text with a warm-cream pulse (the SWU button-flare tone) so the label
-   never reads amber in any state; the "[HSV] UPDATES" nav tab's own cue
-   (.nav-tab--cue / na-cue-pulse-tab below) KEEPS its amber, unchanged. */
+/* Subtle unread cue -- a gentle glow pulse rather than a bouncing badge.
+   The version label's cue is white text with a warm-cream pulse (the SWU
+   button-flare tone), so the label never reads amber in any state; the
+   "[HSV] UPDATES" nav tab's own cue (.nav-tab--cue / na-cue-pulse-tab
+   below) is amber. */
 @keyframes na-cue-pulse {
   0%,
   100% {
@@ -293,15 +278,11 @@ body {
   padding: 14px 32px 0;
 }
 
-/* BL-126: "Leave Feedback" entry point, sitting left of the Sign In button /
- * avatar inside .app-header__account. BL-129 R4's custom accented pill
- * (.app-header__feedback-btn, solid --color-primary fill) is retired as of
- * R4b (Jeremy's 2026-07-14 dev review) -- it read as a second competing CTA
- * next to Sign In. Header.tsx now renders it as a plain SWUButton, same
- * size="sm" as Sign In, so this slot has one button treatment, not two. */
+/* The "Leave Feedback" entry point (left of the Sign In button / avatar in
+ * .app-header__account) is a plain SWUButton, same size="sm" as Sign In
+ * (Header.tsx), so this slot has one button treatment and no rule here. */
 
-/* BL-22: avatar dropdown menu, replacing the old inline email + Log Out
- * (BL-56) in the authenticated top-right account slot. */
+/* Avatar dropdown menu in the authenticated top-right account slot. */
 .app-header__user-menu {
   position: relative;
 }
@@ -376,37 +357,17 @@ body {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* BL-87 originally added a `.app-header__menu-item--danger` modifier here
-   for the avatar menu's Delete Account item; BL-129 R5 relocated that
-   trigger to SettingsPage's danger zone (SettingsPage.css's .settings-btn--
-   danger), so this menu no longer has a destructive item and the modifier
-   is retired -- nothing in the menu needs danger styling anymore. */
-
 .app-header__nav {
-  /* order:1 lays the full-width nav out *after* brand + account, so those two
-   * share the top row (account → top-right corner) and the nav drops to its
-   * own centered row below -- rather than the nav's flex-basis:100% pushing
-   * the account slot down to a third row.
-   * BL-111 F3: also position:relative -- see .app-header::before's comment;
-   * this container needs to paint above the starfield layer even though the
-   * text-shadow itself lives on .nav-tab below (matching the design
-   * handoff's markup: the shadow is on each tab span, not the nav wrapper). */
-  /* R3 round 3 (BL-129, Jeremy's dev review): rounds 1-2 centered the label
-     within the nav's OWN row -- but the header is a two-row wrap layout
-     (brand + account on top, nav on a full-width second row below), so "row-
-     centered" still reads as bottom-of-header. What Jeremy wants is centering
-     in the HEADER BAR AS A WHOLE, which means lifting the nav out of the flow
-     entirely: absolutely centered on both axes against .app-header (which is
-     already position:relative). The old order:1/flex-basis:100% second-row
-     trick is retired at desktop widths; the header's height is now set by the
-     brand/account row alone, and the nav floats dead-center of it. Kept
-     out-of-flow ONLY at >=1024px -- below that the brand block and nav could
-     collide, so the original second-row layout returns (media query below).
-     BL-111 F3 stacking need (paint above the starfield layer) is preserved:
-     position:absolute creates the same stacking-context opportunity
-     position:relative did; z-index unchanged semantics. The active-tab
-     underline now sits mid-header, far clear of the header separator, so the
-     R3 clearance padding is no longer needed at these widths. */
+  /* At >=1024px the nav is out of flow, absolutely centered on both axes
+     against .app-header (position:relative), so it sits dead-center of the
+     whole header bar rather than on a second row below brand + account. Below
+     1024px the brand block and nav could collide, so the media query below
+     returns it to its own full-width row. Being positioned (absolute here,
+     relative below) is also what makes it paint above the ::before starfield
+     layer -- see .app-header::before's comment; the text-shadow itself lives
+     on each .nav-tab, not on this wrapper. Mid-header, the active-tab
+     underline sits far clear of the header separator, so no clearance
+     padding is needed at these widths. */
   position: absolute;
   top: 50%;
   left: 50%;
@@ -418,21 +379,21 @@ body {
   justify-content: center;
 }
 
-/* R3 round 4: taking the nav out of flow (round 3) also removed the height
-   its second row contributed -- the header collapsed to the brand row alone
-   and the account buttons crowded the separator. Restore EXACTLY the height
-   the nav row used to add (44px min-height + 8px clearance = 52px) as header
-   padding, so the bar reads at its original height with the nav floating
-   dead-center of it. */
+/* Out of flow, the nav adds no height, so without this the header would
+   collapse to the brand row and the account buttons would crowd the
+   separator. 52px of bottom padding keeps the bar tall, with the nav
+   floating dead-center of it. */
 @media (min-width: 1024px) {
   .app-header {
     padding-bottom: 52px;
   }
 }
 
-/* R3 round 3: narrow-viewport fallback -- restore the pre-round-3 second-row
-   layout (order/flex-basis trick, row-centered label, separator clearance)
-   where an absolutely-centered nav would collide with the wide brand block. */
+/* Narrow-viewport layout, where an absolutely-centered nav would collide
+   with the wide brand block: order:1 + flex-basis:100% put the nav on its
+   own full-width row after brand + account (which share the top row,
+   account in the top-right corner), with a row-centered label and bottom
+   clearance above the separator. */
 @media (max-width: 1023px) {
   .app-header__nav {
     position: relative;
@@ -450,13 +411,11 @@ body {
   position: relative;
   background: transparent;
   border: none;
-  /* R3c (BL-129 fix round 2): vertical padding retired -- .app-header__nav's
-     align-items: center (above) now does 100% of the vertical positioning.
-     Horizontal padding only, unchanged from R3b/R3's 16px. Font size stays
-     20px (R3b), matching the modal-title step already used elsewhere
-     (AboutModal/AuthModal/FeedbackModal .css all use 20px as their "one step
-     up from 18px" heading size) so the active nav label reads with a touch
-     more header-level weight. */
+  /* Horizontal padding only: .app-header__nav's align-items: center (above)
+     does all of the vertical positioning. Font size 20px matches the
+     modal-title step used elsewhere (AboutModal/AuthModal/FeedbackModal .css
+     all use 20px as their "one step up from 18px" heading size) so the nav
+     label reads with a touch more header-level weight. */
   padding: 0 16px;
   cursor: pointer;
   font-family: var(--font-ui);
@@ -464,9 +423,8 @@ body {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  /* Owner dev review 2026-07-26: BL-165's rotating starfields make muted
-   * labels unreadable on the brighter art -- all header labels white for
-   * now (brand + brand-tag below likewise). */
+  /* The rotating starfields make muted labels unreadable on the brighter
+   * art, so all header labels are white (brand + brand-tag likewise). */
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   transition:
@@ -474,11 +432,12 @@ body {
     filter 0.3s ease;
 }
 
-/* BL-227 round 3 (owner, 2026-08-16): the selectable nav tabs (Vault, Deck
- * Check, Shared, [HSV] Updates, Settings way-back -- every BUTTON tab) join
- * the header links' shared hover language: brightened wake blue + the
- * pronounced glow. Element-qualified so the ACTIVE tab (a non-interactive
- * span) never takes hover styling. */
+/* The selectable nav tabs (every BUTTON tab: [HSV] Updates, Vault, Deck
+ * Check, the shared vault's name, and the Vault way-back button on the
+ * Settings / Import-Export views) share the header links' hover language:
+ * brightened wake blue + the pronounced glow. Element-qualified so the
+ * non-interactive active span on the Settings / Import-Export views never
+ * takes hover styling. */
 button.nav-tab:hover,
 button.nav-tab:focus-visible {
   color: #3b82f6;
@@ -499,12 +458,11 @@ button.nav-tab:focus-visible {
   background: var(--color-primary);
 }
 
-/* BL-184: the "New Arrivals" nav tab's unread cue -- same na-cue-pulse
-   keyframe/amber intent as .app-header__version--cue above (see that rule's
-   comment for the --color-warning-not-primary note), scaled to this tab's
-   larger 20px label. Layered with -- not replacing -- .nav-tab--active's own
-   white/underline styling, so an active-and-still-unread instant (the one
-   render tick before App's click handler clears the flag) reads correctly. */
+/* The "[HSV] Updates" nav tab's unread cue -- an amber pulse (the
+   --color-warning tone, rgb(217,154,31)), scaled to this tab's larger 20px
+   label; the version label's cue above is warm cream instead. Layered with
+   -- not replacing -- .nav-tab--active's own white/underline styling, so a
+   tab that is both active and unread reads correctly. */
 @keyframes na-cue-pulse-tab {
   0%,
   100% {
@@ -530,29 +488,26 @@ button.nav-tab:focus-visible {
   border-top: 1px solid var(--color-border);
 }
 
-/* ── Circuit separator (BL-111 F2, design handoff §2) ──────
+/* ── Circuit separator ──────────────────────────────────────
    "Straddle pattern": a strip pulled up half its own height so its
    vertical midpoint sits on the header/content seam beneath it -- the
    rails read as overlapping both sections equally. It's a mask, not an
    image: only the SVG's circuit-line shapes get painted (steel grey, 55%
    opacity); the flex column's own background shows through everywhere
-   else. Reusable as a class -- later BL-111 features (popup/modal
-   headers) straddle the same pattern over other seams via
-   SectionSeparator's optional className. z-index keeps it painting above
-   both neighboring sections.
+   else. Reusable as a class -- other seams (the card popup, the phone's
+   screens) straddle the same pattern via SectionSeparator's optional
+   className. z-index keeps it painting above both neighboring sections.
    The mask art is served from public/swu-separator.svg (not a Vite
    src/assets/ import) so it's always a real file URL, never an inlined
    data URI -- see SectionSeparator.tsx's docstring for why that matters
    (masks sourced from a data: URI silently fail to rasterize).
-   BL-111 dev-review wave 1 fix 1: the strip used to be a *fixed* 26px
-   tall against a *fluid* 100% width, with mask-size:100%/100% stretching
-   the art to fill that mismatched box -- so the circuit-line art's shape
-   changed with window width/zoom (correct only at the one viewport width
-   it was eyeballed against). swu-separator.svg's viewBox is 2560x70
-   (aspect 2560/70), so `aspect-ratio` now derives the strip's height from
-   its own rendered width every time, at every width/zoom -- the box always
-   matches the SVG's native proportions, so mask-size:100%/100% is undistorted
-   by construction and never needs to know the strip's height in px.
+   The height is never fixed: a fixed height against the fluid 100% width
+   would let mask-size:100%/100% stretch the art, changing the circuit-line
+   shape with window width/zoom. swu-separator.svg's viewBox is 2560x70
+   (aspect 2560/70), so `aspect-ratio` derives the strip's height from its
+   own rendered width at every width/zoom -- the box always matches the
+   SVG's native proportions, so mask-size:100%/100% is undistorted by
+   construction and never needs to know the strip's height in px.
    The straddle offset must stay exactly -height/2 so the seam stays
    centered. CSS resolves a *vertical* margin percentage against the
    *containing block's width* (a long-standing box-model quirk, not a
@@ -582,9 +537,8 @@ button.nav-tab:focus-visible {
 }
 
 /* ── SWU Button ─────────────────────────────────────────── */
-/* BL-152: hover glow animation. Design source: Claude Design handoff
-   claude_design/design_handoff_swu_button_glow/OPTION_C_WARM_SPEC.md
-   (owner-selected "Option C" deep-navy rest color + "warm edge flare" glow).
+/* Hover glow animation (App Spec §18): deep-navy rest color + a "warm edge
+   flare" glow on hover, `aria-disabled` teasers excluded.
    The --color-primary override below is a LOCAL var scoped to .swu-btn --
    --color-primary is also a global app variable (see :root above), and this
    override MUST stay scoped here rather than moving to :root, or every
@@ -597,7 +551,7 @@ button.nav-tab:focus-visible {
   padding: 0;
   cursor: pointer;
   user-select: none;
-  --color-primary: #1e3a8a; /* C · deep navy rest */
+  --color-primary: #1e3a8a; /* deep navy rest */
   transition:
     --color-primary 0.25s ease,
     --color-button-edge 0.25s ease,
@@ -852,29 +806,19 @@ button.nav-tab:focus-visible {
   padding: 40px 0;
 }
 
-/* ── Modal overlay (BL-153, A3-06) ──────────────────────────
-   One shared full-screen backdrop class, replacing 6 near-identical
-   per-modal `.xxx-overlay { position: fixed; inset: 0; background: ...;
-   backdrop-filter: blur(...); ... }` definitions (AboutModal, AuthModal
-   [x2 call sites: the modal itself + DeleteAccountModal/ChangePasswordModal/
-   VerifyEmailAction, which all reuse .auth-modal-overlay], FeedbackModal,
-   CardPopup, AddCardsModal, AddCardsModal's nested close-guard confirm).
-   Each modal keeps its own overlay class name on the element too (e.g.
-   `className="cp-overlay modal-overlay"`) -- both for the handful of other
-   rules that still key off it (see the internal-scrollbars list below,
-   which targets `.cp-overlay`/`.ac-overlay` directly) and so tests/queries
-   written against the old class names keep working unchanged.
-
-   Blur drift resolved: the six pre-existing definitions split 4×blur(3px)
-   (About/Feedback/CardPopup/AddCardsModal) vs 2×blur(2px) (AuthModal
-   family, AddCardsModal's nested confirm) -- this class settles on the
-   dominant blur(3px). Background tint is likewise settled on the dominant
-   rgba(4, 6, 10, 0.72) (AuthModal's family previously used a very close
-   rgba(7, 9, 16, 0.74) -- imperceptibly different, now literally shared).
+/* ── Modal overlay ──────────────────────────────────────────
+   One shared full-screen backdrop class (position, tint, blur, centering)
+   for every modal overlay: AboutModal, the auth family (.auth-modal-overlay:
+   AuthModal, ChangePasswordModal, DeleteAccountModal, VerifyEmailAction,
+   ShareManageModal), FeedbackModal, CardPopup, AddCardsModal and its nested
+   close-guard confirm, and BusyOverlay. Each keeps its own overlay class
+   name on the element too (e.g. `className="cp-overlay modal-overlay"`) --
+   both for the other rules that key off it (see the internal-scrollbars
+   list below, which targets `.cp-overlay`/`.ac-overlay` directly) and for
+   tests/queries that select by those class names.
 
    Modifier classes cover the two spots whose placement is genuinely
-   different rather than drifted -- kept distinct per BL-153's instruction,
-   not flattened into the base:
+   different, not flattened into the base:
      .modal-overlay--top     AddCardsModal (.ac-overlay): top-aligned with
                               extra top padding (64px) instead of vertically
                               centered -- the modal is tall/scrolls its own
@@ -912,21 +856,23 @@ button.nav-tab:focus-visible {
   overflow-y: visible;
 }
 
-/* ── Internal scrollbars (BL-122) ───────────────────────────
-   One grouped rule for every internal scroll container in the app, rather
-   than duplicating the two declarations per component stylesheet. Standard
+/* ── Internal scrollbars ────────────────────────────────────
+   One grouped rule for the internal scroll containers listed below, rather
+   than duplicating the two declarations per component stylesheet. The list
+   is not every scroll container in the app: a scroller not named here keeps
+   the browser's default (dark, via color-scheme) scrollbar unless its own
+   stylesheet sets one. Standard
    `scrollbar-width`/`scrollbar-color` -- deliberately NOT `::-webkit-
    scrollbar` pseudo-elements, which conflict with the standard properties
    in Chromium (a browser can't merge the two systems, so mixing them makes
    the fallback unpredictable). The page-level UA scrollbar is handled
-   separately by `color-scheme: dark` above; this list is just the
-   *internal* scroll containers (surveyed via `overflow`/`overflow-y` across
-   every frontend CSS file -- see the comment above each container's own
-   rule for what it scrolls):
+   separately by `color-scheme: dark` above. The containers this rule
+   styles (see the comment above each container's own rule for what it
+   scrolls):
      .data-table-wrapper        cards.css   -- cards table
      .gallery-grid-wrapper      cards.css   -- gallery grid
      .ifp-multi__items          FilterPanel.css -- MultiSelect dropdown options
-     .ifp-sidebar__scroll-region FilterPanel.css -- BL-121 fallback-tier scroll
+     .ifp-sidebar__scroll-region FilterPanel.css -- fallback-tier scroll
      .cp-overlay                CardPopup.css -- modal backdrop (rare: only
                                  scrolls if the modal itself exceeds viewport)
      .cp-rail                   CardPopup.css -- printings rail

@@ -1,4 +1,4 @@
-"""BL-76 Phase 2 (ADR-0012): one-time (resumable) backfill of every existing
+"""One-time (resumable) backfill (ADR-0012) of every existing
 card image into a per-env GCS bucket, via image_mirror.mirror_image.
 
 Source of URLs is the local compose DB's `card_variants` table -- distinct

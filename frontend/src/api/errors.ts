@@ -1,16 +1,8 @@
-/** BL-154 (audit finding A3-07): the single error convention for every
- * frontend/src/api module going forward. Before this, three conventions
- * coexisted -- ad hoc `throw new Error(\`...: ${res.status}\`)` status-string
- * throws (account.ts, baseCards.ts, feedback.ts, inventory.ts, sets.ts), a
- * typed-with-status class with its own bespoke shape (settingsLimits.ts's
- * LimitsApiError), and parsed-body typed errors that read the response's
- * `detail` for a machine-readable code (deckCheck.ts's DeckCheckApiError,
- * inventoryImportExport.ts's ImportApiError). ApiError/CodedApiError below
- * generalize the latter two into one hierarchy -- every module's typed
- * error now extends one of them, and the status-string modules were
- * migrated onto ApiError too (the change is mechanical: same message text,
- * now carried by a typed instance instead of a bare Error). See
- * api/README.md for the full convention writeup and migration policy. */
+/** The single error convention for every frontend/src/api module: a non-2xx
+ * response throws a typed instance of ApiError or CodedApiError below (or a
+ * module subclass of one), never a bare Error. Plain status failures throw
+ * ApiError itself; parsed-body errors that carry a machine-readable code
+ * extend CodedApiError. See api/README.md for the convention writeup. */
 
 /** Base for every typed API error in this app. Carries the HTTP status so
  * callers can branch on it (e.g. 401 -> "signed out", 403 -> a specific

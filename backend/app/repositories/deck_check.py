@@ -1,8 +1,9 @@
-"""BL-137: DB access for the deck-check feature -- SET_NUM resolution
-(D1), finish-agnostic ownership (D3), and per-base-card variant prices for
-the cost join (D4). Reuses app.repositories.pricing.get_latest_prices (the
-BL-136 P4 query, rewired in BL-146 to read the variant_latest_prices
-snapshot table) rather than duplicating the latest-price lookup."""
+"""DB access for the deck-check feature (App Spec §12) -- SET_NUM
+resolution and finish-agnostic ownership (decks reference cards, not
+printings: ADR-0014), and per-base-card variant prices for the cost join.
+Reuses app.repositories.pricing.get_latest_prices (which reads the
+variant_latest_prices snapshot table, App Spec §16.2) rather than
+duplicating the latest-price lookup."""
 
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ def resolve_base_cards(
     db: Session, pairs: list[tuple[str, int]]
 ) -> dict[tuple[str, int], int]:
     """Batch-resolves (set_code, base_card_number) pairs to base_card_id,
-    non-token roots only -- SWU_Application_Spec.md §15.3's confirmed rule.
+    non-token roots only (ADR-0014's resolution rule).
     A pair absent from the returned dict means "no match"; callers must
     treat that as unresolved, never guess a nearest card."""
     if not pairs:
@@ -52,7 +53,7 @@ def resolve_base_cards(
 
 
 def get_owned_quantities(db: Session, base_card_ids: list[int]) -> dict[int, int]:
-    """Definition_DeckCheck §4: ownership is finish-agnostic -- sum of
+    """Ownership is finish-agnostic (ADR-0014) -- sum of
     inventory.quantity across every variant of a base card, any printing.
     RLS scopes this to the calling session's own tenant (or zero rows for a
     tenant-less/anonymous session -- deck-check is auth-only so that case
@@ -128,7 +129,7 @@ def get_variant_type_prices(
 ) -> dict[int, list[VariantTypePrice]]:
     """Per base card, every variant's (variant_type, PriceInfo|None) pair --
     the shape app.services.pricing.compute_display_price already consumes,
-    reused here for the deck-check cost join (D4)."""
+    reused here for the deck-check cost join."""
     if not base_card_ids:
         return {}
     cv = CardVariant.__table__.c

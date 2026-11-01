@@ -1,4 +1,4 @@
-/** BL-118: shared between AuthModal (sign-in) and DeleteAccountModal
+/** Shared between AuthModal (sign-in) and DeleteAccountModal
  * (provider reauth) so both surfaces describe Google popup/OAuth failures
  * identically instead of forking two copies of the same error-code map. */
 
@@ -22,10 +22,10 @@ export function describeGoogleAuthError(err: unknown): string | null {
   if (code && SILENT_CODES.has(code)) return null;
   const friendly = code ? FRIENDLY_CODES[code] : undefined;
   if (!friendly) {
-    // BL-211: the generic fallback hides which failure actually happened --
-    // during the Safari/ITP diagnosis the underlying code was invisible even
-    // with a live repro in hand. Keep a console record so the next report is
-    // debuggable from the reporter's own DevTools.
+    // The generic fallback hides which failure actually happened (a browser
+    // privacy block such as Safari's ITP shows only this message). Keep a
+    // console record of the code so a report is debuggable from the
+    // reporter's own DevTools.
     console.warn("[auth] Google sign-in failed with unmapped error:", code ?? "(no code)", err);
   }
   return friendly ?? "Something went wrong signing in with Google. Please try again.";
@@ -36,9 +36,9 @@ export function describeGoogleAuthError(err: unknown): string | null {
  * a Google-only user (born via Google sign-in, never linked a password) has
  * no `password` entry in providerData, so password-based reauth/change-
  * password UI isn't reachable for them. Defaults to `true` for a null/
- * undefined user or a providerData-less mock (existing tests construct bare
- * `{ email }` user fixtures) so this never regresses call sites that predate
- * BL-118 and don't model providerData at all. */
+ * undefined user or a providerData-less object (tests construct bare
+ * `{ email }` user fixtures) so callers that don't model providerData keep
+ * the password path. */
 export function hasPasswordProvider(
   user: { providerData?: Array<{ providerId: string }> } | null | undefined
 ): boolean {
@@ -46,9 +46,9 @@ export function hasPasswordProvider(
   return user.providerData.some((p) => p.providerId === "password");
 }
 
-// BL-263: the main document initialises Auth without the popup/redirect
-// resolver, so a Google redirect sign-in (the blocked-popup fallback) is no
-// longer completed by Auth's own start-up -- AuthContext completes it with
+// The main document initialises Auth without the popup/redirect resolver,
+// so a Google redirect sign-in (the blocked-popup fallback) is not
+// completed by Auth's own start-up -- AuthContext completes it with
 // getRedirectResult(auth, googleResolver). Calling that on every load would
 // fetch apis.google.com on every page view, so AuthModal marks a redirect as
 // pending just before it navigates away, and AuthContext reads (and clears)

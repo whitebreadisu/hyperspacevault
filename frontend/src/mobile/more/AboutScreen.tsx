@@ -2,14 +2,13 @@ import "../../screens/about/AboutModal.css";
 import { ShellHead, useShellExit } from "./ShellHead";
 import "./more.css";
 
-// BL-250 S4-02: About & Legal at #/about (title chooser, account menu, the
-// Updates rail) and #/more/about (More). FORK of desktop
-// screens/about/AboutModal.tsx's body (the component exports only the modal,
-// so the copy is duplicated here verbatim -- BL-254 folds it back); the
-// desktop .about-body / .about-section* / .about-submit rules are imported,
-// not copied. Phone frame: the full-shell steel ring (18 / 17 px cuts, rev4
-// m-rev4-d.css), 14 px prose (rev4: the owner reads small type as too small),
-// desktop's Close button at 44 px.
+// About & Legal at #/about (title chooser, account menu, the Updates rail)
+// and #/more/about (More). FORK of desktop screens/about/AboutModal.tsx's
+// body (the component exports only the modal, so the copy is duplicated here
+// verbatim -- a change to one side needs the other); the desktop .about-body
+// / .about-section* / .about-submit rules are imported, not copied. Phone
+// frame: the full-shell steel ring (18 / 17 px cuts), 14 px prose (smaller
+// type reads as too small on a phone), desktop's Close button at 44 px.
 
 export function AboutScreen({ fromMore }: { fromMore: boolean }) {
   const exit = useShellExit(fromMore);

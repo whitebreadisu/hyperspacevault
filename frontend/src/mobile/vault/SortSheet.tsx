@@ -3,17 +3,16 @@ import { Sheet, useSheetClose } from "../Sheet";
 import { phoneSortState } from "./phoneSort";
 import type { PhoneSortColumn } from "./phoneSort";
 
-// BL-247 S1-17: the sort sheet (rev4 MSheet.jsx:170-188). A pick follows
-// desktop nextSortState: a new column lands ascending, the active column
-// flips direction; a pick closes the sheet. One exception (owner decision
-// 2026-10-12 after review): Cards Owned lands on descending -- most owned
-// first -- at its first tap (vaultModel nextPhoneSort).
-// BL-257 FR5-05 (F-17, owner 2026-10-12): the phone has its own list -- the
-// sorts used most first, Cost / Power / HP last; "#" reads "Set | #" (the
+// The sort sheet (App Spec §25.1 Sort). A pick follows desktop
+// nextSortState: a new column lands ascending, the active column flips
+// direction; a pick closes the sheet. One exception: Cards Owned lands on
+// descending -- most owned first -- at its first tap (phoneSort.ts
+// nextPhoneSort).
+// The phone has its own list -- the sorts used most first, Cost / Power / HP last; "#" reads "Set | #" (the
 // default order is by set, then number); the fifth row is "Cards Owned", the
 // `owned` sort (copies owned -- cardSort.ts), in the place of desktop's
 // Variants sort (number of printings), which the phone does not offer; there
-// is no Set row (the "Set | #" sort covers it). vaultModel phoneSortState
+// is no Set row (the "Set | #" sort covers it). phoneSort.ts phoneSortState
 // maps a `set` or `variants` sort onto "Set | #" ascending. The active row
 // carries its direction as a word in a blue-bordered badge, not a chevron;
 // the word is in the primary text colour so it reads on the blue-washed row.

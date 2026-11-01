@@ -9,9 +9,10 @@ from app.models.base import Base
 class CardVariant(Base):
     """One row per printing (every variant_of_uuid value, root and non-root
     alike). Finish (variant_type) and provenance (source_set_code) are
-    independent axes — see SWU_Catalog_Redesign_Spec.md §3.2/§4.3. The
-    variant_type vocabulary is intentionally open (no enum/check constraint)
-    pending BL-27's census."""
+    independent axes — see App Spec §3.2/§4.3. The variant_type vocabulary
+    is intentionally open (no enum/check constraint): it stores swuapi's raw
+    label verbatim, and the curated finish/channel are derived from it in
+    app/ingestion/swuapi_classify.py (App Spec §10.2)."""
 
     __tablename__ = "card_variants"
 
@@ -27,7 +28,7 @@ class CardVariant(Base):
     front_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     back_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     swuapi_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
-    # Consolidation key for stamp-only tournament-tier variants (BL-31/32).
+    # Consolidation key for variants differing only by a stamp (App Spec §10.5).
     stamp_group: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False

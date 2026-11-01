@@ -1,4 +1,4 @@
-"""BL-185: SWUDB.com collection-export import adapter.
+"""SWUDB.com collection-export import adapter (App Spec §17.5).
 
 SWUDB's own export/import CSV (`Set,CardNumber,Count,IsFoil,Stamp` -- Stamp
 optional, SWUDB's own *import* format is the 4-column subset) carries none
@@ -11,20 +11,16 @@ own resolution inline at parse time -- there's no canonical (set_code,
 card_number, variant_type) triple to hand off to inventory_import.py's own
 resolution engine, because SWUDB never carries a variant_type.
 
-A row this module resolves carries only `swuapi_uuid` on its returned
-ParsedRow (set_code/card_number/variant_type stay None) and flows through
-`app.services.inventory_import.compute_import` completely UNCHANGED, via
-that module's existing "uuid known -> resolved" step. An unresolved/
-ambiguous row carries its verdict on ParsedRow.preresolved_reason/
-preresolved_candidates instead -- inventory_import.py's `_resolve_row`
-trusts those fields verbatim rather than re-deriving them (see the BL-185
-comment there). Both fields are None on every row parse_json/parse_csv
-ever produce, so canonical-format resolution is entirely untouched by this
-module's existence.
-
-The BL-185 definition doc (backlog-tracked analysis, not duplicated here)
-is authoritative for every judgment call below; each is called out inline
-as "§n" against that doc's section numbering.
+A row this module resolves carries `swuapi_uuid` on its returned
+ParsedRow (set_code/card_number/variant_type stay None, plus
+preresolved_mismatch when IsFoil/Stamp disagree with the match) and flows
+through `app.services.inventory_import.compute_import` UNCHANGED, via that
+module's "uuid known -> resolved" step. An unresolved/ambiguous row
+carries its verdict on ParsedRow.preresolved_reason/preresolved_candidates
+instead -- inventory_import.py's `_resolve_row` trusts those fields
+verbatim rather than re-deriving them. Both fields are None on every row
+parse_json/parse_csv produce, so canonical-format resolution is untouched
+by this module.
 """
 
 from __future__ import annotations
@@ -48,7 +44,7 @@ from app.services.inventory_io import (
     _parse_quantity_str,
 )
 
-# §2/§10.3: the 5-column export header; Stamp is optional -- SWUDB's own
+# The 5-column export header; Stamp is optional -- SWUDB's own
 # *import* format (as opposed to its export) is the 4-column subset. Used
 # both by parse_swudb_csv's own header check and by the router's format-
 # detection seam (app/routers/inventory.py imports REQUIRED_COLUMNS to
@@ -57,15 +53,14 @@ from app.services.inventory_io import (
 KNOWN_COLUMNS = {"Set", "CardNumber", "Count", "IsFoil", "Stamp"}
 REQUIRED_COLUMNS = {"Set", "CardNumber", "Count", "IsFoil"}
 
-# §3.1/§10: deliberately incomplete set-code translation table -- an
-# unmapped code is refused (reason "unmapped_set" -- renamed from
-# "unmapped_swudb_set" under BL-186, generalized now that a second import
-# format shares the same reason code), NEVER guessed.
-# Extension policy (ADR-0028, 2026-10-08): a new set's PRINTED codes -- the
-# base code and its Weekly Play <CODE>P -- are added at onboarding behind a
-# 2-3 card (code, number) spot-check against the catalog (runbook Scenario
-# C step 12). Every other code (SWUDB's synthetic/renamed containers,
-# convention/judge/gift-box series) is still added only once a real SWUDB
+# Deliberately incomplete set-code translation table -- an unmapped code is
+# refused (reason "unmapped_set", shared with swunlimiteddb_import), NEVER
+# guessed (App Spec §17.5).
+# Extension policy (ADR-0028): a new set's PRINTED codes -- the base code
+# and its Weekly Play <CODE>P -- are added at onboarding behind a 2-3 card
+# (code, number) spot-check against the catalog (App Spec §17.5). Every
+# other code (SWUDB's synthetic/renamed containers,
+# convention/judge/gift-box series) is added only once a real SWUDB-format
 # export has shown it -- never extrapolated.
 SET_CODE_MAP: dict[str, str] = {
     # Direct (SWUDB's code already matches our set_code) -- confirmed
@@ -82,21 +77,19 @@ SET_CODE_MAP: dict[str, str] = {
     "SHD": "SHD",
     "SOR": "SOR",
     "TS26": "TS26",
-    # Base sets never actually exercised by the sampled export but
-    # near-certain direct, following the same pattern every OTHER base set
-    # in the sample confirmed -- flagged here rather than silently assumed.
+    # Base sets not confirmed by a real export but direct by the pattern
+    # every confirmed base set follows -- flagged here rather than silently
+    # assumed.
     "TWI": "TWI",
     "LOF": "LOF",
     # Renames -- SWUDB uses a code different from our set_code.
     "CE25": "C25",
     "GGTS": "GG",
-    # BL-240 (2026-10-08): verified against a real HoloScan export
-    # (HoloScan writes SWUDB-format CSV; feedback #37, 1,724 rows). Every
-    # code below appeared verbatim as the printed set code, and all 335
-    # affected rows resolved 1:1 against the 2026-10-02 catalog export
-    # through _resolve_candidates (0 ambiguous, 0 foil mismatches). The
-    # Weekly Play codes make the printed-code pattern 5/5 across two
-    # tools (JTLP from SWUDB above, these four from HoloScan).
+    # Confirmed by a real HoloScan export (HoloScan writes SWUDB-format
+    # CSV): every code below appears verbatim as the printed set code, and
+    # their rows resolve 1:1 through _resolve_candidates (no ambiguous
+    # rows, no foil mismatches). Together with JTLP above, the Weekly Play
+    # codes confirm the printed-code pattern across two tools.
     "HMW": "HMW",
     "ASHP": "ASHP",
     "LAWP": "LAWP",
@@ -104,15 +97,15 @@ SET_CODE_MAP: dict[str, str] = {
     "SECP": "SECP",
     "CST": "CST",
     "G25": "G25",
-    # HMWP: not in the sampled file, but HoloScan 6.7.9 (2026-09-26)
-    # added Homeworlds Weekly Play to its swudb CSV export and every
-    # Weekly Play set seen so far exports its printed code unchanged.
+    # HMWP: a printed Weekly Play code, mapped under ADR-0028's
+    # printed-code rule (HoloScan's swudb CSV export includes Homeworlds Weekly
+    # Play, and every Weekly Play set exports its printed code unchanged).
     # SORP/SHDP/TWIP (the Hyperspace-only promo sets of the first three
     # base sets) stay OUT: never observed in any export from either tool.
     "HMWP": "HMWP",
     # Synthetic container code: no real SORPR set exists in our model --
     # SOR_1's Prerelease Promo/Prerelease Judge rows live directly inside
-    # the base SOR set (§3.3). Mapping SORPR -> SOR is what makes both
+    # the base SOR set. Mapping SORPR -> SOR is what makes both
     # rows reach the (set, number) candidate lookup at all; Stamp is what
     # then tells them apart (see _stamp_matches).
     "SORPR": "SOR",
@@ -122,13 +115,13 @@ SET_CODE_MAP: dict[str, str] = {
 def _parse_is_foil(raw: str | None) -> bool:
     """SWUDB's Python-style `True`/`False` string. Case-normalized for
     robustness; anything else (missing/garbled) degrades to False rather
-    than failing the row -- IsFoil is a disambiguation SIGNAL (§6), never
+    than failing the row -- IsFoil is a disambiguation SIGNAL, never
     part of a row's core identity the way Count is."""
     return (raw or "").strip().lower() == "true"
 
 
 def _normalize_number(raw: str) -> str:
-    """§3.2: SWUDB zero-pads CardNumber (2 or 3 digits depending on set);
+    """SWUDB zero-pads CardNumber (2 or 3 digits depending on set);
     our own card_number column never does. Int-cast/re-stringify strips
     the padding. Falls back to the raw (stripped) string when it isn't
     purely numeric -- never raises; an unparseable number just fails to
@@ -142,7 +135,7 @@ def _normalize_number(raw: str) -> str:
 
 
 def _is_foilish(variant_type: str) -> bool:
-    """§6 step 3a/§7 locked decision (5): whether a candidate LOOKS foil,
+    """Whether a candidate LOOKS foil,
     for matching SWUDB's IsFoil flag. Showcase is always foil as a domain
     fact (no non-foil Showcase printing exists) even though the string
     "Showcase" doesn't itself contain "Foil" -- treating it as non-foil
@@ -159,13 +152,13 @@ def _is_foilish(variant_type: str) -> bool:
     )
 
 
-# §6 step 3b: the tournament-ladder stamp vocabulary observed in the real
-# export, keyed by SWUDB's Stamp value -> the substring expected in a
+# The tournament-ladder stamp vocabulary observed in real SWUDB exports,
+# keyed by SWUDB's Stamp value -> the substring expected in a
 # candidate's variant_type. Deliberately small and only meaningful once
 # the foil split AND the (set, number) family have already narrowed the
 # field -- SS/GC/RQ/SQ/PQ tiers all reuse this same tier vocabulary
 # (Top 8/Champion/Judge/...), so this table is NOT a general variant_type
-# classifier on its own (definition doc §6.3b).
+# classifier on its own.
 _STAMP_KEYWORDS: dict[str, str] = {
     "Judge": "Judge",
     "Champion": "Champion",
@@ -174,8 +167,7 @@ _STAMP_KEYWORDS: dict[str, str] = {
 }
 
 
-# BL-199 (§6 step 3c, amending the BL-185 doc's §6/§7 locked decisions):
-# the main-set printing vocabulary -- the variant_types a SWUDB row's plain
+# The main-set printing vocabulary -- the variant_types a SWUDB row's plain
 # (Set, CardNumber) identity actually means when promo-run printings
 # (Prerelease/Judge/SS/Weekly Play, numbered run-locally under the base
 # set) share its number. Same vocabulary as the XLSX adapter's clean-column
@@ -197,8 +189,8 @@ _MAIN_SET_TYPES = frozenset(
 
 
 def _stamp_matches(stamp: str | None, variant_type: str) -> bool:
-    """§6 step 3b, widened per the definition doc's worked SORPR example
-    (§4/§10): a BLANK Stamp is itself informative, not merely "no signal"
+    """Stamp matching (App Spec §17.5): a BLANK Stamp is itself
+    informative, not merely "no signal"
     -- it means "the plain (non-tournament-tiered) printing", so it
     matches any candidate whose variant_type carries none of the known
     stamp keywords (this is what separates SOR_1's "Prerelease Promo" from
@@ -218,7 +210,7 @@ class _Outcome:
     swuapi_uuid: str | None
     mismatch: bool
     reason: str | None
-    # BL-200: full VariantMatch tuples, not bare swuapi_id strings -- see
+    # Full VariantMatch tuples, not bare swuapi_id strings -- see
     # inventory_io.ParsedRow.preresolved_candidates' own doc comment.
     candidates: list[VariantMatch]
 
@@ -226,8 +218,8 @@ class _Outcome:
 def _resolve_candidates(
     candidates: list[VariantMatch], *, is_foil: bool, stamp: str | None
 ) -> _Outcome:
-    """§6 steps 3(a)-(c), applied to every candidate sharing one (mapped_
-    set, normalized_number) family."""
+    """Steps (a)-(d) below, applied to every candidate sharing one
+    (mapped_set, normalized_number) family."""
     if not candidates:
         return _Outcome(None, False, "unknown_set_and_number", [])
 
@@ -246,26 +238,23 @@ def _resolve_candidates(
     # Step (b): stamp keyword match. Narrows WITHIN the foil split when it
     # actually narrowed anything (>=2 left); falls back to the FULL
     # candidate set when the foil split left nothing at all -- the SORPR
-    # case (§3.3/§4), where IsFoil=True on both rows but neither "Prerelease
-    # Promo" nor "Prerelease Judge" reads as foilish, so foil_matches is
-    # empty and would otherwise strand a resolvable row. This is a
-    # deliberate widening of the doc's literal "(a) then (b)" phrasing to
-    # match its own worked example, not a fresh policy call.
+    # case, where IsFoil=True on both rows but neither "Prerelease Promo"
+    # nor "Prerelease Judge" reads as foilish, so foil_matches is empty and
+    # would otherwise strand a resolvable row.
     base = foil_matches if foil_matches else candidates
     stamp_matches = [c for c in base if _stamp_matches(stamp, c[0].variant_type)]
     if len(stamp_matches) == 1:
         return _Outcome(stamp_matches[0][0].swuapi_id, False, None, [])
 
-    # Step (c) -- BL-199, amending §7 locked decision (4): before falling
-    # into the ambiguous bucket, prefer the sole MAIN-SET printing over
-    # run-locally-numbered promo-tier printings (see _MAIN_SET_TYPES).
-    # The real SOR 1 shape: after the blank-stamp filter, Krennic
-    # (Standard) still shared the family with Vader's Prerelease Promo,
-    # Takedown's SS Participation and Battlefield Marine's Weekly Play --
-    # all run-local number-1s the file's plain "SOR,1" never meant. Fires
-    # only when exactly ONE main-set candidate remains, so a genuine
-    # main-set collision (the SEC Serialized Prestige trio) still lands
-    # in ambiguous_triple below. Mismatch semantics mirror the
+    # Step (c): before falling into the ambiguous bucket, prefer the sole
+    # MAIN-SET printing over run-locally-numbered promo-tier printings (see
+    # _MAIN_SET_TYPES). The SOR 1 shape: after the blank-stamp filter,
+    # Krennic (Standard) still shares the family with Vader's Prerelease
+    # Promo, Takedown's SS Participation and Battlefield Marine's Weekly
+    # Play -- all run-local number-1s the file's plain "SOR,1" never means.
+    # Fires only when exactly ONE main-set candidate remains, so a genuine
+    # main-set collision (the SEC Serialized Prestige trio) still lands in
+    # ambiguous_triple below. Mismatch semantics mirror the
     # single-candidate step: resolve, flag any foil/stamp disagreement.
     pool = stamp_matches if stamp_matches else base
     main_set = [c for c in pool if c[0].variant_type in _MAIN_SET_TYPES]
@@ -276,9 +265,8 @@ def _resolve_candidates(
         )
         return _Outcome(variant.swuapi_id, mismatch, None, [])
 
-    # Step (d) / §7 locked decision (4): still ambiguous -- the EXISTING
-    # ambiguous bucket, same reason code inventory_import.py's own triple
-    # collisions use (no new UX).
+    # Step (d): still ambiguous -- the same ambiguous bucket and reason code
+    # inventory_import.py's own triple collisions use (no new UX).
     sorted_candidates = sorted(candidates, key=lambda c: c[0].swuapi_id)
     return _Outcome(None, False, "ambiguous_triple", sorted_candidates)
 
@@ -295,12 +283,12 @@ class _RawRow:
 
 
 def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
-    """§2/§6. Refuses outright (never best-effort parsed) when the content
+    """Refuses outright (never best-effort parsed) when the content
     isn't readable CSV at all, or its header is missing a required column
     -- same posture as parse_csv/parse_json. Row-level resolution failures
     (unmapped set, unknown number, ambiguous candidates) are NOT refused --
     they surface as unresolved/ambiguous report rows exactly like any
-    other import problem row (§7), never a 422."""
+    other import problem row, never a 422."""
     text = _decode(content)
     if not text.strip():
         raise UnparseableFileError("empty file")
@@ -336,14 +324,14 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
     except csv.Error as exc:
         raise UnparseableFileError(f"malformed CSV row: {exc}") from exc
 
-    # §6 steps 1-2: map every row's raw (Set, CardNumber) to (our set_code,
+    # Map every row's raw (Set, CardNumber) to (our set_code,
     # normalized number) up front, so every distinct pair can be looked up
     # in ONE bulk query below (mirrors compute_import's own bulk-lookup-
     # then-per-row-resolve shape). Rows with a malformed Count or an
     # unmapped set never reach the DB at all.
     pairs: set[tuple[str, str]] = set()
     mapped: dict[int, tuple[str, str] | None] = {}
-    # BL-200 (Coverage note 4): a row with a valid Count but a BLANK Set or
+    # A row with a valid Count but a BLANK Set or
     # CardNumber carries no usable identity at all -- that's not "we don't
     # recognize this set" (unmapped_set), it's "this row doesn't say enough
     # about which card it is", the same incomplete_identity bucket the
@@ -391,9 +379,8 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
         pair = mapped[raw.row_number]
         if pair is None:
             if raw.row_number in blank_identity_rows:
-                # BL-200 (Coverage note 4): blank Set or CardNumber -- no
-                # identity to resolve at all, distinct from an unmapped-but-
-                # present set code below.
+                # Blank Set or CardNumber -- no identity to resolve at all,
+                # distinct from an unmapped-but-present set code below.
                 parsed_rows.append(
                     ParsedRow(
                         row_number=raw.row_number,
@@ -407,13 +394,12 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
                     )
                 )
                 continue
-            # §6 step 1: unmapped SWUDB set code -- never guessed. The raw
-            # SWUDB set carried verbatim (there's no "our" set_code to
-            # show -- ImportRowCard's contract is "only whatever raw
-            # identity fragments the file actually carried"). BL-186:
-            # reason renamed "unmapped_swudb_set" -> "unmapped_set"
-            # (format-agnostic, shared with app/services/
-            # swunlimiteddb_import.py's identical failure mode).
+            # Unmapped SWUDB set code -- never guessed. The raw SWUDB set
+            # is carried verbatim (there's no "our" set_code to show --
+            # ImportRowCard's contract is "only whatever raw identity
+            # fragments the file actually carried"). The reason code
+            # "unmapped_set" is format-agnostic, shared with
+            # app/services/swunlimiteddb_import.py's identical failure mode.
             parsed_rows.append(
                 ParsedRow(
                     row_number=raw.row_number,
@@ -448,13 +434,13 @@ def parse_swudb_csv(content: str | bytes, db: Session) -> ParseResult:
         )
 
     notes = ParseNotes(unrecognized_columns=unrecognized)
-    # BL-185: reuses inventory_io's own duplicate-identity fold rather than
+    # Reuses inventory_io's own duplicate-identity fold rather than
     # reimplementing it -- a resolved SWUDB row already carries a
     # swuapi_uuid by this point, so two file rows resolving to the same
     # variant get summed exactly like two canonical rows sharing a raw
-    # uuid would (module docstring, §3.4). Unresolved/ambiguous rows carry
-    # no uuid and no full triple (variant_type is always None here), so
-    # _merge_duplicates' own "no usable identity -> never merged" rule
-    # already keeps distinct problem rows from silently collapsing.
+    # uuid would (inventory_io._merge_duplicates). Unresolved/ambiguous
+    # rows carry no uuid and no full triple (variant_type is always None
+    # here), so _merge_duplicates' own "no usable identity -> never merged"
+    # rule keeps distinct problem rows from silently collapsing.
     rows = _merge_duplicates(parsed_rows, notes)
     return ParseResult(rows=rows, notes=notes)

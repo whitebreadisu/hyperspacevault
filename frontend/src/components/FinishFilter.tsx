@@ -5,24 +5,24 @@ import { FilterMenuPortal, isInsideFilterMenuPortal } from "./FilterMenuPortal";
 import { useModalDismiss } from "../hooks/useModalDismiss";
 import "./FilterPanel.css";
 
-// BL-133 (issue #318): the Finish field's dedicated dropdown -- a two-tier
-// tree (fused foil/non-foil pair rows, expandable tournament/prestige
-// groups, plain rows) replacing the flat MultiSelect Finish previously used.
-// This is presentation-tier ONLY: FilterState.finish stays a flat
-// Set<string> of raw values (see utils/filters.ts's FilterState doc), every
-// control here just adds/removes a raw value string from that Set via
-// `onChange` -- the state-model invariant BL-133's brief locks in. The
+// The Finish field's dedicated dropdown -- a two-tier tree (fused
+// foil/non-foil pair rows, a Prestige chip row, expandable tournament
+// groups, plain rows). This is presentation-tier ONLY: FilterState.finish
+// stays a flat Set<string> of raw values (see utils/filters.ts's
+// FilterState doc), every control here just adds/removes a raw value
+// string from that Set via `onChange` -- that state-model invariant holds
+// for every row kind. The
 // grouping/pairing/ordering RULES live in utils/filters.ts
 // (buildFinishTree/shapeFinishTree); this component only renders the
 // already-shaped rows and owns the local expand/collapse + open/close UI
 // state.
 //
 // Deliberately NOT a generalization of MultiSelect.tsx -- the pair-chip and
-// expandable-group interactions are Finish-specific (per the locked design)
-// and every other field's dropdown (Set/Rarity/Type/Arenas/Keywords/Traits)
-// stays on the untouched flat MultiSelect, so this file reuses MultiSelect's
-// shell classes (`ifp-multi*`, defined in FilterPanel.css) for visual
-// consistency without touching that component or its other callers.
+// expandable-group interactions are Finish-specific and every other field's
+// dropdown (Set/Rarity/Type/Arenas/Keywords/Traits) uses the flat
+// MultiSelect, so this file reuses MultiSelect's shell classes (`ifp-multi*`,
+// defined in FilterPanel.css) for visual consistency without coupling the
+// two components.
 
 interface FinishFilterProps {
   label: string;
@@ -44,22 +44,21 @@ export function FinishFilter({
   placeholder = "All",
 }: FinishFilterProps) {
   const [open, setOpen] = useState(false);
-  // BL-133 open question (Jeremy's brief left this open, "record what you
-  // do"): expand/collapse state is UI-local and resets to all-collapsed
-  // every time the dropdown closes/reopens, rather than persisting across
-  // opens. Simplest option, and it means a group can never appear
-  // already-expanded from a stale previous interaction, which would read as
-  // a bug ("why is this open, I didn't click it").
+  // Expand/collapse state is UI-local and resets to all-collapsed every time
+  // the dropdown closes/reopens, rather than persisting across opens: a
+  // group can never appear already-expanded from a stale previous
+  // interaction, which would read as a bug ("why is this open, I didn't
+  // click it").
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return undefined;
-    // BL-147 fix 6: the menu now portals to document.body (FilterMenuPortal,
-    // below), so it's no longer a DOM descendant of `ref` -- a click inside
-    // the portaled menu must also count as "inside" here, or every row/
-    // group click would close the dropdown out from under itself first.
+    // The menu portals to document.body (FilterMenuPortal, below), so it is
+    // not a DOM descendant of `ref` -- a click inside the portaled menu must
+    // also count as "inside" here, or every row/group click would close the
+    // dropdown out from under itself first.
     const onDocDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (ref.current && !ref.current.contains(target) && !isInsideFilterMenuPortal(e.target)) {
@@ -72,9 +71,8 @@ export function FinishFilter({
     };
   }, [open]);
 
-  // BL-153: Escape-key dismissal only, extracted to the shared hook --
-  // `enabled: open` reproduces the original effect's `if (!open) return`
-  // early-out (listener only attached while the dropdown is open). The
+  // Only Escape-key dismissal comes from the shared hook -- `enabled: open`
+  // attaches its listener only while the dropdown is open. The
   // outside-mousedown detection above stays local -- it's a different
   // mechanism (portal-aware ref check), not part of the hook's scope.
   const closeDropdown = useCallback(() => setOpen(false), []);
@@ -118,8 +116,8 @@ export function FinishFilter({
 
   const rows = shapeFinishTree(tree, valid, values, showAllValues);
 
-  // Same trigger convention as MultiSelect (BL-111 wave 1 fix 3): the
-  // field's label lives in the trigger button's own text, "Finish — <sel>".
+  // Same trigger convention as MultiSelect: the field's label lives in the
+  // trigger button's own text, "Finish — <sel>".
   const isPlaceholder = values.size === 0;
   const selectionText = isPlaceholder ? placeholder : [...values].join(", ");
   const triggerText = `${label} — ${selectionText}`;
@@ -152,7 +150,7 @@ export function FinishFilter({
           </svg>
         </button>
 
-        {/* BL-173 review round 4: minWidth so the Prestige chip row (label +
+        {/* minWidth so the Prestige chip row (label +
             Std/Foil/Serialized) fits on one line -- the sidebar control's own
             width is unchanged, only the portaled menu widens. */}
         <FilterMenuPortal
@@ -180,10 +178,10 @@ export function FinishFilter({
             <div className="ifp-multi__items">
               {rows.length === 0 && <div className="ifp-multi__empty">No matches</div>}
               {rows.map((row, i) => {
-                // Same self-limiting divider rule MultiSelect used for the
-                // old flat Finish list (BL-129 R6b): renders only between a
-                // pinned row and a following non-pinned row, so an
-                // all-pinned or all-unpinned rendered set never shows one.
+                // Same self-limiting divider rule as MultiSelect's: renders
+                // only between a pinned row and a following non-pinned row,
+                // so an all-pinned or all-unpinned rendered set never shows
+                // one.
                 const showDivider = row.pinned && i + 1 < rows.length && !rows[i + 1]?.pinned;
                 return (
                   <React.Fragment key={row.key}>
@@ -245,8 +243,8 @@ function FinishRowView({
         onClick={() => onToggleValue(row.value)}
         role="option"
         aria-selected={row.checked}
-        // BL-70 parity: an inert (0-facet), unselected row can't be newly
-        // added -- but if it's already selected, it stays clickable so it
+        // Same rule as MultiSelect: an inert (0-facet), unselected row
+        // can't be newly added -- but if it's already selected, it stays clickable so it
         // can still be removed.
         disabled={row.inert && !row.checked}
       >
@@ -257,8 +255,8 @@ function FinishRowView({
   }
 
   if (row.kind === "pair") {
-    // Variant B (Jeremy's pick): one row, label + two independently
-    // toggleable chips. Chip visible text is the generic "Non-foil"/"Foil"
+    // One row, label + two independently toggleable chips. Chip visible
+    // text is the generic "Non-foil"/"Foil"
     // -- the row's own label supplies the finish name (e.g. "Standard"), so
     // the pair reads as "Standard: [Non-foil] [Foil]" rather than repeating
     // the finish name on each chip.
@@ -299,14 +297,14 @@ function FinishRowView({
     );
   }
 
-  // BL-173 review round 4 (owner, 2026-07-27): the Prestige family renders
-  // as a CHIP row (like the foil pairs above), not an expandable group --
-  // normalizing it with the Playset header's scope picker, which offers
-  // Prestige as chips. Presentation-tier rule ONLY: the tree still models
-  // Prestige as a "group" (buildFinishTree unchanged, FilterState.finish
-  // untouched), and the tournament families keep the expandable-group
-  // rendering below. "Standard" shortens to "Std" on the chip face (width;
-  // matches the scope picker); the accessible name stays the full raw value.
+  // The Prestige family renders as a CHIP row (like the foil pairs above),
+  // not an expandable group -- consistent with the Playset header's scope
+  // picker, which offers Prestige as chips. Presentation-tier rule ONLY: the
+  // tree still models Prestige as a "group" (buildFinishTree,
+  // FilterState.finish), and the tournament families keep the
+  // expandable-group rendering below. "Standard" shortens to "Std" on the
+  // chip face (width; matches the scope picker); the accessible name stays
+  // the full raw value.
   if (row.kind === "group" && row.key === "Prestige") {
     return (
       <div className={`ifp-finish-pair${row.allInert ? " ifp-finish-group--inert" : ""}`}>
@@ -344,7 +342,7 @@ function FinishRowView({
         }`}
         aria-expanded={isOpen}
         // Parent click toggles expand/collapse ONLY -- it never selects
-        // anything (Jeremy's brief). Works by click, no hover dependency.
+        // anything. Works by click, no hover dependency.
         onClick={() => onToggleExpanded(row.key)}
       >
         <svg
@@ -375,7 +373,7 @@ function FinishRowView({
               }${child.inert ? " ifp-multi__item--inert" : ""}`}
               role="option"
               aria-selected={child.checked}
-              // Accessibility (brief): display text is prefix/suffix-
+              // Accessibility: display text is prefix/suffix-
               // stripped ("Top 8"), but the accessible name stays the full
               // raw value ("PQ Top 8") so screen-reader users get the
               // disambiguated name even though the visible label doesn't

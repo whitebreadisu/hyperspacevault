@@ -2,8 +2,8 @@ import { ChangePasswordModal } from "../../screens/auth/ChangePasswordModal";
 import { DeleteAccountModal } from "../../screens/auth/DeleteAccountModal";
 import { ShareManageModal } from "../../screens/shares/ShareManageModal";
 
-// BL-251 S5-02 / S5-03 / S5-07: desktop's ChangePasswordModal,
-// DeleteAccountModal and ShareManageModal, unchanged, as a centred layer over the current phone screen -- the S1
+// Desktop's ChangePasswordModal, DeleteAccountModal and ShareManageModal,
+// unchanged, as a centred layer over the current phone screen -- the
 // AuthLayer pattern (it shares the `.m-authlayer` wrapper, so shell.css's
 // card width / 16 px inputs / 44 px controls / X top-right apply; account.css
 // adds the Cancel / destructive-confirm buttons AuthModal does not have).

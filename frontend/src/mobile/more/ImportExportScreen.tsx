@@ -24,16 +24,14 @@ import { ShellHead } from "./ShellHead";
 import "./more.css";
 import "./importexport.css";
 
-// BL-250 S4-08 … S4-12: Import & Export at #/more/importexport -- desktop
+// Import & Export at #/more/importexport (App Spec §25.4) -- desktop
 // ImportExportPage.tsx's configure -> preview -> success stepper on a phone
-// (rev4 MImportExport.jsx + m-rev4-d.css 179-237: one column, radios as
-// whole-row 48 px buttons with a drawn dot, Replace All in red). Gate = the
-// desktop's view forcing (App.tsx): anonymous -> back to More with sign-in;
-// signed in but unverified -> back to More (the row there explains why).
-// Copy is desktop's, verbatim. TIEBREAKER S4-11: the Replace All confirmation
-// sits on the PREVIEW step (desktop parity), not the configure step (rev4,
-// which had no preview). TIEBREAKER S4-11: the commit button reads desktop's
-// "Confirm import" (the brief's "Import" is shorthand).
+// (one column, radios as whole-row 48 px buttons with a drawn dot, Replace
+// All in red). Gate = the desktop's view forcing (App.tsx): anonymous -> back
+// to More with sign-in; signed in but unverified -> back to More (the row
+// there explains why). Copy is desktop's, verbatim. The Replace All
+// confirmation sits on the PREVIEW step and the commit button reads "Confirm
+// import" (desktop parity).
 
 type Step = "configure" | "preview" | "success";
 type DownloadKind = "json" | "csv" | "reference";
@@ -79,7 +77,7 @@ function Radio({
 
 export function ImportExportScreen({ fromMore, signedIn, emailVerified, onRequestSignIn }: Props) {
   const allowed = signedIn && emailVerified;
-  // S4-08: desktop's forcing -- not reachable anonymous or unverified.
+  // Desktop's forcing -- not reachable anonymous or unverified.
   useEffect(() => {
     if (allowed) return;
     go("#/more", true);
@@ -94,7 +92,7 @@ export function ImportExportScreen({ fromMore, signedIn, emailVerified, onReques
 function ImportExportBody({ fromMore }: { fromMore: boolean }) {
   const [step, setStep] = useState<Step>("configure");
   const [file, setFile] = useState<File | null>(null);
-  // Owner review 2026-08-03 (desktop): NO defaults on either radio group.
+  // NO defaults on either radio group (as desktop ImportExportPage.tsx).
   const [mode, setMode] = useState<ImportMode | null>(null);
   const [capHandling, setCapHandling] = useState<CapHandling | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -111,7 +109,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const overlay = useBusyOverlay();
   const { refreshQuantities } = useVaultData();
-  // S4-12: desktop's import_export screen_viewed -- sent here, on the gated
+  // Desktop's import_export screen_viewed -- sent here, on the gated
   // body only, so a forced-back visitor counts as viewing More (desktop: cards).
   useEffect(() => phoneScreenViewed("import_export"), []);
   const scrollTop = () => {
@@ -133,7 +131,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
       const { blob, filename } =
         kind === "reference" ? await downloadCatalogReference() : await exportInventory(kind);
       downloadBlob(blob, filename);
-      // BL-235: only the two real inventory exports count.
+      // Only the two real inventory exports count (App Spec §22).
       if (kind !== "reference") capturePhone("export_performed", { format: kind });
     } catch (err) {
       setDownloadError({

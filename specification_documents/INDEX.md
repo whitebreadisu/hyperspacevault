@@ -1,4 +1,4 @@
-<!-- generated 2026-11-01 by .github/scripts/docs_index.mjs from cb1e2f3 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-01 by .github/scripts/docs_index.mjs from 07e3c61 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,7 +115,7 @@ Total 253,819 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 140,877 B (LF) · 6 h2 · 43 h3
+Total 140,887 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -130,7 +130,7 @@ Total 140,877 B (LF) · 6 h2 · 43 h3
 | h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 158 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
 | h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 171 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
 | h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 180 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
-| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 46,830 |  |  |  |  |
+| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 46,840 |  |  |  |  |
 | h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 188 | 14,528 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
 | h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 221 | 995 |  |  | `backend/pyproject.toml`, `backend/requirements.txt` |  |
 | h3 | [§2.3 `frontend` job](SWU_Platform_Spec.md#23-frontend-job) | 226 | 465 |  |  | `frontend/package-lock.json`, `frontend/vite.config.ts` |  |
@@ -138,7 +138,7 @@ Total 140,877 B (LF) · 6 h2 · 43 h3
 | h3 | [§2.5 `check-risk-level` and `deploy-dev` jobs](SWU_Platform_Spec.md#25-check-risk-level-and-deploy-dev-jobs) | 237 | 1,791 |  | 0017, 0037 | `terraform/environments/dev` |  |
 | h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 242 | 12,820 | 2026-07-15 Mechanism | 0007, 0011, 0017, 0033, 0037 | `.github/actions/promote-prod/action.yml`, `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `.github/workflows/release-train.yml`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 254 | 950 |  | 0022 |  |  |
-| h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 266 | 14,645 |  | 0020, 0033, 0035, 0036, 0037 | `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/scripts/platform_assert.mjs`, `.github/scripts/release_notes.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `.github/workflows/release-train.yml`, `.github/workflows/verify-engines.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `backend/scripts/refresh_google_ranges.py`, `backend/scripts/verify_tenant.py`, `frontend/e2e/journeys`, `frontend/e2e/verify/seed.mjs`, `frontend/src`, `frontend/src/content`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
+| h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 266 | 14,655 |  | 0020, 0033, 0035, 0036, 0037 | `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/scripts/platform_assert.mjs`, `.github/scripts/release_notes.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `.github/workflows/release-train.yml`, `.github/workflows/verify-engines.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `backend/scripts/refresh_google_ranges.py`, `backend/scripts/verify_tenant.py`, `frontend/e2e/journeys`, `frontend/e2e/verify/seed.mjs`, `frontend/src`, `frontend/src/content`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
 | h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 315 | 38,101 |  |  |  |  |
 | h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 317 | 904 |  | 0006 | `terraform/environments/dev` |  |
 | h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 327 | 388 |  |  | `terraform/state` |  |

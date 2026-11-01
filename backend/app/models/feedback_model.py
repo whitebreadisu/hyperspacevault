@@ -7,8 +7,8 @@ from app.models.base import Base
 
 
 class Feedback(Base):
-    """BL-126: one row per feedback submission. Tenant-OPTIONAL by design
-    (issue #289) -- tenant_id is populated only when contact_ok is true AND
+    """One row per feedback submission (App Spec §4.6). Tenant-OPTIONAL by
+    design -- tenant_id is populated only when contact_ok is true AND
     the submitter was authenticated; a signed-in submitter who declines
     contact stores no uid/tenant/email at all, matching the "genuinely
     anonymous" consent semantics. See migration 0027 for the RLS policies

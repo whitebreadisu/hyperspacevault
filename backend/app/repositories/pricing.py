@@ -18,17 +18,17 @@ def get_latest_prices(
     db: Session, variant_ids: list[int] | None = None
 ) -> dict[int, Row]:
     """variant_id -> its latest (market, low, as_of) row, read from the
-    BL-146 `variant_latest_prices` snapshot table -- one row per priced
-    variant (~9k rows forever), maintained by upsert_latest_price below.
+    `variant_latest_prices` snapshot table -- one row per priced variant,
+    never growing with history, maintained by upsert_latest_price below.
     variant_ids=None fetches every priced variant (the list endpoint's
     case); a detail/deck-check caller passes the specific ids it needs.
 
-    BL-146: this used to be `SELECT DISTINCT ON (variant_id) ... FROM
-    variant_prices ORDER BY variant_id, as_of DESC`, which scans the
-    ENTIRE price-history table on every call -- fine at ~26k rows, but at
-    2.8M rows (issue #368) it took minutes and 503'd every API endpoint
-    that embeds a price. Reading the snapshot table instead makes this
-    query's cost O(priced variants), independent of history depth."""
+    Never read the latest price from `variant_prices` (e.g. `SELECT
+    DISTINCT ON (variant_id) ... ORDER BY variant_id, as_of DESC`): that
+    scans the ENTIRE price-history table on every call, and at millions of
+    rows it stalls every API endpoint that embeds a price. Reading the
+    snapshot keeps this query's cost O(priced variants), independent of
+    history depth (App Spec §16.5)."""
     vlp = VariantLatestPrice.__table__.c
     query = select(vlp.variant_id, vlp.market, vlp.low, vlp.as_of)
     if variant_ids is not None:
@@ -43,7 +43,7 @@ def upsert_latest_price(
     low: Decimal | float | None,
     as_of: date,
 ) -> None:
-    """BL-146: upserts one variant's variant_latest_prices row -- called by
+    """Upserts one variant's variant_latest_prices row -- called by
     both writers (app.jobs.price_sync.upsert_prices, shared by the daily
     sync job and the history backfill job) in the same transaction as
     their variant_prices write.

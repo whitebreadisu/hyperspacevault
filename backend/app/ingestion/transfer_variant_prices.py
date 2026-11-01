@@ -1,20 +1,18 @@
-"""BL-139: one-time dev->prod transfer of the variant_prices history.
+"""One-time dev->prod transfer of the variant_prices history (App Spec §16.6).
 
-Prod never ran the ~860-day tcgcsv backfill (6-10h of degraded service on a
-db-f1-micro, plus re-pulling every daily archive against tcgcsv.com's usage
-guidelines). The decided approach (issue #351, owner approval 2026-07-21) is
-a data transfer instead: export dev's fully-backfilled variant_prices keyed
-by the PORTABLE identity (tcgplayer productId + subtype + as_of) -- variant
-ids are serial and differ per environment, but both environments derive the
-same product<->variant mapping (app.ingestion.run_tcgplayer_mapping) -- and
-re-key against the target's own tcgplayer_products on import.
+Prod does not run the ~860-day tcgcsv backfill (hours of degraded service on the
+database plus re-pulling every daily archive against tcgcsv.com's usage guidelines).
+This tool is a data transfer instead: export dev's fully-backfilled variant_prices keyed
+by the PORTABLE identity (tcgplayer productId + subtype + as_of) -- variant ids are
+serial and differ per environment, but both environments derive the same
+product<->variant mapping (app.ingestion.run_tcgplayer_mapping) -- and re-key against
+the target's own tcgplayer_products on import.
 
 Three subcommands, deliberately separable so the export can run ahead of
 the quiet window and the import inside it:
 
-  export  -- preflight the source history (contiguity + freshness, the
-             2026-07-21 session-close precondition), then stream the keyed
-             join to a local CSV via COPY.
+  export  -- preflight the source history (contiguity + freshness),
+             then stream the keyed join to a local CSV via COPY.
   import  -- preflight the target (migration 0029 applied; mapping built),
              COPY the CSV into an UNLOGGED staging table, re-key into
              variant_prices (ON CONFLICT DO NOTHING -- idempotent, safe to
@@ -125,7 +123,7 @@ SERIES_HASH_SQL = """
 
 def find_missing_days(present: list[date], start: date, end: date) -> list[date]:
     """Calendar days in [start, end] absent from `present`. Pure helper so
-    the contiguity rule (the 2026-07-21 export precondition) is unit-testable
+    the contiguity rule (the export precondition) is unit-testable
     without a database."""
     have = set(present)
     out = []

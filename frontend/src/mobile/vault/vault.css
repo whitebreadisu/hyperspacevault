@@ -1,20 +1,15 @@
-/* BL-247 stage 1b: the Vault's status rows, search, scope chip + menu, sort,
- * view toggle, rows and gallery. Consolidated from rev4 m-layout.css:100-216
- * (search, segments, chips, vault, rows, grid), m-rev1.css:93-148 (controls,
- * size picker, row tiers), m-rev2.css:40-64 (one-line row, view toggle,
- * grid sizes), m-rev3.css:120-135 (Clear) + 340-441 (scope, amber),
- * m-rev4.css:7-34 (sort icon, chip) + 54-67, re-cut into R5-3's two rows.
- * The count chip, pips and gallery plate are desktop cards.css copied
- * VERBATIM under .m-app (block at the end, rule for rule from the cited
- * ranges, no value changed); only the plate's phone scale (8 / 13 / 28 px,
- * the accepted rev4 builder call) follows it. */
+/* The Vault's status rows, search, scope chip + menu, sort, view toggle,
+ * rows and gallery (App Spec §25.1). The count chip, pips and gallery plate
+ * are desktop cards.css copied VERBATIM under .m-app (block at the end, rule
+ * for rule, no value changed); only the plate's phone scale (8 / 13 / 28 px)
+ * follows it. */
 
-/* ── Controls under the header: two rows (R5-3) ─────────────────────────── */
+/* ── Controls under the header: two rows ───────────────────────────────── */
 .m-app .m-vault__controls {
   flex: none;
   display: flex;
   flex-direction: column;
-  /* The 12 px top pad the 1a-s list carried; 4 px foot (part of --vs-hide). */
+  /* 12 px top pad; 4 px foot (part of --vs-hide). */
   padding: 12px 16px 4px;
 }
 .m-app .m-vault__searchrow {
@@ -66,17 +61,17 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
-/* FR1-01: the clear button's 48 px slot is reserved only while there is a
+/* The clear button's 48 px slot is reserved only while there is a
    value; an empty field keeps a 4 px right pad so the hint is not clipped
-   (FR1-01b: >= 6 px to spare at 390 px with a filter active). */
+   (>= 6 px to spare at 390 px with a filter active; App Spec §25.1). */
 .m-app .m-search__input:placeholder-shown {
   padding-right: 4px;
 }
-/* FR1-01b (CI fix run): with Clear on the row the hint is 14 px. Where the
-   browser snaps glyph advances to whole pixels (Linux Chromium) FILTERS and
-   CLEAR draw about 7 px wider between them and the field loses that much;
-   at 15 px the hint then had 2 px to spare, at 14 px it has 8 (15 on
-   Windows). The typed text stays 16 px (iOS never zooms). */
+/* With Clear on the row the hint is 14 px. Where the browser snaps glyph
+   advances to whole pixels (Linux Chromium) FILTERS and CLEAR draw about
+   7 px wider between them and the field loses that much; at 15 px the hint
+   would have 2 px to spare, at 14 px it has 8 (15 on Windows). The typed
+   text stays 16 px (iOS never zooms). */
 .m-app .m-search--narrowed .m-search__input::placeholder {
   font-size: 14px;
 }
@@ -100,7 +95,7 @@
   color: var(--color-text-muted);
 }
 
-/* ── Filters button (m-layout.css:156-163) ──────────────────────────────── */
+/* ── Filters button ─────────────────────────────────────────────────────── */
 .m-app .m-filterbtn {
   flex: none;
   height: 48px;
@@ -134,7 +129,7 @@
   text-align: center;
 }
 
-/* ── Clear: desktop's amber outline (R3-5), drawn 32 px, hit 44 px. Its slot
+/* ── Clear: desktop's amber outline, drawn 32 px, hit 44 px. Its slot
  * is not reserved: the search box narrows when it appears. ──────────────── */
 .m-app .m-clearbtn {
   position: relative;
@@ -190,7 +185,7 @@
 .m-app .m-count--narrowed {
   color: #f2c14e;
 }
-/* The scope chip: drawn 32 px in the R3-5 outline idiom, hit 44 px; steel
+/* The scope chip: drawn 32 px in the outline idiom, hit 44 px; steel
  * unscoped, amber (desktop trigger --on) scoped. */
 .m-app .m-scopechip {
   position: relative;
@@ -264,13 +259,12 @@
   border-radius: 3px;
   color: #cfd6e4;
 }
-/* BL-257 FR5-05 (F-17): the active sort row's direction, as a word. Border
+/* The active sort row's direction, as a word. Border
  * after the playset pip's (.playset__pip: 1.5 px solid, fully rounded,
  * transparent fill), in the app blue; the small UI label style (12 px / 700 /
  * 0.12em, as .m-cam__holdtxt). One line, never taller than the row. The word
- * is the primary text colour (owner decision 2026-10-12 after review): the
- * app blue on the active row's blue wash was about 3.3:1, and the app has no
- * brighter-blue text token. */
+ * is the primary text colour: the app blue on the active row's blue wash is
+ * about 3.3:1, and the app has no brighter-blue text token. */
 .m-app .m-sortdir {
   flex: none;
   box-sizing: border-box;
@@ -288,10 +282,9 @@
   color: var(--color-text);
 }
 
-/* ── Segmented control + the view toggle (m-layout.css:109-118, m-rev1.css
- * 118-123, m-rev2.css:51-57). Each side opens its sizes in place; the open
- * is a discrete state change (rev4's max-width slide animated a layout
- * property, so the sizes simply appear). ────────────────────────────────── */
+/* ── Segmented control + the view toggle. Each side opens its sizes in
+ * place; the open is a discrete state change (a max-width slide would
+ * animate a layout property, so the sizes simply appear). ──────────────── */
 .m-app .m-seg {
   display: inline-flex;
   flex: none;
@@ -410,7 +403,7 @@
   color: inherit;
   transition: background 0.12s ease;
 }
-/* BL-248 S2-10: the row is two buttons (rev4 m-layout.css:174-178) -- the
+/* The row is two buttons -- the
  * main part and the price + playset cluster, each with its own press wash. */
 .m-app .m-row__main:active,
 .m-app .m-row__own:active {
@@ -514,7 +507,7 @@
 }
 .m-app .m-row__own {
   flex: none;
-  /* rev4 92 px; 96 px border-box holds chip + three pips, so the column's
+  /* 96 px border-box holds chip + three pips, so the column's
    * edge lines up whatever the playset size (1 or 3 pips). */
   box-sizing: border-box;
   min-width: 96px;
@@ -549,7 +542,7 @@
   align-items: center;
   gap: 8px;
 }
-/* Tiers (m-rev1.css:131-148). */
+/* Tiers. */
 .m-app .m-row--t-sm {
   --tw: 34px;
   --th: 48px;
@@ -599,7 +592,7 @@
   justify-content: flex-start;
   padding-top: 14px;
 }
-/* The no-image row is ONE line (rev2 V2): set/#, name, subtitle, then a fixed
+/* The no-image row is ONE line: set/#, name, subtitle, then a fixed
  * right column so price + playset line up row to row. */
 .m-app .m-row--line .m-row__main {
   gap: 8px;
@@ -636,8 +629,7 @@
   font-size: 13px;
 }
 
-/* ── Gallery (m-layout.css:197-216, m-rev2.css:59-62): virtual lines of
- * 1 / 2 / 3 cells. ─────────────────────────────────────────────────────── */
+/* ── Gallery: virtual lines of 1 / 2 / 3 cells. ─────────────────────────── */
 .m-app .m-grid {
   position: relative;
 }
@@ -709,13 +701,12 @@
   transform: translate(-50%, -50%) rotate(-90deg);
 }
 
-/* ── Empty state (m-layout.css:217-219; .m-empty lives in shell.css) ───── */
+/* ── Empty state (.m-empty lives in shell.css) ─────────────────────────── */
 .m-app .m-empty--list {
   padding-top: 48px;
 }
 
-/* ── Scope menu (rev4 MScope.jsx; m-layout.css:122-130 chips; the facet row
- * anatomy it reuses, m-rev3.css:244-292 + 383-389) ───────────────────────── */
+/* ── Scope menu (chips; the facet row anatomy the Filters sheet reuses) ── */
 .m-app .m-fnote {
   margin: 0;
   font-size: 12.5px;
@@ -867,8 +858,8 @@
   color: #cfd6e4;
 }
 
-/* ══ desktop cards.css, VERBATIM under .m-app (S1-19 / S1-20) ══════════════ */
-/* ── cards.css:944-1011 (playset pips + count chip) ── */
+/* ══ desktop cards.css, VERBATIM under .m-app ═════════════════════════════ */
+/* ── cards.css: playset pips + count chip ── */
 .m-app .playset {
   display: inline-flex;
   align-items: center;
@@ -923,7 +914,7 @@
 .m-app .playset-chip--signed-out {
   color: var(--color-text-muted);
 }
-/* ── cards.css:1287-1385 (console plate) ── */
+/* ── cards.css: console plate ── */
 .m-app .gallery-plate {
   position: relative;
   height: 24px;
@@ -995,7 +986,7 @@
   color: #6b7a99;
   white-space: nowrap;
 }
-/* ── cards.css:1482-1546 (scoped pips, plate BL-222) ── */
+/* ── cards.css: scoped pips, scoped plate ── */
 .m-app .playset__pip--scoped,
 .m-app .playset--complete .playset__pip--filled.playset__pip--scoped {
   background: var(--color-warning);
@@ -1019,8 +1010,8 @@
   background-color: rgba(217, 154, 31, 0.08);
 }
 
-/* ── Gallery plate at phone scale (accepted rev4 builder call: sizes only;
- * colours stay desktop's above) and the 3-across tightening (m-rev2.css). */
+/* ── Gallery plate at phone scale (sizes only; colours stay desktop's
+ * above) and the 3-across tightening. */
 .m-app .m-plate {
   display: block;
   width: 100%;

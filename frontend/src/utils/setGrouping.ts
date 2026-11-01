@@ -1,20 +1,20 @@
 import type { CardSet } from "../api/sets";
 
-/** BL-164: set grouping/ordering model, locked app-wide 2026-07-26
- * (specification_documents/planning/Set_Grouping_Context_2026-07-26.md).
+/** The set grouping/ordering model, app-wide (App Spec §5.1, §5.13).
  * Every set is exactly one of: a base set (canonical or secondary), a
  * Weekly Play companion (nests under its base set -- only Weekly Play sets
  * nest), or an Exclusive (everything else). This module is the single
  * documented source for that structure/membership/order -- do not
- * re-derive it ad hoc elsewhere; both Add Cards dropdowns (SetDropdown.tsx)
- * and FilterPanel's Set multi-select key off these same constants.
+ * re-derive it ad hoc elsewhere; the Add Cards set dropdown
+ * (SetDropdown.tsx), the phone's set chooser and FilterPanel's Set
+ * multi-select key off these same constants.
  *
- * ORDER RULE (owner, 2026-10-12, BL-258, ADR-0031): main-release sets are
- * listed NEWEST FIRST (HMW ... SOR). Intro Battle: Hoth and Twin Suns keep
- * their place after the main block; Weekly Play sets follow their base set;
- * every other set keeps its existing position. Group structure, membership
- * and labels are unchanged. **A new main set is added at the FRONT of
- * SET_CANONICAL** (and of the backend blocks in services/set_order.py).
+ * ORDER RULE (App Spec §5.1, ADR-0031): main-release sets are listed
+ * NEWEST FIRST (HMW ... SOR). Intro Battle: Hoth and Twin Suns keep their
+ * place after the main block; Weekly Play sets follow their base set;
+ * every other set keeps its existing position. **A new main set is added
+ * at the FRONT of SET_CANONICAL** (and of the backend blocks in
+ * services/set_order.py).
  * Nothing here should be derived from `is_base_set` alone (MV26 anchors only
  * to ASH but is still an Exclusive, so anchoring != base-set membership). */
 
@@ -68,16 +68,16 @@ export function isSecondaryBaseSet(code: string): boolean {
   return SET_SECONDARY.includes(code);
 }
 
-/** BL-258: true for a main-release set (a SET_CANONICAL member) or the Weekly
+/** True for a main-release set (a SET_CANONICAL member) or the Weekly
  * Play companion of one -- the block the Set column's descending sort reverses
  * (oldest first). IBH, TS26 and every other set are outside it. */
 export function isMainBlockSet(code: string): boolean {
   return SET_CANONICAL.some((base) => base === code || weeklyPlayCodeFor(base) === code);
 }
 
-/** True for any base set (canonical or secondary) -- the same
- * codes CLAUDE.md's Set Codes table and the backend's curated
- * BASE_SET_CODES enumerate. */
+/** True for any base set (canonical or secondary) -- the same codes the
+ * backend's curated BASE_SET_CODES (ingestion/swuapi_transform.py)
+ * enumerates. */
 export function isBaseSetCode(code: string): boolean {
   return isCanonicalSet(code) || isSecondaryBaseSet(code);
 }
@@ -108,7 +108,7 @@ export function findSet(sets: readonly CardSet[], code: string): CardSet | null 
  *
  *   - a base set shows itself (unchanged);
  *   - a Weekly Play companion shows its base set (categorical: WP codes are
- *     always base + trailing "P", the same locked convention
+ *     always base + trailing "P", the same convention
  *     `weeklyPlayCodeFor` encodes -- no catalog scan needed);
  *   - any other non-base set (Exclusives: C24/J25/P26/GG/...) shows the
  *     distinct home base sets (`set_code`) of the printings it released
@@ -148,8 +148,8 @@ export interface SetRailGroup {
 }
 
 /** View 1 (base sets only, the default dropdown): one rail group per
- * present base set, canonical block then secondary block, in the doc's
- * guaranteed order. Absent sets (not yet loaded / not present in `/api/sets`)
+ * present base set, canonical block then secondary block, in the
+ * guaranteed order above. Absent sets (not yet loaded / not present in `/api/sets`)
  * are simply omitted -- never rendered as an empty/broken group. */
 export function baseOnlyGroups(sets: readonly CardSet[]): {
   canonical: SetRailGroup[];

@@ -1,6 +1,6 @@
-"""BL-29 ingestion: upserts base_cards/card_variants (+ sets, aspects,
-keywords, traits) from a swuapi export, keyed on swuapi_id throughout so
-re-running is idempotent (BL-33 step 3).
+"""swuapi ingestion (App Spec §13): upserts base_cards/card_variants (+ sets,
+aspects, keywords, traits) from a swuapi export, keyed on swuapi_id
+throughout so re-running is idempotent.
 
 Usage:
     python -m app.ingestion.run_swuapi_ingestion --file path/to/export.json
@@ -136,8 +136,9 @@ def update_standard_variant_ids(
     variant_ids: dict[str, int],
 ) -> None:
     """base_cards.standard_variant_id for every base card with a Standard
-    printing among its own variants. Left null for the sole true exception
-    (Zam, mapping spec §3.3) -- nothing to set, so it's a no-op for that row."""
+    printing among its own variants. Left null for a genuine no-anchor
+    exception (mapping spec §6) -- nothing to set, so it's a no-op for
+    that row."""
     standard_variant_by_base: dict[str, str] = {}
     for cv in card_variants:
         if cv["variant_type"] == "Standard":

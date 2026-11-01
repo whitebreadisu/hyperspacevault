@@ -21,13 +21,12 @@ import { scopeShortName } from "../../utils/variantScope";
 import { filterCards, withToggle } from "../../vault/vaultModel";
 import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
 
-// BL-248 stage 2B-1 (S2-13 / S2-14 / S2-15): the Filters sheet's model, pure
-// functions over desktop's own utilities (utils/filters.ts facetValidValues /
-// facetedOptions; vaultModel's withFilters / filterCards). The sheet edits
-// the Vault's live state through useVaultView (S2-14: live, as desktop and
-// rev4 -- no draft).
+// The Filters sheet's model (App Spec §25.2), pure functions over desktop's
+// own utilities (utils/filters.ts facetValidValues / facetedOptions;
+// vaultModel's withFilters / filterCards). The sheet edits the Vault's live
+// state through useVaultView (live, as desktop -- no draft).
 
-/** Desktop CardsPage hands FilterPanel the toggle-narrowed cards (BL-70) and
+/** Desktop CardsPage hands FilterPanel the toggle-narrowed cards and
  * facets with the search inside FilterState. The phone's search lives beside
  * FilterState, so the facet universe here is
  * the toggle-narrowed list with the search applied -- the same conjunction
@@ -40,7 +39,7 @@ export function facetBase(
   return filterCards(all, { ...s, filters: DEFAULT_FILTERS }, limits);
 }
 
-/** Desktop facetValidValues over the phone's facet universe (S2-15). */
+/** Desktop facetValidValues over the phone's facet universe. */
 export function facetValid(
   base: InventoryCard[],
   filters: FilterState,
@@ -49,10 +48,10 @@ export function facetValid(
   return facetValidValues(base, { ...filters, search: "" }, field);
 }
 
-/** Rarity inline (R4-3): all five values always render (the row is a fixed
+/** Rarity inline: all five values always render (the row is a fixed
  * five-badge grid), so desktop facetedOptions runs with showAllValues = true
  * -- a 0-match value is labelled "(0)" and inert; a selected one is never
- * hidden (BL-70). */
+ * hidden (App Spec §5.6). */
 export function rarityOptions(base: InventoryCard[], filters: FilterState): SelectOption[] {
   return facetedOptions(RARITY_OPTIONS, facetValid(base, filters, "rarity"), filters.rarity, true);
 }
@@ -76,7 +75,7 @@ export function toggleValue(set: Set<string>, value: string): Set<string> {
   return next;
 }
 
-/** rev4 gameplayCount = the badge rule (desktop countActiveFilters, one bump
+/** The Gameplay count = the badge rule (desktop countActiveFilters, one bump
  * per group) over the Gameplay group: Aspects (selection or a non-Exact
  * mode), Type, Arenas, Keywords, Traits, Cost, Power, HP. */
 export function gameplayCount(f: FilterState): number {
@@ -93,7 +92,7 @@ export function gameplayCount(f: FilterState): number {
   );
 }
 
-// ── Row chips (R4-3 FacetRow) ───────────────────────────────────────────────
+// ── Row chips (FacetRow) ────────────────────────────────────────────────────
 
 export interface RowChip {
   /** The raw value (set code, toggle key, raw finish). */
@@ -122,7 +121,7 @@ export function setChips(
   }));
 }
 
-/** rev4 COLLECTION_SHORT: desktop's four toggles in their short names. */
+/** Desktop's four toggles in their short names. */
 export const COLLECTION_SHORT: [keyof CollectionToggles, string][] = [
   ["incomplete", "Incomplete"],
   ["owned", "Own"],
@@ -132,7 +131,7 @@ export const COLLECTION_SHORT: [keyof CollectionToggles, string][] = [
 
 /** Collection row: signed out shows nothing (the placeholder routes to sign
  * in); while scoped the toggles read the scoped finish, so they carry its
- * amber (desktop pl-toggle--scoped, BL-195 / BL-222). */
+ * amber (desktop pl-toggle--scoped). */
 export function collectionChips(
   t: CollectionToggles,
   scope: string | null,
@@ -159,7 +158,7 @@ export function finishChips(f: FilterState, scope: string | null): RowChip[] {
   }));
 }
 
-// ── Picker options (S2-17 / S2-18 / S2-19) ──────────────────────────────────
+// ── Picker options ──────────────────────────────────────────────────────────
 // Every picker shows its whole universe with desktop facetedOptions
 // (showAllValues = true): a value with 0 matches under the other filters is
 // labelled "(0)", greyed and not addable; a selected one is never hidden.
@@ -199,7 +198,7 @@ export function fieldOptions(
   return facetedOptions(universe, facetValid(base, filters, field), selected, true);
 }
 
-/** Desktop's aspect universe: the six aspects + "No Aspect" (BL-90). */
+/** Desktop's aspect universe: the six aspects + "No Aspect". */
 export const ASPECT_UNIVERSE: SelectOption[] = [
   ...ASPECT_LIST.map((a) => ({ value: a, label: a })),
   { value: NO_ASPECT, label: "No Aspect" },
@@ -212,14 +211,14 @@ export function listUniverse(all: InventoryCard[], field: "keyword" | "trait"): 
   return distinctMulti(all, field === "keyword" ? "keywords" : "traits");
 }
 
-/** rev4 MODE_MEANING: the one-line meaning under Any / Within / Exact. */
+/** The one-line meaning under Any / Within / Exact. */
 export const MODE_MEANING: Record<AspectMatchMode, string> = {
   any: "Cards with any of the selected aspects.",
   within: "Cards whose aspects all fit inside the selection.",
   exact: "Cards whose aspects match the selection exactly.",
 };
 
-// ── Live edits (S2-14) ──────────────────────────────────────────────────────
+// ── Live edits ──────────────────────────────────────────────────────────────
 
 /** The slice of useVaultView the sheet writes through. */
 export interface FilterWriter {
@@ -229,7 +228,7 @@ export interface FilterWriter {
   clearAll: () => void;
 }
 
-/** S2-20: desktop's filter_applied `field` values (FilterPanel
+/** Desktop's filter_applied `field` values (App Spec §22) (FilterPanel
  * onFieldChanged + CardsPage's four Collection toggles). */
 export type FilterField =
   | "set"
@@ -271,7 +270,7 @@ export const RANGE_MAX: Record<RangeField, number> = {
  * the scoped value disengages the scope; every other facet keeps it. Reset =
  * desktop Reset (FilterState incl. the search back to default, the four
  * toggles off; the scope goes with it). `onField` hears the desktop field
- * name of every user edit (S2-20 filter_applied; Reset is filters_cleared). */
+ * name of every user edit (filter_applied; Reset is filters_cleared). */
 export function filterActions(w: FilterWriter, onField: (field: FilterField) => void = () => {}) {
   const f = w.state.filters;
   const put = (field: FilterField, next: FilterState) => {
@@ -289,7 +288,7 @@ export function filterActions(w: FilterWriter, onField: (field: FilterField) => 
     toggleIn: (field: SetField, value: string) =>
       put(field, { ...f, [field]: toggleValue(f[field], value) }),
     setValues: (field: SetField, next: Set<string>) => put(field, { ...f, [field]: next }),
-    /** BL-90: empty = every chit lit; the first tap narrows to that value;
+    /** Empty = every chit lit; the first tap narrows to that value;
      * removing the last one lands back on empty (no snap-back). */
     tapAspect: (a: string) =>
       put("aspect", {

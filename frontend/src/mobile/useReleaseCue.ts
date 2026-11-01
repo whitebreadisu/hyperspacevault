@@ -2,9 +2,10 @@ import { useCallback, useState } from "react";
 import { RELEASE_NOTES } from "../content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "../utils/releaseNotesSeen";
 
-/** BL-247 S1-07 / BL-250 S4-04 (R5-2 + D2-0): the phone's release-notes
- * unread cue. Same storage and semantics as desktop (App.tsx notesUnread /
- * openNotes): unread while the newest entry's key is not the stored one.
+/** The phone's release-notes unread cue; its rules are App Spec §25.4
+ * ("Unread cue"). Same storage and semantics as desktop (App.tsx
+ * notesUnread / openNotes): unread while the newest entry's key is not the
+ * stored one.
  *
  * - The title (badge when collapsed) carries the cue, and the chooser's
  *   Updates button; the More tab never does.
@@ -12,8 +13,7 @@ import { hasUnread, latestEntryKey, saveLastSeenKey } from "../utils/releaseNote
  *   title this session (`first`): whichever of the two the user reached first
  *   decides, once.
  * - Opening the chooser alone does not clear. Only the real Updates screen
- *   clears, on its mount (`clear()`; S1 review F7: the S1 placeholder path
- *   cleared on the route alone and is gone). */
+ *   clears, on its mount (`clear()`); the route alone does not. */
 export type CueFirst = "more" | "title" | null;
 
 export interface CueState {
@@ -23,7 +23,7 @@ export interface CueState {
 
 export type CueEvent = "more" | "title" | "seen";
 
-/** The cue's state machine (pure; vitest S4-04). */
+/** The cue's state machine (pure, unit-tested). */
 export function cueStep(s: CueState, ev: CueEvent): CueState {
   if (ev === "seen") return s.unread ? { ...s, unread: false } : s;
   if (s.first != null) return s;

@@ -1,5 +1,4 @@
-"""BL-137: POST /api/deck-check request/response shapes
-(Definition_DeckCheck_2026-07-16.md §6)."""
+"""POST /api/deck-check request/response shapes (App Spec §5.11, §12)."""
 
 from __future__ import annotations
 
@@ -62,7 +61,7 @@ class MissingCard(BaseModel):
 
 
 class DeckCardEntry(BaseModel):
-    """BL-142: one row of a scope's COMPLETE card list -- unlike
+    """One row of a scope's COMPLETE card list -- unlike
     MissingCard, present for every card in the scope (including fully-owned
     ones), which is what the ALL CARDS toggle and the scope-tile market
     value both need. `line_value` is unit_price * need (the value of owning
@@ -84,9 +83,8 @@ class ScopeResult(BaseModel):
     missing_total: float
     unpriced_count: int
     cart_url: str | None
-    # BL-142: full-list + deck-value extension (Definition_DeckCheck §6 did
-    # not anticipate these; additive fields, no removals -- see PR
-    # description). all_cards mirrors `missing` but includes owned rows;
+    # Full-list + deck-value fields: all_cards mirrors `missing` but
+    # includes owned rows;
     # deck_value is the scope's complete-decklist market value (same
     # mode/price-basis rules as missing_total, priced via unit_price * need
     # rather than the missing quantity); unpriced_value_count is the count

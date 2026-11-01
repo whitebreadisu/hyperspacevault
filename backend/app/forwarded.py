@@ -2,8 +2,8 @@
 
 Every consumer of ``request.client.host`` (the per-IP feedback and
 shared-read limiters, the PostHog relay's GeoIP stamp, ``client_ip_key``)
-needs the real caller. Two paths reach this service, measured on dev
-2026-10-28 from the ``forwarded_hops`` / ``forwarded_host`` log fields:
+needs the real caller. Two paths reach this service, as measured from the
+``forwarded_hops`` / ``forwarded_host`` request-log fields:
 
 * Direct to Cloud Run: the Google front end APPENDS the real client to
   whatever ``X-Forwarded-For`` the caller sent. A forged leading entry
@@ -44,15 +44,15 @@ entry is not in the ranges, the request is resolved to the rightmost entry
 and ``scope["state"]["forwarded_unrecognised_hop"]`` is set, which the request
 log emits as ``forwarded_unrecognised_hop: true`` (no address).
 
-Accepted residual (2026-10-28, low): a direct caller whose egress is itself a
+Accepted residual (low): a direct caller whose egress is itself a
 Google non-Cloud address (for example Apps Script) and who forges BOTH headers
 chooses its own limiter key. It needs Google-hosted egress, and the limiters
 bound abuse, not access.
 
 ``ForwardedClientMiddleware`` applies the result to ``scope["client"]`` so
 ``request.client.host`` stays the single consumer API. It also carries over
-``X-Forwarded-Proto`` to ``scope["scheme"]`` (what uvicorn's
-ProxyHeadersMiddleware did), so redirects Starlette builds keep https.
+``X-Forwarded-Proto`` to ``scope["scheme"]`` (as uvicorn's
+ProxyHeadersMiddleware does), so redirects Starlette builds keep https.
 """
 
 import ipaddress

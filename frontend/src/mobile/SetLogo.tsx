@@ -1,7 +1,7 @@
 import { SET_LOGO_BOX, setLogoLayout, setLogoUrl } from "./setLogoArt";
 import type { SetLogoAlign, SetLogoBoxName } from "./setLogoArt";
 
-// BL-257 FR3-01: a set logo in a fixed logo box, its opaque artwork centred
+// A set logo in a fixed logo box, its opaque artwork centred
 // and sized by the equal-area rule (setLogoArt.ts). The box clips the PNG's
 // transparent padding; the artwork itself never leaves the box. Every phone
 // surface that draws a set logo renders this (SET_LOGO_BOX names them).

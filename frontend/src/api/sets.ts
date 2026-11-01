@@ -11,7 +11,6 @@ export interface CardSet {
 
 export async function getSets(): Promise<CardSet[]> {
   const res = await authedFetch("/api/sets");
-  // BL-154: migrated from a bare `throw new Error`.
   if (!res.ok) throw new ApiError(`Failed to fetch sets: ${res.status}`, res.status);
   return res.json();
 }

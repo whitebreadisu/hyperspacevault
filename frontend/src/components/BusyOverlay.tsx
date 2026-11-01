@@ -4,16 +4,15 @@ import { AspectIcon } from "./AspectIcon";
 import type { BusyStage } from "../hooks/useBusyOverlay";
 import "./BusyOverlay.css";
 
-/** BL-196: the six aspect glyphs, in a fixed render order, evenly spaced on
+/** The six aspect glyphs, in a fixed render order, evenly spaced on
  * the orbit ring (see BusyOverlay.css). Same six aspect keys AspectIcon's
  * own ASPECT_IMAGES map uses. */
 const ASPECTS = ["Command", "Aggression", "Cunning", "Vigilance", "Heroism", "Villainy"];
 
 /** jsdom implements no matchMedia at all (unlike most other browser APIs it
- * stubs) -- feature-detected rather than assumed, so every existing test
- * that mounts a surface with BusyOverlay wired in (ImportExportPage,
- * AddCardsModal) keeps working unmodified; only BusyOverlay's own reduced-
- * motion test mocks it. */
+ * stubs), so it is feature-detected rather than assumed: a test that mounts
+ * a surface with BusyOverlay wired in (ImportExportPage, AddCardsModal)
+ * needs no stub; only BusyOverlay's own reduced-motion test mocks it. */
 function usePrefersReducedMotion(): boolean {
   const supported = typeof window !== "undefined" && typeof window.matchMedia === "function";
   const [reduced, setReduced] = useState(
@@ -35,8 +34,9 @@ export interface BusyOverlayProps {
   stage: BusyStage | null;
 }
 
-/** BL-196: full-viewport blocking overlay for large inventory applies
- * (Import dry_run/commit, Add Cards / precon commit). Deliberately has NO
+/** Full-viewport blocking overlay for large inventory applies (Import
+ * dry_run/commit, Add Cards / precon commit, and the mobile import and
+ * scan-verify commits). Deliberately has NO
  * dismiss affordance -- no onClick/onKeyDown wired anywhere in this
  * component, matching the "busy state, not a dialog" framing -- Escape and
  * backdrop clicks are both no-ops here by simple absence of a handler.
@@ -44,11 +44,9 @@ export interface BusyOverlayProps {
  * assistive tech gets the staged message announced, but nothing here reads
  * as a focusable/dismissable dialog.
  *
- * Animation: the owner-picked orbit (2026-08-03, from three built variants
- * -- the losing sequence-pulse/crossfade variants and the dev switcher were
- * stripped at the pick; git history has them if ever wanted back). Six
- * glyphs on a slow ring, each flashing at 6 o'clock and fading to 10%
- * across the revolution. Reduced motion swaps to a static dimmed row. */
+ * Animation: an orbit -- six glyphs on a slow ring, each flashing at
+ * 6 o'clock and fading to 10% across the revolution. Reduced motion swaps
+ * to a static dimmed row. */
 export function BusyOverlay({ stage }: BusyOverlayProps) {
   const reducedMotion = usePrefersReducedMotion();
 
@@ -57,7 +55,7 @@ export function BusyOverlay({ stage }: BusyOverlayProps) {
   const glyphsClass = reducedMotion ? "reduced" : "c";
 
   return (
-    // Extends the shared .modal-overlay backdrop (BL-153, index.css) rather
+    // Extends the shared .modal-overlay backdrop (index.css) rather
     // than inventing a new scrim; `.busy-overlay.modal-overlay` in
     // BusyOverlay.css raises z-index above every existing modal layer
     // (AddCardsModal's nested close-guard confirm tops out at 200) since a

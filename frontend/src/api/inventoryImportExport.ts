@@ -1,24 +1,22 @@
 import { authedFetch } from "./authedFetch";
 import { CodedApiError } from "./errors";
 
-/** BL-54 S3: frontend types + client for the Import/Export surface, mirroring
- * backend/app/schemas/inventory_import_schema.py field-for-field
- * (Definition_ImportExport_2026-07-22.md §7 -- the authoritative contract),
+/** Frontend types + client for the Import/Export surface (App Spec §17),
+ * mirroring backend/app/schemas/inventory_import_schema.py field-for-field,
  * the same "mirrors the backend schema" idiom api/deckCheck.ts's own doc
  * comment describes. Every endpoint here sits behind require_verified_email
- * (P9) except downloadCatalogReference (public, §6) -- callers must only
- * invoke the gated ones once ImportExportPage itself is reachable (App.tsx
- * mounts that pane only for verified users). */
+ * (App Spec §17.3) except downloadCatalogReference (public) -- callers must
+ * only invoke the gated ones from a surface that is reachable only when
+ * signed in and verified (App.tsx mounts ImportExportPage only for verified
+ * users; the phone's ImportExportScreen applies the same check). */
 
 export type ImportMode = "merge_add" | "replace" | "replace_all";
 export type CapHandling = "add_above" | "trim";
 export type ImportStage = "dry_run" | "commit";
 export type RowStatus = "resolved" | "unresolved" | "ambiguous";
-/** BL-200 (census Coverage note 1): was drifted -- only listed the five
- * canonical codes, so every adapter-era code below arrived typed-as-
- * impossible even though the backend has sent them since BL-185/BL-186.
- * Now mirrors ReasonCode in backend/app/schemas/inventory_import_schema.py
- * field-for-field. */
+/** Mirrors ReasonCode in backend/app/schemas/inventory_import_schema.py
+ * field-for-field, including the foreign-format adapter codes (App Spec
+ * §17.5). */
 export type ReasonCode =
   | "unknown_uuid_and_triple"
   | "unknown_triple"
@@ -31,7 +29,7 @@ export type ReasonCode =
   | "unknown_variant_for_column";
 export type TrimReason = "keep_limit" | "ceiling";
 
-/** §7.3's `card` object -- for a resolved row this is the canonical catalog
+/** The report's `card` object -- for a resolved row this is the canonical catalog
  * identity; for unresolved/ambiguous rows it's only whatever raw identity
  * fragments the file carried. Every field optional (response_model_exclude_
  * none on the wire): a row missing a fragment simply omits that key rather
@@ -45,7 +43,7 @@ export interface ImportRowCard {
   subtitle?: string;
 }
 
-/** §7.3's per-row report entry. Every field beyond row_number/status/card is
+/** One per-row report entry. Every field beyond row_number/status/card is
  * present only when meaningful for that row's status (exclude_none, per the
  * router's response_model_exclude_none=True) -- e.g. an ambiguous row has no
  * resulting_quantity key at all, not a null one. */
@@ -55,9 +53,9 @@ export interface ImportRowReport {
   reason?: ReasonCode;
   matched_by_fallback?: boolean;
   uuid_triple_mismatch?: boolean;
-  /** BL-200: widened from bare swuapi UUID strings to full card records --
-   * an ambiguous row's candidates now render as "SET number · variant type
-   * · name" instead of a UUID (see ImportPreviewReport's candidateLabel). */
+  /** Full card records, so an ambiguous row's candidates render as "SET
+   * number · variant type · name" rather than a UUID (see
+   * ImportPreviewReport's candidateLabel). */
   candidates?: ImportRowCard[];
   card: ImportRowCard;
   file_quantity?: number;
@@ -80,13 +78,13 @@ export interface ImportTotals {
   removed_by_replace_all: number;
 }
 
-/** §7.3 `replace_all`: one currently-owned row the file doesn't mention. */
+/** `replace_all`: one currently-owned row the file doesn't mention. */
 export interface RemovedRow {
   card: ImportRowCard;
   quantity: number;
 }
 
-/** §7.3's full report -- the response shape of both the dry_run and commit
+/** The full report -- the response shape of both the dry_run and commit
  * stages of POST /api/inventory/import (only `committed` and the actual DB
  * state differ between them). */
 export interface ImportReport {
@@ -100,22 +98,21 @@ export interface ImportReport {
 }
 
 /** The full-file 422 codes the router raises before any report exists
- * (§7.2), rendered as an inline error rather than a report (§8.2's last
- * bullet) -- plus `email_not_verified` (the shared P9 gate, surfaced as a
- * 403 on export/import alike) and `unknown` for anything else (a genuine
- * 401/5xx/network failure), the same typed-error shape api/deckCheck.ts's
- * DeckCheckApiError uses. */
+ * (App Spec §17.1-17.2), rendered as an inline error rather than a report
+ * -- plus `email_not_verified` (the verified-email gate, App Spec §17.3,
+ * surfaced as a 403 on export/import alike), `rate_limited`, and `unknown`
+ * for anything else (a genuine 401/5xx/network failure), the same
+ * typed-error shape api/deckCheck.ts's DeckCheckApiError uses. */
 export type ImportErrorCode =
   | "file_too_large"
   | "too_many_rows"
   | "unparseable_file"
   | "unsupported_format_version"
   | "email_not_verified"
-  // BL-200 (census A5): the backend's 429 detail is an OBJECT
-  // ({error: "rate_limited", message: "..."}), not a bare string like
-  // every other code here -- toImportApiError below recognizes its
-  // `.error` field specifically rather than the string-detail path the
-  // other FILE_ERROR_CODES share.
+  // The backend's 429 detail is an OBJECT ({error: "rate_limited",
+  // message: "..."}), not a bare string like every other code here --
+  // toImportApiError below recognizes its `.error` field specifically
+  // rather than the string-detail path the other FILE_ERROR_CODES share.
   | "rate_limited"
   | "unknown";
 
@@ -138,11 +135,9 @@ const CODE_MESSAGES: Record<ImportErrorCode, string> = {
   unknown: "Something went wrong. Please try again.",
 };
 
-/** BL-154: extends the shared CodedApiError base (api/errors.ts) rather than
- * Error directly -- the code/message/status shape was already the target
- * pattern (the audit's "parsed-body typed errors" convention, the same one
- * api/deckCheck.ts's DeckCheckApiError uses), so only the base class
- * changed here. */
+/** A parsed-body typed error: extends the shared CodedApiError base
+ * (api/errors.ts), as api/deckCheck.ts's DeckCheckApiError does. The
+ * message is always this module's own copy for the code (CODE_MESSAGES). */
 export class ImportApiError extends CodedApiError<ImportErrorCode> {
   constructor(code: ImportErrorCode, status: number) {
     super(code, CODE_MESSAGES[code], status);
@@ -157,11 +152,10 @@ async function toImportApiError(res: Response): Promise<ImportApiError> {
   } catch {
     detail = undefined;
   }
-  // BL-200 (census A5): a 429's detail is an object ({error, message}), not
-  // a string -- recognized here BEFORE the string-detail checks below so
-  // the friendly backend message actually reaches the screen instead of
-  // falling through to "unknown" (the bug the census caught: the object
-  // shape never matched `typeof detail === "string"` at all).
+  // A 429's detail is an object ({error, message}), not a string -- it is
+  // matched by its `.error` field so it maps to "rate_limited" instead of
+  // falling through to "unknown" (the object never matches the
+  // `typeof detail === "string"` checks).
   const code: ImportErrorCode =
     typeof detail === "string" && FILE_ERROR_CODES.has(detail)
       ? (detail as ImportErrorCode)
@@ -175,12 +169,12 @@ async function toImportApiError(res: Response): Promise<ImportApiError> {
   return new ImportApiError(code, res.status);
 }
 
-/** POST /api/inventory/import -- multipart/form-data (NOT a JSON body, per
- * the S2 handoff): a `file` part plus string form fields mode/cap_handling/
+/** POST /api/inventory/import -- multipart/form-data (NOT a JSON body):
+ * a `file` part plus string form fields mode/cap_handling/
  * stage. `body` is left as a FormData instance and no Content-Type header is
  * set explicitly -- fetch derives the multipart boundary itself, setting it
  * by hand would omit the boundary parameter and break parsing server-side.
- * Stateless two-call design (§7.2): the same function drives both the
+ * Stateless two-call design (App Spec §17.2): the same function drives both the
  * dry_run preview and the commit, distinguished only by `stage`. */
 export async function runImport(
   file: File,
@@ -204,15 +198,15 @@ export interface DownloadedFile {
   filename: string;
 }
 
-/** Content-Disposition: attachment; filename="..." -- both export endpoints
- * (§7.1/§6) always set this; the fallback is defensive only. */
+/** Content-Disposition: attachment; filename="..." -- both download
+ * endpoints always set this; the fallback is defensive only. */
 function filenameFromContentDisposition(res: Response, fallback: string): string {
   const header = res.headers.get("Content-Disposition");
   const match = header?.match(/filename="?([^";]+)"?/i);
   return match?.[1] ?? fallback;
 }
 
-/** GET /api/inventory/export?format=json|csv (§7.1). Auth + verified, like
+/** GET /api/inventory/export?format=json|csv. Auth + verified, like
  * runImport above. */
 export async function exportInventory(format: "json" | "csv"): Promise<DownloadedFile> {
   const res = await authedFetch(`/api/inventory/export?format=${format}`);
@@ -224,10 +218,9 @@ export async function exportInventory(format: "json" | "csv"): Promise<Downloade
   };
 }
 
-/** GET /api/catalog/reference.csv (§6/§7.4) -- public (P12), but routed
- * through authedFetch like every other catalog read in this app anyway (see
- * authedFetch.ts's own doc comment: attaching a token is harmless when one
- * exists and a no-op when it doesn't). */
+/** GET /api/catalog/reference.csv -- public (App Spec §17.3), but routed
+ * through authedFetch anyway: attaching a token is harmless when one exists
+ * and a no-op when it doesn't. */
 export async function downloadCatalogReference(): Promise<DownloadedFile> {
   const res = await authedFetch("/api/catalog/reference.csv");
   if (!res.ok) throw await toImportApiError(res);
@@ -240,8 +233,9 @@ export async function downloadCatalogReference(): Promise<DownloadedFile> {
 
 /** Triggers a browser download for an in-memory blob -- used for the two
  * server-generated downloads above AND the client-generated "problem rows"
- * CSV (ImportPreviewReport builds that blob itself from the dry-run/commit
- * report, §8.2c). The object URL is revoked right after the synthetic click;
+ * CSV (built from the dry-run/commit report by each Import/Export surface's
+ * problemRowsCsv -- screens/importexport/ImportExportPage.tsx's module-private
+ * copy on desktop, mobile/more/importFork.ts's on the phone). The object URL is revoked right after the synthetic click;
  * browsers keep the download alive from their own buffered copy once the
  * click fires, so the timing is safe. */
 export function downloadBlob(blob: Blob, filename: string): void {

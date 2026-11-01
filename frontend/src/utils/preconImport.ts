@@ -2,15 +2,13 @@ import type { ImportReport, ImportRowReport } from "../api/inventoryImportExport
 import type { PreconDeck, PreconDeckCard, PreconEntry } from "../data/preconDecks";
 import type { VerificationRow } from "./addCardsResolver";
 
-/** §4-REV's IBH "always the whole box": the two decks' rows merged into ONE
- * import payload, pre-merging any shared variant (summing quantities)
- * rather than relying solely on the import engine's own duplicate-fold --
- * "the client may pre-merge for a cleaner report but must not double-import"
- * (§4, still true post-revision). Kept unchanged from the S2 boxed-choice
- * code this replaces -- it's exactly what an always-both entry needs, only
- * now with a single caller (cardsForEntry's "ibhBox" branch) instead of
- * three. Order is deck A's rows first, then any of deck B's rows not
- * already covered. */
+/** IBH is "always the whole box" (App Spec §18): the two decks' rows merged
+ * into ONE import payload, pre-merging any shared variant (summing
+ * quantities) rather than relying solely on the import engine's own
+ * duplicate-fold -- the client may pre-merge for a cleaner report but must
+ * not double-import. Its one caller is cardsForEntry's "ibhBox" branch.
+ * Order is deck A's rows first, then any of deck B's rows not already
+ * covered. */
 export function mergeDeckCards(decks: PreconDeck[]): PreconDeckCard[] {
   const byUuid = new Map<string, PreconDeckCard>();
   for (const deck of decks) {
@@ -28,17 +26,17 @@ export function mergeDeckCards(decks: PreconDeck[]): PreconDeckCard[] {
 
 /** Resolves a chosen dropdown entry down to the flat row list an import file
  * is built from: a plain deck's own rows, or (IBH) the merged union of both
- * Hoth decks -- always both, never a per-deck choice (§4-REV). */
+ * Hoth decks -- always both, never a per-deck choice (App Spec §18). */
 export function cardsForEntry(entry: PreconEntry): PreconDeckCard[] {
   return entry.kind === "deck" ? entry.deck.cards : mergeDeckCards([entry.deckA, entry.deckB]);
 }
 
-/** Builds the `swu-inv/1` canonical-format File the BL-54 import engine
- * expects (Definition_ImportExport_2026-07-22.md §7 / runImport's own doc
- * comment) directly from resolved precon rows -- no server round trip, no
- * per-card increment loop (§2's rejected-alternatives note). Every row here
- * is already uuid-resolved at prep time, so the file carries the full
- * identity quadruple plus name for display/fallback. */
+/** Builds the `swu-inv/1` canonical-format File the import engine expects
+ * (App Spec §17.1 / runImport's own doc comment) directly from resolved
+ * precon rows -- no server round trip, no per-card increment loop (App Spec
+ * §18: a deck is a client-built file driven through the import engine).
+ * Every row here is already uuid-resolved at prep time, so the file carries
+ * the full identity quadruple plus name for display/fallback. */
 export function buildPreconImportFile(cards: PreconDeckCard[]): File {
   const payload = {
     format_version: "swu-inv/1",
@@ -56,12 +54,11 @@ export function buildPreconImportFile(cards: PreconDeckCard[]): File {
   });
 }
 
-// ── §4-REV: one shared Verify Cards component ───────────────────────────
-// Same reason-copy map ImportPreviewReport.tsx keeps for the Import/Export
-// screen's own problem-rows rendering -- duplicated rather than imported
-// from that screen module, matching this codebase's existing convention of
-// small per-file reason-text maps (ImportPreviewReport's own doc comment
-// notes it isn't shared either).
+// ── One shared Verify Cards component (App Spec §18) ────────────────────
+// Short reason copy for unresolved precon rows. ImportPreviewReport.tsx
+// keeps its own, fuller error/recommendation copy for the Import/Export
+// screen; this map is kept here rather than imported from that screen
+// module, following the codebase's small per-file reason-text maps.
 const REASON_TEXT: Record<string, string> = {
   unknown_uuid_and_triple: "Not found by ID or by set/number/variant.",
   unknown_triple: "No matching card for that set/number/variant.",
@@ -87,20 +84,19 @@ function unresolvedRow(r: ImportRowReport): VerificationRow {
   };
 }
 
-/** BL-151 S2b (§4-REV): the precon dry-run's ImportReport, mapped into the
- * SAME VerificationRow shape AddCardsVerification's manual-flow adapter
- * (addCardsResolver.ts's toVerificationRow) produces -- one shared
- * component renders both flows' confirmation screens, per the owner's
- * dev-review call to stop shipping a visually-different sibling.
+/** The precon dry-run's ImportReport, mapped into the SAME VerificationRow
+ * shape AddCardsVerification's manual-flow adapter (addCardsResolver.ts's
+ * toVerificationRow) produces -- one shared component renders both flows'
+ * confirmation screens (App Spec §18).
  *
- * Mapping decisions (recorded per the brief):
+ * Mapping decisions:
  *  - unresolved/ambiguous rows -- should never occur; precon data is
- *    uuid-resolved at prep time (§3) -- go in their own `unresolved` bucket,
+ *    uuid-resolved at prep time (App Spec §18) -- go in their own `unresolved` bucket,
  *    rendered by AddCardsVerification as a prominent data-integrity section
  *    ahead of the two standard ones, entirely absent for the manual flow.
  *  - a trimmed row (`trim_reason` set) renders through the SAME "will not be
- *    added" section/idiom the manual flow uses for an at-limit skip (§4-REV's
- *    explicit instruction), NOT a third bespoke "Trimmed" section -- the
+ *    added" section/idiom the manual flow uses for an at-limit skip, NOT a
+ *    third bespoke "Trimmed" section -- the
  *    row's own reason text still names exactly how many copies did/didn't
  *    land, so a partially-added row (`resulting_quantity > current_quantity`)
  *    reads differently from a fully-blocked one even though both share the
@@ -110,7 +106,7 @@ function unresolvedRow(r: ImportRowReport): VerificationRow {
  *  - a resolved row with no trim goes straight to "will be added", dot
  *    green, no note -- the ordinary case for the large majority of rows.
  *  - "Set" and "Finish" columns: precon rows are always the Standard variant
- *    of their printed set (§3), so `setText` is the constant "Base Set" and
+ *    of their printed set (data/preconDecks.json), so `setText` is the constant "Base Set" and
  *    `isOP` is always false (no OP/tournament prints in precon product
  *    decks) -- `finishText` comes straight from the row's own variant_type. */
 export function verificationRowsFromReport(report: ImportReport): {
@@ -135,8 +131,8 @@ export function verificationRowsFromReport(report: ImportReport): {
       groupKey: r.card.set_code ?? "Unknown",
       cardNumber: r.card.card_number ?? "",
       name: r.card.name ?? "",
-      // Owner dev review 2026-07-26 (round 7): the report's card already
-      // carries the subtitle -- surface it, same as the manual flow's rows.
+      // The report's card carries the subtitle -- surface it, same as the
+      // manual flow's rows.
       subtitle: r.card.subtitle ?? null,
       setText: "Base Set",
       isOP: false,

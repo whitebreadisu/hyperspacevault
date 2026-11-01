@@ -1,11 +1,8 @@
-"""BL-54 S2: resolution engine (§4), merge/cap math (§5), and the
-dry_run/commit orchestration behind POST /api/inventory/import (§7.2/§7.3).
-
-Definition_ImportExport_2026-07-22.md is authoritative; every section
-reference below points there.
+"""Import resolution engine, merge/cap math, and the dry_run/commit
+orchestration behind POST /api/inventory/import (App Spec §17.2).
 
 Both stages share ONE code path -- `compute_import` -- so "commit re-runs
-the identical computation" (§7.2) is true by construction rather than by
+the identical computation" is true by construction rather than by
 convention: the router calls this exact function for both dry_run and
 commit, and only the commit branch additionally applies the returned
 WritePlan and calls db.commit() once.
@@ -36,10 +33,10 @@ from app.services.limits import effective_limit, type_category
 
 @dataclass
 class WritePlan:
-    """§7.2 commit stage: exactly what to write, computed once by
-    compute_import and applied verbatim by apply_write_plan -- P6/§7.2
-    "commit writes only resolved rows" plus replace_all's removals (which
-    are themselves just resolved-to-zero writes on rows the file didn't
+    """Commit stage: exactly what to write, computed once by
+    compute_import and applied verbatim by apply_write_plan -- commit
+    writes only resolved rows, plus replace_all's removals (which are
+    themselves resolved-to-zero writes on rows the file didn't
     mention)."""
 
     updates: dict[int, int] = field(default_factory=dict)
@@ -47,7 +44,7 @@ class WritePlan:
 
 @dataclass
 class _Resolution:
-    """§4's per-row outcome, before any merge/cap math (which needs each
+    """A row's resolution outcome, before any merge/cap math (which needs each
     resolved variant's current quantity, fetched in bulk once every
     resolved variant_id in the file is known -- see compute_import)."""
 
@@ -56,8 +53,8 @@ class _Resolution:
     reason: str | None
     matched_by_fallback: bool
     uuid_triple_mismatch: bool
-    # BL-200: full VariantMatch tuples now, not bare swuapi_id strings --
-    # converted to ImportRowCard only when the report row is built below
+    # Full VariantMatch tuples, not bare swuapi_id strings -- converted to
+    # ImportRowCard only when the report row is built below
     # (_resolved_card), so an ambiguous row's candidates render as real
     # cards ("SET number · variant type · name") instead of UUIDs.
     candidates: list[VariantMatch]
@@ -65,35 +62,35 @@ class _Resolution:
 
 
 def _triple_of(row: ParsedRow) -> tuple[str, str, str] | None:
-    """§4 step 3: a "complete" triple requires all three fields -- a
-    partially-filled triple is never treated as resolvable, only as
+    """A "complete" triple requires all three fields -- a partially-filled
+    triple is never treated as resolvable, only as
     `incomplete_identity`."""
     if row.set_code and row.card_number and row.variant_type:
         return (row.set_code, row.card_number, row.variant_type)
     return None
 
 
-# PLR0911: one early return per §4 outcome, in the order the spec lists them.
+# PLR0911: one early return per resolution outcome, in resolution order.
 def _resolve_row(  # noqa: PLR0911
     row: ParsedRow,
     uuid_map: dict[str, VariantMatch],
     triple_map: dict[tuple[str, str, str], list[VariantMatch]],
 ) -> _Resolution:
-    """§4, applied in the order the spec states it. `row.malformed_quantity`
-    short-circuits everything else -- per inventory_io's S2 handoff
-    docstring, a malformed quantity is `malformed_row` before any identity
-    resolution is even attempted."""
+    """Resolution in App Spec §17.2's order (uuid wins, then triple
+    fallback, then ambiguous/unresolved). `row.malformed_quantity`
+    short-circuits everything else -- per inventory_io's module docstring,
+    a malformed quantity is `malformed_row` before any identity resolution
+    is even attempted."""
     if row.malformed_quantity:
         return _Resolution(row, "unresolved", "malformed_row", False, False, [], None)
 
-    # BL-185: a SWUDB row's identity was resolved (or determined un-
-    # resolvable/ambiguous) entirely by swudb_import.parse_swudb_csv at
-    # parse time -- its raw identity (Set/CardNumber/IsFoil/Stamp) doesn't
-    # fit the uuid/triple schemes this function otherwise handles, so the
-    # adapter does its own §6 resolution against the DB up front and
-    # stashes the verdict on the row rather than a triple this function
-    # could re-derive. `preresolved_reason` is None on every row parse_
-    # json/parse_csv ever produce, so this branch is a no-op for them.
+    # A foreign-format row (swudb_import / swunlimiteddb_import, App Spec
+    # §17.5) was resolved, or found unresolvable/ambiguous, by its adapter
+    # at parse time -- its raw identity doesn't fit the uuid/triple schemes
+    # this function otherwise handles, so the adapter resolves against the
+    # DB up front and stashes the verdict on the row rather than a triple
+    # this function could re-derive. `preresolved_reason` is None on every
+    # row parse_json/parse_csv produce, so this branch is a no-op for them.
     if row.preresolved_reason is not None:
         if row.preresolved_candidates:
             return _Resolution(
@@ -113,7 +110,7 @@ def _resolve_row(  # noqa: PLR0911
 
     # Step 1: uuid present and known -> resolved by uuid, unconditionally
     # (even if a complete triple on the same row disagrees -- that's a
-    # warning flag, not a resolution failure, §4 step 1).
+    # warning flag, not a resolution failure).
     if row.swuapi_uuid and row.swuapi_uuid in uuid_map:
         match = uuid_map[row.swuapi_uuid]
         variant = match[0]
@@ -125,14 +122,14 @@ def _resolve_row(  # noqa: PLR0911
                 variant.card_number,
                 variant.variant_type,
             )
-        ) or row.preresolved_mismatch  # BL-185: SWUDB's own IsFoil/Stamp
-        # confirmatory check (soft warning, never a resolution failure --
-        # §6 step 3/§7). preresolved_mismatch is always False on a
-        # canonical-format row (no triple to compare against here anyway).
+        ) or row.preresolved_mismatch  # SWUDB's own IsFoil/Stamp
+        # confirmatory check (soft warning, never a resolution failure).
+        # preresolved_mismatch is always False on a canonical-format row;
+        # a SWUDB row carries no triple, so it is the only mismatch source.
         return _Resolution(row, "resolved", None, False, mismatch, [], match)
 
     # Step 2: uuid absent OR present-but-unknown -> fall back to the triple.
-    # `matched_by_fallback` is only ever true when a uuid WAS present (P3) --
+    # `matched_by_fallback` is only ever true when a uuid WAS present --
     # a row with no uuid at all resolving by triple is just normal identity,
     # not a "fallback".
     uuid_was_present = bool(row.swuapi_uuid)
@@ -159,21 +156,21 @@ def _resolve_row(  # noqa: PLR0911
 def _compute_target(
     mode: str, cap_handling: str, current: int, file_quantity: int, limit: int | None
 ) -> tuple[int, str | None, int]:
-    """§5's merge & cap math. Returns
+    """Merge & cap math (App Spec §17.2). Returns
     (resulting_quantity, trim_reason, copies_not_added); trim_reason is
     None when this row wasn't clamped at all."""
     raw_target = current + file_quantity if mode == "merge_add" else file_quantity
 
     if cap_handling == "trim" and limit is not None:
         if mode == "merge_add":
-            # §5: merge_add + trim never reduces pre-existing stock.
+            # merge_add + trim never reduces pre-existing stock.
             pre_ceiling = max(current, min(raw_target, limit))
         else:
             # replace/replace_all: reduction is inherent to "file wins".
             pre_ceiling = min(raw_target, limit)
     else:
-        # add_above: keep-limits never clamp (P7). Ceiling still applies
-        # below regardless of cap_handling (P8).
+        # add_above: keep-limits never clamp. The ceiling still applies
+        # below regardless of cap_handling.
         pre_ceiling = raw_target
 
     final_target = min(pre_ceiling, QUANTITY_CEILING)
@@ -192,18 +189,17 @@ def _compute_target(
 def _fold_post_resolution_duplicates(
     resolutions: list[_Resolution],
 ) -> tuple[list[_Resolution], int]:
-    """inventory_io._merge_duplicates (§3.4) folds duplicates at the
+    """inventory_io._merge_duplicates folds duplicates at the
     representation level only -- same raw uuid, or same raw triple. A file
     can still carry one card twice under DIFFERENT identity schemes (once
     by uuid, once by triple); that duplicate only becomes visible after
     resolution, when both rows land on the same variant_id. Without this
     pass, both rows would appear in the report while
     `updates[variant.id] = resulting` last-write-wins in _plan_rows --
-    report and actual write would disagree, violating §7.3's "the preview
-    shows exact outcomes". (inventory_io's _merge_duplicates leaves this
-    post-resolution fold to this module by design.)
+    report and actual write would disagree, while the dry_run report must
+    match what commit writes (App Spec §17.2).
 
-    Policy matches §3.4's duplicate handling: file quantities sum into the
+    Policy matches _merge_duplicates: file quantities sum into the
     FIRST row (its row_number and resolution attributes win), later rows
     drop out of the report entirely, and each dropped row counts into
     `duplicate_rows_merged`. Runs before any merge/cap math, in all modes.
@@ -260,7 +256,7 @@ def _raw_card(row: ParsedRow) -> ImportRowCard:
 
 
 def _resolve_rows(db: Session, rows: list[ParsedRow]) -> tuple[list[_Resolution], int]:
-    """§4 for every row: one bulk uuid lookup and one bulk triple lookup,
+    """Resolution for every row: one bulk uuid lookup and one bulk triple lookup,
     per-row resolution against them, then the cross-scheme duplicate fold.
     Returns the folded resolutions and the number of rows the fold
     removed."""
@@ -293,7 +289,7 @@ def _cached_limit(
     variant_type: str,
     set_code: str,
 ) -> int | None:
-    """§5: the effective keep-limit for one variant. The limit depends only
+    """The effective keep-limit for one variant. The limit depends only
     on (type_category, limit_bucket) -- at most 2 x len(ALL_LIMIT_BUCKETS)
     distinct cells -- so `cache` holds one lookup per cell and
     tenant_card_limits is queried once per cell rather than once per file
@@ -311,7 +307,7 @@ def _plan_rows(
     mode: str,
     cap_handling: str,
 ) -> tuple[list[ImportRowReport], dict[int, int]]:
-    """§5 merge/cap per row and the §7.3 report row for it. Returns the
+    """Merge/cap per row and the report row for it. Returns the
     report rows (in resolution order) and the target quantity for every
     resolved variant_id. DB-free: `current_quantities` is already fetched
     (an absent variant_id means current 0) and `limit_for(base_card_type,
@@ -382,7 +378,7 @@ def _plan_rows(
 def _replace_all_removals(
     owned_rows: Iterable[tuple],
 ) -> tuple[list[RemovedRow], dict[int, int]]:
-    """§5 `replace_all`: every owned row the file did not resolve is
+    """`replace_all`: every owned row the file did not resolve is
     itemized as a removal and written as a resolved-to-zero update in the
     same WritePlan as every other resolved row. `owned_rows` are
     get_owned_rows_excluding's rows: (variant_id, quantity, swuapi_id,
@@ -423,9 +419,9 @@ def _totals(
     notes: ParseNotes,
     cross_scheme_merged: int,
 ) -> ImportTotals:
-    """§7.3 totals, counted from the report rows. `shown_rows` counts the
+    """Report totals, counted from the report rows. `shown_rows` counts the
     rows the report actually shows (resolved + unresolved + ambiguous);
-    rows folded away by either duplicate pass (inventory_io's §3.4
+    rows folded away by either duplicate pass (inventory_io's
     raw-identity pass, or the post-resolution cross-scheme pass) count in
     duplicate_rows_merged instead."""
     resolved = [r for r in row_reports if r.status == "resolved"]
@@ -455,7 +451,7 @@ def compute_import(  # noqa: PLR0913
     cap_handling: str,
     stage: str,
 ) -> tuple[ImportReport, WritePlan]:
-    """§4 resolution + §5 merge/cap math + §7.3 report, for either stage --
+    """Resolution + merge/cap math + report, for either stage --
     read-only (issues no writes; the caller applies the returned WritePlan
     for the commit stage only). See module docstring for why this single
     function backs both stages."""
@@ -501,7 +497,7 @@ def compute_import(  # noqa: PLR0913
 
 
 def apply_write_plan(db: Session, plan: WritePlan) -> None:
-    """§7.2 commit stage: writes the plan's target quantities. Does NOT
+    """Commit stage: writes the plan's target quantities. Does NOT
     commit -- the router commits exactly once after this returns, so a
     mid-way failure (raised from here or from the router before that
     commit) leaves every row untouched (get_db's session is closed without

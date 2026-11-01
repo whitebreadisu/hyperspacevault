@@ -28,7 +28,7 @@ import { ScanLoop, partialRead } from "./scanLoop";
 import type { LoopStatus, PartialRead, ReaderResult } from "./scanLoop";
 import type { ScanDebug } from "./scanBoot";
 
-// BL-253 S7-10 / S7-13 / S7-14: the camera screen's imperative half -- the
+// The camera screen's imperative half -- the
 // stream, the frame pipeline, the read loop and the decision flow wired
 // together, outside React (the screen renders from `getSnapshot()` and feeds
 // `setInputs()`). Everything the loop reads at frame time (the catalogue, the
@@ -52,9 +52,9 @@ export interface CameraSnapshot {
   readerFail: string | null;
   /** performance.now() of the last cue (0 = none yet). */
   flashAt: number;
-  /** The newest partial read (S7-16), or null. */
+  /** The newest partial read (the keypad prefill), or null. */
   partial: PartialRead | null;
-  /** FR5-03: the camera-start focusing state ("settling" = the guide is dim). */
+  /** The camera-start focusing state ("settling" = the guide is dim). */
   settle: SettleStatus;
 }
 
@@ -104,7 +104,7 @@ export class CameraController {
         get catalog() {
           return self.catalog as Catalog;
         },
-        acceptor: new Acceptor({ rearmDiffN: Infinity }), // app.js:797 prompt mode
+        acceptor: new Acceptor({ rearmDiffN: Infinity }), // re-arms only when the held card is gone
         now,
         sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
         frame: () => this.frame(),
@@ -118,7 +118,7 @@ export class CameraController {
           const g = this.snap.gate;
           if (g.band !== mv.band || Math.abs(g.pct - mv.pct) >= 0.01)
             this.patch({ gate: { pct: mv.pct, band: mv.band } });
-          // FR5-03: the first frame that is not blurry ends the focusing state.
+          // The first frame that is not blurry ends the focusing state.
           this.setSettle(settleFrame(this.settle, mv.band, now()));
         },
         onStatus: (s) => this.patch({ status: s, partial: partialRead(this.loop.reads) }),
@@ -140,7 +140,7 @@ export class CameraController {
           I.onRequestSignIn();
           return null;
         }
-        // BL-262: every camera add is the printing the read identifies
+        // Every camera add is the printing the read identifies
         // (readIdentity -- the one rule; the found panel renders the same
         // call). The panel's choices count only while it is up: a read or a
         // picked row starts with none. Fast add defaults nothing, so a read
@@ -197,12 +197,12 @@ export class CameraController {
       // A new prompt starts with no axis picks (the keypad's chips are shared).
       if (p.kind === "found" && this.snap.phase !== p) setToolState({ picks: NO_PICKS });
       this.patch({ phase: p, partial: partialRead(this.loop.reads) });
-      // FR5-03: a card read while the guide is dim ends the focusing state.
+      // A card read while the guide is dim ends the focusing state.
       if (p.kind !== "searching") this.setSettle(settleEnd(this.settle, "read", now()));
     });
     this.stream.subscribe(() => {
       this.patch({ stream: this.stream.state });
-      // FR5-03: every stream start begins the focusing state; no stream, none.
+      // Every stream start begins the focusing state; no stream, none.
       const live = this.stream.live;
       if (live && !this.wasLive) this.setSettle(settleStart(now()));
       else if (!live) this.setSettle(SETTLE_OFF);
@@ -211,7 +211,7 @@ export class CameraController {
     });
   }
 
-  /** FR5-03: hold the focusing state, publish its status when it changes, and
+  /** Hold the focusing state, publish its status when it changes, and
    * keep one timer for the SETTLE_MS limit while it is settling. */
   private setSettle(s: SettleState): void {
     this.settle = s;
@@ -274,7 +274,7 @@ export class CameraController {
   }
 
   /** Mount: start the stream and the reader; the page hiding stops the
-   * stream (app.js:1327-1330). Returns the unmount. */
+   * stream. Returns the unmount. */
   mount(): () => void {
     void this.stream.start();
     void this.scan.startReader();
@@ -304,7 +304,7 @@ export class CameraController {
   add = (): void => this.flow.add();
   wrongCard = (): void => this.flow.wrongCard();
   pick = (r: PickRow): void => this.flow.pick(r);
-  /** BL-262: a chip in the found panel -- which of the read's printings. The
+  /** A chip in the found panel -- which of the read's printings. The
    * choice is stored where the panel reads it, then the flow hears of it
    * (under Fast add it adds once the printing is settled). */
   choose = (axis: keyof PadPicks, value: string): void => {

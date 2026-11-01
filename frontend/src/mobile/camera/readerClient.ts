@@ -1,11 +1,13 @@
 import { VENDOR_BASE } from "./readerAssets";
 import type { Failure, InitOk, PaddleRead, WorkerRequest, WorkerResponse } from "./readerCore";
 
-// BL-253 S7-05: the UI thread's handle on the reader worker. Frames travel as
-// transferable ImageBitmaps and the UI never waits on OCR (`read` is a promise
-// the scan loop awaits off the render path). Nothing here throws into the UI:
-// a dead worker, a failed init or a failed read all resolve `{ok: false,
-// reason}` and the camera shows the keypad prefilled (S7-16).
+// The UI thread's handle on the reader worker. Frames travel as transferable
+// ImageBitmaps and the UI never waits on OCR (`read` is a promise the scan
+// loop awaits off the render path). Nothing here throws into the UI: a dead
+// worker, a failed init or a failed read all resolve `{ok: false, reason}`.
+// The scan loop falls back to Tesseract on a failed read and offers the
+// keypad once the reader is gone (scanLoop.ts isFatalReaderFailure; App Spec
+// §25.7 Reader).
 
 export interface WorkerLike {
   postMessage(msg: unknown, transfer?: Transferable[]): void;

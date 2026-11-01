@@ -32,25 +32,25 @@ import { toolAddCardsAbandoned } from "./toolAnalytics";
 import { setToolState } from "./toolStore";
 import "./verify.css";
 
-// BL-249 S3-12 .. S3-16: the Verify cards sheet (R5-8; rev4 MVerify.jsx
-// minus the Keep/Skip toggles and steppers). Content = desktop
+// The Verify cards sheet (App Spec §25.3). Content = desktop
 // AddCardsVerification.tsx: the "Unresolved rows" data-integrity section
 // (deck copies matching no catalogue card) when present, then "The
 // following cards will be added to inventory" and, when any, "The following
 // cards will not be added", each with its count and desktop's columns --
 // Card#, Name, Set, Finish, Inventory (owned → after), Reason in the
 // not-added section -- grouped by set under desktop's "SOR — Spark of
-// Rebellion" heads. One row per copy (the batch model, S3-08); each added
+// Rebellion" heads. One row per copy (the batch model, batch.ts); each added
 // row has a 44 px quick remove that drops that one copy. Footer = desktop's
 // "N of M cards will be added." hint, "Discard batch" (behind the close
-// guard, S3-14) and "Add N cards to vault" (S3-15).
+// guard) and "Add N cards to vault" (commit.ts).
 //
-// S3-13: when the list does not fit the sheet AND both sections exist, the
-// two section headers pin -- added at the top, not-added at the bottom --
-// and act as a two-way accordion (the expanded section fills the panel and
-// scrolls; the other collapses to its header). On open the added section
-// is expanded. Everything fitting, or a single section: plain scroll. The
-// only motion is the entering section's opacity + transform.
+// When the list does not fit the sheet AND exactly the added and not-added
+// sections exist (no Unresolved section), the two section headers pin --
+// added at the top, not-added at the bottom -- and act as a two-way accordion
+// (the expanded section fills the panel and scrolls; the other collapses to its
+// header). On open the added section is expanded. Everything fitting, or a
+// single section: plain scroll. The only motion is the entering section's
+// opacity + transform.
 
 /** desktop AddCardsVerification setLabel. */
 function setLabel(code: string, sets: CardSet[]): string {
@@ -185,7 +185,7 @@ interface SectionProps {
   sets: CardSet[];
   integrity?: boolean;
   onRemove: ((row: VerificationRow) => void) | null;
-  /** S3-13 accordion: null = plain section. */
+  /** The pinned accordion: null = plain section. */
   accordion: { expanded: boolean; onToggle: () => void } | null;
 }
 
@@ -258,7 +258,7 @@ function DiscardInSheet({ pending, onReturn }: { pending: number; onReturn: () =
     <DiscardConfirm
       onReturn={onReturn}
       onDiscard={() => {
-        toolAddCardsAbandoned(pending); // BL-235 shape, S3-16
+        toolAddCardsAbandoned(pending); // App Spec §22 shape
         discardBatch();
         setToolState({ lastAdded: null });
         onReturn();
@@ -295,7 +295,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
   const both = adds > 0 && view.notAdded.length > 0 && view.unresolved.length === 0;
   const accordion = both && long;
 
-  // S3-13: does the list fit? Natural height = the lists' own content
+  // Does the list fit? Natural height = the lists' own content
   // (scrollHeight survives a collapsed or scrolled list) + the headers.
   const measure = useCallback(() => {
     const own = bodyRef.current;
@@ -335,9 +335,9 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
     if (!adds || committing) return;
     setCommitting(true);
     setError(null);
-    // BL-268: the copies this commit is about -- every row the sheet shows
-    // (added, not added, unresolved). A copy added while the commit is in
-    // flight is not in the snapshot and survives (S3 review F1).
+    // The copies this commit is about -- every row the sheet shows (added,
+    // not added, unresolved). A copy added while the commit is in flight is
+    // not in the snapshot and survives.
     const shown = new Set(batch.map((r) => r.id));
     const plan = commitPlan(batch, view, capMode);
     try {
@@ -364,7 +364,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
       return;
     }
     setCommitting(false);
-    // BL-268: a successful add clears the whole batch it showed, as desktop's
+    // A successful add clears the whole batch it showed, as desktop's
     // modal does on commit -- the not-added and unresolved rows go too.
     removeCopies(shown);
     setToolState({ lastAdded: null });

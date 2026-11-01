@@ -8,16 +8,16 @@ import { go } from "../router";
 import { ShellHead } from "./ShellHead";
 import "./more.css";
 
-// BL-250 S4-03: [HSV] Updates at #/more/updates -- desktop
+// [HSV] Updates at #/more/updates (App Spec §25.4) -- desktop
 // screens/notes/NewArrivalsPage.tsx at phone width. FORK: NewArrivalsPage
 // exports only the page (its chip label, date format, starfield assignment,
 // NoteSection and NoteEntry are module-private), so those pieces are
-// duplicated here unchanged (BL-254 folds them back); the desktop .na-* rules
-// are imported, not copied, and more.css carries the phone deltas (rev4
-// m-rev4-d.css: 44 px rail hits around desktop-drawn chips, 14 px gutters).
-// ALL entries render, newest first (desktop; rev4 carried the latest only).
-// S4-04: mounting this screen marks the newest entry seen (`onSeen`) -- the
-// only thing on the phone that clears the unread cue.
+// duplicated here unchanged (a change to one side needs the other); the
+// desktop .na-* rules are imported, not copied, and more.css carries the
+// phone deltas (44 px rail hits around desktop-drawn chips, 14 px gutters).
+// ALL entries render, newest first (as desktop).
+// Mounting this screen marks the newest entry seen (`onSeen`) -- the only
+// thing on the phone that clears the unread cue.
 
 function chipLabel(entry: ReleaseNotesEntry): string {
   return entry.kind === "release" ? `v${entry.version}` : formatDisplayDate(entry.date);
@@ -50,8 +50,8 @@ function formatDisplayDate(iso: string): string {
   return month ? `${month} ${day}, ${year}` : iso;
 }
 
-/** Desktop scrollIntoView, phone delta: the rail is one sideways-scrolling row
- * (S4-03b), so the entry lands just under the sticky rail's measured bottom
+/** Desktop scrollIntoView, phone delta: the rail is one sideways-scrolling
+ * row, so the entry lands just under the sticky rail's measured bottom
  * instead of a fixed scroll-margin. Reduced motion jumps. */
 function scrollToEntry(entry: ReleaseNotesEntry) {
   const el = document.getElementById(entryAnchorId(entry));

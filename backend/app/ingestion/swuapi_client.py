@@ -1,16 +1,15 @@
 """Live swuapi.com fetch -- the real/ongoing-run data source.
 
-Not exercised in CI (SWU_Catalog_Redesign_Spec.md §8.3: "no live
-api.swuapi.com calls in CI"). The dev/test/CI input is the captured export
+Not exercised in CI (App Spec §8.3: "No live api.swuapi.com calls in
+CI"). The dev/test/CI input is the captured export
 fixture loaded directly as a dict; this module exists only for the real
 catalog-rebuild run.
 
 `/export/all` alone is not enough: its card records are missing
-`variant_of_uuid` entirely (confirmed live 2026-06-21 -- only `/cards`
-carries it). So this mirrors how the captured fixture
-(swuapi_export_2026-06-21.json) was actually built per its own header
-comment: paginate `/cards` offset-based for full per-card data including
-`variant_of_uuid`, and use `/export/all` only for `sets`/`meta`. Cursor-based
+`variant_of_uuid` entirely (only `/cards` carries it). So this
+paginates `/cards` offset-based for full per-card data including
+`variant_of_uuid`, and uses `/export/all` only for `sets`/`meta` -- the
+same shape the captured exports have. Cursor-based
 pagination (`next_cursor`) is documented to silently truncate past ~3,857
 records (mapping spec §4) -- offset-based, driven by `pagination.total`, is
 the only reliable way to walk the full corpus. The API caps page size at

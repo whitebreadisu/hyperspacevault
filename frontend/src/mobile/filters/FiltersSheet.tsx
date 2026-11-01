@@ -22,12 +22,10 @@ import { GameplayBody, GameplaySection } from "./GameplaySection";
 import { useSheetGrow } from "./useSheetGrow";
 import "./filters.css";
 
-// BL-248 stages 2B-1 (S2-12 … S2-16) + 2B-2 (S2-17 … S2-20): the Filters sheet (rev4 MFilters.jsx
-// FilterSheet, R4-2 / R4-3 compact rows, R5 switches filters=compact +
-// sheetfit=content). Compact, content-fit (max 86 %), grows with a
-// transform-only move (useSheetGrow). Order: Set, Rarity, Collection,
-// Finish, Gameplay (collapsed). Edits are live on the Vault's state (S2-14:
-// desktop applies immediately, rev4 too). Footer: Reset filters (amber
+// The Filters sheet (App Spec §25.2). Compact rows, content-fit (max 86 %),
+// grows with a transform-only move (useSheetGrow). Order: Set, Rarity,
+// Collection, Finish, Gameplay (collapsed). Edits are live on the Vault's
+// state (as desktop applies them immediately). Footer: Reset filters (amber
 // outline idiom, inert at default) + "Show N cards" (live; closes the sheet).
 // Nothing here is persisted: the state is the Vault's plain React state.
 
@@ -123,13 +121,13 @@ export function FiltersSheet({ vv, onClose, onRequestSignIn }: Props) {
   );
 }
 
-/** S2-20 (BL-244): desktop CardsPage's filter_applied -- once per user edit,
+/** Desktop CardsPage's filter_applied (App Spec §22) -- once per user edit,
  * after the render that applied it, with desktop's properties (`field`, the
  * post-change `active_filter_count` and `results_count`) + layout: phone.
  * The field is stashed synchronously by the action; the effect reads the
  * new list and count, then clears it, so nothing else (a quantities
  * refresh) fires a spurious event. Reset is desktop's filters_cleared
- * (useVaultView.clearAll); a scope pick is finish_scope_changed (S1-16). */
+ * (useVaultView.clearAll); a scope pick is finish_scope_changed. */
 export function useFilterApplied(
   list: readonly unknown[],
   activeCount: number

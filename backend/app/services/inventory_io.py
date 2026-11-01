@@ -1,45 +1,42 @@
-"""BL-54 S1: the `swu-inv/1` canonical inventory format
-(Definition_ImportExport_2026-07-22.md §3) -- one internal representation,
-serialized to/from both JSON (canonical/lossless) and CSV (derived,
-spreadsheet-friendly).
+"""The `swu-inv/1` canonical inventory format (App Spec §17.1) -- one
+internal representation, serialized to/from both JSON (canonical/lossless)
+and CSV (derived, spreadsheet-friendly).
 
-Scope discipline (§9 S1): this module owns the wire-format <-> internal-
-representation boundary ONLY. It does NOT:
-- resolve a row's `swuapi_uuid`/triple against `card_variants` (§4 -- S2's
-  resolution engine consumes ParsedRow objects from parse_json/parse_csv).
-- apply merge-mode or cap-handling math (§5 -- also S2).
-Parsing ships now (even though POST /api/inventory/import doesn't land
-until S2) specifically so S2 imports this module rather than re-deriving
-the format.
+Scope: this module owns the wire-format <-> internal-representation
+boundary ONLY. It does NOT:
+- resolve a row's `swuapi_uuid`/triple against `card_variants`
+  (inventory_import.py's resolution engine consumes the ParsedRow objects
+  parse_json/parse_csv return).
+- apply merge-mode or cap-handling math (also inventory_import.py).
 
-What S2 needs from here:
+Contract with inventory_import.py and the import router:
 - `parse_json`/`parse_csv` return a `ParseResult` (`rows: list[ParsedRow]`,
   `notes: ParseNotes`). `ParsedRow.row_number` is 1-based over the file's
-  data rows (meta/header excluded) -- feed straight into §7.3's report
-  `row_number` field.
-- A row with `malformed_quantity=True` has `quantity=None` -- S2's
-  resolution pass should treat that as the `malformed_row` reason code
-  before even attempting identity resolution.
-- Duplicate identities (§3.4) are already summed by the time rows come
-  back -- S2 never re-sums; `notes.duplicate_rows_merged` is the count to
-  surface in the report totals. See `_merge_duplicates`' docstring for the
-  precise (deliberately representation-level, pre-resolution) semantics.
-- `notes.unrecognized_columns` is the raw list for `totals.
-  unrecognized_columns` (§7.3) -- already deduplicated, insertion order.
+  data rows (meta/header excluded) -- it feeds the import report's
+  `row_number` field directly.
+- A row with `malformed_quantity=True` has `quantity=None` -- the
+  resolution pass treats that as the `malformed_row` reason code before
+  attempting identity resolution.
+- Duplicate identities are already summed by the time rows come back --
+  `notes.duplicate_rows_merged` is the count to surface in the report
+  totals. This fold is representation-level (same raw uuid or same raw
+  triple); inventory_import._fold_post_resolution_duplicates folds the
+  cross-scheme duplicates resolution reveals. See `_merge_duplicates`.
+- `notes.unrecognized_columns` is the raw list for the report's
+  `totals.unrecognized_columns` -- already deduplicated, insertion order.
 - `parse_json`/`parse_csv` raise `UnsupportedFormatVersionError` or
   `UnparseableFileError` (both `ValueError` subclasses, both carry a
-  `.reason` class attribute already matching §7.2's 422 detail strings --
-  `"unsupported_format_version"` / `"unparseable_file"`) -- S2's router
+  `.reason` class attribute matching the 422 detail strings --
+  `"unsupported_format_version"` / `"unparseable_file"`) -- the router
   catches these and maps status_code=422, detail=exc.reason. Upload-size/
-  row-count limits (§7.2's `file_too_large`/`too_many_rows`) are NOT this
-  module's concern -- those are checked by the router before content ever
-  reaches parse_json/parse_csv (cheap to check on the raw upload without
-  parsing it first).
-- `name`/`subtitle`/`derived` are cosmetic/informational only (P4, §3.1) --
-  never consulted for resolution or merge math. `InventoryRow.derived` is
+  row-count limits (`file_too_large`/`too_many_rows`) are NOT this
+  module's concern -- the router checks the upload size before parsing and
+  the row count on the returned ParseResult.
+- `name`/`subtitle`/`derived` are cosmetic/informational only -- never
+  consulted for resolution or merge math. `InventoryRow.derived` is
   export-only (there is deliberately no parse-side equivalent -- `_derived`
-  keys arriving on import are collected into `unrecognized_columns` like
-  any other unknown key and otherwise ignored, per §3.1/§3.3).
+  keys arriving on import are accepted as a known JSON key and ignored;
+  see _JSON_KNOWN_CARD_KEYS).
 """
 
 from __future__ import annotations
@@ -52,22 +49,21 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # BL-200: type-only -- ParsedRow.preresolved_candidates needs to name
-    # VariantMatch's shape so both adapters (swudb_import.py/
-    # swunlimiteddb_import.py) can stash the full match tuple rather than a
-    # bare uuid string (candidates render as real cards now, not UUIDs --
-    # see inventory_import.py's report-building side). `from __future__
-    # import annotations` above makes every annotation in this module a
-    # lazy string, so this import never actually runs at module load time --
-    # this module's own scope line (module docstring: no DB access) stays
-    # true at runtime; only static type checkers ever resolve this name.
+    # Type-only -- ParsedRow.preresolved_candidates names VariantMatch's
+    # shape so both adapters (swudb_import.py/swunlimiteddb_import.py) can
+    # stash the full match tuple rather than a bare uuid string (candidates
+    # render as real cards, not UUIDs -- see inventory_import.py's
+    # report-building side). `from __future__ import annotations` above
+    # makes every annotation in this module a lazy string, so this import
+    # never runs at module load time -- this module stays free of DB access
+    # at runtime; only static type checkers resolve this name.
     from app.repositories.inventory_import import VariantMatch
 
 FORMAT_VERSION = "swu-inv/1"
 META_LINE = "# swu-inv-export v1"
 
-# §3.2: fixed export column order; import matches columns by header name,
-# not position.
+# Fixed export column order; import matches columns by header name, not
+# position.
 CSV_COLUMNS = [
     "swuapi_uuid",
     "set_code",
@@ -78,14 +74,14 @@ CSV_COLUMNS = [
     "subtitle",
 ]
 
-# §3.2 meta-line policy: a header row is "recognizable" (accepted without a
-# meta line) only if it carries quantity plus at least one full identity
-# scheme (uuid, or the whole triple).
+# Meta-line policy (App Spec §17.1): a header row is "recognizable"
+# (accepted without a meta line) only if it carries quantity plus at least
+# one full identity scheme (uuid, or the whole triple).
 _TRIPLE_COLUMNS = {"set_code", "card_number", "variant_type"}
 
-# §3.1 JSON: keys a `cards[]` entry may carry without being reported as
-# unrecognized. `_derived` is a known key -- it's ignored on import (§3.1),
-# not "unknown".
+# JSON: keys a `cards[]` entry may carry without being reported as
+# unrecognized. `_derived` is a known key -- it's ignored on import, not
+# "unknown".
 _JSON_KNOWN_CARD_KEYS = {
     "swuapi_uuid",
     "set_code",
@@ -99,7 +95,7 @@ _JSON_KNOWN_CARD_KEYS = {
 
 
 class UnsupportedFormatVersionError(ValueError):
-    """§3.3: JSON `format_version` present but not FORMAT_VERSION -- refuse
+    """JSON `format_version` present but not FORMAT_VERSION -- refuse
     outright, never best-effort parsed. `.version` carries the offending
     value for the router's error detail/logging."""
 
@@ -111,7 +107,7 @@ class UnsupportedFormatVersionError(ValueError):
 
 
 class UnparseableFileError(ValueError):
-    """§3.2/§7.2: the file is neither valid `swu-inv/1` JSON nor a CSV with
+    """The file is neither valid `swu-inv/1` JSON nor a CSV with
     a meta line or a recognizable header -- refuse outright."""
 
     reason = "unparseable_file"
@@ -119,7 +115,7 @@ class UnparseableFileError(ValueError):
 
 @dataclass(frozen=True)
 class DerivedInfo:
-    """Export-only informational block (§3.1) -- ignored on import."""
+    """Export-only informational block -- ignored on import."""
 
     finish: str | None
     channel: str
@@ -145,8 +141,9 @@ class InventoryRow:
 @dataclass(frozen=True)
 class ParsedRow:
     """One row as read back off a file by parse_json/parse_csv -- NOT yet
-    resolved against `card_variants` (S2's job, §4). `quantity` is None
-    exactly when `malformed_quantity` is True; never infer 0."""
+    resolved against `card_variants` (inventory_import.py's job).
+    `quantity` is None exactly when `malformed_quantity` is True; never
+    infer 0."""
 
     row_number: int
     swuapi_uuid: str | None
@@ -157,25 +154,25 @@ class ParsedRow:
     malformed_quantity: bool
     name: str | None = None
     subtitle: str | None = None
-    # BL-185: set only by app/services/swudb_import.py's parse_swudb_csv --
-    # None/False on every row parse_json/parse_csv produce (this module's
-    # own two parsers never touch card_variants, see the module docstring's
-    # scope line). A SWUDB row's raw identity (Set/CardNumber/IsFoil/Stamp)
-    # doesn't fit either the uuid or triple scheme this module resolves, so
-    # swudb_import does its own §6 resolution at parse time and stashes the
+    # The preresolved_* fields are set only by the foreign-format adapters
+    # (swudb_import.parse_swudb_csv, swunlimiteddb_import.
+    # parse_swunlimiteddb_xlsx; App Spec §17.5) -- None/False on every row
+    # parse_json/parse_csv produce (this module's own two parsers never
+    # touch card_variants, see the module docstring's scope line). A
+    # foreign row's raw identity doesn't fit either the uuid or triple
+    # scheme, so the adapter resolves it at parse time and stashes the
     # verdict here; inventory_import.py's _resolve_row trusts a non-None
-    # preresolved_reason verbatim instead of re-deriving it. A row swudb_
-    # import resolved carries only swuapi_uuid (these three fields stay at
-    # their defaults) and falls through _resolve_row's normal uuid path
-    # unchanged.
+    # preresolved_reason verbatim instead of re-deriving it. A row an
+    # adapter resolved carries swuapi_uuid with preresolved_reason and
+    # preresolved_candidates at their defaults (a SWUDB row may also set
+    # preresolved_mismatch) and takes _resolve_row's normal uuid path.
     preresolved_reason: str | None = None
-    # BL-200: widened from list[str] (bare swuapi UUIDs) to the full
-    # VariantMatch tuple -- both adapters already have the whole match in
-    # hand at parse time (a bulk-fetched CardVariant + name/subtitle/type),
-    # so carrying it through lets the report render "SET number · variant
-    # type · name" instead of an opaque UUID (§ "Candidate display" of the
-    # BL-200 census). Converted to ImportRowCard only at report-building
-    # time (inventory_import.py), same as every other resolved-variant
+    # The full VariantMatch tuple, not a bare swuapi UUID -- both adapters
+    # have the whole match in hand at parse time (a bulk-fetched
+    # CardVariant + name/subtitle/type), so carrying it through lets the
+    # report render "SET number · variant type · name" instead of an opaque
+    # UUID. Converted to ImportRowCard only at report-building time
+    # (inventory_import.py), same as every other resolved-variant
     # rendering.
     preresolved_candidates: list[VariantMatch] | None = None
     preresolved_mismatch: bool = False
@@ -183,7 +180,7 @@ class ParsedRow:
 
 @dataclass
 class ParseNotes:
-    """Parse-level notes (§3.3/§3.4) -- format-wide, not per-row."""
+    """Parse-level notes -- format-wide, not per-row."""
 
     unrecognized_columns: list[str] = field(default_factory=list)
     duplicate_rows_merged: int = 0
@@ -216,14 +213,14 @@ def _decode(content: str | bytes) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Duplicate-identity summing (§3.4), shared by both formats.
+# Duplicate-identity summing (App Spec §17.2), shared by every parser.
 # ---------------------------------------------------------------------------
 
 
 def _identity_key(row: ParsedRow) -> tuple | None:
     """The raw (pre-resolution) identity a row is keyed on for duplicate
     detection: its swuapi_uuid if present, else the full triple. None means
-    the row has no usable identity at all (S2 will flag it
+    the row has no usable identity at all (the resolution pass flags it
     incomplete_identity on its own -- never merged with anything)."""
     if row.swuapi_uuid:
         return ("uuid", row.swuapi_uuid)
@@ -233,25 +230,24 @@ def _identity_key(row: ParsedRow) -> tuple | None:
 
 
 def _merge_duplicates(rows: list[ParsedRow], notes: ParseNotes) -> list[ParsedRow]:
-    """§3.4: rows sharing an identity are summed into one row (quantities
-    added) before anything downstream sees them, and the merge count is
-    recorded on `notes` -- never treated as an error.
+    """Rows sharing an identity are summed into one row (quantities added)
+    before anything downstream sees them, and the merge count is recorded
+    on `notes` -- never treated as an error.
 
     Deliberately representation-level, not resolved-variant-level: two rows
     are "duplicates" here only if they carry the literal same raw uuid, or
     the literal same raw triple, exactly as written in the file. A uuid-only
-    row and a triple-only row that happen to resolve to the same variant are
-    NOT caught by this pass -- catching that would require a DB lookup,
-    which is S2's resolution job (§4), not this module's. This is a
-    deliberate scope line, not an oversight; flagged here in case S2 wants
-    to fold post-resolution duplicates as a follow-on refinement.
+    row and a triple-only row that resolve to the same variant are NOT
+    caught by this pass -- catching that needs a DB lookup, so
+    inventory_import._fold_post_resolution_duplicates folds them after
+    resolution.
 
     A row whose quantity is already malformed is never folded into a group
     -- there's no valid quantity to sum, and it still needs to surface on
     its own as `malformed_row`. Rows with no identity at all are likewise
     never merged with each other: two distinct "garbage" rows collapsing
-    into one would misreport the file's row count and hide a row S2 needs
-    to flag as `incomplete_identity`.
+    into one would misreport the file's row count and hide a row the
+    resolution pass flags as `incomplete_identity`.
     """
     groups: dict[tuple, list[ParsedRow]] = {}
     order: list[tuple] = []
@@ -290,11 +286,11 @@ def _merge_duplicates(rows: list[ParsedRow], notes: ParseNotes) -> list[ParsedRo
             malformed_quantity=False,
             name=first.name,
             subtitle=first.subtitle,
-            # BL-185: carried through so a SWUDB duplicate-uuid merge
-            # doesn't silently drop the first row's confirmatory mismatch
-            # flag -- reason/candidates are always None here regardless
-            # (only a resolved row, which never sets them, has a usable
-            # uuid identity key to merge on in the first place).
+            # Carried through so a SWUDB duplicate-uuid merge doesn't
+            # silently drop the first row's confirmatory mismatch flag --
+            # reason/candidates are always None here regardless (only a
+            # resolved row, which never sets them, has a usable uuid
+            # identity key to merge on in the first place).
             preresolved_reason=first.preresolved_reason,
             preresolved_candidates=first.preresolved_candidates,
             preresolved_mismatch=first.preresolved_mismatch,
@@ -317,8 +313,8 @@ def serialize_json(
     source: str = "hyperspacevault",
     exported_at: datetime | None = None,
 ) -> str:
-    """§3.1. `exported_at` defaults to now (UTC); tests that need a fixed
-    timestamp pass one explicitly."""
+    """The canonical JSON document. `exported_at` defaults to now (UTC);
+    tests that need a fixed timestamp pass one explicitly."""
     ts = exported_at or datetime.now(UTC)
     payload = {
         "format_version": FORMAT_VERSION,
@@ -348,7 +344,7 @@ def _card_to_json(row: InventoryRow) -> dict:
     return card
 
 
-# BL-158 (A4-04): leading characters spreadsheet apps (Excel/Sheets/LO Calc)
+# Leading characters spreadsheet apps (Excel/Sheets/LO Calc)
 # treat a cell as a formula -- '=', '+', '-', '@' are the classic OWASP CSV-
 # injection set; tab/CR are included too since some parsers strip leading
 # whitespace before that check, letting "\t=cmd(...)" slip past a naive
@@ -360,7 +356,7 @@ def _escape_csv_formula(value: str) -> str:
     """Prefix a single quote when `value` starts with a formula-trigger
     character, forcing spreadsheet apps to treat the reopened cell as text
     instead of evaluating it. Import-safe: name/subtitle are cosmetic-only
-    on import (module docstring, P4/§3.1) -- never consulted for identity
+    on import (module docstring) -- never consulted for identity
     resolution or merge/cap math -- so a re-imported quoted value changes
     only what's cosmetically displayed, never a quantity or which variant a
     row resolves to."""
@@ -370,13 +366,13 @@ def _escape_csv_formula(value: str) -> str:
 
 
 def serialize_csv(rows: list[InventoryRow]) -> str:
-    """§3.2. Always emits the meta line -- app-generated exports are the
-    canonical producer of this format; the meta-line-optional acceptance
-    rule (§3.2) exists for hand-authored/reference-derived files, not for
-    what this function writes.
+    """The derived CSV. Always emits the meta line -- app-generated exports
+    are the canonical producer of this format; the meta-line-optional
+    acceptance rule (parse_csv) exists for hand-authored/reference-derived
+    files, not for what this function writes.
 
-    `name`/`subtitle` are neutralized against formula injection (BL-158,
-    A4-04) -- see `_escape_csv_formula`."""
+    `name`/`subtitle` are neutralized against formula injection -- see
+    `_escape_csv_formula`."""
     buffer = io.StringIO()
     buffer.write(META_LINE + "\n")
     writer = csv.writer(buffer, lineterminator="\n")
@@ -397,7 +393,7 @@ def serialize_csv(rows: list[InventoryRow]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Parsing (import) -- ships in S1, consumed by S2.
+# Parsing (import) -- consumed by inventory_import.py.
 # ---------------------------------------------------------------------------
 
 
@@ -405,8 +401,8 @@ def _clean_str(value: object) -> str | None:
     """Blank/whitespace-only -> None (absent), never an empty-string
     identity fragment. Non-string JSON values (e.g. a stray number where a
     string was expected) are treated as absent rather than raising --
-    malformed input degrades to "no identity here", which S2 already has a
-    reason code for (incomplete_identity), rather than a 500."""
+    malformed input degrades to "no identity here", which the resolution
+    pass has a reason code for (incomplete_identity), rather than a 500."""
     if value is None:
         return None
     if not isinstance(value, str):
@@ -416,7 +412,7 @@ def _clean_str(value: object) -> str | None:
 
 
 def _parse_quantity_str(raw: str | None) -> tuple[int | None, bool]:
-    """§3.4: integer >= 0, else malformed (quantity=None, malformed=True).
+    """Integer >= 0, else malformed (quantity=None, malformed=True).
     CSV values are always strings coming off csv.DictReader."""
     if raw is None:
         return None, True
@@ -435,7 +431,7 @@ def _parse_quantity_str(raw: str | None) -> tuple[int | None, bool]:
 def _parse_quantity_json(raw: object) -> tuple[int | None, bool]:
     """Same contract as _parse_quantity_str, for JSON's already-typed
     values. Deliberately strict on type: a JSON float (even a whole one
-    like 3.0) is "non-integer" per §3.4's literal wording, and `bool` is
+    like 3.0) is non-integer and so malformed, and `bool` is
     excluded despite being an `int` subclass in Python -- `true`/`false`
     are never a valid quantity."""
     if isinstance(raw, bool):
@@ -446,10 +442,10 @@ def _parse_quantity_json(raw: object) -> tuple[int | None, bool]:
 
 
 def parse_csv(content: str | bytes) -> ParseResult:
-    """§3.2. Accepts a CSV if the meta line is present OR the header row
-    contains `quantity` plus at least one identity scheme (`swuapi_uuid` or
-    the full triple) -- refuses (UnparseableFileError) otherwise, per the
-    definition package's explicit "never best-effort parsed" rule."""
+    """Accepts a CSV if the meta line is present OR the header row contains
+    `quantity` plus at least one identity scheme (`swuapi_uuid` or the full
+    triple) -- refuses (UnparseableFileError) otherwise, never best-effort
+    parsed (App Spec §17.1)."""
     text = _decode(content)
     if not text.strip():
         raise UnparseableFileError("empty file")
@@ -459,14 +455,14 @@ def parse_csv(content: str | bytes) -> ParseResult:
     body = "\n".join(lines[1:]) if meta_line_present else text
 
     reader = csv.DictReader(io.StringIO(body))
-    # BL-158 (A4-03): the stdlib csv module enforces its own field-size
+    # The stdlib csv module enforces its own field-size
     # limit (128 KB/field by default) independent of the router's whole-
     # file byte cap -- a single pathological field (e.g. a multi-megabyte
     # `name`) trips it as a raw `_csv.Error` from *either* the fieldnames
     # access below or the row-iteration loop, which would otherwise leak
     # past this module's documented parse-failure surface as an unhandled
     # 500 on a user-input path -- same treatment as the UnicodeDecodeError/
-    # JSONDecodeError wrapping already done in _decode/parse_json.
+    # JSONDecodeError wrapping in _decode/parse_json.
     try:
         fieldnames = reader.fieldnames or []
     except csv.Error as exc:
@@ -512,7 +508,7 @@ def parse_csv(content: str | bytes) -> ParseResult:
 
 
 def parse_json(content: str | bytes) -> ParseResult:
-    """§3.1/§3.3. Refuses (never best-effort parses) when the JSON is
+    """Refuses (never best-effort parses) when the JSON is
     malformed, isn't shaped like a `swu-inv/1` document, or carries an
     unrecognized `format_version`."""
     text = _decode(content)

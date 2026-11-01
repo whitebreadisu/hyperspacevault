@@ -1,8 +1,7 @@
 import { AspectIcon } from "../../components/AspectIcon";
 import { Sheet } from "../Sheet";
 
-// BL-248 S2-07b: the card's aspects with their names (rev4 MSheet.jsx
-// AspectsSheet). Desktop reveals an aspect's name on hover; a finger has no
+// The card's aspects with their names (App Spec §25.2). Desktop reveals an aspect's name on hover; a finger has no
 // hover, so a tap on the detail's aspect icons opens this small sheet
 // (the replacement idiom). X top-right (Sheet); 44 px rows; desktop's
 // AspectIcon at 36 px; names in the condensed label face.

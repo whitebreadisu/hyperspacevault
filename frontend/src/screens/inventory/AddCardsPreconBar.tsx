@@ -9,28 +9,26 @@ import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 interface Props {
   entries: PreconEntry[];
   sets: CardSet[];
-  /** BL-164 §5: threaded through to PreconDropdown so its hover-preview
-   * panel can resolve each deck's leader/base composition
-   * (utils/preconPreview.ts) -- the same catalog AddCardsModal already
-   * holds, no new fetch. Unused once a deck is selected (the locked strip
-   * below never reads it). */
+  /** Threaded through to PreconDropdown so its hover-preview panel can
+   * resolve each deck's leader/base composition (utils/preconPreview.ts) --
+   * the same catalog AddCardsModal already holds, no new fetch. Unused once
+   * a deck is selected (the locked strip below never reads it). */
   catalog: AddCardsCatalogEntry[];
   selectedKey: string | null;
   onChoose: (key: string) => void;
   onChangeDeck: () => void;
 }
 
-/** Exported (BL-164) so PreconDropdown's rail grouping shares the identical
- * set-code accessor rather than re-deriving it. */
+/** Exported so PreconDropdown's rail grouping shares the identical set-code
+ * accessor rather than re-deriving it. */
 export function entrySetCode(entry: PreconEntry): string {
   return entry.setCode;
 }
 
-/** BL-164 §5: the precon dropdown row's two separate lines -- PRODUCT (small
- * caps) and NAME (large) -- replacing the old single-string `entryLabel`
- * text in the row itself (the rail's own set logo now carries the set-code
- * context the old "SOR — " text prefix used to supply). `entryLabel` below
- * is kept, built from these two, for the LOCKED bar's single-string text. */
+/** The precon dropdown row's two separate lines -- PRODUCT (small caps) and
+ * NAME (large); the rail's own set logo carries the set-code context, so
+ * neither line repeats it. `entryLabel` below is built from these two for
+ * the LOCKED bar's single-string text. */
 export function entryProduct(entry: PreconEntry): string {
   return entry.kind === "ibhBox" ? "Whole box · 2 decks" : entry.deck.product;
 }
@@ -55,10 +53,10 @@ export function entryLabel(entry: PreconEntry, sets: CardSet[]): string {
 
 const setRank = setSortRank;
 
-// §4-REV: "21 entries ... in Vault set order" -- same BASE_SET_ORDER rank
-// (utils/setGrouping.ts, newest main set first, BL-258) the rest of the app uses, borrowed
-// rather than re-derived. Exported (BL-164) so PreconDropdown groups its
-// rail using the identical order/tiebreak, rather than re-sorting.
+// Entries in Vault set order -- the same setSortRank (utils/setGrouping.ts,
+// newest main set first, ADR-0031) the rest of the app uses, borrowed rather
+// than re-derived; set code breaks ties. Exported so PreconDropdown groups
+// its rail using the identical order/tiebreak, rather than re-sorting.
 export function sortedEntries(entries: PreconEntry[]): PreconEntry[] {
   return entries.slice().sort((a, b) => {
     const ra = setRank(entrySetCode(a));
@@ -70,27 +68,26 @@ export function sortedEntries(entries: PreconEntry[]): PreconEntry[] {
   });
 }
 
-/** BL-151 S2b (§4-REV, owner dev-review 2026-07-24): the precon chooser,
- * rebuilt from scratch to MIRROR AddCardsSetBar exactly -- same idiom
- * (unlocked native `<select>` -> a locked starfield strip with a "Change X"
- * button). `SetMark`/`baseSetCodeFor` are imported straight from
- * AddCardsSetBar rather than re-implemented, so the two bars' mark/starfield
- * rendering can never drift apart.
+/** The precon chooser (App Spec §18), built to MIRROR AddCardsSetBar
+ * exactly -- same idiom (an unlocked picker -> a locked starfield strip with
+ * a "Change X" button). `SetMark`/`baseSetCodeFor` are imported straight
+ * from AddCardsSetBar rather than re-implemented, so the two bars'
+ * mark/starfield rendering can never drift apart.
  *
- * BL-151 S2c (§4-REV2): whether this component renders AT ALL is now
- * AddCardsModal's call (route locking -- see its own `route` derivation) --
- * this component itself is unaware of the other bar/route; it just renders
- * whichever of its own two sub-states `selectedKey` implies, exactly as
- * before.
+ * Whether this component renders AT ALL is AddCardsModal's call (route
+ * locking -- see its own `route` derivation); this component is unaware of
+ * the other bar/route and just renders whichever of its own two sub-states
+ * `selectedKey` implies.
  *
- * Deliberately NOT mirrored: AddCardsSetBar's "Show all sets" toggle -- that
+ * Deliberately NOT mirrored: SetDropdown's "Show all sets" toggle -- that
  * exists to reveal the manual flow's long-tail companion sets (Weekly Play,
  * Judge, ...), a concern this bar has no equivalent of (the dropdown's
- * source data is a small fixed 21-entry list, always shown in full).
+ * source data is a small fixed list from data/preconDecks.json, always
+ * shown in full).
  *
- * BL-164 §5: the unlocked native `<select>` is replaced by PreconDropdown, a
- * custom logo-rail listbox with an owner-locked hover preview panel (both
- * still gated behind the same `aria-label="Precon Deck"` contract). */
+ * The unlocked picker is PreconDropdown, a custom logo-rail listbox with a
+ * hover preview panel (App Spec §5.13), behind the `aria-label="Precon
+ * Deck"` contract on its trigger and listbox. */
 export function AddCardsPreconBar({
   entries,
   sets,
@@ -102,10 +99,10 @@ export function AddCardsPreconBar({
   if (!selectedKey) {
     return (
       <div className="ac-setbar">
-        {/* BL-151 S2c (§4-REV2 point 1): "Add a premade deck" -- paired with
-            AddCardsSetBar's "Add individual cards". `aria-label="Precon
-            Deck"` below is deliberately UNCHANGED -- stable test-facing
-            accessible name, decoupled from this visible copy. */}
+        {/* "Add a premade deck" -- paired with AddCardsSetBar's "Add
+            individual cards". PreconDropdown's `aria-label="Precon Deck"`
+            is the stable test-facing accessible name, deliberately
+            decoupled from this visible copy. */}
         <span className="ac-setbar__label">Add a premade deck</span>
         <div className="ac-setbar__select">
           <PreconDropdown entries={entries} sets={sets} catalog={catalog} onChoose={onChoose} />

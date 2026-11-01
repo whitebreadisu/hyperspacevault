@@ -3,17 +3,17 @@ import type { ComponentType, ReactNode } from "react";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { getBgRoute, go, navDepth, back } from "../router";
 
-// BL-253 S7-09: the hop between the main document (`/`) and the isolated
-// scanner document (`/scan/`, COOP + COEP -- an in-app layer cannot be
-// isolated). The scanner document serves the FULL app bundle (orchestrator
-// ruling 1), so once there the tool, Verify, Card details and More all work
-// in place: only entering the camera from `/` and closing a camera that was
-// entered that way cross documents. The batch and the tool mode travel in the
-// sessionStorage mirror (S7-08).
+// The hop between the main document (`/`) and the isolated scanner document
+// (`/scan/`, COOP + COEP -- an in-app layer cannot be isolated; App Spec
+// §25.7). The scanner document serves the FULL app bundle, so once there the
+// tool, Verify, Card details and More all work in place: only entering the
+// camera from `/` and closing a camera that was entered that way cross
+// documents. The batch and the tool mode travel in the sessionStorage mirror
+// (batchPersist.ts).
 //
 // Nothing here imports mobile/camera/: the camera screen registers itself
-// into `cameraSlot` from the scanner entry (scan.tsx -> scanBoot), so the main
-// document's chunks never carry camera code.
+// (registerCameraScreen below) from the scanner entry (scan.tsx ->
+// camera/scanBoot.ts), so the main document's chunks never carry camera code.
 
 export const SCAN_PATH = "/scan/";
 const HOP_KEY = "hsv.scan.hop";
@@ -104,7 +104,7 @@ export function closeTool(): void {
   nav.historyBack();
 }
 
-// ── Sign-in from the scanner document (7a FINDING 2, ruling 1) ─────────────
+// ── Sign-in from the scanner document ──────────────────────────────────────
 // The isolated document initialises Firebase Auth without the popup resolver
 // (COEP blocks the auth helper iframe), so Google sign-in cannot run there:
 // sign-in bounces to the main document, which opens the auth layer and, once
@@ -140,7 +140,7 @@ export interface CameraScreenProps {
   /** A sheet or the close guard is over the camera: reading pauses. */
   busy: boolean;
   onRequestSignIn: () => void;
-  /** Card details: the S2 card layer over the tool (S3-06 handler). */
+  /** Card details: the card layer over the tool (ToolLayer's openCard). */
   onOpenCard: (card: InventoryCard, variant: InventoryVariant) => void;
   onOpenVerify: () => void;
 }
@@ -161,7 +161,7 @@ export function renderCameraScreen(props: CameraScreenProps): ReactNode {
   return cameraScreen ? createElement(cameraScreen, props) : null;
 }
 
-// ── Leaving the camera for the keypad (S7-16) ──────────────────────────────
+// ── Leaving the camera for the keypad ──────────────────────────────────────
 // The header's keypad toggle lives in ToolLayer; the camera knows the partial
 // read. While mounted the camera provides the keypad route to land on
 // (`#/pad?set=&num=` when a partial read names a known set, else `#/pad`).

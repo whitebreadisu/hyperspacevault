@@ -10,27 +10,26 @@ import { useVaultData } from "../../vault/useVaultData";
 import { orderPrintings } from "./cardDetailModel";
 import "./card.css";
 
-// BL-248 S2-10 (R5-1): Owned by finish -- the touch replacement for desktop's
+// Owned by finish (App Spec §25.2) -- the touch replacement for desktop's
 // hover dossier (PlaysetCell.tsx gallery-dossier, GalleryGrid
-// ownedFinishBreakdown), rev4 MSheet.jsx FinishSheet with the round-5 rows:
+// ownedFinishBreakdown):
 //   - title = the card (name + subtitle), X top-right (Sheet);
 //   - head = "Owned by finish" + the card's count chip + pips exactly as the
-//     Vault row draws them unscoped (the S1 Playset component, scope null);
+//     Vault row draws them unscoped (vault/Playset.tsx, scope null);
 //   - one row per printing, owned or not, in desktop's rail order: finish
 //     short name, set / number, then that printing's own count chip (neutral
 //     at every count) + pips sized to the card's playset (0 = zero chip +
 //     empty grey pips; short = amber filled; at a playset = green pips
 //     inside the amber-outlined plate -- playset__pips--scoped-complete);
-//   - the words line stays (rev4 ownWords), the "N other printings not
-//     owned" footer is gone; "Open card" stays when the sheet was opened
-//     from a Vault row.
+//   - a words line under the rows (ownWords) when anything is owned;
+//     "Open card" when the sheet was opened from a Vault row.
 // Opened from the Vault row's playset cluster (via the small store below,
 // hosted by MobileApp so the Vault needs no new state) and from the card
 // detail's plate (rendered by CardDetail with the stepper's live counts).
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 
-/** rev4 MPrimitives ownWords, over the card's playset size. */
+/** The owned-copies words, over the card's playset size. */
 export function ownWords(owned: number, size: number): string {
   if (owned === 0) return "Not owned";
   if (owned < size) return `${size - owned} short of a playset`;
@@ -131,7 +130,7 @@ export function FinishSheet({
   );
 }
 
-// ── The Vault row's opener (S1-19 left the hook; R5-1) ────────────────────
+// ── The Vault row's opener ─────────────────────────────────────────────────
 interface Request {
   cardId: number;
   open: () => void;

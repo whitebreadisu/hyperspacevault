@@ -1,8 +1,6 @@
-/* BL-247 S1-23 / S1-24: the collection panel's head controls and the
- * by-set sheet. Values verbatim from rev4 m-layout.css:119 / 258-275 /
- * 432-442, m-rev1.css:111, m-rev2.css:29-39 / 65-80, m-rev3.css:89-114 and
- * m-rev4.css:68-88 (desktop sources: cards.css:286-298 amber ring,
- * cards.css:526 complete ticks). Scoped under .m-app. */
+/* The collection panel's head controls and the by-set sheet (App Spec §25.1
+ * Completion panel). The amber ring and the complete ticks follow desktop
+ * cards.css. Scoped under .m-app. */
 
 .m-app .m-seg--sm .m-seg__btn {
   font-size: 12px;
@@ -13,7 +11,7 @@
   color: #f2c14e;
 }
 
-/* ── S1-23 panel: head row, Totals switch, amber ring (m-rev2.css:33-39) ─ */
+/* ── Panel: head row, Totals switch, amber ring ────────────────────────── */
 .m-app .m-summary.m-summary--amber {
   background: rgba(217, 154, 31, 0.4);
 }
@@ -49,11 +47,9 @@
   color: #cfd6e4;
 }
 
-/* ── R3-2 / R4-11: the short segments -- drawn 34 px (the wrapper's
- * ::before, 5 px in from each edge), every button a 44 px target. One rule
- * set for the header and the by-set sheet (same values in rev4); BL-248
- * S2-06 adds the card detail's Market / Low segments ("everywhere they
- * appear"). ───────── */
+/* ── The short segments -- drawn 34 px (the wrapper's ::before, 5 px in
+ * from each edge), every button a 44 px target. One rule set for the
+ * header, the by-set sheet and the card detail's Market / Low segments. ── */
 .m-app .m-summary__head .m-seg,
 .m-app .m-detail .m-seg,
 .m-app .m-bysets__top .m-seg {
@@ -136,7 +132,7 @@
   border-color: rgba(217, 154, 31, 0.4);
 }
 
-/* ── S1-24 by-set sheet (m-layout.css:258-275, m-rev2.css:29-30 / 65-80) ─ */
+/* ── By-set sheet ───────────────────────────────────────────────────────── */
 .m-app .m-bysets__top {
   display: flex;
   align-items: center;
@@ -198,7 +194,7 @@
   background: rgba(37, 99, 235, 0.14);
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
-/* BL-257 FR3-01: the row's logo is a SetLogo box (104 x 32, setLogoArt.ts
+/* The row's logo is a SetLogo box (104 x 32, setLogoArt.ts
  * SET_LOGO_BOX.sets) -- the PNG is placed by its artwork, centred, equal
  * area; .m-setrow__logo is the <img> inside it (sheet.css .m-setlogo__img). */
 .m-app .m-bys__fact {

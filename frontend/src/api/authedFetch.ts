@@ -1,10 +1,12 @@
 import { auth } from "../firebase";
 
 /** fetch() that attaches the current Firebase user's ID token as a Bearer
- * token, if signed in. Most /api/* calls go through this; since BL-56
- * (ADR-0008) only the inventory routes require the Authorization header --
- * base-cards uses it opportunistically (real per-tenant quantities when
- * signed in, zeros when not) and pure catalog reads ignore it. */
+ * token, if signed in. Most /api/* calls go through this. The tenant
+ * routes (inventory, settings, shares, deck check, account) require the
+ * Authorization header; the optional-auth routes (base-card detail,
+ * feedback) use it when present (ADR-0008) -- the detail endpoint returns
+ * real per-tenant quantities when signed in, zeros when not -- and pure
+ * catalog reads ignore it. */
 export async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const token = await auth.currentUser?.getIdToken();
 

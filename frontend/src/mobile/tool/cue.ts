@@ -1,8 +1,7 @@
-// BL-253 S7-17: the camera's recognition cue's sound half -- a port of the
-// spike's fbAudioUnlock / feedback() oscillator (app.js:952-977), minus the
-// research logging and minus `navigator.vibrate` (owner: no haptics -- iOS has
-// no Vibration API; the call is deliberately absent). The visual half (the
-// green full-screen flash) is the camera screen's. Lives under tool/ (not
+// The camera's recognition cue's sound half (App Spec §24.2, §25.7 "Cue").
+// The cue has no haptics: `navigator.vibrate` is never called, so it
+// behaves the same on iOS, which has no Vibration API. The visual half (the green
+// full-screen flash) is the camera screen's. Lives under tool/ (not
 // camera/) because the header's camera-mode and Fast add taps -- the user
 // gestures iOS needs to start audio -- are in ToolLayer, which the main
 // document loads; nothing here is scanner code.
@@ -51,7 +50,7 @@ export function audioUnlock(): string {
 }
 
 /** The beep: 1320 Hz, gain 0.0001 -> 0.2 (10 ms) -> 0.0001 (80 ms), stop at
- * +90 ms (app.js:970-977). Silent (no throw) without a running context. */
+ * +90 ms. Silent (no throw) without a running context. */
 export function beep(): boolean {
   cueCounts.beeps++;
   try {

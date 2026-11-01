@@ -1,16 +1,16 @@
-/* ── Import / Export page (BL-54 S3) ──────────────────────────────────────
- * Settings-pane visual idiom per §8.2: reuses the page chrome vocabulary
+/* ── Import / Export page (App Spec §17.3) ────────────────────────────────
+ * Settings-pane visual idiom: reuses the page chrome vocabulary
  * from cards.css (.screen / .screen-heading) and the section/action-row
  * shape from SettingsPage.css (.settings-section / .settings-actions),
  * re-expressed under ie- class names since this file owns its own report
  * rendering the settings pane has no equivalent of. */
 
 .ie-screen {
-  /* BL-202 round 3 (owner): breathing room past the last section, on the
+  /* Breathing room past the last section, on the
    * configure and confirmation pages alike. */
   padding-bottom: 96px;
   max-width: 860px;
-  /* Owner dev-review 2026-07-23: center the pane in the viewport rather
+  /* Center the pane in the viewport rather
    * than hugging the left edge like the full-width Vault table. */
   width: 100%;
   margin-inline: auto;
@@ -33,12 +33,9 @@
   gap: 6px;
 }
 
-/* Owner dev-review 2026-07-23: the Import section's head is a split row --
- * title/blurb left, the catalog-reference callout top-right (the corner was
- * empty). Wraps to a stacked column on narrow viewports. */
-/* BL-202 round 2: was .ie-section__head--import (the reference aside lived
- * in the Import head 2026-07-23 → 2026-08-05); renamed now that the split
- * two-column head belongs to Export. */
+/* The Export section's head is a split row -- title/blurb/downloads left,
+ * the catalog-reference callout top-right. Wraps to a stacked column on
+ * narrow viewports. */
 .ie-section__head--split {
   flex-direction: row;
   justify-content: space-between;
@@ -47,9 +44,9 @@
   flex-wrap: wrap;
 }
 
-/* BL-202 round 3: lives ONLY inside the split (row-direction) Export head
- * now -- inside a column head its flex-basis reads as a HEIGHT and inflates
- * empty space (the Import-preview gap the owner caught). */
+/* Lives ONLY inside the split (row-direction) Export head -- inside a
+ * column head its flex-basis would read as a HEIGHT and inflate empty
+ * space. */
 .ie-section__head-main {
   display: flex;
   flex-direction: column;
@@ -57,23 +54,23 @@
   flex: 1 1 320px;
 }
 
-/* BL-202 round 3 (owner spacing pass): downloads sit clear of their blurb
- * -- both the Export pair and the reference aside's button. */
+/* The Export download pair sits clear of its blurb. (The reference
+ * callout's button is not in an .ie-actions row; its spacing is the
+ * .ie-reference gap.) */
 .ie-section__head--split .ie-actions {
   margin-top: 12px;
 }
 
-/* Round 4: gap is text-block <-> button only (title/blurb spacing lives
- * inside __text), so this is exactly "space above the download button". */
+/* The callout's gap is text-block <-> button only (title/blurb spacing
+ * lives inside __text). NOTE: the later .ie-reference rule below sets
+ * `gap: 8px` and wins (same selector, later in the file), so this 22px
+ * does not apply. */
 .ie-reference {
   gap: 22px;
 }
 
-/* Owner dev-review 2026-07-24 round 4 -- vertical card restored; the file
- * field moved up into the head's left column so the two columns are
- * near-equal height and the merge-mode selector starts right below both
- * (round 2 stranded space under the blurb; round 3's horizontal strip
- * stranded space to its right). */
+/* The catalog-reference callout: a vertical card (text above its button),
+ * capped at 320px, in the right column of Export's split head. */
 .ie-reference {
   display: flex;
   flex-direction: column;
@@ -136,15 +133,15 @@
   color: var(--color-danger);
 }
 
-/* BL-173 review round 4 (owner): expected-format callouts in the Import
- * section -- blurb typography with a primary-accent left rule so they read
- * as guidance, not body copy. Two stacked notes (owner: format statement
- * and the other-tracker migration path are separate messages). */
+/* Expected-format callouts in the Import section -- blurb typography with
+ * a primary-accent left rule so they read as guidance, not body copy. Two
+ * stacked notes (the format statement and the other-tracker migration path
+ * are separate messages). */
 .ie-format-notes {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* BL-202 round 3 (owner spacing pass): clear of the head blurb above. */
+  /* Clear of the head blurb above. */
   margin-top: 8px;
 }
 .ie-format-note {
@@ -163,14 +160,13 @@
   color: var(--color-text);
   font-weight: 600;
 }
-/* Owner follow-up: the migration note renders in the scoped-playset amber
- * family (picker's scoped-column wash/accents) -- amber rule/wash and an
- * amber bold lead-in, with the body text white for contrast. */
+/* The migration note renders in the scoped-playset amber family -- amber
+ * rule/wash and an amber bold lead-in, with muted body text. */
 .ie-format-note--amber {
   border-left-color: var(--color-warning);
   background: rgba(217, 154, 31, 0.08);
-  /* Owner: straight white read too harsh -- same muted body tone as the
-   * first note; the amber lives in the rule/wash/bold lead-in. */
+  /* Same muted body tone as the first note (straight white reads too
+   * harsh); the amber lives in the rule/wash/bold lead-in. */
   color: var(--color-text-muted);
 }
 .ie-format-note--amber strong {
@@ -240,7 +236,7 @@
   margin-bottom: 6px;
 }
 
-/* Owner dev-review 2026-07-23: the native file input is visually hidden
+/* The native file input is visually hidden
  * (clip-rect, not display:none -- it stays in the a11y tree and keeps its
  * label association); the SWUButton beside it forwards the click. */
 .ie-file-input {
@@ -259,9 +255,7 @@
   position: relative;
 }
 
-/* BL-202 round 3 (owner spacing pass): the file field sits clear of the
- * amber migration note above it (selector was .ie-section__head-main
- * before the Import head lost that wrapper). */
+/* The file field sits clear of the amber migration note above it. */
 .ie-section__head .ie-file-field {
   margin-top: 14px;
 }
@@ -270,7 +264,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  /* Same clearance above the button the Export downloads got. */
+  /* Same clearance above the button the Export downloads get. */
   margin-top: 12px;
 }
 
@@ -280,14 +274,14 @@
   color: var(--color-text-muted);
 }
 
-/* BL-202 round 3 (owner): Merge mode + Keep-limits side by side, stacking
+/* Merge mode + Keep-limits side by side, stacking
  * back to a column when the pane narrows. */
 .ie-radio-row {
   display: flex;
   gap: 24px;
   flex-wrap: wrap;
   align-items: flex-start;
-  /* Round 4: extra clearance between the file field above and the
+  /* Extra clearance between the file field above and the
    * Merge mode / Keep-limits headers. */
   margin-top: 12px;
 }
@@ -317,7 +311,7 @@
   border-color: var(--color-primary);
 }
 
-/* BL-202 round 3 (owner): selecting the destructive replace-all mode
+/* Selecting the destructive replace-all mode
  * outlines its box in red, not the neutral selection blue. */
 .ie-radio-option--danger:has(input:checked) {
   border-color: var(--color-danger);
@@ -437,11 +431,11 @@
   cursor: default;
 }
 
-/* ── BL-202: totals-header view alignment ─────────────────────────────────
+/* ── Totals-header view alignment ──────────────────────────────────────────
  * The cells that make up the active view carry the app's amber "aligned to
  * what you picked" treatment (same var(--color-warning) family the Vault's
- * scope affordances use -- BL-187/BL-194 lineage; inset box-shadow, not a
- * border, so cell width never shifts when alignment moves between views). */
+ * scope affordances use; inset box-shadow, not a border, so cell width
+ * never shifts when alignment moves between views). */
 .ie-totals__cell--aligned {
   box-shadow: inset 0 0 0 1px var(--color-warning);
   border-radius: 3px;
@@ -455,7 +449,7 @@
   color: var(--color-warning);
 }
 
-/* ── BL-202: view bar (tabs + always-visible download button) ──────────── */
+/* ── View bar (tabs + always-visible download button) ──────────────────── */
 
 .ie-view-bar {
   display: flex;
@@ -493,15 +487,14 @@
   background: rgba(217, 154, 31, 0.08);
 }
 
-/* ── BL-202: tabular row presentation ─────────────────────────────────────
- * Replaces the flex .ie-row list -- the old right-aligned detail text sat
- * flush against the scroll container's edge, so the vertical scrollbar
- * painted over it (the owner's "cuts off the text" report). The wrap keeps
- * scrolling; the table keeps its own right padding clear of the bar. */
+/* ── Tabular row presentation ──────────────────────────────────────────────
+ * The wrap scrolls with `scrollbar-gutter: stable`, so the vertical
+ * scrollbar gets its own gutter and never paints over the table's
+ * right-hand text. */
 .ie-table-wrap {
   max-height: 360px;
   overflow-y: auto;
-  /* Round 4: the Card column stopped wrapping -- rare extra-long labels
+  /* The Card column doesn't wrap -- rare extra-long labels
    * scroll inside the wrap rather than distorting the page. */
   overflow-x: auto;
   border: 1px solid var(--color-border);
@@ -548,7 +541,7 @@
   width: 1%;
 }
 
-/* Round 4 (owner): the Card column holds its full label on one line --
+/* The Card column holds its full label on one line --
  * the What happened / Notes column takes the remaining width instead. */
 .ie-table__card {
   white-space: nowrap;
@@ -558,10 +551,9 @@
   color: var(--color-text-muted);
 }
 
-/* Owner dev-review 2026-08-05: the What happened cell separates the error
- * from the recommendation -- bold red error line, then a body-color
- * "Recommendation:" line (label bold italic) -- instead of one all-red
- * run-on paragraph. */
+/* The What happened cell separates the error from the recommendation --
+ * bold red error line, then a body-color "Recommendation:" line (label
+ * bold italic) -- rather than one all-red run-on paragraph. */
 .ie-table__error {
   color: var(--color-danger);
   font-weight: 700;

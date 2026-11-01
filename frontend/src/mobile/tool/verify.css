@@ -1,10 +1,11 @@
-/* ── BL-249 S3-12: the Verify cards sheet (R5-8). Desktop
+/* ── The Verify cards sheet (VerifySheet.tsx). Desktop
  * AddCardsModal.css values (.ac-verify__section-title / __section-rule /
  * __count / __table th + group head / __skip-reason / __over-limit-note,
  * .ac-dot, .ac-precon-verify__integrity, .ac-modal__foot-error) laid out per
- * copy for a 390 px sheet; footer + success from rev4 m-rev4-d2.css.
- * --aspect-aggression (#c0202e) is written as a literal: the token lives in
- * the desktop AddCardsModal.css, which the phone does not load. ────────── */
+ * copy for a 390 px sheet, with the phone's footer and success state.
+ * #c0202e (desktop's --aspect-aggression) is mostly a literal so these rules
+ * do not depend on the desktop sheet; the quick-remove hover / active below
+ * read the desktop token, which ships in the same bundle. ─────────────── */
 .m-app .m-sheet-layer--verify .m-sheet__foot {
   padding-top: 8px;
 }
@@ -195,7 +196,7 @@
   font-style: italic;
   color: var(--color-warning);
 }
-/* Quick remove (FR1-03): desktop's x (AddCardsModal.css .ac-chip__del) --
+/* Quick remove: desktop's x (AddCardsModal.css .ac-chip__del) --
  * transparent, muted, 3 px radius, hover/active aggression red -- in a 44 px
  * hit box. One copy per tap. Not a stepper (no .m-step). */
 .m-app .m-vfyrow__remove {
@@ -223,7 +224,7 @@
   background: var(--bg-page);
 }
 
-/* Footer (rev4 m-rev4-d2.css .m-d2-verify__*) + desktop's foot error. */
+/* Footer (.m-d2-verify__*) + desktop's foot error. */
 .m-app .m-d2-verify__foot {
   width: 100%;
   display: flex;
@@ -265,7 +266,8 @@
   color: var(--aspect-command);
 }
 
-/* ── S3-13: long batch with both sections -- pinned two-way accordion.
+/* ── Long batch with both sections (no Unresolved section) -- pinned
+ * two-way accordion.
  * The sheet takes its full 86 %, the body stops scrolling, the expanded
  * section's list fills the panel and scrolls, the other folds to its
  * header (added pinned at the top, not-added at the bottom). Motion: the
@@ -333,8 +335,8 @@
   }
 }
 
-/* ── S3-14: the close-guard confirm (desktop AddCardsModal.css .ac-confirm:
- * steel ring 0.35, 14 px cut, circuit tile at 420; rev4 m-rev4-d2.css). ── */
+/* ── The close-guard confirm (desktop AddCardsModal.css .ac-confirm: steel
+ * ring 0.35, 14 px cut, circuit tile at 420). ──────────────────────────── */
 .m-app .m-d2-confirm-layer {
   position: absolute;
   inset: 0;
@@ -413,7 +415,7 @@
 .m-app .m-d2-confirm__danger {
   display: inline-flex;
 }
-/* F-2: on the button itself, at rest and hovered -- `.swu-btn` sets its own
+/* On the button itself, at rest and hovered -- `.swu-btn` sets its own
  * --color-primary (navy rest / blue hover), which shadows a wrapper's. */
 .m-app .m-d2-confirm__danger .swu-btn,
 .m-app .m-d2-confirm__danger .swu-btn:hover:not([aria-disabled="true"]) {

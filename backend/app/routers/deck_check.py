@@ -12,26 +12,25 @@ from app.services import deck_check as deck_check_service
 from app.services.deck_fetch import FetchFailedError, UnsupportedUrlError
 from app.services.deck_parse import InvalidDeckJsonError
 
-# BL-53 (revised scope, A4-13): per-tenant call budget -- deck-check's SSRF
-# hygiene is strong (deck_fetch.py: host allowlist, no redirects, 10s
-# timeout, ~1 MB streamed cap) but an authed caller can still script
+# Per-tenant call budget: deck-check's SSRF hygiene is strong
+# (deck_fetch.py: host allowlist, no redirects, 10s timeout, ~1 MB
+# streamed cap) but an authed caller can still script
 # repeated outbound fetches against the two allowlisted providers, or
 # repeated deck_json resolves, as amplification. Same in-memory
 # per-instance caveat as app/rate_limit.py's feedback limiter.
 DECK_CHECK_RATE_LIMIT_CALLS = 60
 DECK_CHECK_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 
-# BL-53/A4-13: deck_json has no structural size limit of its own (it's a
-# free-form dict, DeckCheckRequest.deck_json: dict) -- only Cloud Run's own
-# ~32 MB request-body ceiling bounded it before this. Rejected before any
+# deck_json has no structural size limit of its own (it's a free-form dict,
+# DeckCheckRequest.deck_json: dict) -- without this cap only Cloud Run's own
+# ~32 MB request-body ceiling would bound it. Rejected before any
 # parse/resolve work (deck_parse.py / deck_check_service.check_deck).
 MAX_DECK_JSON_BYTES = 1024 * 1024
 
-# BL-137: auth-only, not verified-email-gated -- deck check MUTATES NOTHING
-# (it only reads the caller's own inventory via RLS), so
-# require_verified_email (which gates inventory quantity changes, and since
-# BL-54 S1 also GET /api/inventory/export -- see auth.py's docstring)
-# doesn't apply here, matching CLAUDE.md's decided posture. Every response is
+# Auth-only, not verified-email-gated: deck check MUTATES NOTHING (it only
+# reads the caller's own inventory via RLS), so require_verified_email
+# (which gates inventory data writes and the export -- see auth.py's
+# docstring) doesn't apply here (ADR-0034, App Spec §12). Every response is
 # per-tenant (the buildability numbers depend on the caller's own
 # inventory), so tenant_no_store applies router-wide like app/routers/
 # inventory.py.
@@ -64,13 +63,13 @@ def deck_check(
     ),
     db: Session = Depends(get_db),
 ):
-    """Definition_DeckCheck_2026-07-16.md §6. Body carries exactly one of
+    """App Spec §12 (Deck check). Body carries exactly one of
     `url` (server-side fetch against the swubase.com/sw-unlimited-db.com
     allowlist) or `deck_json` (the de facto paste-JSON shape) -- never
     both, never neither. An empty inventory is NOT an error: every card
     simply comes back missing, per the decided policy."""
-    # BL-53 (revised scope, A4-13): tenant rate limit first, before any
-    # validation/parse/fetch work -- same "before the DB write"/least-work
+    # Tenant rate limit first, before any validation/parse/fetch work --
+    # same "before the DB write"/least-work
     # placement as the feedback limiter and the import route above.
     # request.state.tenant_id is stamped by the get_db dependency, already
     # resolved by the time this body runs.
@@ -102,7 +101,7 @@ def deck_check(
             "exactly one of 'url' or 'deck_json' must be provided",
         )
 
-    # BL-53/A4-13: body-size cap on deck_json, before parse/resolve work
+    # Body-size cap on deck_json, before parse/resolve work
     # (deck_parse's structural checks and deck_check_service.check_deck's
     # DB resolution both come after this). Measured on the re-serialized
     # dict rather than the original request bytes -- FastAPI/pydantic

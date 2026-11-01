@@ -14,10 +14,11 @@ import {
 } from "../utils/variantScope";
 import type { CollectionToggles, PriceMode, ValueDisplayMode } from "../utils/variantScope";
 
-// BL-247 S1-22 / S1-16 / S1-17: the Vault's view model as pure functions over
-// desktop's own types and utilities (filters.ts, variantScope.ts,
-// cardSort.ts, limits.ts). useVaultView.ts holds the state; everything that
-// decides what the list shows lives here so it is unit-testable.
+// The Vault's view model as pure functions over the shared types and
+// utilities (filters.ts, variantScope.ts, cardSort.ts, limits.ts), used by
+// both the desktop Cards page and the phone. The callers hold the state
+// (screens/cards/CardsPage.tsx, mobile/vault/useVaultView.ts); everything
+// that decides what the list shows lives here so it is unit-testable.
 
 /** The Collection toggles the Filters sheet edits. */
 export type { CollectionToggles };
@@ -29,7 +30,7 @@ export const NO_TOGGLES: CollectionToggles = {
   overcap: false,
 };
 
-/** Desktop CardsPage's mutual exclusions, applied on the way in: Own clears
+/** The Collection toggles' mutual exclusions, applied on the way in: Own clears
  * Don't own; Don't own clears Own and Over limit; Over limit clears Don't
  * own. Turning a toggle off clears nothing. */
 export function withToggle(t: CollectionToggles, key: keyof CollectionToggles): CollectionToggles {
@@ -46,8 +47,9 @@ export function withToggle(t: CollectionToggles, key: keyof CollectionToggles): 
 
 export interface VaultFilterState {
   filters: FilterState;
-  /** The search box. Kept beside FilterState (filters.search stays empty):
-   * the phone applies it after the facets. */
+  /** The search box. Kept beside FilterState: the model ignores
+   * filters.search (facetAndSearch blanks it) and applies this after the
+   * facets. Desktop passes its filters.search here; the phone sets only this. */
   query: string;
   /** Active finish scope (one raw finish value) or null -- never persisted. */
   scope: string | null;
@@ -58,9 +60,10 @@ export function freshFilterState(): VaultFilterState {
   return { filters: DEFAULT_FILTERS, query: "", scope: null, toggles: NO_TOGGLES };
 }
 
-// ── Scope (S1-16; desktop CardsPage handleScopeChange / handleFilterPanelChange)
+// ── Scope (desktop CardsPage handleScopeChange / handleFilterPanelChange)
 
-/** The 14 owner-locked scope values (variantScope.ts option set C). */
+/** The 14 scope values (App Spec §5.14; variantScope.ts's SCOPE_PINNED_ROWS
+ * + SCOPE_EXPANDED_ROWS). */
 export const SCOPE_VALUES: string[] = [...SCOPE_PINNED_ROWS, ...SCOPE_EXPANDED_ROWS].flatMap(
   (row) => row.chips.map((c) => c.rawValue)
 );
@@ -76,13 +79,14 @@ export function withScope(s: VaultFilterState, scope: string | null): VaultFilte
 }
 
 /** A Filters-sheet edit: a Finish-facet change that is not exactly the scoped
- * value disengages the scope ("scope drives filter, never vice versa"). */
+ * value disengages the scope ("scope drives filter, never vice versa",
+ * App Spec §5.14). */
 export function withFilters(s: VaultFilterState, next: FilterState): VaultFilterState {
   const scope = s.scope && isFinishSetScopedTo(next.finish, s.scope) ? s.scope : null;
   return { ...s, filters: next, scope };
 }
 
-// ── Narrowing (S1-22) ──────────────────────────────────────────────────────
+// ── Narrowing ──────────────────────────────────────────────────────────────
 
 /** Desktop's badge count (FilterPanel countActiveFilters, search included,
  * one bump per group) + the Collection toggles (CardsPage
@@ -98,7 +102,7 @@ export function activeFilterCount(s: VaultFilterState): number {
   );
 }
 
-/** rev4 vaultView: narrowed = any facet, toggle or a search. A scope writes
+/** Narrowed = any facet, toggle or a search. A scope writes
  * the Finish facet, so every scoped view is narrowed. */
 export function isNarrowed(s: VaultFilterState): boolean {
   return activeFilterCount(s) > 0;
@@ -128,7 +132,7 @@ function facetAndSearch(toggled: InventoryCard[], s: VaultFilterState): Inventor
 const NO_SETS: Set<string> = new Set();
 
 export interface VaultList {
-  /** Every card in default order (the unnarrowed list; "All" totals, S1-23). */
+  /** Every card in default order (the unnarrowed list; "All" totals). */
   all: InventoryCard[];
   /** The Collection toggles only, in default order: no facet, no search.
    * Desktop's filter panel draws its option universes from it. */

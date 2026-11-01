@@ -10,23 +10,23 @@ from app.db_url import sa_url
 DATABASE_URL = os.environ["DATABASE_URL"]
 APP_DATABASE_URL = os.environ["APP_DATABASE_URL"]
 
-# Pool caps (BL-150 W0 / audit A5-06): SQLAlchemy's defaults (pool_size=5,
-# max_overflow=10) put a worst case of 30 connections per Cloud Run instance
-# across these two engines -- 90 at prod maxScale 3, against Cloud SQL
-# db-f1-micro's max_connections=25: a hard "remaining connection slots are
-# reserved" outage on the first real scale-out. Caps below bound an instance
-# at 8 (admin 1+1, app 3+3), so 3 instances = 24 <= 25, with headroom to
-# spare once prod moves to db-g1-small (max_connections=50, decision D4 in
-# planning/Definition_Steadying_2026-07-24.md). The pricing jobs share this
-# module in their own container (up to 8 more during the nightly sync
-# window) -- acceptable overlap, revisit only if the tier decision changes.
+# Pool caps: SQLAlchemy's defaults (pool_size=5, max_overflow=10) put a
+# worst case of 30 connections per Cloud Run instance across these two
+# engines -- 90 at prod's max_instance_count of 3, far past Cloud SQL's
+# max_connections (25 on db-f1-micro, 50 on db-g1-small; see the
+# sql_max_connections description in terraform/modules/app/variables.tf): a
+# hard "remaining connection slots are reserved" outage
+# on the first real scale-out. The caps below bound an instance at 8 (admin
+# 1+1, app 3+3), so 3 instances = 24, under even db-f1-micro's 25. The
+# pricing jobs share this module in their own container (up to 8 more
+# during the nightly sync window), which prod's db-g1-small absorbs.
 
-# pool_pre_ping (BL-236): idle pooled connections get dropped upstream of
-# Postgres on the Cloud Run -> Cloud SQL path (the DB itself stays healthy),
-# and without a checkout-time liveness check each corpse surfaces as exactly
-# one user-facing 500 ("server closed the connection unexpectedly") -- three
-# prod incidents 2026-08-21/25/28. The per-checkout SELECT 1 turns a stale
-# checkout into a transparent reconnect instead.
+# pool_pre_ping: idle pooled connections get dropped upstream of Postgres on
+# the Cloud Run -> Cloud SQL path (the DB itself stays healthy), and without
+# a checkout-time liveness check each dead connection surfaces as exactly
+# one user-facing 500 ("server closed the connection unexpectedly"). The
+# per-checkout SELECT 1 turns a stale checkout into a transparent reconnect
+# instead.
 
 # Migration-running admin connection (swu_user). Used by ingestion scripts
 # (bootstrap/catalog ingestion) which need write access to the catalog
@@ -36,7 +36,7 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Request-serving connection (swu_app) -- the RLS-aware role from P4 stage 2.
+# Request-serving connection (swu_app) -- the RLS-aware role.
 app_engine = create_engine(
     sa_url(APP_DATABASE_URL), pool_size=3, max_overflow=3, pool_pre_ping=True
 )
@@ -49,7 +49,7 @@ def _open_authenticated_session(
     """Open a swu_app session scoped to firebase_uid's tenant (auto-
     provisioning a brand-new tenant the first time a firebase_uid is seen --
     "one user, one tenant"). Shared by get_db (always-authenticated routes)
-    and get_optional_db's authenticated branch (BL-56 base-cards).
+    and get_optional_db's authenticated branch (the base-cards detail).
 
     app.current_firebase_uid is set first so the users RLS policy
     (migration 0021) can find -- or, for a first-ever request, create --
@@ -62,16 +62,15 @@ def _open_authenticated_session(
     possibly different -- connection for the next statement, so the
     connection-scoped GUCs set below would silently vanish mid-request the
     moment any repository commit()s and the pool hands back a connection
-    last used by a tenant-less catalog request (GUC ''). That is not
-    hypothetical: found live in dev 2026-07-13, PUT /api/settings/limits
-    500'd (`invalid input syntax for type integer: ""`) reading
-    current_setting('app.current_tenant_id') after replace_overrides'
-    mid-request commit, while serial API calls passed by pool luck.
-    Binding pins every transaction of the request to the same connection,
-    so set_config(..., false) genuinely holds for the request's lifetime
-    (a plain SET LOCAL would still revert after the first commit).
+    last used by a tenant-less catalog request (GUC ''). For example, PUT
+    /api/settings/limits reads current_setting('app.current_tenant_id') after
+    replace_overrides' mid-request commit; on a swapped connection that read fails with
+    `invalid input syntax for type integer: ""`, and serial calls only pass by pool
+    luck. Binding pins every transaction of the request to the same connection, so
+    set_config(..., false) genuinely holds for the request's lifetime (a plain SET LOCAL
+    would still revert after the first commit).
 
-    P6 stage 1: tenant_id is also stashed on request.state so the request
+    tenant_id is also stashed on request.state so the request
     logging middleware (app/middleware.py) can include it in the structured
     log line for this request.
     """
@@ -107,7 +106,7 @@ def _open_authenticated_session(
             # Lost a race with a concurrent first request for this uid --
             # new_tenant_id would be an orphaned row (nothing in users
             # references it, since the winner's row points at its own
-            # tenant). BL-135: delete it here, in the same transaction,
+            # tenant). Delete it here, in the same transaction,
             # before commit -- the loser already knows it lost, so there's
             # no reason to leave the row behind for a cleanup job that
             # doesn't exist. Then fall through to the winner's tenant.
@@ -132,7 +131,7 @@ def _open_authenticated_session(
 
 
 def _open_catalog_session() -> tuple[Session, Connection]:
-    """Open a swu_app session with no tenant or identity -- BL-56 / ADR-0008.
+    """Open a swu_app session with no tenant or identity -- ADR-0008.
 
     AppSessionLocal connections come from a pool (app_engine), and
     _open_authenticated_session sets app.current_firebase_uid /
@@ -164,11 +163,11 @@ def get_db(
     Every route declaring Depends(get_db) is authenticated -- get_db's own
     signature transitively resolves get_current_identity first, which
     raises 401 on a missing/invalid token before this body ever runs
-    (SWU_Platform_Spec.md §1.3). Use get_catalog_db for public catalog
+    (Platform Spec §1.3). Use get_catalog_db for public catalog
     reads and get_optional_db for the base-cards optional-auth endpoint --
     never make identity optional here.
 
-    identity's third element (email_verified, BL-16) is deliberately
+    identity's third element (email_verified) is deliberately
     unused here -- get_db authenticates and resolves a tenant, it doesn't
     gate on verification. Routes that need the stronger check add
     Depends(require_verified_email) alongside this one; since both hang
@@ -186,9 +185,9 @@ def get_db(
 
 def get_catalog_db(request: Request):
     """FastAPI dependency: a tenant-less swu_app session for the fully
-    public catalog reads (BL-56 / ADR-0008) -- GET /api/sets,
-    /api/sets/{code}, and the catalog reference endpoints (the original
-    GET /api/cards* routes were retired in BL-102). No Authorization header
+    public catalog reads (ADR-0008) -- GET /api/sets, /api/sets/{code},
+    the GET /api/base-cards list and price history, and
+    GET /api/catalog/reference.csv. No Authorization header
     is required, inspected, or verified. RLS is the fail-safe: the
     tenant_isolation / user_self_access policies (migration 0023) return
     zero inventory/users rows for a session with no tenant/identity GUC
@@ -205,7 +204,7 @@ def get_catalog_db(request: Request):
 
 
 def get_shared_db(token: str, request: Request):
-    """FastAPI dependency: a share-token-scoped session for the BL-205
+    """FastAPI dependency: a share-token-scoped session for the
     viewer-mode reads (App Spec §19.1) -- GET /api/shared/{token}[/...].
     No Authorization header is required, inspected, or verified: the
     unguessable token IS the credential.
@@ -222,10 +221,11 @@ def get_shared_db(token: str, request: Request):
     if the owner were reading -- and app.share_token is cleared again so
     the share row itself stops being visible past resolution.
 
-    Per-IP rate limiting runs BEFORE any DB work (cheap-tier reuse of the
-    BL-53 sliding-window limiter; the key is the client IP -- an IPv6
-    address collapsed to its /64 (BL-266, `client_ip_key`) -- not a tenant
-    -- same per-instance caveats). request.client is the
+    Per-IP rate limiting runs BEFORE any DB work (the cheap-tier
+    sliding-window limiter in app/rate_limit.py, 300 calls per hour; the
+    key is the client IP -- an IPv6 address collapsed to its /64
+    (`client_ip_key`) -- not a tenant, with the same per-instance caveats).
+    request.client is the
     address ForwardedClientMiddleware resolved from X-Forwarded-For
     (app/forwarded.py), so this keys on the real viewer on both the Hosting
     and the direct path, whatever leading entries the caller forged.
@@ -277,7 +277,7 @@ def get_optional_db(
     identity: tuple[str, str, bool] | None = Depends(get_optional_identity),
 ):
     """FastAPI dependency: optional-auth session for GET /api/base-cards/{id}
-    (BL-56 / ADR-0008 build-time refinement). Unlike the fully public catalog
+    (ADR-0008). Unlike the fully public catalog
     reads, base-cards returns a per-variant `quantity` sourced from
     `inventory`, so an authenticated caller must still see their real
     tenant-scoped quantities -- a strictly tenant-less session would

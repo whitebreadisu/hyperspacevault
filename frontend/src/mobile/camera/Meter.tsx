@@ -1,21 +1,20 @@
 import type { MeterBand } from "./imagePipeline";
 
-// BL-253 S7-12: the sharpness meter over the preview (rev4 .m-meter layout:
-// "Focus" label, 8 px bar, word + sub, the mono "read SOR 229" chip while a
-// partial read exists) with the spike's live value and one-word guidance.
-// Spec 24.2's phrases are verbatim -- "Blurry — move back / closer" below
-// the gate and "Too small — move closer" on the glyph floor -- shown as the
-// word (before the dash) and the sub (after it, sentence-cased for rev4's
-// two-line layout) with the full phrase as the accessible text. These replace
-// rev4's placeholder phases "Hold steady" / "Wait". Fill colours: red below
-// the gate, amber below 1.5 x, green above (app.js:784-793). A "Keypad" link
-// sits in the row (S7-16): the no-read escape, always one tap away.
+// The sharpness meter over the preview ("Focus" label, bar, word + sub, the
+// mono "read SOR 229" chip while a partial read exists) with the live value
+// and one-word guidance. The two guidance phrases -- "Blurry — move back /
+// closer" below the gate and "Too small — move closer" on the glyph floor --
+// are shown as the word (before the dash) and
+// the sub (after it, sentence-cased for the two-line layout) with the full
+// phrase as the accessible text. Fill colours: red below the gate, amber
+// below 1.5 x, green above (meterView). A "Keypad" link sits in the row: the
+// no-read escape, always one tap away.
 
 export const BLURRY_PHRASE = "Blurry — move back / closer";
 export const SMALL_PHRASE = "Too small — move closer";
 
-/** FR5-03 (F-16): the camera-start focusing state's word. It stands alone:
- * no hint line under it (owner decision 2026-10-12 after review). The sub
+/** The camera-start focusing state's word. It stands alone: no hint line
+ * under it (App Spec §25.7 "Camera start"). The sub
  * line keeps its height while empty (camera.css `.m-meter__sub:empty`), so
  * nothing moves when the state clears. */
 export const FOCUSING_WORD = "Focusing…";

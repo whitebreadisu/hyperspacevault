@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactElement } from "react";
 
-// BL-247 S1-04: the phone glyph set (port of rev4 MPrimitives.jsx:216-259).
-// 24 px grid, 1.6 stroke, mitred -- console, not rounded. Only the glyphs the
-// built slices use are carried; later slices add theirs here.
+// The phone glyph set. 24 px grid, 1.6 stroke, mitred -- console, not
+// rounded. Only the glyphs the phone app uses are carried; a new glyph is
+// added here.
 const P: Record<string, ReactElement> = {
   vault: (
     <g>
@@ -52,7 +52,7 @@ const P: Record<string, ReactElement> = {
       <path d="m6 9.5 6 6 6-6" />
     </g>
   ),
-  // S1-14 .. S1-18 (status rows, sort, view toggle, sheets).
+  // Status rows, sort, view toggle, sheets.
   search: (
     <g>
       <circle cx="10.5" cy="10.5" r="5.5" />
@@ -79,7 +79,7 @@ const P: Record<string, ReactElement> = {
       <path d="m5 12.5 4.5 4.5L19 7.5" />
     </g>
   ),
-  // BL-248 S2-02: the leader flip (rev4 MPrimitives.jsx `flip`).
+  // The leader flip.
   flip: (
     <g>
       <path d="M5 12a7 7 0 0 1 12-4.9L19 9" />
@@ -93,7 +93,7 @@ const P: Record<string, ReactElement> = {
       <path d="m6 14.5 6-6 6 6" />
     </g>
   ),
-  // BL-249 S3-02: the keypad's delete-digit key (rev4 MPrimitives.jsx `bksp`).
+  // The keypad's delete-digit key.
   bksp: (
     <g>
       <path d="M9 5.5h11v13H9L3.5 12z" />
@@ -133,7 +133,7 @@ const P: Record<string, ReactElement> = {
       <path d="M3.5 5.5h7.5v13H3.5zM13 5.5h7.5v13H13z" />
     </g>
   ),
-  // BL-257 FR5-06: the rotate screen -- a phone on its side (left), the turn
+  // The rotate screen -- a phone on its side (left), the turn
   // arrow, the phone upright (right).
   rotate: (
     <g>

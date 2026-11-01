@@ -1,17 +1,16 @@
-// BL-253 S7-06: the strip parser, validator and acceptance state machine --
-// a TypeScript port of the BL-238 spike's scan-core.js (v0.5.5, 397 lines),
-// line for line. Types only: no behaviour change (ADR-0029 Consequences --
-// the spike is the seed, not a reference to reinterpret). Pure, no DOM.
+// The strip parser, validator and acceptance state machine. Its behaviour is
+// the tested seed and is not reinterpreted (ADR-0029 Consequences; App Spec
+// §25.7 "Catalogue and parser"; the replay suite in scanCore.test.ts pins
+// it). Pure, no DOM.
 //
-// Denominator semantics (verbatim from the spike):
+// Denominator semantics (App Spec §24.4):
 //   N/<main> = main; N/20 in SOR/SHD/TWI = Weekly Play; N/2 = tournament
 //   tiers, always a pick (`byDesign`); absent = non-main printings; a
 //   denominator one digit off a known main size is corrected (`denCorrected`);
 //   later-set promo codes (ASHP, P26, JTLP ...) ignore the denominator;
 //   T-prefixed numbers are tokens.
 
-/** The scan catalogue (the spike's catalog.json shape; derived from the app's
- * own data by scanCatalog.ts, S7-07). */
+/** The scan catalogue (derived from the app's own data by scanCatalog.ts). */
 export interface ScanCatalogData {
   v: number;
   snapshot?: string;
@@ -115,7 +114,7 @@ export interface KeyStrength {
   why: string;
 }
 
-// Confusions applied ONLY inside the number token (definition §9.5).
+// Confusions applied ONLY inside the number token.
 const NUM_FIX: Record<string, string> = {
   O: "0",
   Q: "0",
@@ -263,7 +262,7 @@ export class Catalog {
     return { name: c[0], subtitle: c[1], type: c[2], home: c[3], baseNum: c[4] };
   }
 
-  // token -> {code, how, fixed} or null. how: exact | trailing | swap | edit1
+  // token -> {code, how, fixed} or null. how: exact | trailing | suffix | swap | edit1
   resolveCode(tok: string | undefined): CodeHit | null {
     if (!tok) return null;
     if (this.knownSet[tok]) return { code: tok, how: "exact", fixed: false };
@@ -397,7 +396,7 @@ export class Catalog {
         break;
       }
     }
-    // v0.5.1: other number tokens after EN (e.g. Paddle "16 1": trailing noise) are kept as alternatives; a valid
+    // Other number tokens after EN (e.g. Paddle "16 1": trailing noise) are kept as alternatives; a valid
     // alternative that disagrees makes the read ambiguous instead of silently taking the right-most token
     res.altReadings = [];
     if (res.readings.length) {
@@ -653,7 +652,7 @@ export class Catalog {
     return ev;
   }
 
-  // ---------------------------------------------------------------- v0.4: key strength
+  // ---------------------------------------------------------------- key strength
   // weak = no denominator, OR the number has a one-digit-different neighbour (same length) that is also a valid key of the
   // same code and denominator form. (From the catalogue this makes nearly every key weak; computed and cached per key.)
   keyStrength(
@@ -689,7 +688,7 @@ export class Catalog {
   }
 }
 
-// C: a no-denominator number shorter than the digit run the digits-only pass saw is not trusted ("ASH 1" vs "795")
+// A no-denominator number shorter than the digit run the digits-only pass saw is not trusted ("ASH 1" vs "795")
 export function numLenConflict(
   reading: { num: number; den: number | null } | null | undefined,
   pass2Text: string | null | undefined
@@ -704,7 +703,7 @@ export function numLenConflict(
   return longest > mine ? { parsed_len: mine, pass2_len: longest, pass2_text: pass2Text } : null;
 }
 
-// ---------------------------------------------------------------- v0.4: acceptance state machine (pure, testable)
+// ---------------------------------------------------------------- acceptance state machine (pure, testable)
 // feed({t, result: exact|ambiguous|invalid|skipped, key, conf, weak, small}) -> decision
 
 export interface AcceptorOptions {
@@ -767,7 +766,7 @@ export class Acceptor {
   DUP_MS: number;
   WEAK_N = 3;
   WEAK_OF = 4;
-  // v0.4.1: confidence bar per reader (Tesseract 0-100 scale sits lower than Paddle's); unknown readers use 'default'
+  // Confidence bar per reader (Tesseract 0-100 scale sits lower than Paddle's); unknown readers use 'default'
   CONF_BAR: Record<string, number>;
   hist: HistEntry[] = []; // last OCR'd reads: {key|null, conf, t}
   blocked: Blocked | null = null; // {key, t, lastMatchT, ocrSince, diffKey, diffN}

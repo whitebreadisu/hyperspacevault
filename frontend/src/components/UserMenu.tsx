@@ -6,36 +6,28 @@ interface Props {
   onLogout: () => void;
   onChangePassword: () => void;
   onOpenSettings: () => void;
-  /** BL-125: opens the About & Legal modal, same App-owned pattern as the
+  /** Opens the About & Legal modal, same App-owned pattern as the
    * other menu-item callbacks. */
   onOpenAbout: () => void;
-  /** BL-118 / ADR-0016 §3: hides the Change Password item entirely for a
-   * Google-only account (no `password` entry in providerData -- there's no
-   * password to change). Defaults to true so every pre-existing render call
-   * (this component's own tests via Header.test.tsx included) keeps
-   * showing the item unchanged. */
+  /** Hides the Change Password item entirely for a Google-only account (no
+   * `password` entry in providerData -- there's no password to change;
+   * ADR-0016 decision 3). Defaults to true, so a caller that omits it shows
+   * the item. */
   hasPasswordProvider?: boolean;
 }
 
-/** BL-22: evolves the authenticated top-right account slot (previously
- * inline email + Log Out, BL-56) into an avatar button that opens a
- * dropdown menu. Plain positioned div -- no portal (BL-45 tracks
- * portal-based positioning separately). The menu holds a non-interactive
- * email display row plus a list of menu-item buttons -- BL-23 change
- * password was the first of these. BL-25 adds Settings at the top (it
- * navigates to the settings pane rather than opening a modal, but threads
- * through App exactly the same way). BL-125 adds "About & Legal" after the
- * Change Password/Settings-group items and above Log Out -- signed-in users
- * get this as a second entry point onto the same About modal the header's
- * brand-line microcopy also opens (that one is reachable anonymous +
- * signed-in; this one is authenticated-only, a convenience rather than the
- * sole path). BL-87 originally added a destructive Delete Account item below
- * Log Out here; BL-129 R5 relocated its trigger to a dedicated "danger zone"
- * section at the bottom of the Settings pane (SettingsPage.tsx) -- this menu
- * no longer offers it at all, and onDeleteAccount no longer threads through
- * this component. The menu only exists while authenticated (Header renders
- * Sign In otherwise), so Settings is unreachable for anonymous visitors by
- * construction. */
+/** The authenticated top-right account slot: an avatar button that opens a
+ * dropdown menu. Plain positioned div -- no portal. The menu holds a
+ * non-interactive email display row, then Settings (navigates to the
+ * settings pane rather than opening a modal, but threads through App the
+ * same way), Change Password (password accounts only), About & Legal, and
+ * Log Out. About & Legal is a second entry point onto the same About modal
+ * the header's brand link opens (that one is reachable anonymous +
+ * signed-in; this one is a signed-in convenience, not the sole path).
+ * Delete Account is not here: its trigger is the "danger zone" section at
+ * the bottom of the Settings pane (SettingsPage.tsx). The menu only exists
+ * while authenticated (Header renders Sign In otherwise), so Settings is
+ * unreachable for anonymous visitors by construction. */
 export function UserMenu({
   userEmail,
   onLogout,
@@ -59,9 +51,9 @@ export function UserMenu({
     };
   }, [open]);
 
-  // BL-153: Escape-key dismissal only, extracted to the shared hook -- see
-  // FinishFilter.tsx's identical comment for why the outside-mousedown
-  // detection above stays local instead of also moving into the hook.
+  // Only Escape-key dismissal comes from the shared hook -- see
+  // FinishFilter.tsx's comment for why the outside-mousedown detection
+  // above stays local instead of also moving into the hook.
   const closeMenu = useCallback(() => setOpen(false), []);
   useModalDismiss(closeMenu, { enabled: open });
 

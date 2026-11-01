@@ -1,19 +1,16 @@
-"""BL-137 D1: SET_NUM -> base_card_id resolution, per the load-bearing rule
-already specified in SWU_Application_Spec.md §15.3 and independently
-re-derived by specification_documents/analysis/Spike_CardNumber_Resolution_
-2026-07-16.md §6: parse `SET_CODE` + integer (accept unpadded/zero-padded)
--> match a non-token base card by (set_code, base_card_number) -> no match
--> unresolved, never guessed.
+"""SET_NUM -> base_card_id resolution, per the rule in ADR-0014: parse
+`SET_CODE` + integer (accept unpadded/zero-padded) -> match a non-token
+base card by (set_code, base_card_number) -> no match -> unresolved, never
+guessed.
 
-The spike's "exceptions list" step (§6 step 3) is folded into step 1 here
-rather than re-implemented as a separate lookup: every current exception
-(including the one true orphan, Zam Wesell/C26_3) is already re-anchored
-into its own correct `base_cards` row at ingestion time (BL-27), so a plain
-(set_code, base_card_number, is_token=false) query against `base_cards`
-already resolves it -- there is no case today where a real deck-citable id
-needs a second, separate lookup. If a future ingestion run ever introduces
-a genuine two-step exception, app.repositories.deck_check.resolve_base_cards
-is the single place that would grow a fallback query.
+ADR-0014's "exceptions-list roots" fallback is folded into the one lookup
+rather than implemented as a separate step: ingestion re-anchors every
+exception root into its correct `base_cards` row (App Spec §10.6), so a
+plain (set_code, base_card_number, is_token=false) query against
+`base_cards` resolves it -- no deck-citable id needs a second, separate lookup. If an
+ingestion run ever introduces a genuine two-step exception,
+app.repositories.deck_check.resolve_base_cards is the single place that
+would grow a fallback query.
 """
 
 from __future__ import annotations
@@ -58,7 +55,7 @@ def parse_set_num(
     """Accepts "SOR_162", "SOR162", "SOR_0162" -- matched against known
     catalog set codes (longest first) rather than a fixed regex boundary,
     because several real set codes contain digits themselves (TS26, C26,
-    GG) which would make a generic alpha/digit split ambiguous. A token id
+    J25) which would make a generic alpha/digit split ambiguous. A token id
     ("ASH_T001") never parses here: the remainder after stripping the set
     code and an optional underscore must be pure digits, and "T001" isn't
     -- it correctly falls through to unrecognized rather than needing a
@@ -78,9 +75,9 @@ def parse_set_num(
 
 def build_slotted_refs(deck: ParsedDeck) -> list[SlottedRef]:
     """Flattens a parsed deck into every card reference that needs
-    resolving, tagged with which scope pool it belongs to (Definition_
-    DeckCheck §4: main scope = leader + base + second_leader + main deck;
-    side scope = sideboard only)."""
+    resolving, tagged with which scope pool it belongs to (main scope =
+    leader + base + second_leader + main deck; side scope = sideboard
+    only)."""
     refs = [SlottedRef(SLOT_LEADER, deck.leader), SlottedRef(SLOT_BASE, deck.base)]
     if deck.second_leader is not None:
         refs.append(SlottedRef(SLOT_SECOND_LEADER, deck.second_leader))

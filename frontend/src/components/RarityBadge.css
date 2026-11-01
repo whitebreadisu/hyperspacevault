@@ -1,9 +1,8 @@
-/* ── RarityBadge (BL-161) ─────────────────────────────────────────────────
- * Symbol image + colored label, owner-saved design defaults hardcoded (not
- * ported as runtime tweaks -- Definition_CosmeticsBatch_2026-07-26.md §0):
- * raritySize 20 (see the component's `size` prop default), rarityTreatment
- * "raw" (a plain <img>, no tint/mask), rarityTextSize 14, rarityColorText
- * true, rarityBold false (font-weight 600, not 700). */
+/* ── RarityBadge ──────────────────────────────────────────────────────────
+ * Symbol image + colored label, fixed design values (not runtime options):
+ * symbol size 20 by default (the component's `size` prop), a plain <img>
+ * with no tint/mask, label 14px in the rarity colour, font-weight 600
+ * (not bold). */
 .rarity-badge {
   display: inline-flex;
   align-items: center;
@@ -23,10 +22,9 @@
   line-height: 1;
 }
 
-/* Colors: claude_design "SWU Inventory Manager — Synced" project,
- * CardsTableRestyled.jsx's RARITY_META (Definition §0/§1). Keyed by the
- * spelled-out label (RarityBadge.tsx's RARITY_META), not the catalog code,
- * so these five classes are the only place the palette lives. */
+/* Colors keyed by the spelled-out label (RarityBadge.tsx's RARITY_META),
+ * not the catalog code, so these five classes are the only place the
+ * palette lives. */
 .rarity-badge__label--common {
   color: #c89b66;
 }

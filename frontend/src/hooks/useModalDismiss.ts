@@ -2,14 +2,9 @@ import { useEffect } from "react";
 import type { MouseEvent } from "react";
 
 /**
- * BL-153 (A3-06): extracted from 11 call sites that each hand-rolled the
- * same `useEffect(() => { document.addEventListener("keydown", ...) ...
- * }, [...])` block for Escape-key dismissal (App.tsx is the 12th file the
- * audit's grep matched, but it never rendered its own listener -- every
- * modal it opens already owned one, which is exactly the duplication this
- * hook replaces). This is a refactor, not a UX change: every call site's
- * existing Escape semantics are preserved via the two options below, NOT
- * flattened into one behavior.
+ * The one Escape-key dismissal hook for modals, popovers and dropdowns. Each
+ * call site keeps its own Escape semantics through the options below; the
+ * hook does not flatten them into one behavior.
  *
  * ── `onEscape` ──────────────────────────────────────────────────────────
  * Called whenever Escape fires while the hook is enabled. It is
@@ -27,25 +22,22 @@ import type { MouseEvent } from "react";
  * ── `enabled` (default true) ────────────────────────────────────────────
  * Most modals are only ever mounted while open (the parent conditionally
  * renders them), so the listener can simply live for the component's
- * whole mounted lifetime -- `enabled` stays at its default. Two different
- * shapes need it explicit:
- *   - FinishFilter / MultiSelect / UserMenu: always-mounted dropdowns that
- *     track their own `open` boolean -- the original code's early-out
- *     (`if (!open) return undefined`) meant the listener was only ever
- *     attached while the dropdown was open, so Escape never fires (or
- *     accidentally captures a keypress) while closed. `enabled={open}`
- *     reproduces that exactly.
+ * whole mounted lifetime -- `enabled` stays at its default. Components
+ * that stay mounted while closed pass it explicitly, so the listener is
+ * attached only while they are open and Escape never fires (or captures a
+ * keypress) while closed:
+ *   - FinishFilter / MultiSelect / UserMenu / VariantScopeControls'
+ *     menu: always-mounted dropdowns, `enabled={open}`.
+ *   - InventorySummary: `enabled` while a breakdown is expanded.
  *   - VerifyEmailAction: always-mounted (it renders null for the ordinary
- *     no-action-link case), gated on `status !== null` the same way.
+ *     no-action-link case), gated on `status !== null`.
  *
- * Submitting-guards (DeleteAccountModal, FeedbackModal -- Escape is a
- * no-op while a destructive/network action is in flight) are NOT modeled
- * as `enabled`: the listener stays attached (matching the original
- * always-attached effect with the guard *inside* the handler), the guard
- * just lives inside the `onEscape` closure the caller passes in
- * (`() => { if (!submitting) onClose(); }`). Using `enabled` there would
- * detach/reattach the listener on every submitting flip instead of just
- * no-op'ing it, a behavior difference from the original.
+ * Submitting-guards (Escape is a no-op while a destructive/network action
+ * is in flight) take one of two forms. DeleteAccountModal and FeedbackModal
+ * keep the listener attached and put the guard inside the `onEscape`
+ * closure they pass (`() => { if (!submitting) onClose(); }`), so the
+ * listener is not detached and reattached on every submitting flip.
+ * ShareManageModal instead passes `enabled: !submitting`.
  *
  * ── `onBackdropClick` (optional) ────────────────────────────────────────
  * Two call sites (CardPopup, AddCardsModal) dismiss via a target-equality
@@ -55,18 +47,18 @@ import type { MouseEvent } from "react";
  * a backdrop click. Passing `onBackdropClick` returns a ready-made handler
  * for that exact pattern -- wire it to the overlay div's `onMouseDown`.
  *
- * The other six call sites (AboutModal, AuthModal, ChangePasswordModal,
- * DeleteAccountModal, FeedbackModal, VerifyEmailAction) dismiss via a
- * different, simpler mechanism instead -- a plain `onClick={onClose}` on
- * the overlay with `onClick={(e) => e.stopPropagation()}` on the inner
- * card, so a click that starts and ends inside the card never bubbles out
- * to the overlay at all. That pattern is just JSX prop wiring (no
- * duplicated *logic* to extract) and is left as-is at each of those sites,
- * including the two that guard it on `submitting`
- * (`onClick={submitting ? undefined : onClose}`).
+ * The other modals (AboutModal, AuthModal, ChangePasswordModal,
+ * DeleteAccountModal, FeedbackModal, ShareManageModal, VerifyEmailAction)
+ * dismiss via a different, simpler mechanism instead -- a plain
+ * `onClick={onClose}` on the overlay with
+ * `onClick={(e) => e.stopPropagation()}` on the inner card, so a click that
+ * starts and ends inside the card never bubbles out to the overlay at all.
+ * That pattern is just JSX prop wiring (no duplicated *logic* to extract)
+ * and stays at each of those sites, including the ones that guard it on
+ * `submitting` (`onClick={submitting ? undefined : onClose}`).
  *
- * Explicitly NOT in scope: focus-trap / a11y (BL-150 audit A3-06 notes it
- * as a separate gap) -- this hook does not manage focus.
+ * Explicitly NOT in scope: focus-trap / a11y -- this hook does not manage
+ * focus.
  */
 export interface UseModalDismissOptions {
   /** Whether the Escape listener is attached. Default `true`. */

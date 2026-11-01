@@ -6,13 +6,13 @@ from app.http_cache import catalog_cache
 from app.schemas.set_schema import SetResponse
 from app.services import sets as set_service
 
-# RR-3 (issue #129): tenant-less catalog reads are safely CDN-cacheable.
+# Tenant-less catalog reads are safely CDN-cacheable (Platform Spec §3.14).
 router = APIRouter(
     prefix="/api/sets", tags=["sets"], dependencies=[Depends(catalog_cache)]
 )
 
 
-# BL-56 / ADR-0008: publicly readable -- sets carries no tenant data.
+# ADR-0008: publicly readable -- sets carries no tenant data.
 @router.get("", response_model=list[SetResponse])
 def list_sets(db: Session = Depends(get_catalog_db)):
     return set_service.get_all_sets(db)

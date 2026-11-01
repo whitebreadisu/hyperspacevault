@@ -1,7 +1,7 @@
 import { useLayoutEffect } from "react";
 
-// BL-248 S2-12 (R5 switch sheetfit=content; rev4 MFilters.jsx F-4
-// M.watchSheetGrow): the content-fit Filters sheet never animates its height.
+// The content-fit Filters sheet never animates its height (App Spec §25.2
+// Entry).
 // A ResizeObserver on the sheet sees every height change after layout and
 // before paint -- a render (Gameplay opened, chips added) or a set logo that
 // arrives later. A growth starts the sheet at its previous top with

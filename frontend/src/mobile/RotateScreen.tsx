@@ -4,7 +4,7 @@ import { MIcon } from "./icons";
 import { usePhoneSideways } from "./useIsPhone";
 import "./rotate.css";
 
-// BL-257 FR5-06 (owner decision 2026-10-12, F-18): a browser tab cannot lock
+// App Spec §25.0 ("A phone on its side"; ADR-0030): a browser tab cannot lock
 // the orientation, so a phone held on its side keeps the phone app and gets
 // this screen over it. The app stays MOUNTED and unchanged beneath (route,
 // scroll, open sheet, keypad batch, typed search); it is only made inert.
@@ -40,7 +40,7 @@ export function RotateScreen() {
       }
     };
     cover();
-    // Review FR5 N1: a <body> child added while the panel shows (a busy
+    // A <body> child added while the panel shows (a busy
     // overlay portalled later) is covered too. Child list only: setting the
     // attribute does not re-enter the observer.
     const added = new MutationObserver(cover);

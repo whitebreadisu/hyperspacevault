@@ -1,4 +1,4 @@
-/** BL-118: the official multi-color Google "G" logo, inlined as an SVG
+/** The official multi-color Google "G" logo, inlined as an SVG
  * component -- no external CDN fetch at runtime, matching AspectIcon's
  * "bundler owns the asset" approach (that one imports PNGs; this one is a
  * vector so it's inlined directly rather than as a separate file under

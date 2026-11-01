@@ -7,10 +7,11 @@ from app.models.base import Base
 
 
 class PricingSyncState(Base):
-    """BL-136: tiny watermark table shared by the P2 daily-sync job
-    (key='daily_sync', value=tcgcsv's last-updated.txt timestamp, so a
-    same-day re-run/redeploy skips re-fetching once the day's prices are
-    already in) and the P3 backfill job (key='backfill', value=the last
+    """Tiny watermark table (App Spec §16.2) shared by the daily-sync job,
+    app.jobs.price_sync (key='daily_sync', value=tcgcsv's last-updated.txt
+    timestamp, so a same-day re-run/redeploy skips re-fetching once the
+    day's prices are already in), and the backfill job,
+    app.jobs.price_backfill (key='backfill', value=the last
     successfully-inserted archive date, so a restarted backfill resumes
     instead of re-downloading everything). One row per key -- upserted via
     ON CONFLICT, never grows."""

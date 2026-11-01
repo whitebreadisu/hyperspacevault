@@ -1,14 +1,12 @@
-"""BL-54 S2 (Definition_ImportExport_2026-07-22.md §7.3): the
-POST /api/inventory/import report schema, shared verbatim between the
-dry_run and commit stages (only `committed` and the actual DB state
-differ).
+"""The POST /api/inventory/import report schema (App Spec §17.2), shared
+verbatim between the dry_run and commit stages (only `committed` and the
+actual DB state differ).
 
 Every field below that's meaningless for a given row's status (e.g.
 `resulting_quantity` on an unresolved row, `candidates` on a resolved row)
 stays `None` and is dropped from the wire response by the router's
-`response_model_exclude_none=True` -- matching §7.3's example payloads,
-where an ambiguous row simply omits the resolved-only keys rather than
-nulling them out.
+`response_model_exclude_none=True` -- so an ambiguous row simply omits
+the resolved-only keys rather than nulling them out.
 """
 
 from typing import Literal
@@ -22,24 +20,20 @@ ReasonCode = Literal[
     "ambiguous_triple",
     "incomplete_identity",
     "malformed_row",
-    # BL-185: SWUDB import adapter reason codes (app/services/
-    # swudb_import.py) -- "ambiguous" outcomes reuse "ambiguous_triple"
-    # itself (locked decision 4: no new UX). "unmapped_swudb_set" was
-    # renamed "unmapped_set" under BL-186 (below) -- now format-agnostic
-    # since a second source format exists.
+    # Foreign-format adapter reason codes (App Spec §17.5), shared by the
+    # SWUDB adapter (app/services/swudb_import.py) and the sw-unlimited-db
+    # adapter (app/services/swunlimiteddb_import.py) with the same meaning:
+    # the file's set code isn't in our table / the (set, number) pair isn't
+    # a known base card. "ambiguous" outcomes reuse "ambiguous_triple"
+    # itself, so the existing ambiguous-row UX covers them.
     "unmapped_set",
     "unknown_set_and_number",
-    # BL-186: sw-unlimited-db import adapter reason codes (app/services/
-    # swunlimiteddb_import.py). "unmapped_set"/"unknown_set_and_number"
-    # above are shared verbatim with SWUDB (same meaning: the file's set
-    # code isn't in our table / the (set, number) pair isn't a known base
-    # card). "unmapped_column" is new: a quantity column this adapter
-    # deliberately never resolves (Event Exclusive in v1, the 9 dead
-    # tournament columns, Organized Play Foil, Price wall/Event pack/Day
-    # two reward). "unknown_variant_for_column" is new: the base card was
-    # found but none of its variants belong to the column's family.
-    # Multi-match within a family reuses "ambiguous_triple" (existing
-    # bucket, no new UX -- same locked decision 4 as SWUDB).
+    # sw-unlimited-db only: "unmapped_column" is a quantity column the
+    # adapter deliberately never resolves (UNMAPPED_COLUMNS in
+    # app/services/swunlimiteddb_import.py); "unknown_variant_for_column"
+    # means the base card was found but none of its variants belong to the
+    # column's family. Multi-match within a family reuses
+    # "ambiguous_triple" (the same existing bucket).
     "unmapped_column",
     "unknown_variant_for_column",
 ]
@@ -50,7 +44,7 @@ ImportStage = Literal["dry_run", "commit"]
 
 
 class ImportRowCard(BaseModel):
-    """§7.3's `card` object. For a resolved row this is the canonical
+    """The report's `card` object. For a resolved row this is the canonical
     catalog identity (DB-sourced, even if the file's own uuid/triple
     disagreed via fallback/mismatch); for unresolved/ambiguous rows it's
     only whatever raw identity fragments the file actually carried -- never
@@ -70,13 +64,11 @@ class ImportRowReport(BaseModel):
     reason: ReasonCode | None = None
     matched_by_fallback: bool | None = None
     uuid_triple_mismatch: bool | None = None
-    # BL-200: widened from list[str] (bare swuapi UUIDs) to full card
-    # records -- the ambiguous-row report used to leak swuapi UUIDs
-    # verbatim to the screen; each candidate now carries everything
-    # ImportRowCard already carries for a resolved row (set/number/variant/
-    # name/subtitle), built from the same VariantMatch data every
-    # candidate-construction site already has in hand (BL-200 census,
-    # "Candidate display" section -- zero new DB queries).
+    # Full card records, not bare swuapi UUIDs, so the ambiguous-row report
+    # can show each candidate readably: each carries everything
+    # ImportRowCard carries for a resolved row (set/number/variant/
+    # name/subtitle), built from the VariantMatch data every
+    # candidate-construction site already has in hand (no extra DB query).
     candidates: list[ImportRowCard] | None = None
     card: ImportRowCard
     file_quantity: int | None = None
@@ -100,7 +92,7 @@ class ImportTotals(BaseModel):
 
 
 class RemovedRow(BaseModel):
-    """§7.3 `replace_all`: one currently-owned row the file doesn't mention
+    """`replace_all`: one currently-owned row the file doesn't mention
     -- itemized in both stages so the destructive half of the preview is as
     visible as the additive half."""
 

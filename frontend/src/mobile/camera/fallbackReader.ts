@@ -1,13 +1,13 @@
 import { VENDOR_BASE } from "./readerAssets";
 import type { Failure } from "./readerCore";
 
-// BL-253 S7-05: the Tesseract fallback reader (spike app.js:53-91), wrapped.
-// Tesseract.js runs its own worker, so this stays a UI-thread wrapper around
+// The Tesseract fallback reader, wrapped (App Spec §24.4). Tesseract.js runs
+// its own worker, so this stays a UI-thread wrapper around
 // `window.Tesseract`. Loaded LAZILY: nothing under vendor/scan/ for Tesseract
-// is requested until the first fallback need calls `ensure()` (the spike
-// loaded it at boot, app.js:1364 -- a deliberate change, S7-04).
+// is requested until the first fallback need calls `ensure()` (App Spec
+// §25.7 Payload).
 
-/** app.js:53 -- the character whitelist of the full-strip passes. */
+/** The character whitelist of the full-strip passes. */
 export const WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•.- ";
 
 export interface FallbackRead {
@@ -82,7 +82,7 @@ const defaultDeps: FallbackDeps = {
   now: () => performance.now(),
 };
 
-/** app.js:79-84 -- median word-box height (processed px). */
+/** Median word-box height (processed px). */
 export function glyphPx(res: TessResult): number | null {
   const hs: number[] = [];
   (res.data.blocks || []).forEach((b) =>

@@ -13,8 +13,8 @@ import type {
 import type { CardImageProps } from "../../utils/cardImages";
 import type { CardSet } from "../../api/sets";
 
-/** BL-111 F7 (design handoff §7): sizes for the fixed 196x274 preview frame
- * (ac-pad__resolve-image) -- grew from the pre-restyle 132x185. */
+/** `sizes` for the fixed 196x274 preview frame (.ac-pad__resolve-image in
+ * AddCardsModal.css). */
 const PREVIEW_SIZES = "196px";
 
 interface Props {
@@ -27,18 +27,18 @@ interface Props {
 }
 
 // "SOR — Spark of Rebellion" once the set list has loaded, else just the
-// code. Labels the per-set groups in the batch list (BL-61 — a batch can
-// span multiple sets).
+// code. Labels the per-set groups in the batch list (a batch can span
+// multiple sets).
 function setLabel(code: string, sets: CardSet[]): string {
   const s = sets.find((x) => x.code === code);
   return s ? `${code} — ${s.name}` : code;
 }
 
-/** BL-111 F7 (design handoff §7): replaces the old green/red dot with a
- * two-line readout right of the card-number input.
+/** Two-line inventory readout right of the card-number input (App Spec
+ * §5.4, console restyle).
  *   Line 1: "IN INVENTORY x/y" -- green under the limit, red otherwise.
- *   Line 2: "AFTER ADD a/y" -- omitted once the limit is already reached
- *     (owned alone, or owned + earlier batch copies of this exact printing),
+ *   Line 2: "AFTER ADD a/y" -- omitted once the add would pass the limit
+ *     (owned + earlier batch copies of this exact printing + this one),
  *     which instead collapses line 1 to "IN INVENTORY x/y (AT LIMIT)".
  * "No limit" buckets (status.effectiveLimit === null) drop the "/y" and stay
  * green always -- there's no boundary to warn about. capMode ("hard" vs
@@ -145,16 +145,16 @@ const EMPTY_DRAFT = {
   finish: null as string | null,
 };
 
-// BL-62: typing "172" transiently resolves "1" and "17" as valid cards; a
-// short hold keeps those intermediate images from ever being requested.
+// Typing "172" transiently resolves "1" and "17" as valid cards; a short
+// hold keeps those intermediate images from ever being requested.
 const IMAGE_DEBOUNCE_MS = 180;
 
-/** BL-62 live preview: the resolved variant's front image, in a fixed
+/** Live preview (App Spec §5.4): the resolved variant's image, in a fixed
  * card-shaped frame (persistent placeholder — the panel never reflows as the
- * number resolves/unresolves). object-fit handles landscape leaders/bases.
- * BL-76 Phase 3: `images` is already the resolved src/srcSet/sizes triple
- * (cardImageProps falls back to the plain hotlink on its own when the
- * derived fields are absent), so this component only handles the debounce. */
+ * number resolves/unresolves). object-fit handles landscape cards.
+ * `images` is already the resolved src/srcSet/sizes triple (cardImageProps
+ * falls back to the plain hotlink on its own when the derived fields are
+ * absent), so this component only handles the debounce. */
 function CardImagePreview({ images, name }: { images: CardImageProps | null; name: string }) {
   const [shown, setShown] = useState<{ images: CardImageProps; name: string } | null>(null);
 
@@ -186,8 +186,8 @@ function CardImagePreview({ images, name }: { images: CardImageProps | null; nam
 }
 
 export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDeleteRow }: Props) {
-  // BL-25/BL-35: effective keep-limit matrix and cap_mode for the inventory
-  // dots / headroom line (null/"hard" -> code defaults, matching
+  // Effective keep-limit matrix and cap_mode for the inventory readout and
+  // the batch chips' indicator dots (null/"hard" -> code defaults, matching
   // AddCardsModal's verification pass).
   const { limits, capMode } = useLimits();
   const [draft, setDraft] = useState(EMPTY_DRAFT);
@@ -197,7 +197,7 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
     setDraft(EMPTY_DRAFT);
   }, [setCode]);
 
-  // New entries are always tagged with the currently active set (BL-61);
+  // New entries are always tagged with the currently active set;
   // already-committed rows keep whichever set they were entered under.
   const draftRow: Row = useMemo(() => ({ id: "__draft__", setCode, ...draft }), [draft, setCode]);
 
@@ -216,16 +216,16 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
       ? inventoryStatus([...rows, draftRow], draftRow, resolved, catalog, limits, capMode)
       : null;
 
-  // BL-62: the image follows whatever variant the resolver currently points
-  // at, so changing Which card / Set / Stamp / Finish live-swaps the art.
+  // The image follows whatever variant the resolver currently points at, so
+  // changing Which card / Set / Stamp / Finish live-swaps the art.
   // Pending/error/empty states (no concrete variant yet) show the placeholder.
-  // BL-76 Phase 3: resolved via cardImageProps -- derived renditions when
-  // present, the plain hotlink otherwise.
-  // BL-111 F7 (design handoff §7): Leaders preview their portrait back side
-  // -- same rule as GalleryGrid's cellImage (front is the landscape side for
-  // a Leader; the back is the portrait/deployed side). Bases stay on their
-  // (landscape) front here, unlike the gallery's rotate treatment -- the
-  // design spec calls out only the Leader-back swap for this panel.
+  // Resolved via cardImageProps -- derived renditions when present, the
+  // plain hotlink otherwise.
+  // Leaders preview their portrait back side (App Spec §5.4) -- same rule
+  // as GalleryGrid's cellImage (front is the landscape side for a Leader;
+  // the back is the portrait/deployed side). Bases stay on their
+  // (landscape) front here, unlike the gallery's rotate treatment -- only
+  // the Leader-back swap applies to this panel.
   const previewEntry =
     resolved.status === "resolved" ? catalog.find((c) => c.id === resolved.variantId) : undefined;
   const showBack = previewEntry?.type === "Leader" && !!previewEntry.back_image_url;
@@ -264,7 +264,7 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
   }
 
   const committed = rows.filter((r) => r.cardNumber);
-  // Group the batch by source set (BL-61) — a batch can span multiple sets,
+  // Group the batch by entry set — a batch can span multiple sets,
   // so the list needs to show which set each chip belongs to.
   const committedGroups = groupBy(committed, (r) => r.setCode);
 
@@ -371,10 +371,9 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
               </SWUButton>
             </div>
 
-            {/* BL-111 F7 (design handoff §7): the old "Headroom: …" / at-limit
-                hint line is removed -- the two-line inventory readout next to
-                the card-number input (InventoryReadout, above) now carries
-                that information. */}
+            {/* No headroom / at-limit hint line here: the two-line inventory
+                readout next to the card-number input (InventoryReadout,
+                above) carries that information. */}
             {cardNeedsPick && (
               <div className="ac-pad__resolve-sub" style={{ color: "var(--color-primary)" }}>
                 This number is shared — pick the card you have.
@@ -391,10 +390,11 @@ export function AddCardsKeypad({ setCode, rows, catalog, sets, onAppendRow, onDe
                 Pick the highlighted option to enable Add Card.
               </div>
             )}
-            {/* BL-191: SOR/SHD/TWI shared-number cards default Finish to the
-                probable (non-foil) printing rather than blocking on a pick --
-                foils exist at far lower quantities. The picker stays open for
-                override; this cue just flags that the number is shared. */}
+            {/* SOR/SHD/TWI shared-number cards default Finish to the probable
+                (non-foil) printing rather than blocking on a pick -- foils
+                exist at far lower quantities (App Spec §5.16). The picker
+                stays open for override; this cue just flags that the number
+                is shared. */}
             {state?.finish.defaulted && (
               <div className="ac-pad__resolve-sub ac-pad__resolve-sub--attention">
                 Card number is shared across variants — verify selection.

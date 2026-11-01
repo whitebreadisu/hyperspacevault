@@ -1,6 +1,6 @@
-/* BL-205: the two bits of layout AuthModal.css's shared `.auth-*` family
-   doesn't already cover -- the active share's name+rename row and the
-   link+copy row. Everything else (overlay, card, form, field, buttons,
+/* The layout AuthModal.css's shared `.auth-*` family doesn't cover -- the
+   active share's name+rename row, the link+copy row and the hint line.
+   Everything else (overlay, card, form, field, buttons,
    danger-warning/danger-submit) reuses AuthModal.css as-is (see
    ShareManageModal.tsx's own doc comment for why). */
 

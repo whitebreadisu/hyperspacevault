@@ -24,13 +24,14 @@ function shareUrl(token: string): string {
   return `${window.location.origin}/shared/${token}`;
 }
 
-/** BL-205 (§19.1): owner-side share management, reached from the Vault
- * header's share affordance (CardsPage). Reuses AuthModal.css's `.auth-*`
- * classes for the overlay/card/form/field/button grain (same reuse
- * ChangePasswordModal/DeleteAccountModal already make) rather than forking
- * new ones -- only the link/copy row below needs a couple of new classes
- * (ShareManageModal.css). "At most one active share per scope target"
- * (§19.1) means this modal only ever has ONE of two shapes: the empty
+/** Owner-side share management (App Spec §19.1), opened from the Vault
+ * header's share affordance (CardsPage) on desktop and from the phone's
+ * AccountLayer. Reuses AuthModal.css's `.auth-*` classes for the
+ * overlay/card/form/field/button grain (the same reuse
+ * ChangePasswordModal/DeleteAccountModal make) rather than forking new ones
+ * -- only the name/rename row, the link/copy row and the hint need classes
+ * of their own (ShareManageModal.css). "At most one active share per scope
+ * target" (§19.1) means this modal only ever has ONE of two shapes: the empty
  * create-form state, or the single active share's management panel --
  * never a list. */
 export function ShareManageModal({ onClose }: Props) {
@@ -52,9 +53,9 @@ export function ShareManageModal({ onClose }: Props) {
     listShares()
       .then((rows) => {
         if (cancelled) return;
-        // §19.1: at most one ACTIVE share per scope target -- a revoked row
-        // (or a future non-"inventory" scope, BL-206/BL-209) is not the one
-        // this modal manages.
+        // App Spec §19.1: at most one ACTIVE share per scope target -- a
+        // revoked row (or any non-"inventory" scope) is not the one this
+        // modal manages.
         const active = rows.find((s) => s.scope === "inventory" && !s.revoked) ?? null;
         setShare(active);
         setName(active?.name ?? "");
@@ -82,7 +83,7 @@ export function ShareManageModal({ onClose }: Props) {
       const created = await createShare(trimmed);
       setShare(created);
       setName(created.name);
-      capture("share_created", {}); // BL-235
+      capture("share_created", {});
     } catch (err) {
       setActionError(
         err instanceof ShareApiError
@@ -305,8 +306,9 @@ export function ShareManageModal({ onClose }: Props) {
           </div>
         )}
 
-        {/* Rotate confirm -- §19.1: "this kills the old link" (owner-facing
-            confirm wording is the deliverable's explicit requirement). */}
+        {/* Rotate confirm -- rotation kills the old link instantly (App Spec
+            §12, POST /api/shares/{id}/rotate), so the owner confirms in
+            wording that says so. */}
         {!loading && share && confirmAction === "rotate" && (
           <div className="auth-form">
             <p className="auth-danger-warning">

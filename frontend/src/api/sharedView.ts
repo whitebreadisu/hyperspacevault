@@ -2,11 +2,11 @@ import { ApiError, CodedApiError } from "./errors";
 import type { VariantQuantity } from "./inventory";
 import type { LimitsResponseBody } from "./settingsLimits";
 
-/** BL-205 (SWU_Application_Spec.md §19.1): the viewer-mode read surface --
- * three token-scoped endpoints, none requiring auth (plain `fetch`, not
- * `authedFetch` -- this is the platform's first unauthenticated read of
- * tenant data, and it must stay that way regardless of whether the caller
- * happens to be signed into their OWN account in this browser). Callers
+/** The viewer-mode read surface (App Spec §19.1) -- three token-scoped
+ * endpoints, none requiring auth (plain `fetch`, not `authedFetch` -- they
+ * are the platform's unauthenticated read of tenant data, and it must stay
+ * that way regardless of whether the caller happens to be signed into their
+ * OWN account in this browser). Callers
  * never attach a Firebase token here on purpose: the shared data belongs to
  * the share's owner-tenant, not whoever is viewing it. */
 
@@ -15,21 +15,21 @@ export interface ShareResolution {
   scope: "inventory" | "wanted" | "list";
 }
 
-/** §19.1: "invalid and revoked tokens are indistinguishable (404)" -- the
+/** App Spec §19.1: "invalid and revoked tokens are indistinguishable (404)" -- the
  * frontend never tries to tell those apart either, `not_found` covers both.
  * `rate_limited` surfaces the endpoint's per-IP limiter (§19.1's security
  * posture); `unknown` is any other non-2xx (5xx, network-adjacent). Mirrors
  * inventoryImportExport.ts's ImportApiError shape (CodedApiError over a
  * closed code union) since this endpoint's callers need to branch on the
- * distinction (SharedVaultPage renders a different message per code) rather
- * than just pass/fail. */
+ * distinction (SharedVaultPage and the phone's useShare show a separate
+ * rate-limited message) rather than just pass/fail. */
 export type ShareResolveErrorCode = "not_found" | "rate_limited" | "unknown";
 
 export class ShareResolveError extends CodedApiError<ShareResolveErrorCode> {
   /** Present only for `rate_limited`, when the response carried a
-   * Retry-After header. Not currently surfaced in the UI (SharedVaultPage's
-   * message is static) -- carried through anyway so a future round can show
-   * "try again in Ns" without another API-layer change. */
+   * Retry-After header. The UI does not show it (the rate-limited message is
+   * static); it is carried so a "try again in Ns" message needs no API-layer
+   * change. */
   retryAfterSeconds?: number;
 
   constructor(code: ShareResolveErrorCode, status: number, retryAfterSeconds?: number) {
@@ -64,10 +64,10 @@ export async function resolveShare(token: string): Promise<ShareResolution> {
 /** GET /api/shared/{token}/quantities -- same sparse variant_id -> quantity
  * shape as api/inventory.ts's getQuantities(), for the share's owner-tenant
  * rows instead of the caller's own. A generic ApiError (not a coded one) is
- * enough here: SharedVaultPage/CardsPage surface any failure through the
- * same catch-all `error` state the catalog fetch already uses -- there's no
- * per-code branching to do once resolveShare above has already established
- * the token is valid. */
+ * enough here: vault/useVaultData.ts surfaces any failure through the same
+ * catch-all `error` state the catalog fetch uses -- there's no per-code
+ * branching to do once resolveShare above has already established the token
+ * is valid. */
 export async function getSharedQuantities(token: string): Promise<VariantQuantity[]> {
   const res = await fetch(`/api/shared/${encodeURIComponent(token)}/quantities`);
   if (!res.ok) throw new ApiError(`Failed to fetch shared quantities: ${res.status}`, res.status);

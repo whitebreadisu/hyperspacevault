@@ -1,20 +1,21 @@
 import { capturePhone, phoneScreenViewed } from "../phoneAnalytics";
 
-// BL-249 S3-07 (BL-244, additive): the tool's analytics. The events and
-// property shapes are desktop AddCardsModal's call sites (BL-235):
+// The tool's analytics. The event names and property shapes are registered
+// in App Spec §22 and match desktop AddCardsModal's call sites:
 //   add_cards_committed {method, cards_added, distinct_cards}
 //   add_cards_abandoned {pending_entries}
-// plus `layout: "phone"` (capturePhone). The tool layer sends
-// screen_viewed {screen: "tool"} once per open. Stage 3c's commit and close
-// guard are the call sites of the two add_cards_* helpers (S3-16).
+// plus `layout: "phone"` (capturePhone). ToolLayer sends
+// screen_viewed {screen: "tool"} each time the layer opens on, or switches
+// back to, the keypad; commit.ts and the two close guards (ToolLayer,
+// VerifySheet) call the add_cards_* helpers.
 
 export function toolScreenViewed(): void {
   phoneScreenViewed("tool");
 }
 
-/** BL-253 S7-18: `camera` / `camera_fast_add` are additive method values;
+/** `camera` / `camera_fast_add` are method values beside keypad and precon;
  * a camera commit also carries `fast_add` (the Fast add state of its adds).
- * The keypad and precon shapes are unchanged. */
+ * The keypad and precon shapes carry no `fast_add`. */
 export function toolAddCardsCommitted(
   method: "keypad" | "precon" | "camera" | "camera_fast_add",
   cardsAdded: number,
@@ -30,7 +31,7 @@ export function toolAddCardsCommitted(
   });
 }
 
-/** BL-270: the fold tab's two states, the `state` values of
+/** The fold tab's two states, the `state` values of
  * pad_keypad_toggled (the state the deck is in after the tap). */
 export const PAD_KEYPAD_STATES = ["compact", "full"] as const;
 

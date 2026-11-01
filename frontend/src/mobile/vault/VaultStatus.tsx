@@ -6,13 +6,13 @@ import { ScopeChip } from "./ScopeChip";
 import { sortLabel } from "./SortSheet";
 import type { GallerySize, RowSize, VaultView } from "./useVaultView";
 
-// BL-247 S1-14 / S1-15 / S1-18: the Vault's status area, two rows (R5-3).
+// The Vault's status area, two rows (App Spec §25.1 Status rows).
 // Row one: the search box, Clear (only while narrowed; its slot is not
 // reserved, the search box narrows), Filters (badge = desktop's active count).
 // Row two: the count (left-most; amber while narrowed, the filtered count
 // only), the scope chip, the icon-only Sort, the list / gallery toggle. While
 // a size picker is open the count, chip and Sort step aside. Search focus
-// enters search mode (S1-15, owned by Vault.tsx); blur leaves it.
+// enters search mode (owned by Vault.tsx); blur leaves it.
 
 const ROW_SIZE_OPTIONS: { key: RowSize; label: string; icon: IconName }[] = [
   { key: "none", label: "No image", icon: "sz0" },
@@ -42,7 +42,7 @@ function SearchField({
   onFocus: () => void;
   onBlur: () => void;
   /** Clear is on the row (a filter or scope is active): the field is at its
-   * narrowest, so the hint drops to 14 px (FR1-01b). */
+   * narrowest, so the hint drops to 14 px (App Spec §25.1). */
   narrowed: boolean;
 }) {
   return (

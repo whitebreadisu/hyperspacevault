@@ -71,7 +71,7 @@
   color: var(--color-danger);
 }
 
-/* BL-94 layer 2: neutral inline hint alongside the "Email sent" state. */
+/* Neutral inline hint alongside the "Email sent" state. */
 .verify-email-banner__hint {
   width: 100%;
   font-family: var(--font-body);

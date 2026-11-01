@@ -1,9 +1,10 @@
 import type { CapHandling } from "../api/inventoryImportExport";
 import type { CapMode, LimitCell, TypeCategory } from "../api/settingsLimits";
 
-/** BL-25: pure keep-limit resolution shared by the enforcement pre-checks
- * (addCardsResolver's maxCopies, CardPopup's stepper disable) and
- * the settings grid. Mirrors the backend's BL-24 vocabulary
+/** Pure keep-limit resolution shared by the enforcement pre-checks
+ * (addCardsResolver's maxCopies, CardPopupInventory's stepper disable, the
+ * phone card detail and batch) and the settings grid (App Spec §4.5, §6).
+ * Mirrors the backend's vocabulary
  * (app/services/limits.py + app/ingestion/swuapi_classify.py): a variant's
  * limit bucket is its `finish` when non-null, else its `channel`; its
  * category is "singleton" for Leader/Base base cards, "standard" otherwise.
@@ -44,16 +45,15 @@ export const CANONICAL_BUCKETS: readonly string[] = [...FINISH_BUCKETS, ...CHANN
 
 export const ALL_TYPE_CATEGORIES: readonly TypeCategory[] = ["singleton", "standard"];
 
-/** Code defaults (BL-24): what every cell resolves to when the tenant has no
+/** Code defaults: what every cell resolves to when the tenant has no
  * override -- and what the whole matrix falls back to for anonymous /
- * not-yet-fetched users, so pre-auth behavior is byte-identical to the old
- * hardcoded Leader/Base=1, everything-else=3. */
+ * not-yet-fetched users: Leader/Base 1, everything else 3. */
 export const DEFAULT_LIMITS: Record<TypeCategory, number> = {
   singleton: 1,
   standard: 3,
 };
 
-/** The unconditional technical cap (BL-24 QUANTITY_CEILING). "No limit"
+/** The unconditional technical cap (the backend's QUANTITY_CEILING). "No limit"
  * cells are treated as this for pre-check purposes -- the backend blocks at
  * 999 with reason "ceiling" regardless of configuration. */
 export const QUANTITY_CEILING = 999;
@@ -113,32 +113,29 @@ export function enforcementCap(
   return effectiveLimit(limits, category, bucket) ?? QUANTITY_CEILING;
 }
 
-/** BL-217: the Vault's "over my keep limit" filter predicate -- a card
- * qualifies when ANY of its variants owns more than its bucket's effective
- * limit. Reuses the exact bucket/category resolution the popup steppers
- * (CardPopupInventory's InventoryPlate) and addCardsResolver's maxCopies
- * already use (limitBucketOf + typeCategoryOf + effectiveLimit) rather than
- * re-deriving it. A bucket resolving to "No limit" (effectiveLimit === null)
- * can never be over-cap -- the 999 QUANTITY_CEILING is a technical add-time
- * stop, not a keep-limit, and is deliberately NOT consulted here (unlike
- * enforcementCap above, which exists for exactly that different purpose).
- * `type` is the base card's `type` (Leader/Base/...), the same field
- * typeCategoryOf already classifies elsewhere -- one category applies to
- * every variant of a card, only the per-variant bucket differs.
+/** The Vault's "over my keep limit" filter predicate (App Spec §5.6) -- a
+ * card qualifies when ANY of its variants owns more than its bucket's
+ * effective limit. Reuses the exact bucket/category resolution the popup
+ * steppers (CardPopupInventory) and addCardsResolver's maxCopies use
+ * (limitBucketOf + typeCategoryOf + effectiveLimit) rather than re-deriving
+ * it. A bucket resolving to "No limit" (effectiveLimit === null) can never be
+ * over-cap -- the 999 QUANTITY_CEILING is a technical add-time stop, not a
+ * keep-limit, and is deliberately NOT consulted here (unlike enforcementCap
+ * above, which exists for exactly that different purpose). `type` is the
+ * base card's `type` (Leader/Base/...), the same field typeCategoryOf
+ * classifies elsewhere -- one category applies to every variant of a card,
+ * only the per-variant bucket differs.
  *
- * BL-222 (revises BL-217, Issue #134): `scope` makes this scope-aware,
- * matching the BL-195 sibling pattern the three collection toggles already
- * follow (utils/variantScope.ts's scopedOwnedCount/scopedPlaysetComplete) --
- * while a scope is active, only the variant(s) matching that raw finish
+ * `scope` makes this scope-aware, matching the other collection toggles
+ * (utils/variantScope.ts's scopedOwnedCount/scopedPlaysetComplete) -- while
+ * a scope is active, only the variant(s) matching that raw finish
  * (`v.finish ?? v.variant_type`, the same universe variantScope.ts's own
  * scoped helpers match against) are checked; a DIFFERENT finish sitting over
  * ITS OWN cap must not qualify the card while scoped to another finish.
- * `scope` omitted or null keeps the original BL-217 behavior (ANY variant,
- * unchanged) -- every pre-BL-222 call site/test keeps compiling and
- * evaluating exactly as before. `variant_type` is optional on the element
- * type (not needed for the unscoped path, which never reads it) so
- * pre-existing fixtures that only ever built `{ finish, channel, quantity }`
- * still satisfy the signature unchanged. */
+ * `scope` omitted or null checks ANY variant. `variant_type` is optional on
+ * the element type (the unscoped path never reads it), so callers and
+ * fixtures that build only `{ finish, channel, quantity }` satisfy the
+ * signature. */
 export function cardOverCap(
   variants: readonly {
     finish: string | null;

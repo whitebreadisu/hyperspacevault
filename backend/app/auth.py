@@ -6,7 +6,7 @@ from firebase_admin import auth, credentials, exceptions
 
 _firebase_app: firebase_admin.App | None = None
 
-# BL-88: Firebase's standard "sensitive operation" recency window -- a
+# Firebase's standard "sensitive operation" recency window -- a
 # token's auth_time claim must be within this many seconds of "now" to
 # satisfy require_recent_auth.
 RECENT_AUTH_WINDOW_SECONDS = 5 * 60
@@ -30,7 +30,7 @@ def _decode_token(authorization: str | None) -> dict:
     Raises HTTPException(401) if the header is missing or the token
     doesn't verify. Shared by verify_firebase_token (which projects it down
     to the (uid, email, email_verified) tuple most routes use) and
-    require_recent_auth (BL-88, which needs the raw `auth_time` claim that
+    require_recent_auth (which needs the raw `auth_time` claim that
     tuple doesn't carry) so both keep one definition of "missing/invalid
     Authorization header" and "invalid or expired token".
     """
@@ -51,7 +51,7 @@ def verify_firebase_token(authorization: str | None) -> tuple[str, str, bool]:
 
     Returns (firebase_uid, email, email_verified). Raises HTTPException(401)
     if the header is missing or the token doesn't verify. email_verified
-    (BL-16) comes straight off the decoded token's `email_verified` claim --
+    comes straight off the decoded token's `email_verified` claim --
     absent is treated as False (unverified), never as True.
     """
     decoded = _decode_token(authorization)
@@ -81,10 +81,10 @@ def get_optional_identity(
     Authorization header resolves to None (anonymous) instead of raising
     401.
 
-    BL-56 / ADR-0008: GET /api/base-cards/{id} is optional-auth, not
-    strictly tenant-less -- an authenticated caller must still see real
-    per-tenant quantities, so it can't hang off the same dependency as the
-    fully public /api/cards and /api/sets reads.
+    ADR-0008: GET /api/base-cards/{id} is optional-auth, not strictly
+    tenant-less -- an authenticated caller must still see real per-tenant
+    quantities, so it can't hang off the same dependency as the fully
+    public catalog reads (the GET /api/base-cards list, /api/sets).
 
     A *present but invalid/expired* token still raises 401 via
     verify_firebase_token -- only a missing header downgrades to anonymous;
@@ -102,7 +102,7 @@ def require_verified_email(
     identity: tuple[str, str, bool] = Depends(get_current_identity),
 ) -> None:
     """FastAPI dependency: gates a route on the caller's Firebase-verified
-    email (BL-16 -- decided 2026-06-20, implemented at v1.0).
+    email.
 
     Depends on get_current_identity rather than re-decoding the token, so a
     route that also depends on get_db (which itself depends on
@@ -118,15 +118,14 @@ def require_verified_email(
     claim is treated as unverified (verify_firebase_token already defaults
     it to False), never as an implicit pass.
 
-    Scope (BL-16, as widened by BL-54 S1's P9): applied to the inventory-
-    mutating routes (increment/decrement) AND, since BL-54, to
-    GET /api/inventory/export -- the import/export definition package's P9
-    decision gates "the whole surface" (import and export together), not
-    just mutations, so export carries this dependency despite being a read.
-    Still never applied to other reads, catalog endpoints, or
-    DELETE /api/account -- an unverified user must still be able to browse
-    and delete their own account, since gating account deletion would
-    strand it.
+    Scope (ADR-0034; Platform Spec §1.3 route registry): applied to the
+    inventory-mutating routes (increment, decrement, adjust) and to the
+    whole import/export surface -- POST /api/inventory/import AND
+    GET /api/inventory/export, so export carries this dependency despite
+    being a read. Never applied to other reads, catalog endpoints,
+    PUT /api/settings/limits, or DELETE /api/account -- an unverified user
+    must still be able to browse and delete their own account, since gating
+    account deletion would strand it.
     """
     _, _, email_verified = identity
     if not email_verified:
@@ -137,21 +136,20 @@ def require_recent_auth(
     authorization: str | None = Header(default=None),
 ) -> None:
     """FastAPI dependency: gates a destructive route on the caller having
-    reauthenticated within the last RECENT_AUTH_WINDOW_SECONDS (BL-88) --
+    reauthenticated within the last RECENT_AUTH_WINDOW_SECONDS --
     Firebase's standard "sensitive operation" window, matching the
-    password/Google reauth DeleteAccountModal already performs client-side
-    before calling DELETE /api/account. Without this, a stolen-but-valid ID
-    token could hit the purge endpoint directly, skipping that client-side
-    gate entirely -- see BL-88's backlog entry (spawned from BL-87's
-    security review) for the full threat-model writeup.
+    password/Google reauth DeleteAccountModal performs client-side before
+    calling DELETE /api/account. Without this, a stolen-but-valid ID token
+    could hit the purge endpoint directly, skipping that client-side gate
+    entirely.
 
     Independently re-decodes the token via _decode_token rather than
     depending on get_current_identity: that dependency's (uid, email,
-    email_verified) tuple shape is relied on across the whole app, and
-    widening it to also carry auth_time is out of this item's scope.
-    verify_id_token is a local JWT/JWKS check, not a network round trip, so
-    a route that also depends on get_db (itself -> get_current_identity)
-    paying for a second decode of the same token is cheap -- correctness
+    email_verified) tuple shape is relied on across the whole app, so it
+    does not also carry auth_time. verify_id_token is a local JWT/JWKS
+    check, not a network round trip, so a route that also depends on get_db
+    (itself -> get_current_identity) paying for a second decode of the same
+    token is cheap -- correctness
     of the recency check matters more here than shaving one local decode.
 
     A missing `auth_time` claim is treated as stale, never as an implicit

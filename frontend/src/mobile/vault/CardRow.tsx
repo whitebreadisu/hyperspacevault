@@ -11,16 +11,15 @@ import { cellImage, pickRepresentative, scopedVariant } from "./cardImage";
 import { Playset } from "./Playset";
 import type { RowSize } from "./useVaultView";
 
-// BL-247 S1-19: one Vault row (rev4 MVault.jsx:98-176). Four tiers: `none` is
-// one line (set/#, name, subtitle, price, playset); sm / md / lg add the
-// thumbnail (desktop cellImage orientation rules), rarity, aspects; md the
-// type; lg two-line names and the stat badges. Scoped (run B2): the set/# is
+// One Vault row (App Spec §25.1). Four tiers: `none` is one line (set/#,
+// name, subtitle, price, playset); sm / md / lg add the thumbnail (desktop
+// cellImage orientation rules), rarity, aspects; md the type; lg two-line
+// names and the stat badges. Scoped: the set/# is
 // the scoped printing's own number (amber), the price is that printing's
 // own price or an em dash (cardValuePrice -- never Standard's), the thumbnail
 // is its art, the pips read its count and the price + playset cluster carries
 // desktop's faint amber column wash.
-// BL-248 S2-10 (R5-1): the row is two buttons side by side, as rev4 -- the
-// main part opens the card; the price + playset cluster opens Owned by
+// The row is two buttons side by side -- the main part opens the card; the price + playset cluster opens Owned by
 // finish when signed in (the touch replacement for the desktop hover
 // dossier) and opens the card when signed out (desktop shows no dossier).
 

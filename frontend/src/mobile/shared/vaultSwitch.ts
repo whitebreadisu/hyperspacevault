@@ -1,4 +1,4 @@
-// BL-252 S6-04 (R5-7): the bottom bar's Vault button as the switch between
+// The bottom bar's Vault button as the switch between
 // the viewer's own vault and the share. Pure state machine (tested alone);
 // MobileNav holds `expanded`, MobileApp holds which vault is shown.
 //   - No share name known (no session, or a fresh link still resolving /

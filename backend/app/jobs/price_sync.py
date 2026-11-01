@@ -1,20 +1,20 @@
-"""BL-136 P2: daily price sync job (Definition_Pricing_2026-07-16.md §3).
+"""Daily price sync job (App Spec §16.3).
 
 1. GET tcgcsv.com/last-updated.txt; skip the run entirely if it matches the
    value already recorded from the last successful sync (idempotent --
    re-running the same day, or a redeploy that re-triggers the scheduler,
    is a no-op past this check; self-correcting if tcgcsv's own daily build
    is running late, since the watermark just won't have moved yet).
-2. Fetch prices for every priced set's tcgcsv group (the sets P1's mapping
+2. Fetch prices for every priced set's tcgcsv group (the sets the mapping
    builder has coverage for -- app.ingestion.tcgcsv_client.ALL_PRICED_GROUP_IDS,
-   the 10 root sets plus, since BL-174, the 8 Weekly Play container-set
-   groups -- the SAME map the mapping builder defaults to, so this job's
-   fetch scope can never silently drift from what's actually mapped),
+   the root sets plus the Weekly Play container-set groups -- the SAME map
+   the mapping builder defaults to, so this job's fetch scope can never
+   silently drift from what's actually mapped),
    sequential + throttled + UA-identified via TcgcsvClient (same compliance
    posture as the mapping builder).
 3. Look each (productId, subTypeName) price row up in `tcgplayer_products`
-   (P1's mapping, read-only here -- this job never re-runs the join) and
-   upsert today's `variant_prices` row for the matched variant_id.
+   (the mapping, read-only here -- this job never re-runs the join) and
+   upsert today's `variant_prices` row for each matched variant_id.
 4. Record the new last-updated watermark in `pricing_sync_state` only after
    every group's prices are upserted -- a mid-run failure leaves the old
    watermark in place, so a retry re-does the whole day's sync rather than
@@ -75,16 +75,15 @@ def set_watermark(db: Session, value: str) -> None:
 
 
 def load_product_index(db: Session) -> dict[tuple[int, str], list[int]]:
-    """(tcg_product_id, sub_type) -> [variant_ids], for every P1-mapped
+    """(tcg_product_id, sub_type) -> [variant_ids], for every mapped
     variant. Loaded once per run -- ~9k rows is trivial to hold in memory
     and avoids a per-price-row query.
 
-    One-to-MANY (BL-159): several variants can legitimately share one
-    tcgplayer product+subType (38 known shared-key groups, e.g. the IBH
-    3-variant products), so each price row must fan out to every mapped
-    variant. A plain one-to-one dict here silently kept only the last
-    writer, leaving the other variants of each group with no price row
-    at all."""
+    One-to-MANY: several variants can legitimately share one tcgplayer
+    product+subType (shared-key groups, e.g. the IBH 3-variant products;
+    App Spec §16.1), so each price row must fan out to every mapped
+    variant. A one-to-one dict would keep only the last writer, leaving
+    the other variants of each group with no price row at all."""
     rows = db.execute(
         text("SELECT tcg_product_id, sub_type, variant_id FROM tcgplayer_products")
     ).all()
@@ -101,7 +100,7 @@ def upsert_prices(
     as_of: date,
 ) -> tuple[int, int]:
     """Upserts one variant_prices row per price row that resolves through
-    product_index, and -- BL-146 -- maintains that variant's
+    product_index, and maintains that variant's
     variant_latest_prices snapshot row in the SAME transaction (guarded by
     upsert_latest_price so an out-of-order/historical `as_of` never
     regresses the snapshot; see app.repositories.pricing.upsert_latest_price
@@ -109,7 +108,7 @@ def upsert_prices(
     directly, and app.jobs.price_backfill imports this same function, so
     the backfill's historical writes go through the identical guarded
     upsert -- no separate snapshot-maintenance code path to keep in sync.
-    A shared-key price row (BL-159) fans out to one variant_prices row per
+    A shared-key price row fans out to one variant_prices row per
     mapped variant, and rows_upserted counts variant rows written, not
     source price rows resolved.
     Returns (rows_upserted, unmapped_count)."""

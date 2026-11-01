@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-/** BL-247 S1-03: the phone app's hash router (port of rev4 MApp.jsx:20-45).
- * Routes are `#/<path>?<params>`; the first segment picks the screen. */
+/** The phone app's hash router. Routes are `#/<path>?<params>`; the first
+ * segment picks the screen. */
 export interface Route {
   path: string;
   segs: string[];
@@ -10,8 +10,8 @@ export interface Route {
   hash: string;
 }
 
-/** First segments the phone app has a screen (or a ComingSoon) for. Anything
- * else normalises to the Vault (rev4 step old-new-route-redirects). */
+/** First segments the phone app has a screen for. Anything else normalises
+ * to the Vault. */
 const KNOWN_ROOTS = new Set(["vault", "card", "more", "pad", "camera", "about"]);
 
 export function parseHash(h: string | null | undefined): Route {
@@ -22,8 +22,9 @@ export function parseHash(h: string | null | undefined): Route {
   new URLSearchParams(qs ?? "").forEach((v, k) => {
     params[k] = v;
   });
-  // Retired routes from earlier prototype revisions: Home / New fold into the
-  // Vault, Decks into More.
+  // Three hashes from older links still land somewhere sensible: home / new
+  // to the Vault, decks to More. Any other unknown root goes to the plain
+  // Vault below.
   if (path === "home" || path === "new" || path === "") path = "vault";
   if (path === "decks") path = "more";
   const segs = path.split("/");
@@ -58,7 +59,7 @@ export function go(hash: string, replace?: boolean): void {
   }
 }
 
-/** BL-253 S7-09: forward navigations of ours left to walk back (the camera's
+/** Forward navigations of ours left to walk back (the camera's
  * close decides between an in-document back and the hop back to `/`). */
 export const navDepth = (): number => depth;
 
@@ -67,8 +68,7 @@ export function back(): void {
 }
 
 /** History back while there is something of ours to walk back to, else
- * `fallback` (BL-250 S4-05: a More sub-page's back chevron falls back to
- * `#/more`). */
+ * `fallback` (a More sub-page's back chevron falls back to `#/more`). */
 export function backOr(fallback: string): void {
   if (depth > 0) {
     depth--;

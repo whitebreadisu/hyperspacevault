@@ -3,8 +3,8 @@ import type { PanelMetrics } from "../../utils/completion";
 import type { InventoryCard } from "../../utils/inventory";
 import type { PriceMode } from "../../utils/variantScope";
 
-// BL-247 S1-23: the completion header's rules, as desktop InventorySummary
-// (BL-163 / BL-223): the Totals switch shows only while the list is narrowed
+// The completion header's rules, as desktop InventorySummary: the Totals
+// switch shows only while the list is narrowed
 // AND the caller is signed in; hidden, it always reads Filtered; the amber
 // ring applies only while the switch shows AND reads Filtered. Metrics =
 // computePanelMetrics over the filtered or the whole list.
@@ -39,7 +39,7 @@ export function completionView(args: {
   };
 }
 
-/** Header money: desktop formatMoney without the cents (rev4 MSummary). */
+/** Header money: desktop formatMoney without the cents. */
 export function wholeMoney(formatted: string): string {
   return formatted.replace(/\.\d\d$/, "");
 }

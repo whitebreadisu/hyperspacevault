@@ -1,6 +1,6 @@
-/* ── BusyOverlay (BL-196) ───────────────────────────────────────────────
+/* ── BusyOverlay ────────────────────────────────────────────────────────
  * Full-viewport blocking overlay for large inventory applies. Extends the
- * shared .modal-overlay backdrop (BL-153) rather than a bespoke scrim --
+ * shared .modal-overlay backdrop (index.css) rather than a bespoke scrim --
  * `.busy-overlay.modal-overlay` (two classes -> specificity (0,2,0)) beats
  * plain `.modal-overlay` (0,1,0) regardless of stylesheet load order, so the
  * z-index bump below is guaranteed to win. 300 clears every existing modal
@@ -52,15 +52,13 @@
   justify-content: center;
 }
 
-/* ── The orbit (owner-picked variant, 2026-08-03) ─────────────────────
+/* ── The orbit (`--c` modifier) ─────────────────────────────────────────
  * Six glyphs evenly spaced on a ring, ~10s/rev, each counter-rotating to
  * stay upright. Each glyph flashes to full color + amber glow as it passes
  * 6 o'clock, releases the flash across the first quarter-revolution, then
  * fades linearly to 10% brightness arriving back at the bottom — the ring
- * reads as a rotating comet tail. (The `--c` class suffix is the pick's
- * heritage from the three-variant round; the losing variants + dev
- * switcher were stripped at the pick and live in git history.) Three
- * nested layers per glyph do the work:
+ * reads as a rotating comet tail. Three nested layers per glyph do the
+ * work:
  *   .busy-overlay__glyph        static per-glyph position on the ring
  *                                (rotate(var(--busy-angle)), set inline by
  *                                BusyOverlay.tsx -- 0/60/120/180/240/300deg)
@@ -71,12 +69,8 @@
  *                                (static angle + ring rotation) so the icon
  *                                itself never visually spins, plus a
  *                                second, independently-delayed animation
- *                                that pulses the amber glow at the moment
- *                                each glyph's static angle carries it
- *                                through 12 o'clock.
- * The per-glyph glow delays below are each angle's "distance" (at 36deg/s)
- * back to a 0deg (12 o'clock) crossing: angle 0->0s, 60->8.33s, 120->6.67s,
- * 180->5s, 240->3.33s, 300->1.67s. */
+ *                                (the glow sawtooth) phased so its flash
+ *                                lands as the glyph crosses 6 o'clock. */
 .busy-overlay__glyphs--c {
   position: relative;
   width: 160px;
@@ -107,14 +101,12 @@
     busy-orbit-glow-c 10s linear infinite;
 }
 
-/* Owner mod (2026-08-03): the flash moved from 12 o'clock to 6 o'clock, and
- * the glow keyframes became a full-revolution sawtooth (flash at the bottom
- * -> linear fade to 10% brightness arriving back at the bottom). Delays are
- * NEGATIVE equivalents (phase-shifted -5s for the top->bottom move) so every
- * glyph is mid-cycle from the first painted frame -- a positive delay would
- * leave glyphs at full brightness until their first cycle began. Sync math:
- * glyph at ring angle θ crosses 6 o'clock at t = (180° - θ)/36°·s (10s/rev),
- * so its cycle phase-0 (the flash) must land there. */
+/* Glow delays. Sync math: the glyph at ring angle θ crosses 6 o'clock at
+ * t = (180° - θ)/36°·s (10s/rev), so its cycle phase-0 (the flash) must
+ * land there: angle 0 -> -5s, 60 -> -6.67s, 120 -> -8.33s, 180 -> 0s,
+ * 240 -> -1.67s, 300 -> -3.33s. The delays are NEGATIVE so every glyph is
+ * mid-cycle from the first painted frame -- a positive delay would leave
+ * glyphs at full brightness until their first cycle began. */
 .busy-overlay__glyphs--c .busy-overlay__glyph:nth-child(1) .busy-overlay__glyph-inner {
   animation-delay:
     0s,
@@ -162,18 +154,17 @@
   }
 }
 
-/* Owner mod (2026-08-03): full-revolution sawtooth. Phase 0 = the glyph's
- * 6-o'clock crossing: flash to full color with the amber glow, glow releases
- * by 5%, then a LINEAR fade across the entire revolution down to 10%
- * brightness exactly as the glyph returns to the bottom -- where the loop
- * boundary snaps it back to the flash. The 100% keyframe keeps a zero-size
+/* Full-revolution sawtooth. Phase 0 = the glyph's 6-o'clock crossing:
+ * flash to above-full brightness with the amber glow, glow + brightness
+ * taper across the first quarter of the revolution (~2.5s, 0-25%), then a
+ * LINEAR fade across the rest of the revolution down to 10% brightness
+ * exactly as the glyph returns to the bottom -- where the loop boundary
+ * snaps it back to the flash. The 25% and 100% keyframes keep a zero-size
  * transparent drop-shadow so the filter list interpolates smoothly instead
  * of jumping when the shadow function disappears. */
 @keyframes busy-orbit-glow-c {
-  /* Owner round 2: the flash releases MUCH slower -- full flash at the
-   * bottom, glow + above-full brightness tapering across the first quarter
-   * of the revolution (~2.5s) before the long linear slide to 10% takes
-   * over. Arrival-at-10%-at-the-bottom is unchanged. */
+  /* The slow release (0-25%) keeps the flash readable before the long
+   * linear slide to 10% takes over. */
   0% {
     filter: brightness(1.35) drop-shadow(0 0 10px var(--color-warning));
   }

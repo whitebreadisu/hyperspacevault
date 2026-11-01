@@ -1,20 +1,18 @@
 """Catalog bootstrap (ADR-0004): on startup, populate the catalog from the
 committed swuapi export when it is empty. Idempotent -- a no-op once `base_cards`
 is populated, so warm databases and production (already ingested) pay nothing.
-Replaces the retired CSV-era `apply_seed` / `catalog_seed.sql` path.
 
 The catalog's source of truth is swuapi; the export in `app/ingestion/data/`
-is a point-in-time capture. BL-170 moves the capture out of git and into the
-per-env `repo-assets` GCS bucket: CI's build-and-push fetches
-`exports/swuapi_export_current.json` into `data/` before the Docker build, so
+is a point-in-time capture, kept out of git in the per-env `repo-assets`
+GCS bucket: CI's build-and-push fetches `exports/swuapi_export_current.json`
+into `data/` before the Docker build, so
 the image still ships a capture; local dev fetches the same object via
 `scripts/fetch_bootstrap_export.sh` (or sets SWUAPI_EXPORT_PATH). Resolution
 order at call time: SWUAPI_EXPORT_PATH env var -> `data/swuapi_export_current.json`
 -> newest dated `data/swuapi_export_*.json` -> warn and leave the catalog
 empty (fresh clones without credentials get an empty-but-working app). Real
-freshness is manual runbook execution (`SWU_SWUAPI_Content_Runbook.md`;
-BL-36/BL-37 automation deliberately not built -- owner decision 2026-07-14,
-issue #261).
+freshness is a manual content refresh (App Spec §13, ADR-0004); there is
+deliberately no automated refresh.
 """
 
 import logging
@@ -53,8 +51,7 @@ def resolve_export_path() -> Path:
 
 def bootstrap_catalog(export_path: Path | None = None) -> None:
     """Ingest the swuapi export into an empty catalog. No-op if `base_cards`
-    is already populated. Called from the FastAPI lifespan on startup
-    (replacing the retired `apply_seed`)."""
+    is already populated. Called from the FastAPI lifespan on startup."""
     if export_path is None:
         export_path = resolve_export_path()
     db = SessionLocal()

@@ -1,17 +1,16 @@
-"""BL-137 D4: cost math + TCGplayer Mass Entry cart URL generation
-(Definition_DeckCheck_2026-07-16.md §5). Pure -- no DB.
+"""Deck-check cost math + TCGplayer Mass Entry cart URL generation (App
+Spec §5.11, §12). Pure -- no DB.
 
-Cost math reuses app.services.pricing.compute_display_price (BL-136 P4)
-for the two base modes, then layers one deck-check-specific rule on top:
-in `standard` mode, a card whose Standard printing itself has no price but
+Cost math reuses app.services.pricing.compute_display_price for the two
+base modes, then layers one deck-check-specific rule on top: in
+`standard` mode, a card whose Standard printing itself has no price but
 another printing does falls back to the lowest `market` among priced
 variants, flagged `price_basis="fallback"`. This fallback is intentionally
-NOT part of compute_display_price -- BL-136's catalog display_price means
-"the Standard printing's price, full stop" (a card with an unpriced
-Standard variant correctly shows no display_price on the catalog grid);
-deck-check cares about a different question ("what will this cost me to
-buy"), where falling back to whatever printing IS priced is the more
-useful answer.
+NOT part of compute_display_price -- the catalog display_price means "the
+Standard printing's price, full stop" (a card with an unpriced Standard
+variant shows no display_price in the catalog); deck-check answers a
+different question ("what will this cost me to buy"), where falling back
+to whatever printing IS priced is the more useful answer.
 """
 
 from __future__ import annotations
@@ -31,14 +30,14 @@ MODE_CHEAPEST = "cheapest"
 
 MASS_ENTRY_BASE_URL = "https://www.tcgplayer.com/massentry"
 # Mass Entry matches ?productline= case-insensitively against the product
-# line's internal `name` — NOT the URL slug. Verified against TCGplayer's own
-# sources 2026-07-21: the MassEntry page bundle does
+# line's internal `name` — NOT the URL slug (TCGplayer vendor behaviour): the
+# MassEntry page bundle does
 # `productLines.find(p => p.name.toUpperCase() === param.toUpperCase())`, and
 # GET mpapi.tcgplayer.com/v2/massentry/productlines returns
 # {"productLineId": 79, "name": "Star Wars Unlimited",
-#  "displayName": "Star Wars: Unlimited"}. The earlier slug value
-# ("star-wars-unlimited") matched nothing, leaving the product line unselected
-# so every pasted line was "passed over" (owner repro, 2026-07-21).
+#  "displayName": "Star Wars: Unlimited"}. The slug ("star-wars-unlimited")
+# matches nothing, leaving the product line unselected so every pasted line
+# is "passed over".
 MASS_ENTRY_PRODUCT_LINE = "Star Wars Unlimited"
 
 
@@ -85,32 +84,21 @@ class CartLine:
 
 
 def build_cart_url(lines: list[CartLine]) -> str | None:
-    """Definition_DeckCheck §5 exact format:
-    `tcgplayer.com/massentry?productline=star-wars-unlimited&c=qty name…`,
-    confirmed live (Spike_TCGplayer_Landscape_2026-07-16.md §3):
-    `c=<qty>+<name>+[<SetCode>]||<qty>+<name>+[<SetCode>]||...` -- card
-    number is deliberately omitted (Mass Entry treats a missing number as
-    "any printing of this card in this set", matching the UI's stated
-    name-based/printing-fidelity caveat). None for an empty list -- no cart
-    to build when nothing is missing.
+    """Mass Entry cart URL:
+    `tcgplayer.com/massentry?productline=<MASS_ENTRY_PRODUCT_LINE>&c=...`
+    with `c=<qty>+<name>+[<SetCode>]||<qty>+<name>+[<SetCode>]||...` --
+    card number is deliberately omitted (Mass Entry treats a missing number
+    as "any printing of this card in this set", matching the UI's stated
+    name-based/printing-fidelity caveat, App Spec §5.11). None for an empty
+    list -- no cart to build when nothing is missing.
 
-    Owner dev-review round 2 (2026-07-21, BL-137/BL-142 family): browser-
-    verified this was producing a Mass Entry page where every card got
-    "passed over" (none resolved against Star Wars: Unlimited). Root cause
-    -- the previous implementation ran the *entire* `c=` value through
-    `quote(c_param, safe="")`, which percent-encodes every reserved
-    character including the `||` line separator (-> `%7C%7C`) and spaces
-    (-> `%20`). Both of the spike's two independently-verified working
-    real-world examples (a Magic deck and a Yu-Gi-Oh deck with an explicit
-    `productline=`) instead use a LITERAL, unencoded `||` between lines and
-    `+` for spaces within a line -- i.e. each line is `application/x-www-
-    form-urlencoded` (`quote_plus`) individually, then joined by a raw
-    `||` that must NOT itself be percent-encoded, since Mass Entry's
-    client-side parser splits lines on that literal delimiter. Escaping the
-    separator away collapses the whole cart into one unparseable blob,
-    which is what made every card -- not just the game context -- fail to
-    resolve. `productline=` was already present in both the old and new
-    output; it was the `c=` shape that was broken."""
+    Encoding (TCGplayer vendor behaviour): each line is
+    `application/x-www-form-urlencoded` (`quote_plus`, `+` for spaces)
+    individually, then joined by a LITERAL `||` that must NOT itself be
+    percent-encoded, since Mass Entry's client-side parser splits lines on
+    that literal delimiter. Percent-encoding the whole `c=` value (`||` ->
+    `%7C%7C`) collapses the cart into one unparseable blob and every card
+    is "passed over"."""
     if not lines:
         return None
     segments = "||".join(

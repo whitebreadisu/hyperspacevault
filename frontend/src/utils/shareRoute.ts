@@ -1,8 +1,7 @@
-// BL-205: the app is deliberately router-less (VerifyEmailAction.tsx's own
-// docstring: "reads window.location.search on boot" for its one URL-driven
-// case) -- this is the equivalent one-purpose parser for the `/shared/{token}`
-// path, read once at boot the same way VerifyEmailAction reads its query
-// params once at boot.
+// The app is deliberately router-less (VerifyEmailAction.tsx reads
+// window.location.search once on boot for its URL-driven case) -- this is
+// the equivalent one-purpose parser for the `/shared/{token}` path of a
+// share link (App Spec §19.1), read once at boot by App.tsx.
 
 const SHARE_PATH_RE = /^\/shared\/([^/]+)\/?$/;
 

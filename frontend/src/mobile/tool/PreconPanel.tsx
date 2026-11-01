@@ -10,8 +10,7 @@ import { SetLogo } from "../SetLogo";
 import { preconFacts } from "./padModel";
 import { setPreconAdded, useToolState } from "./toolStore";
 
-// BL-249 S3-05 / S3-09: the result zone while a precon deck is chosen (rev4
-// MPrecon R4-14.2 panel): set logo, product, deck name, "N cards · M
+// The result zone while a precon deck is chosen: set logo, product, deck name, "N cards · M
 // distinct" (desktop cardsForEntry), desktop's two keep-limit radios for
 // hard-cap users (copy verbatim from AddCardsModal.tsx), Change set, and
 // "Add deck to batch". Add writes every deck copy into the batch, one row

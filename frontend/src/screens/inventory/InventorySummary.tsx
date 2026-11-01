@@ -8,13 +8,11 @@ import { ValueSwitch } from "../cards/VariantScopeControls";
 import type { WidthTier } from "../../utils/tableWidthTier";
 import { capture } from "../../analytics/analytics";
 
-/** BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): the completion
- * panel revamp -- four clipped-corner "blocks" (Playset complete %, Set
- * complete %, Cards, Collection value), a Filtered/All scope toggle, and a
- * click-to-expand "«metric» by set" breakdown popover per block. Replaces
- * the flat "label: value — label: value" strip (summaryStyle=blocks,
- * summaryAccent=white, progressViz=ticks/blue, breakdownLabel=image --
- * owner-saved defaults, Definition §0).
+/** The completion panel (App Spec §5.13, §5.15) -- four clipped-corner
+ * "blocks" (Playset complete %, Set complete %, Cards, Collection value)
+ * with blue tick progress, a Filtered/All scope toggle, and a
+ * click-to-expand "«metric» by set" breakdown popover per block whose rows
+ * show set logos.
  *
  * Every calc rule (universe scoping, orphan exclusion, Collection-value
  * fallback chain) lives in utils/completion.ts, unit-tested there -- this
@@ -33,14 +31,14 @@ interface Props {
    * narrower than `filteredCards` to compare against). */
   allCards?: InventoryCard[];
   /** True when `filteredCards` is a genuine narrowing of `allCards` -- any
-   * facet, search, or owned/incomplete toggle (Definition §3: "any
-   * mechanism"). Governs whether the scope toggle renders at all; default
+   * facet, search, or owned/incomplete toggle, by any mechanism. Governs
+   * whether the scope toggle renders at all; default
    * false (toggle hidden, panel always reads as "Filtered" -- equivalent to
    * "everything" when nothing is actually narrowed). */
   isNarrowed?: boolean;
   /** set_code -> true for the base sets (GET /api/sets' `is_base_set`),
    * used to scope the two completion percentages and exclude orphan base
-   * cards (Definition §3). Defaults to empty (every card excluded from both
+   * cards (App Spec §5.13). Defaults to empty (every card excluded from both
    * percentages -- a safe "not loaded yet" fallback that never shows a
    * fabricated 100%). */
   baseSetCodes?: Set<string>;
@@ -49,59 +47,46 @@ interface Props {
    * each popover's "No base-set cards in scope" empty state. */
   orderedBaseSets?: SetMeta[];
   children?: React.ReactNode;
-  /** BL-56 §5.5: anonymous visitors have no inventory to summarize -- the
-   * bar keeps its labels but every value renders as an em-dash instead of a
-   * computed zero (a real zero would misleadingly imply "you own nothing,"
-   * rather than "there is no inventory to look at"). Defaults to `true` so
-   * every existing authenticated call site is unaffected. BL-163: also
-   * empties every Ticks row and disables the scope toggle + all four
-   * breakdown popovers (Definition §3's signed-out rule). */
+  /** Anonymous visitors have no inventory to summarize -- the bar keeps its
+   * labels but every value renders as an em-dash instead of a computed zero
+   * (a real zero would misleadingly imply "you own nothing," rather than
+   * "there is no inventory to look at"). Signed out, every Ticks row is
+   * empty, the scope toggle is hidden and the four breakdown popovers cannot
+   * open. Defaults to `true`. */
   isAuthenticated?: boolean;
-  /** BL-111 F3 (design handoff §3): "Table/gallery toggle sits LEFT of the
-   * Add Cards button" -- CardsPage already owns viewMode as the single
-   * source of truth (it also still feeds FilterPanel's own pre-existing
-   * toggle, BL-73 Stage 1; see cards.css's .inv-summary__view-toggle
-   * comment for why both controls coexist). Optional so every other/older
-   * InventorySummary call site (and its tests) renders unchanged without
-   * wiring a view mode. */
+  /** The Table/Gallery toggle, rendered in the actions slot left of the Add
+   * Cards button (`children`). CardsPage owns viewMode as the single source
+   * of truth. Optional: a call site that wires no view mode renders no
+   * toggle. */
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
-  /** BL-226 (Issue #140): the Vault table's width-tier override -- AUTO /
-   * COMPACT / STANDARD / FULL, rendered beside the Table/Gallery toggle
-   * above, ONLY while `viewMode === "table"` (it has no meaning in
-   * Gallery). Owned/persisted by CardsPage (utils/tableWidthTier.ts's
-   * load/saveWidthTier), same optional-pair idiom as viewMode/
-   * onViewModeChange above -- omitted entirely, the control simply doesn't
-   * render, same as every other older/standalone InventorySummary call
-   * site. */
+  /** The Vault table's width-tier override -- AUTO / COMPACT / STANDARD /
+   * FULL (App Spec §5.15), offered as a hover flyout on the Table button of
+   * the toggle above; picking one also switches to Table. Owned/persisted by
+   * CardsPage (utils/tableWidthTier.ts's load/saveWidthTier), same
+   * optional-pair idiom as viewMode/onViewModeChange above -- omitted, the
+   * Table button is a plain button with no flyout. */
   widthTier?: WidthTier;
   onWidthTierChange?: (tier: WidthTier) => void;
-  /** BL-224 (unifies BL-179's parallel "home base set" dimension into the
-   * sidebar's own Set facet): the popover rows' own universe -- every filter
-   * applied EXCEPT the set facet itself (the rows are that facet's own
-   * selection menu, and a menu never filters itself). Defaults to
-   * `filteredCards`, which keeps every call site that doesn't wire it
-   * exactly as it was. */
+  /** The popover rows' own universe -- every filter applied EXCEPT the set
+   * facet itself (the rows are that facet's own selection menu, and a menu
+   * never filters itself; App Spec §5.15). Defaults to `filteredCards`. */
   breakdownCards?: InventoryCard[];
-  /** BL-224: the set FACET's current selections (CardsPage's `filters.set`,
+  /** The set FACET's current selections (CardsPage's `filters.set`,
    * the single source of truth for both the sidebar and these popovers).
    * Rows render highlighted when their code is here -- effectively
    * `filters.set ∩ orderedBaseSets`, since only base sets ever get a row. */
   selectedSetCodes?: Set<string>;
   /** Row-click pick: the host replaces the set facet with the clicked set, or
    * clears it when that set is the only one selected. Its presence is what
-   * makes rows selectable at all -- omitted (older call sites, tests) renders
-   * the popovers exactly as before. */
+   * makes rows selectable at all -- omitted, the popover rows are read-only. */
   onPickSetCode?: (code: string) => void;
 }
 
-// BL-223 (re-locked, builds on BL-224's set-facet unification): two-way --
-// "filtered" (everything the table currently shows, BL-224 makes this true
-// by construction) vs. "all" (the whole catalog, BL-163's original
-// comparison). BL-179 round 9's third "selected" state (a parallel
-// home-base-set dimension) is retired outright by BL-224 -- the set facet
-// IS the sidebar's own dimension now, so there's nothing left for a third
-// scope to distinguish.
+// Two-way totals scope (App Spec §5.15): "filtered" (everything the table
+// currently shows) vs. "all" (the whole catalog). The set popovers write the
+// sidebar's own Set facet, so "filtered" already covers a set pick and no
+// third scope is needed.
 type Scope = "filtered" | "all";
 type BlockId = "playset" | "set" | "cards" | "value";
 
@@ -123,8 +108,8 @@ function ViewToggle({
   widthTier?: WidthTier;
   onWidthTierChange?: (tier: WidthTier) => void;
 }) {
-  // BL-235: view_mode_changed -- fired only on a genuine mode switch (not
-  // e.g. a width-tier pick made while already on Table).
+  // view_mode_changed (App Spec §22) -- fired only on a genuine mode switch
+  // (not e.g. a width-tier pick made while already on Table).
   const changeViewMode = (mode: ViewMode) => {
     if (viewMode !== mode) capture("view_mode_changed", { mode });
     onViewModeChange(mode);
@@ -141,16 +126,15 @@ function ViewToggle({
       {label}
     </button>
   );
-  // BL-226 round 4 (owner's hybrid): the Table button ITSELF hosts the
-  // width choice -- hovering (or keyboard-focusing) it reveals a flyout of
-  // the four options; a plain Table click means AUTO. Only wired when the
-  // caller passes the tier pair (older call sites/tests render the plain
-  // two-button toggle unchanged).
+  // The Table button ITSELF hosts the width choice -- hovering (or
+  // keyboard-focusing) it reveals a flyout of the four options; a plain
+  // Table click means AUTO. Only wired when the caller passes the tier pair
+  // (otherwise the plain two-button toggle renders).
   //
-  // Round 5 (owner): the flyout closes the moment ANY selection is made --
-  // CSS :hover alone can't do that (the cursor is still over the split), so
-  // a `suppressed` state overrides the hover rule until the cursor leaves
-  // and re-enters (mouseleave re-arms it).
+  // The flyout closes the moment ANY selection is made -- CSS :hover alone
+  // can't do that (the cursor is still over the split), so a `suppressed`
+  // state overrides the hover rule until the cursor leaves and re-enters
+  // (mouseleave re-arms it).
   const [flyoutSuppressed, setFlyoutSuppressed] = useState(false);
   const wired = widthTier != null && onWidthTierChange != null;
   const closeFlyout = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -208,12 +192,8 @@ function ViewToggle({
   );
 }
 
-// BL-226 (Issue #140, owner-locked design): AUTO/COMPACT/STANDARD/FULL --
-// same bordered-button-group visual idiom as ViewToggle above (matched
-// class-for-class; only the padding/font-size are tuned slightly tighter, a
-// judgment call to keep four longer labels from crowding the Add Cards/
-// Import Export/Share buttons beside it -- see cards.css's
-// .inv-summary__width-tier-toggle-btn comment).
+// The four width tiers, in the order ViewToggle's Table flyout lists them
+// (.inv-summary__table-flyout-btn in cards.css).
 const WIDTH_TIERS: { value: WidthTier; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "compact", label: "Compact" },
@@ -221,16 +201,15 @@ const WIDTH_TIERS: { value: WidthTier; label: string }[] = [
   { value: "full", label: "Full" },
 ];
 
-/** progressViz=ticks, progressColor=blue (Definition §0): 10 skewed tick
- * marks, `Math.round(pct / 10)` of them filled. `authed=false` always
- * renders every tick empty regardless of `pct` -- the signed-out "empty
- * ticks" rule (Definition §3), rather than a misleading filled bar over a
- * fabricated percentage. */
+/** 10 skewed tick marks, `Math.round(pct / 10)` of them filled. `authed=false`
+ * always renders every tick empty regardless of `pct` -- the signed-out
+ * "empty ticks" rule, rather than a misleading filled bar over a fabricated
+ * percentage. */
 function Ticks({ pct, authed }: { pct: number; authed: boolean }) {
   const filled = authed ? Math.round(pct / 10) : 0;
-  // Owner dev review 2026-07-26: at 100% the ticks read green -- the CSS
-  // scopes the green fill to the popover context only (the block's own
-  // ticks stay blue), so the class is emitted unconditionally here.
+  // At 100% the ticks read green -- the CSS scopes the green fill to the
+  // popover context only (the block's own ticks stay blue), so the class is
+  // emitted unconditionally here.
   const complete = authed && pct >= 100;
   return (
     <span
@@ -247,11 +226,9 @@ function Ticks({ pct, authed }: { pct: number; authed: boolean }) {
   );
 }
 
-/** Market/Low toggle for the Collection-value block, styled after (but not
- * imported from -- CardPopup is being decomposed by a parallel BL-155
- * effort) CardPopup.tsx's `cp-rail__pricemode`/`cp-rail__pricemode-btn`
- * rail-header pattern. Lives under its own `.inv-summary__pricemode*`
- * namespace in cards.css. */
+/** Market/Low toggle for the Collection-value block: the shared ValueSwitch
+ * (App Spec §5.14), wrapped in `.inv-summary__pricemode` (cards.css) for
+ * placement. */
 function PriceModeToggle({
   mode,
   onChange,
@@ -338,30 +315,27 @@ export function InventorySummary({
   // boundary. Assigned via the wrap's conditional ref below; React nulls it
   // when the popover closes or moves to another block.
   const openWrapRef = useRef<HTMLSpanElement | null>(null);
-  // BL-179 round 4 (owner): hover-dismiss arming. The popover closes on
+  // Hover-dismiss arming (App Spec §5.15). The popover closes on
   // pointer-leave only after the pointer has actually been inside it once
-  // (the "display until I mouse over it" rule) -- and the leave boundary is
-  // the whole wrap (block + gap-bridge + popover), so drifting between the
-  // popover and its block never counts as leaving (round 2's popover-only
-  // mouseleave felt twitchy across the 8px gap).
+  // (it stays displayed until moused over) -- and the leave boundary is the
+  // whole wrap (block + gap-bridge + popover), so drifting between the
+  // popover and its block never counts as leaving (a popover-only
+  // mouseleave would fire across the gap).
   const hoverArmedRef = useRef(false);
 
   const codes = baseSetCodes ?? EMPTY_BASE_SET_CODES;
   const sets = orderedBaseSets ?? EMPTY_ORDERED_BASE_SETS;
 
   // Scope toggle only renders when the list is genuinely narrowed AND the
-  // caller is authenticated -- Definition §3's "hidden when unfiltered" +
-  // signed-out "scope toggle hidden" rules.
+  // caller is authenticated -- hidden when unfiltered, hidden signed out.
   const showScopeToggle = isNarrowed && isAuthenticated;
 
-  // BL-223: binary once more -- the toggle-hidden case always reads as
-  // Filtered (unchanged BL-163 behavior).
+  // The toggle-hidden case always reads as Filtered.
   const effectiveScope: Scope = !showScopeToggle ? "filtered" : scope;
 
-  // BL-223 §3 (owner-locked): the "narrowed state" amber treatment -- the
-  // switch AND all four blocks -- applies only while the switch actually
-  // renders AND reads Filtered. Hidden-toggle and All both read as today's
-  // fully neutral look.
+  // The "narrowed state" amber treatment -- the switch AND all four blocks
+  // (App Spec §5.15) -- applies only while the switch actually renders AND
+  // reads Filtered. Hidden-toggle and All both use the neutral look.
   const narrowedFiltered = showScopeToggle && effectiveScope === "filtered";
 
   const activeCards = effectiveScope === "all" ? (allCards ?? filteredCards) : filteredCards;
@@ -371,7 +345,7 @@ export function InventorySummary({
     [activeCards, codes, priceMode]
   );
 
-  // BL-224: the popover rows' universe is ALWAYS "every filter except the
+  // The popover rows' universe is ALWAYS "every filter except the
   // set facet" -- independent of the Filtered/All switch above, which only
   // ever governs the four blocks' own headline metrics. The rows are the
   // set facet's selection menu; a menu never filters itself.
@@ -382,11 +356,11 @@ export function InventorySummary({
     [rowCards, sets, priceMode]
   );
 
-  // Click-away close, MultiSelect.tsx's established idiom: a document-level
-  // mousedown listener, attached only while a popover is open. Owner dev
-  // review 2026-07-26: scoped to the OPEN block's wrap (block + its popover)
-  // rather than the whole summary strip -- clicking anywhere else, including
-  // the strip's other blocks/toggles/empty space, closes the panel.
+  // Click-away close, MultiSelect.tsx's idiom: a document-level mousedown
+  // listener, attached only while a popover is open, scoped to the OPEN
+  // block's wrap (block + its popover) rather than the whole summary strip
+  // -- clicking anywhere else, including the strip's other blocks/toggles/
+  // empty space, closes the panel.
   useEffect(() => {
     if (expanded == null) return undefined;
     const onDocDown = (e: MouseEvent) => {
@@ -495,7 +469,7 @@ export function InventorySummary({
               <div
                 className="inv-summary__popover"
                 onClick={(e) => e.stopPropagation()}
-                // BL-179 round 4: entering the popover arms the wrap-level
+                // Entering the popover arms the wrap-level
                 // hover-dismiss above (click-away/Esc still work as
                 // fallbacks for a never-hovered popover).
                 onMouseEnter={() => {
@@ -558,8 +532,8 @@ export function InventorySummary({
                           </>
                         ) : (
                           <span className="inv-summary__popover-right">
-                            {/* Round 5 (owner): fixed two-column layout --
-                                count right-aligned, sub left-aligned, both
+                            {/* Fixed two-column layout -- count
+                                right-aligned, sub left-aligned, both
                                 at constant x down the panel. The sub cell
                                 renders even when empty (Value rows with no
                                 unpriced cards) so the columns never shift. */}
@@ -577,18 +551,15 @@ export function InventorySummary({
         );
       })}
 
-      {/* BL-223 (re-locked): the Filtered/All switch sits immediately right
-          of the fourth block, inside the block row -- BEFORE the actions
-          slot (View toggle / children). BL-224 retired the old full-width
-          strip row entirely (nothing else lived in it once the amber
-          base-set readout and the three-way toggle both went away). */}
+      {/* The Filtered/All switch sits immediately right of the fourth
+          block, inside the block row -- BEFORE the actions slot (View
+          toggle / children). */}
       {showScopeToggle && (
         <span
           className={`inv-summary__totals${narrowedFiltered ? " inv-summary__totals--amber" : ""}`}
         >
-          {/* Owner review rounds 2-3 (2026-08-16): caption stacked ABOVE
-              the switch; round 3 reverted the size back to the small
-              MKT/LOW height. */}
+          {/* Caption stacked ABOVE the switch; the switch keeps
+              ValueSwitch's default (MKT/LOW) size. */}
           <span className="inv-summary__totals-label">Totals</span>
           <ValueSwitch
             checked={effectiveScope === "all"}
@@ -611,9 +582,8 @@ export function InventorySummary({
 
       {(viewMode != null || children) && (
         <span className="inv-summary__actions">
-          {/* BL-226 round 4 (owner's hybrid -- supersedes the standalone
-              stacked control): the width choice lives INSIDE the Table
-              button (hover flyout; plain click = AUTO). */}
+          {/* The width choice lives INSIDE the Table button (hover flyout;
+              plain click = AUTO). */}
           {viewMode != null && onViewModeChange && (
             <ViewToggle
               viewMode={viewMode}

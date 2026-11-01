@@ -1,5 +1,4 @@
-/* BL-247 S1-02: the phone app frame (rev4 m-layout.css:13-48 + m-frame.css:8-22),
- * scoped to .m-app. The app IS the page: the document never scrolls, only
+/* The phone app frame, scoped to .m-app. The app IS the page: the document never scrolls, only
  * .m-scroll containers inside screens do. Page background = desktop's
  * .app-layout (circuit tile at 1400 px over the page colour). */
 
@@ -20,8 +19,8 @@ html:has(.m-app) body {
   inset: 0;
   height: 100vh;
   height: 100dvh;
-  /* S1-15: MobileApp tracks visualViewport (--app-h / --app-top) so the frame
-   * ends at the keyboard's top edge (rev4 MApp.jsx:404-415). */
+  /* MobileApp tracks visualViewport (--app-h / --app-top) so the frame
+   * ends at the keyboard's top edge. */
   top: var(--app-top, 0px);
   bottom: auto;
   height: var(--app-h, 100dvh);

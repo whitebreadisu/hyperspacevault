@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
-// BL-247 S1-06: the scroll-driven header collapse (port of rev4
-// MVault.jsx:206-360, useCollapse + useHeaderSlot). Shared by the Vault header
-// and, from S2, the card-detail image.
+// The scroll-driven header collapse (App Spec §25.1 Collapse). Shared by the
+// Vault header and the card-detail image.
 //
 // Collapse after 28 px of downward travel; a tap mid-list re-anchors; short
-// lists never collapse. Arriving back at the top NEVER expands (rev2 C1):
+// lists never collapse. Arriving back at the top NEVER expands:
 // expansion takes a deliberate second gesture -- a tap on the collapsed
 // strip (expand()), or a pull of PULL_PX that STARTS with the content already
-// at the top (the steel pull bar fills as `pull` goes 0..1), or on a desktop
+// at the top (the blue pull bar fills as `pull` goes 0..1), or on a desktop
 // wheel a fresh gesture (after a 250 ms gap) of WHEEL_PX upward at the top.
 
 export const PULL_PX = 72;
@@ -44,11 +43,11 @@ export interface Collapse {
   pullStyle: CSSProperties;
 }
 
-/** `parentCut`: the scroll container's parent carries the R3-13 box cut (a
+/** `parentCut`: the scroll container's parent carries the box cut (a
  * margin-bottom of --vh-delta while expanded), i.e. scroll room that exists
  * only while expanded; the short-list rule subtracts it so it measures the
  * room left once collapsed. */
-/** `extraRoom` (BL-248 S2-02, card detail): scroll room that exists only
+/** `extraRoom` (card detail): scroll room that exists only
  * while expanded for another reason -- the detail body's translateY(--d-delta)
  * extends the scrollable overflow -- subtracted the same way. */
 export function useCollapse(
@@ -92,7 +91,7 @@ export function useCollapse(
       setCollapsed(false);
     };
     const onScroll = () => {
-      if (s.c) return; // C1: reaching the top while collapsed does not expand
+      if (s.c) return; // reaching the top while collapsed does not expand
       const t = el.scrollTop;
       if (t <= 6) {
         s.anchor = 0;
@@ -187,7 +186,7 @@ export function useCollapse(
   return { scrollEl: setEl, collapsed, expand, pull, pullStyle };
 }
 
-/** R3-6 + R3-13: the header is an overlay whose layout never changes between
+/** The header is an overlay whose layout never changes between
  * states. Its two heights are measured (ResizeObserver) into --vh-full /
  * --vh-min / --vh-delta on the screen root; the content below sits in layout
  * at --vh-min and is moved down by --vh-delta with a transform while

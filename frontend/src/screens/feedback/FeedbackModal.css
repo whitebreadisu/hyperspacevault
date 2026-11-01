@@ -1,5 +1,5 @@
 /* ── FeedbackModal (.feedback-*) ─────────────────────────────────────────
-   Co-located with FeedbackModal.tsx (BL-126). Same console "steel ring"
+   Co-located with FeedbackModal.tsx. Same console "steel ring"
    shell technique as AboutModal.css (angled-corner clip-path double layer,
    ~520px panel) -- see that file's header comment for the mechanics. This
    file only restates the shell (rather than importing AboutModal.css)
@@ -7,9 +7,9 @@
    how auth-modal-* and about-* never cross-reference each other either.
    ───────────────────────────────────────────────────────────────────── */
 
-/* .feedback-overlay's backdrop styling moved to index.css's shared
-   .modal-overlay class (BL-153, A3-06) -- the element keeps this class
-   name too (see FeedbackModal.tsx), just with no rule of its own left here. */
+/* .feedback-overlay has no rule here: the backdrop comes from index.css's
+   shared .modal-overlay class, which the element carries alongside this
+   name (see FeedbackModal.tsx). */
 
 .feedback-shell {
   position: relative;

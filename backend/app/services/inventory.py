@@ -22,33 +22,28 @@ from app.services.limits import (
 )
 from app.services.set_order import export_sort_key
 
-# BL-54 S1 (§7.1): filename stem -- date-stamped, format-suffixed
+# Export filename stem -- date-stamped, format-suffixed
 # (hyperspacevault-inventory_<YYYY-MM-DD>.json|csv).
 EXPORT_FILENAME_STEM = "hyperspacevault-inventory"
 
-# BL-24: the absolute technical ceiling on any single variant's quantity,
-# enforced unconditionally before any tenant limit resolution -- no
+# The absolute technical ceiling on any single variant's quantity (App Spec
+# §4.5), enforced unconditionally before any tenant limit resolution -- no
 # override, however permissive (including an explicit "no limit"), can
 # raise a variant past this.
 QUANTITY_CEILING = 999
 
-# BL-24: completion ("playset_complete") is decoupled from the per-variant
-# keep-limit -- for standard cards it always means "3 total copies across
-# every variant of this base card" (get_base_card_total), independent of
-# whatever the effective per-variant limit is configured to. Kept as its
-# own constant (rather than reusing the old shared PLAYSET_SIZE name, which
-# used to double as both the keep-limit and the completion threshold) so
-# the two concepts can't silently re-couple in a future edit.
+# Completion ("playset_complete") is decoupled from the per-variant
+# keep-limit (App Spec §6) -- for standard cards it always means "3 total
+# copies across every variant of this base card" (get_base_card_total),
+# independent of whatever the effective per-variant limit is configured to.
+# A separate constant from the keep-limit defaults (limits.DEFAULT_LIMITS)
+# so the two concepts can't silently re-couple in a future edit.
 COMPLETION_PLAYSET_SIZE = 3
-
-# BL-102: get_all_inventory/_to_response (the heavy GET /api/inventory list)
-# retired -- runtime-dead since BL-56; get_quantities is its designed
-# replacement (BL-101).
 
 
 def get_quantities(db: Session) -> list[VariantQuantityResponse]:
-    """BL-101: the caller's sparse per-variant quantities -- merged
-    client-side onto the publicly cached catalog list."""
+    """The caller's sparse per-variant quantities -- merged client-side
+    onto the publicly cached catalog list."""
     return [
         VariantQuantityResponse(variant_id=variant_id, quantity=quantity)
         for variant_id, quantity in inventory_repo.get_quantities(db)
@@ -109,10 +104,10 @@ def increment_card(db: Session, variant_id: int) -> IncrementResponse | None:
 
 
 def export_inventory(db: Session, format: str) -> tuple[str, str, str]:
-    """BL-54 S1 (§7.1): the caller's full inventory (every row with
-    quantity >= 1) as either canonical JSON or derived CSV
-    (app/services/inventory_io.py, §3). Returns (content, filename,
-    media_type) for the router to stream as a download.
+    """The caller's full inventory (every row with quantity >= 1) as either
+    canonical JSON or derived CSV (app/services/inventory_io.py, App Spec
+    §17.1). Returns (content, filename, media_type) for the router to
+    stream as a download.
 
     `format` is validated by the router's Literal["json", "csv"] query
     param before this runs; only the two branches below are reachable."""
@@ -122,7 +117,7 @@ def export_inventory(db: Session, format: str) -> tuple[str, str, str]:
     )
     io_rows = []
     for r in rows:
-        # §3.1: _derived is re-derived from the same curated classifier the
+        # _derived is re-derived from the same curated classifier the
         # rest of the app uses (swuapi_classify), never stored -- see that
         # module's docstring on why finish/channel/stamped aren't persisted
         # columns.
@@ -188,10 +183,10 @@ def _resolve_adjust(
 
       - negative delta: always applies down to the floor (0), never blocks
         (same as decrement_card). over_limit is still reported (gated on
-        cap_mode == soft, matching over_limit's existing "only possible in
-        soft mode" invariant -- see IncrementResponse.over_limit) so a
-        decrement off a stranded/lowered-limit quantity reports the
-        resulting state the same way an increment would.
+        cap_mode == soft, matching over_limit's "only possible in soft
+        mode" invariant -- see IncrementResponse.over_limit) so a decrement
+        off a stranded/lowered-limit quantity reports the resulting state
+        the same way an increment would.
       - positive delta: the 999 ceiling always wins first (unconditional
         in both cap modes -- QUANTITY_CEILING module constant). Then, in
         hard mode with a real (non-None) limit, a variant already at/over
@@ -202,8 +197,7 @@ def _resolve_adjust(
         there was room for) rather than a full block. `reason` is populated
         whenever the requested delta was truncated by either cause,
         independent of whether that leaves `blocked` True -- `blocked`
-        itself stays reserved for the "nothing applied" case, unchanged
-        from its existing meaning.
+        itself is reserved for the "nothing applied" case.
     """
     if delta < 0:
         new_qty = max(current_qty + delta, 0)
@@ -244,16 +238,16 @@ def _resolve_adjust(
 
 
 def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | None:
-    """BL-219 (issue #127): the stepper's debounced-batch endpoint -- applies
-    one signed `delta` (the frontend's net of however many clicks landed
-    inside its 400ms debounce window) in place of `delta` separate
-    increment/decrement round trips. Resolves the effective limit/cap_mode
-    ONCE (mirrors increment_card's single extra query on the common path),
-    then delegates the clamping decision to _resolve_adjust above.
-    `playset_complete` is computed exactly as increment_card/decrement_card
-    already do -- singleton: "first copy acquired" (current_qty was 0);
-    standard: the base-card total (summed BEFORE this write, then offset by
-    `applied`) crossing to exactly COMPLETION_PLAYSET_SIZE."""
+    """The stepper's debounced-batch endpoint -- applies one signed `delta`
+    (the frontend's net of however many clicks landed inside its debounce
+    window) in place of `delta` separate increment/decrement round trips.
+    Resolves the effective limit and cap_mode once per call -- cap_mode
+    always, unlike increment_card, because a multi-copy delta from below
+    the limit can still be clamped by it -- then delegates the clamping
+    decision to _resolve_adjust above. `playset_complete` follows
+    increment_card's rule -- singleton: "first copy acquired" (current_qty
+    was 0); standard: the base-card total (summed BEFORE this write, then
+    offset by `applied`) reaching exactly COMPLETION_PLAYSET_SIZE."""
     variant = inventory_repo.get_variant_with_inventory(db, variant_id)
     if variant is None:
         return None
@@ -296,9 +290,9 @@ def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | No
         playset_complete = current_qty == 0
         inv = inventory_repo.upsert_adjust(db, variant_id, applied)
     else:
-        # BL-24 (ported): current_total is read BEFORE the write below, same
-        # ordering increment_card already relies on, so it reflects this
-        # variant's PRE-adjust contribution to the base card's total.
+        # current_total is read BEFORE the write below, the same ordering
+        # increment_card relies on, so it reflects this variant's
+        # PRE-adjust contribution to the base card's total.
         current_total = inventory_repo.get_base_card_total(db, variant.base_card_id)
         inv = inventory_repo.upsert_adjust(db, variant_id, applied)
         new_total = current_total + applied

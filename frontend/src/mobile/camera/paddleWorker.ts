@@ -2,10 +2,10 @@
 import { createReaderHandler } from "./readerCore";
 import type { EngineResult, PaddleEngine, WorkerRequest } from "./readerCore";
 
-// BL-253 S7-05: the Paddle reader as a module worker -- onnxruntime-web and
-// ppu-paddle-ocr run here, never on the UI thread (paddle-reader.js -> worker).
-// The vendored bundle (public/vendor/scan/paddle/paddle-bundle.min.js, copied
-// from the spike, never rebuilt) is an IIFE that ends `window.BL238Paddle = ...`,
+// The Paddle reader as a module worker -- onnxruntime-web and ppu-paddle-ocr
+// run here, never on the UI thread (App Spec §25.7 Reader). The vendored
+// bundle (public/vendor/scan/paddle/paddle-bundle.min.js, imported as
+// shipped, never rebuilt) is an IIFE that ends `window.BL238Paddle = ...`,
 // and a worker has no `window`; so `self` stands in for it and the bundle is
 // loaded with a dynamic import (a module worker has no importScripts). Where
 // the bundle asks for `document` it already falls back to OffscreenCanvas

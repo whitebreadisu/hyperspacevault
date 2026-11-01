@@ -1,7 +1,6 @@
-"""BL-137 D2: server-side deck-URL fetching for the two live-verified
-provider APIs (Definition_DeckCheck_2026-07-16.md §2 / §6): swubase.com
-(`GET /api/deck/{uuid}/json`) and sw-unlimited-db.com
-(`GET /umbraco/api/deckapi/get?id={n}`).
+"""Server-side deck-URL fetching for the two allowlisted provider APIs
+(App Spec §12, Deck check): swubase.com (`GET /api/deck/{uuid}/json`) and
+sw-unlimited-db.com (`GET /umbraco/api/deckapi/get?id={n}`).
 
 SSRF hygiene, all enforced here rather than trusted to the caller:
 - strict host allowlist -- any other host raises UnsupportedUrlError before
@@ -41,7 +40,8 @@ _UUID_RE = re.compile(
 class UnsupportedUrlError(Exception):
     """Host isn't on the allowlist, or an allowlisted host's URL doesn't
     contain a recognizable deck id -- either way the router steers the
-    caller to the paste-JSON fallback (Definition_DeckCheck §2)."""
+    caller to the paste-JSON fallback (the typed `unsupported_url`
+    error)."""
 
 
 class FetchFailedError(Exception):

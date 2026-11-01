@@ -9,18 +9,17 @@ import { PriceSeg } from "../vault/CompletionHeader";
 import { groupPrintings, orderPrintings, railPrice, stepperState } from "./cardDetailModel";
 import type { Stepper } from "./useStepper";
 
-// BL-248 S2-04 / S2-05 / S2-06: the printings rail -- desktop
-// CardPopupRail.tsx's order (base set first, other sources alphabetically,
-// card number ascending), group labels ("Base set" / the set's name) and
-// "Variants · N" heading with the Market / Low toggle; rev4 MCardDetail.jsx
-// Printings' row (finish + set/number button, price, quantity) at phone
-// size. Finish names are the Vault's short names. A tap selects the
+// The printings rail (App Spec §25.2) -- desktop CardPopupRail.tsx's order
+// (base set first, other sources alphabetically, card number ascending),
+// group labels ("Base set" / the set's name) and "Variants · N" heading with
+// the Market / Low toggle; each row is finish + set/number button, price,
+// quantity. Finish names are the Vault's short names. A tap selects the
 // printing (art, plate and price follow). The selected row carries the
 // −/+ stepper (desktop CardPopupInventory semantics, 44 px targets); the
 // other rows show desktop's ×N (green when owned). Signed out: no ×N, the
 // stepper is aria-disabled and routes to sign-in (desktop's teaser).
-// BL-252 S6-05: in a share (`readOnly`) the selected row shows the same ×N
-// as the others -- no stepper (rev4 r4-8-no-steppers; desktop disables it).
+// In a share (`readOnly`) the selected row shows the same ×N as the others
+// -- no stepper (desktop disables it).
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 
@@ -38,7 +37,7 @@ interface Props {
   onRequestSignIn: () => void;
   /** The neighbour page drawn during a slide: no ids (they are the live page's). */
   ghost?: boolean;
-  /** S6-05: the share's quantities -- ×N on every row, no stepper. */
+  /** The share's quantities -- ×N on every row, no stepper. */
   readOnly?: boolean;
 }
 

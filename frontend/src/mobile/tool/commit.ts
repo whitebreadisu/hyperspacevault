@@ -8,12 +8,12 @@ import { buildPreconImportFile } from "../../utils/preconImport";
 import type { BatchRow, BatchView } from "./batch";
 import { toolAddCardsCommitted } from "./toolAnalytics";
 
-// BL-249 S3-15 / S3-16: committing the batch through desktop's two paths
+// Committing the batch through desktop's two paths
 // (AddCardsModal.tsx handleCommit / handlePreconCommit), driven by the
 // batch view the Verify cards sheet shows -- only the copies listed under
 // "will be added" are written:
 //   - keypad copies -> one `adjustCard(variantId, delta)` per printing with
-//     the folded delta (BL-219 grouping, handleCommit);
+//     the folded delta (handleCommit's per-printing grouping);
 //   - precon copies -> desktop's import file rebuilt from the admitted
 //     copies' deck cards (merged by swuapi_uuid, quantity = admitted copies;
 //     `buildPreconImportFile`) and sent as
@@ -23,7 +23,7 @@ import { toolAddCardsCommitted } from "./toolAnalytics";
 //     deck, even above my keep-limits" = `force`), "add_above" for soft /
 //     no-limit users. Copies of different radio choices go in separate
 //     files (one runImport each), so each keeps its own cap handling.
-// Keypad first, then precon: the batch view admitted copies so that every
+// Keypad first, then precon: the batch view admits copies so that every
 // non-forced printing stays within its limit whatever the order, and a
 // keypad copy is only admitted next to a forced deck copy if it came first.
 
@@ -33,7 +33,7 @@ export interface PreconImportPlan {
   copies: number;
 }
 
-/** BL-253 S7-18: the entry methods of the keypad path, in report order. */
+/** The entry methods of the keypad path, in report order. */
 export const ADJUST_METHODS = ["keypad", "camera", "camera_fast_add"] as const;
 export type AdjustMethod = (typeof ADJUST_METHODS)[number];
 
@@ -41,7 +41,7 @@ export interface CommitPlan {
   /** Keypad printings -> folded delta (one adjustCard each). */
   adjust: Map<number, number>;
   keypadCopies: number;
-  /** BL-253 S7-18: the keypad-path copies by entry method (keypad, camera,
+  /** The keypad-path copies by entry method (keypad, camera,
    * camera_fast_add) -- copies and distinct printings, for one
    * add_cards_committed per method. */
   byMethod: Map<AdjustMethod, { copies: number; variants: Set<number> }>;
@@ -50,7 +50,7 @@ export interface CommitPlan {
   total: number;
 }
 
-/** S3-15: the commit plan for a batch (pure; vitest `S3-15`). */
+/** The commit plan for a batch (pure, unit-tested). */
 export function commitPlan(batch: BatchRow[], view: BatchView, capMode: CapMode): CommitPlan {
   const ok = new Set(view.added.map((v) => v.id));
   const adjust = new Map<number, number>();
@@ -93,7 +93,7 @@ export const EMAIL_NOT_VERIFIED_MSG =
   "Verify your email to manage inventory -- see the banner above.";
 /** desktop handlePreconCommit's fallback. */
 export const PRECON_FAILED_MSG = "Something went wrong committing that import.";
-/** Phone-only (desktop's keypad path logs and shows nothing; S3-15 tiebreaker). */
+/** Phone-only (desktop's keypad path logs and shows nothing). */
 export const KEYPAD_FAILED_MSG = "Something went wrong adding those cards. Try again.";
 
 export class CommitError extends Error {
@@ -109,7 +109,7 @@ export class CommitError extends Error {
   }
 }
 
-/** S3-15 + S3-16: run a plan. Sends `add_cards_committed` per path that
+/** Run a plan. Sends `add_cards_committed` per path that
  * wrote (desktop shapes: keypad cards_added = copies, distinct_cards =
  * printings; precon cards_added = applied copies from the report,
  * distinct_cards = resolved report rows). Throws CommitError with desktop's
@@ -126,8 +126,8 @@ export async function executeCommit(plan: CommitPlan): Promise<void> {
     const msg = err instanceof EmailNotVerifiedError ? EMAIL_NOT_VERIFIED_MSG : KEYPAD_FAILED_MSG;
     throw new CommitError(msg, doneVariants, doneImports);
   }
-  // S3-16 shape per method (BL-253 S7-18: camera / camera_fast_add join
-  // keypad; a keypad-only batch sends exactly what it always did).
+  // One add_cards_committed per entry method that wrote (keypad, camera,
+  // camera_fast_add); a keypad-only batch sends a single keypad event.
   for (const method of ADJUST_METHODS) {
     const m = plan.byMethod.get(method);
     if (m && m.copies) toolAddCardsCommitted(method, m.copies, m.variants.size);

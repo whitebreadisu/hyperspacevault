@@ -10,19 +10,19 @@ import "./shared/shared.css";
 import { openTool, useToolState } from "./tool/toolStore";
 import type { Route } from "./router";
 
-// BL-247 S1-04: the bottom bar (rev4 MApp.jsx:70-102, `bar=one`): Vault tab,
-// the centre SWUButton (keypad | camera glyphs and a divider, behind
-// MOBILE_CAMERA_ENABLED, plan A8; on since BL-253 S7-09, the lit glyph =
-// the last-used mode the button opens), More tab. The circuit separator straddles
-// the bar's top edge. The More tab never carries the unread cue (R5-2).
+// The bottom bar (App Spec §25.1): Vault tab, the centre SWUButton (keypad |
+// camera glyphs and a divider, behind MOBILE_CAMERA_ENABLED; the lit glyph =
+// the last-used mode the button opens), More tab. The circuit separator
+// straddles the bar's top edge. The More tab never carries the unread cue
+// (App Spec §25.4).
 //
-// BL-252 S6-04 (R5-7): while a share is held (its name known) the Vault tab
+// While a share is held (its name known) the Vault tab
 // is the switch between the viewer's own vault and the share: amber with the
 // share's name in the icon's place while the share is shown; a tap expands it
 // horizontally within the bar (transform + opacity, like the view toggle's
 // size picker) into the own Vault button and an amber icon + full-name button;
 // a pick collapses it and shows that vault. While the share is shown the bar
-// is Vault + More only (no keypad -- rev4 r4-8-no-keypad-tab), re-centred.
+// is Vault + More only (no keypad), re-centred.
 
 export interface NavShare {
   /** The share's owner-chosen name (desktop's header tab text); null while unknown. */
@@ -176,7 +176,7 @@ function VaultSwitch({ share, on }: { share: NavShare; on: boolean }) {
 
 export function MobileNav({ route, share }: { route: Route; share?: NavShare | null }) {
   const a = route.segs[0];
-  // BL-253 S7-09: the lit glyph is the mode the button will open.
+  // The lit glyph is the mode the button will open.
   const cam = useToolState().mode === "camera";
   const inShare = !!share?.shown;
   const vaultOn = a === "vault";

@@ -14,7 +14,7 @@ import { deckRowArts } from "./deckArtModel";
 import { PRECON_ENTRIES, padSetBase, setSheetGroups } from "./padModel";
 import { choosePrecon, chooseSet } from "./toolStore";
 
-// BL-249 S3-05 (R5-6 + F-3): the keypad's "Choose a set" sheet. Two
+// The keypad's "Choose a set" sheet. Two
 // collapsed choosers, one above the other -- "Set" and "Precon deck",
 // desktop's unlocked set bar + precon bar triggers (AddCardsSetBar /
 // AddCardsPreconBar) -- neither open on arrival. The set list is desktop
@@ -25,8 +25,8 @@ import { choosePrecon, chooseSet } from "./toolStore";
 // 23 entries (preconEntries + sortedEntries). Picking closes the sheet and
 // locks the keypad.
 //
-// BL-257 FR3-02 (F-12): the two headers behave like the Verify sheet's
-// pinned two-way accordion (VerifySheet S3-13) -- both always visible. With
+// The two headers behave like the Verify sheet's pinned two-way accordion
+// (VerifySheet.tsx) -- both always visible. With
 // a section open the sheet takes the long height; "Set" stays at the top of
 // the panel; "Precon deck" sits directly under it while Set is folded and at
 // the bottom of the panel while Set is open; the open section's list fills
@@ -35,8 +35,8 @@ import { choosePrecon, chooseSet } from "./toolStore";
 // sheet back to its short height). The mechanism is mirrored under chooser
 // class names (tool.css .m-setsec*) -- the Verify sheet's own classes and
 // behaviour are untouched.
-// FR3-01: logos are laid out by their artwork (SetLogo). FR3-03: each deck
-// row carries its leader / base art (DeckArt).
+// Logos are laid out by their artwork (SetLogo); each deck row carries its
+// leader / base art (DeckArt).
 
 type Open = "set" | "precon" | null;
 
@@ -148,7 +148,7 @@ function DeckList({
   catalog: AddCardsCatalogEntry[];
 }) {
   const close = useSheetClose();
-  // FR3-03: each deck's leader / base art, from the catalogue the keypad
+  // Each deck's leader / base art, from the catalogue the keypad
   // already holds (no fetch); resolved once while the list is open.
   const arts = useMemo(() => deckRowArts(PRECON_ENTRIES, catalog), [catalog]);
   return (
@@ -231,7 +231,7 @@ export function SetChooserSheet({
   onClose,
 }: {
   sets: CardSet[];
-  /** The keypad's catalogue rows (FR3-03: the deck rows' leader / base art). */
+  /** The keypad's catalogue rows (for the deck rows' leader / base art). */
   catalog: AddCardsCatalogEntry[];
   /** The locked set (null while a deck is chosen). */
   setCode: string | null;
@@ -240,7 +240,7 @@ export function SetChooserSheet({
 }) {
   const [open, setOpen] = useState<Open>(null);
   // A subset already chosen opens the "all" view, so the selection is never
-  // hidden (rev4 MSetPicker; desktop has no locked-subset reopen).
+  // hidden (desktop has no locked-subset reopen).
   const [all, setAll] = useState(!!setCode && padSetBase(setCode) !== setCode);
   const deck = preconKey ? PRECON_ENTRIES.find((e) => e.key === preconKey) : undefined;
   const setName = setCode ? (findSet(sets, setCode)?.name ?? setCode) : null;

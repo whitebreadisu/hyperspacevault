@@ -1,9 +1,9 @@
 import { parseCardDisplay } from "./catalog";
 import type { BaseCard } from "./catalog";
 
-// Filter logic for the Cards view, extracted from components/FilterPanel.tsx
-// (RR-22) following the utils/ pattern (resolver, inventory): pure functions
-// and domain constants here, panel UI in the component.
+// Filter logic for the Cards view, following the utils/ pattern (resolver,
+// inventory): pure functions and domain constants here, panel UI in
+// components/FilterPanel.tsx. App Spec §5.6 holds the faceting rules.
 
 // ── Domain constants ──────────────────────────────────────────────────────
 
@@ -16,32 +16,30 @@ export const ASPECT_LIST = [
   "Villainy",
 ] as const;
 
-// BL-90: sentinel for the "No Aspect" pseudo-option, matching
+// Sentinel for the "No Aspect" pseudo-option, matching
 // `card.aspects.length === 0`. Chosen to be unreachable as a real aspect
 // name (swuapi aspects are always one of ASPECT_LIST) so it can share a
 // Set<string> with real aspect values without collision risk.
 export const NO_ASPECT = "__none__";
 
-// BL-130 (issue #306): the three-way control governing how a multi-aspect
-// selection is evaluated against a card's own effective aspect set (real
-// aspects, or [NO_ASPECT] for an aspectless card -- same representation
-// `FIELD_EXTRACTORS.aspects` already uses). Order matches the segmented
-// control's left-to-right layout.
-//   - "any"    -- today's OR match: the card carries at least one selected
+// The three-way control governing how a multi-aspect selection is evaluated
+// against a card's own effective aspect set (real aspects, or [NO_ASPECT] for
+// an aspectless card -- same representation `FIELD_EXTRACTORS.aspects` uses),
+// App Spec §5.6. Order matches the segmented control's left-to-right layout.
+//   - "any"    -- OR match: the card carries at least one selected
 //                 aspect (or is aspectless and NO_ASPECT is selected).
 //   - "within" -- subset match: no card carrying an aspect *outside* the
 //                 selection passes (the deckbuilder question -- what fits a
 //                 deck built from these aspects).
 //   - "exact"  -- the card's own aspect set equals the selection exactly.
 // Single-aspect selections make Within and Exact collapse to the same
-// mono-<aspect> result -- expected, not a bug (issue #306).
+// mono-<aspect> result -- expected, not a bug.
 export type AspectMatchMode = "any" | "within" | "exact";
 
 export const ASPECT_MATCH_MODES: AspectMatchMode[] = ["any", "within", "exact"];
 
-// BL-130: Exact is the default -- a deliberate owner call (2026-07-14,
-// issue #306) that changes the out-of-the-box matching behavior away from
-// the historical Any/OR default. See SWU_Application_Spec.md §5.6.
+// Exact is the default -- a deliberate product decision, not the
+// conventional Any/OR default (App Spec §5.6).
 export const DEFAULT_ASPECT_MODE: AspectMatchMode = "exact";
 
 export const TYPE_OPTIONS = ["Leader", "Base", "Unit", "Event", "Upgrade"];
@@ -49,7 +47,7 @@ export const TYPE_OPTIONS = ["Leader", "Base", "Unit", "Event", "Upgrade"];
 // swuapi stores rarity as full words (confirmed against the live API:
 // Common / Uncommon / Rare / Legendary / Special) — NOT single-letter codes.
 // These option values must match `card.rarity` exactly or the filter never
-// matches and (post-BL-70) faceting hides every option. Ordered common→special.
+// matches and faceting greys every option to "(0)". Ordered common→special.
 export const RARITY_OPTIONS = ["Common", "Uncommon", "Rare", "Legendary", "Special"];
 
 export const ARENA_OPTIONS = ["Ground", "Space"];
@@ -63,10 +61,10 @@ export const HP_MAX = 35;
 export interface FilterState {
   search: string;
   aspects: Set<string>;
-  // BL-130: how `aspects` is evaluated against a card's own aspect set --
-  // see AspectMatchMode above. Independent of the selection itself, but
-  // inert (no observable effect) while `aspects` is empty, same as every
-  // other facet's "empty = unfiltered" rule (BL-90).
+  // How `aspects` is evaluated against a card's own aspect set -- see
+  // AspectMatchMode above. Independent of the selection itself, but inert
+  // (no observable effect) while `aspects` is empty, same as every other
+  // facet's "empty = unfiltered" rule.
   aspectMode: AspectMatchMode;
   set: Set<string>;
   type: Set<string>;
@@ -82,16 +80,11 @@ export interface FilterState {
 
 export const DEFAULT_FILTERS: FilterState = {
   search: "",
-  // BL-90: empty = unfiltered, matching every other facet. Previously this
-  // defaulted to `new Set(ASPECT_LIST)` (all-selected == unfiltered), the
-  // only facet with inverted semantics -- that special case made an empty
-  // selection match zero cards (aspectless cards failed a hard length
-  // check, aspected cards failed `some()` on an empty set), so the panel
-  // snapped a deselect-all back to all-selected and no reachable state
-  // could show only aspectless cards. See applyFilters below.
+  // Empty = unfiltered, matching every other facet; this is what lets a
+  // selection of only NO_ASPECT show only aspectless cards. See applyFilters
+  // below.
   aspects: new Set(),
-  // BL-130: Exact is the owner-locked default (issue #306) -- see
-  // AspectMatchMode/DEFAULT_ASPECT_MODE above.
+  // Exact is the default -- see AspectMatchMode/DEFAULT_ASPECT_MODE above.
   aspectMode: DEFAULT_ASPECT_MODE,
   set: new Set(),
   type: new Set(),
@@ -105,7 +98,7 @@ export const DEFAULT_FILTERS: FilterState = {
   hpRange: [0, HP_MAX],
 };
 
-// ── isDefaultFilterState (BL-91) ────────────────────────────────────────────
+// ── isDefaultFilterState ────────────────────────────────────────────────────
 //
 // Deep-compares `filters` against `DEFAULT_FILTERS` field-by-field: `Set`
 // fields need value comparison (two different `Set` instances holding the
@@ -128,9 +121,9 @@ export function isDefaultFilterState(filters: FilterState): boolean {
   return (
     filters.search.trim() === DEFAULT_FILTERS.search &&
     setsEqual(filters.aspects, DEFAULT_FILTERS.aspects) &&
-    // BL-130: the matching mode is a genuine FilterState field now -- Reset
-    // restores it to Exact even when `aspects` is already empty (a changed
-    // mode with no active selection is inert but still non-default state).
+    // The matching mode is a genuine FilterState field -- Reset restores it
+    // to Exact even when `aspects` is already empty (a changed mode with no
+    // active selection is inert but still non-default state).
     filters.aspectMode === DEFAULT_FILTERS.aspectMode &&
     setsEqual(filters.set, DEFAULT_FILTERS.set) &&
     setsEqual(filters.type, DEFAULT_FILTERS.type) &&
@@ -149,9 +142,9 @@ export function isDefaultFilterState(filters: FilterState): boolean {
  * facet Set with a selection, a non-empty search, and every range narrowed
  * off its full [0, max] span counts once. Mirrors `isDefaultFilterState`'s
  * field list but returns a count instead of a boolean (the rail wants "how
- * many", the Reset button wants "any"). Exported so CardsPage can
- * compute the SAME total for filter_applied's active_filter_count rather
- * than re-deriving it. */
+ * many", the Reset button wants "any"). Exported so vault/vaultModel.ts's
+ * activeFilterCount (the desktop and phone filter_applied count) computes
+ * the SAME total rather than re-deriving it. */
 export function countActiveFilters(filters: FilterState): number {
   let n = 0;
   if (filters.search.trim()) n++;
@@ -175,7 +168,7 @@ export function countActiveFilters(filters: FilterState): number {
   return n;
 }
 
-// ── matchesAspectMode (BL-130) ──────────────────────────────────────────────
+// ── matchesAspectMode ───────────────────────────────────────────────────────
 //
 // `cardAspects` is a card's *effective* aspect representation -- its real
 // aspects, or the single-element [NO_ASPECT] sentinel for an aspectless
@@ -189,7 +182,7 @@ export function countActiveFilters(filters: FilterState): number {
 // effective set can ever equal that combination, so nothing matches --
 // consistent with Exact's definition, not a bolted-on rule).
 //
-// An empty `selected` always matches (BL-90: unfiltered), independent of
+// An empty `selected` always matches (unfiltered), independent of
 // mode -- every mode's own comparison would otherwise reject everything
 // against an empty set (no intersection, nothing is "within" nothing
 // non-empty, nothing equals empty), so this is a real branch, not a no-op.
@@ -256,9 +249,9 @@ export function applyFilters(cards: BaseCard[], filters: FilterState): BaseCard[
   return cards.filter((card) => {
     if (!matchesQuery(card, filters.search)) return false;
 
-    // BL-90 x BL-130: an empty filters.aspects means unfiltered (all pass)
-    // in every mode -- BL-90's empty-selection semantics hold constant
-    // across all three matching modes. A non-empty selection is evaluated
+    // An empty filters.aspects means unfiltered (all pass) in every mode --
+    // the empty-selection semantics hold constant across all three matching
+    // modes. A non-empty selection is evaluated
     // against the card's effective aspect set (real aspects, or [NO_ASPECT]
     // for an aspectless card -- same representation FIELD_EXTRACTORS.aspects
     // uses) per the active mode. See matchesAspectMode below.
@@ -312,18 +305,15 @@ export function applyFilters(cards: BaseCard[], filters: FilterState): BaseCard[
 export interface SelectOption {
   value: string;
   label: string;
-  /** BL-70: set once a facet computation determines this value can't add
+  /** Set once a facet computation determines this value can't add
    * anything given the other active filters/toggles. Rendered greyed +
    * "(0)"-suffixed and (unless already selected) not clickable -- see
    * `facetedOptions` below. */
   inert?: boolean;
-  /** BL-129 R6b: originally set on the Finish dropdown's pinned subset so
-   * MultiSelect.tsx could draw a pinned/alphabetized divider. BL-133 moved
-   * Finish to its own two-tier tree (FinishFilter.tsx, buildFinishTree/
-   * shapeFinishTree below) with its own `pinned` concept on `FinishTreeRow`
-   * -- no current caller sets this field anymore, but it's left in place
-   * (harmless, MultiSelect still reads it as a no-op) rather than touched,
-   * per BL-133's Finish-dropdown-only scope. */
+  /** Marks the leading pinned block of an option list; MultiSelect.tsx draws
+   * a divider where the pinned block ends. FilterPanel sets it on the Set
+   * field's base-set block. (Finish uses its own two-tier tree, with
+   * `pinned` on `FinishTreeRow` below.) */
   pinned?: boolean;
 }
 
@@ -337,22 +327,19 @@ export function distinctMulti(cards: BaseCard[], field: "keywords" | "traits"): 
   return [...out].sort();
 }
 
-// ── Finish filter -- two-tier tree (BL-133, issue #318) ────────────────────
+// ── Finish filter -- two-tier tree ─────────────────────────────────────────
 //
-// BL-129/R6b's flat `distinctFinishes` (pinned SelectOption[] + a single
-// pinned/alphabetized divider, rendered by the generic MultiSelect) is
-// superseded by the block below. The Finish universe grew to 58 distinct raw
-// values (8 named finishes + ~50 promo/tournament variant_types) -- too many
-// for a flat list. This reshapes the SAME raw-value universe (still
-// `v.finish ?? v.variant_type`, still matched by `applyFilters`/
-// `FIELD_EXTRACTORS.finish` completely unchanged -- FilterState.finish stays
-// a flat Set<string> of raw values, see the type above) into a two-tier tree
-// for FinishFilter.tsx to render: pair rows (fused foil/non-foil toggle
-// chips), group rows (expandable tournament/prestige families), and plain
-// rows (everything else) -- ordered per the locked design. Every
-// classification is RULE driven (regex prefix/suffix, twin-presence), not a
-// hardcoded member list, so a new promo/tournament/prestige value slots in
-// automatically the next time the catalog refreshes.
+// The Finish universe holds the 8 named finishes plus dozens of
+// promo/tournament variant_types -- too many for a flat list. This reshapes
+// the raw-value universe (`v.finish ?? v.variant_type`, matched by
+// `applyFilters`/`FIELD_EXTRACTORS.finish` -- FilterState.finish stays a flat
+// Set<string> of raw values, see the type above) into a two-tier tree for
+// FinishFilter.tsx to render: pair rows (fused foil/non-foil toggle chips),
+// group rows (expandable tournament/prestige families), and plain rows
+// (everything else), in the fixed order below. Every classification is RULE
+// driven (regex prefix/suffix, twin-presence), not a hardcoded member list,
+// so a new promo/tournament/prestige value slots in automatically the next
+// time the catalog refreshes.
 
 export interface FinishChildOption {
   /** Full raw finish value -- what FilterState.finish/applyFilters use. */
@@ -388,7 +375,7 @@ interface FinishGroupRow {
 
 export type FinishTreeRow = FinishPlainRow | FinishPairRow | FinishGroupRow;
 
-/** Tournament-prefix -> group label (grouping rule, issue #318). A future
+/** Tournament-prefix -> group label (grouping rule). A future
  * prefixed value needs a new prefix added here to gain its own group -- an
  * unrecognized prefix falls through to the pair/plain path and, since it
  * won't match any FINISH_TOP_LEVEL_ORDER key either, lands in the
@@ -404,10 +391,9 @@ const TOURNAMENT_PREFIX_RE = /^(GC|RQ|SQ|PQ|SS) (.+)$/;
 const PRESTIGE_SUFFIX_RE = /^(.+) Prestige$/;
 const PRESTIGE_GROUP_LABEL = "Prestige";
 
-/** Acquisition-ladder order for tournament group children (issue #318,
- * Jeremy's ladder). A child whose display label isn't on the ladder (a
- * future rung) sorts after every known rung, alphabetized among any other
- * unknowns -- never dropped. */
+/** Fixed acquisition-ladder order for tournament group children. A child
+ * whose display label isn't on the ladder (a future rung) sorts after every
+ * known rung, alphabetized among any other unknowns -- never dropped. */
 const TOURNAMENT_LADDER = [
   "Event Pack",
   "Prize Wall",
@@ -424,7 +410,7 @@ const TOURNAMENT_LADDER = [
   "Judge",
 ];
 
-/** Prestige's 3 known children, in the locked order; a future prestige
+/** Prestige's 3 known children, in fixed order; a future prestige
  * variant (e.g. a color) alphabetizes after them via the same tail rule. */
 const PRESTIGE_LADDER = ["Standard", "Foil", "Serialized"];
 
@@ -439,7 +425,7 @@ function sortGroupChildren(children: FinishChildOption[], ladder: string[]): Fin
   return [...known, ...unknown];
 }
 
-/** Explicit top-level order (issue #318): the first `FINISH_PINNED_COUNT`
+/** Explicit top-level order: the first `FINISH_PINNED_COUNT`
  * keys are the pinned section; the rest render below the pinned/alphabetized
  * divider in this literal order (not alphabetical). A key here may resolve
  * to a pair row (Standard/Hyperspace/Weekly Play, if their Foil twin is also
@@ -472,11 +458,10 @@ const FINISH_TOP_LEVEL_ORDER = [
 const FINISH_PINNED_COUNT = 5;
 
 /** Builds the Finish filter's two-tier tree from the full raw-value universe
- * (same extraction the old `distinctFinishes` used: `v.finish ??
- * v.variant_type` over every card/variant passed in -- unfiltered by facets).
- * Pure/rule-driven per issue #318 -- see the constants above for the actual
- * grouping/pairing/ordering rules; this function just applies them. Faceting
- * (BL-70) is intentionally NOT applied here -- `shapeFinishTree` below does
+ * (`v.finish ?? v.variant_type` over every card/variant passed in --
+ * unfiltered by facets). Pure and rule-driven -- see the constants above for
+ * the actual grouping/pairing/ordering rules; this function just applies
+ * them. Faceting is intentionally NOT applied here -- `shapeFinishTree` below does
  * that against this tree's fixed shape, keeping "what exists" and "what's
  * currently valid" as separate concerns (mirrors every other field's
  * `distinctX(cards)` vs `facetValidValues`/`facetedOptions` split). */
@@ -506,14 +491,12 @@ export function buildFinishTree(cards: BaseCard[]): FinishTreeRow[] {
     }
   }
 
-  // Pair fusion (issue #318): rule-based over whatever's left after
-  // grouping, so a future "Showcase Foil" auto-fuses onto "Showcase" with no
-  // code change. A twin that isn't present in the universe at all just means
-  // no pair forms -- the lone side falls through to the plain-row loop below.
-  // That's the SAME degrade-to-plain-row `shapeFinishTree` uses for the
-  // facet-time single-chip case -- one rule, two call sites (build-time
-  // universe absence vs. render-time facet invalidity), deliberately (see
-  // PR/report).
+  // Pair fusion: rule-based over whatever's left after grouping, so a future
+  // "Showcase Foil" auto-fuses onto "Showcase" with no code change. A twin
+  // that isn't present in the universe at all just means no pair forms --
+  // the lone side falls through to the plain-row loop below. (A pair whose
+  // twin is only facet-invalid stays a pair; `shapeFinishTree` marks that
+  // side inert, or drops it to a single chip when show-all is off.)
   const rows = new Map<string, FinishTreeRow>();
   const bases = [...remaining].filter((v) => !v.endsWith(" Foil")).sort();
   for (const base of bases) {
@@ -607,22 +590,21 @@ function shapeValue(
 ): ShapedFinishValue | null {
   const isValid = valid === null || valid.has(value);
   const checked = selected.has(value);
-  // BL-70 parity: hide only when invalid, unselected, and show-all is off --
+  // Same rule as `facetedOptions`: hide only when invalid, unselected, and show-all is off --
   // a selected value is NEVER hidden here (removable, not silently dropped),
   // same invariant `facetedOptions` enforces for every other field.
   if (!isValid && !checked && !showAllValues) return null;
   return { value, checked, inert: !isValid };
 }
 
-/** Applies BL-70 faceting to `buildFinishTree`'s fixed tree, per leaf value:
+/** Applies faceting to `buildFinishTree`'s fixed tree, per leaf value:
  * a plain row's own value, a pair row's base/foil independently, a group
  * row's children independently. A leaf that's invalid, unselected, and
  * show-all is off is dropped -- for a pair row that degrades it to a single
- * chip (chose this over collapsing the row to "plain" -- keeps the row's
- * `kind` stable regardless of the live facet state, see report); if BOTH
- * sides drop, the row is omitted entirely. A group row whose children all
- * drop is omitted the same way `facetedOptions` omits an all-invalid
- * unselected option today. */
+ * chip rather than collapsing the row to "plain", so the row's `kind` stays
+ * stable regardless of the live facet state; if BOTH sides drop, the row is
+ * omitted entirely. A group row whose children all drop is omitted the same
+ * way `facetedOptions` omits an all-invalid unselected option. */
 export function shapeFinishTree(
   tree: FinishTreeRow[],
   valid: Set<string> | null,
@@ -673,7 +655,7 @@ export function shapeFinishTree(
   return out;
 }
 
-// ── Faceting (BL-70) ───────────────────────────────────────────────────────
+// ── Faceting (App Spec §5.6) ───────────────────────────────────────────────
 //
 // Every faceted field below shares one shape in FilterState: a bare
 // `Set<string>` that defaults empty ("no restriction"). That means "ignore
@@ -682,26 +664,24 @@ export function shapeFinishTree(
 // itself (with the target field reset) as the single source of truth for
 // "what passes," so faceting can't drift from matching logic.
 //
-// BL-90: `aspects` now shares this shape too (empty default, standard
-// any-of matching), so it participates in faceting exactly like every
-// other field -- no special-casing needed for the "No Aspect" pseudo-value
-// either, since FIELD_EXTRACTORS maps an aspectless card to [NO_ASPECT]
-// just as applyFilters does.
+// `aspects` shares this shape too (empty default), so it participates in
+// faceting exactly like every other field -- no special-casing needed for
+// the "No Aspect" pseudo-value either, since FIELD_EXTRACTORS maps an
+// aspectless card to [NO_ASPECT] just as applyFilters does.
 //
-// BL-130: no signature change was needed to make faceting mode-aware.
-// `facetValidValues` spreads the caller's full `filters` (including
-// `aspectMode`) into `otherFilters`, and `applyFilters` already reads
-// `filters.aspectMode` -- so a *different* field's facet computation (e.g.
-// "what Set values remain valid") automatically evaluates the active
-// aspect selection through the active mode. Faceting `"aspects"` itself
-// still resets `aspects` to empty (the standard dead-end-prevention rule),
-// which makes the mode a no-op for that one computation by the same
-// empty-selection invariant matchesAspectMode relies on elsewhere --
-// consistent, not a gap: per-value "would adding this under Exact leave a
-// dead end" analysis is a different, combinatorial question BL-130 doesn't
-// ask for (Exact's non-monotonicity means a growing same-field selection
-// can shrink its own result set, unlike every OR-shaped field faceting
-// already assumes).
+// Faceting is mode-aware without a mode parameter: `facetValidValues`
+// spreads the caller's full `filters` (including `aspectMode`) into
+// `otherFilters`, and `applyFilters` reads `filters.aspectMode` -- so a
+// *different* field's facet computation (e.g. "what Set values remain
+// valid") evaluates the active aspect selection through the active mode.
+// Faceting `"aspects"` itself resets `aspects` to empty (the standard
+// dead-end-prevention rule), which makes the mode a no-op for that one
+// computation by the same empty-selection invariant matchesAspectMode
+// relies on elsewhere -- consistent, not a gap: per-value "would adding this
+// under Exact leave a dead end" analysis is a different, combinatorial
+// question this does not answer (Exact's non-monotonicity means a growing
+// same-field selection can shrink its own result set, unlike every
+// OR-shaped field faceting assumes).
 
 export type FacetField =
   "aspects" | "set" | "type" | "rarity" | "finish" | "keyword" | "trait" | "arena";
@@ -717,7 +697,7 @@ export const FIELD_EXTRACTORS: Record<FacetField, (card: BaseCard) => string[]> 
   arena: (c) => (c.arena ? [c.arena] : []),
 };
 
-/** Dead-end-prevention rule (BL-70): the values `field` could still add,
+/** Dead-end-prevention rule: the values `field` could still add,
  * given every *other* active filter but ignoring `field`'s own selection.
  * Returns `null` when `cards` is empty -- an empty base list (no data
  * loaded yet, or a toggle-narrowed set of zero) means "nothing to facet
@@ -758,10 +738,10 @@ export function facetedOptions(
     .filter((o) => valid === null || showAllValues || valid.has(o.value) || selected.has(o.value))
     .map((o) => {
       const isValid = valid === null || valid.has(o.value);
-      // BL-129 R6b: `pinned` carries through unchanged on both branches --
-      // the valid branch returns `o` as-is (already has it), the inert
-      // branch spreads it explicitly so a faceted-out-but-still-selected
-      // pinned Finish value keeps its divider placement instead of silently
+      // `pinned` carries through unchanged on both branches -- the valid
+      // branch returns `o` as-is (already has it), the inert branch copies it
+      // explicitly so a faceted-out-but-still-selected pinned value (the Set
+      // field's base block) keeps its divider placement instead of silently
       // losing the flag.
       return isValid
         ? o

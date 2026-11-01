@@ -3,7 +3,7 @@ import type { SyntheticEvent } from "react";
 import { DECK_ART, deckArtBox } from "./deckArtModel";
 import type { DeckArtImage, DeckRowArt } from "./deckArtModel";
 
-// BL-257 FR3-03: the phone's row-size mirror of desktop's hover preview
+// The phone's row-size mirror of desktop's hover preview
 // (screens/inventory/PreconPreviewComposition.tsx): the leader, landscape, in
 // front; the deck's base behind it, raised so its name strip and a sliver of
 // the card show above the leader. Twin Suns: two leaders side by side, one

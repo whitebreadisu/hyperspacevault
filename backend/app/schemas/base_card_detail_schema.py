@@ -4,15 +4,16 @@ from pydantic import BaseModel
 
 
 class PriceInfo(BaseModel):
-    """BL-136 P4: one variant's current price
-    (Definition_Pricing_2026-07-16.md §4). Present (non-null on the parent
-    field) only when `tcgplayer_products` has a mapping for this variant
-    AND at least one `variant_prices` row exists for it -- an unpriced
+    """One variant's current price (App Spec §16.2). Present (non-null on
+    the parent field) only when `tcgplayer_products` has a mapping for this
+    variant AND a `variant_latest_prices` row exists for it -- an unpriced
     variant (unmapped, or mapped but never synced) carries `price: null`
     on the parent, not a PriceInfo with every field null. market/low
     individually stay nullable even when the row exists: tcgcsv
-    occasionally omits a tier for a given day (decided policy: the price
-    still ships with its as_of, never blanks the whole thing)."""
+    occasionally omits a tier for a given day (policy: the price still
+    ships with its as_of, never blanks the whole thing). `low` is the
+    served low after the outlier rule (app/services/pricing.py's
+    plausible_low, App Spec §16.4)."""
 
     market: float | None
     low: float | None
@@ -20,10 +21,9 @@ class PriceInfo(BaseModel):
 
 
 class DisplayPrice(BaseModel):
-    """BL-136 P4: the one-price-per-card aggregate GET /api/base-cards
-    computes per the `pricing` query param (`standard` -- default -- or
-    `cheapest`), per Definition_Pricing_2026-07-16.md §4's decided
-    definitions. `standard` = the card's Standard-printing variant's
+    """The one-price-per-card aggregate GET /api/base-cards computes per
+    the `pricing` query param (`standard` -- default -- or `cheapest`), per
+    App Spec §16.4's definitions. `standard` = the card's Standard-printing variant's
     market price; `cheapest` = min(low) across all of the card's priced
     variants, any printing. Null when the card has no priced variant at
     all under the selected mode."""
@@ -33,8 +33,8 @@ class DisplayPrice(BaseModel):
 
 
 class ImageRenditions(BaseModel):
-    """The 3 same-origin serving URLs for one side of a variant (BL-76
-    Phase 3, ADR-0012) -- derived at read time from the corresponding
+    """The 3 same-origin serving URLs for one side of a variant
+    (ADR-0012) -- derived at read time from the corresponding
     `front_image_url`/`back_image_url` via
     app.services.image_paths.same_origin_renditions, never stored."""
 
@@ -44,37 +44,33 @@ class ImageRenditions(BaseModel):
 
 
 class CardVariantCatalogResponse(BaseModel):
-    """One printing of a base card, SLIM catalog fields only (BL-101, slimmed
-    further by BL-146) -- the shape GET /api/base-cards (list) nests. Carries
-    no per-tenant data by construction, which is what makes the list endpoint
-    eligible for http_cache.catalog_cache. finish/channel are the same
-    curated classification CardResponse exposes -- derived from variant_type
-    + source_set_code via app.ingestion.swuapi_classify, not stored columns.
+    """One printing of a base card, SLIM catalog fields only -- the shape
+    GET /api/base-cards (list) nests (App Spec §12: the list ships no
+    front_images/back_images). Carries no per-tenant data by construction,
+    which is what makes the list endpoint eligible for
+    http_cache.catalog_cache. finish/channel are the same curated
+    classification CardVariantDetailResponse exposes -- derived from
+    variant_type + source_set_code via app.ingestion.swuapi_classify, not
+    stored columns.
 
-    BL-146 (Design_SparseList_2026-07-25.md §2/§5, issue #368): this list
-    row dropped `stamped`, `source_set_name`, `stamp_group`, `price`,
-    `front_images`, `back_images` -- a census of every frontend list
-    consumer (filters/sort/table/gallery/Add Cards resolver) found zero
-    reads of any of them; `front_images`/`back_images` specifically are now
-    derived client-side from `front_image_url`/`back_image_url`
-    (frontend/src/utils/cardImages.ts's deriveRenditions, a line-for-line
-    port of app.services.image_paths.same_origin_renditions) instead of
-    server-constructed, cutting ~18k nested ImageRenditions Pydantic
-    constructions per request. `stamped`/`source_set_name`/`stamp_group`/
-    `front_images`/`back_images` are still list-absent -- every one still
-    ships on CardVariantDetailResponse below.
+    `stamped`, `source_set_name`, `stamp_group`, `front_images` and
+    `back_images` are list-absent: no frontend list consumer
+    (filters/sort/table/gallery/Add Cards resolver) reads them, and every
+    one ships on CardVariantDetailResponse below. `front_images`/
+    `back_images` are derived client-side from `front_image_url`/
+    `back_image_url` (frontend/src/utils/cardImages.ts's deriveRenditions,
+    a line-for-line port of app.services.image_paths.same_origin_renditions)
+    instead of server-constructed, saving ~18k nested ImageRenditions
+    Pydantic constructions per request.
 
-    BL-163 (Definition_CosmeticsBatch_2026-07-26.md §3): `price` is back,
-    additive/optional (`= None`) so a stale pre-this-change cached list
-    response still validates. The Collection-value completion-panel needs
-    every owned variant's own market/low price across the WHOLE catalog to
-    compute per-variant value with a Standard-price fallback -- data the
-    list endpoint's per-card `display_price` aggregate can't supply (one
-    picked price per card, not the full per-variant PriceInfo). The
-    service already computed this exact PriceInfo per variant on every
-    list request even after BL-146 dropped the field from the response
-    (see get_base_cards' docstring) -- re-attaching it here is a
-    response-shape change only, no new query."""
+    `price` (optional, `= None`) is on the list because the Collection-value
+    completion panel needs every owned variant's own market/low price
+    across the WHOLE catalog to compute per-variant value with a
+    Standard-price fallback -- data the list endpoint's per-card
+    `display_price` aggregate can't supply (one picked price per card, not
+    the full per-variant PriceInfo). The service computes this PriceInfo
+    per variant on every list request anyway (see get_base_cards'
+    docstring), so carrying it costs no extra query."""
 
     variant_id: int
     variant_type: str
@@ -88,17 +84,15 @@ class CardVariantCatalogResponse(BaseModel):
 
 
 class CardVariantDetailResponse(BaseModel):
-    """Catalog variant (full field set, pre-BL-146 shape -- see
-    CardVariantCatalogResponse's docstring) plus the caller's tenant-scoped
+    """Catalog variant (full field set -- see CardVariantCatalogResponse's
+    docstring for what the list omits) plus the caller's tenant-scoped
     quantity -- the shape GET /api/base-cards/{id} (detail; card detail /
-    card-inventory popups, SWU_Catalog_Redesign_Spec.md §5.3) nests. Because
-    quantity is per-tenant, any route returning this shape must stay
-    private/no-store (http_cache.tenant_no_store).
+    card-inventory popups, App Spec §5.3) nests. Because quantity is
+    per-tenant, any route returning this shape must stay private/no-store
+    (http_cache.tenant_no_store).
 
-    BL-146: re-declares every field directly instead of extending
-    CardVariantCatalogResponse (which no longer carries all of them) -- pure
-    schema restructuring, the detail response's actual JSON shape is
-    unchanged."""
+    Re-declares every field directly instead of extending
+    CardVariantCatalogResponse, which does not carry all of them."""
 
     variant_id: int
     variant_type: str
@@ -119,22 +113,21 @@ class CardVariantDetailResponse(BaseModel):
 
 class BaseCardCatalogResponse(BaseModel):
     """One base card with its nested variant long tail, SLIM catalog fields
-    only -- the GET /api/base-cards (list) row shape since BL-101 split
-    per-tenant quantities out to GET /api/inventory/quantities.
+    only -- the GET /api/base-cards (list) row shape. Per-tenant
+    quantities are not here; they come from GET /api/inventory/quantities,
+    merged client-side (App Spec §12).
 
-    `display_price` (BL-136 P4, additive) is the one-price-per-card
-    aggregate for list/gallery rendering, computed per the `?pricing=
-    standard|cheapest` query param (default standard) -- see
-    schemas.base_card_detail_schema.DisplayPrice. Kept on the list despite
-    being additive/unused-by-any-UI-today (BL-141's list/gallery price
-    display is designed against it already) -- BL-146's sparse-list split
-    (Design_SparseList_2026-07-25.md §2/§8-Q2) explicitly decided this field
-    stays while the per-variant `price` field below moves to detail-only.
+    `display_price` is the one-price-per-card aggregate for list/gallery
+    rendering, computed per the `?pricing=standard|cheapest` query param
+    (default standard) -- see DisplayPrice above. It stays on the list as
+    the per-card price contract even though no frontend view reads it
+    (frontend/src/api/baseCards.ts declares it); per-variant prices ride on
+    each variant's `price`.
 
-    BL-146: `set_name`, `type2`, `double_sided`, `is_unique`, `front_text`,
-    `back_text`, `epic_action`, `artist` dropped -- zero list-consumer reads
-    (CardPopup, the only reader, is a detail-only fetch). Still served on
-    BaseCardDetailResponse below, unchanged."""
+    `set_name`, `type2`, `double_sided`, `is_unique`, `front_text`,
+    `back_text`, `epic_action` and `artist` are list-absent -- no list
+    consumer reads them (CardPopup, the only reader, is a detail-only
+    fetch). They are served on BaseCardDetailResponse below."""
 
     id: int
     set_code: str
@@ -157,13 +150,11 @@ class BaseCardCatalogResponse(BaseModel):
 
 class BaseCardDetailResponse(BaseModel):
     """Base card whose variants carry the caller's quantities -- the
-    GET /api/base-cards/{id} detail shape (full pre-BL-146 field set, variant
-    tail using CardVariantDetailResponse).
+    GET /api/base-cards/{id} detail shape (full field set, variant tail
+    using CardVariantDetailResponse).
 
-    BL-146: re-declares every field directly instead of extending
-    BaseCardCatalogResponse (which no longer carries all of them) -- pure
-    schema restructuring, the detail response's actual JSON shape is
-    unchanged."""
+    Re-declares every field directly instead of extending
+    BaseCardCatalogResponse, which does not carry all of them."""
 
     id: int
     set_code: str
@@ -199,7 +190,7 @@ class PriceHistoryPoint(BaseModel):
 
 class PriceHistoryResponse(BaseModel):
     """GET /api/base-cards/{base_card_id}/price-history -- daily market-
-    price series for one variant (Definition_Pricing_2026-07-16.md §4).
+    price series for one variant (App Spec §5.10, §16.2).
     Anonymous, catalog data (no per-tenant variance), so this route is
     publicly cacheable like the list endpoint."""
 

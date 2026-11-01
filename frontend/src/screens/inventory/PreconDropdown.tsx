@@ -47,13 +47,13 @@ function groupBySet(entries: PreconEntry[]): RailGroup[] {
   return groups;
 }
 
-/** BL-164 §5: the custom logo-rail listbox that replaces AddCardsPreconBar's
- * unlocked-state native `<select>`, railed by set (same layout idiom as
- * SetDropdown) plus the owner-locked hover preview panel to the LEFT of the
- * list ("beside-left" -- the saved default). `catalog` threads through to
- * resolve each hovered entry's leader/base composition
+/** AddCardsPreconBar's unlocked-state picker: a custom logo-rail listbox,
+ * railed by set (same layout idiom as SetDropdown), plus a hover preview
+ * panel to the LEFT of the list (App Spec §5.13). `catalog` threads through
+ * to resolve each hovered entry's leader/base composition
  * (utils/preconPreview.ts) -- the same catalog AddCardsModal already holds,
- * no new fetch. */
+ * no new fetch. Portaled to `document.body` for the same reason as
+ * SetDropdown. */
 export function PreconDropdown({ entries, sets, catalog, onChoose }: Props) {
   const [open, setOpen] = useState(false);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
@@ -98,14 +98,12 @@ export function PreconDropdown({ entries, sets, catalog, onChoose }: Props) {
         MIN_MAX_H,
         Math.min(DEFAULT_MAX_H, window.innerHeight - r.bottom - VIEWPORT_MARGIN)
       );
-      // Saved default previewMode "beside-left": the preview panel sits to
-      // the LEFT of the list unconditionally -- the pop container flips to
-      // flex-direction: row-reverse (CSS `.acx-pdd__pop--flip`) and anchors
-      // by its RIGHT edge (== the trigger's own right edge, `window.
-      // innerWidth - r.right`) instead of its left, so the list panel stays
-      // under the trigger and the preview grows further left from there
-      // (mirrors the design prototype's identical `right: innerWidth -
-      // pos.left - triggerWidth` calc).
+      // The preview panel sits to the LEFT of the list unconditionally --
+      // the pop container flips to flex-direction: row-reverse (CSS
+      // `.acx-pdd__pop--flip`) and anchors by its RIGHT edge (== the
+      // trigger's own right edge, `window.innerWidth - r.right`) instead of
+      // its left, so the list panel stays under the trigger and the preview
+      // grows further left from there.
       setPos({
         top: r.bottom + 6,
         left: null,
@@ -183,10 +181,10 @@ export function PreconDropdown({ entries, sets, catalog, onChoose }: Props) {
               ))}
             </div>
             {hovered && hoveredPreview && (
-              // Owner dev review 2026-07-26: multi-leader kinds (Twin Suns
-              // dual, IBH box) WIDEN the panel so every leader renders at the
-              // same card size as a single-leader deck's -- single-leader
-              // previews keep the compact width.
+              // Multi-leader kinds (Twin Suns dual, IBH box) WIDEN the panel
+              // so every leader renders at the same card size as a
+              // single-leader deck's -- single-leader previews keep the
+              // compact width.
               <div
                 className={`acx-pdd__preview${
                   hoveredPreview.kind === "dual" || hoveredPreview.kind === "ibh"

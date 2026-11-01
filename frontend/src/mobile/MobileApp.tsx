@@ -42,37 +42,37 @@ import { Vault } from "./vault/Vault";
 import "./mobile.css";
 import "./shell.css";
 
-/** BL-247: the phone app root (S1-04 shell). Route -> screen map as rev4
- * MApp.jsx:60-67 + 104-128, minus the prototype's stage chrome. Owns the
- * auth layer's open state with desktop's auto-close rule (App.tsx:186-191)
- * and the title chooser + release-notes cue (R5-2). */
+/** The phone app root (App Spec §25): the route -> screen map and the
+ * layers over it. Owns the auth layer's open state with desktop's auto-close
+ * rule (App.tsx's signupInFlight / googleLinkedInFlight effect) and the title
+ * chooser + release-notes cue (App Spec §25.4). */
 
 interface Screen {
   key: string;
   el: ReactNode;
 }
 
-/** BL-250 S4: the routed (non-Vault) screen a route shows, by key -- null
- * for the Vault (and the card / tool layers, which sit over a screen).
- * `#/more/<unknown>` falls back to the More list (rev4 F-6). */
+/** The routed (non-Vault) screen a route shows, by key -- null for the
+ * Vault (and the card / tool layers, which sit over a screen).
+ * `#/more/<unknown>` falls back to the More list. */
 function screenKey(route: Route): string | null {
   const [a, b] = route.segs;
   if (a === "about") return "about";
   if (a !== "more") return null;
-  // BL-251 S5-01: Settings; Delete Account is a layer over it (S5-03), so its
+  // Settings; Delete Account is a layer over it, so its
   // route keeps the Settings screen mounted underneath.
   if (b === "settings" || b === "delete") return "more/settings";
-  // S5-02: Change Password is a layer over whatever screen it was opened from
+  // Change Password is a layer over whatever screen it was opened from
   // (see `layerBase` below).
   if (b === "password") return "more/password";
-  // S5-07: Sharing is a layer too (desktop's ShareManageModal, unchanged).
+  // Sharing is a layer too (desktop's ShareManageModal, unchanged).
   if (b === "sharing") return "more/sharing";
   if (b === "about" || b === "updates" || b === "feedback" || b === "importexport")
     return "more/" + b;
   return "more";
 }
 
-/** S1-27 / S4-06: screen_viewed values by screen key. Updates reports
+/** screen_viewed values by screen key. Updates reports
  * desktop's `new_arrivals` (App Spec §22 names it for the same screen). */
 const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
   vault: "vault",
@@ -85,13 +85,13 @@ const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
   "more/about": "about",
   "more/updates": "new_arrivals",
   "more/feedback": "feedback",
-  // BL-252 S6-08: the shared vault shown (desktop App.tsx's `shared` pane).
+  // The shared vault shown (desktop App.tsx's `shared` pane).
   shared: "shared_view",
 };
 
-/** S6-06: routes that act on the viewer's own vault or account; inside a
- * share they land on the (trimmed) More, as rev4 BLOCKED_IN_SHARE (+ delete,
- * run D2, which maps to the Settings key). */
+/** Routes that act on the viewer's own vault or account; inside a share
+ * they land on the (trimmed) More. Delete Account's route maps to the
+ * Settings key, so it is covered too. */
 const BLOCKED_IN_SHARE = new Set([
   "more/settings",
   "more/password",
@@ -99,11 +99,11 @@ const BLOCKED_IN_SHARE = new Set([
   "more/importexport",
 ]);
 
-/** BL-252 S6-01 / S6-07: the shared vault's own data instance + the share
+/** The shared vault's own data instance + the share
  * owner's limits (desktop SharedVaultPage's nested LimitsProvider with
  * `shareToken` around its read-only CardsPage). Mounted only once the
- * share has resolved (BL-252 S6a F5: an invalid / rate-limited token or an
- * unswitched restored session downloads nothing, as desktop mounts CardsPage
+ * share has resolved (an invalid / rate-limited token or an unswitched
+ * restored session downloads nothing, as desktop mounts CardsPage
  * only when ready); read by the shared pane, its card layer and its
  * Owned-by-finish host. */
 function ShareScope({ token, children }: { token: string; children: ReactNode }) {
@@ -115,8 +115,7 @@ function ShareScope({ token, children }: { token: string; children: ReactNode })
   );
 }
 
-/** S1-15 (rev4 MApp.jsx:404-415, m-layout.css:643-655): the app frame
- * follows the visual viewport, so with the keyboard up the list's bottom
+/** The app frame follows the visual viewport, so with the keyboard up the list's bottom
  * edge sits on the keyboard's top edge. */
 function useVisualViewport(): void {
   useEffect(() => {
@@ -139,7 +138,7 @@ function useVisualViewport(): void {
   }, []);
 }
 
-/** BL-253 S7-08: a page restored from the back/forward cache is frozen memory --
+/** A page restored from the back/forward cache is frozen memory --
  * the other document (main / isolated /scan/) may have changed the batch in
  * between, so re-read the sessionStorage mirror. */
 function useRehydrateOnPageShow(): void {
@@ -159,10 +158,10 @@ export function MobileApp() {
   useRehydrateOnPageShow();
   const { user, logout, emailVerified, loading } = useAuth();
 
-  // S1-09: the auth layer, closed by desktop's single-source-of-truth rule --
-  // a successful sign-in closes it, except mid-signup / mid-Google-link where
-  // AuthModal owns its own follow-up screen (App.tsx BL-16 / BL-118).
-  // BL-253 S7-09 (7a FINDING 2, ruling 1): the isolated /scan/ document cannot
+  // The auth layer, closed by desktop's single-source-of-truth rule -- a
+  // successful sign-in closes it, except mid-signup / mid-Google-link where
+  // AuthModal owns its own follow-up screen (as in App.tsx).
+  // The isolated /scan/ document cannot
   // run the Google popup, so its sign-in bounces here (cameraHop.bounceSignIn);
   // this document opens the auth layer for a pending bounce and returns once
   // signed in (or walks back if the layer is closed without signing in).
@@ -187,7 +186,7 @@ export function MobileApp() {
     if (bounce && !user) finishSignInBounce(false);
   }, [bounce, user]);
 
-  // S1-07 / S4-04: the title chooser and the release-notes cue.
+  // The title chooser and the release-notes cue.
   const cue = useReleaseCue();
   const [chooserOpen, setChooserOpen] = useState(false);
   const closeChooser = useCallback(() => setChooserOpen(false), []);
@@ -197,7 +196,7 @@ export function MobileApp() {
     noteTitle();
   }, [noteTitle]);
 
-  // BL-252 S6-01: the tab's share session; `inShare` = the shared vault is
+  // The tab's share session; `inShare` = the shared vault is
   // the vault shown (desktop's `shared` pane).
   const share = useShare();
   const inShare = share.shown;
@@ -224,22 +223,22 @@ export function MobileApp() {
     />
   );
 
-  // S1-15: search mode collapses the bottom bar as well as the headers.
+  // Search mode collapses the bottom bar as well as the headers.
   const [searchMode, setSearchMode] = useState(false);
   useVisualViewport();
 
-  // BL-248 S2-01: #/card/<id> is a layer over the Vault, which stays mounted
+  // #/card/<id> is a layer over the Vault, which stays mounted
   // under it with the params it last had (filters, scope, scroll and list
   // survive the visit, as under desktop's popup).
-  // F9: a non-numeric id is still the card layer (id -1: not in the
+  // A non-numeric id is still the card layer (id -1: not in the
   // catalogue), not a fall-through to the Vault under a card hash.
   const cardId =
     route.segs[0] === "card" ? (/^\d+$/.test(route.segs[1] ?? "") ? +route.segs[1] : -1) : null;
-  // BL-249 S3-01: #/pad (and #/camera) is the tool LAYER over the screen it
-  // was opened from (baseRoute: the last route that is neither the tool nor
-  // a card), which stays mounted beneath it with the bar covered. S3-06: a
-  // card opened from the tool layers over the tool, which stays mounted
-  // (inert) so its state is untouched when the card closes.
+  // #/pad (and #/camera) is the tool LAYER over the screen it was opened
+  // from (baseRoute: the last route that is neither the tool nor a card),
+  // which stays mounted beneath it with the bar covered. A card opened from
+  // the tool layers over the tool, which stays mounted (inert) so its state
+  // is untouched when the card closes.
   const seg0 = route.segs[0];
   const isTool = seg0 === "pad" || seg0 === "camera";
   const [baseRoute, setBaseRoute] = useState<Route>(() =>
@@ -253,16 +252,16 @@ export function MobileApp() {
     setToolUnderCard(seg0 === "card" && (prevSeg === "pad" || prevSeg === "camera"));
   }
   const toolShown = isTool || (cardId != null && toolUnderCard);
-  // BL-253 S7-10: which tool the layer shows (kept while a card is over it).
+  // Which tool the layer shows (kept while a card is over it).
   const [toolSeg, setToolSeg] = useState(seg0 === "camera" ? "camera" : "pad");
   if (isTool && seg0 !== toolSeg) setToolSeg(seg0);
   const cameraShown = toolShown && toolSeg === "camera";
-  // S7-09: the tool layer's X / Back returns to the screen beneath it; the
+  // The tool layer's X / Back returns to the screen beneath it; the
   // camera hop rewrites the main document's entry to it before leaving.
   useEffect(() => {
     setBgRoute(baseRoute.hash);
   }, [baseRoute]);
-  // S7-09: `#/camera` on the main document (a deep link, a stale history
+  // `#/camera` on the main document (a deep link, a stale history
   // entry) is the hop to the isolated document -- it has no camera here.
   const hopNeeded = seg0 === "camera" && !inShare && !getCameraScreen();
   useEffect(() => {
@@ -275,7 +274,7 @@ export function MobileApp() {
   );
   if (cardId == null && !isTool && !screenKey(route) && route.params !== vaultParams)
     setVaultParams(route.params);
-  // BL-252 S6-07: each vault pane keeps the params it last had while parked
+  // Each vault pane keeps the params it last had while parked
   // (a deep-link param applies once, to the vault that was shown).
   const [ownParams, setOwnParams] = useState<Record<string, string>>(() =>
     inShare ? {} : vaultParams
@@ -285,16 +284,16 @@ export function MobileApp() {
   if (inShare && sharedParams !== vaultParams) setSharedParams(vaultParams);
 
   const routeKey = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
-  // S6-06: inside a share the own-account routes show the trimmed More (the
+  // Inside a share the own-account routes show the trimmed More (the
   // effect below rewrites the hash) -- never their screens, not for a frame.
   const blocked = inShare && BLOCKED_IN_SHARE.has(routeKey);
   const rawKey = blocked ? "more" : routeKey;
-  // BL-251 S5-02 / S5-03: Change Password and Delete Account are layers
+  // Change Password and Delete Account are layers
   // (desktop's modals, unchanged) over a screen that stays mounted beneath:
   // Delete over Settings (its route maps to the Settings key), Password over
   // the last screen shown (More on a deep link).
   const isPassword = rawKey === "more/password";
-  // S5-07: Sharing is the same kind of layer, over the screen it was opened from.
+  // Sharing is the same kind of layer, over the screen it was opened from.
   const isSharing = rawKey === "more/sharing";
   const acctLayer: "password" | "delete" | "sharing" | null = isPassword
     ? "password"
@@ -307,7 +306,7 @@ export function MobileApp() {
   const [layerBase, setLayerBase] = useState("more");
   if (!overLayer && rawKey !== layerBase) setLayerBase(rawKey);
   const key = overLayer ? layerBase : rawKey;
-  // S5 F5: under an account layer the bar highlights the route beneath, as it
+  // Under an account layer the bar highlights the route beneath, as it
   // does under the tool layer.
   const navRoute = overLayer ? parseHash("#/" + layerBase) : screenRoute;
   // The account screens need a signed-in user (Settings / Delete) and a
@@ -317,7 +316,7 @@ export function MobileApp() {
   // to the anonymous Vault.
   const pwProvider = hasPasswordProvider(user);
   useEffect(() => {
-    // S6-04 / S6-06: no keypad and no own-account screens inside a share.
+    // No keypad and no own-account screens inside a share.
     if (inShare && isTool) {
       go("#/vault", true);
       return;
@@ -329,7 +328,7 @@ export function MobileApp() {
     if (loading) return;
     if (!user && (rawKey === "more/settings" || isPassword)) go("#/vault", true);
     else if (user && isPassword && !pwProvider) go("#/more", true);
-    // S5-07: signed out at the Sharing deep link -> More, with sign-in raised
+    // Signed out at the Sharing deep link -> More, with sign-in raised
     // (the More row does the same for a tap; desktop's Share button opens it).
     else if (!user && isSharing) {
       go("#/more", true);
@@ -347,9 +346,9 @@ export function MobileApp() {
     isTool,
     blocked,
   ]);
-  // BL-250 S4-05: a More sub-page entered from More shows the back chevron;
-  // entered any other way (chooser, account menu, rail chip, deep link) the X.
-  // S4 F2: the decision is kept per screen key, so a history return (More ->
+  // A More sub-page entered from More shows the back chevron; entered any
+  // other way (chooser, account menu, rail chip, deep link) the X. The
+  // decision is kept per screen key, so a history return (More ->
   // Updates -> rail About -> X) re-enters Updates with its chevron. Cleared on
   // reaching More or the Vault (a later chooser / menu entry is not "from More").
   const [shownKey, setShownKey] = useState(key);
@@ -360,7 +359,7 @@ export function MobileApp() {
     else if (shownKey === "more") setMovedFromMore({ ...movedFromMore, [key]: true });
   }
   const fromMore = movedFromMore[key] === true;
-  // S6-07: the own Vault is parked (mounted, hidden) while the share is shown.
+  // The own Vault is parked (mounted, hidden) while the share is shown.
   const ownParked = key === "vault" && inShare;
 
   const routed = (k: string): ReactNode => {
@@ -401,21 +400,20 @@ export function MobileApp() {
           key: "vault",
           el: (
             <Vault
-              // S6-07: the parked own vault keeps the params it last had.
+              // The parked own vault keeps the params it last had.
               params={inShare ? ownParams : vaultParams}
               account={account}
               unread={cue.unread}
               onOpenChooser={openChooser}
               onOpenFeedback={() => go("#/more/feedback")}
               onSearchMode={setSearchMode}
-              // ── RUN 2B BEGIN (signin) ── the Filters sheet's signed-out route
+              // The Filters sheet's signed-out route.
               onRequestSignIn={openSignIn}
-              // ── RUN 2B END (signin) ──
             />
           ),
         };
 
-  // BL-252 S6-07: the shared pane mounts the first time the share is shown
+  // The shared pane mounts the first time the share is shown
   // and then stays mounted beside the own Vault (two data instances, like
   // desktop's two display-toggled panes); each keeps its own filters, scope
   // and scroll while the other is shown. Like the own Vault it leaves with
@@ -448,15 +446,14 @@ export function MobileApp() {
     </div>
   ) : null;
 
-  // S1-27 / S4-06: screen_viewed from the router, once per screen (not per
-  // param change); ComingSoon placeholders send nothing until their slices
-  // land. S4-04: reaching More notes it for the Updates-row rule.
-  // S5-05: the password / delete layers report as their own screens; closing
-  // one back onto the screen beneath it is not a new view of that screen.
-  // S6-08: the shared vault reports as desktop's shared_view.
+  // screen_viewed from the router, once per screen (not per param change).
+  // Reaching More notes it for the Updates-row rule (useReleaseCue).
+  // The password / delete / sharing layers report as their own screens;
+  // closing one back onto the screen beneath it is not a new view of that
+  // screen. The shared vault reports as desktop's shared_view.
   const viewKey = acctLayer ?? (screen.key === "vault" && inShare ? "shared" : screen.key);
   const prevView = useRef(viewKey);
-  // S5 F1: the last non-layer screen actually reported, so closing a layer
+  // The last non-layer screen actually reported, so closing a layer
   // onto a screen that was never reported (cold deep link, guard redirect)
   // still reports it once.
   const lastReportedScreen = useRef<string | null>(null);
@@ -531,7 +528,7 @@ export function MobileApp() {
               onRequestSignIn={openSignIn}
             />
           ) : null}
-          {/* BL-248 S2-10: Owned by finish opened from a Vault row. */}
+          {/* Owned by finish opened from a Vault row. */}
           {inShare ? null : <FinishSheetHost />}
           {chooserOpen ? (
             <TitleChooser
@@ -565,7 +562,7 @@ export function MobileApp() {
           ) : null}
         </SheetHost>
       </div>
-      {/* BL-257 FR5-06: a phone on its side -- the app above stays mounted. */}
+      {/* A phone on its side (App Spec §25.0) -- the app above stays mounted. */}
       <RotateScreen />
     </VaultDataProvider>
   );

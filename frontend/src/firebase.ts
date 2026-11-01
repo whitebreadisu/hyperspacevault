@@ -12,10 +12,10 @@ import {
 // under (docker-compose.yml's firebase-emulator service) -- this keeps
 // `npm run build` / `vitest run` working in CI with no .env file present.
 // Real values for the deployed app are injected as VITE_FIREBASE_* env vars
-// by ci.yml's frontend-deploy job (P5 stage 4 prerequisite), sourced from
-// terraform outputs. authDomain is each env's own Hosting domain, NOT the
-// default <project>.firebaseapp.com (BL-211: the auth handler must be
-// same-origin or Safari's storage partitioning breaks Google sign-in).
+// by the deploy builds (ci.yml's deploy-dev job, the promote-prod action),
+// sourced from terraform outputs. authDomain is each env's own Hosting
+// domain, NOT the default <project>.firebaseapp.com: the auth handler must
+// be same-origin or Safari's storage partitioning breaks Google sign-in.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-swu.firebaseapp.com",
@@ -23,26 +23,26 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-// BL-263 (2.0.1): Auth is initialised WITHOUT the popup/redirect resolver in
-// every document. getAuth() wires that resolver in at start-up, and on a phone
-// user agent and on any Safari the SDK loads it (https://apis.google.com/js/api.js
-// and its gapi module) BEFORE it restores the stored session
-// (`_shouldInitProactively`) -- so a slow or hanging Google host held the whole
-// app on "Loading..." (measured: loader held 8 s -> phone shell at 9.95 s). The
-// persistence list is getAuth()'s own, so the signed-in session is unchanged.
+// Auth is initialised WITHOUT the popup/redirect resolver in every document
+// (Platform Spec §1.8). getAuth() wires that resolver in at start-up, and on a
+// phone user agent and on any Safari the SDK loads it
+// (https://apis.google.com/js/api.js and its gapi module) BEFORE it restores
+// the stored session (`_shouldInitProactively`) -- so a slow or hanging Google
+// host would hold the whole app on "Loading...". The persistence list is
+// getAuth()'s own, so the signed-in session is the same as with getAuth().
 // The resolver is passed only to the calls that need it -- Google popup,
 // redirect, reauthenticate and the redirect-completion read (`googleResolver`
 // below) -- so it loads on a Google sign-in, never on a page load.
 //
-// This also covers BL-253 S7-02: the scanner document (/scan/) is cross-origin
-// isolated (COEP require-corp) and cannot embed the resolver's helper iframe;
-// it used to be the one document initialised this way. Google sign-in (a popup)
-// still cannot run there and bounces to the main document (stage 7b).
+// The scanner document (/scan/) is cross-origin isolated (COEP require-corp)
+// and cannot embed the resolver's helper iframe at all, so Google sign-in (a
+// popup) cannot run there and bounces to the main document
+// (mobile/tool/cameraHop.ts's bounceSignIn).
 export const auth = initializeAuth(app, {
   persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
 });
 
-/** The popup/redirect resolver, for the Google sign-in calls only (BL-263). */
+/** The popup/redirect resolver, for the Google sign-in calls only. */
 export const googleResolver = browserPopupRedirectResolver;
 
 if (import.meta.env.VITE_USE_AUTH_EMULATOR === "true") {

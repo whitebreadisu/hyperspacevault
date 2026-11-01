@@ -9,13 +9,13 @@ logger = logging.getLogger("app.request")
 def loggable_path(path: str) -> str:
     """The request path as it is safe to write to logs.
 
-    /api/shared/{token}[/...] (BL-205) carries the share's sole credential
-    in the path itself; logging it verbatim would persist a live secret in
-    log storage whose retention outlives token rotation. get_shared_db
-    already keeps tenant_id off these log lines -- this keeps the token
-    out of the URL field for the same reason (BL-232 SEC-1). Redaction is
-    unconditional for the whole /api/shared/ family, valid token or not,
-    so probing garbage never gets logged verbatim either.
+    /api/shared/{token}[/...] (App Spec §19.1) carries the share's sole
+    credential in the path itself; logging it verbatim would persist a live
+    secret in log storage whose retention outlives token rotation.
+    get_shared_db already keeps tenant_id off these log lines -- this keeps
+    the token out of the URL field for the same reason. Redaction is
+    unconditional for the whole /api/shared/ family, valid token or not, so
+    probing garbage never gets logged verbatim either.
     """
     if path.startswith("/api/shared/"):
         parts = path.split("/")
@@ -57,8 +57,8 @@ async def log_requests(request: Request, call_next):
     severity reflects the response status so Cloud Monitoring/Error
     Reporting can filter on it directly (see logging_config.JSONFormatter).
     forwarded_hops / forwarded_host record the shape of the forwarding
-    headers (no addresses) so the client-IP resolution can be
-    designed from observed hop counts.
+    headers (no addresses) so the client-IP resolution rule in
+    app/forwarded.py can be checked against observed hop counts.
     """
     start = time.perf_counter()
     try:
@@ -102,20 +102,20 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# BL-157/A4-14: a fixed set of response-hardening headers on every response
-# this backend serves -- /api/** JSON and the /images/** bucket-relay
-# redirect both go through the same app, so one middleware covers both path
-# families the backlog item names. Prod already gets HSTS from the Firebase
-# Hosting/Google Frontend layer in front of this service (confirmed via a
-# live curl capture, see PR description) -- this middleware sets it too so
-# the header is guaranteed present even if the Hosting rewrite path or CDN
-# in front of it ever changes, and adds the four headers Hosting does NOT
-# currently emit for the /api/**​ and /images/** rewrites:
+# A fixed set of response-hardening headers on every response this backend
+# serves -- /api/** JSON and the /images/** bucket-relay redirect both go
+# through the same app, so one middleware covers both path families. Prod
+# also gets HSTS from the Firebase Hosting/Google Frontend layer in front of
+# this service -- this middleware sets it too so the header is guaranteed
+# present even if the Hosting rewrite path or CDN in front of it ever
+# changes, and adds the three headers Hosting does not emit for the /api/**
+# and /images/** rewrites:
 #   - X-Content-Type-Options: nosniff -- stop MIME-sniffing a JSON/redirect
 #     response as something else.
 #   - X-Frame-Options: DENY -- this origin never needs to be framed.
-#   - Referrer-Policy: no-referrer -- no reason for this API's URLs (which
-#     can carry no secrets, but still) to leak into a Referer header.
+#   - Referrer-Policy: no-referrer -- no reason for this API's URLs (the
+#     /api/shared/ family carries a share token) to leak into a Referer
+#     header.
 # No Content-Security-Policy: deliberate. This backend serves JSON (and a
 # 307 redirect to the CDN for images) -- there is no HTML surface on this
 # origin for a CSP to protect (the actual HTML is the separate frontend

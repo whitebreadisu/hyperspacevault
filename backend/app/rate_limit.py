@@ -1,23 +1,23 @@
-"""BL-126 anti-abuse cheap tier: a simple in-memory per-IP-per-hour
+"""Anti-abuse cheap tier: a simple in-memory per-IP-per-hour feedback
 submission cap. This is deliberately the cheapest possible tier -- state
 lives in one Cloud Run *instance's* process memory, so it resets on every
 cold start/restart/scale event and is blind to traffic landing on a
 different instance. Good enough to blunt a lone bot hammering one
 instance; not a defense against a distributed or persistent attacker.
 
-BL-53 (revised scope, 2026-07-24) extends this same per-instance pattern
-with a tenant-keyed variant (`check_tenant_rate_limit` below) for
-POST /api/inventory/import (30/hr/tenant) and POST /api/deck-check
-(60/hr/tenant) -- same documented caveat applies: an attacker fanned
-across multiple Cloud Run instances, or a cold start mid-window, resets
-or splits the count. Real distributed rate limiting (a shared store --
-Redis/Memorystore, or an edge control like Cloud Armor) remains a bigger
-infra lift than this cheap tier and is out of scope here.
+The same per-instance pattern has a keyed variant
+(`check_tenant_rate_limit` below) for POST /api/inventory/import
+(30/hr/tenant), POST /api/deck-check (60/hr/tenant) and the
+GET /api/shared/{token} reads (300/hr per client IP) -- same caveat: an
+attacker fanned across multiple Cloud Run instances, or a cold start
+mid-window, resets or splits the count. Real distributed rate limiting (a
+shared store -- Redis/Memorystore, or an edge control like Cloud Armor) is
+a bigger infra lift than this cheap tier and is not attempted here.
 
-BL-266 (2026-10-14) bounds the memory of both stores. Before it, a key's
-timestamps were pruned only when that same key came back, so every
-one-off client (one IP hitting GET /api/shared/<anything> once) left an
-entry behind for the life of the instance. Now:
+Both stores have bounded memory. Pruning a key's timestamps only when that
+same key comes back would let every one-off client (one IP hitting
+GET /api/shared/<anything> once) leave an entry behind for the life of the
+instance, so:
   - a sweep, at most once per SWEEP_INTERVAL_SECONDS and run on the
     request path, deletes every key whose newest attempt has aged out of
     its window (nothing left to count, so dropping it changes no answer);
@@ -44,16 +44,17 @@ from collections import OrderedDict
 MAX_SUBMISSIONS_PER_WINDOW = 5
 WINDOW_SECONDS = 60 * 60  # one hour
 
-# BL-266: a full store of one-hit keys measured ~19 MB (~370 bytes a key
+# A full store of one-hit keys measures ~19 MB (~370 bytes a key
 # with the OrderedDict), so both stores together stay under ~40 MB of the
-# 512 MiB Cloud Run container -- bounded even mid-flood.
+# 512 MiB Cloud Run container (the default; terraform/modules/app sets no
+# memory limit for the service) -- bounded even mid-flood.
 MAX_KEYS = 50_000
 SWEEP_INTERVAL_SECONDS = 60.0
 _IPV6_64_MASK = ((1 << 64) - 1) << 64
 
 
 class _SlidingWindowStore:
-    """Per-key sliding-window attempt log with bounded memory (BL-266).
+    """Per-key sliding-window attempt log with bounded memory.
 
     `_keys` maps key -> (window_seconds, ascending attempt timestamps), in
     LRU order: every hit moves its key to the end, so the first key is the
@@ -120,15 +121,19 @@ class _SlidingWindowStore:
 
 _submissions = _SlidingWindowStore(MAX_KEYS, SWEEP_INTERVAL_SECONDS)
 
-# BL-53: a separate store (and separate function) from the feedback limiter
-# above -- deliberately not a generalized rewrite of is_rate_limited itself,
-# to keep this change scoped to the new call sites and leave the
-# already-shipped/tested feedback path untouched.
+# A separate store (and separate function) from the feedback limiter
+# above, each with its own MAX_KEYS cap: a flood of fresh keys on the
+# feedback limiter cannot evict this store's keys, and vice versa. Within
+# this store the keys are NOT isolated: the anonymous per-IP shared-read
+# keys (app/database.py's get_shared_db) and the per-tenant import and
+# deck-check keys share the one LRU cap, so a flood of fresh IPs on
+# /api/shared/ can evict tenant keys (fail-open: an evicted tenant starts
+# a fresh budget).
 _tenant_calls = _SlidingWindowStore(MAX_KEYS, SWEEP_INTERVAL_SECONDS)
 
 
 def client_ip_key(host: str | None) -> str:
-    """The rate-limit key for a client address (BL-266). IPv4 is used as
+    """The rate-limit key for a client address. IPv4 is used as
     is; an IPv4-mapped IPv6 address becomes its IPv4 form; any other IPv6
     address becomes its /64 network. Anything unparseable (TestClient's
     "testclient", a missing peer) passes through unchanged."""
@@ -169,7 +174,7 @@ def check_tenant_rate_limit(
     window_seconds: int,
     now: float | None = None,
 ) -> int | None:
-    """Per-tenant sliding-window limiter (BL-53 A4-13/A4-04). `scope`
+    """Per-tenant sliding-window limiter. `scope`
     namespaces the call site (e.g. "inventory_import", "deck_check") so
     exhausting one endpoint's budget never counts against another's, even
     for the same tenant. `tenant_id` must always be server-resolved (from
@@ -197,7 +202,7 @@ def check_tenant_rate_limit(
 
 def _reset_for_tests() -> None:
     """Test-only: clears every recorded attempt (both the feedback
-    per-IP store and the BL-53 per-tenant store) so rate-limit tests
+    per-IP store and the per-tenant store) so rate-limit tests
     don't leak state into (or inherit it from) other tests sharing this
     process."""
     _submissions.clear()

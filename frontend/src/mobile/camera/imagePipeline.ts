@@ -1,7 +1,7 @@
 import type { Rect } from "./guide";
 
-// BL-253 S7-12: the frame pipeline (spike app.js:395-494, 558-573, v0.5.5),
-// numbers verbatim. `measure()` runs on the UI thread against one reusable
+// The frame pipeline (App Spec §24.4, §25.7 "Thresholds as built").
+// `measure()` runs on the UI thread against one reusable
 // canvas: grayscale (77/150/29 >> 8), Otsu, the projection-profile text
 // height, the Laplacian variance of the TEXT BAND (rows of the estimated text
 // height +/- one text height, else the whole crop) -- below 14 the frame is
@@ -10,13 +10,13 @@ import type { Rect } from "./guide";
 // 2%-98% stretched crop at 36 px. OCR runs in the worker. No automatic zoom,
 // ever (there is no zoom code here at all).
 
-/** Sharpness gate (app.js:1226 blurThreshold default). */
+/** Sharpness gate. */
 export const BLUR_THRESHOLD = 14;
-/** Glyph floor, processed px (app.js:1223 minGlyph default). */
+/** Glyph floor, processed px. */
 export const MIN_GLYPH = 22;
 export const PADDLE_TEXT_PX = 40;
 export const TESS_TEXT_PX = 36;
-/** v0.3 fixed output width when no implied text height exists. */
+/** Fixed output width when no implied text height exists. */
 export const FIXED_W = 1100;
 
 export function grayOf(img: { data: ArrayLike<number> }): Uint8ClampedArray {
@@ -64,7 +64,7 @@ export interface TextHeight {
 }
 
 /** Text height by projection profile: rows crossed by many dark/light
- * transitions are text rows (app.js:417-430). */
+ * transitions are text rows. */
 export function estimateTextHeight(g: ArrayLike<number>, w: number, h: number): TextHeight {
   const th = otsu(g);
   const score = new Float32Array(h);
@@ -93,7 +93,7 @@ export function estimateTextHeight(g: ArrayLike<number>, w: number, h: number): 
   return { px: b - a + 1, row: maxRow, top: a, bottom: b, score: Math.round(max * 1000) / 1000 };
 }
 
-/** Variance of the 4-neighbour Laplacian over rows [y0, y1) (app.js:433-445). */
+/** Variance of the 4-neighbour Laplacian over rows [y0, y1). */
 export function laplacianVar(
   g: ArrayLike<number>,
   w: number,
@@ -130,8 +130,7 @@ export interface Measure {
   implied_text_px?: number | null;
 }
 
-/** The measure of one grayscale crop (app.js:449-466 minus the research-only
- * right-clip ink ratio). */
+/** The measure of one grayscale crop. */
 export function measureGray(g: ArrayLike<number>, w: number, h: number): Measure {
   const est = estimateTextHeight(g, w, h);
   const sharp = laplacianVar(g, w, h, 0, h);
@@ -141,7 +140,7 @@ export function measureGray(g: ArrayLike<number>, w: number, h: number): Measure
   return { crop_w: w, crop_h: h, est_text_px: est.px, lap_var: sharp, lap_var_text: sharpText };
 }
 
-/** app.js:448: the text band's variance, else the whole crop's. */
+/** The text band's variance, else the whole crop's. */
 export function gateValue(m: Measure): number | null {
   return m.lap_var_text != null ? m.lap_var_text : m.lap_var;
 }
@@ -151,14 +150,14 @@ export function isBlurry(v: number | null, thr = BLUR_THRESHOLD): boolean {
   return v == null || v < thr;
 }
 
-/** app.js:225: below the glyph floor a read is shown but never counts. */
+/** Below the glyph floor a read is shown but never counts. */
 export function isSmall(glyphPx: number | null | undefined, floor = MIN_GLYPH): boolean {
   return glyphPx != null && glyphPx < floor;
 }
 
 export type MeterBand = "red" | "amber" | "green";
 
-/** app.js:784-793 updateMeter: fill = value / (3 x threshold); below the gate
+/** The meter: fill = value / (3 x threshold); below the gate
  * red, below 1.5 x amber "OK", else green "Sharp". */
 export function meterView(
   v: number | null,
@@ -170,7 +169,7 @@ export function meterView(
   return { pct, band, value: val };
 }
 
-/** app.js:563 targetScale: the reader's target text height over the implied
+/** The reader's target text height over the implied
  * one, clamped 0.6-1.5 (null without an implied height). */
 export function targetScale(m: Measure, target: number): number | null {
   return m.implied_text_px ? Math.max(0.6, Math.min(1.5, target / m.implied_text_px)) : null;
@@ -181,7 +180,7 @@ export function targetScale(m: Measure, target: number): number | null {
 type Ctx = CanvasRenderingContext2D;
 type Source = CanvasImageSource;
 
-/** The reusable canvases of one camera screen (app.js cA / cB / cP). */
+/** The reusable canvases of one camera screen. */
 export class FramePipeline {
   private cA: HTMLCanvasElement;
   private cB: HTMLCanvasElement;
@@ -208,7 +207,7 @@ export class FramePipeline {
     return measureGray(g, r.w, r.h);
   }
 
-  /** app.js:566-573: Paddle's input -- the unprocessed colour crop. */
+  /** Paddle's input -- the unprocessed colour crop. */
   colourFixedWidth(m: Measure): HTMLCanvasElement {
     const sc = targetScale(m, PADDLE_TEXT_PX) || Math.max(0.25, Math.min(4, FIXED_W / m.crop_w));
     this.cP.width = Math.max(1, Math.round(m.crop_w * sc));
@@ -219,7 +218,7 @@ export class FramePipeline {
     return this.cP;
   }
 
-  /** app.js:468-494: Tesseract's input -- gray, inverted if dark, 2%-98% stretch. */
+  /** Tesseract's input -- gray, inverted if dark, 2%-98% stretch. */
   scaleAndClean(m: Measure): HTMLCanvasElement {
     const w = m.crop_w;
     const h = m.crop_h;
@@ -277,7 +276,7 @@ export class FramePipeline {
     return this.cB;
   }
 
-  /** app.js:497-502: the right 40% of the prepared crop (the digits pass). */
+  /** The right 40% of the prepared crop (the digits pass). */
   rightPart(): HTMLCanvasElement {
     const c = this.cB.ownerDocument.createElement("canvas");
     const w = this.cB.width;

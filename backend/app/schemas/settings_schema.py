@@ -1,4 +1,4 @@
-"""BL-24: request/response shapes for GET/PUT /api/settings/limits.
+"""Request/response shapes for GET/PUT /api/settings/limits (App Spec §4.5).
 
 TypeCategory's two values must match app/services/limits.py's
 TYPE_CATEGORY_SINGLETON/TYPE_CATEGORY_STANDARD -- duplicated here as a
@@ -6,7 +6,7 @@ Literal (rather than importing the service module) so schemas stay leaf
 modules with no service-layer dependency, matching the rest of this
 codebase's schemas.
 
-BL-35 adds CapMode the same way: its two values must match
+CapMode is duplicated the same way: its two values must match
 app/services/limits.py's CAP_MODE_HARD/CAP_MODE_SOFT.
 """
 
@@ -18,7 +18,7 @@ from app.ingestion.swuapi_classify import ALL_LIMIT_BUCKETS
 
 TypeCategory = Literal["singleton", "standard"]
 
-# BL-35: "hard" (default) blocks an at/over-limit increment; "soft" commits
+# "hard" (default) blocks an at/over-limit increment; "soft" commits
 # it and flags the response over_limit=True instead. A Literal type means
 # an invalid value is rejected with 422 before the service layer ever runs.
 CapMode = Literal["hard", "soft"]
@@ -26,10 +26,10 @@ CapMode = Literal["hard", "soft"]
 
 class LimitCell(BaseModel):
     """One (type_category, limit_bucket) cell of the effective limits
-    matrix. max_quantity is None for "no limit" (either an explicit
-    unlimited override or -- is_default True -- there is no numeric code
-    default that means unlimited, so None+is_default only ever happens via
-    an override)."""
+    matrix. max_quantity is None for "no limit", which only an explicit
+    unlimited override produces (every code default in
+    app/services/limits.py's DEFAULT_LIMITS is numeric), so a None cell
+    always has is_default False."""
 
     type_category: TypeCategory
     limit_bucket: str
@@ -39,7 +39,7 @@ class LimitCell(BaseModel):
 
 class LimitsResponse(BaseModel):
     limits: list[LimitCell]
-    # BL-35: the tenant's current keep-limit enforcement mode.
+    # The tenant's current keep-limit enforcement mode.
     cap_mode: CapMode
 
 

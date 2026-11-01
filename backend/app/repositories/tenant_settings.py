@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models.tenant_settings import TenantSettings
 
-# BL-35: what a tenant with no tenant_settings row resolves to -- rows are
+# What a tenant with no tenant_settings row resolves to -- rows are
 # created lazily (see set_cap_mode), never provisioned alongside the tenant.
 DEFAULT_CAP_MODE = "hard"
 

@@ -1,11 +1,11 @@
 import type { AddCardsCatalogEntry } from "./addCardsResolver";
 import type { PreconDeck, PreconEntry, PreconDeckCard } from "../data/preconDecks";
 
-/** BL-164 §5 (Definition_CosmeticsBatch_2026-07-26.md): the precon dropdown's
- * hover-preview composition needs each deck's Leader(s) and Base card --
+/** The precon dropdown's hover-preview composition (App Spec §5.13, Add
+ * Cards dropdowns) needs each deck's Leader(s) and Base card --
  * `preconDecks.json` rows carry no `type` field of their own (see
  * PreconDeckCard), so this module resolves each deck's cards against the
- * app's live catalog (the same `AddCardsCatalogEntry[]` AddCardsModal already
+ * app's live catalog (the same `AddCardsCatalogEntry[]` AddCardsModal
  * threads through -- no new fetch). */
 
 /** Matches one deck card row against the catalog the same way
@@ -76,7 +76,7 @@ export interface PreviewPair {
   base: AddCardsCatalogEntry | null;
 }
 
-/** The hover-preview's owner-locked composition per deck kind (§5):
+/** The hover-preview's composition per deck kind (App Spec §5.13):
  *  - "standard": one leader front, its base centered behind (title-bar peek).
  *  - "dual": Twin Suns decks -- both leaders side by side, ONE base behind.
  *  - "ibh": the IBH whole-box entry -- both half-decks side by side,

@@ -1,4 +1,4 @@
-/** BL-95 cross-tab sync: shared BroadcastChannel wiring used by both
+/** Cross-tab sync: shared BroadcastChannel wiring used by both
  * AuthContext (the "original tab" listener -- refreshes verification state
  * in real time, answers pings) and VerifyEmailAction (the landing tab --
  * announces success, pings to detect whether another SWU tab is already
@@ -27,9 +27,9 @@ export type AuthChannelMessage =
   | { type: "ping"; tabId: string }
   | { type: "pong"; tabId: string };
 
-/** Feature-checked: older browsers without BroadcastChannel degrade to the
- * pre-BL-95-cross-tab-sync behavior (each tab manages its own state
- * independently) rather than crashing. */
+/** Feature-checked: older browsers without BroadcastChannel degrade to no
+ * cross-tab sync (each tab manages its own state independently) rather than
+ * crashing. */
 export function createAuthChannel(): BroadcastChannel | null {
   if (typeof BroadcastChannel === "undefined") return null;
   return new BroadcastChannel(AUTH_CHANNEL_NAME);

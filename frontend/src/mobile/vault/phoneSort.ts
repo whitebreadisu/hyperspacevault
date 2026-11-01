@@ -16,8 +16,8 @@ export interface PhoneSortState {
 
 /** The sort the phone shows and applies for `s`. A `set` or `variants` sort
  * (not offered on the phone; the shared sort model keeps both for desktop)
- * becomes the default order, `number` ascending -- which is what "Set
- * ascending" was. Every other state is returned as it is (same object). */
+ * becomes the default order, `number` ascending. Every other state is
+ * returned as it is (same object). */
 export function phoneSortState(s: SortState): PhoneSortState {
   return s.column === "set" || s.column === "variants"
     ? { column: "number", direction: "asc" }
@@ -25,7 +25,7 @@ export function phoneSortState(s: SortState): PhoneSortState {
 }
 
 /** The direction a phone sort lands on at its FIRST tap, where that is not
- * ascending (owner decision 2026-10-12 after review): Cards Owned starts at
+ * ascending (App Spec §25.1 Sort): Cards Owned starts at
  * the most owned. Every other sort starts ascending, as on desktop. */
 export const PHONE_FIRST_DIRECTION: Partial<Record<PhoneSortColumn, SortState["direction"]>> = {
   owned: "desc",

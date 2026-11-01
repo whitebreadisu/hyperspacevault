@@ -3,10 +3,10 @@ import type { ScanDecision } from "./cameraFlow";
 import { timeBucket } from "./scanLoop";
 import type { Accepted } from "./scanLoop";
 
-// BL-253 S7-18 (BL-244, additive): the camera's analytics, through
-// capturePhone (so every event carries layout: "phone"). Enums, buckets and
-// booleans only -- NEVER the raw OCR text, a key, a card name or an image
-// (App Spec §22 property standard; the S7-18 guard test checks it).
+// The camera's analytics, through capturePhone (so every event carries
+// layout: "phone"). Enums, buckets and booleans only -- NEVER the raw OCR
+// text, a key, a card name or an image (App Spec §22 property standard;
+// scanAnalytics.test.ts guards it). The registry is App Spec §22:
 //   screen_viewed        {screen: "camera"}
 //   scan_recognised      {reader: paddle | tesseract, key_strength: weak | strong,
 //                         time_bucket: <1s | 1-2s | 2-5s | 5-10s | >10s}
@@ -15,7 +15,7 @@ import type { Accepted } from "./scanLoop";
 //   scan_pick_shown      {reason: printed_code_collision | small_series_N_of_2 |
 //                         several_cards | number_conflict | reading_conflict}
 //   scan_fallback_keypad {had_partial: boolean}
-// add_cards_committed.method gains camera / camera_fast_add (commit.ts).
+// add_cards_committed.method camera / camera_fast_add is sent by tool/commit.ts.
 
 export const PICK_REASONS = [
   "printed_code_collision",

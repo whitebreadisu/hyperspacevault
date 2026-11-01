@@ -11,20 +11,16 @@ from app.models.card_trait import CardTrait
 from app.models.card_variant import CardVariant
 from app.models.set_model import CardSet
 
-# BL-102: get_variants/get_variant_by_id (the flat variant queries behind
-# GET /api/cards*) retired -- runtime-dead since BL-56/BL-44 Slice B. Git
-# history has them if a flat variant read API is ever wanted.
-
 
 def get_catalog_reference_rows(db: Session) -> Sequence[Row]:
-    """BL-54 S1 (§6): one row per card_variants row for the public catalog
-    reference CSV -- swuapi_id/set_code/card_number/variant_type/name/
+    """One row per card_variants row for the public catalog reference CSV
+    (App Spec §17.3) -- swuapi_id/set_code/card_number/variant_type/name/
     subtitle. The ORDER BY here is only a stable base; the file's final
     Vault-matching order (curated set groups, numeric card number) is
     applied by services/catalog.py via set_order.export_sort_key. No
     inventory join -- purely catalog data, callable from the tenant-less
     get_catalog_db session (ADR-0008), same posture as
-    get_base_card_list_rows above."""
+    get_base_card_list_rows below."""
     cv = CardVariant.__table__.c
     bc = BaseCard.__table__.c
     return db.execute(
@@ -45,7 +41,7 @@ def get_base_card_with_variants(db: Session, base_card_id: int) -> BaseCard | No
     """Loads one base card with its full variant long tail eager-loaded
     (each variant's source_set + tenant-scoped inventory row, per the RLS
     `db` session passed in), plus shared aspects/keywords/traits. Backs
-    the card detail / card-inventory popups (redesign spec §5.3)."""
+    the card popup (App Spec §5.3)."""
     return (
         db.query(BaseCard)
         .options(
@@ -62,7 +58,7 @@ def get_base_card_with_variants(db: Session, base_card_id: int) -> BaseCard | No
 
 
 class BaseCardListRows(NamedTuple):
-    """Raw Core rows backing GET /api/base-cards (BL-100). The service
+    """Raw Core rows backing GET /api/base-cards. The service
     layer groups the child rows by base_card_id and builds the nested
     BaseCardCatalogResponse shape."""
 
@@ -79,29 +75,24 @@ def get_base_card_list_rows(
     type: str | None = None,
     rarity: str | None = None,
 ) -> BaseCardListRows:
-    """BL-44 Slice A payload-shrink query, rebuilt on Core rows for BL-100.
+    """The base-card list query (ADR-0005), on Core rows rather than ORM
+    objects: the response only needs plain column values, and ORM
+    hydration of every mapped object dominated the endpoint's generation
+    time when measured (ADR-0005 baseline table). This issues 5 Core
+    SELECTs (base cards, aspects, keywords, traits, variants) and returns
+    plain rows.
 
-    The original selectinload version already avoided N+1 (fixed query
-    count), but profiling (BL-100, 2026-07-10) showed ORM hydration of the
-    ~10.7k mapped objects was 62% of the endpoint's ~0.87 s local
-    generation time -- the response only needs plain column values, so
-    hydrating full ORM instances was pure overhead. This issues 5 Core
-    SELECTs (vs 56 chunked selectinload queries) and returns plain rows,
-    cutting generation ~2.8x (see ADR-0005 baseline table).
+    set_code filters on the base card's own (base) set. Filters restrict
+    the child queries via an id subquery so aspects/keywords/traits/variants
+    stay aligned with the filtered base set.
 
-    Same filter semantics as get_variants: set_code filters on the base
-    card's own (base) set. Filters restrict the child queries via an id
-    subquery so aspects/keywords/traits/variants stay aligned with the
-    filtered base set.
-
-    BL-101: catalog columns only -- no inventory join. Per-tenant
-    quantities moved to their own endpoint (GET /api/inventory/quantities,
+    Catalog columns only -- no inventory join. Per-tenant quantities come
+    from their own endpoint (GET /api/inventory/quantities,
     repositories/inventory.get_quantities), which is what makes this
     query's response publicly cacheable by construction.
 
-    Ordering: base cards by base_card_number (unchanged); variants by id
-    (the old relationship load had no ORDER BY -- heap order -- so id
-    order is a determinism upgrade, not a contract change)."""
+    Ordering: base cards by base_card_number; variants by id, so the
+    variant order is deterministic."""
     bc = BaseCard.__table__.c
 
     id_q = select(bc.id)
@@ -115,11 +106,11 @@ def get_base_card_list_rows(
         id_q = id_q.where(bc.rarity == rarity)
     filtered = bool(set_code or type or rarity)
 
-    # BL-146 (Design_SparseList_2026-07-25.md §2/§5): type2/double_sided/
-    # is_unique/front_text/back_text/epic_action/artist/set_name dropped --
-    # zero list-consumer reads (CardPopup, the only reader, fetches its own
-    # detail row via get_base_card_with_variants). CardSet stays joined for
-    # set_code alone.
+    # Only the columns list consumers read (the slim list shape, App Spec
+    # §12). Detail-only fields (type2/double_sided/is_unique/front_text/
+    # back_text/epic_action/artist/set_name) are not selected: CardPopup,
+    # their only reader, fetches its own detail row via
+    # get_base_card_with_variants. CardSet is joined for set_code alone.
     base_q = (
         select(
             bc.id,
@@ -149,9 +140,8 @@ def get_base_card_list_rows(
     keyword_q = select(CardKeyword.base_card_id, CardKeyword.keyword)
     trait_q = select(CardTrait.base_card_id, CardTrait.trait)
 
-    # BL-146: stamp_group/source_set_name dropped -- zero list-consumer
-    # reads (§1.8's census) -- which also drops the CardSet join here
-    # entirely (it existed only to label source_set_name).
+    # No stamp_group/source_set_name: no list consumer reads them (App Spec
+    # §12), so this query needs no CardSet join.
     cv = CardVariant.__table__.c
     variant_q = select(
         cv.id,

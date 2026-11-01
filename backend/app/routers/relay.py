@@ -1,9 +1,8 @@
-"""BL-235: first-party reverse proxy for PostHog analytics.
+"""First-party reverse proxy for PostHog analytics (ADR-0027, App Spec §22).
 
 The frontend sends analytics traffic to /api/relay/* (same-origin via the
 Firebase Hosting /api/** rewrite) and this router forwards it to PostHog
-Cloud US. First-party paths are the adblock-resilience rider locked in
-planning/Definition_Analytics_Taxonomy_2026-08-26.md (internal repo):
+Cloud US. First-party paths make the measurement adblock-resilient:
 blockers key on known tracker domains, and a naive direct integration
 would silently drop a *biased* slice of a Reddit-sourced audience.
 
@@ -73,7 +72,8 @@ async def relay(path: str, request: Request) -> Response:
         if (value := request.headers.get(name)) is not None
     }
     # Client IP forwarded for PostHog's GeoIP (country/region enrichment --
-    # product-relevant: e.g. EU share informs the Cardmarket ask, BL-228).
+    # product-relevant: e.g. the EU share informs whether Cardmarket, the
+    # recorded future second price source in App Spec §16.4, is worth it).
     # PostHog's project-level "discard client IP" setting can turn the
     # stored IP off dashboard-side at any time without touching this code.
     if request.client is not None and request.client.host:

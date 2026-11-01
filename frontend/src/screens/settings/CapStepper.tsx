@@ -1,10 +1,9 @@
-/** BL-182: a settings-local numeric keep-limit stepper -- the visual
+/** A settings-local numeric keep-limit stepper -- the visual
  * language of the card popup's owned-quantity plate (CardPopupInventory.tsx
  * InventoryPlate / CardPopup.css .cp-plate__step, __qty) re-implemented here
  * rather than imported, since the popup's plate is quantity-vs-limit display
  * while this is a bare "− value +" editor for the limit itself. Click-per-
- * step only (no hold-to-repeat, no text entry) -- an iteration round may add
- * either later, but the locked BL-182 spec is buttons only. */
+ * step only (no hold-to-repeat, no text entry). */
 
 interface CapStepperProps {
   /** Display label, already in the page's all-caps convention (e.g.

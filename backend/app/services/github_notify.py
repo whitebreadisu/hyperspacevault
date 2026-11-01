@@ -18,14 +18,14 @@ logger = logging.getLogger("app.feedback")
 
 GITHUB_API_BASE = "https://api.github.com"
 
-# The owner creates this private repo manually; the env var (terraform/modules/app/cloud_run.tf) overrides this default
-# per environment, but every environment is expected to point at the same
-# single private repo for now.
+# A private repo created by hand outside Terraform; the env var
+# (terraform/modules/app/cloud_run.tf) overrides this default per
+# environment, and every environment points at the same single repo.
 DEFAULT_FEEDBACK_REPO = "whitebreadisu/swu-feedback"
 
 # terraform/modules/app/secrets.tf provisions a placeholder secret version
-# so Cloud Run can deploy before Jeremy adds the real PAT out-of-band (see
-# that file's docstring) -- treating the placeholder as "no token
+# so Cloud Run can deploy before the real PAT is added out-of-band (see
+# that file's comments) -- treating the placeholder as "no token
 # configured" means a fresh environment's feedback submissions still
 # succeed (DB write + best-effort notification skip) instead of every
 # submission spending a network round trip on a request GitHub will always
@@ -71,17 +71,17 @@ def _issue_body(
         f"Commit: {commit_sha or 'unknown'}",
         f"Submitted: {created_at}",
     ]
-    # contact_email is only ever non-None here when consent was given (the
-    # service layer has already applied decision #3 before calling this
-    # function) -- included verbatim, never inferred.
+    # contact_email is only ever non-None here when consent was given
+    # (submit_feedback applies the consent rule before calling notify) --
+    # included verbatim, never inferred.
     if contact_email:
         lines.append(f"Contact: {contact_email}")
-    # @mention the repo owner so the notification email rides the
-    # Participating channel. Watching-class emails (bot-authored issue
-    # creation alone) were verified NOT delivering on 2026-07-31 despite
-    # the owner's Watching->Email setting; a mention-class email delivered
-    # within minutes in the same test. The owner handle is derived from the
-    # already-configured repo (owner/name), so no new configuration.
+    # @mention the repo owner so the notification email rides GitHub's
+    # Participating channel: Watching-class emails (bot-authored issue
+    # creation alone) do not reliably deliver even with Watching->Email set,
+    # while a mention-class email does. The owner handle is derived from the
+    # configured repo (owner/name), so it needs no extra configuration
+    # (App Spec §5.9).
     owner = repo.split("/", 1)[0]
     if owner:
         lines.append(f"cc @{owner}")
@@ -128,5 +128,5 @@ def notify(
                 },
             )
             response.raise_for_status()
-    except Exception:  # noqa: BLE001 -- best-effort by design (decision #1/#2)
+    except Exception:  # noqa: BLE001 -- best-effort by design (App Spec §12)
         logger.warning("feedback github notification failed", exc_info=True)

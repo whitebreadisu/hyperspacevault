@@ -1,9 +1,7 @@
-"""BL-136 P1: builds `tcgplayer_products` (the variant<->tcgcsv-product
-mapping) for every set in tcgcsv_client.ALL_PRICED_GROUP_IDS (the 10 root
-sets plus, since BL-174, the 8 Weekly Play container sets), and
-regenerates the human-readable exceptions report
-(specification_documents/analysis/tcgplayer_mapping_exceptions.md, same
-pattern as swuapi_standard_variant_exceptions.md).
+"""Builds `tcgplayer_products` (the variant<->tcgcsv-product mapping, App
+Spec §16.1, §16.3b) for every set in tcgcsv_client.ALL_PRICED_GROUP_IDS
+(the root sets plus the Weekly Play container sets), and regenerates the
+human-readable exceptions report (EXCEPTIONS_REPORT_PATH below).
 
 Idempotent: re-running upserts on variant_id (ON CONFLICT DO UPDATE), so a
 later run with a corrected join or a newly-ingested set simply refreshes
@@ -44,16 +42,16 @@ from app.ingestion.tcgplayer_mapping import (
 
 logger = logging.getLogger(__name__)
 
-# BL-149: the repo-relative default only resolves correctly inside a full
-# checkout (parents[3] walks ingestion -> app -> backend -> repo root). The
-# runbook's real invocation (`docker run -v <repo>/backend:/app ... python -m
+# The repo-relative default only resolves correctly inside a full checkout
+# (parents[3] walks ingestion -> app -> backend -> repo root). A container
+# invocation (`docker run -v <repo>/backend:/app ... python -m
 # app.ingestion.run_tcgplayer_mapping`) mounts ONLY backend/, so parents[3]
 # lands outside the container filesystem entirely (specification_documents/
-# doesn't exist there) -- this used to raise and crash main() AFTER the DB
-# commit, masking a successful mapping run and skipping the report.
-# Configurable via TCGPLAYER_MAPPING_REPORT_PATH; write_exceptions_report()
-# below also degrades to a warning instead of raising if the resolved path
-# (default or override) still isn't writable.
+# doesn't exist there); a raise there would come AFTER the DB commit,
+# masking a successful mapping run and skipping the report. So the path is
+# configurable via TCGPLAYER_MAPPING_REPORT_PATH, and
+# write_exceptions_report() below degrades to a warning instead of raising
+# if the resolved path (default or override) still isn't writable.
 EXCEPTIONS_REPORT_PATH = Path(
     os.environ.get("TCGPLAYER_MAPPING_REPORT_PATH")
     or (
@@ -72,18 +70,15 @@ def fetch_catalog_variants(db: Session, set_code: str) -> list[CatalogVariant]:
     printings). Unfiltered by variant_type/is_token here -- build_mapping's
     target_variant_types gate and its separate is_token check are what
     actually narrow this down to the finishes a given mapping pass wants
-    (root-set core/Prestige/Showcase, or BL-174's Weekly Play).
+    (root-set core/Prestige/Showcase, or Weekly Play).
 
     tcgcsv product names are "<name> - <subtitle>" for every card that has
     a subtitle (live-verified against SOR: "Luke Skywalker - Jedi Knight",
     "Mon Mothma - Voice of the Rebellion", ...) and plain "<name>" for
-    cards without one (generic units, Bases). This wasn't called out
-    explicitly in the spike (which only compared bare names for a handful
-    of examples) but is necessary for any set with named/subtitled
-    cards -- composing "name - subtitle" here, matching tcgcsv's own
-    convention, is what makes Leaders and other subtitled Units joinable at
-    all; matching bare name against catalog `name` alone silently missed
-    ~30% of SOR's core variants during this build."""
+    cards without one (generic units, Bases). Composing "name - subtitle"
+    here, matching tcgcsv's own convention, is what makes Leaders and other
+    subtitled Units joinable at all; matching bare name against catalog
+    `name` alone silently misses roughly 30% of SOR's core variants."""
     rows = db.execute(
         text(
             "SELECT cv.id AS variant_id, bc.name AS name, bc.subtitle AS subtitle, "
@@ -223,8 +218,8 @@ def run(
     set_group_ids: dict[str, int] | None = None,
     weekly_play_set_codes: set[str] | None = None,
 ) -> RunReport:
-    """set_group_ids defaults to the real ALL_PRICED_GROUP_IDS map (the 10
-    root sets plus BL-174's 8 Weekly Play groups); tests inject a synthetic
+    """set_group_ids defaults to the real ALL_PRICED_GROUP_IDS map (the
+    root sets plus the Weekly Play groups); tests inject a synthetic
     one (alongside a fake `client`) to exercise this function against
     isolated fixture data without a live tcgcsv call or touching the real
     catalog's rows.
@@ -232,7 +227,7 @@ def run(
     weekly_play_set_codes selects, per set_code, which build_mapping call
     shape to use: a code in this set gets target_variant_types={"Weekly
     Play", "Weekly Play Foil"} and resolve_fn=resolve_weekly_play_variant_
-    type (BL-174's suffix-ignoring precedence for WP promo groups); every
+    type (the suffix-ignoring precedence for WP promo groups); every
     other code gets build_mapping's defaults (the root-set core/Prestige/
     Showcase precedence). Defaults to the real WEEKLY_PLAY_GROUP_IDS keys;
     kept as an explicit parameter (not hardcoded against that map) so a
@@ -251,12 +246,12 @@ def run(
         group_id = group_ids[set_code]
         catalog_variants = fetch_catalog_variants(db, set_code)
 
-        # BL-183: a WP pass ALSO sources variants from its root set code
+        # A WP pass ALSO sources variants from its root set code
         # (SORP -> SOR). The first three sets' Weekly Play printings carry
-        # the ROOT code in card_variants.source_set_code (SOR/SHD/TWI, 63
-        # variants) rather than the "P" code the WP convention comment in
-        # tcgcsv_client assumed -- swuapi only adopted the dedicated
-        # "P"-set typing from JTL onward. Fetching both and concatenating
+        # the ROOT code in card_variants.source_set_code (SOR/SHD/TWI)
+        # rather than the "P" code (see the WEEKLY_PLAY_GROUP_IDS caveat
+        # in tcgcsv_client) -- swuapi only uses the dedicated "P"-set
+        # typing from JTL onward. Fetching both and concatenating
         # is era-agnostic: later-era root sets contribute no WP-typed
         # variants, so build_mapping's target filter drops their extras.
         if set_code in wp_codes and set_code.endswith("P"):
@@ -302,10 +297,10 @@ def run(
 
 def write_exceptions_report(report: RunReport, path: Path) -> None:
     """Writes the exceptions doc to `path`; warns instead of raising if it
-    can't be written (BL-149). The DB commit always happens before this is
-    called, so a report-write failure must never look like a run failure --
-    that's exactly what made the container-mount crash costly to diagnose
-    (looked like the whole run failed; the mapping had actually landed)."""
+    can't be written. The DB commit always happens before this is called,
+    so a report-write failure must never look like a run failure: a crash
+    here would read as a failed run when the mapping had actually landed
+    (see EXCEPTIONS_REPORT_PATH above for the container-mount case)."""
     try:
         path.write_text(report.render_exceptions_doc(), encoding="utf-8")
         logger.info("wrote %s", path)

@@ -1,7 +1,7 @@
-"""BL-137 D1: parses the de facto deck-interop JSON shape (BL-110 §2a,
-confirmed live against SWUBase + sw-unlimited-db.com; SWU_Application_Spec.md
-§15.5) into a small internal dataclass shape. Pure/DB-free -- no catalog
-lookups happen here, that's deck_resolution.py's job (D1 continued).
+"""Parses the de facto deck-interop JSON shape (ADR-0015; served by SWUBase
+and sw-unlimited-db.com) into a small internal dataclass shape.
+Pure/DB-free -- no catalog lookups happen here, that's
+deck_resolution.py's job.
 
 Shape accepted: {metadata?: {name?, author?}, leader: {id,count},
 secondleader?: {id,count}|null, base: {id,count}, deck: [{id,count},...],
@@ -18,8 +18,8 @@ from dataclasses import dataclass, field
 
 class InvalidDeckJsonError(Exception):
     """Raised with a specific, user-facing reason -- the router maps this to
-    the `invalid_deck_json` typed error (Definition_DeckCheck_2026-07-16.md
-    §6), never a generic 422 with no explanation."""
+    the `invalid_deck_json` typed error (`{error, message}`, App Spec §12),
+    never a generic 422 with no explanation."""
 
     def __init__(self, reason: str):
         self.reason = reason

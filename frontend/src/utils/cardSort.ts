@@ -1,18 +1,18 @@
-// BL-213 (Issue #122, owner-locked design): pure sort logic for the Vault
-// table's user-controlled column sorting -- kept out of the components
-// (CardsTable.tsx renders headers, CardsPage.tsx owns the session-only
-// SortState and feeds the ordered list to both CardsTable and GalleryGrid)
-// so the comparator rules are independently unit-testable, the same utils/
-// split every other Cards-view calc uses (variantScope.ts, filters.ts,
+// Pure sort logic for the Vault's user-controlled column sorting (App Spec
+// §5.2) -- kept out of the components (CardsTable.tsx renders headers,
+// CardsPage.tsx owns the session-only SortState, the phone has its own sort
+// sheet; vault/vaultModel.ts's buildVaultList runs the sort for both) so the
+// comparator rules are independently unit-testable, the same utils/ split
+// every other Cards-view calc uses (variantScope.ts, filters.ts,
 // completion.ts).
 //
 // Single active sort at a time, 2-state header cycling (asc/desc -- there is
-// NO neutral/unsorted state: `#` ascending IS today's default row order, so
-// it's what the table renders on load and what a fresh `#` click returns
-// to). Every column's comparator falls back to the row's DEFAULT-ORDER index
-// (context.defaultIndex) on a tie -- "ties always fall back to default
-// order" (owner spec) -- which also doubles as the exact definition of `#`/
-// `Set` ascending, since that IS the default order.
+// NO neutral/unsorted state: `#` ascending IS the default row order, so it's
+// what the table renders on load and what a fresh `#` click returns to).
+// Every column's comparator falls back to the row's DEFAULT-ORDER index
+// (context.defaultIndex) on a tie -- ties always fall back to default order
+// -- which also doubles as the exact definition of `#`/`Set` ascending,
+// since that IS the default order.
 
 import type { InventoryCard } from "./inventory";
 import { getPlaysetSize, cardOwnedTotal } from "./inventory";
@@ -28,8 +28,8 @@ import {
 import type { PriceMode, ValueDisplayMode } from "./variantScope";
 import { getRarityLabel } from "./variants";
 
-// `owned` (BL-257 FR5-05, owner 2026-10-12, F-17) is the phone Sort sheet's
-// "Cards Owned": copies owned, fewest first. Desktop has no header for it --
+// `owned` is the phone Sort sheet's "Cards Owned": copies owned, fewest
+// first when ascending. Desktop has no header for it --
 // it is not in SORTABLE_COLUMNS and no desktop control can pick it.
 export type SortColumn =
   | "number"
@@ -51,7 +51,7 @@ export interface SortState {
   direction: SortDirection;
 }
 
-/** The columns the locked design makes sortable -- Aspect, Type, Trait,
+/** The sortable desktop columns -- Aspect, Type, Trait,
  * Keyword, Arena deliberately carry no sort affordance at all (their headers
  * render with no button/aria-sort). Desktop's list: the phone-only `owned`
  * sort is deliberately absent. */
@@ -69,18 +69,17 @@ export const SORTABLE_COLUMNS: ReadonlySet<SortColumn> = new Set([
 ]);
 
 /** On load -- and whenever nothing else has been picked this session -- the
- * table shows `#` ascending, because `#` ascending IS today's default row
+ * table shows `#` ascending, because `#` ascending IS the default row
  * order. There is no separate "unsorted" state to represent. Session-only by
- * design (owner spec): this is plain React state in CardsPage, never
- * persisted -- a reload always starts back here. */
+ * design: this is plain React state in CardsPage, never persisted -- a
+ * reload always starts back here. */
 export const DEFAULT_SORT_STATE: SortState = { column: "number", direction: "asc" };
 
 /** 2-state header click cycling: a different column always lands on
  * ascending; clicking the ALREADY-active column toggles asc<->desc. Clicking
  * `#` while already on `#` ascending is therefore a no-op that stays exactly
- * on the default order -- the owner spec's explicit "# asc returns the exact
- * default order" case falls out of this rule for free, it isn't a special
- * case here. */
+ * on the default order -- "# asc returns the exact default order" falls out
+ * of this rule for free, it isn't a special case here. */
 export function nextSortState(current: SortState, clicked: SortColumn): SortState {
   if (current.column === clicked) {
     return { column: clicked, direction: current.direction === "asc" ? "desc" : "asc" };
@@ -102,7 +101,7 @@ export function ariaSortValue(
 }
 
 export interface SortContext {
-  /** Active finish scope (BL-173/BL-187/BL-195), or null for "All variants" --
+  /** Active finish scope (App Spec §5.14, §5.16), or null for "All variants" --
    * drives the `#` column's scoped card number and the Playset column's
    * scoped owned counts, matching the cells themselves exactly. */
   scope: string | null;
@@ -111,13 +110,14 @@ export interface SortContext {
   /** Unit/Collection display mode driving the Value column (CardsPage's
    * `valueDisplay`). */
   unitMode: ValueDisplayMode;
-  /** set_code -> release_date (only non-base sets), feeding the `#`/`Set` columns' set-group
-   * comparisons (utils/catalog.ts's setReleaseRank -- the same display
+  /** set_code -> release_date (every set; setReleaseRank consults it only
+   * for sets outside the fixed base/Weekly Play order), feeding the
+   * `#`/`Set` columns' set-group comparisons (utils/catalog.ts's setReleaseRank -- the same display
    * order, newest main set first, sortBaseCards/orderSetCodes already use). */
   setOrder: SetOrderMap;
-  /** base_card_id -> the row's position in TODAY's default order (newest-first
-   * set order, numbers ascending -- the array CardsPage's `cards` memo
-   * already produces via sortCardsByScope). This is both the universal
+  /** base_card_id -> the row's position in the default order (newest-first
+   * set order, numbers ascending -- the array buildVaultList,
+   * vault/vaultModel.ts, produces via sortCardsByScope). This is both the universal
    * tie-break every column falls back to AND the literal definition of `#`/
    * `Set` ascending. */
   defaultIndex: Map<number, number>;
@@ -132,8 +132,9 @@ const RARITY_RANK: Record<string, number> = {
 };
 
 function defaultIndexOf(card: InventoryCard, context: SortContext): number {
-  // A card absent from defaultIndex (shouldn't happen -- CardsPage builds it
-  // from the same array being sorted) sorts last rather than crashing.
+  // A card absent from defaultIndex (shouldn't happen -- buildVaultList
+  // builds it from the full ordered list the sorted cards are drawn from)
+  // sorts last rather than crashing.
   return context.defaultIndex.get(card.base_card_id) ?? Number.POSITIVE_INFINITY;
 }
 
@@ -154,7 +155,7 @@ function compareSetGroup(a: InventoryCard, b: InventoryCard, context: SortContex
 /** Set DESCENDING group compare: shows the main sets oldest first (SOR, SORP,
  * SHD, ... HMW, HMWP) -- each Weekly Play set still directly after its base.
  * Hoth, Twin Suns and every other set keep their default place after the main
- * block (owner: "Hoth and TS ... remain last in every scenario"). Only the
+ * block in both directions (App Spec §5.1). Only the
  * main block is reversed; its membership comes from setGrouping's
  * isMainBlockSet. Within the block the rank key is `baseIndex * 2` (+1 for
  * Weekly Play), so reversing the base index and keeping the +1 gives the
@@ -172,7 +173,7 @@ function compareSetGroupDescending(
   return compareSetGroup(a, b, context);
 }
 
-/** The `#` column's own displayed number (BL-187 scoped card_number when a
+/** The `#` column's own displayed number (the scoped card_number when a
  * scope is active and the card carries that finish, else base_card_number) --
  * mirrors CardsTable's own `cardNumber` calc so the sort and the glyph on
  * screen never disagree. */
@@ -185,12 +186,11 @@ function compareNumeric(a: number, b: number): number {
 }
 
 /** Name column: case-insensitive alphanumeric on `name`, then subtitle.
- * JUDGMENT CALL: "subtitle" is read via parseCardDisplay (the SAME value the
- * Name cell itself renders) rather than the raw `card.subtitle` field, so a
- * Base with a null `subtitle` (which displays its first trait as a fallback
- * subtitle, parseCardDisplay's own rule) sorts on what's actually on screen
- * rather than on a field the cell doesn't show for that row. The owner spec
- * didn't disambiguate raw-field vs. displayed-value here. */
+ * "Subtitle" is read via parseCardDisplay (the SAME value the Name cell
+ * itself renders) rather than the raw `card.subtitle` field, so a Base with
+ * a null `subtitle` (which displays its first trait as a fallback subtitle,
+ * parseCardDisplay's own rule) sorts on what's actually on screen rather
+ * than on a field the cell doesn't show for that row. */
 function compareName(a: InventoryCard, b: InventoryCard): number {
   const nameCompare = a.name.localeCompare(b.name, undefined, {
     numeric: true,
@@ -202,14 +202,14 @@ function compareName(a: InventoryCard, b: InventoryCard): number {
   return aSub.localeCompare(bSub, undefined, { numeric: true, sensitivity: "base" });
 }
 
-/** The owned-copies count the Playset pips themselves fill from (BL-195's
- * scoped counting, reused verbatim -- not recomputed): scoped owned count
- * while a scope is active, else the card's total owned across all variants.
- * Works identically for a read-only shared-vault viewer (BL-205) -- `card.
- * inventory`/`card.variants[].quantity` already carry the share OWNER's
- * quantities in that context (CardsPage's existing `quantities` merge), zero
- * for every variant when nothing is owned, same as any signed-out/anonymous
- * zero-inventory case. */
+/** The owned-copies count the Playset pips themselves fill from (the scoped
+ * counting, reused verbatim -- not recomputed): scoped owned count while a
+ * scope is active, else the card's total owned across all variants. Works
+ * identically for a read-only shared-vault viewer (App Spec §19.1) --
+ * `card.inventory`/`card.variants[].quantity` already carry the share
+ * OWNER's quantities in that context (the vault data hook's quantities
+ * merge), zero for every variant when nothing is owned, same as any
+ * signed-out/anonymous zero-inventory case. */
 function ownedCountFor(card: InventoryCard, context: SortContext): number {
   return context.scope
     ? scopedOwnedCount(card.variants, context.scope)
@@ -219,8 +219,8 @@ function ownedCountFor(card: InventoryCard, context: SortContext): number {
 /** Playset DESCENDING order (complete playsets first): primary key "copies
  * needed to complete the playset" ascending (0 needed = complete, sorts
  * first), secondary key owned-copies count DESCENDING (ties among complete
- * playsets: more owned sorts higher). The owner spec defines ascending as
- * "the exact mirror" of this -- `sortCards` gets that mirror for free by
+ * playsets: more owned sorts higher). Ascending is the exact mirror of
+ * this -- `sortCards` gets that mirror for free by
  * negating this whole comparator for the "asc" direction, rather than this
  * function re-deriving a separate ascending rule that could drift from it. */
 function comparePlaysetDescending(
@@ -237,8 +237,8 @@ function comparePlaysetDescending(
 /** The Value column's per-row value under the active toggles -- the SAME
  * computed value the column itself displays (cardValuePrice/
  * cardCollectionValue, utils/variantScope.ts), so switching either toggle
- * while Value is the active sort re-sorts live for free (the memo in
- * CardsPage recomputes whenever priceKind/valueDisplay change). */
+ * while Value is the active sort re-sorts live for free (the caller's memo
+ * recomputes whenever the price kind or value display changes). */
 function valueFor(card: InventoryCard, context: SortContext): number | null {
   return context.unitMode === "collection"
     ? cardCollectionValue(card.variants, context.scope, context.valueMode)
@@ -254,6 +254,11 @@ function rarityRankFor(card: InventoryCard): number {
   return RARITY_RANK[getRarityLabel(card.rarity)] ?? Number.POSITIVE_INFINITY;
 }
 
+/** The nullable-numeric columns (Value + the three stats) get their own
+ * branch in `sortCards` (nulls pinned last in both directions), so the
+ * builder below never sees them. */
+type NullableNumericColumn = "cost" | "power" | "hp" | "value";
+
 /** Builds the ASCENDING-oriented comparator for one column. The direction
  * flip (for "desc") and the universal default-order tiebreak both live in
  * `sortCards` below, applied uniformly across every column so neither can be
@@ -262,11 +267,6 @@ function rarityRankFor(card: InventoryCard): number {
  * their "desc" behavior is asymmetric enough (the set GROUP order doesn't
  * simply reverse) that `sortCards` special-cases it instead of calling this
  * function at all for those two directions -- see its own comment. */
-/** The nullable-numeric columns (Value + the three stats) get their own
- * branch in `sortCards` (nulls pinned last in both directions, owner
- * revision 2026-08-16), so this builder never sees them. */
-type NullableNumericColumn = "cost" | "power" | "hp" | "value";
-
 function ascendingCompareFor(
   column: Exclude<SortColumn, NullableNumericColumn>,
   context: SortContext
@@ -293,8 +293,9 @@ function ascendingCompareFor(
 }
 
 /** Orders `cards` by `sortState`, falling back to `context.defaultIndex` on
- * every tie. Feeds both CardsTable (row order) and GalleryGrid (the Gallery
- * view inherits the same ordering, owner spec) from one call in CardsPage. */
+ * every tie. One call (buildVaultList, vault/vaultModel.ts) feeds both
+ * CardsTable (row order) and GalleryGrid, so the Gallery view inherits the
+ * same ordering (App Spec §5.2). */
 export function sortCards(
   cards: InventoryCard[],
   sortState: SortState,
@@ -305,13 +306,12 @@ export function sortCards(
   let primary: (a: InventoryCard, b: InventoryCard) => number;
 
   if (column === "cost" || column === "power" || column === "hp" || column === "value") {
-    // Owner revision (2026-08-16 review round, supersedes the original
-    // "below 0" rule for stats AND Value's em-dash): a null pins to the END
+    // A null (a missing stat, or Value's em-dash) pins to the END
     // in BOTH directions -- an ascending Power/Value sort is a ranking of
     // cards that HAVE the number, so leading with a wall of blanks helps
     // nobody. Two nulls compare equal here, so the universal defaultIndex
     // tiebreak below (which is never direction-flipped) orders the trailing
-    // null block in default order, exactly as specified.
+    // null block in default order.
     const numericOf =
       column === "value"
         ? (card: InventoryCard) => valueFor(card, context)
@@ -326,12 +326,12 @@ export function sortCards(
       return direction === "asc" ? aNum - bNum : bNum - aNum;
     };
   } else if (column === "number" && direction === "desc") {
-    // "Within each set group, numbers descending; the SET GROUP ORDER STAYS
-    // the default (newest-first, BL-258) order -- sets never interleave and
-    // never reverse here" (owner spec). Group by the default set order,
-    // then tokens pinned last (owner revision 2026-08-16 -- ascending
-    // already pins them via the default order's own tokens-last rule), then
-    // the row's own displayed number (BL-187 scope-aware) descending.
+    // Within each set group, numbers descending; the SET GROUP ORDER STAYS
+    // the default (newest-first) order -- sets never interleave and never
+    // reverse here (App Spec §5.2). Group by the default set order, then
+    // tokens pinned last (ascending pins them via the default order's own
+    // tokens-last rule), then the row's own displayed number (scope-aware)
+    // descending.
     primary = (a, b) =>
       compareSetGroup(a, b, context) ||
       (a.is_token ? 1 : 0) - (b.is_token ? 1 : 0) ||
@@ -339,9 +339,9 @@ export function sortCards(
         numeric: true,
       });
   } else if (column === "set" && direction === "desc") {
-    // "Descending flips the main-release sets to oldest first; Hoth, Twin Suns
+    // Descending flips the main-release sets to oldest first; Hoth, Twin Suns
     // and every other set stay where they are, numbers still ASCENDING within
-    // each group" (owner, BL-258). Only the group comparison changes; the
+    // each group (App Spec §5.1). Only the group comparison changes; the
     // universal defaultIndex tiebreak below reproduces the in-group ascending
     // sub-order (tokens-last, numbers ascending) for free -- defaultIndex IS
     // the default order, and it's monotonic ascending within any one set group.

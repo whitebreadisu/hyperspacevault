@@ -2,7 +2,7 @@
 card_variants (+ sets, aspects, keywords, traits) row dicts.
 
 No DB access here -- see run_swuapi_ingestion.py for the upsert layer. This
-module implements SWU_Catalog_Redesign_Spec.md §10 exactly:
+module implements App Spec §10 exactly:
   - variant_of_uuid root resolution (walk to the ultimate root, <=2 hops,
     SWU_Standard_Variant_Mapping_Spec.md §3/§8).
   - the (name, subtitle) fallback re-anchoring for non-Standard roots,
@@ -25,8 +25,9 @@ from app.ingestion.swuapi_classify import classify_variant
 
 MAX_HOPS = 2
 
-# Curated, not derived -- redesign spec §4.1: the derived rule ("contains
-# >=1 root") misfires on C26 (mostly a container, but holds Zam's orphan root).
+# Curated, not derived -- App Spec §4.1: the derived rule ("contains
+# >=1 root") misfires whenever a container set (e.g. C26) carries a stray
+# orphan root.
 BASE_SET_CODES = {
     "SOR",
     "SHD",
@@ -58,10 +59,11 @@ CANONICAL_RELEASE_DATES: dict[str, str] = {
 
 
 class AmbiguousFallbackError(ValueError):
-    """Raised when the §10.6 fallback finds 0 or >1 non-token Standard
-    matches for a non-Standard root that isn't the known Zam exception --
-    per the mapping spec, this must stop ingestion for manual review rather
-    than guess."""
+    """Raised when the §10.6 fallback finds more than one non-token
+    Standard match for a non-Standard root -- per the mapping spec (§6),
+    this must stop ingestion for manual review rather than guess. Zero
+    matches is not raised: the root is recorded as an exception (flagged,
+    never blocked)."""
 
 
 @dataclass
@@ -282,10 +284,10 @@ _KNOWN_EXCEPTION_NOTES = {
 
 def render_exceptions_doc(exceptions: list[dict]) -> str:
     """Regenerates swuapi_standard_variant_exceptions.md's content (mapping
-    spec §6; SWU_Backlog.md BL-29). The "Current exceptions" table is fully
-    data-driven; the surrounding prose documents the one-time 2026-06-21
-    census and fallback decision, so it's kept static here rather than
-    re-derived from a single ingestion run."""
+    spec §6). The "Current exceptions" table is fully data-driven; the
+    surrounding prose documents the one-time census and fallback decision
+    (App Spec §10.6), so it's kept static here rather than re-derived from
+    a single ingestion run."""
     today = datetime.date.today().isoformat()
     lines = [
         "# Standard Variant Mapping — Current Exceptions",

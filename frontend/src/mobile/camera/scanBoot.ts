@@ -8,12 +8,11 @@ import { cueCounts } from "../tool/cue";
 import { bindCameraScreen } from "./CameraScreen";
 import type { ClientInit, PaddleClient } from "./readerClient";
 
-// BL-253 S7-03 / S7-05 / S7-10: what the scanner document does at boot. It reports its own isolation, and it
-// starts the Paddle reader when the camera route is shown -- the stand-in for
-// "the camera screen mounted" -- so `/scan/#/camera` proves the worker end to
-// end and the main document (which never loads this file) requests nothing
-// under /vendor/scan/. Everything is also reachable on `window.__scan` for the
-// e2e specs and for the LAN rounds' device proof.
+// What the scanner document does at boot. It reports its own isolation,
+// creates the Paddle and Tesseract readers (neither loads until asked) and
+// registers the camera screen; the main document never loads this file, so it
+// requests nothing under /vendor/scan/. Everything is also reachable on
+// `window.__scan` for the e2e specs and for checks on a device.
 
 export interface ScanDebug {
   isolation: IsolationReport;
@@ -23,7 +22,7 @@ export interface ScanDebug {
   readerInit: ClientInit | null;
   /** Start the Paddle reader (idempotent). */
   startReader(): Promise<ClientInit>;
-  /** S7-17: beep attempts (the e2e observes the cue without hearing it). */
+  /** Beep attempts (the e2e observes the cue without hearing it). */
   cues: typeof cueCounts;
 }
 
@@ -59,7 +58,7 @@ export function bootScan(): ScanDebug {
     },
   };
   window.__scan = dbg;
-  // S7-10: the camera screen, bound to this document's readers, fills the
+  // The camera screen, bound to this document's readers, fills the
   // tool layer's camera slot (the main document never registers one).
   registerCameraScreen(bindCameraScreen(window.__scan ?? dbg));
   // The Paddle download starts when the camera screen mounts (the controller

@@ -1,7 +1,7 @@
-/* BL-251 S5-01 ... S5-03: Settings card + the password / delete layers.
- * Values from rev4 m-rev4-d2.css 137-247 (the transactional family at phone
- * scale); desktop SettingsPage.css / AuthModal.css load as they are and only
- * the phone deltas live here. Scoped under .m-app. */
+/* Settings card, the password / delete / sharing layers (the transactional
+ * family at phone scale) and the verify-email banner; desktop
+ * SettingsPage.css / AuthModal.css load as they are and only the phone deltas
+ * live here. Scoped under .m-app. */
 
 /* -- Settings card -------------------------------------------------------- */
 .m-app .m-acctscreen {
@@ -206,8 +206,7 @@
   gap: 10px;
 }
 
-/* -- Sharing layer (BL-251 S5-07): ShareManageModal.css at phone scale, values
- * from rev4 m-rev4-d2.css 248-261. The overlay / card / form grain is the
+/* -- Sharing layer: ShareManageModal.css at phone scale. The overlay / card / form grain is the
  * .m-authlayer wrapper's (shell.css). ------------------------------------- */
 .m-app .m-acctlayer .share-modal__rename-link {
   min-height: 44px;
@@ -229,11 +228,11 @@
   line-height: 1.45;
 }
 
-/* -- Verify-email banner (BL-251 S5-08): VerifyEmailBanner.css at phone scale
- * (rev4 m-rev4-d2.css 262-272), the first child of .m-vault__below. It is
- * content, not header: it does not collapse with the header. Search mode lifts
- * the status rows to the top of the screen on fixed offsets, so the banner
- * (one extra row above them) steps aside while the search box has focus. --- */
+/* -- Verify-email banner: VerifyEmailBanner.css at phone scale, the first
+ * child of .m-vault__below. It is content, not header: it does not collapse
+ * with the header. Search mode lifts the status rows to the top of the screen
+ * on fixed offsets, so the banner (one extra row above them) steps aside while
+ * the search box has focus. --- */
 .m-app .m-vault__below > .verify-email-banner {
   flex: none;
   gap: 8px 10px;

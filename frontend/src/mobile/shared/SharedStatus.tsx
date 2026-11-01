@@ -5,11 +5,11 @@ import { go } from "../router";
 import type { ShareStatus } from "./useShare";
 import "../more/more.css";
 
-// BL-252 S6-02: desktop SharedVaultPage's three non-ready states, one plain
-// sentence each, inside the normal frame (rev4 MSharedStatus: the brand
-// header -- one About button -- the circuit seam, then the sentence). Copy
-// verbatim from SharedVaultPage.tsx. The header reuses More's brand block
-// (more.css .m-more__hdr; the session starfield) with the account slot.
+// Desktop SharedVaultPage's three non-ready states, one plain sentence each,
+// inside the normal frame (the brand header -- one About button -- the
+// circuit seam, then the sentence). Copy verbatim from SharedVaultPage.tsx.
+// The header reuses More's brand block (more.css .m-more__hdr; the session
+// starfield) with the account slot.
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 

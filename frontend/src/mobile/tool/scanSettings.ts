@@ -1,17 +1,17 @@
 import { useSyncExternalStore } from "react";
 
-// BL-253 S7-08: the camera's remembered settings, localStorage `hsv.scan.v1`
-// (the spike's app.js:5-31 pattern): the two guide-alignment offsets (mm), the
-// Fast add toggle and the last tool mode -- so camera mode is remembered
-// across reloads, the way the keypad's set is not. Unreadable, blocked,
-// corrupt or foreign-version storage -> defaults, and the page still works.
+// The camera's remembered settings, localStorage `hsv.scan.v1`: the two
+// guide-alignment offsets (mm), the Fast add toggle and the last tool mode
+// -- so camera mode is remembered across reloads, the way the keypad's set is
+// not. Unreadable, blocked, corrupt or foreign-version storage -> defaults, and
+// the page still works.
 //
 // Lives under tool/ (not camera/) because toolStore.ts reads `mode` at load
 // and the main document must never import mobile/camera/.
 
 export const SCAN_KEY = "hsv.scan.v1";
 const VERSION = 1;
-/** Both sliders are +/-4 mm (Spec 24.3). */
+/** Both sliders are +/-4 mm (App Spec §25.7, Guide). */
 export const OFFSET_LIMIT_MM = 4;
 
 export interface ScanSettings {

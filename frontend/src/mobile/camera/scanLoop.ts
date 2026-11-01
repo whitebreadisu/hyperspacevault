@@ -2,10 +2,8 @@ import type { Acceptor, Catalog, CandidateCard, Decision, Evaluation } from "./s
 import { numLenConflict } from "./scanCore";
 import { BLUR_THRESHOLD, isBlurry, isSmall } from "./imagePipeline";
 
-// BL-253 S7-13: the read loop + agreement -- the spike's loop / readOnce /
-// ocrRead / ocrWithFallbacks / lenCheck / handleResult (app.js:524-529,
-// 574-643, 674-723, 844-912, v0.5.5) minus the research logging, crops,
-// photo and continuous mode. One frame in flight (`setTimeout(loop, 0)`), an
+// The read loop + agreement (App Spec §24.4, §25.7 "Thresholds as built").
+// One frame in flight (`setTimeout(loop, 0)`), an
 // 80 ms back-off after a skipped frame, 120 ms while paused, 200 ms with no
 // usable frame. Paddle first; Tesseract (PSM 6 then 7 inside the 700 ms
 // budget, then a digits pass on the right 40%) only when Paddle gave no code
@@ -18,24 +16,25 @@ import { BLUR_THRESHOLD, isBlurry, isSmall } from "./imagePipeline";
 export const READ_BUDGET_MS = 700;
 /** After WRONG CARD (or "Neither / scan again") the same key is not prompted
  * again for 3 s, so the read the user just rejected does not pop straight
- * back when the scan restarts. It is not a double-add guard: BL-262 (owner
- * 2026-10-13) removed this wait after an ADD -- the hold, the Fast add
- * "until the card leaves the frame" rule and the Acceptor's own duplicate
- * window cover that (app.js:829 applied it after every decision). */
+ * back when the scan restarts. It is not a double-add guard and does not
+ * apply after an ADD -- the hold, the Fast add "until the card leaves the
+ * frame" rule and the Acceptor's own duplicate window cover that (App Spec
+ * §25.7 Hold). */
 export const WRONG_CARD_QUIET_MS = 3000;
 
 /** What the loop is resumed after:
  *   add       -- Add in the prompt: nothing is held back; the same card is
  *                 read (and prompted) again by the reader's own rules.
  *   fast_add   -- an add under Fast add: the Acceptor ignores the key until
- *                 the card has left the frame (the spike's auto-accept rule).
+ *                 the card has left the frame (Acceptor.markAccepted).
  *   wrong_card -- the key stays quiet for WRONG_CARD_QUIET_MS.
  *   fast_add_wrong_card -- Wrong card inside a hold with Fast add on: both.
  *                 The quiet alone would let the same card, still in view, be
- *                 accepted -- and so added -- again 3 s later (BL-262 review
- *                 S3); it must leave the frame first, as after the add. */
+ *                 accepted -- and so added -- again 3 s later; it must leave
+ *                 the frame first, as after the add. */
 export type ResumeAfter = "add" | "fast_add" | "wrong_card" | "fast_add_wrong_card";
-/** The partial-read window for the keypad prefill (app.js:1017-1022). */
+/** The partial-read window for the keypad prefill (App Spec §25.7 Flow: the
+ * last 8 reads). */
 export const PARTIAL_WINDOW = 8;
 
 export interface ReaderOut {
@@ -123,7 +122,7 @@ export function isFatalReaderFailure(reason: string): boolean {
   return /^(init|worker|not_ready|disposed|post_failed)/.test(reason);
 }
 
-/** First text -> prompt, bucketed for scan_recognised (S7-18). */
+/** First text -> prompt, bucketed for scan_recognised (App Spec §22). */
 export function timeBucket(ms: number | null): "<1s" | "1-2s" | "2-5s" | "5-10s" | ">10s" {
   const v = ms ?? 0;
   if (v < 1000) return "<1s";
@@ -133,7 +132,7 @@ export function timeBucket(ms: number | null): "<1s" | "1-2s" | "2-5s" | "5-10s"
   return ">10s";
 }
 
-/** S7-16 (app.js:1017-1022): the newest read among the last 8 with a parsed
+/** The newest read among the last 8 with a parsed
  * code or number. */
 export function partialRead(reads: PartialRead[]): PartialRead | null {
   for (let i = reads.length - 1; i >= 0 && i >= reads.length - PARTIAL_WINDOW; i--) {
@@ -175,7 +174,7 @@ export class ScanLoop {
     this.running = false;
   }
 
-  /** The cycle clock behind the first-text timing (app.js resetCycle). */
+  /** The cycle clock behind the first-text timing. */
   resetCycle(): void {
     this.firstTextT = null;
   }
@@ -184,12 +183,12 @@ export class ScanLoop {
     this.paused = true;
   }
 
-  /** app.js:271-273 decide(): resume after a decision on `key`.
+  /** Resume after a decision on `key`.
    *   wrong_card: the key is not prompted again for 3 s since the resume.
-   *   fast_add:   the Acceptor holds the key until the card leaves (the
-   *               spike's auto-accept rule, ACC.markAccepted), so a card
-   *               left in frame is never counted twice.
-   *   add:        neither (BL-262: no timed wait after an add).
+   *   fast_add:   the Acceptor holds the key until the card leaves
+   *               (Acceptor.markAccepted), so a card left in frame is never
+   *               counted twice.
+   *   add:        neither (no timed wait after an add).
    *   fast_add_wrong_card: both (Wrong card inside a Fast add hold). */
   resume(key: string | null, after: ResumeAfter): void {
     const t = this.deps.now();
@@ -209,13 +208,13 @@ export class ScanLoop {
     try {
       await this.readOnce();
     } catch {
-      /* a read error never stops the loop (app.js:527) */
+      /* a read error never stops the loop */
     }
     this.busy = false;
     if (this.running) setTimeout(() => void this.loop(), 0);
   }
 
-  /** One frame (app.js:674-723). Exposed for the tests. */
+  /** One frame. Exposed for the tests. */
   async readOnce(): Promise<void> {
     const d = this.deps;
     if (this.paused) return d.sleep(120);
@@ -254,20 +253,20 @@ export class ScanLoop {
     });
   }
 
-  /** app.js:574-603 ocrRead (primary + fallback) + lenCheck. Null when the
+  /** Primary read, the fallback when needed, then lenCheck. Null when the
    * primary failed and no fallback could run. */
   private async ocrRead(tStart: number): Promise<OcrOut | null> {
     const d = this.deps;
     const p = await d.primary();
     if (!p.ok) {
       // The reader never came up (init failure / timeout, dead worker): the
-      // camera stops and offers the keypad (S7-05 / S7-16).
+      // camera stops and offers the keypad (App Spec §25.7 Reader).
       if (isFatalReaderFailure(p.reason)) {
         this.running = false;
         this.events.onReaderFailure?.(p.reason);
         return null;
       }
-      // app.js:598: a primary read error falls back to Tesseract.
+      // A primary read error falls back to Tesseract.
       const t = await this.ocrWithFallbacks(tStart);
       if (!t) return null;
       return this.lenCheck({
@@ -309,7 +308,7 @@ export class ScanLoop {
     return this.lenCheck(o);
   }
 
-  /** app.js:605-614: an exact no-denominator read whose digits pass sees a
+  /** An exact no-denominator read whose digits pass sees a
    * longer digit run is not trusted. */
   private async lenCheck(o: OcrOut): Promise<OcrOut> {
     const ev = o.ev;
@@ -328,7 +327,7 @@ export class ScanLoop {
     return o;
   }
 
-  /** app.js:615-643: Tesseract PSM 6, then 7 within the budget, then the
+  /** Tesseract PSM 6, then 7 within the budget, then the
    * digits pass when a code was read without a number. */
   private async ocrWithFallbacks(
     tStart: number
@@ -363,7 +362,7 @@ export class ScanLoop {
     return { ev, out: out ?? EMPTY_OUT, pass2: null };
   }
 
-  /** app.js:844-912 handleResult, prompt mode only. */
+  /** Feeds one result to the Acceptor and reports the outcome. */
   private handle(
     ev: Evaluation | { result: "skipped" },
     tNow: number,
@@ -431,13 +430,13 @@ export class ScanLoop {
     }
     if (full.result === "ambiguous" && full.best) {
       // "Neither / scan again" is Wrong card for a pick: the same pick is not
-      // shown again for 3 s (the spike re-showed choices only on a new key).
+      // shown again for 3 s.
       if (this.suppress && this.suppress.key === full.best.key && tNow < this.suppress.until) {
         this.events.onStatus?.({ kind: "suppressed", key: full.best.key });
         return;
       }
       // One noisy frame (a number_conflict / reading_conflict on trailing
-      // noise) is superseded by the next clean read, as in the spike: pause
+      // noise) is superseded by the next clean read: pause
       // for a pick only on two consecutive same-key ambiguous reads.
       if (this.ambiguousKey !== full.best.key) {
         this.ambiguousKey = full.best.key;

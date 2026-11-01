@@ -4,17 +4,17 @@ import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps } from "../../utils/cardImages";
 import { buildPreconPreview } from "../../utils/preconPreview";
 
-// BL-257 FR3-03 (F-13): the leader / base art on a precon deck row of the
+// The leader / base art on a precon deck row of the
 // keypad's "Choose a set" sheet. The data is desktop's own hover-preview
 // resolution (utils/preconPreview.ts buildPreconPreview -- kinds standard /
 // dual / ibh / unresolved) over the catalogue the keypad already holds; this
 // module only turns it into the row's image list and holds the row geometry.
 
 /** Card art geometry on a deck row, CSS px. One leader size for every row
- * kind (desktop's rule, PreconDropdown.tsx:186-189): a landscape card
+ * kind (desktop's rule, PreconDropdown.tsx's hover preview): a landscape card
  * (88 : 63). The base sits behind, raised by `peek` so its name strip AND a
  * sliver of the card show above the leader (13 of 43 px, about 30 % --
- * desktop's hover art raises it about 32 %; owner finish round 2026-10-12).
+ * desktop's hover art raises it about 32 %).
  * `gap` separates two leaders; a Twin Suns row's single base is `dualBase`
  * of the two-leader width, centred (desktop: 62 %). */
 export const DECK_ART = {

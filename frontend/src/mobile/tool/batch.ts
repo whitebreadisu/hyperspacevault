@@ -21,15 +21,14 @@ import { cardsForEntry } from "../../utils/preconImport";
 import { clearPersisted, readPersisted, writeBatch } from "./batchPersist";
 import type { PadPicks } from "./toolStore";
 
-// BL-249 S3-08: the batch model (rev4 data.js RUN D2 `M.addEntry` /
-// `M.batch` / `M.verifyRows`, with R5-8's "one row per copy"). The batch is
-// what the keypad, a precon deck (and, in slice 7, the camera) add to; the
-// vault is untouched until the Verify cards sheet commits (stage 3c).
+// The batch model (App Spec §25.3). The batch is what the keypad, a precon
+// deck and the camera add to; the vault is untouched until the Verify cards
+// sheet commits (commit.ts).
 //
 //   - One row per copy: entering the same number three times is three rows;
 //     a 52-card deck is 52 rows. Nothing is folded in storage -- a fold per
-//     printing is a *commit-time* view (`foldAdded`).
-//   - Each row = { card, printing, via: keypad | precon, force }. A keypad
+//     printing is a *commit-time* view (commit.ts commitPlan).
+//   - Each row = { card, printing, via, force }. A keypad (or camera)
 //     row keeps the desktop Row it was entered as (setCode + number + axis
 //     picks) so desktop's resolver can name it; a precon row keeps the deck
 //     card it came from (the commit rebuilds desktop's import file from it).
@@ -43,17 +42,17 @@ import type { PadPicks } from "./toolStore";
 //     are "not added" with desktop's reason; soft mode and `force` rows stay
 //     in "added" flagged over-limit; the 999 ceiling blocks in both modes).
 //   - The store is a module store: the batch persists while the tool is
-//     closed and while the card layer is over it. BL-253 S7-08: it is also
+//     closed and while the card layer is over it. It is also
 //     mirrored to sessionStorage (batchPersist.ts) so it survives the hop
 //     between the main document and the isolated /scan/ document; a new tab
 //     starts empty.
 
-/** BL-253 S7-14 / S7-17: camera rows (`camera` = Add in the prompt,
- * `camera_fast_add` = an add with no Add tap under Fast add) are stored as
- * keypad rows (set + number + picks, one adjust per printing at commit); the
- * via feeds add_cards_committed.method (S7-18). BL-262: a camera row's
- * `variantId` is the printing its strip identified and its set + number are
- * that printing's own -- the Verify view describes it by the printing when
+/** Camera rows (`camera` = Add in the prompt, `camera_fast_add` = an add
+ * with no Add tap under Fast add) are stored as keypad rows (set + number +
+ * picks, one adjust per printing at commit); the via feeds
+ * add_cards_committed.method (App Spec §22). A camera row's `variantId` is
+ * the printing its strip identified and its set + number are that printing's
+ * own -- the Verify view describes it by the printing when
  * the keypad resolver would name another (verificationRowOf). */
 export type BatchVia = "keypad" | "precon" | "camera" | "camera_fast_add";
 
@@ -62,7 +61,7 @@ export interface BatchRow {
   id: string;
   via: BatchVia;
   /** Precon "Add the full deck, even above my keep-limits": admitted past
-   * the hard cap (R4-14.2). Always false for a keypad row. */
+   * the hard cap. Always false for a keypad or camera row. */
   force: boolean;
   /** The desktop Row fields (the keypad's entry; for a precon copy the
    * printing's own set + number with no axis picks). */
@@ -78,7 +77,7 @@ export interface BatchRow {
 
 export type NewBatchRow = Omit<BatchRow, "id">;
 
-// Hydrated from the sessionStorage mirror at load (S7-08).
+// Hydrated from the sessionStorage mirror at load (batchPersist.ts).
 const saved = readPersisted();
 let rows: BatchRow[] = saved?.rows ?? [];
 let seq = saved?.seq ?? 0;
@@ -90,7 +89,7 @@ function emit(next: BatchRow[]): void {
   subs.forEach((f) => f());
 }
 
-/** S7-08: re-read the mirror (a bfcache `pageshow` -- the other document may
+/** Re-read the mirror (a bfcache `pageshow` -- the other document may
  * have changed the batch while this one was frozen). */
 export function rehydrateBatch(): void {
   const p = readPersisted();
@@ -114,24 +113,24 @@ export function useBatch(): BatchRow[] {
   return useSyncExternalStore(subscribe, getBatch, getBatch);
 }
 
-/** Add one copy (S3-08). Returns the stored row. */
+/** Add one copy. Returns the stored row. */
 export function addCopy(row: NewBatchRow): BatchRow {
   const stored: BatchRow = { ...row, id: "b-" + ++seq };
   emit([...rows, stored]);
   return stored;
 }
 
-/** Quick remove (S3-12): drops exactly one copy. */
+/** Quick remove: drops exactly one copy. */
 export function removeCopy(id: string): void {
   if (rows.some((r) => r.id === id)) emit(rows.filter((r) => r.id !== id));
 }
 
-/** S3-15: drop the copies a partial commit already wrote. */
+/** Drop the copies a partial commit already wrote. */
 export function removeCopies(ids: Set<string>): void {
   if (ids.size && rows.some((r) => ids.has(r.id))) emit(rows.filter((r) => !ids.has(r.id)));
 }
 
-/** BL-235 `pending_entries` as desktop counts it: keypad copies plus one per
+/** `pending_entries` (App Spec §22) as desktop counts it: keypad copies plus one per
  * chosen deck (AddCardsModal pendingEntries). */
 export function pendingEntries(list: BatchRow[]): number {
   const decks = new Set<string>();
@@ -156,7 +155,7 @@ export function resetBatchForTest(): void {
   subs.forEach((f) => f());
 }
 
-// ── S3-09: precon deck -> rows ─────────────────────────────────────────────
+// ── Precon deck -> rows ────────────────────────────────────────────────────
 
 const deckIndexCache = new WeakMap<
   InventoryCard[],
@@ -181,7 +180,7 @@ function deckIndex(cards: InventoryCard[]) {
 
 const NO_PICKS: PadPicks = { cardKey: null, setKey: null, stamp: null, finish: null };
 
-/** S3-09 (R4-14.2): write every copy of a deck into the batch -- one row per
+/** Write every copy of a deck into the batch -- one row per
  * copy, `force` as the caller decided (hard-cap users who chose "Add the
  * full deck, even above my keep-limits"). Over-cap copies are not trimmed
  * here: admission is the batch view's job, so the Verify cards sheet can
@@ -210,7 +209,7 @@ export function addDeck(entry: PreconEntry, cards: InventoryCard[], force: boole
   return added.length;
 }
 
-// ── S3-08: admission + the Verify view ─────────────────────────────────────
+// ── Admission + the Verify view ────────────────────────────────────────────
 
 export interface BatchViewCtx {
   catalog: AddCardsCatalogEntry[];
@@ -316,7 +315,7 @@ function verificationRowOf(
   if (r.via !== "precon") {
     const row = keypadRowOf(r);
     const resolved = resolveRow(row, catalog);
-    // BL-262: a camera row is the printing its strip identified, which the
+    // A camera row is the printing its strip identified, which the
     // resolver may not reach from the row's set + number (a Weekly Play
     // printing on a base-set number resolves to the base-set card; a token
     // does not resolve at all). The row is described as a keypad row only
@@ -363,9 +362,10 @@ function verificationRowOf(
   };
 }
 
-/** The commit-time fold (S3-15 reads it): admitted copies per printing, in
- * batch order -- the delta each `adjustCard` call sends. Unresolved copies
- * and not-added copies are excluded. */
+/** A fold of the admitted copies per printing, in batch order, over every
+ * via (tests read it; commit.ts commitPlan folds the keypad-path copies
+ * itself for its `adjustCard` deltas). Unresolved copies and not-added copies
+ * are excluded. */
 export function foldAdded(batch: BatchRow[], view: BatchView): Map<number, number> {
   const ok = new Set(view.added.map((v) => v.id));
   const out = new Map<number, number>();

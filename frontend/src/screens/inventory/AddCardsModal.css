@@ -1,27 +1,27 @@
 /* Add Cards modal — .ac-* styles.
-   Load after shell.css + inventory.css.
-   Table and Stacked layout styles intentionally omitted (rejected layouts).
+   The "angled console" shell: corner-cut clip, steel ring and circuit-tile
+   fill, written directly on the real .ac-* classes below (no scoped
+   override layer). The custom Set / Precon Deck dropdowns are the .acx-*
+   block near the end of the file.
 
-   BL-111 F7: restyled to the "Angled console" shell (design handoff
-   claude_design/design_handoff_swu_restyle/README.md §7 -- geometry/colors
-   copied from the canonical prototype prototypes/add-cards/
-   AddCardsRestyle.jsx's CONSOLE_CSS block). Overrides folded directly into
-   the real .ac-* classes below rather than shipped as a scoped layer, per
-   the handoff's own instruction (§ "About the Design Files"). */
+   The backdrop placement comes from index.css's shared .modal-overlay
+   classes. Mobile stylesheets cite rules in this file by line number
+   (mobile/tool/tool.css), so a comment edit above .ac-pad__readout keeps
+   each block's line count. */
 
-/* Missing design tokens not yet in index.css */
+/* Tokens this modal uses that index.css does not define. */
 :root {
   --aspect-aggression: #c0202e;
   --variant-op: #dc2626;
 }
 
 /* ─── Modal overlay ─────────────────────────────────────── */
-/* .ac-overlay's backdrop styling moved to index.css's shared .modal-overlay
-   + .modal-overlay--top classes (BL-153, A3-06) -- the top-aligned/64px-
-   padded placement is genuine (not drift), so it's kept as the --top
-   modifier rather than folded into the shared base. The element keeps this
-   class name too (see AddCardsModal.tsx), just with no rule of its own
-   left here. */
+/* .ac-overlay's backdrop styling is index.css's shared .modal-overlay +
+   .modal-overlay--top classes -- the top-aligned/64px-padded placement is
+   specific to this modal, so it is the --top modifier rather than part of
+   the shared base. The element keeps this class name too (see
+   AddCardsModal.tsx, and index.css's scrollbar rules), with no rule of its
+   own here. */
 
 /* Angled console shell: corner-cut clip + a 1.5px steel-ring reveal (a
    background-color layer behind an inset-1.5px clipped tile layer, both
@@ -78,12 +78,12 @@
   padding: 18px 24px 26px;
 }
 .ac-modal__title {
-  /* BL-111 dev-review wave 1 fix 4: reverted to `--font-ui` (Barlow
-     Condensed) to match the unified CardPopup's `.cp-title` treatment
-     precisely (see CardPopup.css) -- weight/letter-spacing/text-transform
-     already matched cp-title's; font-family was the one straggler still on
-     `--font-body` (Barlow) from the pre-restyle design tokens. Only the
-     font-family changes here; size/color/margin stay as this modal's own. */
+  /* `--font-ui` (Barlow Condensed), with the same weight,
+     letter-spacing and text-transform as CardPopup.css's `.cp-title`, so
+     the modal title and the card popup title read as one treatment.
+     Only the size is this modal's own (22px here; the popup title is
+     38px). Keep the font-family in step with `.cp-title` if either
+     changes. */
   font-family: var(--font-ui);
   font-size: 22px;
   font-weight: 700;
@@ -131,8 +131,8 @@
    center strip. `--ac-setbar-starfield` is a per-instance CSS custom
    property set by AddCardsSetBar's inline style (the URL is per-set data,
    not a static asset this stylesheet can name) -- same var()-fallback
-   technique as index.css's `.app-header::before` (the ASH strip) and the
-   design prototype's own `--acx-starfield`. Falls back to the circuit tile
+   technique as index.css's `.app-header::before` (the header starfield,
+   ASH as its fallback). Falls back to the circuit tile
    when no starfield could be resolved (AddCardsSetBar leaves the custom
    property unset for a non-base, non-derivable set code). Inset 2px on the
    sides (margin) so the strip never covers the modal's own steel ring. */
@@ -195,7 +195,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  /* Design tokens §7: locked set text sits over the starfield strip. */
+  /* The locked set text sits over the starfield strip. */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .ac-setbar__locked-code {
@@ -231,12 +231,12 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* BL-151 S2c (§4-REV2 point 1): the initial/fully-cleared chooser -- neither
-   route locked, so both bars render side by side rather than stacked
-   full-width strips. Reuses the existing .ac-setbar idiom unchanged (each
-   bar keeps its own internal label-beside-select layout); only the OUTER
-   arrangement changes here. Wraps to stacked full-width at narrow widths
-   (min-width forces a wrap rather than letting the bars get too cramped). */
+/* The initial/fully-cleared chooser (App Spec §18) -- neither route
+   locked, so both bars render side by side rather than as stacked
+   full-width strips. Each bar keeps its own .ac-setbar internal
+   label-beside-picker layout; only the OUTER arrangement is set here.
+   Wraps to stacked full-width at narrow widths (min-width forces a wrap
+   rather than letting the bars get too cramped). */
 .ac-chooser-row {
   display: flex;
   flex-wrap: wrap;
@@ -260,7 +260,7 @@
 }
 
 /* Footer -- background transparent so the modal's own tile fill (.ac-modal::after)
-   shows through and the steel ring wraps the footer too (design handoff §7). */
+   shows through and the steel ring wraps the footer too. */
 .ac-modal__foot {
   padding: 12px 30px 24px 24px;
   border-top: 1px solid rgba(211, 211, 212, 0.16);
@@ -279,7 +279,7 @@
 .ac-modal__foot-spacer {
   flex: 1;
 }
-/* BL-16: EmailNotVerifiedError message when a commit is rejected mid-batch. */
+/* The email-not-verified message when a commit is rejected mid-batch. */
 .ac-modal__foot-error {
   width: 100%;
   font-family: var(--font-body);
@@ -287,7 +287,7 @@
   color: var(--color-danger);
 }
 
-/* Shared field appearance (design tokens §7 SHARED_CSS) */
+/* Shared field appearance (inputs and selects) */
 .ac-input,
 .ac-select {
   background: rgba(9, 11, 20, 0.72);
@@ -323,17 +323,17 @@
 .ac-input--error:focus {
   border-color: #ef4444;
 }
-/* BL-191: Finish defaults to the probable (non-foil) printing on shared-number
-   early-set cards rather than blocking -- this amber attention treatment cues
-   "defaulted, please verify" without the harder red error affordance above. */
+/* Finish defaults to the probable (non-foil) printing on shared-number
+   early-set cards rather than blocking (App Spec §5.16) -- this amber
+   treatment cues "defaulted, please verify" without the red error above. */
 .ac-select--attention {
   border-color: var(--color-warning);
 }
 .ac-select--attention:focus {
   border-color: var(--color-warning);
 }
-/* BL-191: the verify cue itself carries the same amber, tying the text to
-   the highlighted select above it. */
+/* The verify cue itself carries the same amber, tying the text to the
+   highlighted select above it. */
 .ac-pad__resolve-sub--attention {
   color: var(--color-warning);
 }
@@ -444,7 +444,7 @@
   border-color: rgba(107, 122, 153, 0.4);
 }
 
-/* Inventory indicator dot (keypad input area + verification table) */
+/* Inventory indicator dot (verification table; the phone VerifySheet reuses it) */
 .ac-dot {
   width: 14px;
   height: 14px;
@@ -462,7 +462,7 @@
   background: var(--aspect-aggression);
   box-shadow: 0 0 0 3px rgba(192, 32, 46, 0.18);
 }
-/* BL-35: soft-cap over-limit -- still added, just flagged (distinct from a
+/* Soft-cap over-limit -- still added, just flagged (distinct from a
    genuine block). */
 .ac-dot--amber {
   background: var(--color-warning);
@@ -503,11 +503,11 @@
   flex-shrink: 0;
 }
 
-/* ─── Radio idiom (BL-151 S2) ────────────────────────────────
+/* ─── Radio idiom ─────────────────────────────────────────────
    Reuses SettingsPage's .sl-capmode radio-row idiom (title-only stacked
    card, primary-border on the checked option) under the modal's own ac-
    prefix rather than importing SettingsPage.css into this modal. Used for
-   §4 P2's hard-cap-mode trim/add-above choice. */
+   the precon hard-cap-mode trim/add-above choice (App Spec §18). */
 .ac-radio {
   display: flex;
   flex-direction: column;
@@ -557,9 +557,9 @@
   flex-direction: column;
   gap: 14px;
 }
-/* Design handoff §7: card-number input 150px wide + the two-line inventory
-   readout to its right (InventoryReadout, AddCardsKeypad.tsx) replacing the
-   old green/red dot. */
+/* Card-number input 150px wide + the two-line inventory readout to its
+   right (InventoryReadout, AddCardsKeypad.tsx), which is the row's only
+   inventory indicator. */
 .ac-pad__cardrow {
   display: grid;
   grid-template-columns: 150px auto;
@@ -584,8 +584,8 @@
   font-style: normal;
   color: rgba(107, 122, 153, 0.6);
 }
-/* BL-111 F7: the two-line inventory readout (IN INVENTORY / AFTER ADD)
-   replacing the old .ac-dot in the card-number row. */
+/* The two-line inventory readout (IN INVENTORY / AFTER ADD) in the
+   card-number row. */
 .ac-pad__readout {
   display: flex;
   flex-direction: column;
@@ -615,7 +615,7 @@
   margin-bottom: 6px;
   display: block;
 }
-/* Rectangular 1px steel outline (design handoff §7) -- the ::before/::after
+/* Rectangular 1px steel outline -- the ::before/::after
    ring+fill pair stop 223/224px short of the panel's right edge so the
    outline never runs beneath the rising preview image (.ac-pad__resolve-image
    below sits in the 196px image column + the panel's own gap/padding). */
@@ -654,11 +654,11 @@
   gap: 10px;
   min-width: 0;
 }
-/* BL-62 live image preview: fixed card-shaped frame. BL-111 F7 grows it to
-   196x274 and pulls it up (negative margin-top) so it rises to span the
-   card-number row too, horizontally centered in the gutter between the
-   resolver panel's drawn border (.ac-pad__resolve::before/::after above,
-   which stop short of this column) and the batch list panel. */
+/* Live image preview: fixed 196x274 card-shaped frame, pulled up
+   (negative margin-top) so it rises to span the card-number row too,
+   horizontally centered in the gutter between the resolver panel's drawn
+   border (.ac-pad__resolve::before/::after above, which stop short of this
+   column) and the batch list panel. */
 .ac-pad__resolve-image {
   width: 196px;
   height: 274px;
@@ -733,8 +733,7 @@
   padding-bottom: 9px;
 }
 
-/* Chip list (right column): corner-cut console panel (design handoff §7 --
-   12px cuts, matching the design tokens' "panels" clip size). Same
+/* Chip list (right column): corner-cut console panel with 12px cuts. Same
    ring+fill-layer technique as the modal shell, scaled down. */
 .ac-pad__list-wrap {
   position: relative;
@@ -813,7 +812,7 @@
   text-align: center;
 }
 
-/* Per-set group within the batch list (BL-61 — a batch can span sets) */
+/* Per-set group within the batch list (a batch can span sets) */
 .ac-pad__list-group {
   display: flex;
   flex-direction: column;
@@ -976,8 +975,8 @@
   font-family: var(--font-ui);
   font-weight: 600;
 }
-/* Per-set group header row (BL-61 — a batch can span sets, so verification
-   groups its rows by set). */
+/* Per-set group header row (a batch can span sets, so verification groups
+   its rows by set). */
 .ac-verify__table tbody tr.ac-verify__group-head td {
   background: var(--bg-surface-alt);
   font-family: var(--font-ui);
@@ -994,7 +993,7 @@
   font-style: italic;
   color: var(--aspect-aggression);
 }
-/* BL-151 S2 (§4): precon data is uuid-resolved at prep time, so an
+/* Precon data is resolved to swuapi_id at prep time (App Spec §18), so an
    unresolved row here is a data-integrity bug, not a normal user-facing
    outcome -- a left accent bar makes it read as more alarming than the
    ordinary "will not be added" skip section it otherwise shares styling
@@ -1004,7 +1003,7 @@
   padding-left: 10px;
 }
 
-/* BL-35: soft-cap over-limit note in the "will add" section (the row stays
+/* Soft-cap over-limit note in the "will add" section (the row stays
    -- this just flags it, distinct from the skip section's block reason). */
 .ac-verify__over-limit-note {
   font-family: var(--font-body);
@@ -1015,18 +1014,17 @@
   white-space: nowrap;
 }
 
-/* ─── Close-guard confirm (BL-111 F7, design handoff §7) ──
+/* ─── Close-guard confirm ──────────────────────────────────
    Console-styled confirm raised by Cancel/X/Escape/backdrop-click when the
    batch is non-empty. Rendered as its own fixed overlay layer (sibling of
    .ac-modal, not nested inside it) above the ac-overlay's z-index:100 so it
    isn't clipped by the modal's own clip-path. */
-/* .ac-confirm-overlay's backdrop styling moved to index.css's shared
-   .modal-overlay + .modal-overlay--nested classes (BL-153, A3-06) -- the
-   raised z-index/lighter tint is genuine (this overlay stacks on top of
-   .ac-overlay, which is already darkened), so it's kept as the --nested
-   modifier rather than folded into the shared base. The element keeps this
-   class name too (see AddCardsModal.tsx), just with no rule of its own
-   left here. */
+/* .ac-confirm-overlay's backdrop styling is index.css's shared
+   .modal-overlay + .modal-overlay--nested classes -- the raised
+   z-index/lighter tint is specific to this overlay (it stacks on top of
+   .ac-overlay, which is already darkened), so it is the --nested modifier
+   rather than part of the shared base. The element keeps this class name
+   too (see AddCardsModal.tsx), with no rule of its own here. */
 .ac-confirm {
   position: relative;
   z-index: 0;
@@ -1093,19 +1091,16 @@
 }
 /* "Discard & Close" is a destructive action: scope --color-primary to the
    aggression red so SWUButton (which fills from that var) renders red just
-   for this one button, matching design tokens §7's "SWU button in
-   aggression red". */
+   for this one button (the aggression red, --aspect-aggression's value). */
 .ac-confirm__danger {
   --color-primary: #c0202e;
 }
 
-/* ─── BL-164: custom Set / Precon Deck dropdowns (.acx-*) ──────────────────
-   Rebased from claude_design/extracted_2026-07-26/addcards-acx.css (the
-   owner-iterated design-canvas styles) -- asset url()s repointed from the
-   design project's `../../assets/...` layout to the app's own `/images/...`
-   serving path. Ships only the saved-default variants: logo-rail style,
-   logo chips, row glow, beside-left hover preview, front face (see
-   Definition_CosmeticsBatch_2026-07-26.md §5). */
+/* ─── Custom Set / Precon Deck dropdowns (.acx-*) ──────────────────────────
+   SetDropdown and PreconDropdown (App Spec §5.13): logo-rail listboxes with
+   logo chips and row glow; the precon list adds a hover preview to the left
+   of the list showing the leader's front face. Asset url()s use the app's
+   `/images/...` serving path. */
 .acx-pdd {
   position: relative;
 }
@@ -1329,21 +1324,20 @@
   border-top: 1px solid rgba(211, 211, 212, 0.14);
 }
 
-/* ─── BL-164 §5: precon hover-preview leader+base composition ──────────────
-   Owner-locked composition (supersedes the design prototype's single
-   key-art card): standard = one leader front, its base centered behind,
-   offset up so only the base's title bar peeks out above the leader's top
-   edge (reference: working/precon hover example.jpeg). "dual" (Twin Suns)
-   widens to two leaders side by side sharing one centered base. "ibh" is two
-   standard compositions side by side (each half keeps its own base). */
+/* ─── Precon hover-preview leader+base composition ─────────────────────────
+   App Spec §5.13: standard = one leader front, its base behind, offset up so
+   only the base's title bar peeks out above the leader's top edge. "dual"
+   (Twin Suns) has two leaders side by side sharing one centered base. "ibh"
+   is two standard compositions side by side (each half keeps its own
+   base). */
 .acx-pdd__preview-comp {
   position: relative;
   width: 100%;
 }
-/* Owner dev review 2026-07-26: dual/ibh previews widen the PANEL rather than
-   shrinking the cards -- 448px inner-math keeps each leader at ~208px, the
-   same rendered size as a single-leader preview (232 - 2x12 padding).
-   Single-leader previews deliberately stay at the compact 232px width. */
+/* Dual/ibh previews widen the PANEL rather than shrinking the cards --
+   448px inner-math keeps each leader at ~208px, the same rendered size as
+   a single-leader preview (232 - 2x12 padding). Single-leader previews
+   deliberately stay at the compact 232px width. */
 .acx-pdd__preview--wide {
   width: 448px;
 }

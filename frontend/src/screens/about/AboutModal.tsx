@@ -5,23 +5,19 @@ interface Props {
   onClose: () => void;
 }
 
-/** BL-125: the About & Legal surface -- non-affiliation disclosure, the
- * BL-104 privacy note (BL-126 adds a fifth bullet for feedback storage;
- * BL-235 replaces the "Tracking: none" bullet with the usage-analytics
- * disclosure -- anonymous, masked, opt-out in Settings), and
- * an attribution line, in one modal reachable from
- * both the header's "Unofficial Fan Project" brand-line microcopy
- * (anonymous + signed-in) and the UserMenu's "About & Legal" item
- * (signed-in only). App owns the open/close state, same pattern as
+/** The About & Legal surface (App Spec §5.8) -- non-affiliation
+ * disclosure, the five-point privacy note (what's stored, where it lives,
+ * leaving, usage analytics -- anonymous, masked, opt-out in Settings -- and
+ * feedback storage), and an attribution line, in one modal reachable from
+ * the header's "Unofficial Fan Project" brand-line microcopy (anonymous +
+ * signed-in), the UserMenu's "About & Legal" item (signed-in only) and the
+ * release-notes page's "About & Legal" chip (NewArrivalsPage). App owns the open/close state, same pattern as
  * AuthModal/ChangePasswordModal (see App.tsx). Visually this follows the
  * console "steel ring" idiom the card-detail/inventory popups use
  * (CardPopup.css's .cp-shell/.cp-modal double clip-path) rather than
  * AuthModal's plain rounded card, scaled down to a compact ~520px panel --
- * the design record (issue #287) calls out "angled corners + steel ring +
- * tile" explicitly, distinct from the form-modal family. Copy is drafted
- * verbatim from the design record; Jeremy reviews it in-PR (see the PR
- * description) rather than this component gaining any copy logic of its
- * own. */
+ * "angled corners + steel ring + tile", distinct from the form-modal
+ * family. The copy is static text with no copy logic of its own. */
 export function AboutModal({ onClose }: Props) {
   useModalDismiss(onClose);
 

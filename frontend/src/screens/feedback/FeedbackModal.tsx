@@ -17,21 +17,21 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 const SUCCESS_AUTO_CLOSE_MS = 1500;
 
-/** BL-126: "Leave Feedback" console modal -- App owns the open/close state
+/** "Leave Feedback" console modal (App Spec §5.9) -- App owns the open/close state
  * (feedbackModalOpen in App.tsx), same pattern as AuthModal/AboutModal.
  * Visually follows AboutModal's compact ~520px steel-ring shell (see that
  * component's docstring for the clip-path technique) rather than
  * AuthModal's plain rounded card, since this is chrome reachable from the
  * header for both anonymous and signed-in visitors, like About & Legal.
  *
- * Owner spec (issue #289), verbatim behavior: free-form message; a
+ * Behavior: free-form message; a
  * contact-consent checkbox; an email field that only appears once checked
  * (prefilled from the Firebase user's email when signed in, empty when
  * anonymous, always editable either way); Submit enabled only when the
  * message is non-empty AND (consent is unchecked OR (consent is checked
  * AND the email passes format validation)); in-modal success state, then
  * auto-close; no client-side submission limit. A hidden honeypot input
- * (decision #5) is submitted alongside every request -- a real visitor
+ * is submitted alongside every request -- a real visitor
  * never sees or fills it.
  */
 export function FeedbackModal({ onClose }: Props) {
@@ -45,8 +45,8 @@ export function FeedbackModal({ onClose }: Props) {
   const [succeeded, setSucceeded] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // BL-153: submitting-guard lives inside the callback (not `enabled`) --
-  // see DeleteAccountModal.tsx's identical comment for why.
+  // The submitting-guard lives inside the callback (not `enabled`) --
+  // see DeleteAccountModal.tsx's matching comment for why.
   const dismissUnlessSubmitting = useCallback(() => {
     if (!submitting) onClose();
   }, [onClose, submitting]);
@@ -79,7 +79,7 @@ export function FeedbackModal({ onClose }: Props) {
         website,
       });
       setSucceeded(true);
-      capture("feedback_submitted", {}); // BL-235
+      capture("feedback_submitted", {});
     } catch {
       setError("Something went wrong sending your feedback. Please try again.");
     } finally {

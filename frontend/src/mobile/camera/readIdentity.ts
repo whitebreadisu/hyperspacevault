@@ -9,8 +9,8 @@ import { keepLimitReadout } from "../tool/padModel";
 import type { PadChoice, Readout } from "../tool/padModel";
 import type { PadPicks } from "../tool/toolStore";
 
-// BL-262 stage 2 (owner 2026-10-13: "Trust what the strip says"). THE rule
-// for what a camera read identifies. A read -- an exact read's card, or the
+// THE rule for what a camera read identifies (App Spec §24.2 "The strip
+// identifies the printing"; §25.7 "What a read identifies"). A read -- an exact read's card, or the
 // row picked from a pick list -- carries the printings its strip names (their
 // variant ids). This module turns those, and nothing else, into what the
 // camera may show and add:
@@ -21,7 +21,7 @@ import type { PadPicks } from "../tool/toolStore";
 //   token  -- one card, and it is a token. It is named as that token (never
 //             as the card that holds its number) and is never addable: tokens
 //             are not added by scanning, as the keypad cannot enter one
-//             (owner 2026-10-13).
+//             (App Spec §24.2).
 //   card   -- one card. One printing: it IS the read (`variant` set, nothing
 //             asked). Several printings (an early set's foil and non-foil
 //             under one strip; tournament stamps on one row; two events on
@@ -42,10 +42,9 @@ import type { PadPicks } from "../tool/toolStore";
 //
 // `defaults` is the mode. Prompt mode (true): a choice the keypad would
 // default is shown defaulted and Add stays a tap -- Base Set among events, the
-// non-foil among finishes (BL-191), both printings the strip identified. Fast
-// add (false): nothing is defaulted, so a read with more than one printing is
-// never added until the user says which (owner: "Ask foil or non-foil each
-// time"). Stamps and the Serialized Prestige tiers are defaulted in neither
+// non-foil among finishes, both printings the strip identified. Fast add
+// (false): nothing is defaulted, so a read with more than one printing is
+// never added until the user says which (App Spec §25.7 Fast add). Stamps and the Serialized Prestige tiers are defaulted in neither
 // mode: there is no sensible default among them.
 //
 // Users (there is no second rule): the controller's add effect (the automatic
@@ -94,9 +93,9 @@ const HINT_TWINS =
 /** The Serialized Prestige tiers, in the order their chips are shown. The 21
  * SEC senator cards are three printings under one number with one variant
  * type and one finish; the catalogue tells them apart by the image file name
- * alone (App Spec 10.5: `..._Carb_C_<hash>` = Carbonite, `..._Carb_C_Gold_`,
+ * alone (App Spec §10.5: `..._Carb_C_<hash>` = Carbonite, `..._Carb_C_Gold_`,
  * `..._Carb_C_Rose_Gold_`). The keypad and desktop collapse them to the first
- * (BL-31/40, deferred); the camera asks (BL-262 review S1). */
+ * (App Spec §5.4); the camera asks. */
 const TIERS = ["Carbonite", "Gold", "Rose Gold"];
 
 /** A printing's tier from its image file name, or null when it has none. */
@@ -157,7 +156,7 @@ export function readIdentity(
   if (card.is_token)
     return { kind: "token", card, printings, hint: { text: HINT_TOKEN, attn: false } };
 
-  // Review N1: a printing the strip names is missing from the catalogue. The
+  // A printing the strip names is missing from the catalogue. The
   // read is not narrowed to the ones found without saying so.
   const partial = new Set(hits.map((h) => h.v.variant_id)).size < want.size;
   const PARTIAL = { text: HINT_PARTIAL, attn: true };
@@ -193,7 +192,7 @@ export function readIdentity(
     left = left.filter((d) => (d.stamp ?? "") === value);
   }
 
-  // Finish: the keypad defaults to the non-foil (BL-191); Fast add asks.
+  // Finish: the keypad defaults to the non-foil; Fast add asks.
   // The non-foil is always the first chip, whatever order the catalogue lists.
   let defaulted = false;
   const finishes = uniq(left.map((d) => d.finish)).sort(
@@ -217,8 +216,8 @@ export function readIdentity(
 
   // Printings no axis tells apart (the Serialized Prestige three): one chip
   // per printing, labelled by its tier, defaulted in neither mode -- nothing
-  // is added until the user says which (BL-262 review S1; was: the first, as
-  // the keypad resolves them). The tiers are a Finish (owner 2026-07-05).
+  // is added until the user says which. The tiers are a Finish (App Spec
+  // §5.4).
   if (left.length > 1) {
     const tiers = left.map((d) => tierOf(d.v));
     const told =

@@ -1,8 +1,8 @@
-// BL-257 FR3-01 (F-11): set logos centred and optically even on the phone.
+// Set logos centred and optically even on the phone.
 //
 // The set_*.png files differ in aspect (2.5:1 .. 7.4:1) and in how much
 // transparent padding surrounds the artwork, so fitting the PNG's own box
-// (object-fit: contain, left-aligned) made ASH read huge, LOF and HMW small
+// (object-fit: contain, left-aligned) makes ASH read huge, LOF and HMW small
 // and HMW off-centre. The phone therefore lays out each logo by its OPAQUE
 // ARTWORK -- the alpha bounding box, measured once by
 // frontend/scripts/measure-set-logos.mjs (alpha >= 24/255) -- and never by the
@@ -33,17 +33,18 @@ export interface SetLogoArt {
   dx?: number;
 }
 
-/** One entry per base set (vitest FR3-01 holds this to BASE_SET_ORDER).
- * Trims: `node scripts/measure-set-logos.mjs` (e2e fr3-01 re-measures the
- * served PNGs against this table). Scales and nudges: by eye, 2026-10-12:
+/** One entry per base set (setLogoArt.test.ts holds this to BASE_SET_ORDER).
+ * Trims: `node scripts/measure-set-logos.mjs` (e2e/mobile/fr3-chooser.spec.ts
+ * re-measures the served PNGs against this table). Scales and nudges are set
+ * by eye:
  *  - LAW 0.64 -- the densest mark (ink .66 of its box against ~.4 for the
- *    rest) read as the biggest logo at the box's full width; 0.64 of the area
- *    is 0.88 of that width and puts its INK area level with the others';
+ *    rest) reads as the biggest logo at the box's full width; 0.64 of the
+ *    area is 0.88 of that width and puts its INK area level with the others';
  *  - LOF 1.1, TWI 1.12 -- thin, airy marks that read light at equal area;
  *  - JTL dx 0.035 -- the thin streak and fighter on the right stretch the
- *    bounding box past the wordmark, so the mark read ~6 px left of the
- *    column; nudged half-way back (the wordmark and the whole mark both stay
- *    near the centre line);
+ *    bounding box past the wordmark, so without a nudge the mark reads ~6 px
+ *    left of the column; the nudge moves it half-way back (the wordmark and
+ *    the whole mark both stay near the centre line);
  *  - SOR -- the 11 : 1 wordmark is held by the box's width (no scale helps). */
 export const SET_LOGO_ART: Readonly<Record<string, SetLogoArt>> = {
   HMW: { w: 1000, h: 404, l: 0.048, t: 0.1559, aw: 0.905, ah: 0.6238, scale: 1 },

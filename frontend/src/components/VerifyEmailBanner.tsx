@@ -7,7 +7,7 @@ const RESEND_COOLDOWN_MS = 30_000;
 
 type ResendState = "idle" | "sending" | "sent";
 
-/** BL-16: persistent, dismiss-proof banner shown site-wide whenever a
+/** Persistent, dismiss-proof banner shown site-wide whenever a
  * signed-in user's email is unverified -- no close button, since the point
  * is to keep nudging until the user actually verifies (browsing itself
  * stays unblocked; only inventory mutations are gated, see api/inventory.ts's
@@ -36,7 +36,7 @@ export function VerifyEmailBanner() {
     setError(null);
     setResendState("sending");
     try {
-      // BL-95: same actionCodeSettings as AuthModal's signup send -- see
+      // Same actionCodeSettings as AuthModal's signup send -- see
       // that call site's comment for why the continue URL carries the
       // `emailVerified=1` marker.
       await sendEmailVerification(user, {
@@ -92,7 +92,7 @@ export function VerifyEmailBanner() {
           {checking ? "Checking…" : "I've verified"}
         </button>
       </span>
-      {/* BL-94 layer 2: inline hint on the "sent" confirmation -- most
+      {/* Inline hint on the "sent" confirmation -- most
           verification-email deliverability complaints turn out to be spam
           folder, not a broken send. */}
       {resendState === "sent" && (

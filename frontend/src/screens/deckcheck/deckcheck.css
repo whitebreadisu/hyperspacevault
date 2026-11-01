@@ -1,26 +1,21 @@
-/* ── Deck Check (BL-142) ───────────────────────────────────────────────────
- * Visual language pulled from the Claude Design deck-check-entry /
- * deck-check-result templates (project 8145e927, DEFAULT-marked variants --
- * see claude_design/extracted_2026-07-21/ and each component's own doc
- * comment for the specifics DesignSync's unavailability required working
- * around). Reuses cards.css's .screen chrome (loaded globally since
- * CardsPage is always mounted) for the anonymous sign-in gate only -- the
- * entry/result panels below are fully self-contained, matching the design's
- * own clipped-corner console-panel frame rather than the rest of the app's
- * plain-rectangle cards.
+/* ── Deck Check (App Spec §5.11) ───────────────────────────────────────────
+ * Reuses cards.css's .screen chrome (loaded globally since CardsPage is
+ * always mounted) for the anonymous sign-in gate only -- the entry/result
+ * panels below are fully self-contained, with their own clipped-corner
+ * console-panel frame rather than the rest of the app's plain-rectangle
+ * cards.
  *
- * --dc-frame is this screen's own steel-blue frame color (the design's
- * --cdp-frame) -- not one of index.css's shared variables (that file's
+ * --dc-frame is this screen's own steel-blue frame color -- not one of
+ * index.css's shared variables (that file's
  * steel-ring family is a lighter, more neutral grey used for a different
  * purpose -- CardPopup rings, the circuit separator), so it's scoped here
  * rather than promoted globally for a single screen's use. */
-/* BL-147 dev-review fix (review finding on BL-142): `.screen` (cards.css)
- * stretches this to the full `.app-main` width, but the `max-width: 1040px`
+/* `.screen` (cards.css) stretches this to the full `.app-main` width, but the `max-width: 1040px`
  * cap below then makes it a narrower, flush-LEFT box inside that wider
  * area -- a stretched flex item that's capped smaller than the available
  * cross-size doesn't auto-center itself, it just sits at the cross-start
- * edge. `margin: 0 auto` centers the capped box itself (the result screen's
- * own "max-width container with margin auto" idiom, per the design) so its
+ * edge. `margin: 0 auto` centers the capped box itself (the same
+ * "max-width container with margin auto" idiom as .dcr) so its
  * content -- and the entry screen's `.dce-frame`, which already centers
  * correctly WITHIN this box via its own margin:auto -- reads centered in
  * the pane instead of hugging the left edge. */
@@ -34,13 +29,10 @@
 /* The entry screen specifically (DeckCheckPage.tsx applies this modifier
  * only while DeckCheckEntry is rendered) uses `display: grid` so its child
  * gets independent per-axis alignment: horizontally centered (`justify-
- * items: center`), matching the pulled design's wrapper -- but TOP-aligned
- * (`align-items: start`), matching how the result screen sits, rather than
- * floating mid-pane. BL-147 round 1 centered both axes (`place-items:
- * center`); owner dev-review round 2 (2026-07-21) called out that the
- * entry form reading vertically centered looked inconsistent against the
- * result view's top-anchored long scrolling content -- this keeps the
- * horizontal centering fix but drops the vertical one. */
+ * items: center`) -- but TOP-aligned (`align-items: start`), matching how
+ * the result screen sits, rather than floating mid-pane: a vertically
+ * centered entry form reads inconsistent against the result view's
+ * top-anchored long scrolling content. */
 .deckcheck-screen--entry {
   /* `.screen` (cards.css) already gives this element `flex: 1; min-height:
    * 0;` inside .app-main's column flex layout, so its block size is
@@ -313,10 +305,10 @@
 }
 
 /* ── Result screen (DeckCheckResult.tsx) ───────────────────────────────────
- * Same clipped-corner frame technique as the entry panel, at the design's
- * slightly larger (16px/15px) corner radius for the header block only --
- * the rest of the result screen uses plain-rectangle surfaces (scope tiles,
- * list cards, footer strip), matching the design exactly. */
+ * Same clipped-corner frame technique as the entry panel, at a slightly
+ * smaller (16px/15px vs the entry's 18px/17px) corner for the header block
+ * only -- the rest of the result screen uses plain-rectangle surfaces
+ * (scope tiles, list cards, footer strip). */
 .dcr {
   max-width: 1040px;
   margin: 0 auto;
@@ -511,7 +503,7 @@
   color: var(--color-text-muted);
 }
 
-/* ── ALL CARDS / MISSING ONLY toggle (BL-142) ───────────────────────────── */
+/* ── ALL CARDS / MISSING ONLY toggle ─────────────────────────────────────── */
 .dcr-toggle-row {
   display: flex;
   align-items: center;
@@ -611,8 +603,7 @@
   color: var(--color-text-muted);
 }
 
-/* BL-142: scope-tile market value block (Jeremy's saved
- * deckValuePlacement=scope-cards) -- pushed to the right of the label/
+/* Scope-tile market value block -- pushed to the right of the label/
  * fraction column via margin-left:auto. */
 .dcr-scope__value {
   margin-left: auto;
