@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import NamedTuple
 
 from sqlalchemy import Row, select
@@ -15,7 +16,7 @@ from app.models.set_model import CardSet
 # history has them if a flat variant read API is ever wanted.
 
 
-def get_catalog_reference_rows(db: Session) -> list[Row]:
+def get_catalog_reference_rows(db: Session) -> Sequence[Row]:
     """BL-54 S1 (§6): one row per card_variants row for the public catalog
     reference CSV -- swuapi_id/set_code/card_number/variant_type/name/
     subtitle. The ORDER BY here is only a stable base; the file's final
@@ -65,11 +66,11 @@ class BaseCardListRows(NamedTuple):
     layer groups the child rows by base_card_id and builds the nested
     BaseCardCatalogResponse shape."""
 
-    base_rows: list[Row]
-    aspect_rows: list[Row]  # (base_card_id, aspect)
-    keyword_rows: list[Row]  # (base_card_id, keyword)
-    trait_rows: list[Row]  # (base_card_id, trait)
-    variant_rows: list[Row]
+    base_rows: Sequence[Row]
+    aspect_rows: Sequence[Row]  # (base_card_id, aspect)
+    keyword_rows: Sequence[Row]  # (base_card_id, keyword)
+    trait_rows: Sequence[Row]  # (base_card_id, trait)
+    variant_rows: Sequence[Row]
 
 
 def get_base_card_list_rows(

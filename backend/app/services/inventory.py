@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Literal, cast
 
 from sqlalchemy.orm import Session
 
@@ -184,9 +185,12 @@ def decrement_card(db: Session, variant_id: int) -> DecrementResponse | None:
     return DecrementResponse(variant_id=variant_id, quantity=inv.quantity)
 
 
+AdjustReason = Literal["trade_sell", "ceiling"]
+
+
 def _resolve_adjust(
     current_qty: int, delta: int, max_quantity: int | None, cap_mode: str
-) -> tuple[int, int, bool, str | None, bool]:
+) -> tuple[int, int, bool, AdjustReason | None, bool]:
     """BL-219: the pure decision core behind adjust_card -- given the
     variant's pre-adjust quantity, the requested signed delta, its
     effective limit (None = unlimited), and the tenant's cap_mode, returns
@@ -231,11 +235,15 @@ def _resolve_adjust(
         return current_qty, 0, True, "ceiling", False
 
     hard_capped = cap_mode != CAP_MODE_SOFT and max_quantity is not None
-    if hard_capped and current_qty >= max_quantity:
+    if hard_capped and current_qty >= cast(int, max_quantity):
         return current_qty, 0, True, "trade_sell", False
 
+    cap: int
+    cap_reason: AdjustReason
     cap, cap_reason = (
-        (max_quantity, "trade_sell") if hard_capped else (QUANTITY_CEILING, "ceiling")
+        (cast(int, max_quantity), "trade_sell")
+        if hard_capped
+        else (QUANTITY_CEILING, "ceiling")
     )
     raw_target = current_qty + delta
     new_qty = min(raw_target, cap)

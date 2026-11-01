@@ -3,7 +3,7 @@ name: CI
 # Build-once / promote model (BL-43 Phase 6, ADR-0007):
 #
 # On every PR and push to main:
-#   backend  — pytest + ruff
+#   backend  — pytest + ruff + mypy
 #   frontend — vitest + eslint/prettier/tsc
 #   terraform-fmt — fmt -check across all TF (no GCP auth needed)
 #   (BL-243: on a PR each heavy job runs only when its tree changed --
@@ -268,6 +268,10 @@ jobs:
       - name: Format check (ruff format)
         working-directory: backend
         run: ruff format --check app
+
+      - name: Type check (mypy)
+        working-directory: backend
+        run: mypy
 
       - name: Apply migrations
         working-directory: backend

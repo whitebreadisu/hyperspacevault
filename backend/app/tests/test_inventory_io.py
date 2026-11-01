@@ -384,7 +384,7 @@ class TestRoundTrip:
         content = io.serialize_json(rows)
         result = io.parse_json(content)
         assert len(result.rows) == len(rows)
-        for original, parsed in zip(rows, result.rows):
+        for original, parsed in zip(rows, result.rows, strict=True):
             assert parsed.swuapi_uuid == original.swuapi_uuid
             assert parsed.set_code == original.set_code
             assert parsed.card_number == original.card_number
@@ -410,7 +410,7 @@ class TestRoundTrip:
         content = io.serialize_csv(rows)
         result = io.parse_csv(content)
         assert len(result.rows) == len(rows)
-        for original, parsed in zip(rows, result.rows):
+        for original, parsed in zip(rows, result.rows, strict=True):
             assert parsed.swuapi_uuid == original.swuapi_uuid
             assert parsed.set_code == original.set_code
             assert parsed.card_number == original.card_number

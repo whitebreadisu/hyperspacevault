@@ -277,6 +277,7 @@ def _merge_duplicates(rows: list[ParsedRow], notes: ParseNotes) -> list[ParsedRo
         if len(group) == 1:
             merged_by_row_number[first.row_number] = first
             continue
+        # quantity is int | None; malformed rows are set aside above, so it is an int here.
         total_quantity = sum(r.quantity for r in group)  # type: ignore[misc]
         notes.duplicate_rows_merged += len(group) - 1
         merged_by_row_number[first.row_number] = ParsedRow(

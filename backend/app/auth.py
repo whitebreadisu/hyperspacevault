@@ -42,8 +42,8 @@ def _decode_token(authorization: str | None) -> dict:
     token = authorization.removeprefix("Bearer ")
     try:
         return auth.verify_id_token(token, app=_get_firebase_app())
-    except (ValueError, exceptions.FirebaseError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except (ValueError, exceptions.FirebaseError) as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from err
 
 
 def verify_firebase_token(authorization: str | None) -> tuple[str, str, bool]:
