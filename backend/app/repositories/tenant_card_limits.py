@@ -11,7 +11,7 @@ def _current_tenant_id(db: Session) -> int:
     set_config('app.current_tenant_id', ...) -- never a request parameter."""
     return db.execute(
         text("SELECT current_setting('app.current_tenant_id')::integer")
-    ).scalar()
+    ).scalar_one()
 
 
 def get_overrides(db: Session) -> dict[tuple[str, str], int | None]:

@@ -81,7 +81,7 @@ def test_scopes_are_independent_even_for_the_same_tenant():
     """Exhausting inventory_import's budget must never count against
     deck_check's for the same tenant -- each router passes its own scope
     string precisely so the two stay independent."""
-    for i in range(5):
+    for _ in range(5):
         check_tenant_rate_limit(
             "inventory_import", "tenant_9", max_calls=5, window_seconds=3600, now=0.0
         )
@@ -100,7 +100,7 @@ def test_scopes_are_independent_even_for_the_same_tenant():
 
 
 def test_tenants_are_independent_within_the_same_scope():
-    for i in range(5):
+    for _ in range(5):
         check_tenant_rate_limit(
             "deck_check", "tenant_a", max_calls=5, window_seconds=3600, now=0.0
         )
@@ -123,7 +123,7 @@ def test_reset_for_tests_clears_the_tenant_store_too():
     conftest fixture calls before every test -- it must clear BOTH stores,
     or a tenant-keyed test run earlier in the process could leak state
     into a later one."""
-    for i in range(5):
+    for _ in range(5):
         check_tenant_rate_limit(
             "deck_check", "tenant_z", max_calls=5, window_seconds=3600, now=0.0
         )

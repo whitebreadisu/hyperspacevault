@@ -1,6 +1,7 @@
 from collections import defaultdict
+from typing import cast
 
-from sqlalchemy import func, text, tuple_
+from sqlalchemy import Table, func, text, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -44,7 +45,7 @@ def _current_tenant_id(db: Session) -> int:
     (tenant_card_limits.py and account.py each define their own copy too)."""
     return db.execute(
         text("SELECT current_setting('app.current_tenant_id')::integer")
-    ).scalar()
+    ).scalar_one()
 
 
 def get_variants_by_uuids(db: Session, uuids: list[str]) -> dict[str, VariantMatch]:
@@ -241,7 +242,7 @@ def apply_quantities(db: Session, updates: dict[int, int]) -> None:
     if not updates:
         return
     tenant_id = _current_tenant_id(db)
-    table = Inventory.__table__
+    table = cast(Table, Inventory.__table__)
     for variant_id, quantity in updates.items():
         stmt = (
             pg_insert(table)

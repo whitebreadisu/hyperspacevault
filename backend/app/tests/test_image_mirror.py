@@ -201,6 +201,8 @@ def test_mirror_image_raises_on_http_error():
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(404)
 
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(httpx.HTTPStatusError):
-            mirror_image(url, bucket, client)
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        mirror_image(url, bucket, client)

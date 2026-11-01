@@ -48,7 +48,7 @@ class TcgcsvClient:
             timeout=timeout,
         )
 
-    def __enter__(self) -> "TcgcsvClient":
+    def __enter__(self) -> TcgcsvClient:
         return self
 
     def __exit__(self, *exc_info) -> None:

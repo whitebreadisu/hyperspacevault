@@ -57,7 +57,7 @@ def _to_response(share: Share) -> ShareResponse:
 def _current_tenant_id(db: Session) -> int:
     return db.execute(
         text("SELECT current_setting('app.current_tenant_id')::integer")
-    ).scalar()
+    ).scalar_one()
 
 
 def _owned_active_share(db: Session, share_id: int) -> Share:
@@ -99,9 +99,11 @@ def create_share(payload: ShareCreateRequest, db: Session = Depends(get_db)):
     db.add(share)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=409, detail="An active share already exists")
+        raise HTTPException(
+            status_code=409, detail="An active share already exists"
+        ) from err
     db.refresh(share)
     return _to_response(share)
 

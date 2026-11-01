@@ -168,7 +168,7 @@ def run_backfill(
             day_prices = extract_day_prices(archive_bytes, current, groups)
             day_inserted = 0
             day_unmapped = 0
-            for set_code, prices in day_prices.items():
+            for prices in day_prices.values():
                 inserted, unmapped = upsert_prices(db, prices, product_index, current)
                 day_inserted += inserted
                 day_unmapped += unmapped

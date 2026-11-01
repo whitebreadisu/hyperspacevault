@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -82,7 +83,7 @@ def variant_belongs_to_base_card(
     )
 
 
-def get_price_history(db: Session, variant_id: int, range_: str) -> list[Row]:
+def get_price_history(db: Session, variant_id: int, range_: str) -> Sequence[Row]:
     """Ascending (as_of, market) series for one variant. range_="all" (or
     any value outside RANGE_LOOKBACK_DAYS) returns the full history --
     router-level validation is what actually constrains range_ to the

@@ -43,8 +43,8 @@ _ASSETS_HOST = "https://us-assets.i.posthog.com"
 _FORWARD_REQUEST_HEADERS = ("content-type", "content-encoding", "user-agent")
 
 # Response headers passed back to the browser. Hop-by-hop and transport
-# headers (content-length, content-encoding, transfer-encoding, connection)
-# are recomputed by our own stack for the possibly-decompressed body httpx
+# headers (content-length, content-encoding, transfer-encoding and
+# connection) are recomputed by our own stack for the possibly-decompressed body httpx
 # hands us -- echoing upstream's values would desynchronize the framing.
 _FORWARD_RESPONSE_HEADERS = ("content-type", "cache-control")
 

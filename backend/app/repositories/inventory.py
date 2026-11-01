@@ -1,4 +1,6 @@
-from sqlalchemy import func, text
+from typing import cast
+
+from sqlalchemy import Table, func, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, selectinload
 
@@ -10,7 +12,7 @@ from app.models.inventory import Inventory
 def _current_tenant_id(db: Session) -> int:
     return db.execute(
         text("SELECT current_setting('app.current_tenant_id')::integer")
-    ).scalar()
+    ).scalar_one()
 
 
 def get_quantities(db: Session) -> list[tuple[int, int]]:
@@ -69,7 +71,7 @@ def upsert_increment(db: Session, variant_id: int) -> Inventory:
     single statement, relying on uq_inventory_tenant_id_variant_id so
     concurrent increments for the same variant can't lose an update."""
     tenant_id = _current_tenant_id(db)
-    table = Inventory.__table__
+    table = cast(Table, Inventory.__table__)
     stmt = (
         pg_insert(table)
         .values(tenant_id=tenant_id, variant_id=variant_id, quantity=1)
@@ -106,7 +108,7 @@ def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
     CONFLICT write is already atomic, so cross-call serialization isn't
     needed for correctness)."""
     tenant_id = _current_tenant_id(db)
-    table = Inventory.__table__
+    table = cast(Table, Inventory.__table__)
     stmt = (
         pg_insert(table)
         .values(
@@ -160,7 +162,7 @@ def upsert_decrement(db: Session, variant_id: int) -> Inventory:
     """Atomically insert-or-decrement (clamped at 0) the (tenant_id,
     variant_id) row in a single statement, mirroring upsert_increment."""
     tenant_id = _current_tenant_id(db)
-    table = Inventory.__table__
+    table = cast(Table, Inventory.__table__)
     stmt = (
         pg_insert(table)
         .values(tenant_id=tenant_id, variant_id=variant_id, quantity=0)

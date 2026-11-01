@@ -102,21 +102,21 @@ def fetch_deck_json(url: str) -> tuple[dict, str]:
     fetch_url, source = resolve_provider_api_url(url)
 
     try:
-        with httpx.Client(
-            timeout=FETCH_TIMEOUT_SECONDS, follow_redirects=False
-        ) as client:
-            with client.stream("GET", fetch_url) as response:
-                body = bytearray()
-                for chunk in response.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > MAX_RESPONSE_BYTES:
-                        raise FetchFailedError(
-                            f"response from {source} exceeded {MAX_RESPONSE_BYTES} bytes"
-                        )
-                if response.status_code != 200:
+        with (
+            httpx.Client(
+                timeout=FETCH_TIMEOUT_SECONDS, follow_redirects=False
+            ) as client,
+            client.stream("GET", fetch_url) as response,
+        ):
+            body = bytearray()
+            for chunk in response.iter_bytes():
+                body.extend(chunk)
+                if len(body) > MAX_RESPONSE_BYTES:
                     raise FetchFailedError(
-                        f"{source} returned HTTP {response.status_code}"
+                        f"response from {source} exceeded {MAX_RESPONSE_BYTES} bytes"
                     )
+            if response.status_code != 200:
+                raise FetchFailedError(f"{source} returned HTTP {response.status_code}")
     except httpx.TimeoutException as exc:
         raise FetchFailedError(f"timed out fetching deck from {source}") from exc
     except httpx.HTTPError as exc:

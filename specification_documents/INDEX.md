@@ -1,4 +1,4 @@
-<!-- generated 2026-10-31 by .github/scripts/docs_index.mjs from e00b864 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-01 by .github/scripts/docs_index.mjs from 00f8ae8 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,7 +115,7 @@ Total 251,667 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 139,491 B (LF) · 6 h2 · 43 h3
+Total 139,827 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -130,9 +130,9 @@ Total 139,491 B (LF) · 6 h2 · 43 h3
 | h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 158 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
 | h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 171 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
 | h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 180 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
-| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 46,372 |  |  |  |  |
+| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 46,708 |  |  |  |  |
 | h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 188 | 14,528 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
-| h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 221 | 659 |  |  | `backend/requirements.txt` |  |
+| h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 221 | 995 |  |  | `backend/pyproject.toml`, `backend/requirements.txt` |  |
 | h3 | [§2.3 `frontend` job](SWU_Platform_Spec.md#23-frontend-job) | 226 | 465 |  |  | `frontend/package-lock.json`, `frontend/vite.config.ts` |  |
 | h3 | [§2.4 `build-and-push` job](SWU_Platform_Spec.md#24-build-and-push-job) | 231 | 614 |  |  |  |  |
 | h3 | [§2.5 `check-risk-level` and `deploy-dev` jobs](SWU_Platform_Spec.md#25-check-risk-level-and-deploy-dev-jobs) | 237 | 1,791 |  | 0017, 0037 | `terraform/environments/dev` |  |

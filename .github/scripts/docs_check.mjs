@@ -36,7 +36,7 @@ export const LEVELS = {
   // round 2 (BL-271 Phase B ext)
   "cite-path": "fail", // backticked repo-shaped path that does not exist (fail since Phase C, 2026-10-19; historical citations on CITE_PATH_IGNORE)
   "cite-line": "fail", // `path:line` citation whose file does not exist
-  "cite-line-range": "warn", // `path:line` where line > the file's length
+  "cite-line-range": "warn", // `path:line` where line > the file's length (verbatim spec archives exempt)
   "ci-job-name": "fail", // Platform Spec section 2 names a CI job that no workflow defines (fail since Phase C, 2026-10-19)
   "adr-status-inline": "fail", // inline status word contradicts the ADR's own ## Status
   "number-snapshot": "warn", // bare count with no date / "as of" / backticked command
@@ -981,7 +981,8 @@ function checkCitations(ctx) {
         );
         continue;
       }
-      if (c.lines !== undefined && statSync(join(root, c.path)).isFile()) {
+      // Verbatim spec archives (ADR-0020 Tier 3) keep their line numbers as written.
+      if (c.lines !== undefined && !isSpecArchive(file) && statSync(join(root, c.path)).isFile()) {
         const len = fileLineCount(root, c.path);
         if (c.lines > len)
           add(

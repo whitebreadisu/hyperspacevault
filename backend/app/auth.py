@@ -1,11 +1,10 @@
 import time
-from typing import Optional
 
 import firebase_admin
 from fastapi import Depends, Header, HTTPException
 from firebase_admin import auth, credentials, exceptions
 
-_firebase_app: Optional[firebase_admin.App] = None
+_firebase_app: firebase_admin.App | None = None
 
 # BL-88: Firebase's standard "sensitive operation" recency window -- a
 # token's auth_time claim must be within this many seconds of "now" to
@@ -24,7 +23,7 @@ def _get_firebase_app() -> firebase_admin.App:
     return _firebase_app
 
 
-def _decode_token(authorization: Optional[str]) -> dict:
+def _decode_token(authorization: str | None) -> dict:
     """Verify a 'Bearer <Firebase ID token>' Authorization header and
     return the raw decoded claims dict.
 
@@ -43,11 +42,11 @@ def _decode_token(authorization: Optional[str]) -> dict:
     token = authorization.removeprefix("Bearer ")
     try:
         return auth.verify_id_token(token, app=_get_firebase_app())
-    except (ValueError, exceptions.FirebaseError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except (ValueError, exceptions.FirebaseError) as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from err
 
 
-def verify_firebase_token(authorization: Optional[str]) -> tuple[str, str, bool]:
+def verify_firebase_token(authorization: str | None) -> tuple[str, str, bool]:
     """Verify a 'Bearer <Firebase ID token>' Authorization header.
 
     Returns (firebase_uid, email, email_verified). Raises HTTPException(401)
@@ -64,7 +63,7 @@ def verify_firebase_token(authorization: Optional[str]) -> tuple[str, str, bool]
 
 
 def get_current_identity(
-    authorization: Optional[str] = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> tuple[str, str, bool]:
     """FastAPI dependency: the verified (firebase_uid, email, email_verified)
     of the caller.
@@ -76,8 +75,8 @@ def get_current_identity(
 
 
 def get_optional_identity(
-    authorization: Optional[str] = Header(default=None),
-) -> Optional[tuple[str, str, bool]]:
+    authorization: str | None = Header(default=None),
+) -> tuple[str, str, bool] | None:
     """FastAPI dependency: like get_current_identity, but a *missing*
     Authorization header resolves to None (anonymous) instead of raising
     401.
@@ -135,7 +134,7 @@ def require_verified_email(
 
 
 def require_recent_auth(
-    authorization: Optional[str] = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> None:
     """FastAPI dependency: gates a destructive route on the caller having
     reauthenticated within the last RECENT_AUTH_WINDOW_SECONDS (BL-88) --

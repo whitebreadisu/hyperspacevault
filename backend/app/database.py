@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from fastapi import Depends, Request
 from sqlalchemy import Connection, create_engine, text
@@ -275,7 +274,7 @@ def get_shared_db(token: str, request: Request):
 
 def get_optional_db(
     request: Request,
-    identity: Optional[tuple[str, str, bool]] = Depends(get_optional_identity),
+    identity: tuple[str, str, bool] | None = Depends(get_optional_identity),
 ):
     """FastAPI dependency: optional-auth session for GET /api/base-cards/{id}
     (BL-56 / ADR-0008 build-time refinement). Unlike the fully public catalog

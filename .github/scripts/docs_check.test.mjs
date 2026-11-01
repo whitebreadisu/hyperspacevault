@@ -560,7 +560,7 @@ test("cite-path: a missing repo path fails; real, extensionless, runtime, privat
   assert.equal(exitCode("cite_path_pass").status, 0);
 });
 
-test("cite-line: missing file fails; line beyond EOF warns; in-range passes", () => {
+test("cite-line: missing file fails; line beyond EOF warns (not in a verbatim spec archive); in-range passes", () => {
   const f = run("cite_line_fail");
   assert.equal(only(f, "cite-line").length, 1);
   assert.equal(only(f, "cite-line")[0].level, "fail");

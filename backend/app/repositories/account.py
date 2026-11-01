@@ -9,7 +9,7 @@ def _current_tenant_id(db: Session) -> int:
     never a request parameter."""
     return db.execute(
         text("SELECT current_setting('app.current_tenant_id')::integer")
-    ).scalar()
+    ).scalar_one()
 
 
 def purge_tenant(db: Session) -> None:

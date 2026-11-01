@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +38,7 @@ def _api_docs_enabled() -> bool:
     return os.environ.get("ENVIRONMENT") != "production"
 
 
-_docs_kwargs = (
+_docs_kwargs: dict[str, Any] = (
     {}
     if _api_docs_enabled()
     else {"docs_url": None, "redoc_url": None, "openapi_url": None}

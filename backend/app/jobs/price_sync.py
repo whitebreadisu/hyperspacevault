@@ -30,7 +30,7 @@ from __future__ import annotations
 import argparse
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -165,7 +165,7 @@ def run_sync(
             tcgcsv_last_updated=last_updated,
         )
 
-    sync_date = as_of or datetime.now(timezone.utc).date()
+    sync_date = as_of or datetime.now(UTC).date()
     product_index = load_product_index(db)
 
     total_upserted = 0

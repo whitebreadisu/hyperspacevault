@@ -47,9 +47,9 @@ Every route that opens a database session acquires authentication and tenant con
 The dependency chain for a `get_db` route:
 
 ```
-Request ──► Depends(get_db)                         [app/database.py:159]
+Request ──► Depends(get_db)                         [app/database.py:158]
               │
-              ├──► Depends(get_current_identity)    [app/auth.py:66]  (resolved first, transitively)
+              ├──► Depends(get_current_identity)    [app/auth.py:65]  (resolved first, transitively)
               │       └──► verify_firebase_token(Authorization header)
               │               └──► firebase_admin.auth.verify_id_token(...)
               │       returns (firebase_uid, email)
@@ -221,7 +221,7 @@ Prod promotion beyond the `risk:low` fast path is **not** a ci.yml job — it's 
 ### 2.2 `backend` job
 
 - Spins up a `postgres` service container. Env vars: `DATABASE_URL`, `APP_DATABASE_URL`, `APP_DB_PASSWORD` (the CSV-era `CATALOG_SEED_PATH`/`INVENTORY_SNAPSHOT_PATH` vars and snapshot step were removed as dead config in RR-6/F5 — tests seed their own fixtures via conftest).
-- Steps: checkout → `setup-python` (3.12, with `cache: pip` on `backend/requirements.txt`, RR-6/F29) → install deps → `ruff check` + `ruff format --check` → `alembic upgrade head` → `alembic check` (BL-269, 2026-10-28: the models must match the migrated schema; fails on drift) → `pytest --cov=app --cov-report=term-missing --cov-fail-under=75`.
+- Steps: checkout → `setup-python` (3.12, with `cache: pip` on `backend/requirements.txt`, RR-6/F29) → install deps → `ruff check` + `ruff format --check` → `mypy` (`[tool.mypy]` in `backend/pyproject.toml`: tests excluded, per-module overrides each with a written reason) → `alembic upgrade head` → `alembic check` (BL-269, 2026-10-28: the models must match the migrated schema; fails on drift) → `pytest --cov=app --cov-report=term-missing --cov-fail-under=75`. CI runs `mypy`; the owner's VS Code has Pylance with type checking off, so the editor does not disagree with CI, and the optional mypy VS Code extension (`ms-python.mypy-type-checker`) gives the editor CI's opinion.
 
 ### 2.3 `frontend` job
 

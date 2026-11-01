@@ -84,10 +84,10 @@ def make_rendition(original_bytes: bytes, width: int) -> bytes:
     a source image narrower than `width` is encoded to WebP at its native
     size, since upscaling would add bytes with no real resolution gain."""
     with Image.open(io.BytesIO(original_bytes)) as im:
-        im = im.convert("RGBA") if im.mode not in ("RGB", "RGBA") else im
-        target_width = min(width, im.width)
-        target_height = round(im.height * (target_width / im.width))
-        resized = im.resize((target_width, target_height), Image.LANCZOS)
+        src = im.convert("RGBA") if im.mode not in ("RGB", "RGBA") else im
+        target_width = min(width, src.width)
+        target_height = round(src.height * (target_width / src.width))
+        resized = src.resize((target_width, target_height), Image.Resampling.LANCZOS)
         buf = io.BytesIO()
         resized.save(buf, format="WEBP", quality=WEBP_QUALITY)
         return buf.getvalue()

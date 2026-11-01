@@ -105,7 +105,7 @@ def resolve_slotted_refs(
 
     resolved: list[ResolvedCardRef] = []
     unrecognized: list[UnrecognizedRef] = []
-    for sref, parsed in zip(slotted, parsed_by_index):
+    for sref, parsed in zip(slotted, parsed_by_index, strict=True):
         base_card_id = lookup.get(parsed) if parsed is not None else None
         if base_card_id is None:
             unrecognized.append(UnrecognizedRef(id=sref.ref.id, count=sref.ref.count))

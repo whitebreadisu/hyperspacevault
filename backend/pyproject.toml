@@ -1,8 +1,9 @@
 [tool.ruff]
 line-length = 88
+target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+select = ["E", "F", "W", "I", "B", "C90", "SIM", "RET", "UP", "PERF", "ERA", "PLR09", "PLW"]
 ignore = [
     # SQLAlchemy filter clauses use `== True` / `== False` intentionally.
     # Ruff's suggested fix (`not Column`) calls __bool__() on a Column object,
@@ -15,3 +16,85 @@ ignore = [
     # the formatter already wraps everything it can.
     "E501",
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies and form/file/query parameters as call
+# defaults; they are evaluated once at import by design, not shared state.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Query",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Lazily initialised module-level singletons (Firebase app, GCS bucket) are
+# assigned through `global` by design; there is no per-request state to hold them.
+"app/auth.py" = ["PLW0603"]
+"app/routers/images.py" = ["PLW0603"]
+# Function-size limits (too many arguments, branches, statements, returns) are
+# excused in these files until the WS-4 refactor items reach them; new functions
+# added to these files are not yet held to the limits either. Every other file is.
+"app/ingestion/tcgplayer_mapping.py" = ["PLR09"]
+"app/ingestion/transfer_variant_prices.py" = ["PLR09"]
+"app/jobs/price_backfill.py" = ["PLR09"]
+"app/repositories/feedback.py" = ["PLR09"]
+"app/routers/base_cards.py" = ["PLR09"]
+"app/routers/inventory.py" = ["PLR09"]
+"app/services/deck_check.py" = ["PLR09"]
+"app/services/inventory_import.py" = ["PLR09"]
+"app/services/swudb_import.py" = ["PLR09"]
+"app/services/swunlimiteddb_import.py" = ["PLR09"]
+# Tests and fixtures: many-argument fixtures and builders are normal, comment
+# lines that describe tuple layouts or section banners read as code to ERA001,
+# `lambda: object()` stubs are clearer than the bare callable, and building
+# expected-value lists in a loop is clearer than a comprehension.
+"app/tests/**" = ["PLR09", "ERA001", "PLW0108", "PERF401"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+exclude = ["^app/tests/"]
+check_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
+
+# Existing-code findings that need a behaviour decision (an Optional narrowing,
+# a branch, or a str-to-Literal conversion) rather than an annotation fix. Each
+# override disables only the named codes in that module, so every other check
+# stays on; remove an override when its findings are resolved.
+[[tool.mypy.overrides]]
+module = ["app.services.settings", "app.services.inventory_import"]
+# Values built from str constants are passed to response models typed as Literal.
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
+module = "app.services.swunlimiteddb_import"
+# openpyxl cell values are object, and the raw set/number fields are
+# str | None until the candidate filter has run.
+disable_error_code = ["call-overload", "union-attr", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = "app.services.deck_check"
+# url and deck_json are exclusive options narrowed by a branch the types do not carry.
+disable_error_code = ["assignment"]
+
+[[tool.mypy.overrides]]
+module = ["app.ingestion.run_tcgplayer_mapping", "app.ingestion.run_swuapi_ingestion"]
+# Command-line scripts index into an Optional stats object or a fetched row
+# that is known present at that point but not narrowed.
+disable_error_code = ["union-attr"]
+
+# SQLAlchemy resolves Mapped["ClassName"] strings through its registry at
+# runtime (the same reason ruff ignores F821), so mypy cannot see the names.
+[[tool.mypy.overrides]]
+module = "app.models.*"
+disable_error_code = ["name-defined"]
+
+# These packages ship no type stubs and no py.typed marker.
+[[tool.mypy.overrides]]
+module = ["firebase_admin", "firebase_admin.*", "google.cloud", "google.cloud.*"]
+ignore_missing_imports = true

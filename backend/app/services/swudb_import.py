@@ -246,7 +246,7 @@ def _resolve_candidates(
     # Step (b): stamp keyword match. Narrows WITHIN the foil split when it
     # actually narrowed anything (>=2 left); falls back to the FULL
     # candidate set when the foil split left nothing at all -- the SORPR
-    # case (§3.3/§4): IsFoil=True on both rows, but neither "Prerelease
+    # case (§3.3/§4), where IsFoil=True on both rows but neither "Prerelease
     # Promo" nor "Prerelease Judge" reads as foilish, so foil_matches is
     # empty and would otherwise strand a resolvable row. This is a
     # deliberate widening of the doc's literal "(a) then (b)" phrasing to
