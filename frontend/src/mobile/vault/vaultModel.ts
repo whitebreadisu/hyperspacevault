@@ -150,7 +150,7 @@ function facetAndSearch(toggled: InventoryCard[], s: VaultFilterState): Inventor
   return s.query.trim() ? faceted.filter((c) => matchesQuery(c, s.query)) : faceted;
 }
 
-/** A stable empty Set facet (desktop EMPTY_SET_CODES). */
+/** A stable empty Set facet, so the breakdown never narrows by set. */
 const NO_SETS: Set<string> = new Set();
 
 export interface VaultList {
@@ -161,8 +161,8 @@ export interface VaultList {
   toggled: InventoryCard[];
   /** The narrowed list, sorted -- what the rows / gallery render. */
   list: InventoryCard[];
-  /** S1-24: every narrowing EXCEPT the Set facet (desktop CardsPage
-   * breakdownCards, BL-224) -- the by-set rows' universe. */
+  /** Every narrowing EXCEPT the Set facet: the by-set rows' universe, so a
+   * row stays visible while another set is selected. */
   breakdown: InventoryCard[];
   narrowed: boolean;
   activeCount: number;

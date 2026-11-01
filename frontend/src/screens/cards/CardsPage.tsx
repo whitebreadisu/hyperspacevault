@@ -1,50 +1,43 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { getBaseCardsList } from "../../api/baseCards";
-import { getQuantities } from "../../api/inventory";
-import { getSharedQuantities } from "../../api/sharedView";
-import { getSets } from "../../api/sets";
-import { toInventoryCards } from "../../utils/inventory";
 import { InventorySummary } from "../inventory/InventorySummary";
 import { CardsTable } from "./CardsTable";
 import { GalleryGrid } from "./GalleryGrid";
 import { GallerySortHeader } from "./GallerySortHeader";
 import { CardPopup } from "./CardPopup";
-import { FilterPanel, countActiveFilters } from "../../components/FilterPanel";
+import { FilterPanel } from "../../components/FilterPanel";
 import { capture } from "../../analytics/analytics";
 import { useLimits } from "../../context/LimitsContext";
-import {
-  applyFilters,
-  DEFAULT_FILTERS,
-  isDefaultFilterState,
-  setFacetAfterRowTap,
-} from "../../utils/filters";
+import { setFacetAfterRowTap } from "../../utils/filters";
 import { SWUButton } from "../../components/SWUButton";
 import { AddCardsModal } from "../inventory/AddCardsModal";
 import { ShareManageModal } from "../shares/ShareManageModal";
 import { deriveRenditions } from "../../utils/cardImages";
-import { orderSetCodes } from "../../utils/catalog";
+import { baseSetLists } from "../../utils/completion";
 import {
   loadPriceKind,
   savePriceKind,
   loadValueDisplay,
   saveValueDisplay,
-  isFinishSetScopedTo,
-  sortCardsByScope,
-  applyCollectionToggles,
 } from "../../utils/variantScope";
-import { sortCards, nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
+import { nextSortState, DEFAULT_SORT_STATE } from "../../utils/cardSort";
 import type { SortState, SortColumn } from "../../utils/cardSort";
 import { loadWidthTier, saveWidthTier } from "../../utils/tableWidthTier";
 import type { WidthTier } from "../../utils/tableWidthTier";
-import type { InventoryCard } from "../../utils/inventory";
-import type { BaseCardCatalog, BaseCardCatalogWithQuantity } from "../../api/baseCards";
 import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import type { FilterState } from "../../utils/filters";
 import type { ViewMode } from "../../components/FilterPanel";
-import type { BaseCard, SetOrderMap } from "../../utils/catalog";
-import type { CardSet } from "../../api/sets";
-import type { SetMeta } from "../../utils/completion";
+import type { BaseCard } from "../../utils/catalog";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
+import { useVaultDataSource } from "../../mobile/vault/useVaultData";
+import {
+  buildVaultList,
+  desktopSortPolicy,
+  freshFilterState,
+  withFilters,
+  withScope,
+} from "../../mobile/vault/vaultModel";
+import type { CollectionToggles, VaultFilterState } from "../../mobile/vault/vaultModel";
+import { withToggle } from "../../mobile/filters/filterModel";
 import "./cards.css";
 
 interface Props {
@@ -82,8 +75,8 @@ interface Props {
    * instead of GET /api/inventory/quantities, and every mutation affordance
    * (Add Cards, Import/Export, the popup's quantity stepper) is hidden rather
    * than merely disabled. The catalog fetch (getBaseCardsList/getSets, both
-   * already public) is unaffected -- this prop touches nothing upstream of
-   * `baseCards`.
+   * already public) is unaffected -- this prop only changes which quantities
+   * useVaultDataSource merges in.
    *
    * Independent of `isAuthenticated`: a signed-in viewer browsing someone
    * else's share still can't edit it (see `readOnly`/`hasData` below), and an
@@ -93,25 +86,17 @@ interface Props {
   shareToken?: string;
 }
 
-// A stable empty Set identity for building the popovers' "every filter except
-// the set facet" breakdownCards below -- spreading `{ ...filters, set: new
-// Set() }` inline would hand useMemo a fresh Set every render even when
-// nothing else changed.
-const EMPTY_SET_CODES: Set<string> = new Set();
-
 /** Unified Cards view -- one list for everyone, inventory data layered on by
  * auth state rather than a second view.
  *
- * The list data arrives as two fetches merged client-side (App Spec §12;
- * ADR-0005's payload axis):
- *   1. getBaseCardsList: catalog only, no per-tenant data, publicly
- *      CDN/browser-cached server-side, fetched once on mount; and
- *   2. getQuantities: the caller's sparse variant_id -> quantity rows, tiny,
- *      auth-required, re-fetched on every auth change and after every
- *      inventory mutation (Add Cards commit, inventory popup).
- * Anonymous users skip fetch 2 entirely; every variant_id absent from the
- * quantities map renders as 0. Signing in/out therefore never re-downloads the
- * catalog -- only the quantities swap. */
+ * The data comes from useVaultDataSource (the same hook the phone uses): the
+ * publicly cached catalogue fetched once, merged client-side with the caller's
+ * sparse quantities (App Spec §12; ADR-0005's payload axis), which are
+ * re-fetched on every auth change and after every inventory mutation (Add
+ * Cards commit, inventory popup). Signing in/out never re-downloads the
+ * catalogue -- only the quantities swap. What the list shows is decided by
+ * buildVaultList (the shared vault model) with desktop's sort policy and
+ * Unit/Collection value mode. */
 export function CardsPage({
   isAuthenticated,
   onRequestSignIn,
@@ -133,36 +118,29 @@ export function CardsPage({
   // The tenant's (or, in read-only viewer mode, the share owner's --
   // LimitsProvider's own shareToken seam) effective keep-limit matrix, with
   // the same null-means-code-defaults fallback every other limits consumer
-  // uses (utils/limits.ts). Feeds overCapOnly's predicate below; nothing else
-  // in this file reads it.
+  // uses (utils/limits.ts). Feeds the over-limit toggle's predicate in
+  // buildVaultList; nothing else in this file reads it.
   const { limits } = useLimits();
-  const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [quantitiesLoading, setQuantitiesLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [incompleteOnly, setIncompleteOnly] = useState(false);
-  // Parallel my-collection filter -- same shape/treatment as incompleteOnly
-  // (state + pl-toggle + requestSignIn routing for anonymous).
-  const [ownedOnly, setOwnedOnly] = useState(false);
-  // Inverse of ownedOnly -- "what am I missing" shopping view. Same
-  // state/pl-toggle/requestSignIn shape as its siblings, with one addition:
-  // it's semantically the opposite of ownedOnly (owned total 0 vs. > 0), so
-  // the two are mutually exclusive -- see the two setters below, which each
-  // clear the other on the way to "on". incompleteOnly is left independent:
-  // "no inventory" and "incomplete playset" aren't contradictory (a
-  // zero-owned card is trivially an incomplete playset too), just narrower.
-  const [noInventoryOnly, setNoInventoryOnly] = useState(false);
-  // "Over my keep limit" discovery filter -- same state/pl-toggle/
-  // requestSignIn shape as its three siblings above. Mutually exclusive with
-  // noInventoryOnly specifically (over-cap implies owned, so "over cap" and
-  // "no inventory" can never both hold -- see the two setters below, which
-  // each clear the other on the way to "on"), but left independent of
-  // ownedOnly/incompleteOnly the same way noInventoryOnly is independent of
-  // incompleteOnly: redundant combinations are allowed, only contradictory
-  // ones are blocked.
-  const [overCapOnly, setOverCapOnly] = useState(false);
+  const {
+    cards,
+    catalogWithQuantities,
+    quantities,
+    sets,
+    setOrder,
+    setNameByCode,
+    loading,
+    error,
+    refreshQuantities,
+  } = useVaultDataSource(isAuthenticated, shareToken ?? null);
+  // Facets, finish scope and the four Collection toggles, as the shared
+  // model's state. The search box writes `filters.search` (FilterPanel owns
+  // that field); `query` stays empty here and the model is handed
+  // `query: filters.search` below. The toggles' mutual exclusions (Own vs.
+  // No inventory; Over limit vs. No inventory) are applied on the way in by
+  // withToggle; redundant combinations are allowed, only contradictory ones
+  // are blocked.
+  const [vaultState, setVaultState] = useState<VaultFilterState>(freshFilterState);
+  const { filters, scope, toggles } = vaultState;
   const [modalOpen, setModalOpen] = useState(false);
   // Owner-side share management modal (App Spec §19.1) -- the Vault header's
   // share affordance. Never rendered in read-only viewer mode (see the
@@ -171,7 +149,7 @@ export function CardsPage({
   // viewer-mode Vault at all.
   const [shareManageModalOpen, setShareManageModalOpen] = useState(false);
   // Table <-> Gallery view toggle, owned here (not FilterPanel) since it
-  // governs which component below renders `filtered` -- FilterPanel only
+  // governs which component below renders `list` -- FilterPanel only
   // displays/controls the value (see its ViewMode prop).
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   // ONE unified popup state: every opener (table name click, table
@@ -184,7 +162,7 @@ export function CardsPage({
   const [popupBaseCardId, setPopupBaseCardId] = useState<number | null>(null);
   // The ordered base_card_id list for the popup's prev/next nav, SNAPSHOTTED
   // at the moment the popup opens (see openPopup below) rather than read live
-  // off `filtered` on every render. State model: "the popup session's list is
+  // off `list` on every render. State model: "the popup session's list is
   // whatever it was opened from" -- if the filter/sort result changes while
   // the popup is open (filters live behind the popup's overlay so this is
   // rare, but the state shape doesn't assume it's impossible), navigation
@@ -202,12 +180,6 @@ export function CardsPage({
   // "new_arrivals" are in the taxonomy's enum but have no popup-opening seam
   // in this codebase (neither screen renders CardPopup).
   const [popupSource, setPopupSource] = useState<"table" | "gallery">("table");
-  const [setOrder, setSetOrder] = useState<SetOrderMap>({});
-  const [setNameByCode, setSetNameByCode] = useState<Record<string, string>>({});
-  // The raw getSets() rows, kept alongside the two derived maps above --
-  // baseSetCodes/orderedBaseSets (below) need `is_base_set`, which neither
-  // existing map carries.
-  const [sets, setSets] = useState<CardSet[]>([]);
   // The "signed-in unverified" click nudge for the Import / Export button --
   // the anonymous click already has a mechanism (requestSignIn opens
   // AuthModal); this is its verified-email equivalent, same click-to-reveal
@@ -216,15 +188,14 @@ export function CardsPage({
   // a click lands so re-clicking after the message is already showing still
   // reads as fresh feedback.
   const [importExportNudge, setImportExportNudge] = useState(false);
-  // The Cards table's variant-scope control (Playset header; App Spec §5.14)
-  // -- a single raw finish value, or null for "All variants". Transient by
-  // design (never persisted, resets to null on every fresh load) -- see
-  // utils/variantScope.ts. Picking/clearing a scope also drives
-  // `filters.finish` directly (handleScopeChange below); the reverse never
-  // happens automatically -- a *user* edit of the Finish filter instead
-  // disengages the scope (handleFilterPanelChange below), per "scope drives
-  // filter, never vice versa."
-  const [scope, setScope] = useState<string | null>(null);
+  // `scope` (in vaultState) is the Cards table's variant-scope control
+  // (Playset header; App Spec §5.14) -- a single raw finish value, or null for
+  // "All variants". Transient by design (never persisted, resets to null on
+  // every fresh load) -- see utils/variantScope.ts. Picking/clearing a scope
+  // also drives `filters.finish` directly (handleScopeChange below); the
+  // reverse never happens automatically -- a *user* edit of the Finish filter
+  // instead disengages the scope (handleFilterPanelChange below), per "scope
+  // drives filter, never vice versa."
   // Market/Low kind for the Value column -- Market default, persisted across
   // visits (localStorage, headerStarfield's pattern).
   const [priceKind, setPriceKind] = useState<PriceMode>(() => loadPriceKind());
@@ -248,16 +219,15 @@ export function CardsPage({
   }, [onRequestSignIn]);
 
   // Picking/clearing a scope REPLACES filters.finish wholesale -- picking sets
-  // it to the single-value Set([raw]), clearing empties it. This is the one
-  // path allowed to set `finish` without going through
+  // it to the single-value Set([raw]), clearing empties it (withScope). This
+  // is the one path allowed to set `finish` without going through
   // handleFilterPanelChange's disengage check below (scope driving filter is
   // the expected direction; only the reverse needs guarding against).
   const handleScopeChange = useCallback((raw: string | null) => {
     // "all" represents the cleared/"All variants" selection -- capture()'s
     // properties can't carry null.
     capture("finish_scope_changed", { finish: raw ?? "all" });
-    setScope(raw);
-    setFilters((prev) => ({ ...prev, finish: raw ? new Set([raw]) : new Set<string>() }));
+    setVaultState((prev) => withScope(prev, raw));
   }, []);
 
   const handlePriceKindChange = useCallback((kind: PriceMode) => {
@@ -296,135 +266,31 @@ export function CardsPage({
   // no longer exactly the single value the scope itself set it to, the user
   // has directly edited the Finish filter (or reset everything) -- disengage
   // the scope (App Spec §5.14: "scope drives filter, never vice versa"; their
-  // new selection stands untouched). Reads `filters` from this render's
-  // closure rather than via a functional setFilters updater specifically so
-  // the disengage decision -- a second, independent setState call -- never
-  // has to happen from inside another state updater.
+  // new selection stands untouched) -- withFilters. A functional update, so a
+  // FilterPanel edit and an onResetAll toggle reset made in the same click
+  // each apply to the other's result.
   const handleFilterPanelChange = useCallback(
     (update: FilterState | ((prev: FilterState) => FilterState)) => {
-      const next = typeof update === "function" ? update(filters) : update;
-      if (scope !== null && !isFinishSetScopedTo(next.finish, scope)) {
-        setScope(null);
-      }
-      setFilters(next);
+      setVaultState((prev) =>
+        withFilters(prev, typeof update === "function" ? update(prev.filters) : update)
+      );
     },
-    [filters, scope]
+    []
   );
 
-  // Catalog: once on mount. Auth changes don't touch it -- the catalog is
-  // identity-independent by construction.
-  useEffect(() => {
-    setCatalogLoading(true);
-    setError(null);
-    getBaseCardsList()
-      .then(setCatalog)
-      .catch((err) => setError(String(err)))
-      .finally(() => setCatalogLoading(false));
-  }, []);
-
-  /** Quantities: re-fetched on auth change and after every inventory mutation
-   * (the AddCardsModal / inventory-popup callbacks below). */
-  const refreshQuantities = useCallback(async () => {
-    // shareToken wins outright, checked before isAuthenticated -- the shared
-    // endpoint returns the share's OWNER-tenant rows regardless of whether the
-    // viewer themselves is signed in.
-    if (readOnly) {
-      const rows = await getSharedQuantities(shareToken!);
-      const map: Record<number, number> = {};
-      for (const r of rows) map[r.variant_id] = r.quantity;
-      setQuantities(map);
-      return;
-    }
-    if (!isAuthenticated) {
-      setQuantities({});
-      return;
-    }
-    const rows = await getQuantities();
-    const map: Record<number, number> = {};
-    for (const r of rows) map[r.variant_id] = r.quantity;
-    setQuantities(map);
-  }, [isAuthenticated, readOnly, shareToken]);
-
-  useEffect(() => {
-    // quantitiesLoading gates the initial signed-in render (below) so the
-    // table never flashes an all-zeros collection while the sparse
-    // quantities are still in flight.
-    setQuantitiesLoading(true);
-    refreshQuantities()
-      .catch((err) => setError(String(err)))
-      .finally(() => setQuantitiesLoading(false));
-  }, [refreshQuantities]);
-
   // Hands the current refreshQuantities up to App.tsx on every identity change
-  // (only ever changes with isAuthenticated -- see the callback's own deps
-  // above) -- see this prop's own doc comment for why.
+  // (it only changes with the auth state or the share token) -- see this
+  // prop's own doc comment for why.
   useEffect(() => {
     onQuantitiesRefreshReady?.(refreshQuantities);
   }, [onQuantitiesRefreshReady, refreshQuantities]);
 
-  const loading = catalogLoading || quantitiesLoading;
-
-  /** The merged shape: slim catalog variants + quantity (0 when the caller
-   * owns none / is anonymous). Typed as BaseCardCatalogWithQuantity (the slim
-   * list shape), not BaseCardDetail (the fat detail shape) -- the two are not
-   * structurally interchangeable; see toInventoryCards' doc comment
-   * (utils/inventory.ts). */
-  const baseCards = useMemo<BaseCardCatalogWithQuantity[]>(
-    () =>
-      catalog.map((base) => ({
-        ...base,
-        variants: base.variants.map((v) => ({
-          ...v,
-          quantity: quantities[v.variant_id] ?? 0,
-        })),
-      })),
-    [catalog, quantities]
-  );
-
-  useEffect(() => {
-    getSets()
-      .then((fetchedSets) => {
-        const nameMap: Record<string, string> = {};
-        const orderMap: SetOrderMap = {};
-        fetchedSets.forEach((s) => {
-          nameMap[s.code] = s.name;
-          orderMap[s.code] = s.release_date;
-        });
-        setSetNameByCode(nameMap);
-        setSetOrder(orderMap);
-        // baseSetCodes/orderedBaseSets (below) derive from the raw rows --
-        // `is_base_set` isn't carried by either map above.
-        setSets(fetchedSets);
-      })
-      .catch((err) => console.error("Failed to load sets:", err));
-  }, []);
-
   // The completion panel's universe (App Spec §5.13) -- the base sets, by
   // `is_base_set` (true for TS26) -- plus the same set list release-ordered
   // for the panel's "by set" breakdown popovers.
-  const baseSetCodes = useMemo(
-    () => new Set(sets.filter((s) => s.is_base_set).map((s) => s.code)),
-    [sets]
-  );
-  const orderedBaseSets = useMemo<SetMeta[]>(() => {
-    const baseCodes = sets.filter((s) => s.is_base_set).map((s) => s.code);
-    return orderSetCodes(baseCodes, setOrder).map((code) => ({
-      code,
-      name: setNameByCode[code] ?? code,
-    }));
-  }, [sets, setOrder, setNameByCode]);
-
-  // Row order follows the active scope -- toInventoryCards already applies the
-  // unscoped sortBaseCards order internally; sortCardsByScope re-sorts by the
-  // scoped variant's own card_number when a scope is active, and is a no-op
-  // re-sort (defers straight to sortBaseCards) when it isn't. `scope` joins
-  // the dep list so re-engaging/clearing it recomputes this memo -- everything
-  // downstream (toggleNarrowed -> filtered -> sortedCards, plus the popup's
-  // openPopup snapshot) reads off this array, so the # column, table order,
-  // and popup prev/next nav all follow the same order for free.
-  const cards = useMemo<InventoryCard[]>(
-    () => sortCardsByScope(toInventoryCards(baseCards, setOrder), setOrder, scope),
-    [baseCards, setOrder, scope]
+  const { baseSetCodes, orderedBaseSets } = useMemo(
+    () => baseSetLists(sets, setOrder, setNameByCode),
+    [sets, setOrder, setNameByCode]
   );
 
   /** Flat per-variant rows for the Add Cards resolver (AddCardsModal /
@@ -432,7 +298,7 @@ export function CardsPage({
    * base card's nested variants -- no second endpoint call. */
   const addCardsCatalog = useMemo<AddCardsCatalogEntry[]>(() => {
     const flat: AddCardsCatalogEntry[] = [];
-    for (const base of baseCards) {
+    for (const base of catalogWithQuantities) {
       for (const v of base.variants) {
         flat.push({
           id: v.variant_id,
@@ -463,59 +329,46 @@ export function CardsPage({
       }
     }
     return flat;
-  }, [baseCards]);
+  }, [catalogWithQuantities]);
 
-  // Toggle-narrowed base set -- incompleteOnly/ownedOnly applied, but not the
-  // FilterPanel dropdown filters. This is what FilterPanel facets against (so
-  // "show only cards I own" narrows dropdown options the same way it narrows
-  // the table), and it's also the base `filtered` below applies `filters` to.
-  // Toggles and filters are independent per-card predicates, so folding the
-  // toggles in first vs. last doesn't change the final `filtered` set -- only
-  // what FilterPanel sees.
-  const toggleNarrowed = useMemo(
+  // The whole narrowing pipeline, from the shared model: scope-aware default
+  // order, the Collection toggles, every facet, the search, then the sort
+  // with the default-order tiebreak. Desktop applies the sort it is handed
+  // (its headers offer Set and Variants) and its Value sort follows the
+  // Unit/Collection switch.
+  //   all       -- every card in scope-aware default order (the "All" totals)
+  //   toggled   -- the toggles only: what FilterPanel facets against, so
+  //                "show only cards I own" narrows its option lists the same
+  //                way it narrows the table
+  //   list      -- the narrowed, sorted rows the table and gallery render and
+  //                the popup's prev/next snapshot browses
+  //   breakdown -- every narrowing except the Set facet: the completion
+  //                popovers' rows are the Set facet's own selection menu, and
+  //                a menu never filters itself
+  //   narrowed  -- whether InventorySummary's Filtered/All switch renders
+  const vaultList = useMemo(
     () =>
-      applyCollectionToggles(
-        cards,
-        {
-          incomplete: incompleteOnly,
-          owned: ownedOnly,
-          unowned: noInventoryOnly,
-          overcap: overCapOnly,
-        },
-        scope,
-        limits
-      ),
-    [cards, incompleteOnly, ownedOnly, noInventoryOnly, overCapOnly, scope, limits]
+      buildVaultList(cards, { ...vaultState, query: vaultState.filters.search }, sortState, {
+        setOrder,
+        priceKind,
+        limits,
+        sortPolicy: desktopSortPolicy,
+        unitMode: valueDisplay,
+      }),
+    [cards, vaultState, sortState, setOrder, priceKind, limits, valueDisplay]
   );
-
-  const filtered = useMemo(
-    () => applyFilters(toggleNarrowed as BaseCard[], filters) as InventoryCard[],
-    [toggleNarrowed, filters]
-  );
-
-  // The completion popovers' rows are the sidebar Set facet's OWN selection
-  // menu, so their universe is every filter applied EXCEPT the set facet
-  // itself -- a menu never filters itself, or a set the collector already
-  // picked would erase its own row out from under them.
-  const breakdownCards = useMemo(
-    () =>
-      applyFilters(toggleNarrowed as BaseCard[], {
-        ...filters,
-        set: EMPTY_SET_CODES,
-      }) as InventoryCard[],
-    [toggleNarrowed, filters]
-  );
+  const { all, toggled, list, breakdown, narrowed, activeCount } = vaultList;
 
   // A popover row-click replaces the sidebar's set facet with that one set;
   // tapping the set that is already the only selection clears it (the phone's
   // rule, setFacetAfterRowTap). Routed through handleFilterPanelChange (not a raw
-  // setFilters) so a row-click carries the exact same side effects as any
+  // state write) so a row-click carries the exact same side effects as any
   // other FilterPanel edit.
   const pickFilterSet = useCallback(
     (code: string) => {
-      handleFilterPanelChange({ ...filters, set: setFacetAfterRowTap(filters.set, code) });
+      handleFilterPanelChange((prev) => ({ ...prev, set: setFacetAfterRowTap(prev.set, code) }));
     },
-    [filters, handleFilterPanelChange]
+    [handleFilterPanelChange]
   );
 
   // The Collection checkboxes are real applied filters living outside
@@ -525,74 +378,45 @@ export function CardsPage({
   // FilterState and is already counted once by FilterPanel's own
   // countActiveFilters, so it is not counted again here.
   const externalActiveCount =
-    (incompleteOnly ? 1 : 0) +
-    (ownedOnly ? 1 : 0) +
-    (noInventoryOnly ? 1 : 0) +
-    (overCapOnly ? 1 : 0);
-
-  // The SAME total FilterPanel's own collapsed-rail badge shows (its
-  // countActiveFilters, exported for this) plus the toggles above --
-  // filter_applied's active_filter_count property (App Spec §22).
-  const activeFilterCount = countActiveFilters(filters) + externalActiveCount;
+    (toggles.incomplete ? 1 : 0) +
+    (toggles.owned ? 1 : 0) +
+    (toggles.unowned ? 1 : 0) +
+    (toggles.overcap ? 1 : 0);
 
   // Which filter field a click/change just touched, stashed synchronously
   // (FilterPanel's onFieldChanged prop, or the four Collection toggle
   // onClicks below) so the effect further down can read the POST-change
   // results_count/active_filter_count off this component's own next render
   // before firing filter_applied. Cleared once consumed so an unrelated
-  // `filtered`/`activeFilterCount` change (e.g. a quantities refresh) never
-  // fires a spurious event.
+  // list/count change (e.g. a quantities refresh or a sort) never fires a
+  // spurious event.
   const pendingFilterFieldRef = useRef<string | null>(null);
   const handleFieldChanged = useCallback((field: string) => {
     pendingFilterFieldRef.current = field;
   }, []);
 
   const resetExternalFilters = useCallback(() => {
-    setIncompleteOnly(false);
-    setOwnedOnly(false);
-    setNoInventoryOnly(false);
-    setOverCapOnly(false);
+    setVaultState((prev) => ({ ...prev, toggles: freshFilterState().toggles }));
   }, []);
 
-  // base_card_id -> position in the default order (canonical set order,
-  // numbers ascending) -- built off `cards` (the full scope-ordered list
-  // BEFORE any filter/toggle narrows it), not `filtered`, so the index a row
-  // carries never changes as filters/toggles come and go, only which rows are
-  // visible. Every column's comparator falls back to this on a tie
-  // (utils/cardSort.ts), and it's the literal definition of `#`/`Set`
-  // ascending.
-  const defaultIndex = useMemo(() => new Map(cards.map((c, i) => [c.base_card_id, i])), [cards]);
-
-  // The row order the page actually renders -- `filtered` (every filter/toggle
-  // narrowing already applied, set facet included) reordered by the active
-  // single-column sort. Feeds CardsTable AND GalleryGrid from one call, so the
-  // Gallery view inherits the same ordering for free, and the popup's
-  // prev/next snapshot below follows the same order the collector is actually
-  // looking at.
-  const sortedCards = useMemo(
-    () =>
-      sortCards(filtered, sortState, {
-        scope,
-        valueMode: priceKind,
-        unitMode: valueDisplay,
-        setOrder,
-        defaultIndex,
-      }),
-    [filtered, sortState, scope, priceKind, valueDisplay, setOrder, defaultIndex]
+  /** A Collection toggle click: inert (routes to sign-in) without real data,
+   * otherwise flips the toggle with its exclusions. */
+  const clickToggle = useCallback(
+    (key: keyof CollectionToggles, field: string) => {
+      if (!hasData) {
+        requestSignIn();
+        return;
+      }
+      handleFieldChanged(field);
+      setVaultState((prev) => ({ ...prev, toggles: withToggle(prev.toggles, key) }));
+    },
+    [hasData, requestSignIn, handleFieldChanged]
   );
-
-  // "Any mechanism" that narrows the visible list -- a FilterPanel
-  // facet/search (the set facet included), or any of the four toggles above --
-  // makes `filtered` a genuine subset of `cards`, which is what governs
-  // whether InventorySummary's Filtered/All scope toggle renders at all. A set
-  // facet selection is already covered by `isDefaultFilterState(filters)`.
-  const isNarrowed =
-    !isDefaultFilterState(filters) || incompleteOnly || ownedOnly || noInventoryOnly || overCapOnly;
 
   // Fires filter_applied once per user-driven field change (App Spec §22),
   // reading the POST-change results_count/active_filter_count off THIS render
   // -- pendingFilterFieldRef is set synchronously in the same click/change
-  // event that produced the `filters`/toggle state this render reflects, so by
+  // event that produced the filter/toggle state this render reflects, so by
   // the time this effect runs the values below are already current.
   useEffect(() => {
     const field = pendingFilterFieldRef.current;
@@ -600,15 +424,15 @@ export function CardsPage({
     pendingFilterFieldRef.current = null;
     capture("filter_applied", {
       field,
-      active_filter_count: activeFilterCount,
-      results_count: filtered.length,
+      active_filter_count: activeCount,
+      results_count: list.length,
     });
-  }, [filtered, activeFilterCount]);
+  }, [list, activeCount]);
 
   // search_performed (App Spec §22) -- debounce-follows the search box (never
   // per keystroke) and skips an emptied/never-typed box entirely (nothing to
-  // report). Reads `filtered.length` from this render's closure rather than
-  // listing it as a dep -- see the disable comment below; a `filtered` change
+  // report). Reads `list.length` from this render's closure rather than
+  // listing it as a dep -- see the disable comment below; a list change
   // from something OTHER than this search text (e.g. a quantities refresh)
   // would otherwise restart the debounce for no reason.
   useEffect(() => {
@@ -616,7 +440,7 @@ export function CardsPage({
     const timeout = setTimeout(() => {
       capture("search_performed", {
         query_length: filters.search.length,
-        results_count: filtered.length,
+        results_count: list.length,
       });
     }, 400);
     return () => clearTimeout(timeout);
@@ -638,14 +462,13 @@ export function CardsPage({
       // (precedence over the scope preselect below). Table opens and
       // unfiltered gallery opens pass nothing and keep the default rules.
       setGalleryDisplayedFinish(displayedFinish);
-      // Snapshot the SORTED order (not the pre-sort `filtered`) -- prev/next
-      // browses in the same order the collector clicked from, table or Gallery
-      // alike.
-      setPopupCardIds(sortedCards.map((c) => c.base_card_id));
+      // Snapshot the SORTED order -- prev/next browses in the same order the
+      // collector clicked from, table or Gallery alike.
+      setPopupCardIds(list.map((c) => c.base_card_id));
       setPopupBaseCardId(baseCardId);
       setPopupSource(source);
     },
-    [sortedCards]
+    [list]
   );
 
   // card_popup_opened's `source` (App Spec §22) -- CardsTable's
@@ -671,7 +494,7 @@ export function CardsPage({
   }, []);
 
   /** Derives prev/next targets from the snapshotted `popupCardIds` (never from
-   * live `filtered` -- see that state's own comment). Boundary behavior is
+   * live `list` -- see that state's own comment). Boundary behavior is
    * DISABLE, not wrap -- `canPrev`/`canNext` are what CardPopup uses to
    * disable each button and to guard the ArrowLeft/ArrowRight shortcuts;
    * `onPrev`/`onNext` at a disabled boundary are harmless no-ops rather than
@@ -713,7 +536,7 @@ export function CardsPage({
           <FilterPanel
             filters={filters}
             setFilters={handleFilterPanelChange}
-            cards={toggleNarrowed as BaseCard[]}
+            cards={toggled as BaseCard[]}
             onResetAll={resetExternalFilters}
             externalActiveCount={externalActiveCount}
             onFieldChanged={handleFieldChanged}
@@ -727,121 +550,64 @@ export function CardsPage({
                   `pl-toggle--scoped` -- the same amber outline/text/background
                   token family the # th uses (cards.css copies
                   `.vs-header-scope__trigger--on` verbatim), signaling that
-                  these filters evaluate against the scoped finish
-                  (toggleNarrowed above), not the card's total inventory.
-                  Styling-only modifier; click handling is unaffected. */}
+                  these filters evaluate against the scoped finish (the
+                  toggles in buildVaultList are scope-aware), not the card's
+                  total inventory. Styling-only modifier; click handling is
+                  unaffected. Every toggle is gated on `hasData` (not the raw
+                  isAuthenticated), so it works for a read-only shared-vault
+                  viewer too -- the owner's real quantities exist to filter on
+                  even when the VIEWER is anonymous; signed out with no share,
+                  each is an inert teaser that routes to sign-in. */}
               <div className="ifp-toggle-row__buttons">
                 <button
                   type="button"
-                  className={`pl-toggle${incompleteOnly ? " pl-toggle--on" : ""}${
+                  className={`pl-toggle${toggles.incomplete ? " pl-toggle--on" : ""}${
                     hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => {
-                    if (hasData) {
-                      handleFieldChanged("completion");
-                      setIncompleteOnly((v) => !v);
-                    } else requestSignIn();
-                  }}
-                  aria-pressed={incompleteOnly}
+                  onClick={() => clickToggle("incomplete", "completion")}
+                  aria-pressed={toggles.incomplete}
                   aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only incomplete playsets</span>
                 </button>
-                {/* My-collection filter, mirrors incompleteOnly above -- same
-                    pl-toggle markup and requestSignIn routing for anonymous
-                    users (the inert-teaser mechanism). Gated on `hasData` (not
-                    the raw isAuthenticated) so this toggle works for a
-                    read-only shared-vault viewer too -- the owner's real
-                    quantities exist to filter on even when the VIEWER
-                    themselves is anonymous. */}
+                {/* Turning this on clears "no inventory" (owned total > 0 vs.
+                    === 0). */}
                 <button
                   type="button"
-                  className={`pl-toggle${ownedOnly ? " pl-toggle--on" : ""}${
+                  className={`pl-toggle${toggles.owned ? " pl-toggle--on" : ""}${
                     hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => {
-                    if (!hasData) {
-                      requestSignIn();
-                      return;
-                    }
-                    handleFieldChanged("owned");
-                    // Turning ownedOnly on contradicts noInventoryOnly (owned
-                    // total > 0 vs. === 0) -- clear it on the way in.
-                    setOwnedOnly((v) => {
-                      const next = !v;
-                      if (next) setNoInventoryOnly(false);
-                      return next;
-                    });
-                  }}
-                  aria-pressed={ownedOnly}
+                  onClick={() => clickToggle("owned", "owned")}
+                  aria-pressed={toggles.owned}
                   aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Show only cards I own</span>
                 </button>
-                {/* Inverse of ownedOnly -- same pl-toggle markup and
-                    requestSignIn routing for anonymous users. Anonymous
-                    inventory is all-zero, so the filter would be meaningless
-                    noise for a signed-out visitor -- same inert-teaser
-                    treatment as its siblings rather than a real toggle. */}
+                {/* The "what am I missing" view. Turning it on clears "cards I
+                    own" and "over keep limit" (over-cap implies owned). */}
                 <button
                   type="button"
-                  className={`pl-toggle${noInventoryOnly ? " pl-toggle--on" : ""}${
+                  className={`pl-toggle${toggles.unowned ? " pl-toggle--on" : ""}${
                     hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => {
-                    if (!hasData) {
-                      requestSignIn();
-                      return;
-                    }
-                    handleFieldChanged("no_inventory");
-                    // Turning noInventoryOnly on contradicts ownedOnly -- clear
-                    // it on the way in (mirror of the setOwnedOnly handler
-                    // above). It also contradicts overCapOnly (over-cap implies
-                    // owned) -- clear that too.
-                    setNoInventoryOnly((v) => {
-                      const next = !v;
-                      if (next) {
-                        setOwnedOnly(false);
-                        setOverCapOnly(false);
-                      }
-                      return next;
-                    });
-                  }}
-                  aria-pressed={noInventoryOnly}
+                  onClick={() => clickToggle("unowned", "no_inventory")}
+                  aria-pressed={toggles.unowned}
                   aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
                   <span className="pl-toggle__label">Only cards with no inventory</span>
                 </button>
-                {/* "Over my keep limit" discovery filter -- same pl-toggle
-                    markup and requestSignIn routing as its siblings. Carries
-                    pl-toggle--scoped like them: the predicate is scope-aware
-                    (see toggleNarrowed's overCapOnly branch above), so the
-                    amber "this filter evaluates against the scoped finish"
-                    signal is accurate here too. */}
+                {/* "Over my keep limit" discovery filter. Turning it on clears
+                    "no inventory". */}
                 <button
                   type="button"
-                  className={`pl-toggle${overCapOnly ? " pl-toggle--on" : ""}${
+                  className={`pl-toggle${toggles.overcap ? " pl-toggle--on" : ""}${
                     hasData ? "" : " pl-toggle--disabled"
                   }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => {
-                    if (!hasData) {
-                      requestSignIn();
-                      return;
-                    }
-                    handleFieldChanged("over_cap");
-                    // Turning overCapOnly on contradicts noInventoryOnly
-                    // (over-cap implies owned) -- clear it on the way in,
-                    // mirroring the ownedOnly/noInventoryOnly exclusion above.
-                    setOverCapOnly((v) => {
-                      const next = !v;
-                      if (next) setNoInventoryOnly(false);
-                      return next;
-                    });
-                  }}
-                  aria-pressed={overCapOnly}
+                  onClick={() => clickToggle("overcap", "over_cap")}
+                  aria-pressed={toggles.overcap}
                   aria-disabled={!hasData}
                 >
                   <span className="pl-toggle__box" />
@@ -858,12 +624,12 @@ export function CardsPage({
           </FilterPanel>
           <div className="cards-content">
             <InventorySummary
-              filteredCards={filtered}
-              allCards={cards}
-              breakdownCards={breakdownCards}
+              filteredCards={list}
+              allCards={all}
+              breakdownCards={breakdown}
               selectedSetCodes={filters.set}
               onPickSetCode={pickFilterSet}
-              isNarrowed={isNarrowed}
+              isNarrowed={narrowed}
               baseSetCodes={baseSetCodes}
               orderedBaseSets={orderedBaseSets}
               isAuthenticated={hasData}
@@ -959,7 +725,7 @@ export function CardsPage({
             )}
             {viewMode === "table" ? (
               <CardsTable
-                cards={sortedCards}
+                cards={list}
                 setNameByCode={setNameByCode}
                 isAuthenticated={hasData}
                 onSelectCard={openPopupFromTable}
@@ -994,7 +760,7 @@ export function CardsPage({
                   onPriceKindChange={handlePriceKindChange}
                 />
                 <GalleryGrid
-                  cards={sortedCards}
+                  cards={list}
                   onSelectCard={openPopupFromGallery}
                   activeFinishes={filters.finish}
                   isAuthenticated={hasData}

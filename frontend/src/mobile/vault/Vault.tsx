@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { orderSetCodes } from "../../utils/catalog";
-import type { SetMeta } from "../../utils/completion";
+import { baseSetLists } from "../../utils/completion";
 import { setFacetAfterRowTap } from "../../utils/filters";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { publishNav, setOpener, setOpenSource } from "../card/navList";
@@ -79,16 +78,8 @@ export function Vault({
 
   // S1-23 / S1-24: desktop CardsPage's completion universe (BL-163) -- the
   // base sets by is_base_set, in display order for the by-set rows.
-  const baseSetCodes = useMemo(
-    () => new Set(sets.filter((s) => s.is_base_set).map((s) => s.code)),
-    [sets]
-  );
-  const orderedBaseSets = useMemo<SetMeta[]>(
-    () =>
-      orderSetCodes(
-        sets.filter((s) => s.is_base_set).map((s) => s.code),
-        setOrder
-      ).map((code) => ({ code, name: setNameByCode[code] ?? code })),
+  const { baseSetCodes, orderedBaseSets } = useMemo(
+    () => baseSetLists(sets, setOrder, setNameByCode),
     [sets, setOrder, setNameByCode]
   );
   // Desktop InventorySummary: the Totals switch is plain state, Filtered first.

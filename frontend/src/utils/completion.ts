@@ -24,6 +24,9 @@
 //     for exactly the same reason -- a card's home set is always its
 //     correct attribution, TS26 reprints included.
 
+import type { CardSet } from "../api/sets";
+import { orderSetCodes } from "./catalog";
+import type { SetOrderMap } from "./catalog";
 import { cardOwnedTotal, isOwned, isPlaysetComplete } from "./inventory";
 import type { InventoryCard, InventoryVariant } from "./inventory";
 
@@ -32,6 +35,24 @@ export type PriceMode = "market" | "low";
 export interface SetMeta {
   code: string;
   name: string;
+}
+
+/** The completion panel's universe: the base sets by `is_base_set`, as a
+ * code set (for the percentages) and in display order with names (for the
+ * by-set rows). Desktop and phone both read it. */
+export function baseSetLists(
+  sets: CardSet[],
+  setOrder: SetOrderMap,
+  setNameByCode: Record<string, string>
+): { baseSetCodes: Set<string>; orderedBaseSets: SetMeta[] } {
+  const codes = sets.filter((s) => s.is_base_set).map((s) => s.code);
+  return {
+    baseSetCodes: new Set(codes),
+    orderedBaseSets: orderSetCodes(codes, setOrder).map((code) => ({
+      code,
+      name: setNameByCode[code] ?? code,
+    })),
+  };
 }
 
 function nonToken(cards: InventoryCard[]): InventoryCard[] {
