@@ -26,9 +26,10 @@ Run inside the backend container:
 
 import os
 import uuid
+from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 
 from app.ingestion.swuapi_classify import ALL_LIMIT_BUCKETS
 from app.services.inventory import COMPLETION_PLAYSET_SIZE, QUANTITY_CEILING
@@ -1090,3 +1091,295 @@ class TestAdjustDelta:
             f"/api/inventory/{variant_id}/adjust", json={"delta": 1}
         )
         assert response.status_code == 401
+
+
+@pytest.fixture(scope="module")
+def two_printing_leader(db):
+    """A standalone Leader (singleton category) with two printings in
+    different limit buckets ("Standard" and "Hyperspace"), so the
+    per-variant singleton completion flag can be observed on a second
+    printing. Idempotent and scoped to this fixture's own swuapi_id
+    prefix."""
+    sor_id = db.execute(text("SELECT id FROM sets WHERE code = 'SOR'")).scalar()
+    base_card_id = db.execute(
+        text(
+            "INSERT INTO base_cards "
+            "(set_id, base_card_number, name, type, rarity, swuapi_id) "
+            "VALUES (:set_id, '9471', 'Test Two-Printing Leader', 'Leader', "
+            "'Rare', 'pin-0001') "
+            "ON CONFLICT (swuapi_id) DO UPDATE SET name = EXCLUDED.name "
+            "RETURNING id"
+        ),
+        {"set_id": sor_id},
+    ).scalar()
+    for swuapi_id, variant_type, card_number in (
+        ("pin-v0001", "Standard", "9471"),
+        ("pin-v0002", "Hyperspace", "9472"),
+    ):
+        db.execute(
+            text(
+                "INSERT INTO card_variants "
+                "(base_card_id, variant_type, source_set_code, card_number, swuapi_id) "
+                "VALUES (:base_card_id, :variant_type, 'SOR', :card_number, :swuapi_id) "
+                "ON CONFLICT (swuapi_id) DO UPDATE SET "
+                "card_number = EXCLUDED.card_number"
+            ),
+            {
+                "base_card_id": base_card_id,
+                "variant_type": variant_type,
+                "card_number": card_number,
+                "swuapi_id": swuapi_id,
+            },
+        )
+    db.commit()
+
+
+@contextmanager
+def _captured_statements():
+    """Collect the lower-cased SQL of every statement the request-serving
+    engine executes while the block runs."""
+    from app.database import app_engine
+
+    statements: list[str] = []
+
+    def _record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement.lower())
+
+    event.listen(app_engine, "before_cursor_execute", _record)
+    try:
+        yield statements
+    finally:
+        event.remove(app_engine, "before_cursor_execute", _record)
+
+
+def _count(statements: list[str], fragment: str) -> int:
+    return sum(1 for s in statements if fragment in s)
+
+
+class TestIncrementResponsePinned:
+    """Pins every IncrementResponse field for each decision outcome of
+    POST /api/inventory/{id}/increment, by whole-body equality, so a change
+    to how the decision is computed cannot shift a response unnoticed."""
+
+    def test_at_ceiling_hard_mode(self, db, bl24_tenant):
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0003")
+        _set_quantity(db, tenant_id, variant_id, QUANTITY_CEILING)
+
+        with _captured_statements() as statements:
+            resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "variant_id": variant_id,
+            "quantity": QUANTITY_CEILING,
+            "playset_complete": False,
+            "blocked": True,
+            "reason": "ceiling",
+            "over_limit": False,
+        }
+        assert _count(statements, "insert into inventory") == 0
+
+    def test_at_limit_hard_mode_blocks_without_write(self, db, bl24_tenant):
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0006")
+        _set_quantity(db, tenant_id, variant_id, 3)
+
+        with _captured_statements() as statements:
+            resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        assert resp.json() == {
+            "variant_id": variant_id,
+            "quantity": 3,
+            "playset_complete": False,
+            "blocked": True,
+            "reason": "trade_sell",
+            "over_limit": False,
+        }
+        assert _count(statements, "insert into inventory") == 0
+        assert _count(statements, "from tenant_settings") == 1
+
+    def test_at_limit_soft_mode_commits_and_flags(self, db, bl24_tenant):
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0006")  # sole variant of its card
+        client.put("/api/settings/limits", json={"limits": [], "cap_mode": "soft"})
+        _set_quantity(db, tenant_id, variant_id, 3)
+
+        with _captured_statements() as statements:
+            resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        assert resp.json() == {
+            "variant_id": variant_id,
+            "quantity": 4,
+            "playset_complete": False,
+            "blocked": False,
+            "reason": None,
+            "over_limit": True,
+        }
+        assert _count(statements, "insert into inventory") == 1
+        assert _count(statements, "from tenant_settings") == 1
+
+    def test_reaching_limit_exactly_is_not_over_limit_and_completes(
+        self, db, bl24_tenant
+    ):
+        """Quantity 2 -> 3 on a limit-3 sole variant: the base-card total
+        crosses 3 (flag fires) while the new quantity only equals the limit
+        (not over it), in soft mode as in hard mode."""
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0006")
+        client.put("/api/settings/limits", json={"limits": [], "cap_mode": "soft"})
+        _set_quantity(db, tenant_id, variant_id, 2)
+
+        resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        assert resp.json() == {
+            "variant_id": variant_id,
+            "quantity": 3,
+            "playset_complete": True,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
+
+    @pytest.mark.parametrize("cap_mode", ["hard", "soft"])
+    def test_below_limit_single_upsert_and_no_cap_mode_query(
+        self, db, bl24_tenant, cap_mode
+    ):
+        """The common path issues exactly one limit lookup, one write, and
+        never queries the cap mode."""
+        client, _ = bl24_tenant
+        variant_id = _variant_id(db, "test-v0006")
+        client.put("/api/settings/limits", json={"limits": [], "cap_mode": cap_mode})
+
+        with _captured_statements() as statements:
+            resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        assert resp.json() == {
+            "variant_id": variant_id,
+            "quantity": 1,
+            "playset_complete": False,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
+        assert _count(statements, "insert into inventory") == 1
+        assert _count(statements, "from tenant_card_limits") == 1
+        assert _count(statements, "from tenant_settings") == 0
+
+    def test_unlimited_bucket_below_ceiling_never_queries_cap_mode(
+        self, db, bl24_tenant
+    ):
+        client, tenant_id = bl24_tenant
+        variant_id = _variant_id(db, "test-v0005")  # Foil -> bucket Retail
+        client.put(
+            "/api/settings/limits",
+            json={
+                "limits": [
+                    {
+                        "type_category": "standard",
+                        "limit_bucket": "Retail",
+                        "max_quantity": None,
+                    }
+                ],
+                "cap_mode": "soft",
+            },
+        )
+        _set_quantity(db, tenant_id, variant_id, 50)
+
+        with _captured_statements() as statements:
+            resp = client.post(f"/api/inventory/{variant_id}/increment")
+
+        body = resp.json()
+        assert body["quantity"] == 51
+        assert body["over_limit"] is False
+        assert body["blocked"] is False
+        assert _count(statements, "insert into inventory") == 1
+        assert _count(statements, "from tenant_settings") == 0
+
+    def test_singleton_second_printing_completes_again(
+        self, db, bl24_tenant, two_printing_leader
+    ):
+        """The singleton flag is per variant ("this variant had 0 copies"),
+        not per base card: acquiring a second printing of a Leader fires
+        playset_complete again."""
+        client, _ = bl24_tenant
+        standard_id = _variant_id(db, "pin-v0001")
+        hyperspace_id = _variant_id(db, "pin-v0002")
+
+        first = client.post(f"/api/inventory/{standard_id}/increment")
+        assert first.json() == {
+            "variant_id": standard_id,
+            "quantity": 1,
+            "playset_complete": True,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
+
+        second_printing = client.post(f"/api/inventory/{hyperspace_id}/increment")
+        assert second_printing.json() == {
+            "variant_id": hyperspace_id,
+            "quantity": 1,
+            "playset_complete": True,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
+
+        blocked = client.post(f"/api/inventory/{standard_id}/increment")
+        assert blocked.json() == {
+            "variant_id": standard_id,
+            "quantity": 1,
+            "playset_complete": False,
+            "blocked": True,
+            "reason": "trade_sell",
+            "over_limit": False,
+        }
+
+    def test_singleton_soft_mode_over_limit_does_not_recomplete(
+        self, db, bl24_tenant, two_printing_leader
+    ):
+        client, _ = bl24_tenant
+        standard_id = _variant_id(db, "pin-v0001")
+        client.put("/api/settings/limits", json={"limits": [], "cap_mode": "soft"})
+        client.post(f"/api/inventory/{standard_id}/increment")
+
+        resp = client.post(f"/api/inventory/{standard_id}/increment")
+
+        assert resp.json() == {
+            "variant_id": standard_id,
+            "quantity": 2,
+            "playset_complete": False,
+            "blocked": False,
+            "reason": None,
+            "over_limit": True,
+        }
+
+    def test_standard_total_crossing_three_across_variants(self, db, bl24_tenant):
+        """test-v0004 (Standard) and test-v0005 (Foil) share a base card:
+        the flag follows the combined total, firing when it reaches 3 and
+        not again at 4."""
+        client, tenant_id = bl24_tenant
+        standard_id = _variant_id(db, "test-v0004")
+        foil_id = _variant_id(db, "test-v0005")
+        _set_quantity(db, tenant_id, standard_id, 2)
+
+        crossing = client.post(f"/api/inventory/{foil_id}/increment")
+        assert crossing.json() == {
+            "variant_id": foil_id,
+            "quantity": 1,
+            "playset_complete": True,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
+
+        past = client.post(f"/api/inventory/{foil_id}/increment")
+        assert past.json() == {
+            "variant_id": foil_id,
+            "quantity": 2,
+            "playset_complete": False,
+            "blocked": False,
+            "reason": None,
+            "over_limit": False,
+        }
