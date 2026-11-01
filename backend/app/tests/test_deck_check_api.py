@@ -23,6 +23,7 @@ Run inside the backend container:
 
 import os
 from datetime import date
+from urllib.parse import unquote_plus
 
 import pytest
 from sqlalchemy import text
@@ -798,6 +799,242 @@ class TestCostMath:
         # Hyperspace's low (1.0) undercuts Standard's low (4.0).
         assert priced["unit_price"] == 1.0
         assert priced["price_basis"] == "cheapest"
+
+
+def _cart_lines(cart_url: str) -> list[str]:
+    """Decoded Mass Entry lines of a cart URL, sorted (line order follows
+    the diff's iteration order, which the assertions don't depend on)."""
+    c_param = cart_url.split("&c=", 1)[1]
+    return sorted(unquote_plus(seg) for seg in c_param.split("||") if seg)
+
+
+def _scope_snapshot(scope: dict) -> dict:
+    """Everything a ScopeResult carries, minus base_card_id /
+    front_image_url (environment-specific), keyed so row order is
+    irrelevant: sorted lists of (name, need, have, unit_price, basis,
+    subtotal-or-line_value)."""
+    return {
+        "buildable": scope["buildable"],
+        "missing": sorted(
+            (
+                m["card"]["name"],
+                m["need"],
+                m["have"],
+                m["unit_price"],
+                m["price_basis"],
+                m["subtotal"],
+            )
+            for m in scope["missing"]
+        ),
+        "missing_total": scope["missing_total"],
+        "unpriced_count": scope["unpriced_count"],
+        "cart": _cart_lines(scope["cart_url"]),
+        "all_cards": sorted(
+            (
+                c["card"]["name"],
+                c["need"],
+                c["have"],
+                c["unit_price"],
+                c["price_basis"],
+                c["line_value"],
+            )
+            for c in scope["all_cards"]
+        ),
+        "deck_value": scope["deck_value"],
+        "unpriced_value_count": scope["unpriced_value_count"],
+    }
+
+
+# A deck with a sideboard, so all three scopes carry priced AND unpriced
+# cards. Inventory (deck_check_tenant): leader 1, base 1, DC1_3 x2.
+SCOPE_PIN_DECK_JSON = {
+    "leader": {"id": "DC1_1", "count": 1},
+    "base": {"id": "DC1_2", "count": 1},
+    "deck": [
+        {"id": "DC1_3", "count": 2},  # owned 2/2, unpriced
+        {"id": "DC1_5", "count": 1},  # priced
+        {"id": "DC1_6", "count": 1},  # Standard unpriced, Hyperspace priced
+        {"id": "DC1_7", "count": 1},  # no price rows
+    ],
+    "sideboard": [
+        {"id": "DC1_3", "count": 1},  # main reserves both owned copies
+        {"id": "DC1_5", "count": 2},
+        {"id": "DC1_7", "count": 1},
+    ],
+}
+
+_PRICED = "DC1 Priced Test Card"
+_FALLBACK = "DC1 Fallback Test Card"
+_UNPRICED = "DC1 Unpriced Test Card"
+_SIDE_X = "DC1 Sideboard Test Card"
+
+
+class TestScopeResultPinned:
+    """Pins the complete per-scope result (missing rows, totals,
+    unpriced_count, cart lines, full list, deck value) for both pricing
+    modes on a deck with unpriced cards. `together` concatenates the main
+    and side lists, so a card in both pools appears once per pool there."""
+
+    def test_standard_mode_all_scopes(
+        self, make_client, deck_check_catalog, deck_check_tenant
+    ):
+        tenant_client = _deck_check_client(make_client, deck_check_tenant)
+        response = tenant_client.post(
+            "/api/deck-check",
+            json={"deck_json": SCOPE_PIN_DECK_JSON},
+            params={"mode": "standard"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["pricing"]["as_of"] == TODAY.isoformat()
+
+        main_all = [
+            ("DC1 Test Leader", 1, 1, None, None, None),
+            ("DC1 Test Base", 1, 1, None, None, None),
+            (_SIDE_X, 2, 2, None, None, None),
+            (_PRICED, 1, 0, 5.0, "standard", 5.0),
+            (_FALLBACK, 1, 0, 7.5, "fallback", 7.5),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        main_missing = [
+            (_PRICED, 1, 0, 5.0, "standard", 5.0),
+            (_FALLBACK, 1, 0, 7.5, "fallback", 7.5),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        side_all = [
+            (_SIDE_X, 1, 0, None, None, None),
+            (_PRICED, 2, 0, 5.0, "standard", 10.0),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        # Every side entry is missing (main reserved all owned copies).
+        side_missing = side_all
+
+        assert _scope_snapshot(body["scopes"]["main"]) == {
+            "buildable": False,
+            "missing": sorted(main_missing),
+            "missing_total": 12.5,
+            "unpriced_count": 1,
+            "cart": sorted(
+                [
+                    "1 DC1 Priced Test Card - Test Subtitle [DC1]",
+                    "1 DC1 Fallback Test Card [DC1]",
+                    "1 DC1 Unpriced Test Card [DC1]",
+                ]
+            ),
+            "all_cards": sorted(main_all),
+            "deck_value": 12.5,
+            "unpriced_value_count": 4,
+        }
+        side_cart = sorted(
+            [
+                "1 DC1 Sideboard Test Card [DC1]",
+                "2 DC1 Priced Test Card - Test Subtitle [DC1]",
+                "1 DC1 Unpriced Test Card [DC1]",
+            ]
+        )
+        assert _scope_snapshot(body["scopes"]["side"]) == {
+            "buildable": False,
+            "missing": sorted(side_missing),
+            "missing_total": 10.0,
+            "unpriced_count": 2,
+            "cart": side_cart,
+            "all_cards": sorted(side_all),
+            "deck_value": 10.0,
+            "unpriced_value_count": 2,
+        }
+        assert _scope_snapshot(body["scopes"]["together"]) == {
+            "buildable": False,
+            "missing": sorted(main_missing + side_missing),
+            "missing_total": 22.5,
+            "unpriced_count": 3,
+            "cart": sorted(
+                [
+                    "1 DC1 Priced Test Card - Test Subtitle [DC1]",
+                    "1 DC1 Fallback Test Card [DC1]",
+                    "1 DC1 Unpriced Test Card [DC1]",
+                ]
+                + side_cart
+            ),
+            "all_cards": sorted(main_all + side_all),
+            "deck_value": 22.5,
+            "unpriced_value_count": 6,
+        }
+
+    def test_cheapest_mode_all_scopes(
+        self, make_client, deck_check_catalog, deck_check_tenant
+    ):
+        tenant_client = _deck_check_client(make_client, deck_check_tenant)
+        response = tenant_client.post(
+            "/api/deck-check",
+            json={"deck_json": SCOPE_PIN_DECK_JSON},
+            params={"mode": "cheapest"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["pricing"]["as_of"] == TODAY.isoformat()
+
+        # Cheapest = min(low) across printings: priced 1.0 (Hyperspace),
+        # fallback card 6.0 (Hyperspace); the rest stay unpriced.
+        main_all = [
+            ("DC1 Test Leader", 1, 1, None, None, None),
+            ("DC1 Test Base", 1, 1, None, None, None),
+            (_SIDE_X, 2, 2, None, None, None),
+            (_PRICED, 1, 0, 1.0, "cheapest", 1.0),
+            (_FALLBACK, 1, 0, 6.0, "cheapest", 6.0),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        main_missing = [
+            (_PRICED, 1, 0, 1.0, "cheapest", 1.0),
+            (_FALLBACK, 1, 0, 6.0, "cheapest", 6.0),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        side_all = [
+            (_SIDE_X, 1, 0, None, None, None),
+            (_PRICED, 2, 0, 1.0, "cheapest", 2.0),
+            (_UNPRICED, 1, 0, None, None, None),
+        ]
+        side_missing = side_all
+        main_cart = [
+            "1 DC1 Priced Test Card - Test Subtitle [DC1]",
+            "1 DC1 Fallback Test Card [DC1]",
+            "1 DC1 Unpriced Test Card [DC1]",
+        ]
+        side_cart = [
+            "1 DC1 Sideboard Test Card [DC1]",
+            "2 DC1 Priced Test Card - Test Subtitle [DC1]",
+            "1 DC1 Unpriced Test Card [DC1]",
+        ]
+
+        assert _scope_snapshot(body["scopes"]["main"]) == {
+            "buildable": False,
+            "missing": sorted(main_missing),
+            "missing_total": 7.0,
+            "unpriced_count": 1,
+            "cart": sorted(main_cart),
+            "all_cards": sorted(main_all),
+            "deck_value": 7.0,
+            "unpriced_value_count": 4,
+        }
+        assert _scope_snapshot(body["scopes"]["side"]) == {
+            "buildable": False,
+            "missing": sorted(side_missing),
+            "missing_total": 2.0,
+            "unpriced_count": 2,
+            "cart": sorted(side_cart),
+            "all_cards": sorted(side_all),
+            "deck_value": 2.0,
+            "unpriced_value_count": 2,
+        }
+        assert _scope_snapshot(body["scopes"]["together"]) == {
+            "buildable": False,
+            "missing": sorted(main_missing + side_missing),
+            "missing_total": 9.0,
+            "unpriced_count": 3,
+            "cart": sorted(main_cart + side_cart),
+            "all_cards": sorted(main_all + side_all),
+            "deck_value": 9.0,
+            "unpriced_value_count": 6,
+        }
 
 
 class TestFullCardListAndDeckValue:
