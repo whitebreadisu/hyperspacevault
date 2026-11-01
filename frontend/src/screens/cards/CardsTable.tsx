@@ -261,18 +261,22 @@ export function CardsTable({
   // ladder-boundary crossings.
   const [autoStepCount, setAutoStepCount] = useState<number | null>(null);
 
+  // An empty result renders a placeholder instead of the table, so the table
+  // element is replaced; observe again whenever it comes back. A zero width
+  // only means the element left the page, never that the user has no room.
+  const isEmpty = cards.length === 0;
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) {
+      if (entry && entry.contentRect.width > 0) {
         setAutoStepCount(selectAutoStepCount(entry.contentRect.width, WIDTH_BY_STEP_COUNT));
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isEmpty]);
 
   // AUTO resolves to a ladder STEP COUNT (column-at-a-time); a manual preset
   // maps to its fixed prefix of the same ladder. The pre-measurement instant
