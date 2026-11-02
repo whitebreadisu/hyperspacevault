@@ -103,6 +103,7 @@ One row per FastAPI route, generated from the app's dependency graph. `backend/a
 | POST | `/api/inventory/{variant_id}/adjust` | get_db | require_verified_email | BL-219 |
 | POST | `/api/inventory/{variant_id}/decrement` | get_db | require_verified_email | baseline |
 | POST | `/api/inventory/{variant_id}/increment` | get_db | require_verified_email | baseline |
+| GET | `/api/public/cards` | get_catalog_db | none | BL-275 |
 | GET | `/api/relay/{path:path}` | none | none | BL-235 |
 | POST | `/api/relay/{path:path}` | none | none | BL-235 |
 | GET | `/api/sets` | get_catalog_db | none | baseline |

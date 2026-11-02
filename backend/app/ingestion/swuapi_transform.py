@@ -18,6 +18,7 @@ host directly against the captured fixture, without the backend container.
 from __future__ import annotations
 
 import datetime
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -76,6 +77,24 @@ class IngestionResult:
     traits: dict[str, list[str]]
     exceptions: list[dict] = field(default_factory=list)
     duplicate_image_warnings: list[dict] = field(default_factory=list)
+
+
+_MOJIBAKE = re.compile("Ã|â€|Â")
+
+
+def repair_mojibake(text: str | None) -> str | None:
+    """Undo UTF-8 text that was decoded as cp1252 upstream (BL-326: TWI 15
+    General Grievous carries ``canâ€™t`` and ``6Â or``). Conservative: acts
+    only when the text contains a mojibake lead sequence, re-encodes as
+    cp1252 and decodes as UTF-8, and keeps the original if either step
+    fails. Clean text (including a genuine en dash) never matches, so it is
+    returned unchanged."""
+    if not text or not _MOJIBAKE.search(text):
+        return text
+    try:
+        return text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
 
 
 def _is_token(card: dict) -> bool:
@@ -178,8 +197,8 @@ def transform(export: dict) -> IngestionResult:
                 "swuapi_id": root["uuid"],
                 "set_code": root["set_code"],
                 "base_card_number": root["card_number"],
-                "name": root["name"],
-                "subtitle": root.get("subtitle"),
+                "name": repair_mojibake(root["name"]),
+                "subtitle": repair_mojibake(root.get("subtitle")),
                 "type": root["type"],
                 "type2": root.get("type2"),
                 "double_sided": bool(root.get("double_sided")),
@@ -189,10 +208,10 @@ def transform(export: dict) -> IngestionResult:
                 "hp": root.get("hp"),
                 "arena": root.get("arena"),
                 "is_unique": root.get("unique_flag"),
-                "front_text": root.get("front_text"),
-                "back_text": root.get("back_text"),
-                "epic_action": root.get("epic_action"),
-                "artist": root.get("artist"),
+                "front_text": repair_mojibake(root.get("front_text")),
+                "back_text": repair_mojibake(root.get("back_text")),
+                "epic_action": repair_mojibake(root.get("epic_action")),
+                "artist": repair_mojibake(root.get("artist")),
                 "is_token": _is_token(root),
             }
         )

@@ -182,3 +182,26 @@ class TestImagePathSafety:
         )
 
         assert response.status_code == 404
+
+
+class TestNoindexHeader:
+    """Card pages are indexed, card art is not (card-pages design note 5a
+    row E): X-Robots-Tag: noindex on every /images/cards/* response."""
+
+    def test_on_hit(self):
+        bucket = FakeBucket(
+            {"cards/card_test_0001_640.webp": FakeBlob(b"x", "image/webp")}
+        )
+        response = _client_with_bucket(bucket).get(
+            "/images/cards/card_test_0001_640.webp"
+        )
+        assert response.status_code == 200
+        assert response.headers["x-robots-tag"] == "noindex"
+
+    def test_on_307_miss(self):
+        response = _client_with_bucket(FakeBucket()).get(
+            "/images/cards/card_test_0001_640.webp", follow_redirects=False
+        )
+        assert response.status_code == 307
+        assert response.headers["x-robots-tag"] == "noindex"
+        assert response.headers["cache-control"] == "no-store"

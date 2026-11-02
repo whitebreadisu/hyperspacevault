@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import NamedTuple
 
-from sqlalchemy import Row, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.base_card import BaseCard
@@ -164,5 +164,111 @@ def get_base_card_list_rows(
         aspect_rows=db.execute(aspect_q).all(),
         keyword_rows=db.execute(keyword_q).all(),
         trait_rows=db.execute(trait_q).all(),
+        variant_rows=db.execute(variant_q).all(),
+    )
+
+
+class PublicCatalogRows(NamedTuple):
+    """Raw Core rows backing GET /api/public/cards. A fixed number of
+    SELECTs (sets, per-set counts, base cards, three attribute tables,
+    variants), independent of card count -- no per-card queries."""
+
+    set_rows: Sequence[Row]
+    count_rows: Sequence[Row]  # (set_code, n) -- non-token base cards per set
+    base_rows: Sequence[Row]
+    aspect_rows: Sequence[Row]
+    keyword_rows: Sequence[Row]
+    trait_rows: Sequence[Row]
+    variant_rows: Sequence[Row]
+
+
+def get_public_catalog_rows(db: Session) -> PublicCatalogRows:
+    """Every non-token base card in full detail shape (the card-page
+    generator's input), as plain Core rows. Tokens are excluded from the
+    base-card, attribute and variant reads and from the counts, matching
+    scripts/public_catalog_from_export.py. Catalog columns only: no
+    inventory join, no price read (the service reads variant_latest_prices
+    through pricing_repo.get_latest_prices)."""
+    bc = BaseCard.__table__.c
+    cv = CardVariant.__table__.c
+    st = CardSet.__table__.c
+
+    set_q = select(st.code, st.name, st.is_base_set, st.release_date).order_by(
+        st.release_date.asc().nulls_last(), st.code
+    )
+
+    count_q = (
+        select(st.code, func.count(bc.id))
+        .join(BaseCard, BaseCard.set_id == st.id)
+        .where(bc.is_token.is_(False))
+        .group_by(st.code)
+        .order_by(st.code)
+    )
+
+    base_q = (
+        select(
+            bc.id,
+            bc.base_card_number,
+            bc.name,
+            bc.subtitle,
+            bc.type,
+            bc.type2,
+            bc.double_sided,
+            bc.rarity,
+            bc.cost,
+            bc.power,
+            bc.hp,
+            bc.arena,
+            bc.is_unique,
+            bc.front_text,
+            bc.back_text,
+            bc.epic_action,
+            bc.artist,
+            bc.is_token,
+            st.code.label("set_code"),
+            st.name.label("set_name"),
+        )
+        .join(CardSet, bc.set_id == st.id)
+        .where(bc.is_token.is_(False))
+        .order_by(st.code, bc.id)
+    )
+
+    non_token_ids = select(bc.id).where(bc.is_token.is_(False))
+    variant_q = (
+        select(
+            cv.id,
+            cv.base_card_id,
+            cv.variant_type,
+            cv.source_set_code,
+            st.name.label("source_set_name"),
+            cv.card_number,
+            cv.front_image_url,
+            cv.back_image_url,
+            cv.stamp_group,
+        )
+        .join(CardSet, cv.source_set_code == st.code)
+        .where(cv.base_card_id.in_(non_token_ids))
+        .order_by(cv.id)
+    )
+
+    return PublicCatalogRows(
+        set_rows=db.execute(set_q).all(),
+        count_rows=db.execute(count_q).all(),
+        base_rows=db.execute(base_q).all(),
+        aspect_rows=db.execute(
+            select(CardAspect.base_card_id, CardAspect.aspect).where(
+                CardAspect.base_card_id.in_(non_token_ids)
+            )
+        ).all(),
+        keyword_rows=db.execute(
+            select(CardKeyword.base_card_id, CardKeyword.keyword).where(
+                CardKeyword.base_card_id.in_(non_token_ids)
+            )
+        ).all(),
+        trait_rows=db.execute(
+            select(CardTrait.base_card_id, CardTrait.trait).where(
+                CardTrait.base_card_id.in_(non_token_ids)
+            )
+        ).all(),
         variant_rows=db.execute(variant_q).all(),
     )

@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from datetime import date
 
@@ -16,6 +17,12 @@ from app.schemas.base_card_detail_schema import (
     ImageRenditions,
     PriceHistoryPoint,
     PriceHistoryResponse,
+)
+from app.schemas.public_catalog_schema import (
+    PublicCard,
+    PublicCatalogResponse,
+    PublicSet,
+    PublicVariant,
 )
 from app.services.image_paths import same_origin_renditions
 from app.services.pricing import (
@@ -213,6 +220,94 @@ def get_base_cards(
         source="tcgplayer", as_of=overall_as_of, unpriced_count=unpriced_count
     )
     return base_cards, envelope
+
+
+def get_public_catalog(db: Session) -> PublicCatalogResponse:
+    """The card-page generator's input (GET /api/public/cards): every
+    non-token base card in the detail shape without `quantity`, set names,
+    per-set non-token counts and the build sha. Fixed query count (the
+    repository's seven SELECTs plus one variant_latest_prices read),
+    whatever the catalog size. Prices come from variant_latest_prices only
+    (pricing_repo.get_latest_prices, App Spec §16.5) -- never variant_prices.
+    Tokens are excluded, as in scripts/public_catalog_from_export.py."""
+    rows = card_repo.get_public_catalog_rows(db)
+    price_rows = pricing_repo.get_latest_prices(db)
+
+    aspects: dict[int, list[str]] = defaultdict(list)
+    for base_card_id, aspect in rows.aspect_rows:
+        aspects[base_card_id].append(aspect)
+    keywords: dict[int, list[str]] = defaultdict(list)
+    for base_card_id, keyword in rows.keyword_rows:
+        keywords[base_card_id].append(keyword)
+    traits: dict[int, list[str]] = defaultdict(list)
+    for base_card_id, trait in rows.trait_rows:
+        traits[base_card_id].append(trait)
+
+    variants: dict[int, list[PublicVariant]] = defaultdict(list)
+    for v in rows.variant_rows:
+        classification = classify_variant(v.variant_type, v.source_set_code)
+        variants[v.base_card_id].append(
+            PublicVariant(
+                variant_id=v.id,
+                variant_type=v.variant_type,
+                finish=classification.finish,
+                channel=classification.channel,
+                stamped=classification.stamped,
+                source_set_code=v.source_set_code,
+                source_set_name=v.source_set_name,
+                card_number=v.card_number,
+                front_image_url=v.front_image_url,
+                back_image_url=v.back_image_url,
+                front_images=_renditions(v.front_image_url),
+                back_images=_renditions(v.back_image_url),
+                stamp_group=v.stamp_group,
+                price=to_price_info(price_rows.get(v.id)),
+            )
+        )
+
+    cards = [
+        PublicCard(
+            id=r.id,
+            set_code=r.set_code,
+            set_name=r.set_name,
+            base_card_number=r.base_card_number,
+            name=r.name,
+            subtitle=r.subtitle,
+            type=r.type,
+            type2=r.type2,
+            double_sided=r.double_sided,
+            rarity=r.rarity,
+            cost=r.cost,
+            power=r.power,
+            hp=r.hp,
+            arena=r.arena,
+            is_unique=r.is_unique,
+            front_text=r.front_text,
+            back_text=r.back_text,
+            epic_action=r.epic_action,
+            artist=r.artist,
+            is_token=False,
+            aspects=aspects.get(r.id, []),
+            keywords=keywords.get(r.id, []),
+            traits=traits.get(r.id, []),
+            variants=variants.get(r.id, []),
+        )
+        for r in rows.base_rows
+    ]
+    return PublicCatalogResponse(
+        build_sha=os.environ.get("COMMIT_SHA") or "local",
+        sets=[
+            PublicSet(
+                code=s.code,
+                name=s.name,
+                is_base_set=s.is_base_set,
+                release_date=s.release_date,
+            )
+            for s in rows.set_rows
+        ],
+        counts={code: n for code, n in rows.count_rows},
+        cards=cards,
+    )
 
 
 VALID_HISTORY_RANGES = frozenset(("30d", "90d", "1y", "all"))
