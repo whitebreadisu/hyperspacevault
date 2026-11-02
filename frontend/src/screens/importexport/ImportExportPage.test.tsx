@@ -677,6 +677,36 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     expect(screen.queryByText(/your vault didn.t refresh/i)).not.toBeInTheDocument();
   });
 
+  it("keeps a written import shown as complete when the analytics capture throws", async () => {
+    runImport
+      .mockResolvedValueOnce(baseReport())
+      .mockResolvedValueOnce(baseReport({ stage: "commit", committed: true }));
+    mockCapture.mockImplementation((event: unknown) => {
+      if (event === "import_committed") throw new Error("analytics down");
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await renderPage(
+        vi.fn(),
+        vi.fn(() => Promise.resolve())
+      );
+      await selectFile();
+      await selectModeAndCap();
+      await clickPreview();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+      });
+
+      expect(screen.getByRole("status")).toHaveTextContent(/import complete/i);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.queryByText(/something went wrong committing/i)).not.toBeInTheDocument();
+    } finally {
+      mockCapture.mockReset();
+      consoleSpy.mockRestore();
+    }
+  });
+
   it("reports a failed commit with the generic failure message and never runs the refresh", async () => {
     runImport.mockResolvedValueOnce(baseReport()).mockRejectedValueOnce(new Error("network down"));
     const onImported = vi.fn(() => Promise.resolve());

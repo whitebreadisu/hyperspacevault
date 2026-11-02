@@ -32,7 +32,7 @@ variable "sql_max_connections" {
     max_connections is whatever the tier's default happens to be -- Terraform
     has no way to read that back, so this must be kept in sync by hand with
     sql_tier: db-f1-micro defaults to 25 (this module's default, matching
-    both envs today), db-g1-small defaults to 50. When a caller changes
+    dev), db-g1-small defaults to 50. When a caller changes
     sql_tier, it must also update this value in the same PR.
   EOT
   type        = number

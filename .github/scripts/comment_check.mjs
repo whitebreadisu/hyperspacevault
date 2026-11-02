@@ -38,15 +38,16 @@ const EXEMPT_PREFIXES = ["frontend/src/content/"];
 const SKIP_FILE = /\.(test|spec)\./;
 const BL = /\bBL-\d+\b/;
 // GitHub issue / PR number references. Forms: "(#123)", "fixes #123", "owner/repo#123",
-// "issue 123", "issue #123", "PR 45", "PR #45", "pull request 45". Guards against false
+// "issue 7", "issue #123", "issues 123", "PR 45", "PR #45", "pull request 45", "GH-12" and
+// github.com/.../issues/N or /pull/N URLs. Guards against false
 // positives: a "#" glued to a word, "&", "/", "#" or "-" is an anchor/entity/URL fragment
 // ("page#12", "&#39;", "##1"); "#fff" and "#1a2b3c" never match because the digits must run
 // to a word boundary and a hex colour carries letters; a parenthesised all-digit 3- or
-// 6-digit "(#123)" is ambiguous with a CSS colour, so it is skipped when its comment also
-// mentions a colour word.
+// 6-digit "(#123)" is ambiguous with a CSS colour, so that bracketed form alone is skipped
+// when its comment also mentions a colour word; a verb form ("fixes #123") always counts.
 // "#region", "#!" shebangs, "#section" and the Python "#" marker (stripped by the tokenizer)
 // never reach the digit test.
-const ISSUE_KEYWORD = /\bissue\s+(?:#\d+|\d{2,})\b|\bissues\s+#\d+\b|\bpull requests?\s+#?\d+\b|\bPRs?\s*#?\d+\b|\bGH-\d+\b/i;
+const ISSUE_KEYWORD = /\bissue\s+#?\d+\b|\bissues\s+(?:#\d+|\d{2,})\b|\bpull requests?\s+#?\d+\b|\bPRs?\s*#?\d+\b|\bGH-\d+\b|github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+/i;
 // A bare "#N" counts only in an issue-reference position: "(#N" / "[#N", or after a verb such
 // as fixes/closes/resolves/refs/via/per/see (optionally "in"). Card numbers ("SEC #1 Palpatine",
 // "leader #4") and counts ("Foil - #123") stay clean.
@@ -58,7 +59,8 @@ const COLOUR_WORD = /\b(?:colou?rs?|hex|rgba?|hsla?|background|bg|border|fill|st
 export function hasIssueRef(text) {
   if (ISSUE_KEYWORD.test(text) || REPO_HASH.test(text)) return true;
   for (const m of text.matchAll(ISSUE_HASH)) {
-    const ambiguous = m[1].length === 3 || m[1].length === 6;
+    const bracketed = m[0][0] === "(" || m[0][0] === "[";
+    const ambiguous = bracketed && (m[1].length === 3 || m[1].length === 6);
     if (!ambiguous || !COLOUR_WORD.test(text)) return true;
   }
   return false;

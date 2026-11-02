@@ -152,6 +152,11 @@ test("issue and PR number forms in comments are flagged", () => {
     "// GH-123 tracks this",
     "// resolved via #1500",
     "// closes #12",
+    "// see issue 7",
+    "// issues 123 and 456",
+    "// https://github.com/someowner/somerepo/issues/123",
+    "// https://github.com/someowner/somerepo/pull/45",
+    "// fixes #123: background refresh",
   ];
   for (const f of forms) assert.equal(commentHits(f + "\n", false).length, 1, f);
 });
@@ -196,8 +201,10 @@ test("hex colours, headings, shebangs, regions and anchors are not flagged", () 
 
 test("issue numbers in strings and test files are not flagged", () => {
   assert.deepEqual(commentHits('const a = "PR #45"; const b = `#123`;\n', false), []);
-  const { root, allowFile } = tree({ "frontend/src/a.test.ts": "// #123\n" });
+  const { root, allowFile } = tree({ "frontend/src/a.test.ts": "// PR #123\n" });
   assert.deepEqual(check(root, allowFile).errors, []);
+  const prod = tree({ "frontend/src/a.ts": "// PR #123\n" });
+  assert.equal(check(prod.root, prod.allowFile).errors.length, 1);
 });
 
 test("an issue-number comment fails the check with file:line", () => {

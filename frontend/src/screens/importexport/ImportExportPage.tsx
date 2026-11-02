@@ -273,7 +273,13 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       );
       setSuccessReport(result);
       setStep("success");
-      capture("import_committed", { mode, rows_applied: result.totals.resolved });
+      // Analytics never decides the outcome: a throwing capture must not put
+      // the commit-failure message on top of the success screen.
+      try {
+        capture("import_committed", { mode, rows_applied: result.totals.resolved });
+      } catch (err) {
+        console.error(err);
+      }
     } catch (err) {
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."
