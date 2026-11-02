@@ -1,3 +1,4 @@
+import { escapeCsvFormula } from "../../api/inventoryImportExport";
 import type {
   CapHandling,
   ImportMode,
@@ -128,7 +129,9 @@ export function problemRowsCsv(rows: ImportRowReport[]): string {
     "file_quantity",
     "candidates",
   ];
-  const quote = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  // Text cells are formula-escaped (App Spec §17.1); numbers stay raw.
+  const quote = (v: string | number) =>
+    `"${(typeof v === "string" ? escapeCsvFormula(v) : String(v)).replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
     [
       r.row_number,

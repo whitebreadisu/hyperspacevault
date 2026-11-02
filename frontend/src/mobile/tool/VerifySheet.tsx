@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { REFRESH_FAILED_LEAD } from "../../api/inventoryImportExport";
 import type { CardSet } from "../../api/sets";
 import { BusyOverlay } from "../../components/BusyOverlay";
 import { useLimits } from "../../context/LimitsContext";
@@ -51,6 +52,11 @@ import "./verify.css";
 // header). On open the added section is expanded. Everything fitting, or a
 // single section: plain scroll. The only motion is the entering section's
 // opacity + transform.
+
+/** The refresh-failure note's body here: no file was imported, so the import
+ * wording of the shared REFRESH_FAILED_BODY does not apply (App Spec §25.3). */
+const VERIFY_REFRESH_FAILED_BODY =
+  "Your cards were added, but the Vault couldn't load the new quantities. Reload the page to see them — don't add them again.";
 
 /** desktop AddCardsVerification setLabel. */
 function setLabel(code: string, sets: CardSet[]): string {
@@ -286,6 +292,9 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [committing, setCommitting] = useState(false);
+  // The write decides success; this only flags that the Vault refetch after it
+  // failed, so the done screen says so instead of reading as a stale success.
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [open, setOpen] = useState<Kind>("add");
   const [long, setLong] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -335,6 +344,7 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
     if (!adds || committing) return;
     setCommitting(true);
     setError(null);
+    setRefreshFailed(false);
     // The copies this commit is about -- every row the sheet shows (added,
     // not added, unresolved). A copy added while the commit is in flight is
     // not in the snapshot and survives.
@@ -349,7 +359,10 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
           task: () => executeCommit(plan),
           settleStage: { message: "Refreshing your Vault…" },
           settle: async () => {
-            await refreshQuantities().catch(() => {});
+            await refreshQuantities().catch((err) => {
+              console.error(err);
+              setRefreshFailed(true);
+            });
           },
         }
       );
@@ -382,7 +395,13 @@ export function VerifySheet({ onClose }: VerifySheetProps) {
         <p className="m-d2-verify__success" role="status">
           {cardsWord(done)} added.
         </p>
-        <AutoClose ms={1300} />
+        {refreshFailed ? (
+          <p className="m-d2-verify__note" role="status">
+            <strong>{REFRESH_FAILED_LEAD}</strong> {VERIFY_REFRESH_FAILED_BODY}
+          </p>
+        ) : (
+          <AutoClose ms={1300} />
+        )}
       </Sheet>
     );
   }

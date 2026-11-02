@@ -784,3 +784,15 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 ### §17.5 — sw-unlimited-db column table, Organized Play clause (verbatim)
 
 > `Organized Play` → the Weekly Play family (incl. early-era `<set>P` containers);
+
+## Archived 2026-11-02 — every CSV escaped; phone refresh note (BL-322)
+
+**Disposition:** → archive. BL-322 made every CSV download formula-escaped and gave the phone (Import screen and Verify Cards sheet) desktop's refresh-failure note. The replacement text states what the code does. No new ADR.
+
+### §17.1 — CSV formula-injection bullet (verbatim)
+
+> - **CSV formula-injection escaping (export):** the export CSV prefixes a single quote to a `name` or `subtitle` that starts with `=`, `+`, `-`, `@`, a tab or a carriage return, so a spreadsheet app reopening the file shows the cell as text instead of evaluating it (`=`/`+`/`-`/`@` are the OWASP CSV-injection set; tab and CR are included because some parsers strip leading whitespace before that check). Import is unaffected: `name`/`subtitle` are cosmetic on import, so a re-imported quoted value never changes a quantity or which variant a row resolves to (`inventory_io._escape_csv_formula`). The catalog reference CSV and the problem-rows CSV (desktop and phone) are not formula-escaped.
+
+### §17.3 — Post-commit refresh, phone sentence (verbatim)
+
+> The phone's Import screen swallows the refetch failure and shows the same success screen without the note.

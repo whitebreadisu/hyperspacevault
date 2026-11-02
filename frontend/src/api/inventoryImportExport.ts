@@ -231,6 +231,25 @@ export async function downloadCatalogReference(): Promise<DownloadedFile> {
   };
 }
 
+/** Leading characters spreadsheet apps treat as the start of a formula
+ * (App Spec §17.1) -- the same set the backend's csv_safety.py guards. */
+const CSV_FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/** Prefix a single quote when a text cell starts with a formula-trigger
+ * character, so Excel/Sheets/Calc reopen it as text instead of evaluating it.
+ * Apply to string cells only, never to numbers. Mirror of the backend's
+ * `escape_csv_formula`; the browser-built problem-rows CSVs (desktop and
+ * phone) share this one copy. */
+export function escapeCsvFormula(value: string): string {
+  return CSV_FORMULA_TRIGGER.test(value) ? `'${value}` : value;
+}
+
+/** The note shown on the import success screen (desktop and phone) when the
+ * import committed but the Vault refetch after it failed. */
+export const REFRESH_FAILED_LEAD = "Your Vault didn't refresh.";
+export const REFRESH_FAILED_BODY =
+  "The import was saved, but the Vault couldn't load the new quantities. Reload the page to see them — don't import this file again.";
+
 /** Triggers a browser download for an in-memory blob -- used for the two
  * server-generated downloads above AND the client-generated "problem rows"
  * CSV (built from the dry-run/commit report by each Import/Export surface's

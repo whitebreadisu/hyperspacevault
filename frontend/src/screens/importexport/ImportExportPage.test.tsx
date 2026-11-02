@@ -1287,3 +1287,36 @@ describe("ImportExportPage analytics (BL-235)", () => {
     });
   });
 });
+
+describe("ImportExportPage reject-CSV formula escaping (BL-322)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("formula-escapes text cells and leaves numbers raw", async () => {
+    runImport.mockResolvedValue(
+      baseReport({
+        rows: [
+          {
+            row_number: 1,
+            status: "unresolved",
+            reason: "unknown_triple",
+            card: { set_code: "=SUM(1)", card_number: "-5", swuapi_uuid: "@x" },
+            file_quantity: -3,
+          },
+        ],
+      })
+    );
+    await renderPage();
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /download problem rows/i }));
+    });
+    const csv = await (downloadBlob.mock.calls[0][0] as Blob).text();
+    expect(csv.split("\r\n")[1]).toBe(
+      '"1","unresolved","unknown_triple","\'=SUM(1)","\'-5","","\'@x","-3",""'
+    );
+  });
+});

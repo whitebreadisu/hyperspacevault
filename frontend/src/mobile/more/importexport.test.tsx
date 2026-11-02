@@ -227,3 +227,59 @@ describe("S4-12 import / export analytics (layout phone)", () => {
     expect(calls.filter(([e]) => e === "export_performed")).toHaveLength(1);
   });
 });
+
+describe("BL-322 phone Import: refresh-failure note and problem-rows escaping", () => {
+  async function runToPreview() {
+    mount({ signedIn: true, emailVerified: true });
+    pickFile();
+    fireEvent.click(radio("Merge \\(add\\)"));
+    fireEvent.click(radio("Trim to my keep-limits"));
+    fireEvent.click(btn("Preview import"));
+    await screen.findByText("Import preview");
+  }
+
+  it("written import + failing Vault refresh: still complete, with the same note as desktop", async () => {
+    vi.mocked(runImport).mockImplementation(async (_f, mode, _c, stage) => report(stage, mode));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await runToPreview();
+      vi.mocked(getQuantities).mockRejectedValueOnce(new Error("quantities fetch failed"));
+      fireEvent.click(btn("Confirm import"));
+      await screen.findByText(/Import complete — 2 rows written\./);
+      expect(screen.getByText("Your Vault didn't refresh.")).toBeTruthy();
+      expect(screen.getByText(/Reload the page to see them/)).toBeTruthy();
+      expect(screen.getByText(/don't import this file again/)).toBeTruthy();
+      expect(screen.queryByText(/something went wrong committing/i)).toBeNull();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("written import + successful refresh: no note", async () => {
+    vi.mocked(runImport).mockImplementation(async (_f, mode, _c, stage) => report(stage, mode));
+    await runToPreview();
+    fireEvent.click(btn("Confirm import"));
+    await screen.findByText(/Import complete — 2 rows written\./);
+    expect(screen.queryByText(/didn't refresh/)).toBeNull();
+  });
+
+  it("the problem-rows CSV formula-escapes text cells and leaves numbers raw", async () => {
+    vi.mocked(runImport).mockImplementation(async (_f, mode, _c, stage) => {
+      const r = report(stage, mode);
+      r.rows[1] = {
+        row_number: 2,
+        status: "unresolved",
+        reason: "unknown_triple",
+        card: { set_code: "=SUM(1)", card_number: "-5", swuapi_uuid: "@x" },
+        file_quantity: -3,
+      };
+      return r;
+    });
+    await runToPreview();
+    fireEvent.click(btn("Download problem rows (CSV)"));
+    const blob = vi.mocked(downloadBlob).mock.calls[0][0] as Blob;
+    const csv = await blob.text();
+    const row = csv.split("\r\n")[1];
+    expect(row).toBe('"2","unresolved","unknown_triple","\'=SUM(1)","\'-5","","\'@x","-3",""');
+  });
+});

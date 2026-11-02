@@ -5,6 +5,7 @@ import {
   downloadCatalogReference,
   downloadBlob,
   ImportApiError,
+  escapeCsvFormula,
 } from "./inventoryImportExport";
 
 // Same mocking shape as deckCheck.test.ts/authedFetch.test.ts -- authedFetch
@@ -274,5 +275,17 @@ describe("downloadBlob (BL-54 S3)", () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
     clickSpy.mockRestore();
+  });
+});
+
+describe("escapeCsvFormula (BL-322)", () => {
+  it.each(["=", "+", "-", "@", "\t", "\r"])("prefixes a quote before a leading %j", (lead) => {
+    expect(escapeCsvFormula(`${lead}cmd`)).toBe(`'${lead}cmd`);
+  });
+
+  it("leaves safe values alone", () => {
+    expect(escapeCsvFormula("")).toBe("");
+    expect(escapeCsvFormula("Luke Skywalker")).toBe("Luke Skywalker");
+    expect(escapeCsvFormula("a=b")).toBe("a=b");
   });
 });

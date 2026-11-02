@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 from app.repositories import cards as card_repo
+from app.services.csv_safety import escape_csv_formula
 from app.services.set_order import export_sort_key
 
 REFERENCE_FILENAME_STEM = "hyperspacevault-catalog-reference"
@@ -51,8 +52,8 @@ def get_reference_csv(db: Session) -> tuple[str, str]:
                 r.card_number,
                 r.variant_type,
                 0,
-                r.name,
-                r.subtitle or "",
+                escape_csv_formula(r.name or ""),
+                escape_csv_formula(r.subtitle or ""),
             ]
         )
     content = buffer.getvalue()
