@@ -48,6 +48,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from app.services.csv_safety import escape_csv_formula
+
 if TYPE_CHECKING:
     # Type-only -- ParsedRow.preresolved_candidates names VariantMatch's
     # shape so both adapters (swudb_import.py/swunlimiteddb_import.py) can
@@ -344,28 +346,6 @@ def _card_to_json(row: InventoryRow) -> dict:
     return card
 
 
-# Leading characters spreadsheet apps (Excel/Sheets/LO Calc) treat as the
-# start of a formula (App Spec §17.1): '=', '+', '-', '@' are the OWASP CSV-
-# injection set; tab/CR are included because some parsers strip leading
-# whitespace before that check, letting "\t=cmd(...)" slip past a naive
-# "starts with one of these four chars" guard.
-_CSV_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
-
-
-def _escape_csv_formula(value: str) -> str:
-    """Prefix a single quote when `value` starts with a formula-trigger
-    character, forcing spreadsheet apps to treat the reopened cell as text
-    instead of evaluating it (the export's escaping rule, App Spec §17.1).
-    Import-safe: name/subtitle are cosmetic-only
-    on import (module docstring) -- never consulted for identity
-    resolution or merge/cap math -- so a re-imported quoted value changes
-    only what's cosmetically displayed, never a quantity or which variant a
-    row resolves to."""
-    if value and value[0] in _CSV_FORMULA_TRIGGER_CHARS:
-        return "'" + value
-    return value
-
-
 def serialize_csv(rows: list[InventoryRow]) -> str:
     """The derived CSV. Always emits the meta line -- app-generated exports
     are the canonical producer of this format; the meta-line-optional
@@ -373,7 +353,7 @@ def serialize_csv(rows: list[InventoryRow]) -> str:
     files, not for what this function writes.
 
     `name`/`subtitle` are neutralized against formula injection -- see
-    `_escape_csv_formula`."""
+    `escape_csv_formula`."""
     buffer = io.StringIO()
     buffer.write(META_LINE + "\n")
     writer = csv.writer(buffer, lineterminator="\n")
@@ -386,8 +366,8 @@ def serialize_csv(rows: list[InventoryRow]) -> str:
                 row.card_number or "",
                 row.variant_type or "",
                 row.quantity,
-                _escape_csv_formula(row.name or ""),
-                _escape_csv_formula(row.subtitle or ""),
+                escape_csv_formula(row.name or ""),
+                escape_csv_formula(row.subtitle or ""),
             ]
         )
     return buffer.getvalue()

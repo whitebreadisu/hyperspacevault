@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
 import {
   downloadBlob,
+  escapeCsvFormula,
   downloadCatalogReference,
   exportInventory,
   ImportApiError,
+  REFRESH_FAILED_BODY,
+  REFRESH_FAILED_LEAD,
   runImport,
 } from "../../api/inventoryImportExport";
 import type {
@@ -100,7 +103,9 @@ function problemRowsCsv(rows: ImportRowReport[]): string {
     "file_quantity",
     "candidates",
   ];
-  const quote = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  // Text cells are formula-escaped (App Spec §17.1); numbers stay raw.
+  const quote = (v: string | number) =>
+    `"${(typeof v === "string" ? escapeCsvFormula(v) : String(v)).replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
     [
       r.row_number,
@@ -582,9 +587,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
             </p>
             {refreshFailed && (
               <p className="ie-format-note">
-                <strong>Your Vault didn&apos;t refresh.</strong> The import was saved, but the Vault
-                couldn&apos;t load the new quantities. Reload the page to see them — don&apos;t
-                import this file again.
+                <strong>{REFRESH_FAILED_LEAD}</strong> {REFRESH_FAILED_BODY}
               </p>
             )}
             <ImportPreviewReport

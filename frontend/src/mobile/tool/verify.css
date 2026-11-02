@@ -238,6 +238,23 @@
   color: var(--color-danger);
   text-align: center;
 }
+/* Refresh-failure note on the done screen -- the Import screen's blue-rule note
+ * (.ie-format-note); amber is reserved for scope. */
+.m-app .m-d2-verify__note {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--color-primary);
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+.m-app .m-d2-verify__note strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
 .m-app .m-d2-verify__hint {
   font-family: var(--font-body);
   font-size: 12.5px;

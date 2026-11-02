@@ -6,6 +6,8 @@ import {
   downloadCatalogReference,
   exportInventory,
   ImportApiError,
+  REFRESH_FAILED_BODY,
+  REFRESH_FAILED_LEAD,
   runImport,
 } from "../../api/inventoryImportExport";
 import type { CapHandling, ImportMode, ImportReport } from "../../api/inventoryImportExport";
@@ -97,6 +99,9 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
   const [capHandling, setCapHandling] = useState<CapHandling | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [successReport, setSuccessReport] = useState<ImportReport | null>(null);
+  // The commit decides success; this only flags that the Vault refetch after
+  // a written import failed, so the success screen can say so (desktop parity).
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -190,6 +195,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     if (!file || !mode || !capHandling || !report || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
+    setRefreshFailed(false);
     const count = totalCardsFromReport(report);
     try {
       const result = await overlay.run(
@@ -198,7 +204,12 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
           task: () => runImport(file, mode, capHandling, "commit"),
           settleStage: { message: "Refreshing your Vault…" },
           settle: async () => {
-            await refreshQuantities().catch(() => {});
+            // The import is already saved: a failed refetch must not read as
+            // a failed import (a re-run would double merge-add quantities).
+            await refreshQuantities().catch((err) => {
+              console.error(err);
+              setRefreshFailed(true);
+            });
           },
         }
       );
@@ -235,6 +246,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     setCapHandling(null);
     setReport(null);
     setSuccessReport(null);
+    setRefreshFailed(false);
     setReplaceAllConfirmed(false);
     setFileError(null);
     scrollTop();
@@ -472,6 +484,11 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                   Import complete — {successReport.totals.resolved} row
                   {successReport.totals.resolved === 1 ? "" : "s"} written.
                 </p>
+                {refreshFailed && (
+                  <p className="ie-format-note" role="status">
+                    <strong>{REFRESH_FAILED_LEAD}</strong> {REFRESH_FAILED_BODY}
+                  </p>
+                )}
                 <ImportReportList
                   report={successReport}
                   onDownloadProblemRows={problemRowsHandler(successReport)}
