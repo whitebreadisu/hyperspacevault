@@ -11,7 +11,7 @@ present in fresh checkouts so fetch destinations always exist.
   (`bootstrap.py` warns and skips).
 - **Real-data test tier**: `pytest -m realdata` needs the frozen 2026-06-21
   capture — fetch `fixtures/swuapi_export_2026-06-21.json` from the bucket to
-  this directory or point `SWUAPI_FIXTURE_PATH` at it (see the content
-  runbook's verification pass).
-- **New captures**: the content runbook uploads dated exports + refreshes
+  this directory or point `SWUAPI_FIXTURE_PATH` at it.
+- **New captures**: the operator's catalog refresh (App Spec §7, Currency;
+  ADR-0004, 2026-07-29 amendment) uploads dated exports + refreshes
   `swuapi_export_current.json` in BOTH env buckets — never commits them here.

@@ -76,7 +76,7 @@ class TestSetCodeMap:
     def test_hmw_mapped(self):
         """HMW -- REPLACE (BL-245, 2026-10-12) of test_hmw_absent (BL-241's
         PORT of the original BL-186 refusal). The hold ended the way
-        ADR-0028 / runbook step 12 prescribe: a reporter's post-release
+        ADR-0028 / App Spec §17.5 prescribe: a reporter's post-release
         export (feedback #38; 272 HMW rows numbered 1-272) was spot-checked
         against the catalog -- #4 Grand Moff Tarkin (labelled by the back
         face "The Death Star" in the export), #121 Hijacked AT-ST (#4 in

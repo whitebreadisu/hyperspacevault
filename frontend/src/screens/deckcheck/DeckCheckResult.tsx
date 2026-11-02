@@ -88,9 +88,9 @@ function ScopeColumn({ label, scope, size, showAll }: ScopeColumnProps) {
   const color = scope.buildable ? GREEN : RED;
 
   // Deliberately, every row renders, in both MISSING ONLY and ALL CARDS
-  // mode -- no row cap, no "+N more" overflow row and no internal scroll
-  // region; .dcr-list has no max-height/overflow, so the page simply grows
-  // with a long list.
+  // mode (App Spec §5.11) -- no row cap, no "+N more" overflow row and no
+  // internal scroll region; .dcr-list has no max-height/overflow, so the
+  // page simply grows with a long list.
   const rows = showAll
     ? toDisplayRows(orderAllCardsEntries(scope.all_cards))
     : toDisplayRows(scope.missing);

@@ -17,19 +17,19 @@ VariantMatch = tuple[
     CardVariant, str, str | None, str
 ]  # (variant, name, subtitle, base_card_type)
 
-# Postgres parses each (a, b, c) row constructor of a composite IN
-# recursively, so one statement carrying ~1500+ of them would exceed the
-# default 2048kB max_stack_depth and the whole query would be rejected
-# (psycopg2.errors.StatementTooComplex, which would surface as a 500 on
-# import). Every tuple_() lookup below therefore runs in chunks; scalar
-# .in_() lists (uuids, variant_ids) are flat and don't recurse, so they stay
-# single-query. Chunking bounds statement complexity permanently, unlike
-# raising max_stack_depth, which only moves the ceiling. The ceiling is
-# environment-dependent: a single statement with 1,500+ triples exceeds the
-# limit on prod (Cloud SQL), while the dev-image Postgres survives 5,000 and
-# rejects 10,000 -- so 500
-# sits ~3x below the smallest count known to crash anywhere and ~20x below
-# the locally measured threshold.
+# The composite-IN chunk rule (App Spec §17.2). Postgres parses each
+# (a, b, c) row constructor of a composite IN recursively, so one statement
+# carrying ~1500+ of them would exceed the default 2048kB max_stack_depth
+# and the whole query would be rejected (psycopg2.errors.StatementTooComplex,
+# which would surface as a 500 on import). Every tuple_() lookup below
+# therefore runs in chunks; scalar .in_() lists (uuids, variant_ids) are flat
+# and don't recurse, so they stay single-query. Chunking bounds statement
+# complexity for any file size, where raising max_stack_depth would only
+# move the limit. The limit is environment-dependent: a single statement
+# with 1,500+ triples exceeds it on prod (Cloud SQL), while the dev-image
+# Postgres survives 5,000 and rejects 10,000 -- so 500 sits ~3x below the
+# smallest count known to fail anywhere and ~20x below the locally measured
+# threshold.
 _TUPLE_IN_CHUNK_SIZE = 500
 
 

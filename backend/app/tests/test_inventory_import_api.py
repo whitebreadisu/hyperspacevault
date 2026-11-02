@@ -2417,8 +2417,8 @@ class TestSwunlimiteddbHomeworlds:
     def test_hmw_row_resolves(self, bl54s2_tenant, bl186_catalog):
         """REPLACE (BL-245, 2026-10-12) of test_hmw_is_unmapped_set (BL-241's
         PORT of the BL-186 refusal): the hold ended once a reporter's
-        post-release export was spot-checked against the catalog (runbook
-        step 12 -- all 272 Homeworlds numbers matched; #4 Grand Moff Tarkin
+        post-release export was spot-checked against the catalog (ADR-0028,
+        App Spec §17.5 -- all 272 Homeworlds numbers matched; #4 Grand Moff Tarkin
         is labelled by its back face "The Death Star" in that tool). A
         Homeworlds row now resolves through the ordinary base-card-first
         path like any other mapped base set; nothing else about the row's

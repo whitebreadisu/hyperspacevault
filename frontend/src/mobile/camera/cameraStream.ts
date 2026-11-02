@@ -35,8 +35,11 @@ export interface StreamDeps {
   attach(s: StreamLike | null): void;
 }
 
-/** The capture request: the rear camera at an ideal 4k (3840 x 2160); Safari
- * grants a 4K portrait stream (ADR-0029 Context). */
+/** The capture request: the rear camera at an ideal 4k (3840 x 2160),
+ * because the reader sees only the identification strip cropped from the
+ * full-resolution frame, so the frame's resolution sets how many pixels the
+ * strip's small text gets (App Spec §25.7, Stream request). Safari grants a
+ * 4K portrait stream (ADR-0029 Context). */
 export const STREAM_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: { facingMode: "environment", width: { ideal: 3840 }, height: { ideal: 2160 } },

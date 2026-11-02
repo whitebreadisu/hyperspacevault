@@ -13,7 +13,7 @@ structural assumptions hold in the wild.
 Tier 2 (real-data contract tier): requires the real export fixture on
 disk. Skips cleanly when it is absent (e.g. after BL-170 moves the export
 to the private GCS bucket) -- run `pytest -m realdata` after fetching the
-fixture (see the content runbook) to exercise this file.
+fixture (see backend/app/ingestion/data/README.md) to exercise this file.
 """
 
 import json
@@ -43,7 +43,7 @@ pytestmark = [
         reason=(
             f"real swuapi export fixture not present at {FIXTURE_PATH} -- "
             "set SWUAPI_FIXTURE_PATH or fetch the frozen 2026-06-21 capture "
-            "per the content runbook to run this tier"
+            "(backend/app/ingestion/data/README.md) to run this tier"
         ),
     ),
 ]
