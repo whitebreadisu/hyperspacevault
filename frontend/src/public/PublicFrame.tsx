@@ -1,5 +1,6 @@
 import { SWUButton } from "../components/SWUButton";
 import type { CardLink } from "./publicCatalog";
+import { ctaClicked } from "./publicAnalytics";
 
 // The public pages' frame (design note §4 D1, D4, §7): the page bar with the
 // wordmark and one bar action, the breadcrumb, the previous / next links,
@@ -11,17 +12,20 @@ import type { CardLink } from "./publicCatalog";
 export const APP_URL = "/";
 
 function goToApp() {
+  ctaClicked("create_account");
   window.location.assign(APP_URL);
 }
+
+const openApp = () => ctaClicked("open_app");
 
 export function PageBar({ phone = false }: { phone?: boolean }) {
   return (
     <div className={"pc-bar" + (phone ? " pc-bar--phone" : "")}>
-      <a className="pc-brand" href={APP_URL}>
+      <a className="pc-brand" href={APP_URL} onClick={openApp}>
         <span className="pc-brand__name">[HSV] Hyperspace Vault</span>
         <span className="pc-brand__tag">Unofficial Fan Project</span>
       </a>
-      <a className="pc-bar__open" href={APP_URL}>
+      <a className="pc-bar__open" href={APP_URL} onClick={openApp}>
         Open HyperspaceVault
       </a>
     </div>
@@ -95,7 +99,7 @@ export function SignUpPlate({ phone = false }: { phone?: boolean }) {
         <SWUButton size={phone ? "touch" : "sm"} onClick={goToApp}>
           Create free account
         </SWUButton>
-        <a className="pc-cta__signin" href={APP_URL}>
+        <a className="pc-cta__signin" href={APP_URL} onClick={() => ctaClicked("sign_in")}>
           Sign in
         </a>
       </div>

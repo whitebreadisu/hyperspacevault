@@ -27,6 +27,8 @@ import type { AddCardsCatalogEntry } from "../../utils/addCardsResolver";
 import type { FilterState } from "../../utils/filters";
 import type { ViewMode } from "../../components/FilterPanel";
 import type { BaseCard } from "../../utils/catalog";
+import { clearCardParam, resolveCardParam } from "../../utils/cardParam";
+import type { CardParam } from "../../utils/cardParam";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import { useVaultDataSource } from "../../vault/useVaultData";
 import {
@@ -84,6 +86,11 @@ interface Props {
    * anonymous zero-state (see `hasData`). Optional (undefined = the caller's
    * own Vault). */
   shareToken?: string;
+  /** The `?card=sor-005` boot parameter (App.tsx reads it once; design note
+   * §9 "Optional extra"): once the catalogue has loaded, the popup opens on
+   * that card and the parameter leaves the address bar. Unknown card = no
+   * popup. Absent (the default) = today's behaviour. */
+  openCardOnLoad?: CardParam | null;
 }
 
 /** Unified Cards view -- one list for everyone, inventory data layered on by
@@ -104,6 +111,7 @@ export function CardsPage({
   onOpenImportExport,
   onQuantitiesRefreshReady,
   shareToken,
+  openCardOnLoad = null,
 }: Props) {
   // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
@@ -470,6 +478,20 @@ export function CardsPage({
     },
     [list]
   );
+
+  // The `?card=` boot parameter: resolved once, when the catalogue is in
+  // (set + number -> base_card_id through the list already loaded; no new
+  // fetch). Opens like a table click (source "table"); prev / next then walk
+  // the Vault's list, as from any other open.
+  const [pendingCard, setPendingCard] = useState<CardParam | null>(openCardOnLoad);
+  useEffect(() => {
+    if (pendingCard == null || loading) return;
+    setPendingCard(null);
+    const hit = resolveCardParam(cards, pendingCard);
+    if (!hit) return;
+    openPopup(hit.base_card_id);
+    clearCardParam();
+  }, [pendingCard, loading, cards, openPopup]);
 
   // card_popup_opened's `source` (App Spec §22) -- CardsTable's
   // onSelectCard/onSelectInventory take a single (baseCardId) argument,

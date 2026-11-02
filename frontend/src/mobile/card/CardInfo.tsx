@@ -2,12 +2,15 @@ import type { BaseCardDetail } from "../../api/baseCards";
 import { AspectIcon } from "../../components/AspectIcon";
 import { RarityBadge } from "../../components/RarityBadge";
 import { StatBadge } from "../../components/StatBadge";
+import { EpicActionText } from "../../components/EpicActionText";
+import { repairText } from "../../utils/mojibake";
 import type { InventoryCard } from "../../utils/inventory";
 
 // The card's text and facts. The rules-text panel is desktop's .cp-text
 // (12 / 11 px cuts, steel ring) with desktop CardPopup.tsx's text logic:
-// a section header only on a double-sided card, Epic Action inline, the
-// back's text under a hairline. Text, artist and set name come from the
+// a section header only on a double-sided card, Epic Action inline (one
+// shared EpicActionText, the label once, BL-326), the back's text under a
+// hairline. Text, artist and set name come from the
 // detail fetch (getBaseCardDetail); until it lands the panel is absent and
 // every fact that is missing reads "—".
 
@@ -122,19 +125,16 @@ export function CardInfo({
                 {detail.type}
               </div>
             ) : null}
-            {detail.front_text ? <p className="cp-text__body">{detail.front_text}</p> : null}
-            {detail.epic_action ? (
-              <p className="cp-text__body">
-                <span className="cp-text__epic-label">Epic Action: </span>
-                {detail.epic_action}
-              </p>
+            {detail.front_text ? (
+              <p className="cp-text__body">{repairText(detail.front_text)}</p>
             ) : null}
+            <EpicActionText text={detail.epic_action} />
             {hasBackText ? (
               <div className="cp-text__back">
                 <div className="cp-text__header" style={{ color: glow }}>
                   {detail.type2 ?? "Back"}
                 </div>
-                <p className="cp-text__body">{detail.back_text}</p>
+                <p className="cp-text__body">{repairText(detail.back_text)}</p>
               </div>
             ) : null}
           </div>

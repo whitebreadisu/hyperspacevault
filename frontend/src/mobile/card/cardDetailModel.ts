@@ -79,11 +79,13 @@ export interface PrintingGroup {
 }
 
 /** Desktop groupBySet: consecutive runs of one source set, labelled "Base
- * set" for the card's own set, else the set's name (code as fallback). */
+ * set" for the card's own set (the public card page passes the set's real
+ * name, design note §4.0 row 4), else the set's name (code as fallback). */
 export function groupPrintings(
   ordered: InventoryVariant[],
   baseSetCode: string,
-  setNameByCode: Record<string, string>
+  setNameByCode: Record<string, string>,
+  baseSetLabel = "Base set"
 ): PrintingGroup[] {
   const groups: PrintingGroup[] = [];
   for (const v of ordered) {
@@ -93,7 +95,7 @@ export function groupPrintings(
         setCode: v.source_set_code,
         label:
           v.source_set_code === baseSetCode
-            ? "Base set"
+            ? baseSetLabel
             : (setNameByCode[v.source_set_code] ?? v.source_set_code),
         items: [],
       };

@@ -60,14 +60,14 @@ export interface CardPageProps {
   readOnly?: boolean;
   /** Public card page (design note §4.0): the sign-up plate (row 10), the
    * 320 px art (row 9), "SOR 005" and the Aspects row (rows 5, 6), the
-   * prices line under Variants (row 7) and the page's own end matter
-   * (notice, set navigation, footer) at the end of the body. Defaults
-   * reproduce the app. */
+   * base set's real name on its printings group (row 4) and the page's own
+   * end matter (notice, set navigation, footer) at the end of the body.
+   * Defaults reproduce the app. */
   plateSlot?: ReactNode;
   imageMode?: "app" | "fixed320";
   numberLabel?: string;
   showAspectsRow?: boolean;
-  printingsFooter?: ReactNode;
+  baseSetLabel?: string;
   bodyEnd?: ReactNode;
 }
 
@@ -132,7 +132,7 @@ export function CardPage(p: CardPageProps) {
             onRequestSignIn={p.onRequestSignIn}
             ghost={!!ghost}
             readOnly={p.readOnly}
-            footer={p.printingsFooter}
+            baseSetLabel={p.baseSetLabel}
           />
           <section className="m-sec m-history" aria-labelledby={ghost ? undefined : "sec-history"}>
             <div className="m-sec__head">

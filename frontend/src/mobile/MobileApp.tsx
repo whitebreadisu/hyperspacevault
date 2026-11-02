@@ -38,6 +38,7 @@ import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "../vault/useVaultData";
+import { CardParamBoot } from "./CardParamBoot";
 import { Vault } from "./vault/Vault";
 import "./mobile.css";
 import "./shell.css";
@@ -476,6 +477,7 @@ export function MobileApp() {
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
+      <CardParamBoot disabled={inShare} />
       <div
         className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}
         data-share={inShare ? "shown" : undefined}

@@ -1,5 +1,7 @@
 import type { BaseCardDetail, VariantDetail } from "../api/baseCards";
-import { formatAsOf } from "../mobile/card/priceChartModel";
+import { cardAppHref } from "../utils/cardParam";
+import { setSortRank } from "../utils/setGrouping";
+import { repairMojibake } from "../utils/mojibake";
 
 // The public card pages' data model (design note §3 "Data source", §5).
 //
@@ -37,10 +39,12 @@ export interface PublicCatalog {
   cards: PublicCard[];
 }
 
-/** A link to a neighbouring card page. */
+/** A link to a neighbouring card: its page, and the same card inside the
+ * app (`/?card=sor-006`, the desktop header arrows). */
 export interface CardLink {
   path: string;
   label: string;
+  appHref: string;
 }
 
 /** What one page renders from, embedded in the page as JSON for hydration. */
@@ -49,8 +53,6 @@ export interface CardPageData {
   setName: string;
   setNameByCode: Record<string, string>;
   numberLabel: string;
-  /** "as of Nov 1, 2026", or null when no printing has a price. */
-  asOfLabel: string | null;
   prev: CardLink | null;
   next: CardLink | null;
 }
@@ -75,75 +77,8 @@ export function numberLabel(setCode: string, num: string): string {
   return `${setCode} ${padNumber(num)}`;
 }
 
-/** cp1252 bytes 0x80-0x9F (the five undefined slots map to themselves). */
-const CP1252_HIGH: Record<string, number> = {
-  "€": 0x80,
-  "‚": 0x82,
-  ƒ: 0x83,
-  "„": 0x84,
-  "…": 0x85,
-  "†": 0x86,
-  "‡": 0x87,
-  ˆ: 0x88,
-  "‰": 0x89,
-  Š: 0x8a,
-  "‹": 0x8b,
-  Œ: 0x8c,
-  Ž: 0x8e,
-  "‘": 0x91,
-  "’": 0x92,
-  "“": 0x93,
-  "”": 0x94,
-  "•": 0x95,
-  "–": 0x96,
-  "—": 0x97,
-  "˜": 0x98,
-  "™": 0x99,
-  š: 0x9a,
-  "›": 0x9b,
-  œ: 0x9c,
-  ž: 0x9e,
-  Ÿ: 0x9f,
-};
-
-/** The census pattern from the design note (§8, R1). */
-export const MOJIBAKE = /Ã|â€|Â|�/;
-
-/** Repairs UTF-8 text that was decoded as cp1252 ("canâ€™t" -> "can’t",
- * "6Â or" -> "6 or"). Text without the census pattern, or text that does
- * not round-trip to valid UTF-8, is returned unchanged. */
-export function repairMojibake(text: string): string {
-  if (!MOJIBAKE.test(text)) return text;
-  const bytes: number[] = [];
-  for (const ch of text) {
-    const code = ch.codePointAt(0)!;
-    if (code < 0x100) bytes.push(code);
-    else if (CP1252_HIGH[ch] !== undefined) bytes.push(CP1252_HIGH[ch]);
-    else return text;
-  }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
-  } catch {
-    return text;
-  }
-}
-
-/** The data already starts with "Epic Action:" on most cards that have one;
- * the view adds the label itself, so it is stripped here (row 8). */
-export function stripEpicLabel(text: string | null): string | null {
-  if (text == null) return null;
-  return text.replace(/^\s*Epic Action:\s*/i, "");
-}
-
-/** The newest "as of" date across the card's printings. */
-export function latestAsOf(card: Pick<PublicCard, "variants">): string | null {
-  let best: string | null = null;
-  for (const v of card.variants) {
-    const d = v.price?.as_of;
-    if (d && (best == null || d > best)) best = d;
-  }
-  return best;
-}
+export { MOJIBAKE, repairMojibake } from "../utils/mojibake";
+export { latestAsOf } from "../utils/priceAttribution";
 
 /** Canonical and og:url point at prod in every environment (R2). */
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
@@ -166,8 +101,9 @@ const TEXT_FIELDS = [
   "artist",
 ] as const;
 
-/** The card as the view renders it: text repaired, the epic-action label
- * stripped, and quantity 0 on every printing (the page is signed out). */
+/** The card as the view renders it: text repaired and quantity 0 on every
+ * printing (the page is signed out). The epic-action label is the views' own
+ * rule (utils/epicAction.ts, BL-326), so the field passes through. */
 export function toPageCard(card: PublicCard): BaseCardDetail {
   const fixed = { ...card };
   for (const f of TEXT_FIELDS) {
@@ -176,7 +112,6 @@ export function toPageCard(card: PublicCard): BaseCardDetail {
   }
   return {
     ...fixed,
-    epic_action: stripEpicLabel(fixed.epic_action),
     traits: card.traits.map(repairMojibake),
     keywords: card.keywords.map(repairMojibake),
     variants: card.variants.map((v) => ({
@@ -215,7 +150,13 @@ export function buildPages(catalog: PublicCatalog): CardPageData[] {
   }
 
   const link = (c: PublicCard | undefined): CardLink | null =>
-    c ? { path: cardPath(c.set_code, c.base_card_number), label: c.name } : null;
+    c
+      ? {
+          path: cardPath(c.set_code, c.base_card_number),
+          label: c.name,
+          appHref: cardAppHref(c.set_code, c.base_card_number),
+        }
+      : null;
 
   const pages: CardPageData[] = [];
   for (const code of [...bySet.keys()].sort()) {
@@ -226,17 +167,115 @@ export function buildPages(catalog: PublicCatalog): CardPageData[] {
         setNameByCode[v.source_set_code] =
           setNames[v.source_set_code] ?? v.source_set_name ?? v.source_set_code;
       }
-      const asOf = latestAsOf(c);
       pages.push({
         card: toPageCard(c),
         setName: setNames[c.set_code] ?? c.set_name ?? c.set_code,
         setNameByCode,
         numberLabel: numberLabel(c.set_code, c.base_card_number),
-        asOfLabel: asOf ? `as of ${formatAsOf(asOf)}` : null,
         prev: link(cards[i - 1]),
         next: link(cards[i + 1]),
       });
     });
   }
   return pages;
+}
+
+// ── Set pages and the set index (design note §5 "Internal linking") ──────
+
+/** One row of a set page: every non-token card, in number order. */
+export interface SetPageCard {
+  name: string;
+  subtitle: string | null;
+  /** "SOR 005" */
+  numberLabel: string;
+  rarity: string;
+  path: string;
+}
+
+/** `/cards/sor/` -- what one set page renders from. */
+export interface SetPageData {
+  code: string;
+  name: string;
+  path: string;
+  cards: SetPageCard[];
+}
+
+/** One row of the set index. */
+export interface IndexSet {
+  code: string;
+  name: string;
+  path: string;
+  count: number;
+}
+
+/** `/cards/` -- the sets that have card pages, newest first (ADR-0031). */
+export interface IndexPageData {
+  sets: IndexSet[];
+  /** Card pages across every set. */
+  total: number;
+}
+
+function nonTokenBySet(catalog: PublicCatalog): Map<string, PublicCard[]> {
+  const bySet = new Map<string, PublicCard[]>();
+  for (const c of catalog.cards) {
+    if (c.is_token) continue;
+    const list = bySet.get(c.set_code) ?? [];
+    list.push(c);
+    bySet.set(c.set_code, list);
+  }
+  for (const list of bySet.values()) list.sort(cardOrder);
+  return bySet;
+}
+
+/** ADR-0031: the main block newest first, then the secondary base sets
+ * (setSortRank); a set outside both lists by release date, newest first,
+ * then by code. */
+export function compareSetsNewestFirst(
+  a: Pick<PublicSet, "code" | "release_date">,
+  b: Pick<PublicSet, "code" | "release_date">
+): number {
+  const r = setSortRank(a.code) - setSortRank(b.code);
+  if (r !== 0) return r;
+  const da = a.release_date ?? "";
+  const db = b.release_date ?? "";
+  if (da !== db) return da < db ? 1 : -1;
+  return a.code < b.code ? -1 : a.code > b.code ? 1 : 0;
+}
+
+function setNameOf(catalog: PublicCatalog, code: string, fallback?: string | null): string {
+  return catalog.sets.find((s) => s.code === code)?.name ?? fallback ?? code;
+}
+
+/** Every set page's data, one per set that has card pages. */
+export function buildSetPages(catalog: PublicCatalog): SetPageData[] {
+  const bySet = nonTokenBySet(catalog);
+  return [...bySet.entries()].map(([code, cards]) => ({
+    code,
+    name: repairMojibake(setNameOf(catalog, code, cards[0]?.set_name)),
+    path: setPath(code),
+    cards: cards.map((c) => ({
+      name: repairMojibake(c.name),
+      subtitle: c.subtitle ? repairMojibake(c.subtitle) : null,
+      numberLabel: numberLabel(c.set_code, c.base_card_number),
+      rarity: c.rarity,
+      path: cardPath(c.set_code, c.base_card_number),
+    })),
+  }));
+}
+
+/** The set index's data. */
+export function buildIndexPage(catalog: PublicCatalog): IndexPageData {
+  const bySet = nonTokenBySet(catalog);
+  const release = (code: string) => catalog.sets.find((s) => s.code === code)?.release_date ?? null;
+  const sets = [...bySet.entries()]
+    .map(([code, cards]) => ({
+      code,
+      name: repairMojibake(setNameOf(catalog, code, cards[0]?.set_name)),
+      path: setPath(code),
+      count: cards.length,
+      release_date: release(code),
+    }))
+    .sort(compareSetsNewestFirst)
+    .map(({ code, name, path, count }) => ({ code, name, path, count }));
+  return { sets, total: sets.reduce((n, s) => n + s.count, 0) };
 }
