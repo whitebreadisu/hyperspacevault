@@ -13,7 +13,6 @@ import {
   addDeck,
   batchView,
   discardBatch,
-  foldAdded,
   pendingEntries,
   getBatch,
   removeCopy,
@@ -112,13 +111,6 @@ describe("S3-08 batch model (one row per copy, cap admission, remove one, discar
     expect(getBatch()).toHaveLength(2);
     discardBatch();
     expect(getBatch()).toEqual([]);
-  });
-
-  it("foldAdded: admitted copies per printing for the commit (not-added excluded)", () => {
-    for (let i = 0; i < 4; i++) addCopy(vader);
-    addCopy(guard);
-    const fold = foldAdded(getBatch(), batchView(getBatch(), hard));
-    expect([...fold.entries()]).toEqual([[7221, 2]]);
   });
 
   it("the readout's After add counts every batch copy of the printing (keypad or precon)", () => {

@@ -36,7 +36,7 @@ def list_base_cards(
     pricing: Literal["standard", "cheapest"] = Query(
         "standard",
         description=(
-            "BL-136: selects each base card's display_price aggregate -- "
+            "Selects each base card's display_price aggregate: "
             "'standard' (default) is the Standard printing's market price, "
             "'cheapest' is min(low) across all priced variants."
         ),

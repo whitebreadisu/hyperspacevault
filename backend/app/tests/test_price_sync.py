@@ -418,13 +418,13 @@ def test_run_sync_defaults_to_all_priced_group_ids(db):
 
 def test_tcgcsv_client_sends_required_user_agent_and_throttles(monkeypatch):
     """Compliance check (BL-136 brief): every tcgcsv request carries the
-    identifiable User-Agent, and throttle() actually sleeps >=100ms between
+    identifiable User-Agent, and throttle() actually sleeps >=250ms between
     sequential requests -- both mandatory per tcgcsv.com's fair-use
     guidance (spike §2)."""
     from app.ingestion import tcgcsv_client
 
     assert tcgcsv_client.USER_AGENT == "SWUInventoryManager/1.0"
-    assert tcgcsv_client.MIN_REQUEST_INTERVAL_SECONDS >= 0.1
+    assert tcgcsv_client.MIN_REQUEST_INTERVAL_SECONDS >= 0.25
 
     client = tcgcsv_client.TcgcsvClient()
     try:

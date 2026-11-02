@@ -54,7 +54,7 @@ def deck_check(
     mode: Literal["standard", "cheapest"] = Query(
         "standard",
         description=(
-            "Cost mode (Definition_DeckCheck_2026-07-16.md §5): 'standard' "
+            "Cost mode: 'standard' "
             "(default) prices each missing card at its Standard printing's "
             "market price (falling back to the cheapest priced printing's "
             "market when the Standard printing itself is unpriced); "

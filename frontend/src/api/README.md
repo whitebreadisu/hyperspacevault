@@ -1,24 +1,14 @@
 # frontend/src/api conventions
 
-## Error convention (BL-154)
+## Error convention
 
 **Rule: every module in this folder throws a typed error class -- never a
 bare `throw new Error(...)`.**
 
-Before BL-154, three conventions coexisted in this folder (repo-review
-finding A3-07):
-
-1. status-string throws -- `throw new Error(\`Failed to fetch X: ${res.status}\`)`
-   (account.ts, baseCards.ts, feedback.ts, inventory.ts, sets.ts)
-2. a typed error class carrying `status` (settingsLimits.ts's `LimitsApiError`)
-3. parsed-body typed errors that read the response's `detail` for a
-   machine-readable code (deckCheck.ts's `DeckCheckApiError`,
-   inventoryImportExport.ts's `ImportApiError`)
-
-BL-154 picked (2)/(3) -- the typed-error-class pattern -- as the single
-convention and generalized it into a shared base in `errors.ts`. Every
-module's typed error now extends one of the two classes there, and the
-status-string modules were migrated onto it too.
+The convention is the typed-error-class pattern: a base class in
+`errors.ts` that carries the HTTP `status`, and a coded variant for
+endpoints whose backend raises a closed union of typed errors. Every
+module's typed error extends one of the two classes there. Never throw a plain `Error` with the status in its message.
 
 ### The base classes (`errors.ts`)
 
@@ -92,16 +82,15 @@ Incremental, not a rip-and-replace:
 
 - **New modules must comply** from day one -- extend `ApiError` or
   `CodedApiError`, never throw a bare `Error`.
-- **Existing modules migrate opportunistically** -- when a module already
-  under this convention needs a substantive change anyway, bring any
-  remaining `throw new Error(...)` in that file onto the shared base in the
-  same change. A module left with a `// BL-154: migrate on next touch`
-  marker comment is flagging a throw site that wasn't touched because the
-  surrounding change was small and unrelated -- migrate it the next time
-  that file is edited for something else.
-- (As of BL-154 landing, every module in this folder is already migrated --
-  the marker comment is a mechanism for the _next_ module that needs one,
-  not a description of current state.)
+- **Existing modules migrate opportunistically** -- when a module under
+  this convention needs a substantive change anyway, bring any remaining
+  `throw new Error(...)` in that file onto the shared base in the same
+  change. A `// migrate on next touch` marker comment flags a throw site
+  that was left alone because the surrounding change was small and
+  unrelated; migrate it the next time that file is edited.
+- Every module in this folder is currently migrated; the marker is a
+  mechanism for a future module that needs one, not a description of
+  current state.
 
 ### Enforcement
 

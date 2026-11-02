@@ -361,15 +361,3 @@ function verificationRowOf(
     skipReason: null,
   };
 }
-
-/** A fold of the admitted copies per printing, in batch order, over every
- * via (tests read it; commit.ts commitPlan folds the keypad-path copies
- * itself for its `adjustCard` deltas). Unresolved copies and not-added copies
- * are excluded. */
-export function foldAdded(batch: BatchRow[], view: BatchView): Map<number, number> {
-  const ok = new Set(view.added.map((v) => v.id));
-  const out = new Map<number, number>();
-  for (const r of batch)
-    if (ok.has(r.id) && r.variantId !== null) out.set(r.variantId, (out.get(r.variantId) ?? 0) + 1);
-  return out;
-}

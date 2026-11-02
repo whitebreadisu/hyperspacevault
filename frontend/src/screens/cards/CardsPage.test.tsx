@@ -55,9 +55,8 @@ vi.mock("../../api/sets", () => ({
   ]),
 }));
 
-// BL-219 (issue #127): incrementCard/decrementCard mocks REPLACED by
-// adjustCard -- CardPopupInventory's useInventoryMutation now drives the
-// batched adjust endpoint exclusively (see CardPopup.test.tsx's own BL-219
+// adjustCard mock -- CardPopupInventory's useInventoryMutation drives the
+// batched adjust endpoint exclusively (see CardPopup.test.tsx's own
 // coverage for the debounce/accumulation mechanics themselves; this file's
 // popup-wiring test below only needs the flush-on-close/EmailNotVerifiedError
 // surface to exist on the mock so CardPopupInventory's module-level

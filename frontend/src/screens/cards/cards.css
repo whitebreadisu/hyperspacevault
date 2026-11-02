@@ -333,35 +333,12 @@
   background: var(--color-primary);
 }
 
-/* Market/Low toggle for the Collection-value block, styled after CardPopup.css's
- * .cp-rail__pricemode / .cp-rail__pricemode-btn (a copy, not an import). */
+/* Placement wrapper for the Collection-value block's Market/Low ValueSwitch. */
 .inv-summary__pricemode {
   margin-left: auto;
   display: inline-flex;
   border: 1px solid var(--color-border);
   flex: none;
-}
-
-.inv-summary__pricemode-btn {
-  background: transparent;
-  color: var(--color-text-muted);
-  border: none;
-  font-family: var(--font-ui);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  cursor: pointer;
-}
-
-.inv-summary__pricemode-btn:hover:not(.inv-summary__pricemode-btn--active) {
-  background: rgba(37, 99, 235, 0.12);
-}
-
-.inv-summary__pricemode-btn--active {
-  background: rgba(37, 99, 235, 0.28);
-  color: #ffffff;
 }
 
 /* "«metric» by set" breakdown popover -- base sets in display order, a plain

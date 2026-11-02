@@ -142,13 +142,11 @@ class RunReport:
         lines = [
             "# TCGplayer Pricing Mapping — Current Exceptions",
             "",
-            f"**Last generated:** {generated} (BL-136 P1 mapping run, "
+            f"**Last generated:** {generated} (tcgplayer mapping run, "
             "`app.ingestion.run_tcgplayer_mapping`).",
             "",
-            "Era-aware name+tier join per "
-            "`specification_documents/analysis/Spike_TCGCSV_Pricing_2026-07-16.md` "
-            "§4, widened by BL-174 (`Pricing_Coverage_NonCore_Finishes_2026-07-27.md`) "
-            "to Showcase/Prestige finishes and Weekly Play groups. A variant "
+            "Era-aware name+tier join covering Standard, Hyperspace, "
+            "Showcase and Prestige finishes and Weekly Play groups. A variant "
             "lands here if it's a mapping-target finish for its set (root sets: "
             "Standard/Standard Foil/Hyperspace/Hyperspace Foil/Showcase/Standard "
             "Prestige/Foil Prestige/Serialized Prestige; Weekly Play groups: "
@@ -316,7 +314,7 @@ def write_exceptions_report(report: RunReport, path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="BL-136 P1 tcgplayer mapping builder")
+    parser = argparse.ArgumentParser(description="tcgplayer pricing mapping builder")
     parser.add_argument(
         "--set-code",
         action="append",

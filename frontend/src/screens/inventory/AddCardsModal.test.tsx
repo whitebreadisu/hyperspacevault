@@ -74,10 +74,9 @@ vi.mock("../../api/sets", () => ({
 // BL-16: EmailNotVerifiedError is a real class (not a vi.fn()) -- declared
 // under vi.hoisted so the same reference is thrown by tests and checked via
 // `instanceof` in AddCardsModal's catch block.
-// BL-219 (issue #127): mockIncrementCard -> mockAdjustCard -- the manual
-// commit loop now groups willAdd rows by variant_id and sends one
-// adjustCard(variantId, delta) call per distinct variant instead of one
-// incrementCard call per row (see AddCardsModal.tsx's handleCommit).
+// The manual commit loop groups willAdd rows by variant_id and sends one
+// adjustCard(variantId, delta) call per distinct variant (see
+// AddCardsModal.tsx's handleCommit).
 const { mockAdjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
   class EmailNotVerifiedError extends Error {}
   return {
@@ -638,7 +637,7 @@ function deferred<T>(): {
 
 // DISPOSITION (BL-196, CREATE): net-new coverage -- the manual commit path's
 // busy overlay (handleCommit) stages "Applying N cards…" through the
-// adjustCard loop (BL-219: was incrementCard), then "Refreshing your
+// adjustCard loop, then "Refreshing your
 // Vault…" through onCommitted, dismissing only once both settle.
 describe("AddCardsModal busy overlay (BL-196)", () => {
   beforeEach(() => {

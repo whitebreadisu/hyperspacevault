@@ -170,7 +170,7 @@ No block is deleted without a logged disposition. The per-module disposition log
 
 **Sweep.** Dedicated per-module stages under WS-4, never per-touch (D4). Each stage is one PR; the journey suite is its gate like any other PR.
 
-**Enforcement.** `.github/scripts/comment_check.mjs` fails a BL-id in a non-test comment. The allowlist is a per-file count baseline (`path count` per line) that may only decrease: a file still on the list cannot grow new BL-id comments before its module is swept, an unlisted file may have none, and a count left above the real number fails until it is lowered. `frontend/src/content/` is not scanned. The check does not yet enforce the GitHub-issue-number rule; it is added once the BL-id sweep is done. The baseline reaches zero when the last module is swept, and the file is then deleted.
+**Enforcement.** `.github/scripts/comment_check.mjs` fails a BL-id in a non-test comment. The allowlist is a per-file count baseline (`path count` per line) that may only decrease: a file still on the list cannot grow new BL-id comments before its module is swept, an unlisted file may have none, and a count left above the real number fails until it is lowered. `frontend/src/content/` is not scanned. The check also fails a GitHub issue or PR reference in a non-test comment: `(#N)`, fixes/closes/resolves `#N`, `PR #N`, `issue N`, `owner/repo#N`. A bare `#N` is not flagged, because card numbers ("SEC #1") collide with it. The baseline reaches zero when the last module is swept, and the file is then deleted.
 
 **What this costs, stated.** The direct hop from a line of code to its backlog item is lost once the item is archived. Spec-to-code navigation stays (the specs cite code by function name); code-to-spec stays through `§` citations; code-to-history is `git log -S <symbol>` / `git blame` and the backlog archive. Accepted (D4).
 
@@ -180,4 +180,8 @@ No block is deleted without a logged disposition. The per-module disposition log
 - + One CI rule, with a baseline that only shrinks.
 - − About a thousand comment edits across 280 files, spread over the module stages.
 - − A reader who wants the story must open git or an ADR.
-- − The two citation extensions go beyond D4 as written, and the issue-number rule is stated before it is enforced.
+- − The two citation extensions go beyond D4 as written.
+
+## Amendment 2026-11-01 — issue-number rule enforced (BL-316)
+
+The comment check enforces the GitHub-issue-number rule of the amendment above. Superseded wording, preserved here: "The check does not yet enforce the GitHub-issue-number rule; it is added once the BL-id sweep is done." and, under Consequences, "the issue-number rule is stated before it is enforced."
