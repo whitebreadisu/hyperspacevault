@@ -15,7 +15,15 @@ import { toInventoryCards } from "../utils/inventory";
 import { setPath } from "./publicCatalog";
 import type { CardLink, CardPageData } from "./publicCatalog";
 import { ctaClicked } from "./publicAnalytics";
-import { ArtNotice, Breadcrumbs, PageBar, PageFooter, SetNav, SignUpPlate } from "./PublicFrame";
+import {
+  ArtNotice,
+  ArtPlaceholder,
+  Breadcrumbs,
+  PageBar,
+  PageFooter,
+  SetNav,
+  SignUpPlate,
+} from "./PublicFrame";
 
 // The public card page (design note §0, §4): the app's own card detail,
 // rendered from the page's embedded data instead of an API fetch.
@@ -155,6 +163,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
             }
             inventorySlot={<SignUpPlate />}
             imageNote={<ArtNotice />}
+            imagePlaceholder={<ArtPlaceholder />}
             afterBody={
               historyExpanded && (
                 <CardPopupExpandedHistory

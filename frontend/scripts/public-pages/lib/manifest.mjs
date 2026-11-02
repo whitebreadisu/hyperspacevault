@@ -21,10 +21,14 @@
 //   - the hash in any other /assets/ reference (an <img> of an aspect icon:
 //     "/assets/SWH_Aspects_Vigilance-BC5CGWLo.png" -> ".../SWH_Aspects_Vigilance.png");
 //   - the <meta name="build-sha"> tag (changes on every commit);
+//   - every price "as of" date: the visible "as of Nov 1, 2026" label and
+//     each `"as_of":"2026-11-01"` field in the embedded #card-data JSON
+//     (the daily price sync re-dates unchanged prices every day);
 //   - anything matching the caller's extra `volatile` patterns.
 // What remains is the card content and the SEO head: name, text, printings,
-// prices and their "as of" date, links, JSON-LD. A price change is a real
-// change to a page titled "Price and printings", so it bumps lastmod.
+// price VALUES, links, JSON-LD. A price value change is a real change to a
+// page titled "Price and printings", so it bumps lastmod; a re-dated but
+// unchanged price does not.
 
 import { createHash } from "node:crypto";
 
@@ -34,10 +38,17 @@ export const MANIFEST_VERSION = 1;
 const ASSET_TAG_RE = /<(?:script|link)\b[^>]*?\/assets\/[^>]*>(?:\s*<\/script>)?/gi;
 const ASSET_HASH_RE = /(\/assets\/[^"'\s>]*?)-[A-Za-z0-9_-]{8}(\.[A-Za-z0-9]+)/g;
 const BUILD_SHA_RE = /<meta\b[^>]*\bname=["']build-sha["'][^>]*>/gi;
+const AS_OF_LABEL_RE = /\bas of (?:<!-- -->)?[A-Z][a-z]{2} \d{1,2}, \d{4}/g;
+const AS_OF_FIELD_RE = /"as_of":"[^"]*"/g;
 
 /** The page with its build-volatile bytes removed (see the header). */
 export function normalizeForHash(html, volatile = []) {
-  let out = html.replace(ASSET_TAG_RE, "").replace(BUILD_SHA_RE, "").replace(ASSET_HASH_RE, "$1$2");
+  let out = html
+    .replace(ASSET_TAG_RE, "")
+    .replace(BUILD_SHA_RE, "")
+    .replace(ASSET_HASH_RE, "$1$2")
+    .replace(AS_OF_LABEL_RE, "as of")
+    .replace(AS_OF_FIELD_RE, '"as_of":""');
   for (const re of volatile) out = out.replace(re, "");
   return out;
 }
@@ -62,26 +73,34 @@ function liveEntry(v) {
   return null;
 }
 
+/** Every network read gives up after this long. */
+export const FETCH_TIMEOUT_MS = 30_000;
+
 /**
- * Reads the target environment's live manifest. Absent (404), not JSON, or
- * the wrong shape -> `manifest: null` with a reason: the deploy goes ahead
- * with no lastmod (a wrong lastmod is worse than none). A network error or a
- * 5xx is thrown: the shrink guard reads the same site and fails closed on it.
+ * Reads the target environment's live manifest. Only a 404 means "no live
+ * manifest" (`manifest: null`: the deploy goes ahead with no lastmod).
+ * Anything else that is not a 200 with a { pages } object throws (a 5xx, a
+ * 403, a body that is not JSON or has no pages map, a network error or a
+ * timeout): a manifest that exists but cannot be read must not silently
+ * reset every lastmod.
  * @returns {Promise<{ manifest: object | null, reason: string }>}
  */
 export async function fetchLiveManifest({ origin, fetch = globalThis.fetch }) {
   const url = origin.replace(/\/+$/, "") + MANIFEST_PATH;
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-  if (res.status >= 500) throw new Error(`GET ${url} returned HTTP ${res.status}`);
-  if (!res.ok) return { manifest: null, reason: `no live manifest (HTTP ${res.status})` };
+  const res = await fetch(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (res.status === 404) return { manifest: null, reason: "no live manifest (HTTP 404)" };
+  if (!res.ok) throw new Error(`GET ${url} returned HTTP ${res.status}`);
   let body;
   try {
     body = await res.json();
   } catch {
-    return { manifest: null, reason: "live manifest is not JSON" };
+    throw new Error(`GET ${url}: the live manifest is not JSON`);
   }
   if (!body || typeof body !== "object" || !body.pages || typeof body.pages !== "object") {
-    return { manifest: null, reason: "live manifest has no pages map" };
+    throw new Error(`GET ${url}: the live manifest has no pages map`);
   }
   return { manifest: body, reason: `live manifest with ${Object.keys(body.pages).length} pages` };
 }

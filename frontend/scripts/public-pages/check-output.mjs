@@ -14,9 +14,12 @@
 //     twitter:description or JSON-LD (C4), or an Offer in JSON-LD;
 //   - a sitemap URL with no file, a page file in no sitemap, a sitemap index
 //     whose children are missing, mixed origins, duplicate URLs, or a
-//     manifest that does not cover every page.
+//     manifest that does not cover every page;
+//   - a sitemap <loc> not on --expect-origin, or a sitemap over 50,000 URLs
+//     or 50 MB.
 //
 //   node scripts/public-pages/check-output.mjs <distDir> (--expect-noindex | --expect-index)
+//       [--expect-origin <url>]
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
@@ -26,6 +29,9 @@ import { MANIFEST_PATH } from "./lib/manifest.mjs";
 
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
 export const OFFICIAL_CDN = "cdn.starwarsunlimited.com";
+/** sitemaps.org limits per sitemap file (and per index). */
+export const MAX_SITEMAP_URLS = 50_000;
+export const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 const PRICE_RE = /\$\s*\d/;
 
 function walk(dir) {
@@ -170,10 +176,25 @@ function assetRefs(html) {
 
 /**
  * @param {string} distDir
- * @param {{ expectNoindex: boolean }} opts
+ * @param {{ expectNoindex: boolean, expectOrigin?: string }} opts  every sitemap
+ *   <loc> must start with `expectOrigin` (the origin the deploy wrote) when given
  * @returns {{ problems: string[], pages: number, sitemapUrls: number, kinds: Record<string, number> }}
  */
-export function checkOutput(distDir, { expectNoindex }) {
+export function checkOutput(
+  distDir,
+  { expectNoindex, expectOrigin, maxUrls = MAX_SITEMAP_URLS, maxBytes = MAX_SITEMAP_BYTES }
+) {
+  const wantOrigin = expectOrigin ? expectOrigin.replace(/[/]+$/, "") + "/" : null;
+  const offOrigin = (loc, where) => {
+    if (wantOrigin && !loc.startsWith(wantOrigin))
+      problems.push(`${where} lists ${loc}, not on ${wantOrigin}`);
+  };
+  const limits = (xml, where) => {
+    const n = parseLocs(xml).length;
+    if (n > maxUrls) problems.push(`${where} has ${n} URLs (limit ${maxUrls})`);
+    const bytes = Buffer.byteLength(xml);
+    if (bytes > maxBytes) problems.push(`${where} is ${bytes} bytes (limit ${maxBytes})`);
+  };
   const dist = resolve(distDir);
   const problems = [];
   const files = walk(join(dist, "cards")).map((f) => toPosix(relative(dist, f)));
@@ -207,7 +228,9 @@ export function checkOutput(distDir, { expectNoindex }) {
   else {
     const index = readFileSync(indexFile, "utf8");
     if (!isSitemapIndex(index)) problems.push("sitemap.xml is not a sitemap index");
+    limits(index, "sitemap.xml");
     for (const loc of parseLocs(index)) {
+      offOrigin(loc, "sitemap.xml");
       const u = new URL(loc);
       origins.add(u.origin);
       const childFile = join(dist, fileForPath(u.pathname));
@@ -217,9 +240,11 @@ export function checkOutput(distDir, { expectNoindex }) {
       }
       const child = readFileSync(childFile, "utf8");
       if (child.includes(OFFICIAL_CDN)) problems.push(`${u.pathname}: names ${OFFICIAL_CDN}`);
+      limits(child, u.pathname);
       if (/<changefreq>|<priority>/.test(child))
         problems.push(`${u.pathname}: carries changefreq or priority`);
       for (const l of parseLocs(child)) {
+        offOrigin(l, u.pathname);
         const cu = new URL(l);
         origins.add(cu.origin);
         if (sitemapUrls.has(cu.pathname)) problems.push(`${cu.pathname} is listed twice`);
@@ -253,17 +278,26 @@ export function checkOutput(distDir, { expectNoindex }) {
 }
 
 function main(argv) {
-  const dir = argv.find((a) => !a.startsWith("--"));
+  const oi = argv.indexOf("--expect-origin");
+  const expectOrigin = oi >= 0 ? argv[oi + 1] : undefined;
+  if (oi >= 0 && (!expectOrigin || expectOrigin.startsWith("--"))) {
+    console.error("--expect-origin needs a URL");
+    return 2;
+  }
+  const dir = argv.find((a, i) => !a.startsWith("--") && !(oi >= 0 && i === oi + 1));
   const noindex = argv.includes("--expect-noindex");
   const index = argv.includes("--expect-index");
   if (!dir || noindex === index) {
-    console.error("usage: check-output.mjs <distDir> (--expect-noindex | --expect-index)");
+    console.error(
+      "usage: check-output.mjs <distDir> (--expect-noindex | --expect-index) [--expect-origin <url>]"
+    );
     return 2;
   }
-  const r = checkOutput(dir, { expectNoindex: noindex });
+  const r = checkOutput(dir, { expectNoindex: noindex, expectOrigin });
   const head =
     `check-output: ${r.pages} pages (${r.kinds.card} card, ${r.kinds.set} set, ${r.kinds.index} index), ` +
-    `${r.sitemapUrls} sitemap URLs, expect ${noindex ? "noindex" : "index"}`;
+    `${r.sitemapUrls} sitemap URLs, expect ${noindex ? "noindex" : "index"}` +
+    (expectOrigin ? ` on ${expectOrigin}` : "");
   if (r.problems.length) {
     console.error(`${head}: ${r.problems.length} problems`);
     for (const line of r.problems.slice(0, 100)) console.error(`  - ${line}`);

@@ -8,6 +8,7 @@ import {
   listBucketStems,
   probeStems,
   stemFromPath,
+  withAvailableArt,
 } from "./images.mjs";
 
 const fixture = JSON.parse(
@@ -144,35 +145,97 @@ describe("imageAvailability", () => {
     );
   });
 
-  it("falls back to the origin probe when the listing is refused", async () => {
+  it("falls back to the origin probe with a warning when the listing is refused (auto)", async () => {
     const fetch = vi.fn(async (url) =>
       url.startsWith("https://storage.googleapis.com")
         ? { ok: false, status: 403 }
         : { status: 200, body: null }
     );
-    const log = vi.fn();
     const r = await imageAvailability({
       stems: ["a"],
       bucket: "bk",
       token: "t",
       origin: "https://x",
       fetch,
-      log,
     });
     expect(r.source).toBe("GET probe through https://x");
     expect(r.missing).toEqual([]);
-    expect(log.mock.calls[0][0]).toMatch(/bucket listing failed \(list gs:\/\/bk: HTTP 403\)/);
+    expect(r.warnings[0]).toMatch(/bucket listing failed \(list gs:\/\/bk: HTTP 403\)/);
   });
 
-  it("probes directly without a bucket, and skips entirely when off", async () => {
+  it("fails instead of probing in bucket mode (prod)", async () => {
+    const fetch = vi.fn(async () => ({ ok: false, status: 403 }));
+    await expect(
+      imageAvailability({
+        stems: ["a"],
+        bucket: "bk",
+        token: "t",
+        origin: "https://x",
+        mode: "bucket",
+        fetch,
+      })
+    ).rejects.toThrow(
+      /bucket listing failed \(list gs:\/\/bk: HTTP 403\); this deploy requires it/
+    );
+    await expect(
+      imageAvailability({ stems: ["a"], mode: "bucket", origin: "https://x" })
+    ).rejects.toThrow(/no bucket name or no access token/);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows 0.5% probe errors and no more", async () => {
+    const stems = Array.from({ length: 400 }, (_, i) => `s${i}`);
+    const failing = (n) => async (url) => {
+      const i = Number(url.match(/s(\d+)_320/)[1]);
+      return { status: i < n ? 503 : 200, body: null };
+    };
+    const ok = await imageAvailability({
+      stems,
+      origin: "https://x",
+      mode: "probe",
+      fetch: failing(2),
+    });
+    expect(ok.missing).toEqual(["s0", "s1"]);
+    await expect(
+      imageAvailability({ stems, origin: "https://x", mode: "probe", fetch: failing(3) })
+    ).rejects.toThrow(/3 errors/);
+  });
+
+  it("probes without a bucket (with a warning), and skips entirely when off", async () => {
     const r = await imageAvailability({
       stems: ["a"],
       origin: "https://x",
       fetch: async () => ({ status: 307, body: null }),
     });
     expect(r.missing).toEqual(["a"]);
+    expect(r.warnings[0]).toMatch(/no bucket name or no access token/);
     const off = await imageAvailability({ stems: ["a"], mode: "off" });
     expect(off.missing).toEqual([]);
+    expect(off.warnings).toEqual([]);
     await expect(imageAvailability({ stems: ["a"] })).rejects.toThrow(/no origin/);
+    await expect(imageAvailability({ stems: ["a"], mode: "nope" })).rejects.toThrow(/unknown mode/);
+  });
+
+  it("passes a timeout signal on every read", async () => {
+    const fetch = vi.fn(async () => ({ status: 200, body: null }));
+    await probeStems({ origin: "https://x", stems: ["a"], fetch });
+    expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("withAvailableArt", () => {
+  it("drops missing renditions so the page renders the placeholder", () => {
+    const present = new Set(["card_fx91001_front"]);
+    const out = withAvailableArt(fixture, present);
+    const luke = out.cards.find((c) => c.id === 9001);
+    const [std, hyp] = luke.variants;
+    expect(std.front_images.w320).toBe("/images/cards/card_fx91001_front_320.webp");
+    expect(std.front_image_url).toMatch(/card_fx91001_front\.png$/);
+    expect(std.back_images).toBeNull();
+    expect(std.back_image_url).toBeNull();
+    expect(hyp.front_images).toBeNull();
+    expect(hyp.front_image_url).toBeNull();
+    // The input is untouched.
+    expect(fixture.cards[0].variants[1].front_images).not.toBeNull();
   });
 });

@@ -108,6 +108,10 @@ export interface CardPopupViewProps {
   showAspectsRow?: boolean;
   /** Under the image, above the plate: the page's notice line (row 9). */
   imageNote?: ReactNode;
+  /** Shown in the image slot when the printing has no image to show (the
+   * public page's same-size art placeholder, design note §5a). The app
+   * passes none and renders nothing there, as before. */
+  imagePlaceholder?: ReactNode;
 }
 
 export function CardPopupView({
@@ -132,6 +136,7 @@ export function CardPopupView({
   numberLabel,
   showAspectsRow = false,
   imageNote,
+  imagePlaceholder,
 }: CardPopupViewProps) {
   const { displayedImages, canFlip, showBack, flipPhase, flipHeight } = flip;
   const headerArt = starfieldSrc(detail.set_code);
@@ -247,6 +252,7 @@ export function CardPopupView({
               </div>
             </div>
           )}
+          {!displayedImages && imagePlaceholder}
           {canFlip && (
             <button
               type="button"

@@ -12,6 +12,10 @@
 
 export const DEFAULT_INTERVAL_MS = 10_000;
 export const DEFAULT_TIMEOUT_MS = 5 * 60_000;
+/** One request gives up after this long (a hung socket counts as a failed
+ * attempt). Longer than the 30 s of the other reads: the bulk route returns
+ * the whole catalog (a few MB) from dev's single small instance. */
+export const FETCH_TIMEOUT_MS = 60_000;
 
 export class CatalogFetchError extends Error {
   constructor(message) {
@@ -74,7 +78,10 @@ export async function fetchCatalog({
   for (;;) {
     attempts += 1;
     try {
-      const res = await fetch(url, { headers: { accept: "application/json" } });
+      const res = await fetch(url, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!res.ok) {
         last = `HTTP ${res.status}`;
       } else {
@@ -114,7 +121,10 @@ export async function fetchBaseCardList({
   let last = "no response";
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch(url, { headers: { accept: "application/json" } });
+      const res = await fetch(url, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (res.ok) {
         const rows = await res.json();
         if (!Array.isArray(rows)) throw new CatalogFetchError(`GET ${url}: not an array`);

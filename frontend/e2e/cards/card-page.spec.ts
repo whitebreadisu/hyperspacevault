@@ -77,18 +77,28 @@ test.describe("without JavaScript", () => {
     await expect(nameIn(page, treeId(info))).toBeVisible();
     await expect(nameIn(page, otherTreeId(info))).toBeHidden();
     await expect(tree.getByText("Give a Shield token", { exact: false }).first()).toBeVisible();
-    await expect(tree.getByText("$3.99").first()).toBeVisible();
-    await expect(tree.getByText(/as of Nov 1, 2026/).first()).toBeVisible();
+    // The price and its date in one block: the desktop rail / the phone's
+    // Variants section.
+    const prices = tree.locator(isPhone(info) ? "section.m-printings" : ".cp-rail");
+    await expect(prices.getByText("$3.99").first()).toBeVisible();
+    await expect(prices.getByText(/as of Nov 1, 2026/)).toBeVisible();
     await expect(page).toHaveTitle(/Luke Skywalker - Faithful Friend · SOR 005/);
   });
 });
 
 test.describe("with JavaScript", () => {
-  test("switching printing changes price and image; the leader flips; no hydration warning", async ({
-    page,
-  }, info) => {
+  // Every JS test fails on any hydration warning (design note §8).
+  let hydration: string[] = [];
+  test.beforeEach(async ({ page }) => {
+    hydration = watchHydration(page);
     await stubSite(page);
-    const hydration = watchHydration(page);
+  });
+  test.afterEach(async ({ page }) => {
+    await page.waitForLoadState("load");
+    expect(hydration).toEqual([]);
+  });
+
+  test("switching printing changes price and image; the leader flips", async ({ page }, info) => {
     await page.goto(PATH);
     const tree = page.locator(treeId(info));
     await expect(nameIn(page, treeId(info))).toBeVisible();
@@ -112,20 +122,19 @@ test.describe("with JavaScript", () => {
     // The leader flips to its back. On the phone, reaching the Variants list
     // scrolls the page and collapses the art region; expand it first (the
     // app's own "full size" control) so the flip control is on screen.
+    const flip = tree.locator("button.cp-flip");
     if (isPhone(info)) {
       const expand = tree.getByRole("button", { name: "Show the card at full size" });
+      await expect(expand.or(flip).first()).toBeVisible();
       if (await expand.isVisible()) await expand.click();
     }
-    await expect(tree.locator("button.cp-flip")).toBeVisible();
-    await tree.locator("button.cp-flip").click();
+    await expect(flip).toBeVisible();
+    await flip.click();
     await expect(art).toHaveAttribute("src", /card_fx91002_back_320\.webp$/);
-    await expect(tree.locator("button.cp-flip")).toContainText("Show front");
-
-    expect(hydration).toEqual([]);
+    await expect(flip).toContainText("Show front");
   });
 
   test("the call to action lands on /", async ({ page }, info) => {
-    await stubSite(page);
     await page.goto(PATH);
     const tree = page.locator(treeId(info));
     await tree.getByRole("button", { name: "Create free account" }).click();
@@ -134,7 +143,6 @@ test.describe("with JavaScript", () => {
   });
 
   test("the layout follows the project's width", async ({ page }, info) => {
-    await stubSite(page);
     await page.goto(PATH);
     if (isPhone(info)) {
       await expect(nameIn(page, "#pc-phone")).toBeVisible();

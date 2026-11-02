@@ -79,6 +79,19 @@ export function PageFooter() {
   );
 }
 
+/** Design note §5a: a printing whose 320 px rendition is not in the
+ * card-images bucket gets this same-size panel instead of an <img>, so a
+ * public page never triggers the backend's redirect to the official CDN. The
+ * generator drops the missing renditions from the page data
+ * (scripts/public-pages/lib/images.mjs). */
+export function ArtPlaceholder() {
+  return (
+    <div className="pc-art-ph" role="img" aria-label="Card image not available yet">
+      <span>Card image not available yet</span>
+    </div>
+  );
+}
+
 /** Design note §5a part F: visible fine print directly under the art. */
 export function ArtNotice() {
   return (

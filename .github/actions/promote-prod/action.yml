@@ -117,8 +117,9 @@ runs:
     # completeness against GET /api/base-cards; shrink against prod's LIVE
     # sitemaps (override: the allow_card_page_shrink input, logged in the job
     # summary); lastmod from prod's live /sitemaps/manifest.json; the image
-    # check lists the prod card-images bucket. NO noindex flag: prod pages are
-    # indexable. Guard 4: if this step or the check below fails, the promote
+    # check lists the prod card-images bucket and FAILS the promote if it
+    # cannot (--images bucket: prod never falls back to probing through the
+    # CDN path). NO noindex flag: prod pages are indexable. Guard 4: if this step or the check below fails, the promote
     # fails HERE, before firebase deploy; the previous Hosting version and its
     # pages keep serving. A Hosting deploy without pages is never a fallback.
     - name: Generate card pages (prod)
@@ -131,7 +132,11 @@ runs:
         EXPECT_SHA: ${{ inputs.image_tag }}
       run: |
         echo "Card pages: allow_card_page_shrink=${ALLOW_SHRINK}" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$ALLOW_SHRINK" = "true" ]; then
+          echo "::warning::allow_card_page_shrink=true: the prod card-page shrink guard is overridden for this promote"
+        fi
         GCS_ACCESS_TOKEN="$(gcloud auth print-access-token)" || GCS_ACCESS_TOKEN=""
+        if [ -n "$GCS_ACCESS_TOKEN" ]; then echo "::add-mask::$GCS_ACCESS_TOKEN"; fi
         export GCS_ACCESS_TOKEN
         npm run public-pages -- \
           --backend "$BACKEND_URL" \
@@ -140,12 +145,15 @@ runs:
           --allow-shrink "$ALLOW_SHRINK" \
           --override-name "promote input allow_card_page_shrink" \
           --images-bucket "$IMAGES_BUCKET" \
+          --images bucket \
           --summary "$GITHUB_STEP_SUMMARY"
 
     - name: Check generated card pages (prod)
       working-directory: frontend
       shell: bash
-      run: node scripts/public-pages/check-output.mjs dist --expect-index
+      run: >-
+        node scripts/public-pages/check-output.mjs dist --expect-index
+        --expect-origin https://www.hyperspacevault.com
 
     - name: Deploy frontend to prod Firebase Hosting
       working-directory: frontend

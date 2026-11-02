@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { checkOutput, checkPage, pageKind } from "./check-output.mjs";
+import {
+  MAX_SITEMAP_BYTES,
+  MAX_SITEMAP_URLS,
+  checkOutput,
+  checkPage,
+  pageKind,
+} from "./check-output.mjs";
 import { buildSitemaps, fileForPath } from "./lib/sitemaps.mjs";
 
 const PROD = "https://www.hyperspacevault.com";
@@ -120,6 +126,34 @@ describe("checkOutput", () => {
     expect(checkOutput(join(dist, "nope"), { expectNoindex: false }).problems).toContain(
       "no pages under cards/"
     );
+  });
+
+  it("checks every sitemap URL against --expect-origin", () => {
+    goodDist();
+    expect(checkOutput(dist, { expectNoindex: false, expectOrigin: PROD + "/" }).problems).toEqual(
+      []
+    );
+    const p = checkOutput(dist, {
+      expectNoindex: false,
+      expectOrigin: "https://swu-dev-jbapps.web.app",
+    }).problems;
+    expect(p).toContain(
+      `sitemap.xml lists ${PROD}/sitemaps/core.xml, not on https://swu-dev-jbapps.web.app/`
+    );
+    expect(p).toContain(
+      `/sitemaps/cards-sor.xml lists ${PROD}/cards/sor/005/, not on https://swu-dev-jbapps.web.app/`
+    );
+  });
+
+  it("flags a sitemap over the URL or byte limit (50,000 / 50 MB by default)", () => {
+    goodDist();
+    expect(MAX_SITEMAP_URLS).toBe(50_000);
+    expect(MAX_SITEMAP_BYTES).toBe(50 * 1024 * 1024);
+    // Small limits stand in for the real ones (50,001 URLs is slow under coverage).
+    const p = checkOutput(dist, { expectNoindex: false, maxUrls: 2, maxBytes: 200 }).problems;
+    expect(p).toContain("/sitemaps/core.xml has 3 URLs (limit 2)");
+    expect(p.some((x) => /^\/sitemaps\/core\.xml is \d+ bytes \(limit 200\)$/.test(x))).toBe(true);
+    expect(checkOutput(dist, { expectNoindex: false }).problems).toEqual([]);
   });
 });
 

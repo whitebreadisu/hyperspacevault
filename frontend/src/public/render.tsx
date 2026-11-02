@@ -12,7 +12,14 @@ import { CardsIndexPage, SetPage } from "./SetPages";
 //     rendered from is embedded once for hydration (card.tsx).
 //   - Set pages and the set index: one static tree, no data, no hydration.
 
-export { buildIndexPage, buildPages, buildSetPages, cardPath, setPath } from "./publicCatalog";
+export {
+  MOJIBAKE,
+  buildIndexPage,
+  buildPages,
+  buildSetPages,
+  cardPath,
+  setPath,
+} from "./publicCatalog";
 export { headHtml, indexHeadHtml, setHeadHtml } from "./head";
 
 export const DESKTOP_ROOT_ID = "pc-desktop";

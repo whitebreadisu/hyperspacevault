@@ -1,4 +1,4 @@
-<!-- generated 2026-11-02 by .github/scripts/docs_index.mjs from 6c765e1 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-02 by .github/scripts/docs_index.mjs from 7920243 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
@@ -115,60 +115,60 @@ Total 262,839 B (LF) · 25 h2 · 77 h3
 
 ## SWU_Platform_Spec.md
 
-Total 150,519 B (LF) · 6 h2 · 43 h3
+Total 152,026 B (LF) · 6 h2 · 43 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
 | — | (preamble: title and front matter) | 1 | 96 | 2026-06-14 Version 1.0 \| Created |  |  |  |
 | h2 | [§Purpose & How to Use This Document](SWU_Platform_Spec.md#purpose--how-to-use-this-document) | 7 | 2,359 |  | 0020 | `backend/app/tests/test_route_registry.py`, `docs/decisions` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§1. Auth & Tenancy Architecture](SWU_Platform_Spec.md#1-auth--tenancy-architecture) | 30 | 25,757 |  |  |  |  |
+| h2 | [§1. Auth & Tenancy Architecture](SWU_Platform_Spec.md#1-auth--tenancy-architecture) | 30 | 25,820 |  |  |  |  |
 | h3 | [§1.1 Overview](SWU_Platform_Spec.md#11-overview) | 32 | 4,860 |  | 0008, 0019, 0027 | `backend/app/auth.py`, `backend/app/database.py`, `backend/app/routers/relay.py`, `backend/app/services/feedback.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§1.2 Where the token is verified — `app/auth.py`](SWU_Platform_Spec.md#12-where-the-token-is-verified--appauthpy) | 64 | 4,325 |  | 0034 | `backend/app/auth.py`, `frontend/src/components/VerifyEmailBanner.tsx` |  |
-| h3 | [§1.3 The `Depends` chain and the route registry](SWU_Platform_Spec.md#13-the-depends-chain-and-the-route-registry) | 72 | 3,992 |  |  | `backend/app/database.py`, `backend/app/tests/test_route_registry.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§1.4 `get_db` step by step — `app/database.py` (`get_db` → `_open_authenticated_session`)](SWU_Platform_Spec.md#14-get_db-step-by-step--appdatabasepy-get_db--_open_authenticated_session) | 123 | 2,279 |  | 0001 | `backend/app/database.py`, `backend/app/middleware.py` |  |
-| h3 | [§1.5 Row-Level Security policies](SWU_Platform_Spec.md#15-row-level-security-policies) | 139 | 6,597 |  |  |  |  |
-| h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 158 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
-| h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 171 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
-| h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 180 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
-| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 186 | 51,316 |  |  |  |  |
-| h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 188 | 14,662 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
-| h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 221 | 995 |  |  | `backend/pyproject.toml`, `backend/requirements.txt` |  |
-| h3 | [§2.3 `frontend` job](SWU_Platform_Spec.md#23-frontend-job) | 226 | 804 |  |  | `frontend/package-lock.json`, `frontend/vite.config.ts` |  |
-| h3 | [§2.4 `build-and-push` job](SWU_Platform_Spec.md#24-build-and-push-job) | 231 | 1,986 |  | 0038 |  |  |
-| h3 | [§2.5 `check-risk-level` and `deploy-dev` jobs](SWU_Platform_Spec.md#25-check-risk-level-and-deploy-dev-jobs) | 238 | 2,518 |  | 0017, 0037 | `.github/scripts/card_pages_smoke.sh`, `terraform/environments/dev` |  |
-| h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 243 | 13,838 | 2026-07-15 Mechanism | 0007, 0011, 0017, 0033, 0037 | `.github/actions/promote-prod/action.yml`, `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `.github/workflows/release-train.yml`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 256 | 950 |  | 0022 |  |  |
-| h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 268 | 15,541 |  | 0020, 0033, 0035, 0036, 0037, 0038 | `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/scripts/platform_assert.mjs`, `.github/scripts/release_notes.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `.github/workflows/image-scan-prod.yml`, `.github/workflows/release-train.yml`, `.github/workflows/verify-engines.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `backend/scripts/refresh_google_ranges.py`, `backend/scripts/verify_tenant.py`, `frontend/e2e/journeys`, `frontend/e2e/verify/seed.mjs`, `frontend/src`, `frontend/src/content`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
-| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 318 | 38,101 |  |  |  |  |
-| h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 320 | 904 |  | 0006 | `terraform/environments/dev` |  |
-| h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 330 | 388 |  |  | `terraform/state` |  |
-| h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 334 | 733 |  |  |  |  |
-| h3 | [§3.4 IAM](SWU_Platform_Spec.md#34-iam) | 341 | 2,971 |  |  |  |  |
-| h3 | [§3.4a Pricing infrastructure (BL-136/BL-139)](SWU_Platform_Spec.md#34a-pricing-infrastructure-bl-136bl-139) | 375 | 1,560 |  |  | `terraform/modules/app/pricing_jobs.tf` |  |
-| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 384 | 4,782 | 2026-10-28 As-built |  | `backend/app/data/google_ranges.json`, `backend/app/forwarded.py`, `backend/app/services/github_notify.py`, `backend/scripts/refresh_google_ranges.py` |  |
-| h3 | [§3.6 Cloud SQL](SWU_Platform_Spec.md#36-cloud-sql) | 416 | 3,753 | 2026-07-24 D4 — prod Cloud SQL tier |  | `backend/app/database.py`, `terraform/environments/prod/main.tf` |  |
-| h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 436 | 4,706 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
-| h3 | [§3.8 Artifact Registry](SWU_Platform_Spec.md#38-artifact-registry) | 455 | 211 |  |  |  |  |
-| h3 | [§3.9 Firebase & Identity Platform](SWU_Platform_Spec.md#39-firebase--identity-platform) | 459 | 3,077 |  | 0016 | `frontend/firebase.json` |  |
-| h3 | [§3.10 Custom domain](SWU_Platform_Spec.md#310-custom-domain) | 466 | 2,476 | 2026-07-20 BL-127 — `hyperspacevault.com`, a stand- |  | `terraform/modules/app/firebase.tf` |  |
-| h3 | [§3.11 Frontend ↔ backend connection](SWU_Platform_Spec.md#311-frontend--backend-connection) | 474 | 1,750 |  |  | `backend/app/main.py`, `frontend/firebase.json`, `frontend/src/api/authedFetch.ts` |  |
-| h3 | [§3.12 Outputs consumed by CI](SWU_Platform_Spec.md#312-outputs-consumed-by-ci) | 490 | 816 |  |  |  |  |
-| h3 | [§3.13 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#313-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 499 | 725 |  | 0001, 0020, 0021, 0023 |  |  |
-| h3 | [§3.14 CDN caching of public catalog reads (RR-3)](SWU_Platform_Spec.md#314-cdn-caching-of-public-catalog-reads-rr-3) | 507 | 2,782 |  |  | `backend/app/http_cache.py`, `backend/app/routers/sets.py`, `specification_documents/backlog` |  |
-| h3 | [§3.15 Response compression (gzip, BL-99)](SWU_Platform_Spec.md#315-response-compression-gzip-bl-99) | 517 | 2,655 |  |  | `backend/app/main.py` |  |
-| h3 | [§3.16 Self-hosted card images (BL-76 / ADR-0012)](SWU_Platform_Spec.md#316-self-hosted-card-images-bl-76--adr-0012) | 525 | 3,784 | 2026-07-12 Prod state | 0012 | `backend/app/ingestion/image_mirror.py`, `backend/app/routers/images.py`, `backend/app/services/image_paths.py`, `frontend/src/utils/cardImages.ts`, `specification_documents/backlog` |  |
-| h2 | [§4. Observability](SWU_Platform_Spec.md#4-observability) | 539 | 13,933 |  |  |  |  |
-| h3 | [§4.1 Structured JSON logging](SWU_Platform_Spec.md#41-structured-json-logging) | 541 | 2,122 |  |  | `backend/app/logging_config.py`, `backend/app/main.py`, `backend/app/middleware.py` |  |
-| h3 | [§4.2 Cloud Monitoring dashboard](SWU_Platform_Spec.md#42-cloud-monitoring-dashboard) | 556 | 687 |  |  |  |  |
-| h3 | [§4.3 Alerting](SWU_Platform_Spec.md#43-alerting) | 564 | 6,110 | 2026-07-14 Operational finding |  | `specification_documents/backlog` |  |
-| h3 | [§4.4 Error Reporting](SWU_Platform_Spec.md#44-error-reporting) | 582 | 426 |  |  |  |  |
-| h3 | [§4.5 Design Rationale](SWU_Platform_Spec.md#45-design-rationale) | 586 | 927 |  | 0025 |  |  |
-| h3 | [§4.6 Cost Controls (RR-2 / finding F14)](SWU_Platform_Spec.md#46-cost-controls-rr-2--finding-f14) | 598 | 3,640 | 2026-11-02 Paid image scanning turned off ([ADR-003 | 0008, 0038 | `terraform/modules/app/apis.tf`, `terraform/modules/app/variables.tf` |  |
-| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 621 | 18,957 | 2026-08-16 Review currency |  |  |  |
-| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 627 | 15,177 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022, 0038 | `.github/dependabot.yml`, `.github/workflows/image-scan-prod.yml`, `backend/app/forwarded.py`, `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/services/deck_fetch.py`, `terraform/modules/app`, `terraform/modules/app/apis.tf` | "Archived 2026-11-02 — image scanning moves to CI (BL-327)", "Archived 2026-10-28 — proxy-IP fix superseded (BL-273)", "Archived 2026-11-01 — limiter memory bound (BL-321)" |
-| h3 | [§5.2 Secrets (Secret Manager)](SWU_Platform_Spec.md#52-secrets-secret-manager) | 654 | 551 |  |  |  |  |
-| h3 | [§5.3 Network posture](SWU_Platform_Spec.md#53-network-posture) | 658 | 699 |  | 0023 |  |  |
-| h3 | [§5.4 Open follow-ups](SWU_Platform_Spec.md#54-open-follow-ups) | 664 | 1,341 | 2026-10-28 Client-address resolver upkeep |  | `backend/app/data/google_ranges.json`, `backend/scripts/refresh_google_ranges.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§1.3 The `Depends` chain and the route registry](SWU_Platform_Spec.md#13-the-depends-chain-and-the-route-registry) | 72 | 4,055 |  |  | `backend/app/database.py`, `backend/app/tests/test_route_registry.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§1.4 `get_db` step by step — `app/database.py` (`get_db` → `_open_authenticated_session`)](SWU_Platform_Spec.md#14-get_db-step-by-step--appdatabasepy-get_db--_open_authenticated_session) | 124 | 2,279 |  | 0001 | `backend/app/database.py`, `backend/app/middleware.py` |  |
+| h3 | [§1.5 Row-Level Security policies](SWU_Platform_Spec.md#15-row-level-security-policies) | 140 | 6,597 |  |  |  |  |
+| h3 | [§1.6 The two-engine pattern](SWU_Platform_Spec.md#16-the-two-engine-pattern) | 159 | 1,175 |  | 0001, 0004 | `backend/app/database.py` |  |
+| h3 | [§1.7 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#17-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 172 | 919 |  | 0001, 0020, 0024, 0026 |  |  |
+| h3 | [§1.8 Client auth start-up (frontend)](SWU_Platform_Spec.md#18-client-auth-start-up-frontend) | 181 | 1,575 |  |  | `frontend/src/firebase.test.ts`, `frontend/src/firebase.ts`, `frontend/src/utils/googleAuth.ts` |  |
+| h2 | [§2. CI/CD Pipeline](SWU_Platform_Spec.md#2-cicd-pipeline) | 187 | 51,878 |  |  |  |  |
+| h3 | [§2.1 Overview](SWU_Platform_Spec.md#21-overview) | 189 | 14,662 |  | 0007, 0022, 0033 | `.github/scripts/ci_gate.sh`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_check.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/docs-check.yml`, `backend/app/auth.py`, `backend/app/tests/test_route_registry.py`, `frontend/e2e-results/report.json`, `frontend/e2e/report-flaky.mjs`, `frontend/src`, `frontend/src/content/releaseNotes.ts`, `frontend/src/mobile/docs.test.ts`, `specification_documents/INDEX.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)", "Archived 2026-10-12 — mobile e2e sharding (BL-260)" |
+| h3 | [§2.2 `backend` job](SWU_Platform_Spec.md#22-backend-job) | 222 | 995 |  |  | `backend/pyproject.toml`, `backend/requirements.txt` |  |
+| h3 | [§2.3 `frontend` job](SWU_Platform_Spec.md#23-frontend-job) | 227 | 888 |  |  | `frontend/package-lock.json`, `frontend/vite.config.ts` |  |
+| h3 | [§2.4 `build-and-push` job](SWU_Platform_Spec.md#24-build-and-push-job) | 232 | 1,986 |  | 0038 |  |  |
+| h3 | [§2.5 `check-risk-level` and `deploy-dev` jobs](SWU_Platform_Spec.md#25-check-risk-level-and-deploy-dev-jobs) | 239 | 2,927 |  | 0017, 0037 | `.github/scripts/card_pages_smoke.sh`, `terraform/environments/dev` |  |
+| h3 | [§2.6 Prod promotion: `promote-prod.yml` dispatch + `promote-prod-fast`](SWU_Platform_Spec.md#26-prod-promotion-promote-prodyml-dispatch--promote-prod-fast) | 244 | 13,907 | 2026-07-15 Mechanism | 0007, 0011, 0017, 0033, 0037 | `.github/actions/promote-prod/action.yml`, `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/release_notes.mjs`, `.github/workflows/release-train.yml`, `frontend/package.json` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
+| h3 | [§2.7 Design Rationale](SWU_Platform_Spec.md#27-design-rationale) | 257 | 950 |  | 0022 |  |  |
+| h3 | [§2.8 Documentation Controls Register (BL-271 Phase E, 2026-10-19 — [ADR-0033](../docs/decisions/0033-documentation-controls.md))](SWU_Platform_Spec.md#28-documentation-controls-register-bl-271-phase-e-2026-10-19--adr-0033) | 269 | 15,541 |  | 0020, 0033, 0035, 0036, 0037, 0038 | `.github/actions/verify-gate/action.yml`, `.github/scripts/ci_gate.sh`, `.github/scripts/comment_check.mjs`, `.github/scripts/docs_audit.mjs`, `.github/scripts/docs_history.mjs`, `.github/scripts/docs_index.mjs`, `.github/scripts/health_check.mjs`, `.github/scripts/platform_assert.mjs`, `.github/scripts/release_notes.test.mjs`, `.github/workflows/ci.yml`, `.github/workflows/docs-audit.yml`, `.github/workflows/health-check.yml`, `.github/workflows/image-scan-prod.yml`, `.github/workflows/release-train.yml`, `.github/workflows/verify-engines.yml`, `backend/app`, `backend/app/tests/test_route_registry.py`, `backend/scripts/refresh_google_ranges.py`, `backend/scripts/verify_tenant.py`, `frontend/e2e/journeys`, `frontend/e2e/verify/seed.mjs`, `frontend/src`, `frontend/src/content`, `frontend/src/mobile/docs.test.ts`, `specification_documents/planning/foundation/tools/registry.mjs` |  |
+| h2 | [§3. Terraform Module Map](SWU_Platform_Spec.md#3-terraform-module-map) | 319 | 38,983 |  |  |  |  |
+| h3 | [§3.1 Environments](SWU_Platform_Spec.md#31-environments) | 321 | 904 |  | 0006 | `terraform/environments/dev` |  |
+| h3 | [§3.2 State backend](SWU_Platform_Spec.md#32-state-backend) | 331 | 388 |  |  | `terraform/state` |  |
+| h3 | [§3.3 Workload Identity Federation](SWU_Platform_Spec.md#33-workload-identity-federation) | 335 | 733 |  |  |  |  |
+| h3 | [§3.4 IAM](SWU_Platform_Spec.md#34-iam) | 342 | 2,971 |  |  |  |  |
+| h3 | [§3.4a Pricing infrastructure (BL-136/BL-139)](SWU_Platform_Spec.md#34a-pricing-infrastructure-bl-136bl-139) | 376 | 1,560 |  |  | `terraform/modules/app/pricing_jobs.tf` |  |
+| h3 | [§3.5 Cloud Run](SWU_Platform_Spec.md#35-cloud-run) | 385 | 4,782 | 2026-10-28 As-built |  | `backend/app/data/google_ranges.json`, `backend/app/forwarded.py`, `backend/app/services/github_notify.py`, `backend/scripts/refresh_google_ranges.py` |  |
+| h3 | [§3.6 Cloud SQL](SWU_Platform_Spec.md#36-cloud-sql) | 417 | 3,753 | 2026-07-24 D4 — prod Cloud SQL tier |  | `backend/app/database.py`, `terraform/environments/prod/main.tf` |  |
+| h3 | [§3.7 Secret Manager](SWU_Platform_Spec.md#37-secret-manager) | 437 | 4,706 | 2026-07-30 Authoritative secrets for manual ops : t |  | `backend/app/services/github_notify.py`, `terraform/modules/app/secrets.tf` |  |
+| h3 | [§3.8 Artifact Registry](SWU_Platform_Spec.md#38-artifact-registry) | 456 | 211 |  |  |  |  |
+| h3 | [§3.9 Firebase & Identity Platform](SWU_Platform_Spec.md#39-firebase--identity-platform) | 460 | 3,077 |  | 0016 | `frontend/firebase.json` |  |
+| h3 | [§3.10 Custom domain](SWU_Platform_Spec.md#310-custom-domain) | 467 | 2,476 | 2026-07-20 BL-127 — `hyperspacevault.com`, a stand- |  | `terraform/modules/app/firebase.tf` |  |
+| h3 | [§3.11 Frontend ↔ backend connection](SWU_Platform_Spec.md#311-frontend--backend-connection) | 475 | 1,750 |  |  | `backend/app/main.py`, `frontend/firebase.json`, `frontend/src/api/authedFetch.ts` |  |
+| h3 | [§3.12 Outputs consumed by CI](SWU_Platform_Spec.md#312-outputs-consumed-by-ci) | 491 | 816 |  |  |  |  |
+| h3 | [§3.13 Design Rationale — extracted to ADRs (2026-08-17, BL-233)](SWU_Platform_Spec.md#313-design-rationale--extracted-to-adrs-2026-08-17-bl-233) | 500 | 725 |  | 0001, 0020, 0021, 0023 |  |  |
+| h3 | [§3.14 CDN caching of public catalog reads (RR-3)](SWU_Platform_Spec.md#314-cdn-caching-of-public-catalog-reads-rr-3) | 508 | 3,431 |  |  | `backend/app/http_cache.py`, `backend/app/routers/public.py`, `backend/app/routers/sets.py`, `specification_documents/backlog` |  |
+| h3 | [§3.15 Response compression (gzip, BL-99)](SWU_Platform_Spec.md#315-response-compression-gzip-bl-99) | 520 | 2,655 |  |  | `backend/app/main.py` |  |
+| h3 | [§3.16 Self-hosted card images (BL-76 / ADR-0012)](SWU_Platform_Spec.md#316-self-hosted-card-images-bl-76--adr-0012) | 528 | 4,017 | 2026-07-12 Prod state | 0012 | `backend/app/ingestion/image_mirror.py`, `backend/app/routers/images.py`, `backend/app/services/image_paths.py`, `frontend/src/utils/cardImages.ts`, `specification_documents/backlog` |  |
+| h2 | [§4. Observability](SWU_Platform_Spec.md#4-observability) | 542 | 13,933 |  |  |  |  |
+| h3 | [§4.1 Structured JSON logging](SWU_Platform_Spec.md#41-structured-json-logging) | 544 | 2,122 |  |  | `backend/app/logging_config.py`, `backend/app/main.py`, `backend/app/middleware.py` |  |
+| h3 | [§4.2 Cloud Monitoring dashboard](SWU_Platform_Spec.md#42-cloud-monitoring-dashboard) | 559 | 687 |  |  |  |  |
+| h3 | [§4.3 Alerting](SWU_Platform_Spec.md#43-alerting) | 567 | 6,110 | 2026-07-14 Operational finding |  | `specification_documents/backlog` |  |
+| h3 | [§4.4 Error Reporting](SWU_Platform_Spec.md#44-error-reporting) | 585 | 426 |  |  |  |  |
+| h3 | [§4.5 Design Rationale](SWU_Platform_Spec.md#45-design-rationale) | 589 | 927 |  | 0025 |  |  |
+| h3 | [§4.6 Cost Controls (RR-2 / finding F14)](SWU_Platform_Spec.md#46-cost-controls-rr-2--finding-f14) | 601 | 3,640 | 2026-11-02 Paid image scanning turned off ([ADR-003 | 0008, 0038 | `terraform/modules/app/apis.tf`, `terraform/modules/app/variables.tf` |  |
+| h2 | [§5. Security Posture Summary](SWU_Platform_Spec.md#5-security-posture-summary) | 624 | 18,957 | 2026-08-16 Review currency |  |  |  |
+| h3 | [§5.1 OWASP Top 10 (2021) — status](SWU_Platform_Spec.md#51-owasp-top-10-2021--status) | 630 | 15,177 | 2026-07-24 As-built addition — BL-53 + BL-157 (requ | 0008, 0022, 0038 | `.github/dependabot.yml`, `.github/workflows/image-scan-prod.yml`, `backend/app/forwarded.py`, `backend/app/main.py`, `backend/app/rate_limit.py`, `backend/app/services/deck_fetch.py`, `terraform/modules/app`, `terraform/modules/app/apis.tf` | "Archived 2026-11-02 — image scanning moves to CI (BL-327)", "Archived 2026-10-28 — proxy-IP fix superseded (BL-273)", "Archived 2026-11-01 — limiter memory bound (BL-321)" |
+| h3 | [§5.2 Secrets (Secret Manager)](SWU_Platform_Spec.md#52-secrets-secret-manager) | 657 | 551 |  |  |  |  |
+| h3 | [§5.3 Network posture](SWU_Platform_Spec.md#53-network-posture) | 661 | 699 |  | 0023 |  |  |
+| h3 | [§5.4 Open follow-ups](SWU_Platform_Spec.md#54-open-follow-ups) | 667 | 1,341 | 2026-10-28 Client-address resolver upkeep |  | `backend/app/data/google_ranges.json`, `backend/scripts/refresh_google_ranges.py` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 
 ## SWU_Standard_Variant_Mapping_Spec.md
 

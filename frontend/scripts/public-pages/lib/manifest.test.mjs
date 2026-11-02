@@ -21,7 +21,21 @@ const page = (assetHash, sha, price = "$3.99") => `<!doctype html>
   <body><h1>Luke Skywalker</h1><img src="/assets/SWH_Aspects_Vigilance-${assetHash.slice(0, 8).padEnd(8, "x")}.png"/><span>${price}</span></body>
 </html>`;
 
+/** A card page's price block and embedded data, as the generator writes them. */
+const priced = (price, asOf, label) =>
+  `<span class="cp-rail__item-price">$${price}</span>` +
+  `<p>Prices via TCGplayer · as of <!-- -->${label}</p>` +
+  `<script type="application/json" id="card-data">{"price":{"market":${price},"low":1,"as_of":"${asOf}"}}</script>`;
+
 describe("content hash (§3 guard 3)", () => {
+  it("ignores the as-of date (label and #card-data) but not the price value", () => {
+    const a = contentHash(priced("3.99", "2026-11-01", "Nov 1, 2026"));
+    expect(contentHash(priced("3.99", "2026-11-09", "Nov 9, 2026"))).toBe(a);
+    expect(contentHash(priced("4.10", "2026-11-01", "Nov 1, 2026"))).not.toBe(a);
+    const norm = normalizeForHash(priced("3.99", "2026-11-01", "Nov 1, 2026"));
+    expect(norm).not.toMatch(/2026/);
+  });
+
   it("ignores Vite asset hashes and the build sha", () => {
     expect(contentHash(page("Ab12Cd34", "1111111"))).toBe(contentHash(page("Zz98Yy76", "2222222")));
     const norm = normalizeForHash(page("Ab12Cd34", "1111111"));
@@ -108,28 +122,21 @@ describe("fetchLiveManifest", () => {
     json: async () => (typeof body === "string" ? JSON.parse(body) : body),
   });
 
-  it("returns the manifest, or null with a reason when absent or malformed", async () => {
-    const ok = await fetchLiveManifest({
-      origin: "https://x/",
-      fetch: vi.fn(async () => res(200, { pages: { "/a/": "h" } })),
-    });
+  it("returns the manifest, or null only on a 404", async () => {
+    const fetch = vi.fn(async () => res(200, { pages: { "/a/": "h" } }));
+    const ok = await fetchLiveManifest({ origin: "https://x/", fetch });
     expect(ok.reason).toBe("live manifest with 1 pages");
-    expect(
-      (await fetchLiveManifest({ origin: "https://x", fetch: async () => res(404) })).manifest
-    ).toBeNull();
-    expect(
-      (await fetchLiveManifest({ origin: "https://x", fetch: async () => res(200, "<html>") }))
-        .reason
-    ).toMatch(/not JSON/);
-    expect(
-      (await fetchLiveManifest({ origin: "https://x", fetch: async () => res(200, { a: 1 }) }))
-        .reason
-    ).toMatch(/no pages/);
+    expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    const absent = await fetchLiveManifest({ origin: "https://x", fetch: async () => res(404) });
+    expect(absent).toEqual({ manifest: null, reason: "no live manifest (HTTP 404)" });
   });
 
-  it("throws on a server error", async () => {
-    await expect(
-      fetchLiveManifest({ origin: "https://x", fetch: async () => res(502) })
-    ).rejects.toThrow(/HTTP 502/);
+  it("throws on anything else: a server error, a 403, a non-JSON or pages-less body", async () => {
+    const at = (status, body) =>
+      fetchLiveManifest({ origin: "https://x", fetch: async () => res(status, body) });
+    await expect(at(502)).rejects.toThrow(/HTTP 502/);
+    await expect(at(403)).rejects.toThrow(/HTTP 403/);
+    await expect(at(200, "<html>")).rejects.toThrow(/not JSON/);
+    await expect(at(200, { a: 1 })).rejects.toThrow(/no pages map/);
   });
 });

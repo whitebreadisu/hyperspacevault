@@ -1,53 +1,61 @@
-// Public card-page generator (design note §0, §3 option A, §7).
+// Public card-page generator (design note §0, §3 option A, §5, §7).
 //
-//   node scripts/public-pages/generate.mjs [--catalog FILE] [--dist DIR]
+//   npm run public-pages -- (--catalog FILE | --backend URL --expect-sha SHA) --origin ORIGIN
+//       [--allow-shrink [true|false]] [--override-name TEXT] [--images-bucket NAME]
+//       [--images off|auto|bucket|probe] [--summary FILE] [--dist DIR]
+//   env: PUBLIC_PAGES_NOINDEX=true (dev deploys), GCS_ACCESS_TOKEN
+//   (lib/args.mjs has the exact rules)
 //
-// Runs after the app's `vite build`, into the same dist. Reads one public
-// catalog document (the shape the planned GET /api/public/cards returns;
-// locally built from a swuapi export by
-// backend/scripts/public_catalog_from_export.py) and:
-//   1. builds the page's own browser bundle from card.html in a SEPARATE Vite
-//      build, so the app's build (entries, chunks, CSS order) is untouched
-//      -- a third input to the app build re-split the app's chunks and
-//      reordered its CSS;
-//   2. builds src/public/render.tsx with Vite's SSR build;
-//   3. server-renders every card with the app's own components and writes
-//      dist/cards/<set>/<num>/index.html from the built card.html, which is a
-//      template, not a page, and is removed afterwards;
-//   4. writes the static set pages (dist/cards/<set>/index.html) and the set
-//      index (dist/cards/index.html) from the same template, without the
-//      page script (nothing on them hydrates).
+// Runs after the app's `vite build`, into the same dist:
+//   1. reads the catalog: --catalog FILE (local runs, the CI fixture check), or
+//      GET <backend>/api/public/cards straight from Cloud Run, waiting up to
+//      5 min until its build_sha is the SHA being deployed (lib/fetchCatalog);
+//      then the existing GET /api/base-cards list for the completeness guard;
+//   2. the image check (lib/images): which 320 px renditions the card-images
+//      bucket holds; a printing without one renders the same-size placeholder
+//      panel, never an <img> that would redirect to the official CDN;
+//   3. builds the page's own browser bundle from card.html in a SEPARATE Vite
+//      build (so the app's build is untouched) and src/public/render.tsx with
+//      Vite's SSR build, and renders every page into a STAGING directory
+//      (frontend/.public-pages/stage): card pages, set pages, the set index;
+//   4. the guards (lib/guards): completeness (catalog = sum(counts) = list =
+//      pages rendered) and shrink (against the --origin site's live
+//      sitemaps, override --allow-shrink);
+//   5. hashes every page, reads the live /sitemaps/manifest.json and writes
+//      the new manifest and the sitemaps (lib/manifest, lib/sitemaps);
+//   6. only then moves cards/, sitemaps/ and sitemap.xml into dist. A failed
+//      read or guard leaves dist without pages, and the deploy step fails
+//      before `firebase deploy` (design note §3 guard 4).
+// Every guard's line goes to stdout and to --summary (the job summary), also
+// when the run fails.
 //
-// The page bundle and the renderer replace the app's Firebase module and
-// posthog-js with inert stand-ins (inertSdks below).
-//
-// For the deploy step's own modules: buildBundles() and writePages() are
-// exported, and main() runs only when this file is the entry point.
-//
-// PUBLIC_PAGES_NOINDEX=true (dev deploys) adds a robots noindex meta (R2).
-//
-// Not yet here (design note §3, §5, §8): reading the route with the
-// build_sha wait, the completeness and shrink guards, sitemaps and the
-// lastmod manifest, the image-bucket check.
+// buildBundles(), writePages() and staticTemplate() are exported for tests
+// and tools; main() runs only when this file is the entry point.
 
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile, appendFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "vite";
 import react from "@vitejs/plugin-react";
+import { UsageError, parseArgs } from "./lib/args.mjs";
+import { fetchBaseCardList, fetchCatalog, assertCatalogShape } from "./lib/fetchCatalog.mjs";
+import { checkCompleteness, checkShrink, liveCardBaseline } from "./lib/guards.mjs";
+import { catalogStems, imageAvailability, withAvailableArt } from "./lib/images.mjs";
+import {
+  MANIFEST_PATH,
+  buildManifest,
+  contentHash,
+  fetchLiveManifest,
+  manifestSummary,
+  utcDate,
+} from "./lib/manifest.mjs";
+import { buildSitemaps, fileForPath } from "./lib/sitemaps.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
-
-function arg(name, fallback) {
-  const i = process.argv.indexOf(name);
-  return i > 0 ? process.argv[i + 1] : fallback;
-}
-
-const catalogPath = resolve(root, arg("--catalog", ".public-pages/catalog.json"));
-const distDir = resolve(root, arg("--dist", "dist"));
 const ssrDir = resolve(root, ".public-pages/ssr");
-const noindex = process.env.PUBLIC_PAGES_NOINDEX === "true";
+const stageDir = resolve(root, ".public-pages/stage");
 
 // The public pages never sign anyone in and never load the app's analytics
 // SDK (design note §3 "How the app takes over", §6 C7): in BOTH builds (the
@@ -61,7 +69,7 @@ const INERT = {
   "virtual:pc-posthog": "export default {};",
 };
 const APP_FIREBASE = resolve(root, "src/firebase");
-function inertSdks() {
+export function inertSdks() {
   return {
     name: "pc-inert-sdks",
     enforce: "pre",
@@ -124,8 +132,6 @@ async function buildRenderer() {
   return import(pathToFileURL(join(ssrDir, "render.js")).href);
 }
 
-const MOJIBAKE = /Ã|â€|Â|�/;
-
 function visibleText(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/g, " ")
@@ -145,7 +151,7 @@ export function staticTemplate(template) {
 /** Builds the page bundle (into outDir, default --dist) and the server
  * renderer; returns the card-page template (<outDir>/card.html, read and
  * then removed: it is a template, not a page) and the renderer module. */
-export async function buildBundles({ outDir = distDir } = {}) {
+export async function buildBundles({ outDir = resolve(root, "dist") } = {}) {
   await buildPageBundle(outDir);
   const templatePath = join(outDir, "card.html");
   const template = await readFile(templatePath, "utf8");
@@ -157,11 +163,13 @@ export async function buildBundles({ outDir = distDir } = {}) {
   return { template, render };
 }
 
-function check(label, html, body) {
+/** The census pattern (design note §8) comes from the render module, the
+ * same one the page data's repair uses, so the generator cannot drift from it. */
+function checkPage(label, html, body, mojibake) {
   if (html.includes("cdn.starwarsunlimited.com")) {
     throw new Error(`${label}: the page names the official CDN`);
   }
-  if (MOJIBAKE.test(visibleText(body))) {
+  if (mojibake.test(visibleText(body))) {
     throw new Error(`${label}: mojibake survives in the page text`);
   }
 }
@@ -180,6 +188,10 @@ async function writePage(outDir, urlPath, html) {
  * Returns one entry per page written: { kind: "card" | "set" | "index",
  * path: "/cards/sor/005/", file, bytes }. */
 export async function writePages({ render, template, catalog, outDir, noindex }) {
+  if (!(render.MOJIBAKE instanceof RegExp)) {
+    throw new Error("the render module exports no MOJIBAKE pattern");
+  }
+  const check = (label, html, body) => checkPage(label, html, body, render.MOJIBAKE);
   const written = [];
   const fill = (tpl, head, body) =>
     tpl.replace("<!--pc-head-->", head).replace("<!--pc-body-->", body);
@@ -209,23 +221,193 @@ export async function writePages({ render, template, catalog, outDir, noindex })
   return written;
 }
 
-async function main() {
-  const started = Date.now();
-  const { template, render } = await buildBundles();
-  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
-  const written = await writePages({ render, template, catalog, outDir: distDir, noindex });
+/** Job-summary and console lines. Warnings and errors also print as GitHub
+ * annotations. flush() appends everything to --summary (when given). */
+function summaryLog(file) {
+  const lines = [];
+  return {
+    line(text) {
+      console.log(text);
+      lines.push(`- ${text}`);
+    },
+    warning(text) {
+      console.log(`::warning::${text}`);
+      lines.push(`- :warning: ${text}`);
+    },
+    error(text) {
+      console.log(`::error::${text}`);
+      lines.push(`- :x: ${text}`);
+    },
+    async flush() {
+      if (!file || lines.length === 0) return;
+      await appendFile(file, `\n### Card pages\n\n${lines.join("\n")}\n`, "utf8");
+    },
+  };
+}
 
-  for (const w of written) console.log(`  ${w.path}  ${w.bytes} B`);
-  const count = (k) => written.filter((w) => w.kind === k).length;
-  console.log(
-    `public pages: ${count("card")} card, ${count("set")} set, ${count("index")} index ` +
-      `written from ${catalog.build_sha} (noindex=${noindex}) in ${Date.now() - started} ms`
-  );
+/** The sitemaps' sections, in the order the pages were written: `/`,
+ * `/cards/`, every set page, then one card list per set. */
+function sitemapSections(written) {
+  const setPages = written.filter((w) => w.kind === "set");
+  const bySet = new Map(setPages.map((s) => [s.path, []]));
+  for (const w of written.filter((x) => x.kind === "card")) {
+    const setUrl = w.path.replace(/[^/]+\/$/, "");
+    if (!bySet.has(setUrl)) bySet.set(setUrl, []);
+    bySet.get(setUrl).push(w.path);
+  }
+  return {
+    corePaths: ["/", "/cards/", ...setPages.map((s) => s.path)],
+    sets: [...bySet.entries()].map(([setUrl, paths]) => ({
+      code: setUrl.split("/").filter(Boolean)[1],
+      paths: paths.sort(),
+    })),
+  };
+}
+
+/** Moves the staged output into dist: cards/, sitemaps/, sitemap.xml. */
+async function publish(stage, dist) {
+  for (const name of ["cards", "sitemaps"]) {
+    await rm(join(dist, name), { recursive: true, force: true });
+    await cp(join(stage, name), join(dist, name), { recursive: true });
+  }
+  await cp(join(stage, "sitemap.xml"), join(dist, "sitemap.xml"));
+}
+
+export async function run(argv = process.argv.slice(2), env = process.env) {
+  const started = Date.now();
+  const opts = parseArgs(argv, env);
+  const dist = resolve(root, opts.dist);
+  const log = summaryLog(opts.summary);
+  try {
+    if (!existsSync(join(dist, "index.html"))) {
+      throw new Error(`${dist} has no index.html: run the app build (npm run build) first`);
+    }
+    log.line(
+      `mode ${opts.mode}, origin ${opts.origin}, noindex=${opts.noindex}, ` +
+        `${opts.overrideName}=${opts.allowShrink}`
+    );
+    if (opts.allowShrink) log.warning(`shrink override set (${opts.overrideName}=true)`);
+
+    // 1. The catalog and the list it is checked against.
+    let catalog;
+    let baseCardList;
+    const listLabel = opts.mode === "catalog" ? "the catalog file (no list endpoint)" : undefined;
+    if (opts.mode === "catalog") {
+      catalog = assertCatalogShape(JSON.parse(await readFile(resolve(root, opts.catalog), "utf8")));
+      baseCardList = catalog.cards;
+      log.line(
+        `catalog: ${opts.catalog} (build_sha ${catalog.build_sha}; no list endpoint, no live reads)`
+      );
+    } else {
+      const got = await fetchCatalog({
+        backendUrl: opts.backend,
+        expectSha: opts.expectSha,
+        log: (l) => console.log(l),
+      });
+      catalog = got.catalog;
+      log.line(
+        `catalog: build_sha ${catalog.build_sha} after ${got.attempts} attempt(s), ` +
+          `${Math.round(got.waitedMs / 1000)} s`
+      );
+      baseCardList = await fetchBaseCardList({ backendUrl: opts.backend });
+    }
+    // Fail fast on a partial read, before any build work.
+    checkCompleteness({ catalog, baseCardList, listLabel });
+
+    // 2. Art.
+    const art = await imageAvailability({
+      stems: catalogStems(catalog),
+      bucket: opts.imagesBucket,
+      token: opts.token,
+      origin: opts.origin,
+      mode: opts.images,
+    });
+    for (const w of art.warnings) log.warning(w);
+    log.line(art.line);
+    const pageCatalog = withAvailableArt(catalog, art.present);
+
+    // 3. Render into the staging directory.
+    const { template, render } = await buildBundles({ outDir: dist });
+    await rm(stageDir, { recursive: true, force: true });
+    await mkdir(stageDir, { recursive: true });
+    const written = await writePages({
+      render,
+      template,
+      catalog: pageCatalog,
+      outDir: stageDir,
+      noindex: opts.noindex,
+    });
+    const count = (k) => written.filter((w) => w.kind === k).length;
+    const cards = count("card");
+
+    // 4. Guards.
+    log.line(checkCompleteness({ catalog, baseCardList, pagesRendered: cards, listLabel }).line);
+    let live = { sitemaps: 0 };
+    if (opts.mode === "catalog") {
+      log.line(`shrink guard: skipped (--catalog: no live site read); ${cards} card pages`);
+    } else {
+      live = await liveCardBaseline({ origin: opts.origin });
+      log.line(
+        checkShrink({
+          baseline: live.baseline,
+          count: cards,
+          allowShrink: opts.allowShrink,
+          overrideName: opts.overrideName,
+          source: live.source,
+        }).line
+      );
+    }
+
+    // 5. Manifest and sitemaps.
+    let liveManifest = null;
+    if (opts.mode === "backend") {
+      const m = await fetchLiveManifest({ origin: opts.origin });
+      liveManifest = m.manifest;
+      if (!liveManifest && live.sitemaps > 0) {
+        // The live site already serves card pages but no manifest: lastmod
+        // restarts from nothing this once. A warning, not a failure: lastmod
+        // is a crawl hint, and blocking a deploy over it would trade a real
+        // risk (stale pages) for a cosmetic one.
+        log.warning(
+          `${opts.origin} serves a sitemap index but no ${MANIFEST_PATH}; no lastmod this deploy`
+        );
+      }
+    }
+    const hashes = {};
+    for (const w of written) hashes[w.path] = contentHash(await readFile(w.file, "utf8"));
+    const manifest = buildManifest({ live: liveManifest, hashes, today: utcDate(Date.now()) });
+    log.line(manifestSummary(manifest.stats));
+    const files = buildSitemaps({
+      origin: opts.origin,
+      ...sitemapSections(written),
+      lastmodOf: manifest.lastmodOf,
+    });
+    for (const f of [...files, { path: MANIFEST_PATH, xml: JSON.stringify(manifest.manifest) }]) {
+      const out = join(stageDir, fileForPath(f.path));
+      await mkdir(dirname(out), { recursive: true });
+      await writeFile(out, f.xml, "utf8");
+    }
+
+    // 6. Publish into dist.
+    await publish(stageDir, dist);
+    log.line(
+      `public pages: ${cards} card, ${count("set")} set, ${count("index")} index and ` +
+        `${files.length} sitemap files written to ${opts.dist} from ${catalog.build_sha} ` +
+        `in ${Math.round((Date.now() - started) / 1000)} s`
+    );
+    return { written, files, manifest };
+  } catch (err) {
+    log.error(err instanceof Error ? err.message : String(err));
+    throw err;
+  } finally {
+    await log.flush();
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().catch((err) => {
-    console.error(err);
+  run().catch((err) => {
+    if (err instanceof UsageError) console.error(err.message);
+    else console.error(err);
     process.exit(1);
   });
 }

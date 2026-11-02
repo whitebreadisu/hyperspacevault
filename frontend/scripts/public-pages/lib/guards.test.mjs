@@ -70,7 +70,7 @@ describe("live baseline (§3 guard 2)", () => {
     });
     expect(r).toEqual({
       baseline: 0,
-      source: "live urlset without card URLs (first deploy)",
+      source: "live one-URL urlset without card URLs (first deploy)",
       sitemaps: 0,
     });
   });
@@ -110,6 +110,51 @@ describe("live baseline (§3 guard 2)", () => {
     await expect(
       liveCardBaseline({ origin: "https://x", fetch: site({ "/sitemap.xml": index }) })
     ).rejects.toThrow(/sitemaps\/core\.xml returned HTTP 404/);
+  });
+
+  const at = (body) =>
+    liveCardBaseline({ origin: "https://x", fetch: site({ "/sitemap.xml": body }) });
+  const urlset = (n) =>
+    `<urlset xmlns="x">${Array.from({ length: n }, (_, i) => `<url><loc>https://x/p${i}/</loc></url>`).join("")}</urlset>`;
+
+  it("fails closed on an HTML, empty or truncated body instead of reading a first deploy", async () => {
+    await expect(at("<!doctype html><html><body>Not found</body></html>")).rejects.toThrow(
+      /neither a sitemap index nor a complete urlset/
+    );
+    await expect(at("")).rejects.toThrow(/neither a sitemap index nor a complete urlset/);
+    await expect(at(PLAIN.slice(0, 80))).rejects.toThrow(/neither/);
+  });
+
+  it("fails closed on an index with no sitemaps, a truncated index or a non-urlset child", async () => {
+    await expect(at('<sitemapindex xmlns="x"></sitemapindex>')).rejects.toThrow(/no sitemaps/);
+    await expect(at('<sitemapindex xmlns="x"><sitemap><loc>https://x/a.xml</loc>')).rejects.toThrow(
+      /truncated sitemap index/
+    );
+    const fetch = site({
+      "/sitemap.xml": "<sitemapindex><sitemap><loc>https://x/a.xml</loc></sitemap></sitemapindex>",
+      "/a.xml": "<html></html>",
+    });
+    await expect(liveCardBaseline({ origin: "https://x", fetch })).rejects.toThrow(
+      /a\.xml is not a complete urlset/
+    );
+  });
+
+  it("does not bypass for a urlset of two or more non-card URLs", async () => {
+    await expect(at(urlset(2))).rejects.toThrow(/urlset of 2 URLs and no card URLs/);
+    expect((await at(urlset(0))).baseline).toBe(0);
+  });
+
+  it("counts card URLs in a plain urlset", async () => {
+    const r = await at(
+      "<urlset><url><loc>https://x/</loc></url><url><loc>https://x/cards/sor/005/</loc></url></urlset>"
+    );
+    expect(r).toMatchObject({ baseline: 1, source: "live urlset" });
+  });
+
+  it("passes a timeout signal", async () => {
+    const fetch = site({ "/sitemap.xml": PLAIN });
+    await liveCardBaseline({ origin: "https://x", fetch });
+    expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 });
 

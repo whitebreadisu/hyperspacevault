@@ -391,3 +391,21 @@ a.cp-nav-btn:focus-visible {
     font-size: 28px;
   }
 }
+
+/* The missing-art placeholder (design note §5a): the 320 px image slot's
+ * size (a portrait card, 5:7), no image. */
+.pc-art-ph {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(9, 11, 20, 0.55);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  text-align: center;
+  padding: 16px;
+}

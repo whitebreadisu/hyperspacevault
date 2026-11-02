@@ -40,19 +40,30 @@ image=""
 for rel in "${samples[@]}"; do
   path="/${rel%index.html}"
   out="$tmp/page.html"
-  read -r code ctype < <(curl "${curl_retry[@]}" -o "$out" -w '%{http_code} %{content_type}\n' "$origin$path")
+  read -r code ctype < <(curl "${curl_retry[@]}" -D "$tmp/page.h" -o "$out" -w '%{http_code} %{content_type}\n' "$origin$path")
   echo "GET $path -> $code $ctype"
   [ "$code" = "200" ] || err "$path returned $code"
   case "$ctype" in text/html*) ;; *) err "$path Content-Type is '$ctype'" ;; esac
-  if grep -qiE '<meta[^>]+name="robots"[^>]+noindex' "$out"; then has_noindex=yes; else has_noindex=no; fi
+  # Any <meta> naming robots or googlebot AND noindex, in any attribute order
+  # or quote style (one tag per line first, so a match cannot span tags).
+  if tr '>' '\n' < "$out" | grep -iE '<meta' | grep -iE 'robots|googlebot' | grep -qi 'noindex'; then
+    has_noindex=yes
+  else
+    has_noindex=no
+  fi
   if [ "$mode" = "noindex" ] && [ "$has_noindex" = "no" ]; then err "$path has no robots noindex meta (dev)"; fi
   if [ "$mode" = "index" ] && [ "$has_noindex" = "yes" ]; then err "$path carries a robots noindex meta on prod"; fi
+  # A response header does the same as the meta: prod pages must carry none.
+  if [ "$mode" = "index" ] && grep -qiE '^x-robots-tag:.*noindex' "$tmp/page.h"; then
+    err "$path is served with an X-Robots-Tag noindex header on prod"
+  fi
   if [ -z "$image" ]; then
     image="$(grep -oE '/images/cards/[A-Za-z0-9_-]+_320\.webp' "$out" | head -n 1 || true)"
   fi
 done
 
 read -r code location < <(curl "${curl_retry[@]}" -o /dev/null -w '%{http_code} %{redirect_url}\n' "$origin/cards/sor/005")
+location="${location%$'\r'}"
 echo "GET /cards/sor/005 -> $code $location"
 [ "$code" = "301" ] || err "/cards/sor/005 returned $code (want 301)"
 case "$location" in */cards/sor/005/) ;; *) err "/cards/sor/005 redirects to '$location'" ;; esac
