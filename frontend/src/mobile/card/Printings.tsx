@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import type { CapMode } from "../../api/settingsLimits";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { typeCategoryOf } from "../../utils/limits";
@@ -39,6 +40,9 @@ interface Props {
   ghost?: boolean;
   /** The share's quantities -- ×N on every row, no stepper. */
   readOnly?: boolean;
+  /** Under the rows: the public card page's prices line with its "as of"
+   * date (design note §4.0 row 7). */
+  footer?: ReactNode;
 }
 
 export function Printings({
@@ -55,6 +59,7 @@ export function Printings({
   onRequestSignIn,
   ghost = false,
   readOnly = false,
+  footer,
 }: Props) {
   const groups = useMemo(
     () =>
@@ -141,6 +146,7 @@ export function Printings({
           })}
         </div>
       ))}
+      {footer}
     </section>
   );
 }

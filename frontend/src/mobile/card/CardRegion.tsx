@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cardImageProps } from "../../utils/cardImages";
+import type { CardImageProps } from "../../utils/cardImages";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { scopeShortName } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
@@ -26,6 +27,16 @@ import { PrintingPlate } from "./PrintingPlate";
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 
+function regionImage(
+  variant: InventoryVariant,
+  back: boolean,
+  mode: "app" | "fixed320"
+): CardImageProps | null {
+  const images = back ? variant.back_images : variant.front_images;
+  if (mode === "fixed320") return images?.w320 ? { src: images.w320 } : null;
+  return cardImageProps(images, back ? variant.back_image_url : variant.front_image_url, "large");
+}
+
 interface Props {
   card: InventoryCard;
   variant: InventoryVariant;
@@ -42,6 +53,12 @@ interface Props {
   onPriceKind: (k: PriceMode) => void;
   /** The plate opens Owned by finish (signed in only). */
   onOpenFinish?: () => void;
+  /** Public card page (design note §4.0 row 10): drawn instead of the
+   * printing plate, in both the expanded block and the collapsed row. */
+  plateSlot?: ReactNode;
+  /** "fixed320": the 320 px same-origin rendition only, no srcset and no
+   * fallback to the official CDN (design note §5a). */
+  imageMode?: "app" | "fixed320";
 }
 
 export function CardRegion({
@@ -57,13 +74,13 @@ export function CardRegion({
   priceKind,
   onPriceKind,
   onOpenFinish,
+  plateSlot,
+  imageMode = "app",
 }: Props) {
   const [phase, setPhase] = useState<"out" | "in" | null>(null);
   const { hasBack } = geom;
   const back = showBack && hasBack;
-  const img = back
-    ? cardImageProps(variant.back_images, variant.back_image_url, "large")
-    : cardImageProps(variant.front_images, variant.front_image_url, "large");
+  const img = regionImage(variant, back, imageMode);
   const price = railPrice(variant, priceKind);
   const doFlip = () => {
     if (!hasBack || phase) return;
@@ -97,6 +114,10 @@ export function CardRegion({
       onClick={onOpenFinish}
     />
   );
+  // The page's slot replaces the expanded plate; its collapsed row keeps
+  // only the finish label and the price (no inventory affordance, row 11).
+  const plateNode = plateSlot ?? plate;
+  const miniPlate = plateSlot ? null : plate;
   const num = `${variant.source_set_code} ${variant.card_number}`;
   const fin = finishLabel(variant);
   const noPrice = price === "—";
@@ -162,12 +183,12 @@ export function CardRegion({
               {price}
             </span>
           </div>
-          {plate}
+          {plateNode}
         </div>
         <div className="m-dreg3__mini" aria-hidden={collapsed ? undefined : true}>
           <span className="m-dreg__inv">
             <span className="m-dreg__minilab">{fin}</span>
-            {plate}
+            {miniPlate}
           </span>
           <span className="m-dreg__price">
             <PriceSeg mode={priceKind} onChange={onPriceKind} />

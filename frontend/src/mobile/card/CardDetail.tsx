@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, TouchEvent as ReactTouchEvent } from "react";
+import type { TouchEvent as ReactTouchEvent } from "react";
 import { getBaseCardDetail } from "../../api/baseCards";
 import type { BaseCardDetail } from "../../api/baseCards";
 import { SectionSeparator } from "../../components/SectionSeparator";
@@ -14,6 +14,7 @@ import { SetLogo } from "../SetLogo";
 import { prefersReducedMotion, useCollapse } from "../vault/useCollapse";
 import { useVaultData } from "../../vault/useVaultData";
 import { AspectsSheet } from "./AspectsSheet";
+import { CardDetailHeader } from "./CardDetailHeader";
 import { CardPage, READ_ONLY_STEPPER } from "./CardPage";
 import { navEntryVariant, regionGeom, setLogoSrc, starfieldSrc } from "./cardDetailModel";
 import { FinishSheet } from "./FinishSheet";
@@ -343,24 +344,13 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       onTouchEnd={te}
       onTouchCancel={te}
     >
-      <header
-        className="m-hdr m-hdr--detail m-hdr--detail-r3 m-hdr--detail-fixed"
-        style={{ "--starfield": starfield ? `url(${starfield})` : "none" } as CSSProperties}
+      <CardDetailHeader
+        starfield={starfield}
+        name={card?.name ?? ""}
+        subtitle={card?.subtitle ?? null}
+        logo={logo && card ? logo : null}
+        logoLabel={card ? `${card.set_code} logo` : ""}
       >
-        <div className="m-hdr__barspace" aria-hidden="true" />
-        <div className="m-hdr__titles m-xfade">
-          <h1 className="m-detail__title">{card?.name ?? ""}</h1>
-          {card?.subtitle ? <div className="m-detail__sub">{card.subtitle}</div> : null}
-        </div>
-        {logo && card ? (
-          <SetLogo
-            code={logo}
-            box="detail"
-            align="right"
-            label={`${card.set_code} logo`}
-            className="m-hdr__setlogo m-xfade"
-          />
-        ) : null}
         {xn ? (
           <div className="m-hdr__titles m-xfade m-xfade--in" aria-hidden="true">
             <div className="m-detail__title">{xn.name}</div>
@@ -375,7 +365,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
             className="m-hdr__setlogo m-xfade m-xfade--in"
           />
         ) : null}
-      </header>
+      </CardDetailHeader>
       <SectionSeparator className="m-detail__sep" />
       <div className="m-detail__viewport">
         <div className="m-detail__track" ref={trackRef}>

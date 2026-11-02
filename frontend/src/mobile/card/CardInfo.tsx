@@ -36,6 +36,8 @@ export function CardInfo({
   setName,
   onOpenAspects,
   ghost = false,
+  numberLabel,
+  showAspectsRow = false,
 }: {
   card: InventoryCard;
   detail: BaseCardDetail | null;
@@ -44,6 +46,10 @@ export function CardInfo({
   onOpenAspects?: (aspects: string[]) => void;
   /** The neighbour page drawn during a slide: no ids (they are the live page's). */
   ghost?: boolean;
+  /** Public card page (design note §4.0 rows 5, 6): "SOR 005" instead of
+   * "#5", and an "Aspects" facts row. Defaults reproduce the app. */
+  numberLabel?: string;
+  showAspectsRow?: boolean;
 }) {
   const aspects = orderAspects(card.aspects);
   const glow = aspects.length ? (ASPECT_GLOW[aspects[0]] ?? "#2563eb") : "#2563eb";
@@ -62,7 +68,7 @@ export function CardInfo({
         <div className="m-info__settext">
           <span className="m-info__setname">{detail?.set_name ?? setName}</span>
           <span className="m-info__meta">
-            <span className="m-info__num">#{card.base_card_number}</span>
+            <span className="m-info__num">{numberLabel ?? `#${card.base_card_number}`}</span>
             <RarityBadge rarity={card.rarity} labelOnly />
           </span>
         </div>
@@ -135,6 +141,12 @@ export function CardInfo({
         </div>
       ) : null}
       <dl className="m-facts">
+        {showAspectsRow && aspects.length ? (
+          <div className="m-facts__row">
+            <dt>Aspects</dt>
+            <dd>{aspects.join(", ")}</dd>
+          </div>
+        ) : null}
         <div className="m-facts__row">
           <dt>Traits</dt>
           <dd>{card.traits.length ? card.traits.join(", ") : "—"}</dd>

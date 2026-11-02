@@ -1,4 +1,4 @@
-import type { CSSProperties, Ref } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import type { BaseCardDetail } from "../../api/baseCards";
 import type { CapMode } from "../../api/settingsLimits";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
@@ -58,6 +58,17 @@ export interface CardPageProps {
   onChartEngage?: () => void;
   /** A shared vault's card (×N, no stepper). */
   readOnly?: boolean;
+  /** Public card page (design note §4.0): the sign-up plate (row 10), the
+   * 320 px art (row 9), "SOR 005" and the Aspects row (rows 5, 6), the
+   * prices line under Variants (row 7) and the page's own end matter
+   * (notice, set navigation, footer) at the end of the body. Defaults
+   * reproduce the app. */
+  plateSlot?: ReactNode;
+  imageMode?: "app" | "fixed320";
+  numberLabel?: string;
+  showAspectsRow?: boolean;
+  printingsFooter?: ReactNode;
+  bodyEnd?: ReactNode;
 }
 
 export function CardPage(p: CardPageProps) {
@@ -103,6 +114,8 @@ export function CardPage(p: CardPageProps) {
           priceKind={p.priceKind}
           onPriceKind={p.onPriceKind}
           onOpenFinish={ghost ? undefined : p.onOpenFinish}
+          plateSlot={p.plateSlot}
+          imageMode={p.imageMode}
         />
         <div className="m-detail__body">
           <Printings
@@ -119,6 +132,7 @@ export function CardPage(p: CardPageProps) {
             onRequestSignIn={p.onRequestSignIn}
             ghost={!!ghost}
             readOnly={p.readOnly}
+            footer={p.printingsFooter}
           />
           <section className="m-sec m-history" aria-labelledby={ghost ? undefined : "sec-history"}>
             <div className="m-sec__head">
@@ -142,7 +156,10 @@ export function CardPage(p: CardPageProps) {
             setName={p.setNameByCode[card.set_code] ?? card.set_code}
             onOpenAspects={ghost ? undefined : p.onOpenAspects}
             ghost={!!ghost}
+            numberLabel={p.numberLabel}
+            showAspectsRow={p.showAspectsRow}
           />
+          {p.bodyEnd}
         </div>
       </div>
     </div>

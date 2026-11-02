@@ -26,7 +26,8 @@ interface PrintingGroup {
 function groupBySet(
   ordered: VariantDetail[],
   baseSetCode: string,
-  setNameByCode: Record<string, string>
+  setNameByCode: Record<string, string>,
+  baseSetLabel = "Base set"
 ): PrintingGroup[] {
   const groups: PrintingGroup[] = [];
   for (const v of ordered) {
@@ -35,7 +36,7 @@ function groupBySet(
       const isBase = v.source_set_code === baseSetCode;
       g = {
         setCode: v.source_set_code,
-        label: isBase ? "Base set" : (setNameByCode[v.source_set_code] ?? v.source_set_code),
+        label: isBase ? baseSetLabel : (setNameByCode[v.source_set_code] ?? v.source_set_code),
         items: [],
       };
       groups.push(g);
@@ -74,6 +75,11 @@ interface CardPopupRailProps {
   onPriceModeChange: (mode: PriceRailMode) => void;
   onSelectVariant: (variantId: number) => void;
   onExpandHistory: () => void;
+  /** Public card page (design note §4.0 rows 4, 7): the base set's real
+   * name instead of "Base set", and the prices' "as of" date in the footer.
+   * Both default to the popup's own output. */
+  baseSetLabel?: string;
+  asOfLabel?: string;
 }
 
 export function CardPopupRail({
@@ -87,14 +93,16 @@ export function CardPopupRail({
   onPriceModeChange,
   onSelectVariant,
   onExpandHistory,
+  baseSetLabel,
+  asOfLabel,
 }: CardPopupRailProps) {
   const orderedVariants = useMemo(
     () => orderVariants(variants, baseSetCode),
     [variants, baseSetCode]
   );
   const printingGroups = useMemo(
-    () => groupBySet(orderedVariants, baseSetCode, setNameByCode),
-    [orderedVariants, baseSetCode, setNameByCode]
+    () => groupBySet(orderedVariants, baseSetCode, setNameByCode, baseSetLabel),
+    [orderedVariants, baseSetCode, setNameByCode, baseSetLabel]
   );
   // Rail-footer attribution's "· N unpriced": shown whenever any printing
   // lacks a price.
@@ -195,6 +203,7 @@ export function CardPopupRail({
       <div className="cp-rail__footer">
         <div className="cp-rail__attribution">
           Prices via TCGplayer
+          {asOfLabel ? ` · ${asOfLabel}` : ""}
           {unpricedCount > 0 ? ` · ${unpricedCount} unpriced` : ""}
         </div>
       </div>

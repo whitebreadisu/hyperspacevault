@@ -159,3 +159,21 @@ export function CardPopupNavButtons({ navigation }: { navigation: CardPopupNavig
     </>
   );
 }
+
+/** The same two chevrons (same classes, same glyphs, enabled look) as plain
+ * links, for the public card page: there is no list to walk there, so both
+ * take the visitor into the app (design note §4.0 row 2, as revised by the
+ * owner on 2026-11-02). No analytics call: the page never initialises the
+ * app's analytics. */
+export function CardPopupNavLinks({ href, label }: { href: string; label: string }) {
+  return (
+    <>
+      <a className="cp-nav-btn cp-nav-btn--prev" href={href} aria-label={label} title={label}>
+        ‹
+      </a>
+      <a className="cp-nav-btn cp-nav-btn--next" href={href} aria-label={label} title={label}>
+        ›
+      </a>
+    </>
+  );
+}

@@ -1,0 +1,284 @@
+/* The public card page's own frame (design note §4 D1, D4; mock
+ * CardPages_Mock_2026-11-02.html). Everything inside the card -- header,
+ * rail, image column, info, the phone region and sections -- is the app's own
+ * CSS (CardPopup.css, mobile/card/card.css); this file only places it in a
+ * page and draws the deltas. */
+
+.pc-body {
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  background-image:
+    linear-gradient(rgba(9, 11, 20, 0.35), rgba(9, 11, 20, 0.35)), url("/images/circuit-tile.webp");
+  background-size: 1400px auto;
+}
+
+/* Both layouts are in the HTML; the width picks one (767 px, the phone
+ * switch's width test). The hidden tree stays in the DOM, display:none. */
+.pc-tree--phone {
+  display: none;
+}
+@media (max-width: 767px) {
+  .pc-tree--desktop {
+    display: none;
+  }
+  .pc-tree--phone {
+    display: block;
+  }
+}
+
+/* ── Desktop page ──────────────────────────────────────── */
+.pc-page {
+  width: min(1140px, calc(100vw - 44px));
+  margin: 0 auto;
+  padding: 0 0 32px;
+}
+
+.pc-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 4px 10px;
+}
+/* The app header's wordmark (.app-header__brand-link) as a link. */
+.pc-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  transition:
+    color 0.25s,
+    filter 0.25s;
+}
+.pc-brand:hover,
+.pc-brand:focus-visible {
+  color: #3b82f6;
+  filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
+}
+.pc-brand__tag {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.pc-bar__open {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  text-decoration: none;
+  padding: 8px 12px;
+  background: rgba(211, 211, 212, 0.16);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: background 0.15s ease;
+}
+.pc-bar__open:hover,
+.pc-bar__open:focus-visible {
+  background: rgba(37, 99, 235, 0.35);
+}
+
+.pc-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.pc-crumbs__item {
+  display: inline-flex;
+  gap: 8px;
+}
+.pc-crumbs a {
+  color: #9fb0cc;
+  text-decoration: none;
+}
+.pc-crumbs [aria-current] {
+  color: var(--color-text);
+}
+
+/* The popup's shell in the page flow, not a modal: no overlay, no
+ * viewport-bound height, the three columns no longer scroll on their own. */
+.cp-shell.pc-shell {
+  width: 100%;
+  max-height: none;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+.pc-shell .cp-rail,
+.pc-shell .cp-center,
+.pc-shell .cp-info {
+  max-height: none;
+  overflow: visible;
+}
+/* The header keeps the app's padding: its prev / next chevrons sit in the
+ * app's control cluster, as links into the app. */
+a.cp-nav-btn {
+  display: inline-block;
+  text-decoration: none;
+}
+a.cp-nav-btn:focus-visible {
+  color: var(--color-text);
+  opacity: 1;
+  outline: 1px solid var(--color-primary);
+  outline-offset: 1px;
+}
+/* The app's close button's place, held empty. */
+.pc-close-slot {
+  visibility: hidden;
+  cursor: default;
+}
+
+/* §5a F: muted fine print directly under the art. */
+.pc-notice {
+  margin: 0;
+  max-width: 272px;
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* D4: the signed-out plate as the sign-up call to action. */
+.pc-cta .pc-cta__inner {
+  gap: 10px;
+}
+.pc-cta__msg {
+  font-size: 14px;
+  color: #cfd6e4;
+  text-align: center;
+}
+.pc-cta__signin {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+  text-decoration: none;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+.pc-cta__signin:hover,
+.pc-cta__signin:focus-visible {
+  color: var(--color-text);
+}
+
+.pc-setnav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 4px 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pc-setnav a {
+  color: #9fb0cc;
+  text-decoration: none;
+}
+.pc-setnav a:hover,
+.pc-setnav a:focus-visible {
+  color: var(--color-text);
+}
+
+.pc-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 16px 4px 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.pc-foot a {
+  color: #9fb0cc;
+}
+
+/* ── Phone page ────────────────────────────────────────── */
+/* The page bar sits where the app's X / "n of m" bar sits, over the
+ * header's 44 px bar space (row 1). */
+.m-app .pc-bar--phone {
+  padding: 0;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.m-app .pc-bar--phone .pc-brand {
+  font-size: 14px;
+}
+.m-app .pc-bar--phone .pc-brand__tag {
+  font-size: 9.5px;
+}
+.m-app .pc-bar--phone .pc-bar__open {
+  min-height: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+/* The region's plate slot: the notice line, then a compact sign-up plate
+ * (PHONE_PLATE_EXTRA in CardPublicPage.tsx is this block's added height,
+ * measured at 390 px: 220 px against the app's 52). */
+.m-app .pc-phone__plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.m-app .pc-phone__plate .pc-notice {
+  max-width: 280px;
+}
+.m-app .pc-cta--phone {
+  width: 100%;
+}
+/* One row under the message: the button, then the quiet text link. */
+.m-app .pc-cta--phone .pc-cta__inner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 14px;
+  row-gap: 6px;
+  padding: 10px 12px 12px;
+}
+.m-app .pc-cta--phone .pc-cta__msg {
+  flex-basis: 100%;
+}
+.m-app .pc-cta--phone .pc-cta__signin {
+  min-height: 44px;
+}
+
+.m-app .pc-phone__prices {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.m-app .pc-phone__end {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.m-app .pc-phone__end .pc-crumbs,
+.m-app .pc-phone__end .pc-setnav,
+.m-app .pc-phone__end .pc-foot {
+  padding-left: 0;
+  padding-right: 0;
+}
+.m-app .pc-phone__end .pc-setnav a,
+.m-app .pc-phone__end .pc-crumbs a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
