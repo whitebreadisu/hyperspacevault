@@ -13,16 +13,9 @@ import type { RegionGeom } from "../mobile/card/cardDetailModel";
 import { useCollapse } from "../mobile/vault/useCollapse";
 import { toInventoryCards } from "../utils/inventory";
 import { setPath } from "./publicCatalog";
-import type { CardPageData } from "./publicCatalog";
-import {
-  APP_URL,
-  ArtNotice,
-  Breadcrumbs,
-  PageBar,
-  PageFooter,
-  SetNav,
-  SignUpPlate,
-} from "./PublicFrame";
+import type { CardLink, CardPageData } from "./publicCatalog";
+import { ctaClicked } from "./publicAnalytics";
+import { ArtNotice, Breadcrumbs, PageBar, PageFooter, SetNav, SignUpPlate } from "./PublicFrame";
 
 // The public card page (design note §0, §4): the app's own card detail,
 // rendered from the page's embedded data instead of an API fetch.
@@ -33,6 +26,11 @@ import {
 // (767 px, the phone switch's width test) and the browser hydrates only the
 // visible one (card.tsx). Everything in §4.0's delta table is applied here
 // through the components' page-only props; nothing else differs.
+//
+// One <h1> per page: the phone tree's header title is the page's one <h1>
+// element (Google indexes with a phone crawler); the desktop tree's title is
+// the same text and look as a role="heading" aria-level 1 div. The markup is
+// fixed per tree, not per viewport, so hydrating either tree matches.
 
 /** The printing a page opens on: Standard, else the first (the popup's
  * pickRepresentative). */
@@ -93,9 +91,10 @@ function withPlateRoom(g: RegionGeom): RegionGeom {
   };
 }
 
-/** The header chevrons' label: there is no list to walk on a public page, so
- * both lead into the app (owner, 2026-11-02). */
-export const BROWSE_LABEL = "Open Hyperspace Vault to browse more cards";
+/** The header chevrons open the previous / next card in set order inside
+ * the app (owner-reviewed, 2026-11-02): `/?card=sor-006`. */
+const navLink = (l: CardLink | null) => (l ? { href: l.appHref, name: l.label } : null);
+const followNav = () => ctaClicked("open_card_in_app");
 
 function crumbsFor(data: CardPageData) {
   return [
@@ -142,7 +141,11 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
             imageWrapRef={imageWrapRef}
             headerControls={
               <div className="cp-header__controls">
-                <CardPopupNavLinks href={APP_URL} label={BROWSE_LABEL} />
+                <CardPopupNavLinks
+                  prev={navLink(data.prev)}
+                  next={navLink(data.next)}
+                  onFollow={followNav}
+                />
                 {/* The app's close button holds this place; kept as an empty
                     slot so the chevrons sit exactly where the app draws them. */}
                 <span className="cp-close pc-close-slot" aria-hidden="true">
@@ -161,11 +164,10 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
                 />
               )
             }
-            headingLevel="h1"
+            headingLevel="aria-h1"
             baseSetLabel={data.setName}
             numberLabel={data.numberLabel}
             showAspectsRow
-            asOfLabel={data.asOfLabel ?? undefined}
           />
         </div>
       </div>
@@ -240,12 +242,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
               imageMode="fixed320"
               numberLabel={data.numberLabel}
               showAspectsRow
-              printingsFooter={
-                <p className="pc-phone__prices">
-                  Prices via TCGplayer
-                  {data.asOfLabel ? ` · ${data.asOfLabel}` : ""}
-                </p>
-              }
+              baseSetLabel={data.setName}
               bodyEnd={
                 <div className="pc-phone__end">
                   <Breadcrumbs crumbs={crumbsFor(data)} />

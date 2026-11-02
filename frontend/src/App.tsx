@@ -24,6 +24,7 @@ import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
+import { parseCardParam } from "./utils/cardParam";
 import { capture } from "./analytics/analytics";
 import { MobileApp } from "./mobile/MobileApp";
 import { useIsPhone } from "./mobile/useIsPhone";
@@ -180,6 +181,17 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // `/?card=sor-005` (design note §9 "Optional extra"; a public card page's
+  // prev / next arrows link here): read once at boot, the same idiom as the
+  // share route above, and handed to the own Vault's CardsPage, which opens
+  // that card's popup once the catalogue is in and then drops the parameter
+  // (history.replaceState). Only on `/` -- a share link keeps its own route.
+  // The phone tree reads it in MobileApp. Absent or malformed = null =
+  // today's behaviour.
+  const [bootCard] = useState(() =>
+    window.location.pathname === "/" ? parseCardParam(window.location.search) : null
+  );
+
   /** Reported by SharedVaultPage once GET /api/shared/{token}
    * succeeds -- persists the session (sessionStorage) and hands the name to
    * Header. Stable identity (empty deps) is required, not just tidy:
@@ -285,6 +297,7 @@ function AppContent() {
             isEmailVerified={emailVerified}
             onOpenImportExport={() => setActiveView("import-export")}
             onQuantitiesRefreshReady={registerQuantitiesRefresh}
+            openCardOnLoad={bootCard}
           />
         </div>
         {/* DeckCheckPage is always mounted (like CardsPage above), never

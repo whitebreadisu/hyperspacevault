@@ -4,6 +4,8 @@ import { AspectIcon } from "../../components/AspectIcon";
 import { StatBadge } from "../../components/StatBadge";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { RarityBadge } from "../../components/RarityBadge";
+import { EpicActionText } from "../../components/EpicActionText";
+import { repairText } from "../../utils/mojibake";
 import { CardPopupRail, type PriceRailMode } from "./CardPopupRail";
 import type { CardFlip } from "./useCardFlip";
 import "./CardPopup.css";
@@ -93,16 +95,17 @@ export interface CardPopupViewProps {
   inventorySlot: ReactNode;
   /** Under the body: the app's expanded price history. */
   afterBody?: ReactNode;
-  /** Page-only (design note §4.0). Defaults reproduce the popup. */
-  headingLevel?: "h1" | "h2";
+  /** Page-only (design note §4.0). Defaults reproduce the popup.
+   * The card name's element: the popup's `h2`; on the public page, whose
+   * phone tree holds the one `<h1>` element, "aria-h1" -- a `div` with
+   * role="heading" aria-level 1, the same look (row 3). */
+  headingLevel?: "h1" | "h2" | "aria-h1";
   /** Replaces "Base set" in the info set row and the rail group (row 4). */
   baseSetLabel?: string;
   /** Replaces "#5" in the info set row, e.g. "SOR 005" (row 5). */
   numberLabel?: string;
   /** Adds the "Aspects: ..." facts row (row 6). */
   showAspectsRow?: boolean;
-  /** Appended to the rail footer, e.g. "as of Nov 1, 2026" (row 7). */
-  asOfLabel?: string;
   /** Under the image, above the plate: the page's notice line (row 9). */
   imageNote?: ReactNode;
 }
@@ -128,7 +131,6 @@ export function CardPopupView({
   baseSetLabel,
   numberLabel,
   showAspectsRow = false,
-  asOfLabel,
   imageNote,
 }: CardPopupViewProps) {
   const { displayedImages, canFlip, showBack, flipPhase, flipHeight } = flip;
@@ -142,7 +144,11 @@ export function CardPopupView({
   const aspects = orderAspects(detail.aspects);
   const glow = aspects.length ? (ASPECT_GLOW[aspects[0]] ?? "#2563eb") : "#2563eb";
   const hasBackText = !!(detail.double_sided && detail.back_text);
-  const Title = headingLevel;
+  const titleProps =
+    headingLevel === "aria-h1" ? { role: "heading", "aria-level": 1 as const } : undefined;
+  const Title = headingLevel === "aria-h1" ? "div" : headingLevel;
+  const frontText = repairText(detail.front_text);
+  const backText = repairText(detail.back_text);
 
   return (
     <>
@@ -157,7 +163,7 @@ export function CardPopupView({
           />
         )}
         <div className="cp-header__row">
-          <Title className="cp-title" id="cp-title">
+          <Title className="cp-title" id="cp-title" {...titleProps}>
             {detail.name}
           </Title>
           {detail.subtitle && <div className="cp-subtitle">{detail.subtitle}</div>}
@@ -188,7 +194,6 @@ export function CardPopupView({
           onSelectVariant={onSelectVariant}
           onExpandHistory={onExpandHistory}
           baseSetLabel={baseSetLabel}
-          asOfLabel={asOfLabel}
         />
 
         <div className="cp-center">
@@ -293,19 +298,14 @@ export function CardPopupView({
                   {detail.type}
                 </div>
               )}
-              {detail.front_text && <p className="cp-text__body">{detail.front_text}</p>}
-              {detail.epic_action && (
-                <p className="cp-text__body">
-                  <span className="cp-text__epic-label">Epic Action: </span>
-                  {detail.epic_action}
-                </p>
-              )}
+              {frontText && <p className="cp-text__body">{frontText}</p>}
+              <EpicActionText text={detail.epic_action} />
               {hasBackText && (
                 <div className="cp-text__back">
                   <div className="cp-text__header" style={{ color: glow }}>
                     {detail.type2 ?? "Back"}
                   </div>
-                  <p className="cp-text__body">{detail.back_text}</p>
+                  <p className="cp-text__body">{backText}</p>
                 </div>
               )}
             </div>

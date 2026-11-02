@@ -160,20 +160,51 @@ export function CardPopupNavButtons({ navigation }: { navigation: CardPopupNavig
   );
 }
 
-/** The same two chevrons (same classes, same glyphs, enabled look) as plain
- * links, for the public card page: there is no list to walk there, so both
- * take the visitor into the app (design note §4.0 row 2, as revised by the
- * owner on 2026-11-02). No analytics call: the page never initialises the
- * app's analytics. */
-export function CardPopupNavLinks({ href, label }: { href: string; label: string }) {
+/** One chevron's target on the public card page: the neighbouring card in
+ * set order, opened inside the app (`/?card=sor-006`). */
+export interface CardNavLink {
+  href: string;
+  /** The neighbouring card's name, for the accessible label. */
+  name: string;
+}
+
+/** The same two chevrons (same classes, same glyphs) as plain links, for the
+ * public card page (design note §4.0 row 2; owner-reviewed 2026-11-02): each
+ * opens the previous / next card in set order inside the app. At the set's
+ * ends the chevron keeps the disabled look and is not a link. `onFollow`
+ * reports a followed link (the page's own analytics); the app's capture()
+ * is never called here. */
+export function CardPopupNavLinks({
+  prev,
+  next,
+  onFollow,
+}: {
+  prev: CardNavLink | null;
+  next: CardNavLink | null;
+  onFollow?: () => void;
+}) {
+  const chevron = (dir: "prev" | "next", link: CardNavLink | null) => {
+    const cls = `cp-nav-btn cp-nav-btn--${dir}`;
+    const glyph = dir === "prev" ? "‹" : "›";
+    const word = dir === "prev" ? "Previous card" : "Next card";
+    if (!link) {
+      return (
+        <span className={cls + " cp-nav-btn--off"} aria-disabled="true" aria-label={word}>
+          {glyph}
+        </span>
+      );
+    }
+    const label = `${word}: ${link.name}, in Hyperspace Vault`;
+    return (
+      <a className={cls} href={link.href} aria-label={label} title={label} onClick={onFollow}>
+        {glyph}
+      </a>
+    );
+  };
   return (
     <>
-      <a className="cp-nav-btn cp-nav-btn--prev" href={href} aria-label={label} title={label}>
-        ‹
-      </a>
-      <a className="cp-nav-btn cp-nav-btn--next" href={href} aria-label={label} title={label}>
-        ›
-      </a>
+      {chevron("prev", prev)}
+      {chevron("next", next)}
     </>
   );
 }

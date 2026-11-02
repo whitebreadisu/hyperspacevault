@@ -1,18 +1,30 @@
 import { act } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderToString } from "react-dom/server";
 import { DesktopCardPage, PhoneCardPage } from "./CardPublicPage";
-import { headHtml, pageDescription } from "./head";
+import { headHtml, indexHeadHtml, pageDescription, setHeadHtml } from "./head";
 import {
+  buildIndexPage,
   buildPages,
+  buildSetPages,
   cardPath,
+  compareSetsNewestFirst,
   numberLabel,
   repairMojibake,
-  stripEpicLabel,
   type PublicCard,
   type PublicCatalog,
 } from "./publicCatalog";
-import { renderCardBody } from "./render";
+import { renderCardBody, renderIndexBody, renderSetBody } from "./render";
+import {
+  isAllowedPublicEvent,
+  publicAnalyticsEnabled,
+  publicCapture,
+  referrerKind,
+} from "./publicAnalytics";
+import { epicActionDisplay } from "../utils/epicAction";
+import { EpicActionText } from "../components/EpicActionText";
+import { priceAttribution } from "../utils/priceAttribution";
 
 const capture = vi.hoisted(() => vi.fn());
 vi.mock("../analytics/analytics", async (orig) => ({
@@ -116,22 +128,20 @@ describe("public catalog model", () => {
     expect(repairMojibake("Give –3/–3")).toBe("Give –3/–3");
   });
 
-  it("strips the label the data already carries from the epic action", () => {
-    expect(stripEpicLabel("Epic Action: Deploy him.")).toBe("Deploy him.");
-    expect(stripEpicLabel("Piloting [2 resources]")).toBe("Piloting [2 resources]");
-    expect(stripEpicLabel(null)).toBeNull();
-  });
-
   it("skips tokens, links neighbours in set order, never names the official CDN", () => {
     const pages = buildPages(catalog);
     expect(pages.map((p) => p.numberLabel)).toEqual(["SOR 005", "SOR 025"]);
     expect(pages[0].prev).toBeNull();
-    expect(pages[0].next).toEqual({ path: "/cards/sor/025/", label: "Tarkintown" });
+    expect(pages[0].next).toEqual({
+      path: "/cards/sor/025/",
+      label: "Tarkintown",
+      appHref: "/?card=sor-025",
+    });
     expect(pages[1].prev?.path).toBe("/cards/sor/005/");
     expect(JSON.stringify(pages)).not.toContain("cdn.starwarsunlimited.com");
-    expect(pages[0].asOfLabel).toBe("as of Nov 1, 2026");
+    // The epic action passes through; the views' shared rule labels it once.
     expect(pages[0].card.epic_action).toBe(
-      "If you control 6 or more resources, deploy this leader."
+      "Epic Action: If you control 6 or more resources, deploy this leader."
     );
   });
 
@@ -188,32 +198,45 @@ describe("server render and hydration", () => {
     document.body.innerHTML = html;
     const desk = document.getElementById("pc-desktop")!;
     const phone = document.getElementById("pc-phone")!;
-    expect(desk.querySelectorAll("h1")).toHaveLength(1);
-    expect(desk.querySelector("h1")!.textContent).toBe("Luke Skywalker");
+    // One <h1> element per page: the phone tree's title. The desktop title
+    // is the same text and classes as a level-1 ARIA heading, not an <h1>.
+    expect(document.body.querySelectorAll("h1")).toHaveLength(1);
     expect(phone.querySelector("h1")!.textContent).toBe("Luke Skywalker");
+    expect(desk.querySelector("h1")).toBeNull();
+    const deskTitle = desk.querySelector(".cp-title")!;
+    expect(deskTitle.tagName).toBe("DIV");
+    expect(deskTitle.getAttribute("role")).toBe("heading");
+    expect(deskTitle.getAttribute("aria-level")).toBe("1");
+    expect(deskTitle.textContent).toBe("Luke Skywalker");
     for (const tree of [desk, phone]) {
       expect(tree.textContent).toContain("Track this card in your vault");
       expect(tree.textContent).toContain("Create free account");
       expect(tree.textContent).toContain("SOR 005");
-      expect(tree.textContent).toContain("as of Nov 1, 2026");
+      expect(tree.textContent).toContain("Prices via TCGplayer · as of Nov 1, 2026 · 1 unpriced");
       expect(tree.textContent).toContain("Vigilance, Heroism");
       expect(tree.textContent).toContain("Fantasy Flight Publishing Inc.");
       expect(tree.textContent!.match(/Epic Action:/g)).toHaveLength(1);
       expect(tree.querySelector(".m-stepper, .cp-plate__stepper, button.cp-close")).toBeNull();
     }
-    // The header's prev / next chevrons are the app's (same classes, enabled)
-    // and both are plain links into the app; no set navigation under the
-    // desktop shell (owner, 2026-11-02).
-    const chevrons = desk.querySelectorAll<HTMLAnchorElement>(".cp-header__controls a.cp-nav-btn");
-    expect(chevrons).toHaveLength(2);
-    for (const a of chevrons) {
-      expect(a.getAttribute("href")).toBe("/");
-      expect(a.getAttribute("aria-label")).toBe("Open Hyperspace Vault to browse more cards");
-    }
+    // The header's prev / next chevrons are the app's (same classes) and
+    // open the neighbouring card in set order inside the app; at the set's
+    // first card, prev keeps the disabled look and is not a link (owner-
+    // reviewed, 2026-11-02). No set navigation under the desktop shell.
+    const prev = desk.querySelector(".cp-header__controls .cp-nav-btn--prev")!;
+    const next = desk.querySelector<HTMLAnchorElement>(".cp-header__controls .cp-nav-btn--next")!;
+    expect(prev.tagName).toBe("SPAN");
+    expect(prev.getAttribute("aria-disabled")).toBe("true");
+    expect(prev.classList.contains("cp-nav-btn--off")).toBe(true);
+    expect(next.tagName).toBe("A");
+    expect(next.getAttribute("href")).toBe("/?card=sor-025");
+    expect(next.getAttribute("aria-label")).toBe("Next card: Tarkintown, in Hyperspace Vault");
     expect(desk.querySelector(".pc-setnav")).toBeNull();
-    // Row 4 is a desktop delta: the phone's set row already reads the set
-    // name, and its printings group keeps the app's "Base set" label.
-    expect(desk.textContent).not.toContain("Base set");
+    // Row 4 on both trees: the set row and the printings group read the
+    // set's real name, never "Base set".
+    for (const tree of [desk, phone]) {
+      expect(tree.textContent).not.toContain("Base set");
+      expect(tree.querySelector(".cp-rail__group-label")!.textContent).toBe("Spark of Rebellion");
+    }
     // The desktop art is the 320 px rendition only.
     const img = desk.querySelector<HTMLImageElement>("img.cp-image")!;
     expect(img.getAttribute("src")).toBe("/images/cards/card_7123_front_320.webp");
@@ -237,5 +260,312 @@ describe("server render and hydration", () => {
     expect(errors).not.toHaveBeenCalled();
     expect(capture).not.toHaveBeenCalled();
     errors.mockRestore();
+  });
+});
+
+describe("set end of the header chevrons", () => {
+  it("the set's last card has a prev link into the app and a disabled next", () => {
+    const pages = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(pages[1]);
+    const desk = document.getElementById("pc-desktop")!;
+    const prev = desk.querySelector(".cp-header__controls .cp-nav-btn--prev")!;
+    const next = desk.querySelector(".cp-header__controls .cp-nav-btn--next")!;
+    expect(prev.getAttribute("href")).toBe("/?card=sor-005");
+    expect(next.tagName).toBe("SPAN");
+    expect(next.hasAttribute("href")).toBe(false);
+    document.body.innerHTML = "";
+  });
+});
+
+// BL-326: one rule for the epic-action label, in both card views and the
+// pages. Samples are the five shapes of the 2026-10-02 export.
+describe("epic action label (BL-326)", () => {
+  it.each([
+    ["Epic Action: Deploy him.", "Epic Action: ", "Deploy him."],
+    ['"Epic Action: Deal 2 damage."', "Epic Action: ", "Deal 2 damage."],
+    ["epic action:   Deal 2 damage.", "Epic Action: ", "Deal 2 damage."],
+    [
+      "When you play this unit: draw a card.",
+      "Epic Action: ",
+      "When you play this unit: draw a card.",
+    ],
+    [
+      "Piloting [2 resources, Heroism]: attach this.",
+      null,
+      "Piloting [2 resources, Heroism]: attach this.",
+    ],
+    ["Action [Exhaust]: Ready a unit.", null, "Action [Exhaust]: Ready a unit."],
+    ["Epic Action: Piloting [1 resource]", null, "Piloting [1 resource]"],
+    [
+      "Epic Action [4 resources]: Deploy this leader.",
+      null,
+      "Epic Action [4 resources]: Deploy this leader.",
+    ],
+    // TWI 15's cp1252 mojibake ("6Â" + no-break space) is repaired first.
+    [
+      "Epic Action: If you control 6\u00c2\u00a0or more",
+      "Epic Action: ",
+      "If you control 6\u00a0or more",
+    ],
+  ])("%j", (raw, label, text) => {
+    expect(epicActionDisplay(raw)).toEqual({ label, text });
+  });
+
+  it("strips the label once, not every occurrence", () => {
+    expect(epicActionDisplay("Epic Action: Epic Action: twice")).toEqual({
+      label: "Epic Action: ",
+      text: "Epic Action: twice",
+    });
+  });
+
+  it("renders nothing for an absent or empty field", () => {
+    expect(epicActionDisplay(null)).toBeNull();
+    expect(epicActionDisplay(undefined)).toBeNull();
+    expect(epicActionDisplay("Epic Action:  ")).toBeNull();
+    expect(renderToString(<EpicActionText text={null} />)).toBe("");
+  });
+
+  it("the shared paragraph shows the label exactly once, or not at all", () => {
+    const labelled = renderToString(<EpicActionText text="Epic Action: Deploy him." />);
+    expect(labelled.match(/Epic Action:/g)).toHaveLength(1);
+    expect(labelled).toContain('class="cp-text__epic-label"');
+    const pilot = renderToString(<EpicActionText text="Piloting [2 resources]: attach." />);
+    expect(pilot).not.toContain("Epic Action");
+    expect(pilot).not.toContain("cp-text__epic-label");
+  });
+});
+
+// BL-325: the attribution line on every price surface.
+describe("price attribution (BL-325)", () => {
+  const priced = (as_of: string) => ({ price: { market: 1, low: 1, as_of } });
+  it("carries the newest as-of date, in fixed UTC / en-US form", () => {
+    expect(priceAttribution([priced("2026-07-19"), priced("2026-10-30")])).toBe(
+      "Prices via TCGplayer · as of Oct 30, 2026"
+    );
+  });
+  it("adds the unpriced count, and has no date when nothing is priced", () => {
+    expect(priceAttribution([priced("2026-07-19"), { price: null }])).toBe(
+      "Prices via TCGplayer · as of Jul 19, 2026 · 1 unpriced"
+    );
+    expect(priceAttribution([{ price: null }])).toBe("Prices via TCGplayer · 1 unpriced");
+  });
+});
+
+describe("set pages and the set index", () => {
+  const multi: PublicCatalog = {
+    ...catalog,
+    sets: [
+      ...catalog.sets,
+      { code: "HMW", name: "Homeworlds", is_base_set: true, release_date: "2026-10-01" },
+      { code: "IBH", name: "Intro Battle: Hoth", is_base_set: true, release_date: "2025-05-01" },
+      { code: "GG", name: "Gift Box", is_base_set: false, release_date: "2025-12-01" },
+      { code: "ZZ", name: "Old Promo", is_base_set: false, release_date: "2024-01-01" },
+    ],
+    cards: [
+      ...catalog.cards,
+      card({ id: 2, set_code: "HMW", base_card_number: "12", name: "Han Solo", subtitle: null }),
+      card({ id: 3, set_code: "HMW", base_card_number: "3", name: "Leia", subtitle: null }),
+      card({ id: 4, set_code: "IBH", base_card_number: "1", name: "Echo Base", subtitle: null }),
+      card({ id: 5, set_code: "GG", base_card_number: "1", name: "Gift", subtitle: null }),
+      card({ id: 6, set_code: "ZZ", base_card_number: "1", name: "Promo", subtitle: null }),
+    ],
+  };
+
+  it("orders the index newest first (ADR-0031) and counts non-token cards", () => {
+    const index = buildIndexPage(multi);
+    expect(index.sets.map((s) => s.code)).toEqual(["HMW", "SOR", "IBH", "GG", "ZZ"]);
+    expect(index.sets.find((s) => s.code === "SOR")).toEqual({
+      code: "SOR",
+      name: "Spark of Rebellion",
+      path: "/cards/sor/",
+      count: 2,
+    });
+    expect(index.total).toBe(7);
+    expect(
+      compareSetsNewestFirst(
+        { code: "GG", release_date: "2025-12-01" },
+        { code: "ZZ", release_date: "2024-01-01" }
+      )
+    ).toBeLessThan(0);
+  });
+
+  it("lists every non-token card of a set in number order", () => {
+    const hmw = buildSetPages(multi).find((s) => s.code === "HMW")!;
+    expect(hmw.cards.map((c) => c.numberLabel)).toEqual(["HMW 003", "HMW 012"]);
+    expect(hmw.cards[0]).toEqual({
+      name: "Leia",
+      subtitle: null,
+      numberLabel: "HMW 003",
+      rarity: "Special",
+      path: "/cards/hmw/003/",
+    });
+    const sor = buildSetPages(multi).find((s) => s.code === "SOR")!;
+    expect(sor.cards.map((c) => c.name)).toEqual(["Luke Skywalker", "Tarkintown"]);
+  });
+
+  it("renders one h1, the breadcrumb and a link per card, no price figure", () => {
+    const sor = buildSetPages(multi).find((s) => s.code === "SOR")!;
+    document.body.innerHTML = renderSetBody(sor);
+    expect(document.querySelectorAll("h1")).toHaveLength(1);
+    expect(document.querySelector("h1")!.textContent).toBe("Spark of Rebellion");
+    const links = [...document.querySelectorAll<HTMLAnchorElement>("a.pc-list__row")];
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/cards/sor/005/",
+      "/cards/sor/025/",
+    ]);
+    expect(links[0].textContent).toContain("SOR 005");
+    expect(links[0].textContent).toContain("Luke Skywalker");
+    expect(links[0].textContent).toContain("Special");
+    expect(document.querySelector(".pc-crumbs a")!.getAttribute("href")).toBe("/cards/");
+    expect(document.body.textContent).not.toMatch(/\$\d/);
+    document.body.innerHTML = renderIndexBody(buildIndexPage(multi));
+    expect(document.querySelectorAll("h1")).toHaveLength(1);
+    expect(
+      [...document.querySelectorAll("a.pc-list__row")].map((a) => a.getAttribute("href"))
+    ).toEqual(["/cards/hmw/", "/cards/sor/", "/cards/ibh/", "/cards/gg/", "/cards/zz/"]);
+    document.body.innerHTML = "";
+  });
+
+  it("heads: title, description, canonical, breadcrumb JSON-LD, noindex only on dev", () => {
+    const sor = buildSetPages(multi).find((s) => s.code === "SOR")!;
+    const head = setHeadHtml(sor, { noindex: false });
+    expect(head).toContain(
+      "<title>Spark of Rebellion (SOR) card list · Prices and printings · HyperspaceVault</title>"
+    );
+    expect(head).toContain('<meta name="description" content="Every Star Wars: Unlimited card in');
+    expect(head).toContain(
+      '<link rel="canonical" href="https://www.hyperspacevault.com/cards/sor/" />'
+    );
+    expect(head).toContain('"@type":"BreadcrumbList"');
+    expect(head).toContain('"item":"https://www.hyperspacevault.com/cards/sor/"');
+    expect(head).not.toContain("noindex");
+    expect(setHeadHtml(sor, { noindex: true })).toContain(
+      '<meta name="robots" content="noindex" />'
+    );
+
+    const index = indexHeadHtml(buildIndexPage(multi), { noindex: false });
+    expect(index).toContain(
+      '<link rel="canonical" href="https://www.hyperspacevault.com/cards/" />'
+    );
+    expect(index).toContain(
+      "<title>Star Wars: Unlimited card list · Every set · HyperspaceVault</title>"
+    );
+    expect(index).toContain('"@type":"BreadcrumbList"');
+    expect(index).not.toContain("noindex");
+    expect(indexHeadHtml(buildIndexPage(multi), { noindex: true })).toContain(
+      '<meta name="robots" content="noindex" />'
+    );
+  });
+
+  it("rendering the public pages calls the app's capture() zero times", () => {
+    capture.mockClear();
+    renderSetBody(buildSetPages(multi)[0]);
+    renderIndexBody(buildIndexPage(multi));
+    renderCardBody(buildPages(multi)[0]);
+    expect(capture).not.toHaveBeenCalled();
+  });
+});
+
+describe("public analytics", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("allows exactly the two events with exactly their properties", () => {
+    expect(
+      isAllowedPublicEvent("card_page_viewed", {
+        set: "SOR",
+        number: "005",
+        referrer_kind: "search",
+      })
+    ).toBe(true);
+    expect(isAllowedPublicEvent("card_page_cta", { action: "create_account" })).toBe(true);
+    // Other names, including the app's own events, are rejected.
+    for (const name of ["card_popup_opened", "screen_viewed", "$pageview", "$autocapture", "x"]) {
+      expect(isAllowedPublicEvent(name, {})).toBe(false);
+    }
+    // Extra, missing or free-text properties are rejected.
+    expect(isAllowedPublicEvent("card_page_cta", { action: "create_account", email: "a@b" })).toBe(
+      false
+    );
+    expect(isAllowedPublicEvent("card_page_cta", { action: "anything" })).toBe(false);
+    expect(isAllowedPublicEvent("card_page_viewed", { set: "SOR", number: "005" })).toBe(false);
+    expect(
+      isAllowedPublicEvent("card_page_viewed", {
+        set: "sor; drop",
+        number: "5",
+        referrer_kind: "none",
+      })
+    ).toBe(false);
+    expect(isAllowedPublicEvent("toString", {})).toBe(false);
+  });
+
+  it("sends nothing for a name outside the allowlist, even when enabled", () => {
+    const transport = vi.fn();
+    const sent = publicCapture(
+      "card_popup_opened" as "card_page_cta",
+      { action: "open_app" },
+      { enabled: true, transport }
+    );
+    expect(sent).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it("is off outside a production build on a production hostname", () => {
+    expect(publicAnalyticsEnabled("www.hyperspacevault.com", true)).toBe(true);
+    expect(publicAnalyticsEnabled("hyperspacevault.com", true)).toBe(true);
+    expect(publicAnalyticsEnabled("swu-dev-jbapps.web.app", true)).toBe(false);
+    expect(publicAnalyticsEnabled("localhost", true)).toBe(false);
+    expect(publicAnalyticsEnabled("www.hyperspacevault.com", false)).toBe(false);
+    // The test run itself is not production: the default gate is closed.
+    const transport = vi.fn();
+    expect(publicCapture("card_page_cta", { action: "open_app" }, { transport })).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it("posts one capture to the first-party relay, without a person profile", () => {
+    const transport = vi.fn();
+    expect(
+      publicCapture(
+        "card_page_viewed",
+        { set: "SOR", number: "005", referrer_kind: "none" },
+        { enabled: true, transport }
+      )
+    ).toBe(true);
+    expect(transport).toHaveBeenCalledTimes(1);
+    const [url, body] = transport.mock.calls[0] as [string, string];
+    expect(url).toBe(`${window.location.origin}/api/relay/i/v0/e/`);
+    const payload = JSON.parse(body);
+    expect(payload.event).toBe("card_page_viewed");
+    expect(payload.properties).toMatchObject({
+      set: "SOR",
+      number: "005",
+      referrer_kind: "none",
+      $process_person_profile: false,
+    });
+    expect(typeof payload.distinct_id).toBe("string");
+  });
+
+  it("respects the app's analytics opt-out", () => {
+    window.localStorage.setItem(
+      "__ph_opt_in_out_phc_ydajqUnNvaUnixWs95mAoVwtw8G2DMXr7Sz4iUvSwGxW",
+      "0"
+    );
+    const transport = vi.fn();
+    expect(
+      publicCapture("card_page_cta", { action: "sign_in" }, { enabled: true, transport })
+    ).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it("classifies the referrer as an enum, never the URL", () => {
+    const host = "www.hyperspacevault.com";
+    expect(referrerKind("", host)).toBe("none");
+    expect(referrerKind("https://www.google.com/search?q=luke", host)).toBe("search");
+    expect(referrerKind("https://duckduckgo.com/", host)).toBe("search");
+    expect(referrerKind("https://old.reddit.com/r/starwarsunlimited", host)).toBe("social");
+    expect(referrerKind("https://hyperspacevault.com/cards/", host)).toBe("internal");
+    expect(referrerKind("https://swudb.com/card/SOR/005", host)).toBe("other");
+    expect(referrerKind("not a url", host)).toBe("other");
   });
 });

@@ -4,6 +4,7 @@ import type { VariantDetail } from "../../api/baseCards";
 import { variantPriceValue } from "../../utils/completion";
 import { variantLabel, orderVariants } from "./cardPopupShared";
 import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
+import { priceAttribution } from "../../utils/priceAttribution";
 
 /** Printings rail, the popup's left column: the printing picker (grouped by
  * set, base set first), the Market/Low price-mode toggle beside its heading,
@@ -75,11 +76,9 @@ interface CardPopupRailProps {
   onPriceModeChange: (mode: PriceRailMode) => void;
   onSelectVariant: (variantId: number) => void;
   onExpandHistory: () => void;
-  /** Public card page (design note §4.0 rows 4, 7): the base set's real
-   * name instead of "Base set", and the prices' "as of" date in the footer.
-   * Both default to the popup's own output. */
+  /** Public card page (design note §4.0 row 4): the base set's real name
+   * instead of "Base set". Defaults to the popup's own output. */
   baseSetLabel?: string;
-  asOfLabel?: string;
 }
 
 export function CardPopupRail({
@@ -94,7 +93,6 @@ export function CardPopupRail({
   onSelectVariant,
   onExpandHistory,
   baseSetLabel,
-  asOfLabel,
 }: CardPopupRailProps) {
   const orderedVariants = useMemo(
     () => orderVariants(variants, baseSetCode),
@@ -104,9 +102,10 @@ export function CardPopupRail({
     () => groupBySet(orderedVariants, baseSetCode, setNameByCode, baseSetLabel),
     [orderedVariants, baseSetCode, setNameByCode, baseSetLabel]
   );
-  // Rail-footer attribution's "· N unpriced": shown whenever any printing
-  // lacks a price.
-  const unpricedCount = useMemo(() => variants.filter((v) => v.price == null).length, [variants]);
+  // Rail-footer attribution (App Spec §5.10/§16.4, BL-325): "Prices via
+  // TCGplayer · as of {newest as-of}", plus "· N unpriced" whenever any
+  // printing lacks a price.
+  const attribution = useMemo(() => priceAttribution(variants), [variants]);
 
   return (
     <div className="cp-rail">
@@ -201,11 +200,7 @@ export function CardPopupRail({
         onExpand={onExpandHistory}
       />
       <div className="cp-rail__footer">
-        <div className="cp-rail__attribution">
-          Prices via TCGplayer
-          {asOfLabel ? ` · ${asOfLabel}` : ""}
-          {unpricedCount > 0 ? ` · ${unpricedCount} unpriced` : ""}
-        </div>
+        <div className="cp-rail__attribution">{attribution}</div>
       </div>
     </div>
   );

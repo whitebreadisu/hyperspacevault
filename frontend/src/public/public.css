@@ -121,10 +121,18 @@
   overflow: visible;
 }
 /* The header keeps the app's padding: its prev / next chevrons sit in the
- * app's control cluster, as links into the app. */
-a.cp-nav-btn {
+ * app's control cluster, as links to the neighbouring cards in the app. */
+a.cp-nav-btn,
+span.cp-nav-btn {
   display: inline-block;
   text-decoration: none;
+}
+/* At the set's ends: the app's disabled chevron (.cp-nav-btn:disabled). */
+span.cp-nav-btn.cp-nav-btn--off,
+span.cp-nav-btn.cp-nav-btn--off:hover {
+  color: var(--color-text-muted);
+  opacity: 0.22;
+  cursor: default;
 }
 a.cp-nav-btn:focus-visible {
   color: var(--color-text);
@@ -259,12 +267,6 @@ a.cp-nav-btn:focus-visible {
   min-height: 44px;
 }
 
-.m-app .pc-phone__prices {
-  margin: 8px 0 0;
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
 .m-app .pc-phone__end {
   display: flex;
   flex-direction: column;
@@ -281,4 +283,111 @@ a.cp-nav-btn:focus-visible {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+
+/* ── Set pages and the set index (static) ──────────────── */
+/* The card detail's shell header, without the close / nav cluster. */
+.pc-list__header.cp-header {
+  padding-right: 30px;
+}
+.pc-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px 18px 22px;
+  background-color: #0b0e18;
+  background-image:
+    linear-gradient(rgba(11, 14, 24, 0.72), rgba(11, 14, 24, 0.72)),
+    url("/images/circuit-tile.webp");
+  background-size: 420px auto;
+}
+.pc-list > li + li {
+  border-top: 1px solid var(--color-border);
+}
+/* A clickable row is signalled by its background wash; the text does not
+ * turn blue (design language, owner decision). */
+.pc-list__row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  padding: 6px 12px;
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.pc-list__row:hover,
+.pc-list__row:focus-visible {
+  background: rgba(37, 99, 235, 0.14);
+}
+.pc-list__row:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: -1px;
+}
+.pc-list__num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #9fb0cc;
+}
+.pc-list__name {
+  font-family: var(--font-body);
+  font-size: 15px;
+  min-width: 0;
+}
+.pc-list__sub {
+  color: var(--color-text-muted);
+}
+.pc-list__rarity {
+  display: inline-flex;
+  align-items: center;
+}
+.pc-list__row--set {
+  grid-template-columns: 96px minmax(0, 1fr) 64px auto;
+  min-height: 56px;
+}
+.pc-list__logo {
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+.pc-list__logo img {
+  max-width: 96px;
+  max-height: 40px;
+  object-fit: contain;
+}
+.pc-list__count {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+@media (max-width: 767px) {
+  .pc-page {
+    width: calc(100vw - 32px);
+  }
+  .pc-list {
+    padding: 6px 8px 16px;
+  }
+  .pc-list__row {
+    grid-template-columns: 70px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 6px 6px;
+  }
+  .pc-list__row .rarity-badge__label {
+    display: none;
+  }
+  .pc-list__row--set {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+  }
+  .pc-list__row--set .pc-list__num {
+    display: none;
+  }
+  .pc-list__logo img {
+    max-width: 64px;
+  }
+  .pc-list__header .cp-title {
+    font-size: 28px;
+  }
 }

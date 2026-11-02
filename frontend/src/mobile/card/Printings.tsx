@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { ReactNode } from "react";
 import type { CapMode } from "../../api/settingsLimits";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 import { typeCategoryOf } from "../../utils/limits";
@@ -7,6 +6,7 @@ import type { LimitsMatrix } from "../../utils/limits";
 import { scopeShortName } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
 import { PriceSeg } from "../vault/CompletionHeader";
+import { priceAttribution } from "../../utils/priceAttribution";
 import { groupPrintings, orderPrintings, railPrice, stepperState } from "./cardDetailModel";
 import type { Stepper } from "./useStepper";
 
@@ -20,7 +20,9 @@ import type { Stepper } from "./useStepper";
 // other rows show desktop's ×N (green when owned). Signed out: no ×N, the
 // stepper is aria-disabled and routes to sign-in (desktop's teaser).
 // In a share (`readOnly`) the selected row shows the same ×N as the others
-// -- no stepper (desktop disables it).
+// -- no stepper (desktop disables it). Under the rows, desktop's rail-footer
+// attribution: "Prices via TCGplayer · as of {date}" (App Spec §5.10/§16.4,
+// BL-325).
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 
@@ -40,9 +42,9 @@ interface Props {
   ghost?: boolean;
   /** The share's quantities -- ×N on every row, no stepper. */
   readOnly?: boolean;
-  /** Under the rows: the public card page's prices line with its "as of"
-   * date (design note §4.0 row 7). */
-  footer?: ReactNode;
+  /** The public card page: the base set's real name instead of "Base set"
+   * on its group label (design note §4.0 row 4). */
+  baseSetLabel?: string;
 }
 
 export function Printings({
@@ -59,13 +61,19 @@ export function Printings({
   onRequestSignIn,
   ghost = false,
   readOnly = false,
-  footer,
+  baseSetLabel,
 }: Props) {
   const groups = useMemo(
     () =>
-      groupPrintings(orderPrintings(card.variants, card.set_code), card.set_code, setNameByCode),
-    [card.variants, card.set_code, setNameByCode]
+      groupPrintings(
+        orderPrintings(card.variants, card.set_code),
+        card.set_code,
+        setNameByCode,
+        baseSetLabel
+      ),
+    [card.variants, card.set_code, setNameByCode, baseSetLabel]
   );
+  const attribution = useMemo(() => priceAttribution(card.variants), [card.variants]);
   const category = typeCategoryOf(card.type);
   return (
     <section className="m-sec m-printings" aria-labelledby={ghost ? undefined : "sec-printings"}>
@@ -146,7 +154,7 @@ export function Printings({
           })}
         </div>
       ))}
-      {footer}
+      <p className="m-fine m-print__attribution">{attribution}</p>
     </section>
   );
 }

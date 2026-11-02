@@ -1090,6 +1090,15 @@
   line-height: 1.45;
   color: var(--color-text-muted);
 }
+/* The printings' attribution line (BL-325): the chart's fine print, under
+ * the last row. */
+.m-app .m-print__attribution {
+  margin: 8px 0 0;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
 .m-app .m-chart .php-status {
   padding: 16px 8px;
   text-align: center;
