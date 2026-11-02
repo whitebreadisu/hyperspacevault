@@ -38,6 +38,43 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-310 (table columns after an empty filter) + BL-318 / BL-322 (import
+    // saved but Vault refresh failed: desktop and phone note; Verify Cards) +
+    // BL-322 (formula escaping in every CSV download) + BL-299 / BL-311 (one
+    // vault engine for desktop and phone) + BL-316..321 sweep + BL-327 (image
+    // scanning moves to CI). Owner said "promote" 2026-11-02; date = promote
+    // day (America/Chicago).
+    kind: "release",
+    key: "2.2.1",
+    version: "2.2.1",
+    date: "2026-11-02",
+    title: "A few loose ends",
+    sections: [
+      {
+        heading: "Fixes",
+        items: [
+          {
+            title: "Missing columns",
+            body: "If a search matched nothing, clearing it brought the card table back with only three columns. Fixed.",
+          },
+          {
+            title: "Imports that said they failed",
+            body: "An import could save fine and still tell you it failed. Now it tells you it worked, and if your Vault doesn't update right away it says to reload rather than import again. Same on mobile, including Verify Cards.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "Under the hood",
+            body: "Desktop and mobile now run on the same Vault engine, plus cleanup and hardening behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-302 (desktop search and filters behave like the phone: card-number
     // search, spaces-only search, 0-match values shown greyed, set-row tap
     // replaces and a second tap clears, App Spec 5.6 / 5.15 / 25.1) + BL-304
