@@ -12,13 +12,7 @@ import { CardsIndexPage, SetPage } from "./SetPages";
 //     rendered from is embedded once for hydration (card.tsx).
 //   - Set pages and the set index: one static tree, no data, no hydration.
 
-export {
-  buildIndexPage,
-  buildPages,
-  buildSetPages,
-  cardPath,
-  setPath,
-} from "./publicCatalog";
+export { buildIndexPage, buildPages, buildSetPages, cardPath, setPath } from "./publicCatalog";
 export { headHtml, indexHeadHtml, setHeadHtml } from "./head";
 // The census pattern (design note §8), for the generator's output checks.
 export { MOJIBAKE } from "../utils/mojibake";
