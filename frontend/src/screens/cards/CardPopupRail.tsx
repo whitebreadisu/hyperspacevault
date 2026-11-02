@@ -102,7 +102,7 @@ export function CardPopupRail({
     () => groupBySet(orderedVariants, baseSetCode, setNameByCode, baseSetLabel),
     [orderedVariants, baseSetCode, setNameByCode, baseSetLabel]
   );
-  // Rail-footer attribution (App Spec §5.10/§16.4, BL-325): "Prices via
+  // Rail-footer attribution (App Spec §5.10/§16.4): "Prices via
   // TCGplayer · as of {newest as-of}", plus "· N unpriced" whenever any
   // printing lacks a price.
   const attribution = useMemo(() => priceAttribution(variants), [variants]);

@@ -122,17 +122,9 @@
 }
 /* The header keeps the app's padding: its prev / next chevrons sit in the
  * app's control cluster, as links to the neighbouring cards in the app. */
-a.cp-nav-btn,
-span.cp-nav-btn {
+a.cp-nav-btn {
   display: inline-block;
   text-decoration: none;
-}
-/* At the set's ends: the app's disabled chevron (.cp-nav-btn:disabled). */
-span.cp-nav-btn.cp-nav-btn--off,
-span.cp-nav-btn.cp-nav-btn--off:hover {
-  color: var(--color-text-muted);
-  opacity: 0.22;
-  cursor: default;
 }
 a.cp-nav-btn:focus-visible {
   color: var(--color-text);

@@ -169,9 +169,9 @@ export interface CardNavLink {
 }
 
 /** The same two chevrons (same classes, same glyphs) as plain links, for the
- * public card page (design note §4.0 row 2; owner-reviewed 2026-11-02): each
+ * public card page (design note §4.0 row 2, §9 "Optional extra"): each
  * opens the previous / next card in set order inside the app. At the set's
- * ends the chevron keeps the disabled look and is not a link. `onFollow`
+ * ends it is the app's own disabled chevron button. `onFollow`
  * reports a followed link (the page's own analytics); the app's capture()
  * is never called here. */
 export function CardPopupNavLinks({
@@ -189,9 +189,9 @@ export function CardPopupNavLinks({
     const word = dir === "prev" ? "Previous card" : "Next card";
     if (!link) {
       return (
-        <span className={cls + " cp-nav-btn--off"} aria-disabled="true" aria-label={word}>
+        <button type="button" className={cls} disabled aria-label={word}>
           {glyph}
-        </span>
+        </button>
       );
     }
     const label = `${word}: ${link.name}, in Hyperspace Vault`;

@@ -92,7 +92,7 @@ function withPlateRoom(g: RegionGeom): RegionGeom {
 }
 
 /** The header chevrons open the previous / next card in set order inside
- * the app (owner-reviewed, 2026-11-02): `/?card=sor-006`. */
+ * the app (design note §9 "Optional extra"): `/?card=sor-006`. */
 const navLink = (l: CardLink | null) => (l ? { href: l.appHref, name: l.label } : null);
 const followNav = () => ctaClicked("open_card_in_app");
 

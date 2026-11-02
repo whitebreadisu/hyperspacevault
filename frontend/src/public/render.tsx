@@ -14,6 +14,8 @@ import { CardsIndexPage, SetPage } from "./SetPages";
 
 export { buildIndexPage, buildPages, buildSetPages, cardPath, setPath } from "./publicCatalog";
 export { headHtml, indexHeadHtml, setHeadHtml } from "./head";
+// The census pattern (design note §8), for the generator's output checks.
+export { MOJIBAKE } from "../utils/mojibake";
 
 export const DESKTOP_ROOT_ID = "pc-desktop";
 export const PHONE_ROOT_ID = "pc-phone";

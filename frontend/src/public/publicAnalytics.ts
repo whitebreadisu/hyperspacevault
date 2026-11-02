@@ -1,4 +1,10 @@
-import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH } from "../analytics/posthogConfig";
+import {
+  ANALYTICS_HOSTNAMES,
+  POSTHOG_STORE_KEY,
+  POSTHOG_TOKEN,
+  PUBLIC_ID_KEY,
+  RELAY_PATH,
+} from "../analytics/posthogConfig";
 
 // The public pages' own analytics (design note §6 "Analytics from shared
 // components", C7; App Spec §22). A hard allowlist of exactly two events,
@@ -75,11 +81,12 @@ export function referrerKind(referrer: string, ownHost: string): ReferrerKind {
   return "other";
 }
 
-// posthog-js keeps its browser identity under this localStorage key; reusing
-// it joins a page view to a later sign-up in the app ("card_page_viewed then
-// sign-up, same browser", design note §1). When the browser has none yet the
-// page seeds it, so the app's posthog-js adopts the same id.
-const PH_STORE = `ph_${POSTHOG_TOKEN}_posthog`;
+// Identity: a browser that already used the app sends under posthog-js's
+// stored id (read only). Otherwise the page keeps its own anonymous id under
+// a page-only key; the app's posthog init starts from it on that browser's
+// first app visit (posthogConfig.ts publicBootstrap), which joins "card page
+// viewed, then sign-up" (design note §1). The page never writes posthog-js's
+// storage.
 // posthog-js's opt-out record (Settings > Usage analytics).
 const PH_OPT = `__ph_opt_in_out_${POSTHOG_TOKEN}`;
 
@@ -108,13 +115,15 @@ function newId(): string {
 
 function distinctId(store: Storage | null): string {
   try {
-    const raw = store?.getItem(PH_STORE);
+    const raw = store?.getItem(POSTHOG_STORE_KEY);
     if (raw) {
       const id = (JSON.parse(raw) as { distinct_id?: unknown }).distinct_id;
       if (typeof id === "string" && id) return id;
     }
+    const own = store?.getItem(PUBLIC_ID_KEY);
+    if (own) return own;
     const id = newId();
-    store?.setItem(PH_STORE, JSON.stringify({ distinct_id: id, $device_id: id }));
+    store?.setItem(PUBLIC_ID_KEY, id);
     return id;
   } catch {
     return newId();

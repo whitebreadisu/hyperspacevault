@@ -1,7 +1,7 @@
 import { formatAsOf } from "../mobile/card/priceChartModel";
 
 // The attribution line every price surface carries (App Spec §5.10, §16.4,
-// BL-325): "Prices via TCGplayer · as of {date}", plus "· N unpriced" when
+// §25.2): "Prices via TCGplayer · as of {date}", plus "· N unpriced" when
 // some printing has no price. The date is the newest as-of across the
 // printings shown, formatted with the fixed UTC / en-US formatter so a
 // server-rendered page and its hydration read the same text.

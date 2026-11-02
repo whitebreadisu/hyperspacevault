@@ -55,7 +55,16 @@ describe("CardParamBoot", () => {
     expect(window.location.search).toBe("");
   });
 
-  it.each([["sor-999"], ["not-a-card!"], [""]])("does nothing for %j", async (value) => {
+  it("an unknown card only drops the parameter", async () => {
+    window.history.replaceState(null, "", "/?card=sor-999&x=1#/vault");
+    await act(async () => {
+      render(<CardParamBoot />);
+    });
+    expect(window.location.hash).toBe("#/vault");
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it.each([["not-a-card!"], [""]])("does nothing for a malformed %j", async (value) => {
     window.history.replaceState(null, "", `/?card=${value}#/vault`);
     await act(async () => {
       render(<CardParamBoot />);

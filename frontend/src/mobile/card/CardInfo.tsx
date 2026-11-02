@@ -9,7 +9,7 @@ import type { InventoryCard } from "../../utils/inventory";
 // The card's text and facts. The rules-text panel is desktop's .cp-text
 // (12 / 11 px cuts, steel ring) with desktop CardPopup.tsx's text logic:
 // a section header only on a double-sided card, Epic Action inline (one
-// shared EpicActionText, the label once, BL-326), the back's text under a
+// shared EpicActionText, App Spec §10), the back's text under a
 // hairline. Text, artist and set name come from the
 // detail fetch (getBaseCardDetail); until it lands the panel is absent and
 // every fact that is missing reads "—".

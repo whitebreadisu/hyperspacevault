@@ -77,8 +77,7 @@ export function numberLabel(setCode: string, num: string): string {
   return `${setCode} ${padNumber(num)}`;
 }
 
-export { MOJIBAKE, repairMojibake } from "../utils/mojibake";
-export { latestAsOf } from "../utils/priceAttribution";
+export { repairMojibake } from "../utils/mojibake";
 
 /** Canonical and og:url point at prod in every environment (R2). */
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
@@ -103,7 +102,7 @@ const TEXT_FIELDS = [
 
 /** The card as the view renders it: text repaired and quantity 0 on every
  * printing (the page is signed out). The epic-action label is the views' own
- * rule (utils/epicAction.ts, BL-326), so the field passes through. */
+ * rule (utils/epicAction.ts, App Spec §10), so the field passes through. */
 export function toPageCard(card: PublicCard): BaseCardDetail {
   const fixed = { ...card };
   for (const f of TEXT_FIELDS) {

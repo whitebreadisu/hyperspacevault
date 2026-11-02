@@ -220,13 +220,14 @@ describe("server render and hydration", () => {
     }
     // The header's prev / next chevrons are the app's (same classes) and
     // open the neighbouring card in set order inside the app; at the set's
-    // first card, prev keeps the disabled look and is not a link (owner-
-    // reviewed, 2026-11-02). No set navigation under the desktop shell.
+    // first card, prev is disabled (design note §4.0 row 2, §9 "Optional
+    // extra"). No set navigation under the desktop shell.
     const prev = desk.querySelector(".cp-header__controls .cp-nav-btn--prev")!;
     const next = desk.querySelector<HTMLAnchorElement>(".cp-header__controls .cp-nav-btn--next")!;
-    expect(prev.tagName).toBe("SPAN");
-    expect(prev.getAttribute("aria-disabled")).toBe("true");
-    expect(prev.classList.contains("cp-nav-btn--off")).toBe(true);
+    // The app's disabled chevron: a disabled button, same classes and label.
+    expect(prev.tagName).toBe("BUTTON");
+    expect((prev as HTMLButtonElement).disabled).toBe(true);
+    expect(prev.getAttribute("aria-label")).toBe("Previous card");
     expect(next.tagName).toBe("A");
     expect(next.getAttribute("href")).toBe("/?card=sor-025");
     expect(next.getAttribute("aria-label")).toBe("Next card: Tarkintown, in Hyperspace Vault");
@@ -271,23 +272,28 @@ describe("set end of the header chevrons", () => {
     const prev = desk.querySelector(".cp-header__controls .cp-nav-btn--prev")!;
     const next = desk.querySelector(".cp-header__controls .cp-nav-btn--next")!;
     expect(prev.getAttribute("href")).toBe("/?card=sor-005");
-    expect(next.tagName).toBe("SPAN");
-    expect(next.hasAttribute("href")).toBe(false);
+    expect(next.tagName).toBe("BUTTON");
+    expect((next as HTMLButtonElement).disabled).toBe(true);
+    expect(next.getAttribute("aria-label")).toBe("Next card");
     document.body.innerHTML = "";
   });
 });
 
-// BL-326: one rule for the epic-action label, in both card views and the
-// pages. Samples are the five shapes of the 2026-10-02 export.
-describe("epic action label (BL-326)", () => {
+// One rule for the epic-action label (App Spec §10), in both card views and
+// the pages: the label shows only when the source carried it. Samples are
+// the shapes of the 2026-10-02 export.
+describe("epic action label", () => {
   it.each([
     ["Epic Action: Deploy him.", "Epic Action: ", "Deploy him."],
     ['"Epic Action: Deal 2 damage."', "Epic Action: ", "Deal 2 damage."],
     ["epic action:   Deal 2 damage.", "Epic Action: ", "Deal 2 damage."],
+    ['"Epic Action [4 resources]: Deploy."', null, "Epic Action [4 resources]: Deploy."],
+    // No label in the source = none shown (ASH 18, JTL 83).
+    ["When you play this unit: draw a card.", null, "When you play this unit: draw a card."],
     [
-      "When you play this unit: draw a card.",
-      "Epic Action: ",
-      "When you play this unit: draw a card.",
+      "When this upgrade detaches from a unit: take control of it.",
+      null,
+      "When this upgrade detaches from a unit: take control of it.",
     ],
     [
       "Piloting [2 resources, Heroism]: attach this.",
@@ -335,8 +341,8 @@ describe("epic action label (BL-326)", () => {
   });
 });
 
-// BL-325: the attribution line on every price surface.
-describe("price attribution (BL-325)", () => {
+// The attribution line on every price surface (App Spec §5.10, §16.4).
+describe("price attribution", () => {
   const priced = (as_of: string) => ({ price: { market: 1, low: 1, as_of } });
   it("carries the newest as-of date, in fixed UTC / en-US form", () => {
     expect(priceAttribution([priced("2026-07-19"), priced("2026-10-30")])).toBe(
@@ -544,6 +550,24 @@ describe("public analytics", () => {
       $process_person_profile: false,
     });
     expect(typeof payload.distinct_id).toBe("string");
+  });
+
+  it("keeps its own id under a page-only key and never writes posthog-js's storage", () => {
+    const send = () => {
+      const transport = vi.fn();
+      publicCapture("card_page_cta", { action: "open_app" }, { enabled: true, transport });
+      return JSON.parse((transport.mock.calls[0] as [string, string])[1]).distinct_id as string;
+    };
+    const first = send();
+    expect(window.localStorage.getItem("hsv_public_id")).toBe(first);
+    expect(send()).toBe(first);
+    expect(Object.keys(window.localStorage).filter((k) => k.startsWith("ph_"))).toEqual([]);
+    // A browser that already used the app sends under posthog-js's id.
+    window.localStorage.setItem(
+      "ph_phc_ydajqUnNvaUnixWs95mAoVwtw8G2DMXr7Sz4iUvSwGxW_posthog",
+      JSON.stringify({ distinct_id: "app-id" })
+    );
+    expect(send()).toBe("app-id");
   });
 
   it("respects the app's analytics opt-out", () => {

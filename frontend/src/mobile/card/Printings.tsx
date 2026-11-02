@@ -21,8 +21,7 @@ import type { Stepper } from "./useStepper";
 // stepper is aria-disabled and routes to sign-in (desktop's teaser).
 // In a share (`readOnly`) the selected row shows the same ×N as the others
 // -- no stepper (desktop disables it). Under the rows, desktop's rail-footer
-// attribution: "Prices via TCGplayer · as of {date}" (App Spec §5.10/§16.4,
-// BL-325).
+// attribution: "Prices via TCGplayer · as of {date}" (App Spec §5.10/§16.4/§25.2).
 
 const finishLabel = (v: InventoryVariant) => scopeShortName(v.finish ?? v.variant_type);
 

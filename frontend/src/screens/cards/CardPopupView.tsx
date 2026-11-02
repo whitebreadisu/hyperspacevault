@@ -99,7 +99,7 @@ export interface CardPopupViewProps {
    * The card name's element: the popup's `h2`; on the public page, whose
    * phone tree holds the one `<h1>` element, "aria-h1" -- a `div` with
    * role="heading" aria-level 1, the same look (row 3). */
-  headingLevel?: "h1" | "h2" | "aria-h1";
+  headingLevel?: "h2" | "aria-h1";
   /** Replaces "Base set" in the info set row and the rail group (row 4). */
   baseSetLabel?: string;
   /** Replaces "#5" in the info set row, e.g. "SOR 005" (row 5). */
