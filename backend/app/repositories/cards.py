@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import NamedTuple
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Integer, Row, case, cast, func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.base_card import BaseCard
@@ -182,6 +182,22 @@ class PublicCatalogRows(NamedTuple):
     variant_rows: Sequence[Row]
 
 
+def begin_read_snapshot(db: Session) -> None:
+    """Pin every following read on this session to one snapshot (design
+    note CardPages 2026-11-02 section 3: counts and cards must agree).
+
+    The session already holds a transaction from the catalog GUC clearing
+    (_open_catalog_session issues set_config(..., false), whose values
+    persist for the connection, not the transaction). SET TRANSACTION
+    ISOLATION LEVEL is only legal before a transaction's first query, so
+    commit that transaction (the GUCs survive it) and start the next one as
+    REPEATABLE READ, READ ONLY: every SELECT after this sees the same
+    committed state, even if ingestion commits between them. The transaction
+    ends when the request's session closes."""
+    db.commit()
+    db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+
+
 def get_public_catalog_rows(db: Session) -> PublicCatalogRows:
     """Every non-token base card in full detail shape (the card-page
     generator's input), as plain Core rows. Tokens are excluded from the
@@ -230,7 +246,20 @@ def get_public_catalog_rows(db: Session) -> PublicCatalogRows:
         )
         .join(CardSet, bc.set_id == st.id)
         .where(bc.is_token.is_(False))
-        .order_by(st.code, bc.id)
+        .order_by(
+            st.code,
+            # Numeric card number first (matches the export script's order);
+            # a non-numeric number sorts last, then by text, then id.
+            case(
+                (
+                    bc.base_card_number.op("~")(r"^\d+$"),
+                    cast(bc.base_card_number, Integer),
+                ),
+                else_=10**6,
+            ),
+            bc.base_card_number,
+            bc.id,
+        )
     )
 
     non_token_ids = select(bc.id).where(bc.is_token.is_(False))
@@ -256,19 +285,25 @@ def get_public_catalog_rows(db: Session) -> PublicCatalogRows:
         count_rows=db.execute(count_q).all(),
         base_rows=db.execute(base_q).all(),
         aspect_rows=db.execute(
-            select(CardAspect.base_card_id, CardAspect.aspect).where(
-                CardAspect.base_card_id.in_(non_token_ids)
-            )
+            select(CardAspect.base_card_id, CardAspect.aspect)
+            .where(CardAspect.base_card_id.in_(non_token_ids))
+            # "C" collation = code point order, the same as Python's sorted()
+            # in scripts/public_catalog_from_export.py.
+            .order_by(CardAspect.base_card_id, CardAspect.aspect.collate("C"))
         ).all(),
         keyword_rows=db.execute(
-            select(CardKeyword.base_card_id, CardKeyword.keyword).where(
-                CardKeyword.base_card_id.in_(non_token_ids)
-            )
+            select(CardKeyword.base_card_id, CardKeyword.keyword)
+            .where(CardKeyword.base_card_id.in_(non_token_ids))
+            # "C" collation = code point order, the same as Python's sorted()
+            # in scripts/public_catalog_from_export.py.
+            .order_by(CardKeyword.base_card_id, CardKeyword.keyword.collate("C"))
         ).all(),
         trait_rows=db.execute(
-            select(CardTrait.base_card_id, CardTrait.trait).where(
-                CardTrait.base_card_id.in_(non_token_ids)
-            )
+            select(CardTrait.base_card_id, CardTrait.trait)
+            .where(CardTrait.base_card_id.in_(non_token_ids))
+            # "C" collation = code point order, the same as Python's sorted()
+            # in scripts/public_catalog_from_export.py.
+            .order_by(CardTrait.base_card_id, CardTrait.trait.collate("C"))
         ).all(),
         variant_rows=db.execute(variant_q).all(),
     )

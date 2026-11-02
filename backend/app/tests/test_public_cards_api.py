@@ -154,6 +154,7 @@ def _stub_rows() -> card_repo.PublicCatalogRows:
 @pytest.fixture
 def stubbed_client(monkeypatch):
     monkeypatch.setattr(card_repo, "get_public_catalog_rows", lambda db: _stub_rows())
+    monkeypatch.setattr(card_repo, "begin_read_snapshot", lambda db: None)
     monkeypatch.setattr(
         pricing_repo,
         "get_latest_prices",
@@ -241,6 +242,11 @@ class TestPublicCardsAgainstDatabase:
         variant_id = db.execute(
             text("SELECT id FROM card_variants WHERE swuapi_id='test-v0001'")
         ).scalar()
+        # Clear any price an earlier test left, so the upsert starts from none.
+        db.execute(
+            text("DELETE FROM variant_latest_prices WHERE variant_id=:v"),
+            {"v": variant_id},
+        )
         pricing_repo.upsert_latest_price(db, variant_id, 12.34, 10.0, date(2026, 11, 1))
         db.commit()
         yield variant_id
@@ -250,6 +256,27 @@ class TestPublicCardsAgainstDatabase:
         )
         db.execute(text("DELETE FROM base_cards WHERE swuapi_id='pub-test-token'"))
         db.commit()
+
+    def test_needs_no_tenant_or_token(self, token_and_price, monkeypatch):
+        # A plain TestClient: no dependency overrides, no Authorization
+        # header, no identity -- the route must work as an anonymous caller.
+        monkeypatch.setattr(app, "dependency_overrides", {})
+        response = TestClient(app).get("/api/public/cards")
+        assert response.status_code == 200
+        assert "Authorization" not in response.request.headers
+
+    def test_cards_are_in_set_then_number_order(self, client, token_and_price):
+        cards = client.get("/api/public/cards").json()["cards"]
+        keys = [
+            (
+                c["set_code"],
+                int(c["base_card_number"])
+                if c["base_card_number"].isdigit()
+                else 10**6,
+            )
+            for c in cards
+        ]
+        assert keys == sorted(keys)
 
     def test_tokens_excluded_and_counts_match(self, client, token_and_price):
         body = client.get("/api/public/cards").json()
@@ -284,9 +311,10 @@ class TestPublicCardsAgainstDatabase:
         assert not any(re.search(r"\bvariant_prices\b", s) for s in statements)
 
     def test_query_count_is_fixed(self, client, token_and_price):
-        """Eight data SELECTs (sets, counts, base cards, aspects, keywords,
-        traits, variants, latest prices) plus catalog-session setup; an N+1
-        would scale with the card count."""
+        """Exactly 11 statements: two set_config calls (catalog session
+        setup), SET TRANSACTION (the snapshot), then eight data SELECTs
+        (sets, counts, base cards, aspects, keywords, traits, variants,
+        latest prices). An N+1 would scale with the card count."""
         from app.database import app_engine
 
         count = 0
@@ -302,4 +330,4 @@ class TestPublicCardsAgainstDatabase:
             event.remove(app_engine, "before_cursor_execute", _count)
         assert response.status_code == 200
         assert len(response.json()["cards"]) >= 6
-        assert count <= 14
+        assert count == 11

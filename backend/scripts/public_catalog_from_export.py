@@ -70,6 +70,7 @@ def build(
         key=lambda b: (
             b["set_code"],
             int(b["base_card_number"]) if b["base_card_number"].isdigit() else 10**6,
+            b["base_card_number"],
         ),
     ):
         if b["is_token"]:
@@ -133,9 +134,9 @@ def build(
                 "epic_action": b["epic_action"],
                 "artist": b["artist"],
                 "is_token": False,
-                "aspects": result.aspects.get(uuid, []),
-                "keywords": result.keywords.get(uuid, []),
-                "traits": result.traits.get(uuid, []),
+                "aspects": sorted(result.aspects.get(uuid, [])),
+                "keywords": sorted(result.keywords.get(uuid, [])),
+                "traits": sorted(result.traits.get(uuid, [])),
                 "variants": variants,
             }
         )

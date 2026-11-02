@@ -17,6 +17,7 @@ host directly against the captured fixture, without the backend container.
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import re
 from dataclasses import dataclass, field
@@ -79,21 +80,42 @@ class IngestionResult:
     duplicate_image_warnings: list[dict] = field(default_factory=list)
 
 
-_MOJIBAKE = re.compile("Ã|â€|Â")
+# Same census pattern as frontend/src/public/publicCatalog.ts (MOJIBAKE).
+_MOJIBAKE = re.compile("Ã|â€|Â|�")
+
+# cp1252 high-range characters -> their byte, built from the codec. The five
+# slots cp1252 leaves undefined (0x81, 0x8D, 0x8F, 0x90, 0x9D) are absent;
+# they are covered by the "code point < 0x100 is its own byte" rule below,
+# exactly as in the TS port.
+_CP1252_HIGH: dict[str, int] = {}
+for _b in range(0x80, 0xA0):
+    with contextlib.suppress(UnicodeDecodeError):
+        _CP1252_HIGH[bytes([_b]).decode("cp1252")] = _b
 
 
 def repair_mojibake(text: str | None) -> str | None:
     """Undo UTF-8 text that was decoded as cp1252 upstream (BL-326: TWI 15
-    General Grievous carries ``canâ€™t`` and ``6Â or``). Conservative: acts
-    only when the text contains a mojibake lead sequence, re-encodes as
-    cp1252 and decodes as UTF-8, and keeps the original if either step
-    fails. Clean text (including a genuine en dash) never matches, so it is
-    returned unchanged."""
+    General Grievous carries ``canâ€™t`` and ``6Â or``).
+    Port of repairMojibake in frontend/src/public/publicCatalog.ts: text
+    without the census pattern is returned unchanged; otherwise each
+    character maps to a byte (code point < 0x100 is its own byte, which also
+    covers the five undefined cp1252 slots; a cp1252 high character maps
+    through the table; anything else keeps the original), then the bytes are
+    decoded as strict UTF-8, keeping the original if that fails."""
     if not text or not _MOJIBAKE.search(text):
         return text
+    data = bytearray()
+    for ch in text:
+        code = ord(ch)
+        if code < 0x100:
+            data.append(code)
+        elif ch in _CP1252_HIGH:
+            data.append(_CP1252_HIGH[ch])
+        else:
+            return text
     try:
-        return text.encode("cp1252").decode("utf-8")
-    except (UnicodeEncodeError, UnicodeDecodeError):
+        return bytes(data).decode("utf-8")
+    except UnicodeDecodeError:
         return text
 
 
@@ -216,8 +238,8 @@ def transform(export: dict) -> IngestionResult:
             }
         )
         aspects[uuid] = list(root.get("aspects") or [])
-        keywords[uuid] = list(root.get("keywords") or [])
-        traits[uuid] = list(root.get("traits") or [])
+        keywords[uuid] = [repair_mojibake(k) or k for k in root.get("keywords") or []]
+        traits[uuid] = [repair_mojibake(t) or t for t in root.get("traits") or []]
 
     card_variants: list[dict] = []
     image_groups: dict[str, list[str]] = {}

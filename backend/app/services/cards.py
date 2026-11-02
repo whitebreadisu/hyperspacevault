@@ -230,6 +230,8 @@ def get_public_catalog(db: Session) -> PublicCatalogResponse:
     whatever the catalog size. Prices come from variant_latest_prices only
     (pricing_repo.get_latest_prices, App Spec §16.5) -- never variant_prices.
     Tokens are excluded, as in scripts/public_catalog_from_export.py."""
+    # One snapshot for all eight reads (design note section 3).
+    card_repo.begin_read_snapshot(db)
     rows = card_repo.get_public_catalog_rows(db)
     price_rows = pricing_repo.get_latest_prices(db)
 
