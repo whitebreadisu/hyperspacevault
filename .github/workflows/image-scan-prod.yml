@@ -1,0 +1,193 @@
+name: image-scan-prod
+
+# ADR-0038 (Platform Spec 2.8, 5.1 A06): scan the backend image that prod is
+# serving right now, every day, so a CVE published after the image was built
+# still surfaces. ci.yml's image-scan job covers each new build; this covers
+# the time between promotes, which Artifact Registry's paid continuous
+# re-scan used to cover. Findings go to GitHub code scanning (Security tab,
+# category trivy-prod-image), where an alert opens once and closes when a
+# later run no longer finds it. The run turns red on a CRITICAL with a fix,
+# and also while containerscanning.googleapis.com is enabled in prod again
+# (the paid scanner this replaced).
+#
+# Two jobs, so the third-party scanner never shares a job with a GCP token
+# (a job granted id-token can mint one at any step, so the token cannot be
+# dropped part-way through a job). fetch-prod-image authenticates (the WIF
+# pattern health-check.yml uses), reads the image Cloud Run serves, and
+# flattens it to a filesystem tar WITHOUT the catalog export
+# (app/ingestion/data/*.json): the export is private data kept out of this
+# public repo, and workflow artifacts on a public repo are downloadable. scan
+# holds no GCP credential, scans the filesystem, and deletes the artifact
+# when it is done (retention-days: 1 is the backstop).
+
+on:
+  schedule:
+    - cron: "41 12 * * *" # daily 12:41 UTC = 06:41 CST / 07:41 CDT
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan-prod
+  cancel-in-progress: false
+
+jobs:
+  fetch-prod-image:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      image: ${{ steps.live.outputs.image }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      scanning_enabled: ${{ steps.api.outputs.enabled }}
+
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: swu-prod
+          workload_identity_provider: projects/373324715123/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: terraform-ci@swu-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Is the paid scanner enabled again?
+        id: api
+        run: |
+          enabled=$(gcloud services list --enabled --project=swu-prod \
+            --filter="config.name=containerscanning.googleapis.com" --format="value(config.name)")
+          if [ -n "$enabled" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::containerscanning.googleapis.com is enabled in swu-prod (billed per pushed image; ADR-0038)"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read the image prod serves
+        id: live
+        run: |
+          image=$(gcloud run services describe backend --region=us-central1 --project=swu-prod \
+            --format='value(spec.template.spec.containers[0].image)')
+          if [ -z "$image" ]; then
+            echo "::error::could not read the prod backend image from Cloud Run"
+            exit 1
+          fi
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "Prod serves ${image}"
+
+      # docker export flattens the container filesystem (no layers, no image
+      # config). The in-image path of the export is /app/app/ingestion/data/
+      # (WORKDIR /app, then COPY of backend/). The listing check fails closed:
+      # nothing is uploaded if a JSON file is still in that directory.
+      - name: Flatten the image without the catalog export
+        env:
+          IMAGE: ${{ steps.live.outputs.image }}
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker pull "$IMAGE"
+          cid=$(docker create "$IMAGE")
+          docker export "$cid" -o rootfs.tar
+          docker rm "$cid"
+          tar --delete -f rootfs.tar --wildcards --no-wildcards-match-slash 'app/app/ingestion/data/*.json' || true
+          tar -tf rootfs.tar > listing.txt
+          if grep -E '^app/app/ingestion/data/[^/]+\.json$' listing.txt; then
+            echo "::error::catalog export still present in rootfs.tar; not uploading"
+            exit 1
+          fi
+          if ! grep -qx 'app/app/main.py' listing.txt; then
+            echo "::error::rootfs.tar does not look like the backend image (no app/app/main.py)"
+            exit 1
+          fi
+
+      - id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-rootfs
+          path: rootfs.tar
+          retention-days: 1
+
+  scan:
+    needs: fetch-prod-image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+      actions: write # delete the hand-off artifact at the end
+
+    env:
+      # Mirrors tried in order, so one registry outage does not fail the scan.
+      TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db:2,public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: prod-rootfs
+
+      # Device nodes cannot be created by a non-root user and hold nothing
+      # Trivy reads, so dev/ is skipped.
+      - name: Unpack the filesystem
+        run: |
+          mkdir rootfs
+          tar -xf rootfs.tar -C rootfs --no-same-owner --no-same-permissions --exclude='dev/*'
+          rm rootfs.tar
+
+      # Pinned to a full commit SHA (v0.36.0), as in ci.yml's image-scan job.
+      - name: Image scan report (HIGH, CRITICAL with a fix)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: rootfs
+          scan-ref: rootfs
+          scanners: vuln
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-prod-image.sarif
+          exit-code: "0"
+
+      - name: Upload image scan to code scanning
+        if: always() && hashFiles('trivy-prod-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-prod-image.sarif
+          category: trivy-prod-image
+
+      - name: Image scan gate (CRITICAL with a fix turns the run red)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: rootfs
+          scan-ref: rootfs
+          scanners: vuln
+          ignore-unfixed: true
+          severity: CRITICAL
+          trivyignores: .trivyignore
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
+
+      - name: Delete the hand-off artifact
+        if: always() && needs.fetch-prod-image.outputs.artifact_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.fetch-prod-image.outputs.artifact_id }}
+        run: gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}"
+
+      - name: Paid scanner still off in prod
+        if: always()
+        env:
+          IMAGE: ${{ needs.fetch-prod-image.outputs.image }}
+          SCANNING_ENABLED: ${{ needs.fetch-prod-image.outputs.scanning_enabled }}
+        run: |
+          echo "Scanned prod image ${IMAGE}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SCANNING_ENABLED" = "true" ]; then
+            echo "::error::containerscanning.googleapis.com is enabled in swu-prod again; disable it (ADR-0038)"
+            exit 1
+          fi

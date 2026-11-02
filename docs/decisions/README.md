@@ -50,3 +50,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0035](0035-work-registry-one-file-per-item-and-issues-as-intake.md) | Work registry as one file per item; GitHub Issues as intake only | Accepted |
 | [0036](0036-instruction-layer-ownership-and-read-path-budgets.md) | Instruction-layer ownership and read-path budgets | Accepted |
 | [0037](0037-release-train-and-promote-policy.md) | The verification gate replaces the hand ladder; what promotes without the word | Accepted |
+| [0038](0038-image-scanning-in-ci.md) | Backend image scanning runs in CI, not in Artifact Registry | Accepted |
