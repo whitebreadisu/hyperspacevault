@@ -89,7 +89,7 @@ interface Props {
   /** The `?card=sor-005` boot parameter (App.tsx reads it once; design note
    * §9 "Optional extra"): once the catalogue has loaded, the popup opens on
    * that card and the parameter leaves the address bar. Unknown card = no
-   * popup. Absent (the default) = today's behaviour. */
+   * popup (the parameter still leaves). Absent (the default) = today's behaviour. */
   openCardOnLoad?: CardParam | null;
 }
 
@@ -187,7 +187,7 @@ export function CardsPage({
   // openPopupFromTable/openPopupFromGallery below); "deck_check"/
   // "new_arrivals" are in the taxonomy's enum but have no popup-opening seam
   // in this codebase (neither screen renders CardPopup).
-  const [popupSource, setPopupSource] = useState<"table" | "gallery">("table");
+  const [popupSource, setPopupSource] = useState<"table" | "gallery" | "link">("table");
   // The "signed-in unverified" click nudge for the Import / Export button --
   // the anonymous click already has a mechanism (requestSignIn opens
   // AuthModal); this is its verified-email equivalent, same click-to-reveal
@@ -463,7 +463,7 @@ export function CardsPage({
     (
       baseCardId: number,
       displayedFinish: string | null = null,
-      source: "table" | "gallery" = "table"
+      source: "table" | "gallery" | "link" = "table"
     ) => {
       // Non-null only from a gallery cell whose image the Finish filter picked
       // -- that popup session opens on the finish the collector was looking at
@@ -481,16 +481,16 @@ export function CardsPage({
 
   // The `?card=` boot parameter: resolved once, when the catalogue is in
   // (set + number -> base_card_id through the list already loaded; no new
-  // fetch). Opens like a table click (source "table"); prev / next then walk
-  // the Vault's list, as from any other open.
+  // fetch). card_popup_opened reports source "link"; prev / next then walk
+  // the Vault's list, as from any other open. The parameter leaves the
+  // address bar whether or not the card was found.
   const [pendingCard, setPendingCard] = useState<CardParam | null>(openCardOnLoad);
   useEffect(() => {
     if (pendingCard == null || loading) return;
     setPendingCard(null);
     const hit = resolveCardParam(cards, pendingCard);
-    if (!hit) return;
-    openPopup(hit.base_card_id);
     clearCardParam();
+    if (hit) openPopup(hit.base_card_id, null, "link");
   }, [pendingCard, loading, cards, openPopup]);
 
   // card_popup_opened's `source` (App Spec §22) -- CardsTable's

@@ -113,7 +113,7 @@ interface Props {
   /** card_popup_opened's `source` (App Spec §22) -- which surface opened this
    * popup instance. Optional, defaulting to "table"; CardsPage (the only
    * production caller) always passes it explicitly. */
-  source?: "table" | "gallery" | "deck_check" | "new_arrivals";
+  source?: "table" | "gallery" | "deck_check" | "new_arrivals" | "link";
 }
 
 export function CardPopup({

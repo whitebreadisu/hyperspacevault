@@ -3107,11 +3107,22 @@ describe("CardsPage ?card= boot parameter", () => {
     expect(window.location.hash).toBe("#keep");
   });
 
-  it("an unknown card does nothing and leaves the address bar alone", async () => {
-    window.history.replaceState(null, "", "/?card=sor-099");
+  it("an unknown card opens nothing and only drops the parameter", async () => {
+    window.history.replaceState(null, "", "/?card=sor-099&x=1");
     await renderWith({ setCode: "SOR", number: "99" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(mockGetBaseCardDetail).not.toHaveBeenCalled();
-    expect(window.location.search).toBe("?card=sor-099");
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it("reports the open as card_popup_opened source link", async () => {
+    window.history.replaceState(null, "", "/?card=shd-002");
+    await renderWith({ setCode: "SHD", number: "2" });
+    await waitFor(() =>
+      expect(mockCapture).toHaveBeenCalledWith("card_popup_opened", {
+        source: "link",
+        set_code: "SHD",
+      })
+    );
   });
 });

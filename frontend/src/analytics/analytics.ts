@@ -8,7 +8,7 @@
 // lockstep with it.
 import posthog from "posthog-js";
 import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
-import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH } from "./posthogConfig";
+import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH, publicBootstrap } from "./posthogConfig";
 
 // The v1 event registry. Adding an event = extend this union AND the App
 // Spec section in the same PR. Names are permanent (renames orphan history);
@@ -118,11 +118,22 @@ function registerLayout(): void {
   watchPhoneLayout((phone) => posthog.register({ layout: phone ? "phone" : "desktop" }));
 }
 
+function localStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function initAnalytics(): void {
   if (initialized) return;
   if (!import.meta.env.PROD) return;
   if (!ANALYTICS_HOSTNAMES.includes(window.location.hostname)) return;
 
+  // A first visit that arrived through a public card page starts from that
+  // page's anonymous id; every other init is exactly as before.
+  const bootstrap = publicBootstrap(localStore());
   posthog.init(POSTHOG_TOKEN, {
     // First-party path: same-origin through the Hosting /api/** rewrite to
     // the backend relay (app/routers/relay.py). Adblock-resilience rider.
@@ -144,6 +155,7 @@ export function initAnalytics(): void {
       // Masking rider: every input masked in replay, not just passwords.
       maskAllInputs: true,
     },
+    ...(bootstrap ? { bootstrap } : {}),
   });
   posthog.register({ app_version: __APP_VERSION__ });
   registerLayout();

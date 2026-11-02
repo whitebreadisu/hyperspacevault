@@ -1,5 +1,5 @@
 // The `?card=<set>-<number>` boot parameter (design note §9 "Optional
-// extra", owner-reviewed 2026-11-02): a public card page's prev / next arrows
+// extra"): a public card page's prev / next arrows
 // open a card inside the app, `/?card=sor-006`. On boot the desktop app opens
 // that card's popup and the phone app navigates to `#/card/<base_card_id>`.
 // The value names the card by set code and base number, never by database id

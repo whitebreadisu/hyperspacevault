@@ -13,7 +13,6 @@ import { CardsIndexPage, SetPage } from "./SetPages";
 //   - Set pages and the set index: one static tree, no data, no hydration.
 
 export {
-  MOJIBAKE,
   buildIndexPage,
   buildPages,
   buildSetPages,
@@ -21,6 +20,8 @@ export {
   setPath,
 } from "./publicCatalog";
 export { headHtml, indexHeadHtml, setHeadHtml } from "./head";
+// The census pattern (design note §8), for the generator's output checks.
+export { MOJIBAKE } from "../utils/mojibake";
 
 export const DESKTOP_ROOT_ID = "pc-desktop";
 export const PHONE_ROOT_ID = "pc-phone";

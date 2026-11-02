@@ -94,8 +94,8 @@ for _b in range(0x80, 0xA0):
 
 
 def repair_mojibake(text: str | None) -> str | None:
-    """Undo UTF-8 text that was decoded as cp1252 upstream (BL-326: TWI 15
-    General Grievous carries ``canâ€™t`` and ``6Â or``).
+    """Undo UTF-8 text that was decoded as cp1252 upstream (App Spec §10.11; the
+    TWI 15 General Grievous text carries ``canâ€™t`` and ``6Â or``).
     Port of repairMojibake in frontend/src/public/publicCatalog.ts: text
     without the census pattern is returned unchanged; otherwise each
     character maps to a byte (code point < 0x100 is its own byte, which also

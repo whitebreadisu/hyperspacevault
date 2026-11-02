@@ -8,10 +8,13 @@ import { go } from "./router";
  * `/` and only while the own vault is shown; once the catalogue is in, the
  * set and number resolve to the card's base_card_id through the list already
  * loaded, the parameter leaves the address bar (history.replaceState) and
- * the app navigates to `#/card/<id>`, so Back returns to the Vault. Unknown
- * or malformed = nothing happens. Renders nothing. */
+ * the app navigates to `#/card/<id>`, so Back returns to the Vault. An
+ * unknown card only drops the parameter; a malformed one is left alone.
+ * Renders nothing. */
 export function CardParamBoot({ disabled = false }: { disabled?: boolean }) {
   const { cards, loading } = useVaultData();
+  // `disabled` is read at mount only: the parameter applies to the vault shown
+  // at boot, and a later switch must not replay it.
   const [pending, setPending] = useState(() =>
     !disabled && window.location.pathname === "/" ? parseCardParam(window.location.search) : null
   );
@@ -19,9 +22,8 @@ export function CardParamBoot({ disabled = false }: { disabled?: boolean }) {
     if (pending == null || loading) return;
     setPending(null);
     const hit = resolveCardParam(cards, pending);
-    if (!hit) return;
     clearCardParam();
-    go(`#/card/${hit.base_card_id}`);
+    if (hit) go(`#/card/${hit.base_card_id}`);
   }, [pending, loading, cards]);
   return null;
 }
