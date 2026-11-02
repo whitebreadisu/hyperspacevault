@@ -32,6 +32,14 @@
     ],
     "headers": [
       {
+        "source": "/cards/**",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=600, s-maxage=86400" }]
+      },
+      {
+        "source": "/sitemaps/**",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=600, s-maxage=86400" }]
+      },
+      {
         "source": "/shared/**",
         "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
       },

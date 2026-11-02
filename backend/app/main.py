@@ -17,6 +17,7 @@ from app.routers import deck_check as deck_check_router
 from app.routers import feedback as feedback_router
 from app.routers import images as images_router
 from app.routers import inventory as inventory_router
+from app.routers import public as public_router
 from app.routers import relay as relay_router
 from app.routers import sets as sets_router
 from app.routers import settings as settings_router
@@ -118,6 +119,7 @@ app.add_middleware(ForwardedClientMiddleware)
 
 app.include_router(sets_router.router)
 app.include_router(base_cards_router.router)
+app.include_router(public_router.router)
 app.include_router(catalog_router.router)
 app.include_router(images_router.router)
 app.include_router(inventory_router.router)

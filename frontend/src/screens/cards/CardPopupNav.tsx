@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { capture } from "../../analytics/analytics";
+import { localHref } from "../../utils/localHref";
 
 /** Prev/next browsing: the CardPopupNavigation contract, the
  * ArrowLeft/ArrowRight keyboard hook, and the two chevron buttons. The close
@@ -156,6 +157,61 @@ export function CardPopupNavButtons({ navigation }: { navigation: CardPopupNavig
       >
         ›
       </button>
+    </>
+  );
+}
+
+/** One chevron's target on the public card page: the neighbouring card in
+ * set order, opened inside the app (`/?card=sor-006`). */
+export interface CardNavLink {
+  href: string;
+  /** The neighbouring card's name, for the accessible label. */
+  name: string;
+}
+
+/** The same two chevrons (same classes, same glyphs) as plain links, for the
+ * public card page (design note §4.0 row 2, §9 "Optional extra"): each
+ * opens the previous / next card in set order inside the app. At the set's
+ * ends it is the app's own disabled chevron button. `onFollow`
+ * reports a followed link (the page's own analytics); the app's capture()
+ * is never called here. */
+export function CardPopupNavLinks({
+  prev,
+  next,
+  onFollow,
+}: {
+  prev: CardNavLink | null;
+  next: CardNavLink | null;
+  onFollow?: () => void;
+}) {
+  const chevron = (dir: "prev" | "next", link: CardNavLink | null) => {
+    const cls = `cp-nav-btn cp-nav-btn--${dir}`;
+    const glyph = dir === "prev" ? "‹" : "›";
+    const word = dir === "prev" ? "Previous card" : "Next card";
+    if (!link) {
+      return (
+        <button type="button" className={cls} disabled aria-label={word}>
+          {glyph}
+        </button>
+      );
+    }
+    const label = `${word}: ${link.name}, in Hyperspace Vault`;
+    return (
+      <a
+        className={cls}
+        href={localHref(link.href)}
+        aria-label={label}
+        title={label}
+        onClick={onFollow}
+      >
+        {glyph}
+      </a>
+    );
+  };
+  return (
+    <>
+      {chevron("prev", prev)}
+      {chevron("next", next)}
     </>
   );
 }

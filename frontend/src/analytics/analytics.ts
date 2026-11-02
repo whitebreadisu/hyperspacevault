@@ -8,6 +8,7 @@
 // lockstep with it.
 import posthog from "posthog-js";
 import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
+import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH, publicBootstrap } from "./posthogConfig";
 
 // The v1 event registry. Adding an event = extend this union AND the App
 // Spec section in the same PR. Names are permanent (renames orphan history);
@@ -54,15 +55,9 @@ export type AnalyticsEvent =
 // keeps accidental objects/arrays out.
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
-// Publishable project token (PostHog US Cloud) -- phc_ keys are designed to
-// ship in frontend bundles; capability-bearing personal keys are phx_ and
-// never belong here.
-const POSTHOG_TOKEN = "phc_ydajqUnNvaUnixWs95mAoVwtw8G2DMXr7Sz4iUvSwGxW";
-
-// Init is gated to the real production hostnames, not just PROD builds:
-// localhost dev, CI, previews, and any future dev-channel host stay out of
-// the dataset entirely (no env plumbing to forget).
-const ANALYTICS_HOSTNAMES = ["hyperspacevault.com", "www.hyperspacevault.com"];
+// The project token, the production-hostname gate and the relay path live in
+// posthogConfig.ts, shared with the public card pages' small sender
+// (src/public/publicAnalytics.ts), which does not load posthog-js.
 
 let initialized = false;
 
@@ -123,15 +118,26 @@ function registerLayout(): void {
   watchPhoneLayout((phone) => posthog.register({ layout: phone ? "phone" : "desktop" }));
 }
 
+function localStore(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function initAnalytics(): void {
   if (initialized) return;
   if (!import.meta.env.PROD) return;
   if (!ANALYTICS_HOSTNAMES.includes(window.location.hostname)) return;
 
+  // A first visit that arrived through a public card page starts from that
+  // page's anonymous id; every other init is exactly as before.
+  const bootstrap = publicBootstrap(localStore());
   posthog.init(POSTHOG_TOKEN, {
     // First-party path: same-origin through the Hosting /api/** rewrite to
     // the backend relay (app/routers/relay.py). Adblock-resilience rider.
-    api_host: `${window.location.origin}/api/relay`,
+    api_host: `${window.location.origin}${RELAY_PATH}`,
     // Dashboard links (toolbar etc.) still point at PostHog itself.
     ui_host: "https://us.posthog.com",
     // Anonymous-events rider: never call identify(); with identified_only,
@@ -149,6 +155,7 @@ export function initAnalytics(): void {
       // Masking rider: every input masked in replay, not just passwords.
       maskAllInputs: true,
     },
+    ...(bootstrap ? { bootstrap } : {}),
   });
   posthog.register({ app_version: __APP_VERSION__ });
   registerLayout();

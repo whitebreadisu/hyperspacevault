@@ -81,6 +81,10 @@ _ORIGINAL_SUFFIX = ".png"
 
 NO_STORE = "no-store"
 
+# Pages are indexed, card art is not (card-pages design note 5a row E).
+# Governs indexing only; link-preview crawlers still fetch og:image.
+NOINDEX = "noindex"
+
 _bucket: storage.Bucket | None = None
 
 
@@ -122,7 +126,7 @@ def get_card_image(filename: str, bucket: storage.Bucket = Depends(get_images_bu
         return StreamingResponse(
             blob.open("rb"),
             media_type=blob.content_type or content_type,
-            headers={"Cache-Control": CACHE_CONTROL},
+            headers={"Cache-Control": CACHE_CONTROL, "X-Robots-Tag": NOINDEX},
         )
 
     # Not mirrored (yet, or ever) -- redirect to the official CDN so the
@@ -130,5 +134,5 @@ def get_card_image(filename: str, bucket: storage.Bucket = Depends(get_images_bu
     return RedirectResponse(
         url=fallback_cdn_url(stem),
         status_code=307,
-        headers={"Cache-Control": NO_STORE},
+        headers={"Cache-Control": NO_STORE, "X-Robots-Tag": NOINDEX},
     )

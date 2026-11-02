@@ -14,7 +14,9 @@
 // `dx`, where the box has room for it). Every phone surface that draws a set
 // logo uses this rule through SetLogo (SET_LOGO_BOX lists them).
 
-export const setLogoUrl = (code: string) => `/images/set_${code}.png`;
+// The code is URI-encoded (identity for every real set code, A-Z and 0-9)
+// so the path stays a path whatever the data carries.
+export const setLogoUrl = (code: string) => `/images/set_${encodeURIComponent(code)}.png`;
 
 export interface SetLogoArt {
   /** The PNG's pixel size. */

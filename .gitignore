@@ -22,6 +22,9 @@ htmlcov/
 # Node
 node_modules/
 frontend/dist/
+# Public card pages: the catalog document (full rules text, BL-170) and the
+# SSR build of the renderer. Build inputs, never committed.
+frontend/.public-pages/
 *.tsbuildinfo
 
 # Firebase CLI local deploy cache

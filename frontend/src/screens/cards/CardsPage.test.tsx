@@ -3061,3 +3061,68 @@ describe("CardsPage phone-parity filtering (BL-302, CREATE)", () => {
     expect(screen.getByRole("option", { name: /SHD/ })).not.toBeDisabled();
   });
 });
+
+// `?card=` boot parameter (design note §9 "Optional extra", CREATE): App.tsx
+// reads `/?card=shd-002` once and hands it to the own Vault's CardsPage as
+// `openCardOnLoad`; CardsPage opens that card's popup once the catalogue is
+// in, resolving set + number through the list it already loaded, then drops
+// the parameter. Absent = exactly today's behaviour.
+describe("CardsPage ?card= boot parameter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+    mockGetBaseCardDetail.mockImplementation(async (id: number) => {
+      const found = mockBaseCards.find((c) => c.id === id);
+      if (!found) throw new Error(`no fixture for base card ${id}`);
+      return found;
+    });
+  });
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  async function renderWith(openCardOnLoad?: { setCode: string; number: string } | null) {
+    await act(async () => {
+      render(<CardsPage isAuthenticated={false} openCardOnLoad={openCardOnLoad} />);
+    });
+  }
+
+  it("absent: no popup opens and no card detail is fetched", async () => {
+    window.history.replaceState(null, "", "/?x=1");
+    await renderWith(undefined);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mockGetBaseCardDetail).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it("opens the named card's popup, signed out, and drops only the parameter", async () => {
+    window.history.replaceState(null, "", "/?card=shd-002&x=1#keep");
+    await renderWith({ setCode: "SHD", number: "2" });
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    expect(mockGetBaseCardDetail).toHaveBeenCalledWith(4);
+    await waitFor(() =>
+      expect(document.querySelector(".cp-title")?.textContent).toBe("SHD Card Two")
+    );
+    expect(window.location.search).toBe("?x=1");
+    expect(window.location.hash).toBe("#keep");
+  });
+
+  it("an unknown card opens nothing and only drops the parameter", async () => {
+    window.history.replaceState(null, "", "/?card=sor-099&x=1");
+    await renderWith({ setCode: "SOR", number: "99" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mockGetBaseCardDetail).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it("reports the open as card_popup_opened source link", async () => {
+    window.history.replaceState(null, "", "/?card=shd-002");
+    await renderWith({ setCode: "SHD", number: "2" });
+    await waitFor(() =>
+      expect(mockCapture).toHaveBeenCalledWith("card_popup_opened", {
+        source: "link",
+        set_code: "SHD",
+      })
+    );
+  });
+});

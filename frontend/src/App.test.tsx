@@ -123,12 +123,17 @@ vi.mock("./screens/cards/CardsPage", () => ({
   CardsPage: ({
     isAuthenticated,
     onOpenImportExport,
+    openCardOnLoad,
   }: {
     isAuthenticated: boolean;
     onOpenImportExport?: () => void;
+    openCardOnLoad?: { setCode: string; number: string } | null;
   }) => (
     <div>
       <p>cards-page:{isAuthenticated ? "auth" : "anon"}</p>
+      <p>
+        open-card:{openCardOnLoad ? `${openCardOnLoad.setCode}-${openCardOnLoad.number}` : "none"}
+      </p>
       <button onClick={() => onOpenImportExport?.()}>trigger-open-import-export</button>
     </div>
   ),
@@ -1044,5 +1049,44 @@ describe("App shared-vault pane (BL-205)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restored share" }));
     expect(screen.getByText("shared-vault-page:tok-2")).toBeVisible();
     expect(screen.getByText("cards-page:auth")).not.toBeVisible();
+  });
+});
+
+// `?card=` boot read (design note §9 "Optional extra", CREATE): App reads
+// the parameter once on `/` and hands it to the own Vault's CardsPage (which
+// opens the popup; CardsPage.test.tsx covers that half). Absent, malformed
+// or on a share route = nothing handed down.
+describe("App ?card= boot read", () => {
+  afterEach(() => {
+    window.history.pushState({}, "", "/");
+    window.sessionStorage.clear();
+  });
+
+  it("absent: the Vault gets no card to open", () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+    expect(screen.getByText("open-card:none")).toBeInTheDocument();
+  });
+
+  it("on / hands the parsed card to the Vault, signed in or not", () => {
+    window.history.pushState({}, "", "/?card=sor-006");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+    expect(screen.getByText("open-card:SOR-6")).toBeInTheDocument();
+  });
+
+  it("malformed: nothing handed down", () => {
+    window.history.pushState({}, "", "/?card=sor");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+    expect(screen.getByText("open-card:none")).toBeInTheDocument();
+  });
+
+  it("on a share route (/shared/{token}?card=...) nothing opens", () => {
+    window.history.pushState({}, "", "/shared/tok?card=sor-006");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+    expect(screen.getByText("shared-vault-page:tok")).toBeVisible();
+    expect(screen.getByText("open-card:none")).toBeInTheDocument();
   });
 });

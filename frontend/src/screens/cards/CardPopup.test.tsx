@@ -1875,7 +1875,11 @@ describe("CardPopup rail pricing (BL-140 design-conformance pass)", () => {
     expect(railPrice("Standard – #12 – SOR")).toBe("—");
   });
 
-  it("rail footer shows plain attribution when every printing is priced", async () => {
+  // DISPOSITION (REPLACE, BL-325): the rail footer now carries the prices'
+  // as-of date (App Spec §5.10/§16.4 "Prices via TCGplayer + the as-of
+  // date" on every priced surface); the two footer tests below assert the
+  // dated line instead of the undated one, and a third pins the no-date case.
+  it("rail footer shows the attribution with the as-of date when every printing is priced", async () => {
     await renderPopup(
       makeDetail({
         variants: [
@@ -1886,7 +1890,7 @@ describe("CardPopup rail pricing (BL-140 design-conformance pass)", () => {
         ],
       })
     );
-    expect(screen.getByText("Prices via TCGplayer")).toBeTruthy();
+    expect(screen.getByText("Prices via TCGplayer · as of Jul 19, 2026")).toBeTruthy();
   });
 
   it("rail footer appends the unpriced count when some printings lack a price", async () => {
@@ -1900,6 +1904,17 @@ describe("CardPopup rail pricing (BL-140 design-conformance pass)", () => {
             card_number: "13",
             price: { market: 20, low: 15, as_of: "2026-07-19" },
           }),
+        ],
+      })
+    );
+    expect(screen.getByText("Prices via TCGplayer · as of Jul 19, 2026 · 1 unpriced")).toBeTruthy();
+  });
+
+  it("rail footer has no date when no printing is priced", async () => {
+    await renderPopup(
+      makeDetail({
+        variants: [
+          makeVariant({ variant_id: 1, finish: "Standard", card_number: "12", price: null }),
         ],
       })
     );

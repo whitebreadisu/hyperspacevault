@@ -4,6 +4,7 @@ import type { VariantDetail } from "../../api/baseCards";
 import { variantPriceValue } from "../../utils/completion";
 import { variantLabel, orderVariants } from "./cardPopupShared";
 import { CardPopupCompactHistory } from "./CardPopupPriceHistory";
+import { priceAttribution } from "../../utils/priceAttribution";
 
 /** Printings rail, the popup's left column: the printing picker (grouped by
  * set, base set first), the Market/Low price-mode toggle beside its heading,
@@ -26,7 +27,8 @@ interface PrintingGroup {
 function groupBySet(
   ordered: VariantDetail[],
   baseSetCode: string,
-  setNameByCode: Record<string, string>
+  setNameByCode: Record<string, string>,
+  baseSetLabel = "Base set"
 ): PrintingGroup[] {
   const groups: PrintingGroup[] = [];
   for (const v of ordered) {
@@ -35,7 +37,7 @@ function groupBySet(
       const isBase = v.source_set_code === baseSetCode;
       g = {
         setCode: v.source_set_code,
-        label: isBase ? "Base set" : (setNameByCode[v.source_set_code] ?? v.source_set_code),
+        label: isBase ? baseSetLabel : (setNameByCode[v.source_set_code] ?? v.source_set_code),
         items: [],
       };
       groups.push(g);
@@ -74,6 +76,9 @@ interface CardPopupRailProps {
   onPriceModeChange: (mode: PriceRailMode) => void;
   onSelectVariant: (variantId: number) => void;
   onExpandHistory: () => void;
+  /** Public card page (design note §4.0 row 4): the base set's real name
+   * instead of "Base set". Defaults to the popup's own output. */
+  baseSetLabel?: string;
 }
 
 export function CardPopupRail({
@@ -87,18 +92,20 @@ export function CardPopupRail({
   onPriceModeChange,
   onSelectVariant,
   onExpandHistory,
+  baseSetLabel,
 }: CardPopupRailProps) {
   const orderedVariants = useMemo(
     () => orderVariants(variants, baseSetCode),
     [variants, baseSetCode]
   );
   const printingGroups = useMemo(
-    () => groupBySet(orderedVariants, baseSetCode, setNameByCode),
-    [orderedVariants, baseSetCode, setNameByCode]
+    () => groupBySet(orderedVariants, baseSetCode, setNameByCode, baseSetLabel),
+    [orderedVariants, baseSetCode, setNameByCode, baseSetLabel]
   );
-  // Rail-footer attribution's "· N unpriced": shown whenever any printing
-  // lacks a price.
-  const unpricedCount = useMemo(() => variants.filter((v) => v.price == null).length, [variants]);
+  // Rail-footer attribution (App Spec §5.10/§16.4): "Prices via
+  // TCGplayer · as of {newest as-of}", plus "· N unpriced" whenever any
+  // printing lacks a price.
+  const attribution = useMemo(() => priceAttribution(variants), [variants]);
 
   return (
     <div className="cp-rail">
@@ -193,10 +200,7 @@ export function CardPopupRail({
         onExpand={onExpandHistory}
       />
       <div className="cp-rail__footer">
-        <div className="cp-rail__attribution">
-          Prices via TCGplayer
-          {unpricedCount > 0 ? ` · ${unpricedCount} unpriced` : ""}
-        </div>
+        <div className="cp-rail__attribution">{attribution}</div>
       </div>
     </div>
   );

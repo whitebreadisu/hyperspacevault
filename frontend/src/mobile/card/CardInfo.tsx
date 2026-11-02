@@ -2,12 +2,15 @@ import type { BaseCardDetail } from "../../api/baseCards";
 import { AspectIcon } from "../../components/AspectIcon";
 import { RarityBadge } from "../../components/RarityBadge";
 import { StatBadge } from "../../components/StatBadge";
+import { EpicActionText } from "../../components/EpicActionText";
+import { repairText } from "../../utils/mojibake";
 import type { InventoryCard } from "../../utils/inventory";
 
 // The card's text and facts. The rules-text panel is desktop's .cp-text
 // (12 / 11 px cuts, steel ring) with desktop CardPopup.tsx's text logic:
-// a section header only on a double-sided card, Epic Action inline, the
-// back's text under a hairline. Text, artist and set name come from the
+// a section header only on a double-sided card, Epic Action inline (one
+// shared EpicActionText, App Spec §10), the back's text under a
+// hairline. Text, artist and set name come from the
 // detail fetch (getBaseCardDetail); until it lands the panel is absent and
 // every fact that is missing reads "—".
 
@@ -36,6 +39,8 @@ export function CardInfo({
   setName,
   onOpenAspects,
   ghost = false,
+  numberLabel,
+  showAspectsRow = false,
 }: {
   card: InventoryCard;
   detail: BaseCardDetail | null;
@@ -44,6 +49,10 @@ export function CardInfo({
   onOpenAspects?: (aspects: string[]) => void;
   /** The neighbour page drawn during a slide: no ids (they are the live page's). */
   ghost?: boolean;
+  /** Public card page (design note §4.0 rows 5, 6): "SOR 005" instead of
+   * "#5", and an "Aspects" facts row. Defaults reproduce the app. */
+  numberLabel?: string;
+  showAspectsRow?: boolean;
 }) {
   const aspects = orderAspects(card.aspects);
   const glow = aspects.length ? (ASPECT_GLOW[aspects[0]] ?? "#2563eb") : "#2563eb";
@@ -62,7 +71,7 @@ export function CardInfo({
         <div className="m-info__settext">
           <span className="m-info__setname">{detail?.set_name ?? setName}</span>
           <span className="m-info__meta">
-            <span className="m-info__num">#{card.base_card_number}</span>
+            <span className="m-info__num">{numberLabel ?? `#${card.base_card_number}`}</span>
             <RarityBadge rarity={card.rarity} labelOnly />
           </span>
         </div>
@@ -116,25 +125,28 @@ export function CardInfo({
                 {detail.type}
               </div>
             ) : null}
-            {detail.front_text ? <p className="cp-text__body">{detail.front_text}</p> : null}
-            {detail.epic_action ? (
-              <p className="cp-text__body">
-                <span className="cp-text__epic-label">Epic Action: </span>
-                {detail.epic_action}
-              </p>
+            {detail.front_text ? (
+              <p className="cp-text__body">{repairText(detail.front_text)}</p>
             ) : null}
+            <EpicActionText text={detail.epic_action} />
             {hasBackText ? (
               <div className="cp-text__back">
                 <div className="cp-text__header" style={{ color: glow }}>
                   {detail.type2 ?? "Back"}
                 </div>
-                <p className="cp-text__body">{detail.back_text}</p>
+                <p className="cp-text__body">{repairText(detail.back_text)}</p>
               </div>
             ) : null}
           </div>
         </div>
       ) : null}
       <dl className="m-facts">
+        {showAspectsRow && aspects.length ? (
+          <div className="m-facts__row">
+            <dt>Aspects</dt>
+            <dd>{aspects.join(", ")}</dd>
+          </div>
+        ) : null}
         <div className="m-facts__row">
           <dt>Traits</dt>
           <dd>{card.traits.length ? card.traits.join(", ") : "—"}</dd>
