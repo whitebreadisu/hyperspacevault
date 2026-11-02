@@ -18,6 +18,14 @@ inputs:
       input because composite action steps don't get the caller's
       expression context implicitly.
     required: true
+  allow_card_page_shrink:
+    description: >
+      "true" lets the card-page shrink guard pass when the new page count is
+      below 95% of the card URLs prod's live sitemaps list (a legitimate
+      upstream deletion, runbook "Deletions"). Logged in the job summary.
+      The fast path never sets it.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -68,7 +76,9 @@ runs:
       id: backend_url
       working-directory: terraform/environments/prod
       shell: bash
-      run: echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+      run: |
+        echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+        echo "images_bucket=$(terraform output -raw card_images_bucket_name)" >> "$GITHUB_OUTPUT"
 
     - name: Read prod Firebase config
       id: firebase_config
@@ -101,6 +111,42 @@ runs:
       # (not github.sha, which is the dispatching ref) is what this build serves.
       run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
+    # v2.3 public card pages (design note §3 guards 1-4, §5). After terraform
+    # apply prod: read GET /api/public/cards from the prod Cloud Run URL,
+    # waiting up to 5 min for the revision that serves the promoted SHA;
+    # completeness against GET /api/base-cards; shrink against prod's LIVE
+    # sitemaps (override: the allow_card_page_shrink input, logged in the job
+    # summary); lastmod from prod's live /sitemaps/manifest.json; the image
+    # check lists the prod card-images bucket. NO noindex flag: prod pages are
+    # indexable. Guard 4: if this step or the check below fails, the promote
+    # fails HERE, before firebase deploy; the previous Hosting version and its
+    # pages keep serving. A Hosting deploy without pages is never a fallback.
+    - name: Generate card pages (prod)
+      working-directory: frontend
+      shell: bash
+      env:
+        BACKEND_URL: ${{ steps.backend_url.outputs.url }}
+        IMAGES_BUCKET: ${{ steps.backend_url.outputs.images_bucket }}
+        ALLOW_SHRINK: ${{ inputs.allow_card_page_shrink }}
+        EXPECT_SHA: ${{ inputs.image_tag }}
+      run: |
+        echo "Card pages: allow_card_page_shrink=${ALLOW_SHRINK}" >> "$GITHUB_STEP_SUMMARY"
+        GCS_ACCESS_TOKEN="$(gcloud auth print-access-token)" || GCS_ACCESS_TOKEN=""
+        export GCS_ACCESS_TOKEN
+        npm run public-pages -- \
+          --backend "$BACKEND_URL" \
+          --expect-sha "$EXPECT_SHA" \
+          --origin https://www.hyperspacevault.com \
+          --allow-shrink "$ALLOW_SHRINK" \
+          --override-name "promote input allow_card_page_shrink" \
+          --images-bucket "$IMAGES_BUCKET" \
+          --summary "$GITHUB_STEP_SUMMARY"
+
+    - name: Check generated card pages (prod)
+      working-directory: frontend
+      shell: bash
+      run: node scripts/public-pages/check-output.mjs dist --expect-index
+
     - name: Deploy frontend to prod Firebase Hosting
       working-directory: frontend
       shell: bash
@@ -127,6 +173,15 @@ runs:
           echo "::error::GET /api/sets returned an empty array"
           exit 1
         fi
+
+    # v2.3 card pages (design note §8 "Deploy smoke"): sampled pages 200
+    # text/html, the slashless 301, the sitemap index and a set sitemap, NO
+    # robots noindex meta on prod (one would silently deindex the site), an
+    # image carrying X-Robots-Tag: noindex. Before the prod-current tag move,
+    # like the RR-1 smoke above.
+    - name: Smoke test prod card pages
+      shell: bash
+      run: bash .github/scripts/card_pages_smoke.sh https://www.hyperspacevault.com index frontend/dist
 
     # BL-96: record what prod is now running. The `prod-current` tag is the
     # single source of truth ci.yml's check-risk-level whole-build guard

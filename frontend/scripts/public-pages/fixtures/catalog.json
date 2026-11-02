@@ -1,0 +1,459 @@
+{
+  "build_sha": "fixture",
+  "sets": [
+    {
+      "code": "SOR",
+      "name": "Spark of Rebellion",
+      "is_base_set": true,
+      "release_date": "2024-03-08"
+    },
+    {
+      "code": "SHD",
+      "name": "Shadows of the Galaxy",
+      "is_base_set": true,
+      "release_date": "2024-07-12"
+    },
+    {
+      "code": "TWI",
+      "name": "Twilight of the Republic",
+      "is_base_set": true,
+      "release_date": "2024-11-08"
+    }
+  ],
+  "counts": {
+    "SOR": 3,
+    "SHD": 1,
+    "TWI": 1
+  },
+  "cards": [
+    {
+      "type2": "Leader Unit",
+      "double_sided": true,
+      "is_unique": true,
+      "arena": "Ground",
+      "back_text": "On Attack: You may give another unit a Shield token.",
+      "epic_action": "Epic Action: If you control 6 or more resources, deploy this leader.",
+      "artist": "Fixture Artist",
+      "is_token": false,
+      "keywords": [],
+      "traits": ["Force", "Rebel"],
+      "id": 9001,
+      "set_code": "SOR",
+      "set_name": "Spark of Rebellion",
+      "base_card_number": "5",
+      "name": "Luke Skywalker",
+      "subtitle": "Faithful Friend",
+      "type": "Leader",
+      "rarity": "Special",
+      "cost": 6,
+      "power": 4,
+      "hp": 7,
+      "front_text": "Action [1 resource, exhaust]: Give a Shield token.",
+      "aspects": ["Vigilance", "Heroism"],
+      "variants": [
+        {
+          "variant_id": 91001,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "5",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91001_front.png",
+          "back_image_url": "https://cdn.starwarsunlimited.com//card_fx91001_back.png",
+          "front_images": {
+            "original": "/images/cards/card_fx91001_front.png",
+            "w640": "/images/cards/card_fx91001_front_640.webp",
+            "w320": "/images/cards/card_fx91001_front_320.webp"
+          },
+          "back_images": {
+            "original": "/images/cards/card_fx91001_back.png",
+            "w640": "/images/cards/card_fx91001_back_640.webp",
+            "w320": "/images/cards/card_fx91001_back_320.webp"
+          },
+          "stamp_group": null,
+          "price": {
+            "market": 3.99,
+            "low": 3.19,
+            "as_of": "2026-11-01"
+          }
+        },
+        {
+          "variant_id": 91002,
+          "variant_type": "Hyperspace",
+          "finish": "Hyperspace",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "271",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91002_front.png",
+          "back_image_url": "https://cdn.starwarsunlimited.com//card_fx91002_back.png",
+          "front_images": {
+            "original": "/images/cards/card_fx91002_front.png",
+            "w640": "/images/cards/card_fx91002_front_640.webp",
+            "w320": "/images/cards/card_fx91002_front_320.webp"
+          },
+          "back_images": {
+            "original": "/images/cards/card_fx91002_back.png",
+            "w640": "/images/cards/card_fx91002_back_640.webp",
+            "w320": "/images/cards/card_fx91002_back_320.webp"
+          },
+          "stamp_group": null,
+          "price": {
+            "market": 7.5,
+            "low": 6,
+            "as_of": "2026-11-01"
+          }
+        },
+        {
+          "variant_id": 91003,
+          "variant_type": "Foil",
+          "finish": "Foil",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "5",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91003_front.png",
+          "back_image_url": "https://cdn.starwarsunlimited.com//card_fx91003_back.png",
+          "front_images": {
+            "original": "/images/cards/card_fx91003_front.png",
+            "w640": "/images/cards/card_fx91003_front_640.webp",
+            "w320": "/images/cards/card_fx91003_front_320.webp"
+          },
+          "back_images": {
+            "original": "/images/cards/card_fx91003_back.png",
+            "w640": "/images/cards/card_fx91003_back_640.webp",
+            "w320": "/images/cards/card_fx91003_back_320.webp"
+          },
+          "stamp_group": null,
+          "price": null
+        }
+      ]
+    },
+    {
+      "type2": null,
+      "double_sided": false,
+      "is_unique": false,
+      "arena": "Ground",
+      "back_text": null,
+      "epic_action": null,
+      "artist": "Fixture Artist",
+      "is_token": false,
+      "keywords": [],
+      "traits": [],
+      "id": 9002,
+      "set_code": "SOR",
+      "set_name": "Spark of Rebellion",
+      "base_card_number": "10",
+      "name": "Fixture Trooper",
+      "subtitle": null,
+      "type": "Unit",
+      "rarity": "Common",
+      "cost": 2,
+      "power": 2,
+      "hp": 3,
+      "front_text": "Fixture text: a plain ground unit.",
+      "aspects": ["Command"],
+      "variants": [
+        {
+          "variant_id": 91010,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "10",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91010_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx91010_front.png",
+            "w640": "/images/cards/card_fx91010_front_640.webp",
+            "w320": "/images/cards/card_fx91010_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": {
+            "market": 0.12,
+            "low": 0.1,
+            "as_of": "2026-11-01"
+          }
+        }
+      ]
+    },
+    {
+      "type2": null,
+      "double_sided": false,
+      "is_unique": false,
+      "arena": null,
+      "back_text": null,
+      "epic_action": null,
+      "artist": "Fixture Artist",
+      "is_token": false,
+      "keywords": [],
+      "traits": [],
+      "id": 9003,
+      "set_code": "SOR",
+      "set_name": "Spark of Rebellion",
+      "base_card_number": "25",
+      "name": "Fixture Outpost",
+      "subtitle": null,
+      "type": "Base",
+      "rarity": "Common",
+      "cost": null,
+      "power": null,
+      "hp": 25,
+      "front_text": null,
+      "aspects": ["Command"],
+      "variants": [
+        {
+          "variant_id": 91025,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "25",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91025_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx91025_front.png",
+            "w640": "/images/cards/card_fx91025_front_640.webp",
+            "w320": "/images/cards/card_fx91025_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": null
+        }
+      ]
+    },
+    {
+      "type2": null,
+      "double_sided": false,
+      "is_unique": false,
+      "arena": null,
+      "back_text": null,
+      "epic_action": null,
+      "artist": "Fixture Artist",
+      "is_token": true,
+      "keywords": [],
+      "traits": [],
+      "id": 9004,
+      "set_code": "SOR",
+      "set_name": "Spark of Rebellion",
+      "base_card_number": "T01",
+      "name": "Shield",
+      "subtitle": null,
+      "type": "Token Upgrade",
+      "rarity": "Common",
+      "cost": null,
+      "power": null,
+      "hp": null,
+      "front_text": "Fixture token text.",
+      "aspects": [],
+      "variants": [
+        {
+          "variant_id": 91099,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SOR",
+          "source_set_name": "SOR",
+          "card_number": "T01",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx91099_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx91099_front.png",
+            "w640": "/images/cards/card_fx91099_front_640.webp",
+            "w320": "/images/cards/card_fx91099_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": null
+        }
+      ]
+    },
+    {
+      "type2": "Leader Unit",
+      "double_sided": true,
+      "is_unique": true,
+      "arena": "Ground",
+      "back_text": "Fixture leader back text.",
+      "epic_action": "Epic Action: If you control 5 or more resources, deploy this leader.",
+      "artist": "Fixture Artist",
+      "is_token": false,
+      "keywords": [],
+      "traits": [],
+      "id": 9005,
+      "set_code": "TWI",
+      "set_name": "Twilight of the Republic",
+      "base_card_number": "1",
+      "name": "Fixture Commander",
+      "subtitle": "Of the Fixture",
+      "type": "Leader",
+      "rarity": "Common",
+      "cost": 5,
+      "power": 3,
+      "hp": 6,
+      "front_text": "Fixture leader front text.",
+      "aspects": ["Command", "Villainy"],
+      "variants": [
+        {
+          "variant_id": 92001,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "TWI",
+          "source_set_name": "TWI",
+          "card_number": "1",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx92001_front.png",
+          "back_image_url": "https://cdn.starwarsunlimited.com//card_fx92001_back.png",
+          "front_images": {
+            "original": "/images/cards/card_fx92001_front.png",
+            "w640": "/images/cards/card_fx92001_front_640.webp",
+            "w320": "/images/cards/card_fx92001_front_320.webp"
+          },
+          "back_images": {
+            "original": "/images/cards/card_fx92001_back.png",
+            "w640": "/images/cards/card_fx92001_back_640.webp",
+            "w320": "/images/cards/card_fx92001_back_320.webp"
+          },
+          "stamp_group": null,
+          "price": {
+            "market": 0.5,
+            "low": 0.4,
+            "as_of": "2026-11-01"
+          }
+        }
+      ]
+    },
+    {
+      "type2": null,
+      "double_sided": false,
+      "is_unique": false,
+      "arena": "Ground",
+      "back_text": null,
+      "epic_action": null,
+      "artist": "Fixture Artist",
+      "is_token": true,
+      "keywords": [],
+      "traits": [],
+      "id": 9006,
+      "set_code": "TWI",
+      "set_name": "Twilight of the Republic",
+      "base_card_number": "1",
+      "name": "Battle Droid",
+      "subtitle": null,
+      "type": "Token Unit",
+      "rarity": "Common",
+      "cost": null,
+      "power": 1,
+      "hp": 1,
+      "front_text": null,
+      "aspects": [],
+      "variants": [
+        {
+          "variant_id": 92099,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "TWI",
+          "source_set_name": "TWI",
+          "card_number": "T03",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx92099_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx92099_front.png",
+            "w640": "/images/cards/card_fx92099_front_640.webp",
+            "w320": "/images/cards/card_fx92099_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": null
+        }
+      ]
+    },
+    {
+      "type2": null,
+      "double_sided": false,
+      "is_unique": false,
+      "arena": "Space",
+      "back_text": null,
+      "epic_action": null,
+      "artist": "Fixture Artist",
+      "is_token": false,
+      "keywords": [],
+      "traits": [],
+      "id": 9007,
+      "set_code": "SHD",
+      "set_name": "Shadows of the Galaxy",
+      "base_card_number": "200",
+      "name": "Fixture Smuggler",
+      "subtitle": null,
+      "type": "Unit",
+      "rarity": "Rare",
+      "cost": 3,
+      "power": 3,
+      "hp": 3,
+      "front_text": "Fixture text: a space unit.",
+      "aspects": ["Cunning"],
+      "variants": [
+        {
+          "variant_id": 93200,
+          "variant_type": "Standard",
+          "finish": "Standard",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SHD",
+          "source_set_name": "SHD",
+          "card_number": "200",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx93200_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx93200_front.png",
+            "w640": "/images/cards/card_fx93200_front_640.webp",
+            "w320": "/images/cards/card_fx93200_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": {
+            "market": 1.25,
+            "low": 1,
+            "as_of": "2026-11-01"
+          }
+        },
+        {
+          "variant_id": 93201,
+          "variant_type": "Hyperspace",
+          "finish": "Hyperspace",
+          "channel": "Retail",
+          "stamped": false,
+          "source_set_code": "SHD",
+          "source_set_name": "SHD",
+          "card_number": "466",
+          "front_image_url": "https://cdn.starwarsunlimited.com//card_fx93201_front.png",
+          "back_image_url": null,
+          "front_images": {
+            "original": "/images/cards/card_fx93201_front.png",
+            "w640": "/images/cards/card_fx93201_front_640.webp",
+            "w320": "/images/cards/card_fx93201_front_320.webp"
+          },
+          "back_images": null,
+          "stamp_group": null,
+          "price": {
+            "market": 2.75,
+            "low": 2.2,
+            "as_of": "2026-11-01"
+          }
+        }
+      ]
+    }
+  ]
+}

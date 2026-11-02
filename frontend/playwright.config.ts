@@ -47,7 +47,7 @@ export default defineConfig({
     {
       name: "phone-390",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify|cards)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3); cards under playwright.cards.config.ts (v2.3)
       dependencies: ["setup"],
       use: phone(390, 844),
     },
@@ -68,7 +68,7 @@ export default defineConfig({
         /s6-shared\.spec\.ts$/, // long-name ellipsis (textOverflow) and the vault switch centred on innerWidth
         /fr5-06-landscape\.spec\.ts$/, // landscape turns and narrow/short windows
       ],
-      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify|cards)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3); cards under playwright.cards.config.ts (v2.3)
       dependencies: ["setup"],
       use: phone(430, 932),
     },
@@ -93,7 +93,7 @@ export default defineConfig({
     {
       name: "desktop-1440",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3)
+      testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify|cards)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3); cards under playwright.cards.config.ts (v2.3)
       // BL-252 S6-11: the desktop smoke signs in with the saved session.
       dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },

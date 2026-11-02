@@ -321,6 +321,34 @@ jobs:
         working-directory: frontend
         run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
+      # v2.3 public card pages (design note §8 "Generator CI check"): generate
+      # into the dist just built from the committed fixture catalog (no
+      # backend, no live-site reads, no image check), with the dev flag, then
+      # check the output and run the card-page journeys against it.
+      - name: Generate card pages (fixture catalog)
+        working-directory: frontend
+        env:
+          PUBLIC_PAGES_NOINDEX: "true"
+        run: >-
+          npm run public-pages --
+          --catalog scripts/public-pages/fixtures/catalog.json
+          --origin https://www.hyperspacevault.com
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Check generated card pages
+        working-directory: frontend
+        run: node scripts/public-pages/check-output.mjs dist --expect-noindex
+
+      - name: Install Playwright Chromium (card-page journeys)
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Card-page journeys (generated fixture pages)
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npx playwright test -c playwright.cards.config.ts
+
       - name: Run vitest
         working-directory: frontend
         run: npx vitest run --coverage
@@ -1081,7 +1109,9 @@ jobs:
       - name: Read dev backend URL
         id: backend_url
         working-directory: terraform/environments/dev
-        run: echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "url=$(terraform output -raw backend_url)" >> "$GITHUB_OUTPUT"
+          echo "images_bucket=$(terraform output -raw card_images_bucket_name)" >> "$GITHUB_OUTPUT"
 
       - name: Read dev Firebase config
         id: firebase_config
@@ -1111,6 +1141,40 @@ jobs:
         # <meta name="build-sha"> so the gate can prove dev serves this SHA.
         run: VITE_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
+      # v2.3 public card pages (design note §3, §5). Reads GET /api/public/cards
+      # from the Cloud Run URL (bypasses the CDN), waiting up to 5 min for the
+      # revision that serves this SHA; then the guards: completeness against
+      # GET /api/base-cards, shrink against dev's LIVE sitemaps (override: the
+      # repository variable CARD_PAGES_ALLOW_SHRINK=true, logged in the job
+      # summary), lastmod from dev's live /sitemaps/manifest.json; the image
+      # check lists the card-images bucket (terraform-ci has objectAdmin on
+      # it) and falls back to probing through the dev origin. PUBLIC_PAGES_NOINDEX
+      # puts a robots noindex meta on every page (dev must never be indexed).
+      # A failure here stops the job before Hosting deploys.
+      - name: Generate card pages (dev)
+        working-directory: frontend
+        env:
+          PUBLIC_PAGES_NOINDEX: "true"
+          BACKEND_URL: ${{ steps.backend_url.outputs.url }}
+          IMAGES_BUCKET: ${{ steps.backend_url.outputs.images_bucket }}
+          ALLOW_SHRINK: ${{ vars.CARD_PAGES_ALLOW_SHRINK == 'true' }}
+        run: |
+          echo "Card pages: CARD_PAGES_ALLOW_SHRINK=${ALLOW_SHRINK}" >> "$GITHUB_STEP_SUMMARY"
+          GCS_ACCESS_TOKEN="$(gcloud auth print-access-token)" || GCS_ACCESS_TOKEN=""
+          export GCS_ACCESS_TOKEN
+          npm run public-pages -- \
+            --backend "$BACKEND_URL" \
+            --expect-sha "$(git rev-parse HEAD)" \
+            --origin https://swu-dev-jbapps.web.app \
+            --allow-shrink "$ALLOW_SHRINK" \
+            --override-name "repository variable CARD_PAGES_ALLOW_SHRINK" \
+            --images-bucket "$IMAGES_BUCKET" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Check generated card pages (dev)
+        working-directory: frontend
+        run: node scripts/public-pages/check-output.mjs dist --expect-noindex
+
       - name: Deploy frontend to dev Firebase Hosting
         working-directory: frontend
         run: npx firebase-tools@latest deploy --only hosting --project swu-dev-jbapps --non-interactive
@@ -1135,6 +1199,12 @@ jobs:
             echo "::error::GET /api/sets returned an empty array"
             exit 1
           fi
+
+      # v2.3 card pages (design note §8 "Deploy smoke"): sampled pages 200
+      # text/html, the slashless 301, the sitemap index and a set sitemap,
+      # the noindex meta PRESENT on dev, an image carrying X-Robots-Tag: noindex.
+      - name: Smoke test dev card pages
+        run: bash .github/scripts/card_pages_smoke.sh https://swu-dev-jbapps.web.app noindex frontend/dist
 
   # ── prod promote: fast path (risk:low label — no human gate) ───────────────
   # The gated default path is NOT here anymore: non-risk:low merges end at

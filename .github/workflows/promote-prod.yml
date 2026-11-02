@@ -84,6 +84,18 @@ on:
         required: false
         type: boolean
         default: false
+      # v2.3 card pages (design note §3 guard 2): the shrink guard's override.
+      # The promote refuses (before firebase deploy) when the new card-page
+      # count is below 95% of the card URLs prod's live sitemaps list; set this
+      # only for a legitimate shrink (an upstream deletion, runbook
+      # "Deletions"). Its value is logged in the promote job summary.
+      allow_card_page_shrink:
+        description: >-
+          Let the card-page count drop below 95% of prod's live sitemaps
+          (legitimate deletions only). Logged in the job summary.
+        required: false
+        type: boolean
+        default: false
 
 # Serialize promotes against each other. Deliberately NOT the main pipeline's
 # `main-deploy-*` group: joining it could cancel a *queued* main deploy run
@@ -276,6 +288,9 @@ jobs:
       - uses: ./.github/actions/promote-prod
         with:
           image_tag: ${{ needs.gate.outputs.sha }}
+          # A promoted tree older than v2.3 has no such input: the runner
+          # warns ("Unexpected input") and ignores it.
+          allow_card_page_shrink: ${{ inputs.allow_card_page_shrink }}
 
       # BL-210: the public repo's changelog surface — tag + GitHub Release
       # carrying the shipped entry rendered to markdown. Never fails the
