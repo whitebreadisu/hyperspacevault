@@ -39,6 +39,7 @@ module "app" {
   # brief instance restart; this apply rides the owner-gated prod promote, not
   # an automatic merge-to-dev deploy.
   sql_tier                          = "db-g1-small"
+  sql_max_connections               = 50 # db-g1-small default; drives the connections-saturation alert threshold
   notification_email                = var.notification_email
   notification_channel_display_name = "Jeremy (primary)"
   max_instance_count                = 3 # RR-2: bounds worst-case cost of anonymous-endpoint abuse

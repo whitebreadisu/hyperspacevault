@@ -92,7 +92,7 @@ class ConservationReport:
 
     def render(self) -> str:
         lines = [
-            "=== BL-76 Phase 2 backfill: conservation report ===",
+            "=== card-image backfill: conservation report ===",
             f"total distinct URLs:  {self.total}",
             f"uploaded (>=1 object): {self.uploaded}",
             f"already present:       {self.already_present}",
@@ -197,7 +197,9 @@ def run_backfill(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="BL-76 Phase 2 card-image backfill")
+    parser = argparse.ArgumentParser(
+        description="Card-image backfill to the image bucket"
+    )
     parser.add_argument(
         "--bucket",
         required=True,

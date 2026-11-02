@@ -6,7 +6,7 @@ builder (run_tcgplayer_mapping.py), the daily sync job
 Every request through this module carries the identifying User-Agent
 below, and every caller that issues more than one request must throttle
 between them via `throttle()`, which sleeps MIN_REQUEST_INTERVAL_SECONDS
-(0.1 s). All fetches are sequential (no concurrency) by construction: this
+(0.25 s). All fetches are sequential (no concurrency) by construction: this
 module has no async/thread-pool machinery at all.
 
 Star Wars: Unlimited's tcgcsv categoryId is 79 (App Spec §16.1).
@@ -21,7 +21,7 @@ import httpx
 BASE_URL = "https://tcgcsv.com"
 CATEGORY_ID = 79
 USER_AGENT = "SWUInventoryManager/1.0"
-MIN_REQUEST_INTERVAL_SECONDS = 0.1  # >=100ms between requests
+MIN_REQUEST_INTERVAL_SECONDS = 0.25  # matches the delay in tcgcsv.com/faq sample code
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 

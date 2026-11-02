@@ -625,6 +625,77 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/more than 20,000 rows/i);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
+
+  it("shows a written import as complete, with a refresh note, when the Vault refresh after it fails", async () => {
+    runImport
+      .mockResolvedValueOnce(baseReport())
+      .mockResolvedValueOnce(baseReport({ stage: "commit", committed: true }));
+    const onImported = vi.fn(() => Promise.reject(new Error("quantities fetch failed")));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    await renderPage(vi.fn(), onImported);
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+    });
+
+    expect(onImported).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status")).toHaveTextContent(/import complete/i);
+    expect(screen.getByText(/your vault didn.t refresh/i)).toBeInTheDocument();
+    expect(screen.getByText(/reload the page/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/something went wrong committing that import/i)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The busy overlay came down: neither staged message is still showing.
+    await waitFor(() =>
+      expect(screen.queryByText("Refreshing your Vault…")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByText(/applying 1 card…/i)).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+
+  it("shows no refresh note when the commit and the refresh both succeed", async () => {
+    runImport
+      .mockResolvedValueOnce(baseReport())
+      .mockResolvedValueOnce(baseReport({ stage: "commit", committed: true }));
+    await renderPage(
+      vi.fn(),
+      vi.fn(() => Promise.resolve())
+    );
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/import complete/i);
+    expect(screen.queryByText(/your vault didn.t refresh/i)).not.toBeInTheDocument();
+  });
+
+  it("reports a failed commit with the generic failure message and never runs the refresh", async () => {
+    runImport.mockResolvedValueOnce(baseReport()).mockRejectedValueOnce(new Error("network down"));
+    const onImported = vi.fn(() => Promise.resolve());
+    await renderPage(vi.fn(), onImported);
+    await selectFile();
+    await selectModeAndCap();
+    await clickPreview();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Something went wrong committing that import."
+    );
+    expect(onImported).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText(/your vault didn.t refresh/i)).not.toBeInTheDocument();
+  });
 });
 
 // DISPOSITION (BL-196, CREATE): net-new coverage -- the busy overlay wraps

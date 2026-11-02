@@ -61,16 +61,9 @@
   margin-top: 12px;
 }
 
-/* The callout's gap is text-block <-> button only (title/blurb spacing
- * lives inside __text). NOTE: the later .ie-reference rule below sets
- * `gap: 8px` and wins (same selector, later in the file), so this 22px
- * does not apply. */
-.ie-reference {
-  gap: 22px;
-}
-
 /* The catalog-reference callout: a vertical card (text above its button),
- * capped at 320px, in the right column of Export's split head. */
+ * capped at 320px, in the right column of Export's split head. Its gap is
+ * text-block <-> button only (title/blurb spacing lives inside __text). */
 .ie-reference {
   display: flex;
   flex-direction: column;

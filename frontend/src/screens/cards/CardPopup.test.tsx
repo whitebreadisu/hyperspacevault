@@ -93,12 +93,10 @@ const { getLimits, putLimits } = vi.hoisted(() => ({
 }));
 vi.mock("../../api/settingsLimits", () => ({ getLimits, putLimits }));
 
-// BL-219 (issue #127): incrementCard/decrementCard mocks REPLACED by
-// adjustCard -- useInventoryMutation now drives the debounced batch
-// endpoint exclusively (see CardPopupInventory.tsx). Tests below that used
-// to assert `incrementCard`/`decrementCard` calls now assert `adjustCard`
-// calls with a signed delta, advancing past its 400ms debounce window with
-// fake timers (ADJUST_DEBOUNCE_MS below mirrors the hook's own constant).
+// useInventoryMutation drives the debounced batch endpoint exclusively (see
+// CardPopupInventory.tsx), so the tests assert `adjustCard` calls with a
+// signed delta, advancing past its 400ms debounce window with fake timers
+// (ADJUST_DEBOUNCE_MS below mirrors the hook's own constant).
 const { adjustCard, EmailNotVerifiedError } = vi.hoisted(() => {
   class EmailNotVerifiedError extends Error {}
   return {

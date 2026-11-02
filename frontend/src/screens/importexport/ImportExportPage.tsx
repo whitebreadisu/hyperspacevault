@@ -143,6 +143,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
   const [capHandling, setCapHandling] = useState<CapHandling | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [successReport, setSuccessReport] = useState<ImportReport | null>(null);
+  // The commit decides success; this only flags that the Vault refetch after
+  // a written import failed, so the success screen can say so.
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -241,6 +244,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     if (!file || !mode || !capHandling || confirmBlocked) return;
     setCommitting(true);
     setFileError(null);
+    setRefreshFailed(false);
     // The dry_run report already sitting in state has the exact
     // "Cards" figure the preview screen shows -- same totalCardsFromReport
     // ImportPreviewReport itself renders from, so the overlay's count and
@@ -253,11 +257,17 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
           task: () => runImport(file, mode, capHandling, "commit"),
           settleStage: { message: "Refreshing your Vault…" },
           // onImported (CardsPage's refreshQuantities, via App.tsx) does not
-          // catch its own errors: a refresh failure propagates out of
-          // overlay.run into the catch below, which then reports a commit
-          // error although the commit itself succeeded.
+          // catch its own errors. The import is already written by now, so a
+          // refresh failure is caught here and noted on the success screen;
+          // letting it reach the catch below would report a written import
+          // as failed and invite a re-run that doubles merge-add quantities.
           settle: async () => {
-            await onImported?.();
+            try {
+              await onImported?.();
+            } catch (err) {
+              console.error(err);
+              setRefreshFailed(true);
+            }
           },
         }
       );
@@ -295,6 +305,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     setCapHandling(null);
     setReport(null);
     setSuccessReport(null);
+    setRefreshFailed(false);
     setReplaceAllConfirmed(false);
     setFileError(null);
   }
@@ -563,6 +574,13 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
               Import complete — {successReport.totals.resolved} row
               {successReport.totals.resolved === 1 ? "" : "s"} written.
             </p>
+            {refreshFailed && (
+              <p className="ie-format-note">
+                <strong>Your Vault didn&apos;t refresh.</strong> The import was saved, but the Vault
+                couldn&apos;t load the new quantities. Reload the page to see them — don&apos;t
+                import this file again.
+              </p>
+            )}
             <ImportPreviewReport
               report={successReport}
               onDownloadProblemRows={makeProblemRowsHandler(successReport)}

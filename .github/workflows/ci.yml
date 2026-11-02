@@ -596,9 +596,10 @@ jobs:
 
   # ── BL-279 W2-16 (D4): BL-id comment check ─────────────────────────────
   # Comments describe the present, not history: fails on a BL-<n> id inside a
-  # comment in frontend/src or backend/app (not frontend/src/content/). The
-  # per-file baseline reached zero with the BL-298 sweep and comment_check.allow
-  # was deleted, so any BL-id in a non-test comment fails.
+  # comment in frontend/src or backend/app (not frontend/src/content/), or on a
+  # GitHub issue/PR reference. The per-file baseline reached zero with the
+  # BL-298 sweep and comment_check.allow was deleted, so any BL-id or issue/PR
+  # reference in a non-test comment fails.
   # Ungated like docs-check; plain Node, no install. Required in BOTH ci-ok
   # branches. Controls Register: Platform Spec 2.8.
   comment-check:

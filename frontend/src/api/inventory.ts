@@ -6,26 +6,6 @@ export interface CardWithQty extends Card {
   quantity: number;
 }
 
-export interface IncrementResult {
-  variant_id: number;
-  quantity: number;
-  playset_complete: boolean;
-  blocked: boolean;
-  reason: string | null;
-  // True when this increment committed past the variant's effective
-  // keep-limit (only possible in "soft" cap_mode -- "hard" mode blocks the
-  // increment instead). Informational: the UI derives its over-limit
-  // indicator from the resolved quantity vs. the effective limit on every
-  // render (see CardPopupInventory.tsx's InventoryPlate), so it is not
-  // stored as state.
-  over_limit?: boolean;
-}
-
-export interface DecrementResult {
-  variant_id: number;
-  quantity: number;
-}
-
 /** Thrown when the backend's inventory-mutation gate (require_verified_
  * email) rejects a request with 403 {"detail": "email_not_verified"} -- the
  * caller is authenticated but hasn't confirmed their email yet. Callers that
@@ -80,22 +60,9 @@ export async function getQuantities(): Promise<VariantQuantity[]> {
   return res.json();
 }
 
-export async function incrementCard(variantId: number): Promise<IncrementResult> {
-  const res = await authedFetch(`/api/inventory/${variantId}/increment`, { method: "POST" });
-  await throwIfMutationFailed(res, "Increment", variantId);
-  return res.json();
-}
-
-export async function decrementCard(variantId: number): Promise<DecrementResult> {
-  const res = await authedFetch(`/api/inventory/${variantId}/decrement`, { method: "POST" });
-  await throwIfMutationFailed(res, "Decrement", variantId);
-  return res.json();
-}
-
-// The debounced-batch endpoint -- one call per accumulated burst of
-// stepper clicks instead of one increment/decrement round trip per click
-// (see CardPopupInventory.tsx's useInventoryMutation). incrementCard/
-// decrementCard above are separate single-step endpoints.
+// The debounced-batch endpoint -- one call per accumulated burst of stepper
+// clicks rather than one round trip per click (see CardPopupInventory.tsx's
+// useInventoryMutation).
 export interface AdjustResult {
   variant_id: number;
   quantity: number;

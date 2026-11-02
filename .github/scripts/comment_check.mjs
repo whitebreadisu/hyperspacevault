@@ -1,5 +1,5 @@
 // BL-279 W2-16 (decision D4): comments describe the present, not history. Fails on a
-// BL-<n> id inside a comment in non-test source (frontend/src, backend/app, excluding
+// BL-<n> id or GitHub issue/PR number (#123, issue 123, PR #45) inside a comment in non-test source (frontend/src, backend/app, excluding
 // frontend/src/content/). An optional per-file count baseline ("path count",
 // comment_check.allow) can admit an accepted tokenizer false positive; with no file
 // present - the state since the baseline reached zero - every hit fails. With a file, it
@@ -13,7 +13,7 @@
 //   JS/TS: // to EOL, /* ... */ (incl. JSDoc); '...' and "..." strings end at EOL;
 //          `...` strings span lines (no ${} nesting).
 //   Python: # to EOL; ' and " strings end at EOL; triple-quoted strings count as
-//           comments (docstrings), so a BL-id in any triple-quoted string is flagged.
+//           comments (docstrings), so a BL-id or issue reference in any triple-quoted string is flagged.
 // Not handled (accepted false positives/negatives -> allowlist the file): regex
 // literals containing quotes or //, `//` or quotes inside JSX text, template-literal
 // ${} nesting, Python string prefixes with unusual escapes.
@@ -37,6 +37,32 @@ const PY_EXT = /\.py$/;
 const EXEMPT_PREFIXES = ["frontend/src/content/"];
 const SKIP_FILE = /\.(test|spec)\./;
 const BL = /\bBL-\d+\b/;
+// GitHub issue / PR number references. Forms: "(#123)", "fixes #123", "owner/repo#123",
+// "issue 123", "issue #123", "PR 45", "PR #45", "pull request 45". Guards against false
+// positives: a "#" glued to a word, "&", "/", "#" or "-" is an anchor/entity/URL fragment
+// ("page#12", "&#39;", "##1"); "#fff" and "#1a2b3c" never match because the digits must run
+// to a word boundary and a hex colour carries letters; a parenthesised all-digit 3- or
+// 6-digit "(#123)" is ambiguous with a CSS colour, so it is skipped when its comment also
+// mentions a colour word.
+// "#region", "#!" shebangs, "#section" and the Python "#" marker (stripped by the tokenizer)
+// never reach the digit test.
+const ISSUE_KEYWORD = /\bissue\s+(?:#\d+|\d{2,})\b|\bissues\s+#\d+\b|\bpull requests?\s+#?\d+\b|\bPRs?\s*#?\d+\b|\bGH-\d+\b/i;
+// A bare "#N" counts only in an issue-reference position: "(#N" / "[#N", or after a verb such
+// as fixes/closes/resolves/refs/via/per/see (optionally "in"). Card numbers ("SEC #1 Palpatine",
+// "leader #4") and counts ("Foil - #123") stay clean.
+const ISSUE_HASH =
+  /(?:(?<![\w&/#-])[(\[]|\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|refs?|via|per|see|in|from|by|since|after|cf\.?):?\s+(?:in\s+)?)#(\d+)\b/gi;
+const REPO_HASH = /(?<![\w./-])[\w-]+\/[\w-]+#\d+\b/;
+const COLOUR_WORD = /\b(?:colou?rs?|hex|rgba?|hsla?|background|bg|border|fill|stroke|shadow|swatch)\b/i;
+
+export function hasIssueRef(text) {
+  if (ISSUE_KEYWORD.test(text) || REPO_HASH.test(text)) return true;
+  for (const m of text.matchAll(ISSUE_HASH)) {
+    const ambiguous = m[1].length === 3 || m[1].length === 6;
+    if (!ambiguous || !COLOUR_WORD.test(text)) return true;
+  }
+  return false;
+}
 
 function walk(dir, out) {
   let entries;
@@ -112,7 +138,7 @@ export function commentHits(src, isPy) {
       }
       if (isPy) {
         if (c === "#") {
-          commentText += s.slice(i) + " ";
+          commentText += s.slice(i + 1) + " ";
           i = s.length;
         } else if (s.startsWith('"""', i) || s.startsWith("'''", i)) {
           state = "triple";
@@ -138,7 +164,7 @@ export function commentHits(src, isPy) {
         } else i++;
       }
     }
-    if (BL.test(commentText)) hits.push({ line: ln + 1, text: commentText.trim().slice(0, 140) });
+    if (BL.test(commentText) || hasIssueRef(commentText)) hits.push({ line: ln + 1, text: commentText.trim().slice(0, 140) });
   }
   return hits;
 }
@@ -180,17 +206,17 @@ export function check(root, allowFile) {
       for (const h of hits) errors.push(`${file}:${h.line}: ${h.text}`);
     } else if (hits.length > base) {
       errors.push(
-        `${file}: ${hits.length} BL-id comment(s), baseline ${base} - the count may only go down; remove the new ones (lines ${hits.map((h) => h.line).join(", ")})`
+        `${file}: ${hits.length} BL-id/issue-ref comment(s), baseline ${base} - the count may only go down; remove the new ones (lines ${hits.map((h) => h.line).join(", ")})`
       );
     } else if (hits.length < base) {
       errors.push(
-        `${file}: ${hits.length} BL-id comment(s), baseline ${base} - update the baseline: lower this entry in comment_check.allow to ${hits.length}`
+        `${file}: ${hits.length} BL-id/issue-ref comment(s), baseline ${base} - update the baseline: lower this entry in comment_check.allow to ${hits.length}`
       );
     }
   }
   for (const a of allow.keys()) {
     if (!found.has(a))
-      errors.push(`${a}: stale baseline entry - remove it (no BL-id comments left in this file)`);
+      errors.push(`${a}: stale baseline entry - remove it (no BL-id/issue-ref comments left in this file)`);
   }
   let total = 0;
   for (const v of allow.values()) total += v;
@@ -222,7 +248,7 @@ function main() {
     process.exit(1);
   }
   console.log(
-    `comment-check: ${r.files} files with BL-id comments, at or under baseline; baseline ${r.baseline} comment(s) in ${r.allow} file(s)`
+    `comment-check: ${r.files} files with BL-id/issue-ref comments, at or under baseline; baseline ${r.baseline} comment(s) in ${r.allow} file(s)`
   );
 }
 
