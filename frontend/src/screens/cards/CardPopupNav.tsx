@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { capture } from "../../analytics/analytics";
+import { localHref } from "../../utils/localHref";
 
 /** Prev/next browsing: the CardPopupNavigation contract, the
  * ArrowLeft/ArrowRight keyboard hook, and the two chevron buttons. The close
@@ -196,7 +197,13 @@ export function CardPopupNavLinks({
     }
     const label = `${word}: ${link.name}, in Hyperspace Vault`;
     return (
-      <a className={cls} href={link.href} aria-label={label} title={label} onClick={onFollow}>
+      <a
+        className={cls}
+        href={localHref(link.href)}
+        aria-label={label}
+        title={label}
+        onClick={onFollow}
+      >
         {glyph}
       </a>
     );

@@ -1,6 +1,7 @@
 import { SWUButton } from "../components/SWUButton";
 import type { CardLink } from "./publicCatalog";
 import { ctaClicked } from "./publicAnalytics";
+import { localHref } from "../utils/localHref";
 
 // The public pages' frame (design note §4 D1, D4, §7): the page bar with the
 // wordmark and one bar action, the breadcrumb, the previous / next links,
@@ -42,7 +43,11 @@ export function Breadcrumbs({ crumbs }: { crumbs: { label: string; href?: string
               /
             </span>
           ) : null}
-          {c.href ? <a href={c.href}>{c.label}</a> : <span aria-current="page">{c.label}</span>}
+          {c.href ? (
+            <a href={localHref(c.href)}>{c.label}</a>
+          ) : (
+            <span aria-current="page">{c.label}</span>
+          )}
         </span>
       ))}
     </nav>
@@ -54,14 +59,14 @@ export function SetNav({ prev, next }: { prev: CardLink | null; next: CardLink |
   return (
     <nav className="pc-setnav" aria-label="Cards in this set">
       {prev ? (
-        <a href={prev.path} rel="prev">
+        <a href={localHref(prev.path)} rel="prev">
           ‹ {prev.label}
         </a>
       ) : (
         <span />
       )}
       {next ? (
-        <a href={next.path} rel="next">
+        <a href={localHref(next.path)} rel="next">
           {next.label} ›
         </a>
       ) : null}

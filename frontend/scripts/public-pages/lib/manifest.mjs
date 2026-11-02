@@ -43,9 +43,16 @@ const AS_OF_FIELD_RE = /"as_of":"[^"]*"/g;
 
 /** The page with its build-volatile bytes removed (see the header). */
 export function normalizeForHash(html, volatile = []) {
-  let out = html
-    .replace(ASSET_TAG_RE, "")
-    .replace(BUILD_SHA_RE, "")
+  // The tag strips run to a fixpoint: one pass can join the bytes either
+  // side of a removed tag into a new match; the result is the same for any
+  // page that has none (every real one), so the hashes do not move.
+  let out = html;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(ASSET_TAG_RE, "").replace(BUILD_SHA_RE, "");
+  } while (out !== prev);
+  out = out
     .replace(ASSET_HASH_RE, "$1$2")
     .replace(AS_OF_LABEL_RE, "as of")
     .replace(AS_OF_FIELD_RE, '"as_of":""');

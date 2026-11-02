@@ -44,6 +44,15 @@ describe("content hash (§3 guard 3)", () => {
     expect(norm).toContain("<h1>Luke Skywalker</h1>");
   });
 
+  it("strips asset tags to a fixpoint (a removal cannot join a new tag)", () => {
+    const joined =
+      '<p>x</p><scr<script type="module" src="/assets/a-Ab12Cd34.js"></script>' +
+      'ipt type="module" src="/assets/b-Ef56Gh78.js"></script>';
+    const out = normalizeForHash(joined);
+    expect(out).toBe("<p>x</p>");
+    expect(out).not.toMatch(/<script/i);
+  });
+
   it("moves when the content moves (a price is content)", () => {
     expect(contentHash(page("a", "s", "$3.99"))).not.toBe(contentHash(page("a", "s", "$4.10")));
   });

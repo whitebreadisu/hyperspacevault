@@ -51,6 +51,7 @@ import {
   utcDate,
 } from "./lib/manifest.mjs";
 import { buildSitemaps, fileForPath } from "./lib/sitemaps.mjs";
+import { namesOfficialCdn } from "./lib/officialCdn.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
@@ -134,7 +135,7 @@ async function buildRenderer() {
 
 function visibleText(html) {
   return html
-    .replace(/<script[\s\S]*?<\/script>/g, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&[a-z#0-9]+;/gi, " ");
 }
@@ -166,7 +167,7 @@ export async function buildBundles({ outDir = resolve(root, "dist") } = {}) {
 /** The census pattern (design note §8) comes from the render module, the
  * same one the page data's repair uses, so the generator cannot drift from it. */
 function checkPage(label, html, body, mojibake) {
-  if (html.includes("cdn.starwarsunlimited.com")) {
+  if (namesOfficialCdn(html)) {
     throw new Error(`${label}: the page names the official CDN`);
   }
   if (mojibake.test(visibleText(body))) {

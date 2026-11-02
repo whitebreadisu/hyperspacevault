@@ -147,7 +147,7 @@ describe("imageAvailability", () => {
 
   it("falls back to the origin probe with a warning when the listing is refused (auto)", async () => {
     const fetch = vi.fn(async (url) =>
-      url.startsWith("https://storage.googleapis.com")
+      new URL(url).host === "storage.googleapis.com"
         ? { ok: false, status: 403 }
         : { status: 200, body: null }
     );

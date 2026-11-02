@@ -33,7 +33,9 @@ test("s2-06-text-and-price", async ({ page }) => {
           is_unique: true,
           front_text: "Action [1 resource]: Deal 1 damage to a unit.",
           back_text: "On Attack: You may deal 1 damage to a unit.",
-          epic_action: "If you have 6 or more resources, deploy this leader.",
+          // The real data shape (App Spec §10.11): the source text carries the
+          // label, as 498 of 698 printings do; the view shows it once.
+          epic_action: "Epic Action: If you have 6 or more resources, deploy this leader.",
           artist: "Borja Pindado",
           variants: (slim.variants as object[]).map((v) => ({
             ...v,
@@ -52,6 +54,23 @@ test("s2-06-text-and-price", async ({ page }) => {
     "Action [1 resource]: Deal 1 damage to a unit."
   );
   await expect(text.locator(".cp-text__epic-label")).toHaveText("Epic Action:");
+  // The label shows exactly once: one label span, and the epic paragraph's
+  // own text (the label span aside) does not repeat it.
+  const epic = text.locator(".cp-text__body", { has: page.locator(".cp-text__epic-label") });
+  await expect(epic).toHaveCount(1);
+  await expect(epic.locator(".cp-text__epic-label")).toHaveCount(1);
+  await expect(epic).toHaveText(
+    "Epic Action: If you have 6 or more resources, deploy this leader."
+  );
+  const rest = await epic.evaluate((e) =>
+    [...e.childNodes]
+      .filter((n) => !(n instanceof Element && n.classList.contains("cp-text__epic-label")))
+      .map((n) => n.textContent ?? "")
+      .join("")
+      .trim()
+  );
+  expect(rest).toBe("If you have 6 or more resources, deploy this leader.");
+  expect(rest.startsWith("Epic Action")).toBe(false);
   await expect(text.locator(".cp-text__header")).toHaveText(["Leader", "Leader Unit"]);
   await expect(text.locator(".cp-text__back .cp-text__body")).toHaveText(
     "On Attack: You may deal 1 damage to a unit."

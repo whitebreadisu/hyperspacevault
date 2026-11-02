@@ -26,9 +26,10 @@ import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileForPath, isSitemapIndex, parseLocs } from "./lib/sitemaps.mjs";
 import { MANIFEST_PATH } from "./lib/manifest.mjs";
+import { OFFICIAL_CDN, namesOfficialCdn } from "./lib/officialCdn.mjs";
 
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
-export const OFFICIAL_CDN = "cdn.starwarsunlimited.com";
+export { OFFICIAL_CDN };
 /** sitemaps.org limits per sitemap file (and per index). */
 export const MAX_SITEMAP_URLS = 50_000;
 export const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
@@ -73,7 +74,7 @@ function metaContent(html, key, value) {
 
 function scripts(html, type) {
   const out = [];
-  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     if ((attr(m[1], "type") ?? "").toLowerCase() === type) out.push({ attrs: m[1], body: m[2] });
   }
   return out;
@@ -161,7 +162,7 @@ export function checkPage(html, { rel, expectNoindex }) {
     }
   }
 
-  if (html.includes(OFFICIAL_CDN)) p(`names ${OFFICIAL_CDN}`);
+  if (namesOfficialCdn(html)) p(`names ${OFFICIAL_CDN}`);
   return problems;
 }
 
@@ -210,13 +211,13 @@ export function checkOutput(
     for (const a of assetRefs(html)) assets.add(a);
   }
   for (const rel of files.filter((f) => !pageKind(f))) {
-    if (readFileSync(join(dist, rel), "utf8").includes(OFFICIAL_CDN))
+    if (namesOfficialCdn(readFileSync(join(dist, rel), "utf8")))
       problems.push(`${rel}: names ${OFFICIAL_CDN}`);
   }
   for (const a of assets) {
     const f = join(dist, fileForPath(a));
     if (!existsSync(f)) problems.push(`page asset ${a} is not in dist`);
-    else if (readFileSync(f, "utf8").includes(OFFICIAL_CDN))
+    else if (namesOfficialCdn(readFileSync(f, "utf8")))
       problems.push(`page asset ${a} names ${OFFICIAL_CDN}`);
   }
 
@@ -239,7 +240,7 @@ export function checkOutput(
         continue;
       }
       const child = readFileSync(childFile, "utf8");
-      if (child.includes(OFFICIAL_CDN)) problems.push(`${u.pathname}: names ${OFFICIAL_CDN}`);
+      if (namesOfficialCdn(child)) problems.push(`${u.pathname}: names ${OFFICIAL_CDN}`);
       limits(child, u.pathname);
       if (/<changefreq>|<priority>/.test(child))
         problems.push(`${u.pathname}: carries changefreq or priority`);
