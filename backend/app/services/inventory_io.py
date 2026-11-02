@@ -344,9 +344,9 @@ def _card_to_json(row: InventoryRow) -> dict:
     return card
 
 
-# Leading characters spreadsheet apps (Excel/Sheets/LO Calc)
-# treat a cell as a formula -- '=', '+', '-', '@' are the classic OWASP CSV-
-# injection set; tab/CR are included too since some parsers strip leading
+# Leading characters spreadsheet apps (Excel/Sheets/LO Calc) treat as the
+# start of a formula (App Spec §17.1): '=', '+', '-', '@' are the OWASP CSV-
+# injection set; tab/CR are included because some parsers strip leading
 # whitespace before that check, letting "\t=cmd(...)" slip past a naive
 # "starts with one of these four chars" guard.
 _CSV_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
@@ -355,7 +355,8 @@ _CSV_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
 def _escape_csv_formula(value: str) -> str:
     """Prefix a single quote when `value` starts with a formula-trigger
     character, forcing spreadsheet apps to treat the reopened cell as text
-    instead of evaluating it. Import-safe: name/subtitle are cosmetic-only
+    instead of evaluating it (the export's escaping rule, App Spec §17.1).
+    Import-safe: name/subtitle are cosmetic-only
     on import (module docstring) -- never consulted for identity
     resolution or merge/cap math -- so a re-imported quoted value changes
     only what's cosmetically displayed, never a quantity or which variant a

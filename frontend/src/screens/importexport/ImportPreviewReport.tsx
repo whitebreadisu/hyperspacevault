@@ -137,8 +137,8 @@ type ReportView = "problem" | "resolved";
  *   section of their own.
  * - replace_all's "Will be removed" list is an always-visible danger
  *   section ABOVE the tab control -- the destructive half of the preview
- *   must be as visible as the additive half, so the deletion list is never
- *   behind a click.
+ *   is as visible as the additive half (App Spec §17.3), so the deletion
+ *   list is never behind a click.
  * - The Download problem rows control is a real button (SWUButton, same as
  *   every other action on this screen), OUTSIDE the tab panels so it's
  *   visible in either view.

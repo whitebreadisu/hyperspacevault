@@ -730,3 +730,57 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 ### §25.1 — Completion panel, row-tap clause (verbatim)
 
 > a row tap sets the Set facet to that set.
+
+## Archived 2026-11-01 — spec drift and comment-held rules (BL-317)
+
+**Disposition:** → archive. Each sentence below disagreed with the code or pointed at a superseded record, as found by the BL-298 comment sweep's reviews; the replacement text states what the code does. Owner decisions 2026-11-01 (BL-317): import Merge mode has no default (the spec follows the code); the five unsorted table headers are deliberate; the §6 ceiling sentence states the block-at-999 / clamp-to-999 behaviour. The gate-boundary pointers now name ADR-0034, which already held the decision. No new ADR.
+
+### §5.2 — sort bullet lead-in (verbatim)
+
+> - **Every table header sorts (BL-213, v1.4).**
+
+### §5.8 — reachability sentence (verbatim)
+
+> reachable two ways: the header's clickable "Unofficial Fan Project" brand-line microcopy (visible to anonymous and signed-in visitors alike) and, signed-in only, an "About & Legal" item in `UserMenu`. Both open the same modal — App owns the open/close state, same pattern as `AuthModal`/`ChangePasswordModal`.
+
+### §5.12 — Global 125% scale, breakpoint parenthesis (verbatim)
+
+> (docked-filter threshold now 2833px, BL-121 sidebar tiers, phone passes)
+
+### §6 Enforcement mode — ceiling clause (verbatim)
+
+> the 999 ceiling blocks in both modes.
+
+### §12 Base cards — list variant shape and dropped-field list (verbatim)
+
+> each `{ variant_id, variant_type, finish?, channel, source_set_code, card_number, front_image_url?, back_image_url? }` — **no `quantity`**.
+
+> Dropped from each variant: `stamped, source_set_name, stamp_group, price, front_images, back_images`.
+
+### §12 Base cards — per-variant `price` struck sentence and reversal note (verbatim)
+
+> ~~**Since BL-146, per-variant `price` is detail-only** — it moved off the list's `CardVariantCatalogResponse` in the same split as the other dropped fields above.~~ **Reversed for `price` only (2026-07-26, BL-163 — §5.13):** per-variant `price: PriceInfo | null` is **re-attached** to the list's `CardVariantCatalogResponse` to feed the completion panel's Collection-value calc — the service computed this per-variant `PriceInfo` on every list request all along (it feeds `display_price`'s aggregation); BL-146 had dropped only the response field, so re-adding costs no query. Every other BL-146 drop stands.
+
+### §12 Inventory — `/quantities` gate parenthesis (verbatim)
+
+> (the BL-16 gate covers inventory **data writes** — increment/decrement plus, since BL-54, import *and* export; see the Platform Spec's gate-boundary doctrine)
+
+### §12 Settings — PUT gate sentence (verbatim)
+
+> PUT deliberately not gated on verified email (BL-16 gates inventory mutations only — §4.5).
+
+### §17.2 — Merge modes bullet (verbatim)
+
+> - **Merge modes (user-picked per import):** `merge_add` (default) / `replace` (file wins per row) / `replace_all` (wipe + load; removals itemized in the preview and confirmation-gated in the UI).
+
+### §17.3 — Entry bullet, catalog reference placement (verbatim)
+
+> The public **catalog reference CSV** (the resolution key space, for hand-authoring) lives inside the Import section's top-right callout behind a standard SWU button; the file-picker
+
+### §17.3 — Gate bullet, doctrine pointer (verbatim)
+
+> Gate-boundary doctrine (what's deliberately ungated and why) is recorded in the Platform Spec's BL-54 as-built note + `app/routers/settings.py`.
+
+### §17.5 — sw-unlimited-db column table, Organized Play clause (verbatim)
+
+> `Organized Play` → the Weekly Play family (incl. early-era `<set>P` containers);

@@ -27,10 +27,11 @@ interface Props {
   onSignIn: () => void;
   onChangePassword: () => void;
   onOpenSettings: () => void;
-  /** Opens the About & Legal modal. Reachable from both the header brand
-   * link below (anonymous + signed-in alike) and the
-   * UserMenu's "About & Legal" item (signed-in only) -- App owns the modal
-   * state either way, same as onSignIn/onChangePassword above. */
+  /** Opens the About & Legal modal. The header has two of its openers: the
+   * brand link below (anonymous + signed-in alike) and the UserMenu's
+   * "About & Legal" item (signed-in only); the release-notes page's chip is
+   * the third (App Spec §5.8). App owns the modal state either way, same as
+   * onSignIn/onChangePassword above. */
   onOpenAbout: () => void;
   /** Opens the Leave Feedback modal. Visible for both anonymous
    * and signed-in visitors (rendered unconditionally below, unlike the

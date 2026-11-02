@@ -812,7 +812,8 @@ jobs:
       # ships a catalog capture exactly as it did when the file was
       # committed (bootstrap.py resolves swuapi_export_current.json first).
       # This job authenticates as terraform-ci@swu-prod, hence the prod
-      # bucket; content is runbook-synced to both env buckets.
+      # bucket; the operator's catalog refresh (App Spec §7, Currency) keeps
+      # both env buckets' content in step (backend/app/ingestion/data/README.md).
       - name: Fetch bootstrap export (repo-assets bucket)
         run: |
           gcloud storage cp \

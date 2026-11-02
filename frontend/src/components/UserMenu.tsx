@@ -21,7 +21,7 @@ interface Props {
  * non-interactive email display row, then Settings (navigates to the
  * settings pane rather than opening a modal, but threads through App the
  * same way), Change Password (password accounts only), About & Legal, and
- * Log Out. About & Legal is a second entry point onto the same About modal
+ * Log Out. About & Legal is another entry point onto the same About modal
  * the header's brand link opens (that one is reachable anonymous +
  * signed-in; this one is a signed-in convenience, not the sole path).
  * Delete Account is not here: its trigger is the "danger zone" section at

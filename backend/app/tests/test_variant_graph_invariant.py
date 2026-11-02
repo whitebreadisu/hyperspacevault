@@ -35,8 +35,8 @@ FIXTURE_PATH = Path(
 # (see specification_documents/analysis/RepoPublic_CI_ForkSafety_2026-07-26.md
 # "Fixture strategy proposal") -- skip cleanly when the real export isn't on
 # disk (e.g. after the export moves to the private GCS bucket) rather than
-# erroring; run `pytest -m realdata` after fetching the fixture per the
-# content runbook.
+# erroring; run `pytest -m realdata` after fetching the fixture per
+# backend/app/ingestion/data/README.md.
 pytestmark = [
     pytest.mark.realdata,
     pytest.mark.skipif(
@@ -44,7 +44,7 @@ pytestmark = [
         reason=(
             f"real swuapi export fixture not present at {FIXTURE_PATH} -- "
             "set SWUAPI_FIXTURE_PATH or fetch the frozen 2026-06-21 capture "
-            "per the content runbook to run this tier"
+            "(backend/app/ingestion/data/README.md) to run this tier"
         ),
     ),
 ]

@@ -7,7 +7,8 @@
 #
 # Usage: ./scripts/fetch_bootstrap_export.sh [bucket]
 #   bucket defaults to the dev bucket; pass swu-prod-repo-assets to pull
-#   prod's copy (contents are runbook-synced, so they normally match).
+#   prod's copy (the operator's catalog refresh, App Spec §7, updates both
+#   buckets, so they normally match).
 set -euo pipefail
 
 BUCKET="${1:-swu-dev-jbapps-repo-assets}"

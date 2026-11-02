@@ -27,7 +27,7 @@ output "card_images_bucket_name" {
 }
 
 output "repo_assets_bucket_name" {
-  description = "Name of the per-env GCS bucket holding FFG-sourced material offloaded from the repo (BL-170). CI build-time pulls and the content runbook's upload step consume this."
+  description = "Name of the per-env GCS bucket holding FFG-sourced material offloaded from the repo. CI build-time pulls and the operator's catalog refresh (App Spec §7) consume this."
   value       = google_storage_bucket.repo_assets.name
 }
 
