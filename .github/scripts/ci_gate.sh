@@ -43,7 +43,7 @@ while :; do
     fi
   done
   if [ "${#failed[@]}" -gt 0 ]; then
-    echo "::error::CI gate: required check(s) not green for ${sha}: ${failed[*]} -- a 'skipped' build-and-push means a docs-only commit with no image; promote the last code commit instead"
+    echo "::error::CI gate: required check(s) not green for ${sha}: ${failed[*]} -- a 'skipped' build-and-push means no image: either a docs-only commit (promote the last code commit instead) or a failed image-scan on that run (a CRITICAL with a fix, or the scan itself failed; see ADR-0038)"
     exit 1
   fi
   if [ "${#missing[@]}" -gt 0 ]; then

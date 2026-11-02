@@ -228,3 +228,11 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). T
 **Disposition:** → archive (superseded: the bullet stated the key cap and a one-hit-key measurement as the memory bound, but a key kept one Python float per attempt in its window, so a store of keys at the 300/hr shared-read limit could reach several hundred MB; replaced in place by the "Limiter cheap-tier contract and memory bound" bullet, which states the per-key bound and the measured worst case)
 
 > - **Bounded limiter memory (BL-266, 2026-10-14).** Both `app/rate_limit.py` stores are now `_SlidingWindowStore`s: a sweep at most once a minute on the request path drops every key whose newest attempt has left its window, and each store is capped at `MAX_KEYS` = 50,000 keys with O(1) least-recently-used eviction (fail-open: an evicted client starts a fresh budget). IP keys go through `client_ip_key`: IPv4 as is, IPv4-mapped IPv6 as its IPv4, any other IPv6 address collapsed to its **/64**, so one host cannot rotate addresses for fresh budgets. Measured: a 500k-fresh-key flood holds 50k keys (~19 MB) at ~1.7 µs a hit. The per-instance caveat is unchanged.
+
+## Archived 2026-11-02 — image scanning moves to CI (BL-327)
+
+### §5.1 — the A06 row (RR-11 Artifact Registry scanning)
+
+**Disposition:** → archive (superseded: Artifact Registry's paid on-push scanning is turned off and replaced by Trivy in GitHub Actions — the `ci.yml` `image-scan` job before every push and the daily `image-scan-prod.yml` run against the image prod serves, [ADR-0038](../docs/decisions/0038-image-scanning-in-ci.md); the row's BL-9 "triage deferred" clause was already stale, BL-9 having been resolved and its follow-up archived 2026-10-18; replaced in place by the current A06 row)
+
+> | A06 Vulnerable/Outdated Components | Addressed (Dependabot scanning live); **18-PR triage deferred** — `specification_documents/backlog/` BL-9. **RR-11 (2026-07-08):** Artifact Registry vulnerability scanning enabled (`containerscanning.googleapis.com`) — every pushed backend image is scanned on push + continuously re-checked; results in the AR console per digest; triage folds into the Dependabot cadence. The shipped image also runs as a non-root user and installs runtime deps only (test/lint tooling split to `requirements-dev.txt`, present only in CI and the compose `dev` image stage) |

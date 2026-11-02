@@ -53,23 +53,49 @@ resource "google_project_service" "p5" {
   disable_on_destroy = false
 }
 
-locals {
-  # RR-11: Artifact Registry vulnerability scanning. Every image pushed to AR
-  # is scanned on push and continuously re-checked as new CVEs publish;
-  # results surface in the AR console per image digest. Triage folds into the
-  # existing Dependabot cadence (Platform Spec §5).
-  rr11_apis = [
-    "containerscanning.googleapis.com",
-  ]
-}
+# Artifact Registry's paid on-push scanning stays OFF in this project; image
+# scanning is Trivy in GitHub Actions instead (ADR-0038, Platform Spec §5.1
+# A06). The API was disabled by hand in both projects on 2026-11-02, so this
+# resource is a guard, not the switch: google_project_service cannot declare
+# an API disabled (dropping a resource whose state holds
+# disable_on_destroy = false only forgets it).
+#
+# On create (once per project) it reads whether containerscanning is enabled
+# and, only if it is, tries to disable it. It never fails the apply: an
+# unreadable state or a refused disable prints a WARNING and exits 0, and
+# on_failure = continue covers anything else. No --force, so a dependent
+# service is never disabled with it. image-scan-prod.yml goes red daily while
+# the API is enabled in prod. containeranalysis (the free metadata API
+# containerscanning depends on) is left as it is.
+#
+# Needs bash and gcloud on PATH with the applying identity's credentials:
+# both CI apply paths run setup-gcloud after WIF auth on ubuntu runners, and
+# terraform-ci holds serviceusage.serviceUsageAdmin in both projects.
+resource "terraform_data" "containerscanning_disabled" {
+  triggers_replace = [var.project_id, "containerscanning.googleapis.com"]
 
-resource "google_project_service" "rr11" {
-  for_each = toset(local.rr11_apis)
-
-  project = var.project_id
-  service = each.value
-
-  disable_on_destroy = false
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    on_failure  = continue
+    command     = <<-EOT
+      api=containerscanning.googleapis.com
+      project=${var.project_id}
+      if ! enabled=$(gcloud services list --enabled --project="$project" --filter="config.name=$api" --format="value(config.name)"); then
+        echo "WARNING: could not read enabled services in $project; $api state unknown (ADR-0038)"
+        exit 0
+      fi
+      if [ -z "$enabled" ]; then
+        echo "$api is disabled in $project"
+        exit 0
+      fi
+      if gcloud services disable "$api" --project="$project" --quiet; then
+        echo "$api disabled in $project"
+      else
+        echo "WARNING: disabling $api in $project was refused; it is still enabled and billing (ADR-0038)"
+      fi
+      exit 0
+    EOT
+  }
 }
 
 locals {

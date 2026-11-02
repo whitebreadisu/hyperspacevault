@@ -11,6 +11,8 @@ name: CI
 #   On push to main everything always runs.)
 #
 # On push to main only:
+#   image-scan       — build the image locally and Trivy-scan it (no GCP
+#                      credential); a CRITICAL with a fix stops the chain (ADR-0038)
 #   build-and-push   — build image once; push to both dev and prod AR
 #   deploy-dev       — terraform validate + apply dev; build + deploy frontend to swu-dev-jbapps;
 #                      smoke-test /health + /api/sets (RR-1)
@@ -774,10 +776,95 @@ jobs:
           echo "docs_only=$docs_only"
           echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
 
+  # ── main-only: scan the backend image before anything is pushed ────────────
+  # ADR-0038 (replaces Artifact Registry's paid on-push scanning). Builds the
+  # runtime stage into the local daemon and scans it with Trivy: every HIGH
+  # and CRITICAL finding that has a fix is reported to GitHub code scanning
+  # (Security tab, category trivy-backend-image), and any CRITICAL with a fix
+  # fails this job, so build-and-push never runs and nothing reaches either
+  # registry or dev. HIGH reports without failing. A failed scan for any
+  # other reason (the vulnerability database cannot be fetched from any
+  # mirror) also stops the chain; re-running the job is the remedy.
+  #
+  # The job holds no GCP credential (no id-token, no auth step): the scanner
+  # is third-party code and never shares a job with a registry-push token.
+  # Without credentials it cannot fetch the bootstrap catalog export, so its
+  # last COPY layer lacks that one JSON data file; the base and pip layers
+  # are the ones Trivy assesses, and it writes them to the gha cache that
+  # build-and-push then reads, so the pushed image reuses the scanned layers.
+  # A waiver is an entry in the repo-root `.trivyignore` (format in its
+  # header), which every Trivy step here and in image-scan-prod.yml reads.
+  image-scan:
+    needs: [backend, frontend, frontend-e2e-mobile, journeys, detect-changes]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.detect-changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    env:
+      # Mirrors tried in order, so one registry outage does not fail the scan.
+      TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db:2,public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build for scan (local daemon only)
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          target: runtime
+          load: true
+          push: false
+          tags: backend-api:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Pinned to a full commit SHA (v0.36.0): a moved tag cannot change
+      # what runs here. setup-trivy and actions/cache inside it are pinned by
+      # SHA upstream.
+      - name: Image scan report (HIGH, CRITICAL with a fix)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: backend-api:scan
+          scanners: vuln
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-backend-image.sarif
+          exit-code: "0"
+
+      - name: Upload image scan to code scanning
+        if: always() && hashFiles('trivy-backend-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-backend-image.sarif
+          category: trivy-backend-image
+
+      - name: Image scan gate (CRITICAL with a fix fails)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: backend-api:scan
+          scanners: vuln
+          ignore-unfixed: true
+          severity: CRITICAL
+          trivyignores: .trivyignore
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
+
   # ── main-only: build image once, push to both dev and prod AR ──────────────
 
   build-and-push:
-    needs: [backend, frontend, frontend-e2e-mobile, journeys, detect-changes]
+    needs: [backend, frontend, frontend-e2e-mobile, journeys, detect-changes, image-scan]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&

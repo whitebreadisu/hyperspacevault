@@ -1,0 +1,10 @@
+# Trivy waivers for the backend image scans (ADR-0038): ci.yml job
+# `image-scan` and .github/workflows/image-scan-prod.yml read this file.
+#
+# A waiver lets a CRITICAL with a fix through the gate while the bump that
+# fixes it cannot ship yet. One vulnerability per line, a dated reason and a
+# review-by date in the trailing comment:
+#
+#   CVE-2026-12345  # 2026-11-02: fix needs python 3.13 base; review by 2026-11-30
+#
+# Remove the line once the fix ships. An empty file means no waivers.
