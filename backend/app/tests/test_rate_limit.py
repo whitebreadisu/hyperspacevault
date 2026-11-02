@@ -7,6 +7,11 @@ in test_inventory_import_api.py::TestRateLimit and
 test_deck_check_api.py::TestRateLimit.
 """
 
+import math
+import sys
+import threading
+import tracemalloc
+
 import pytest
 
 from app import rate_limit
@@ -202,9 +207,9 @@ def test_a_full_store_does_not_sweep_on_every_new_key(monkeypatch):
     turn a flood of fresh keys into O(keys) CPU per request."""
     store = _SlidingWindowStore(max_keys=10, sweep_interval=3600)
     sweeps = []
-    real_sweep = store.sweep
+    real_sweep = store._sweep
     monkeypatch.setattr(
-        store, "sweep", lambda now: (sweeps.append(now), real_sweep(now))
+        store, "_sweep", lambda now: (sweeps.append(now), real_sweep(now))
     )
     for i in range(1000):
         store.hit(f"ip-{i}", max_calls=5, window_seconds=3600, now=float(i) / 10)
@@ -255,13 +260,23 @@ def test_feedback_limit_still_trips_at_max_submissions():
         ("2001:db8:1:2:aaaa::1", "2001:db8:1:2::/64"),
         ("2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:db8:1:2::/64"),
         ("::ffff:198.51.100.4", "198.51.100.4"),
-        ("testclient", "testclient"),
+        ("testclient", "invalid"),
         ("", "unknown"),
         (None, "unknown"),
     ],
 )
 def test_client_ip_key(host, key):
     assert client_ip_key(host) == key
+
+
+def test_junk_hosts_share_one_short_key():
+    """A forged, unparseable address must not mint its own key: a long one
+    would break the memory bound, and many distinct ones would each get a
+    fresh budget."""
+    long_junk = "x" * 10_000
+    assert client_ip_key(long_junk) == rate_limit.INVALID_HOST_KEY
+    assert client_ip_key("not-an-ip") == client_ip_key(long_junk)
+    assert len(client_ip_key(long_junk)) <= 16
 
 
 def test_one_ipv6_host_rotating_addresses_shares_one_budget():
@@ -285,3 +300,184 @@ def test_one_ipv6_host_rotating_addresses_shares_one_budget():
         )
         is None
     )
+
+
+# --- Bytes per key, precision and thread safety ----------------------------
+# The memory bound is stated in app/rate_limit.py's module docstring and in
+# SWU_Platform_Spec.md section 5.1 ("Limiter cheap-tier contract and memory
+# bound"); the figures there come from the two memory tests below.
+
+# A realistic time.monotonic() value: large, with a fractional part.
+T0 = 1_000_000.37
+
+
+def test_a_key_never_stores_more_than_max_calls_attempts():
+    store = _SlidingWindowStore(max_keys=10, sweep_interval=3600)
+    for i in range(20):
+        store.hit("k", max_calls=7, window_seconds=3600, now=T0 + i)
+    assert len(store._keys["k"]) == 7
+
+
+def test_fractional_times_round_up_so_an_attempt_never_expires_early():
+    store = _SlidingWindowStore(max_keys=10, sweep_interval=3600)
+    store.hit("k", max_calls=1, window_seconds=100, now=0.2)  # stored as t=1
+    # Exactly, the attempt counts through t=100.2. Rounded up it counts
+    # through t=101 -- held back up to one second longer, never shorter.
+    assert store.hit("k", max_calls=1, window_seconds=100, now=100.1) is not None
+    assert store.hit("k", max_calls=1, window_seconds=100, now=101.0) is not None
+    assert store.hit("k", max_calls=1, window_seconds=100, now=101.01) is None
+
+
+def test_retry_after_is_never_shorter_than_the_exact_wait():
+    store = _SlidingWindowStore(max_keys=10, sweep_interval=3600)
+    store.hit("k", max_calls=1, window_seconds=100, now=T0)
+    wait = store.hit("k", max_calls=1, window_seconds=100, now=T0 + 9.6)
+    exact = 100 - 9.6
+    assert wait is not None
+    assert exact <= wait <= exact + 1
+
+
+def test_concurrent_hits_on_one_key_admit_exactly_the_limit():
+    """Sync handlers run in a threadpool: threads racing on one key at its
+    boundary must admit exactly max_calls, no more and no fewer."""
+    limit, threads, per_thread = 1000, 16, 200
+    store = _SlidingWindowStore(max_keys=100, sweep_interval=3600)
+    admitted: list[int] = []
+    start = threading.Barrier(threads)
+
+    def worker():
+        start.wait()
+        mine = 0
+        for _ in range(per_thread):
+            if store.hit("k", limit, 3600, T0) is None:
+                mine += 1
+        admitted.append(mine)
+
+    old_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)  # force frequent thread switches
+    try:
+        pool = [threading.Thread(target=worker) for _ in range(threads)]
+        for t in pool:
+            t.start()
+        for t in pool:
+            t.join()
+    finally:
+        sys.setswitchinterval(old_interval)
+    assert sum(admitted) == limit
+    assert len(store._keys["k"]) == limit
+
+
+def test_out_of_order_stamps_keep_the_log_sorted_and_the_limit_exact():
+    """Calls processed in the order 101.1, 99.1, 101.2 (a thread that read
+    the clock earlier reaching the store later) must not unsort the log:
+    unsorted, bisect keeps a stale entry and two calls at 201 would both
+    be admitted with one slot free."""
+    store = _SlidingWindowStore(max_keys=10, sweep_interval=10**9)
+    for t in (101.1, 99.1, 101.2):
+        assert store.hit("k", 3, 100, now=t) is None
+    log = store._keys["k"]
+    assert list(log) == sorted(log) == [102, 102, 102]
+    # At 201 nothing has left the window yet (every stamp is 102, kept
+    # through 202): conservative, so neither call is admitted.
+    assert store.hit("k", 3, 100, now=201) is not None
+    # At 202.5 all three have left: exactly the limit is admitted again.
+    admitted = [store.hit("k", 3, 100, now=202.5) is None for _ in range(4)]
+    assert admitted == [True, True, True, False]
+
+
+def test_production_callers_read_the_clock_inside_the_store_lock(monkeypatch):
+    """The public limiters pass no time: hit() reads time.monotonic() while
+    holding the store's lock, so stamps follow processing order."""
+    seen = []
+
+    def clock():
+        seen.append(
+            (
+                rate_limit._submissions._lock.locked(),
+                rate_limit._tenant_calls._lock.locked(),
+            )
+        )
+        return T0
+
+    monkeypatch.setattr(rate_limit.time, "monotonic", clock)
+    is_rate_limited("203.0.113.5")
+    check_tenant_rate_limit("deck_check", "tenant_c", max_calls=5, window_seconds=3600)
+    assert seen == [(True, False), (False, True)]
+
+
+# Worst-case memory as Python-allocated bytes (tracemalloc; process RSS is
+# higher). Keys are valid keys only: the longest is a normalized IPv6 /64
+# plus the "shared_read:" prefix -- arbitrary strings are never keys.
+# Measured on Python 3.12 with the test below: both stores full together
+# peak at 99.4 MB (keyed store 75.8 MB and feedback store 13.8 MB when
+# filled, 95.6 MB together once the churn has run; the peak is the
+# OrderedDict resize in churn round 4). Through hit() alone a key at the
+# 300 limit costs 1,542 bytes (1,594 at peak). Bounds: ~15% and ~13% over.
+# CI cost, accepted: these two tests add ~25 s to the backend suite.
+BOTH_STORES_BOUND = 115 * 10**6
+BYTES_PER_KEY_BOUND = 1_800
+CHURN_ROUNDS = 5
+
+
+def _longest_keys(prefix: str, n: int):
+    # 0x1000 onwards keeps every group at four hex digits with no leading
+    # zero, so each key is a normalized /64 of the maximum length.
+    for k in range(n):
+        yield f"{prefix}ffff:ffff:ffff:{0x1000 + k:x}::/64"
+
+
+def test_worst_case_memory_of_both_stores_together_is_bounded():
+    """Fill the keyed and feedback stores to MAX_KEYS with every key at its
+    limit, then touch every key for CHURN_ROUNDS rounds (each touch is
+    refused and re-inserts the key, the churn that makes the OrderedDict
+    resize). Keys are created through hit(); their remaining attempts are
+    appended directly, since 15 million hit() calls take minutes -- the
+    hit()-only test below covers allocations made on accepted calls. Keys
+    come from a generator, so no test-side list is counted."""
+    keyed = _SlidingWindowStore(rate_limit.MAX_KEYS, rate_limit.SWEEP_INTERVAL_SECONDS)
+    feedback = _SlidingWindowStore(
+        rate_limit.MAX_KEYS, rate_limit.SWEEP_INTERVAL_SECONDS
+    )
+    stores = (
+        (keyed, 300, "shared_read:"),
+        (feedback, rate_limit.MAX_SUBMISSIONS_PER_WINDOW, ""),
+    )
+    now = T0
+    tracemalloc.start()
+    try:
+        for store, limit, prefix in stores:
+            # Appended one at a time, as hit() does, so each array keeps
+            # the same over-allocation it would have in production.
+            stamps = [math.ceil(now + i * 0.01) for i in range(1, limit)]
+            for key in _longest_keys(prefix, rate_limit.MAX_KEYS):
+                assert store.hit(key, limit, 3600, now) is None
+                append = store._keys[key].append
+                for stamp in stamps:
+                    append(stamp)
+        for _ in range(CHURN_ROUNDS):
+            now += 1.3
+            for store, limit, prefix in stores:
+                for key in _longest_keys(prefix, rate_limit.MAX_KEYS):
+                    assert store.hit(key, limit, 3600, now) is not None
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert len(keyed) == len(feedback) == rate_limit.MAX_KEYS
+    assert peak <= BOTH_STORES_BOUND
+
+
+def test_a_key_at_its_limit_through_hit_alone_stays_within_its_byte_cost():
+    n = 1000
+    store = _SlidingWindowStore(rate_limit.MAX_KEYS, rate_limit.SWEEP_INTERVAL_SECONDS)
+    now = T0
+    tracemalloc.start()
+    try:
+        for _ in range(300):
+            for key in _longest_keys("shared_read:", n):
+                assert store.hit(key, 300, 3600, now) is None
+            now += 0.37
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert len(store) == n
+    assert peak / n <= BYTES_PER_KEY_BOUND
