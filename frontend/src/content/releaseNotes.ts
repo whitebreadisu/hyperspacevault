@@ -38,6 +38,59 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // Public card pages (App Spec 5.10 / Platform Spec 3.14) + BL-328 (copy /
+    // share a card link with its printing) + BL-325 (price as-of date) +
+    // BL-326 (epic-action label once, pilots too) + BL-329 (unique mark,
+    // bullets and printed line breaks). Owner said "promote it" 2026-11-03;
+    // date = promote day (America/Chicago).
+    kind: "release",
+    key: "2.3",
+    version: "2.3",
+    date: "2026-11-03",
+    title: "Every card gets its own page",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            title: "Every card has its own page",
+            body: "Every card in the game now has its own page on the web, so you can find it from a search. Tap anything on the page and you're straight into the Vault on that card.",
+          },
+          {
+            title: "Share a card",
+            body: "There's a new link button on every card (the share button on mobile). It copies a link that opens on the exact printing you're looking at, like Hyperspace, Showcase or Prestige. Text it, post it, drop it in Discord.",
+          },
+        ],
+      },
+      {
+        heading: "Fixes",
+        items: [
+          {
+            title: "Prices with a date",
+            body: "Prices on a card now show the date they're from.",
+          },
+          {
+            title: "Epic Action, Epic Action",
+            body: 'Some cards said "Epic Action:" twice, and pilots said "Piloting" twice. Fixed.',
+          },
+          {
+            title: "Card text that matches the card",
+            body: "Where a card has the unique symbol or bullet points, the text showed odd codes instead, and line breaks ran together. It now shows the symbol, the bullets and the line breaks as printed.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "Under the hood",
+            body: "Cleanup and hardening behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-310 (table columns after an empty filter) + BL-318 / BL-322 (import
     // saved but Vault refresh failed: desktop and phone note; Verify Cards) +
     // BL-322 (formula escaping in every CSV download) + BL-299 / BL-311 (one
