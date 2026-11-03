@@ -133,6 +133,10 @@
 .m-app .m-hdr__pos--narrowed {
   color: #f2c14e;
 }
+/* The copy confirmation's failure line. */
+.m-app .m-hdr__pos--failed {
+  color: var(--color-danger);
+}
 
 /* ── Viewport / track / page ───────────────────────────────────────────── */
 .m-app .m-detail--r3 > .m-detail__viewport {

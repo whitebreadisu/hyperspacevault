@@ -6,12 +6,19 @@
 // The value names the card by set code and base number, never by database id
 // (ids differ between dev and prod); it resolves through the base-cards list
 // the app already loads. Absent, malformed or unknown = nothing happens.
+// An optional `&v=<printing slug>` (utils/printingSlug.ts) picks the printing
+// the card opens on; absent, malformed or naming no printing of that card =
+// the card's usual opening printing.
+
+import { isSlugShaped } from "./printingSlug";
 
 export interface CardParam {
   /** Upper-case set code, as the catalogue spells it ("SOR"). */
   setCode: string;
   /** The base number without padding ("6"). */
   number: string;
+  /** The `v` printing slug, or null when absent or not slug-shaped. */
+  printing?: string | null;
 }
 
 const PARAM = /^([a-z0-9]{2,8})-(\d{1,4})$/i;
@@ -24,18 +31,26 @@ export function formatCardParam(setCode: string, num: string): string {
   return `${encodeURIComponent(setCode.toLowerCase())}-${encodeURIComponent(n)}`;
 }
 
-/** `/?card=sor-006` */
-export function cardAppHref(setCode: string, num: string): string {
-  return `/?card=${formatCardParam(setCode, num)}`;
+/** `/?card=sor-006`, or `/?card=sor-006&v=<slug>` with a printing slug. */
+export function cardAppHref(setCode: string, num: string, printing?: string | null): string {
+  const v = printing ? `&v=${encodeURIComponent(printing)}` : "";
+  return `/?card=${formatCardParam(setCode, num)}${v}`;
 }
 
-/** Reads `card` from a query string; null when absent or malformed. */
+/** Reads `card` (and `v`) from a query string; null when `card` is absent
+ * or malformed. */
 export function parseCardParam(search: string): CardParam | null {
-  const raw = new URLSearchParams(search).get("card");
+  const q = new URLSearchParams(search);
+  const raw = q.get("card");
   if (raw == null) return null;
   const m = PARAM.exec(raw.trim());
   if (!m) return null;
-  return { setCode: m[1].toUpperCase(), number: String(Number(m[2])) };
+  const v = q.get("v");
+  return {
+    setCode: m[1].toUpperCase(),
+    number: String(Number(m[2])),
+    printing: isSlugShaped(v) ? v : null,
+  };
 }
 
 interface ListedCard {
@@ -59,16 +74,17 @@ export function resolveCardParam<T extends ListedCard>(
   return null;
 }
 
-/** Drops `card` from the address bar without a history entry, keeping the
- * path, every other parameter and the hash. */
+/** Drops `card` and its `v` from the address bar without a history entry,
+ * keeping the path, every other parameter and the hash. */
 export function clearCardParam(): void {
-  clearParam("card");
+  clearParam("card", "v");
 }
 
-function clearParam(name: string): void {
+function clearParam(name: string, ...with_: string[]): void {
   const url = new URL(window.location.href);
   if (!url.searchParams.has(name)) return;
   url.searchParams.delete(name);
+  for (const w of with_) url.searchParams.delete(w);
   window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
 }
 

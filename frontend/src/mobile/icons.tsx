@@ -42,6 +42,13 @@ const P: Record<string, ReactElement> = {
       <path d="M6 6l12 12M18 6 6 18" />
     </g>
   ),
+  share: (
+    <g>
+      <path d="M12 15V4" />
+      <path d="M8 7.5 12 3.5l4 4" />
+      <path d="M8.5 10.5H5.5v9h13v-9h-3" />
+    </g>
+  ),
   filter: (
     <g>
       <path d="M4 5.5h16l-6 7.5v5.5l-4 2v-7.5z" />

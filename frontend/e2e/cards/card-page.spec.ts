@@ -170,6 +170,42 @@ test.describe("with JavaScript", () => {
     await expect(page).toHaveURL(/\/\?card=sor-005$/);
   });
 
+  test("a returning browser on a printing's link lands on that printing in the app", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.goto(`${PATH}?v=hyperspace-sor-271`);
+    await expect(page).toHaveURL(/\/\?card=sor-005&v=hyperspace-sor-271$/);
+  });
+
+  test("the head script alone carries the printing too", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.route("**/assets/*.js", (r) => r.abort());
+    await page.goto(`${PATH}?v=hyperspace-sor-271`);
+    await expect(page).toHaveURL(/\/\?card=sor-005&v=hyperspace-sor-271$/);
+  });
+
+  test("after a printing switch the calls to action open that printing", async ({ page }, info) => {
+    await page.goto(PATH);
+    const tree = page.locator(treeId(info));
+    const hyperspace = tree.getByRole("button", { name: /Hyperspace/ }).first();
+    await expect(async () => {
+      await hyperspace.click();
+      await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/, { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    // The phone's region may have collapsed on the way to the Variants list,
+    // so the plate's links are checked by attribute and the bar's link is
+    // the one followed.
+    for (const sel of [".pc-brand", ".pc-bar__open", ".pc-cta__signin"]) {
+      await expect(tree.locator(sel)).toHaveAttribute(
+        "href",
+        "/?card=sor-005&v=hyperspace-sor-271"
+      );
+    }
+    await tree.locator(".pc-bar__open").click();
+    await expect(page).toHaveURL(/\/\?card=sor-005&v=hyperspace-sor-271$/);
+  });
+
   test("a phone-tree previous / next link opens the neighbour in the app", async ({
     page,
   }, info) => {

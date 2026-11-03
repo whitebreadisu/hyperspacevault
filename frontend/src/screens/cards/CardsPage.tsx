@@ -28,6 +28,7 @@ import type { FilterState } from "../../utils/filters";
 import type { ViewMode } from "../../components/FilterPanel";
 import type { BaseCard } from "../../utils/catalog";
 import { clearCardParam, resolveCardParam } from "../../utils/cardParam";
+import { findPrintingBySlug } from "../../utils/printingSlug";
 import type { CardParam } from "../../utils/cardParam";
 import type { PriceMode, ValueDisplayMode } from "../../utils/variantScope";
 import { useVaultDataSource } from "../../vault/useVaultData";
@@ -186,6 +187,11 @@ export function CardsPage({
   // Finish filter drove that display) -- wins over `scope` as the popup's
   // initialFinish for that popup session; cleared on close.
   const [galleryDisplayedFinish, setGalleryDisplayedFinish] = useState<string | null>(null);
+  // The printing a `?card=...&v=` link named (App Spec §5.3): applies to that
+  // card's first open only; prev / next, close and any other open drop it.
+  const [linkPrinting, setLinkPrinting] = useState<{ cardId: number; variantId: number } | null>(
+    null
+  );
   // Which surface opened the currently-open popup -- card_popup_opened's
   // `source` property (App Spec §22). Only "table"/"gallery" are produced (see
   // openPopupFromTable/openPopupFromGallery below); "deck_check"/
@@ -474,6 +480,7 @@ export function CardsPage({
       // (precedence over the scope preselect below). Table opens and
       // unfiltered gallery opens pass nothing and keep the default rules.
       setGalleryDisplayedFinish(displayedFinish);
+      setLinkPrinting(null);
       // Snapshot the SORTED order -- prev/next browses in the same order the
       // collector clicked from, table or Gallery alike.
       setPopupCardIds(list.map((c) => c.base_card_id));
@@ -494,7 +501,10 @@ export function CardsPage({
     setPendingCard(null);
     const hit = resolveCardParam(cards, pendingCard);
     clearCardParam();
-    if (hit) openPopup(hit.base_card_id, null, "link");
+    if (!hit) return;
+    openPopup(hit.base_card_id, null, "link");
+    const printing = findPrintingBySlug(hit.variants, pendingCard.printing);
+    if (printing) setLinkPrinting({ cardId: hit.base_card_id, variantId: printing.variant_id });
   }, [pendingCard, loading, cards, openPopup]);
 
   // card_popup_opened's `source` (App Spec §22) -- CardsTable's
@@ -517,6 +527,7 @@ export function CardsPage({
     setPopupBaseCardId(null);
     setPopupCardIds(null);
     setGalleryDisplayedFinish(null);
+    setLinkPrinting(null);
   }, []);
 
   /** Derives prev/next targets from the snapshotted `popupCardIds` (never from
@@ -528,6 +539,10 @@ export function CardsPage({
    * If the popup isn't open, or -- defensively -- the current id somehow isn't
    * in the snapshot, navigation is `undefined` entirely and the affordance
    * doesn't render at all (see CardPopup's `navigation` prop). */
+  const browseTo = useCallback((id: number) => {
+    setLinkPrinting(null);
+    setPopupBaseCardId(id);
+  }, []);
   const popupNavigation = useMemo(() => {
     if (popupBaseCardId == null || popupCardIds == null) return undefined;
     const index = popupCardIds.indexOf(popupBaseCardId);
@@ -537,10 +552,10 @@ export function CardsPage({
     return {
       canPrev: prevId != null,
       canNext: nextId != null,
-      onPrev: prevId != null ? () => setPopupBaseCardId(prevId) : () => {},
-      onNext: nextId != null ? () => setPopupBaseCardId(nextId) : () => {},
+      onPrev: prevId != null ? () => browseTo(prevId) : () => {},
+      onNext: nextId != null ? () => browseTo(nextId) : () => {},
     };
-  }, [popupBaseCardId, popupCardIds]);
+  }, [popupBaseCardId, popupCardIds, browseTo]);
 
   if (error) return <p className="loading-text">Error: {error}</p>;
 
@@ -821,6 +836,9 @@ export function CardsPage({
           // the collector a specific printing -- that displayed finish wins for
           // the session.
           initialFinish={galleryDisplayedFinish ?? scope}
+          initialVariantId={
+            linkPrinting?.cardId === popupBaseCardId ? linkPrinting.variantId : null
+          }
         />
       )}
     </div>

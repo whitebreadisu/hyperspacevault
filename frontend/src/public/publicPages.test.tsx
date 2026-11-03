@@ -395,6 +395,77 @@ describe("one printing selection across both trees", () => {
   });
 });
 
+// The page's actions open this card in the app on the selected printing
+// (App Spec §5.3): `&v=` follows a printing switch, the default printing
+// carries none, and the canonical URL never does.
+describe("page actions carry the selected printing", () => {
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    resetPrintingSelection();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+    window.history.replaceState(null, "", "/");
+  });
+
+  const hrefs = (tree: HTMLElement) =>
+    [".pc-brand", ".pc-bar__open", ".pc-cta__signin"].map((sel) =>
+      tree.querySelector(sel)!.getAttribute("href")
+    );
+
+  it.each([
+    ["desktop", "pc-desktop", DesktopCardPage],
+    ["phone", "pc-phone", PhoneCardPage],
+  ] as const)("on the %s tree, after a printing switch and back", async (_, id, Page) => {
+    window.history.replaceState(null, "", "/cards/sor/005/");
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    const tree = document.getElementById(id)!;
+    const assign = vi.fn();
+    await act(async () => {
+      hydrateRoot(tree, <Page data={page} />);
+    });
+    expect(hrefs(tree)).toEqual(Array(3).fill("/?card=sor-005"));
+    const pick = (re: RegExp) =>
+      [...tree.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+        re.test(b.textContent ?? "")
+      )!;
+    await act(async () => {
+      pick(/Hyperspace/).click();
+    });
+    expect(hrefs(tree)).toEqual(Array(3).fill("/?card=sor-005&v=hyperspace-sorp-1"));
+    vi.stubGlobal("location", { ...window.location, assign });
+    await act(async () => {
+      pick(/Create free account/).click();
+    });
+    expect(assign).toHaveBeenCalledWith("/?card=sor-005&v=hyperspace-sorp-1&signup=1");
+    vi.unstubAllGlobals();
+    await act(async () => {
+      pick(/^Standard/).click();
+    });
+    expect(hrefs(tree)).toEqual(Array(3).fill("/?card=sor-005"));
+  });
+
+  it("a page opened with ?v= starts its actions on that printing", async () => {
+    window.history.replaceState(null, "", "/cards/sor/005/?v=hyperspace-sorp-1");
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    const tree = document.getElementById("pc-desktop")!;
+    await act(async () => {
+      hydrateRoot(tree, <DesktopCardPage data={page} />);
+    });
+    expect(hrefs(tree)).toEqual(Array(3).fill("/?card=sor-005&v=hyperspace-sorp-1"));
+    expect(headHtml(page, { noindex: false })).toContain(
+      '<link rel="canonical" href="https://www.hyperspacevault.com/cards/sor/005/" />'
+    );
+  });
+});
+
 describe("set end of the header chevrons", () => {
   it("the set's last card has a prev link into the app and a disabled next", () => {
     const pages = buildPages(catalog);

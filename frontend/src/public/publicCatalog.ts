@@ -1,5 +1,7 @@
 import type { BaseCardDetail, VariantDetail } from "../api/baseCards";
 import { cardAppHref } from "../utils/cardParam";
+import { linkSlug } from "../utils/printingSlug";
+import type { SluggedPrinting } from "../utils/printingSlug";
 import { setSortRank } from "../utils/setGrouping";
 import { repairMojibake } from "../utils/mojibake";
 
@@ -81,6 +83,19 @@ export { repairMojibake } from "../utils/mojibake";
 
 /** Canonical and og:url point at prod in every environment (R2). */
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
+
+/** The shareable link to one printing of a card (App Spec §5.3): its public
+ * page on the canonical origin, in every environment, with `?v=<slug>` unless
+ * the printing is the card's default. Tokens have no page; callers hide the
+ * control for them. */
+export function cardPageUrl(
+  card: { set_code: string; base_card_number: string; variants: readonly SluggedPrinting[] },
+  printing: SluggedPrinting | null
+): string {
+  const base = CANONICAL_ORIGIN + cardPath(card.set_code, card.base_card_number);
+  const v = printing ? linkSlug(card.variants, printing) : null;
+  return v ? `${base}?v=${encodeURIComponent(v)}` : base;
+}
 
 /** The page never names the official CDN (design note §5a, "no
  * hotlinking"): a printing's stored CDN URL is replaced by its same-origin

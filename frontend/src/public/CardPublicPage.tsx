@@ -13,6 +13,7 @@ import type { RegionGeom } from "../mobile/card/cardDetailModel";
 import { useCollapse } from "../mobile/vault/useCollapse";
 import { toInventoryCards } from "../utils/inventory";
 import { cardAppHref } from "../utils/cardParam";
+import { defaultPrinting, findPrintingBySlug, linkSlug } from "../utils/printingSlug";
 import { setPath } from "./publicCatalog";
 import type { CardLink, CardPageData } from "./publicCatalog";
 import { ctaClicked } from "./publicAnalytics";
@@ -40,19 +41,6 @@ import {
 // element (Google indexes with a phone crawler); the desktop tree's title is
 // the same text and look as a role="heading" aria-level 1 div. The markup is
 // fixed per tree, not per viewport, so hydrating either tree matches.
-
-/** The printing a page opens on: Standard, else the first (the popup's
- * pickRepresentative). */
-function representative(variants: VariantDetail[]): VariantDetail | null {
-  return variants.find((v) => v.finish === "Standard") ?? variants[0] ?? null;
-}
-
-/** `?v=<finish>` slug for the selected printing (D3); the canonical URL
- * carries none. */
-function finishSlug(v: VariantDetail): string {
-  const base = (v.finish ?? v.variant_type).toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `${base}-${v.source_set_code.toLowerCase()}-${v.card_number}`;
-}
 
 /** The selected printing, shared by both trees: the page's two layouts are
  * one page, so a tree hydrated later (the viewport crossed the width switch)
@@ -88,11 +76,11 @@ function usePrinting(cardId: number, variants: VariantDetail[]) {
   useEffect(() => {
     if (selection.has(cardId)) return;
     const slug = new URLSearchParams(window.location.search).get("v");
-    const hit = slug ? variants.find((v) => finishSlug(v) === slug) : null;
+    const hit = findPrintingBySlug(variants, slug);
     if (hit) setSelection(cardId, hit.variant_id);
   }, [cardId, variants]);
   const selected = useMemo(
-    () => variants.find((v) => v.variant_id === selectedId) ?? representative(variants),
+    () => variants.find((v) => v.variant_id === selectedId) ?? defaultPrinting(variants),
     [variants, selectedId]
   );
   const select = useCallback(
@@ -101,8 +89,9 @@ function usePrinting(cardId: number, variants: VariantDetail[]) {
       setSelection(cardId, id);
       if (!v) return;
       const url = new URL(window.location.href);
-      if (v === representative(variants)) url.searchParams.delete("v");
-      else url.searchParams.set("v", finishSlug(v));
+      const slug = linkSlug(variants, v);
+      if (slug == null) url.searchParams.delete("v");
+      else url.searchParams.set("v", slug);
       window.history.replaceState(null, "", url.toString());
     },
     [cardId, variants]
@@ -130,9 +119,15 @@ function withPlateRoom(g: RegionGeom): RegionGeom {
 const navLink = (l: CardLink | null) => (l ? { href: l.appHref, name: l.label } : null);
 const followNav = () => ctaClicked("open_card_in_app");
 
-/** This card in the app: every call to action on the page opens it. */
-const thisCardHref = (data: CardPageData) =>
-  cardAppHref(data.card.set_code, data.card.base_card_number);
+/** This card in the app, on the selected printing: every call to action on
+ * the page opens it (`/?card=sor-005&v=hyperspace-sor-271`; no `v` for the
+ * default printing). */
+const thisCardHref = (data: CardPageData, selected: VariantDetail | null) =>
+  cardAppHref(
+    data.card.set_code,
+    data.card.base_card_number,
+    selected ? linkSlug(data.card.variants, selected) : null
+  );
 
 function crumbsFor(data: CardPageData) {
   return [
@@ -160,7 +155,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
   if (!selected) return null;
   return (
     <div className="pc-page">
-      <PageBar appHref={thisCardHref(data)} />
+      <PageBar appHref={thisCardHref(data, selected)} />
       <Breadcrumbs crumbs={crumbsFor(data)} />
       <div className="cp-shell pc-shell">
         <div className="cp-modal pc-modal">
@@ -191,7 +186,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
                 </span>
               </div>
             }
-            inventorySlot={<SignUpPlate appHref={thisCardHref(data)} />}
+            inventorySlot={<SignUpPlate appHref={thisCardHref(data, selected)} />}
             imageNote={<ArtNotice />}
             imagePlaceholder={<ArtPlaceholder />}
             afterBody={
@@ -275,7 +270,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
               plateSlot={
                 <div className="pc-phone__plate">
                   <ArtNotice />
-                  <SignUpPlate phone appHref={thisCardHref(data)} />
+                  <SignUpPlate phone appHref={thisCardHref(data, selected)} />
                 </div>
               }
               imageMode="fixed320"
@@ -293,7 +288,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
           </div>
         </div>
         <div className="m-detail__bar">
-          <PageBar phone appHref={thisCardHref(data)} />
+          <PageBar phone appHref={thisCardHref(data, selected)} />
         </div>
       </div>
     </div>

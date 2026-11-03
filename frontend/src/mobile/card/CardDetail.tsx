@@ -30,6 +30,8 @@ import {
 } from "./navList";
 import type { NavPosition } from "./navList";
 import { useStepper } from "./useStepper";
+import { useCardShare } from "./useCardShare";
+import { cardPageUrl } from "../../public/publicCatalog";
 import type { Stepper } from "./useStepper";
 import "../vault/vault.css";
 import "./card.css";
@@ -40,8 +42,10 @@ import "./card.css";
 // the visit, as under desktop's popup).
 //   - Fixed header (never collapses, never slides): the set's starfield
 //     under desktop's scrim, the card's name / subtitle, the set logo. Over
-//     it, the bar: a spacer left, prev / "n of m" / next centred (amber
-//     "n of m" while the Vault list is narrowed), X top-right.
+//     it, the bar: share top-left (a spacer for a token, which has no
+//     page), prev / "n of m" / next centred (amber "n of m" while the Vault
+//     list is narrowed; "Link copied" there for a moment after a copy), X
+//     top-right.
 //   - Opens on the printing the list showed (?v=), else the list's entry
 //     printing (scoped printing from rows, displayed printing from a
 //     gallery), else the representative.
@@ -154,6 +158,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     { kind: "finish" } | { kind: "aspects"; aspects: string[] } | null
   >(null);
   const closeSheet = useCallback(() => setSheet(null), []);
+  const { note: shareNote, share } = useCardShare();
 
   const select = (variantId: number) => {
     setSel(variantId);
@@ -414,7 +419,18 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       </div>
       <div className="m-detail__bar">
         <div className="m-hdr__bar m-hdr__bar--r2">
-          <span className="m-hdr__balance" aria-hidden="true" />
+          {card && variant && !card.is_token ? (
+            <button
+              type="button"
+              className="m-iconbtn m-hdr__share"
+              onClick={() => share(card.name, cardPageUrl(card, variant))}
+              aria-label="Share link to this card"
+            >
+              <MIcon name="share" size={20} />
+            </button>
+          ) : (
+            <span className="m-hdr__balance" aria-hidden="true" />
+          )}
           <span className="m-hdr__nav">
             <button
               type="button"
@@ -425,9 +441,18 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
             >
               <MIcon name="back" size={20} />
             </button>
-            <span className={"m-hdr__pos" + (nav.narrowed ? " m-hdr__pos--narrowed" : "")}>
-              {nav.pos >= 0 ? `${nav.pos + 1} of ${nav.list.length}` : ""}
-            </span>
+            {shareNote ? (
+              <span
+                className={"m-hdr__pos" + (shareNote === "failed" ? " m-hdr__pos--failed" : "")}
+                role="status"
+              >
+                {shareNote === "copied" ? "Link copied" : "Link not copied"}
+              </span>
+            ) : (
+              <span className={"m-hdr__pos" + (nav.narrowed ? " m-hdr__pos--narrowed" : "")}>
+                {nav.pos >= 0 ? `${nav.pos + 1} of ${nav.list.length}` : ""}
+              </span>
+            )}
             <button
               type="button"
               className="m-iconbtn m-hdr__step"

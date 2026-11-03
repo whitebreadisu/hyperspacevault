@@ -56,8 +56,21 @@ const DECISIONS: [string, string | null, string | null][] = [
   ["", "1", "/?card=sor-005"],
   ["", "0", null],
   ["", "true", null],
-  ["?v=hyperspace-sorp-1", "1", "/?card=sor-005"],
+  // The page's printing goes along when it has a slug's shape.
+  ["?v=hyperspace-sorp-1", "1", "/?card=sor-005&v=hyperspace-sorp-1"],
   ["?v=hyperspace-sorp-1", null, null],
+  [
+    "?v=serialized-prestige-sec-1127-rose-gold",
+    "1",
+    "/?card=sor-005&v=serialized-prestige-sec-1127-rose-gold",
+  ],
+  ["?x=1&v=foil-sor-5", "1", "/?card=sor-005&v=foil-sor-5"],
+  // Anything else in v is dropped, never copied into the app URL.
+  ["?v=", "1", "/?card=sor-005"],
+  ["?v=Hyperspace-SOR-1", "1", "/?card=sor-005"],
+  ["?v=%3Cscript%3E", "1", "/?card=sor-005"],
+  ["?v=a%26signup%3D1", "1", "/?card=sor-005"],
+  ["?v=a%22b", "1", "/?card=sor-005"],
   ["?page", "1", null],
   ["?page=", "1", null],
   ["?page=1", "1", null],

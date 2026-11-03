@@ -30,6 +30,7 @@ export type AnalyticsEvent =
   | "card_popup_opened"
   | "price_history_opened"
   | "popup_card_navigated"
+  | "card_link_copied"
   // inventory editing
   | "quantity_changed"
   | "add_cards_committed"
