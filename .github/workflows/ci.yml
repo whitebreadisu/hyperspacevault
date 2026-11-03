@@ -340,6 +340,7 @@ jobs:
         run: >-
           node scripts/public-pages/check-output.mjs dist --expect-noindex
           --expect-origin https://www.hyperspacevault.com
+          --summary "$GITHUB_STEP_SUMMARY"
 
       # The prod flag too: the same fixture without PUBLIC_PAGES_NOINDEX, into
       # a scratch copy of the app build, checked with --expect-index (a prod
@@ -1207,6 +1208,7 @@ jobs:
         run: >-
           node scripts/public-pages/check-output.mjs dist --expect-noindex
           --expect-origin https://swu-dev-jbapps.web.app
+          --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy frontend to dev Firebase Hosting
         working-directory: frontend

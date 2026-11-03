@@ -1,0 +1,32 @@
+/* Card-text markup tokens (App Spec §10): the unique mark sits on the text
+   line in the text colour; a list keeps the panel's text size and sits
+   tight under its lead-in line. */
+/* The printed line breaks (App Spec §10.11): a text paragraph keeps its
+   newlines (edges and blank lines already folded by cardTextLines). Not on
+   the list container: a list item is already one line of the source. */
+p.cp-text__body,
+.cp-text__para {
+  white-space: pre-line;
+}
+
+.cp-text__unique {
+  display: inline-block;
+  width: 0.78em;
+  height: 0.78em;
+  margin: 0 0.12em;
+  vertical-align: -0.06em;
+}
+
+.cp-text__body--blocks .cp-text__para {
+  margin: 0;
+}
+
+.cp-text__list {
+  margin: 2px 0 0;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+
+.cp-text__list li + li {
+  margin-top: 2px;
+}
