@@ -28,8 +28,16 @@ describe("?card= boot parameter", () => {
   });
 
   it("parses the formatted value back, and rejects malformed ones", () => {
-    expect(parseCardParam("?card=sor-006")).toEqual({ setCode: "SOR", number: "6" });
-    expect(parseCardParam("?x=1&card=TS26-12")).toEqual({ setCode: "TS26", number: "12" });
+    expect(parseCardParam("?card=sor-006")).toEqual({
+      setCode: "SOR",
+      number: "6",
+      printing: null,
+    });
+    expect(parseCardParam("?x=1&card=TS26-12")).toEqual({
+      setCode: "TS26",
+      number: "12",
+      printing: null,
+    });
     for (const bad of [
       "",
       "?card=",
@@ -41,6 +49,35 @@ describe("?card= boot parameter", () => {
     ]) {
       expect(parseCardParam(bad)).toBeNull();
     }
+  });
+
+  it("carries a printing slug in v, and drops a v that is not slug-shaped", () => {
+    expect(cardAppHref("SOR", "5", "hyperspace-sor-271")).toBe(
+      "/?card=sor-005&v=hyperspace-sor-271"
+    );
+    expect(cardAppHref("SOR", "5", null)).toBe("/?card=sor-005");
+    expect(parseCardParam("?card=sor-005&v=hyperspace-sor-271")).toEqual({
+      setCode: "SOR",
+      number: "5",
+      printing: "hyperspace-sor-271",
+    });
+    for (const bad of ["&v=", "&v=Hyperspace", "&v=a%20b", "&v=%3Cx%3E", "&v=" + "a".repeat(81)]) {
+      expect(parseCardParam("?card=sor-005" + bad)?.printing).toBeNull();
+    }
+    // v alone is not a card link.
+    expect(parseCardParam("?v=hyperspace-sor-271")).toBeNull();
+    expect(withSignup(cardAppHref("SOR", "5", "foil-sor-5"))).toBe(
+      "/?card=sor-005&v=foil-sor-5&signup=1"
+    );
+  });
+
+  it("clears v together with card, and leaves a v without card alone", () => {
+    window.history.replaceState(null, "", "/?card=sor-005&v=foil-sor-5&signup=1#/vault");
+    clearCardParam();
+    expect(window.location.search + window.location.hash).toBe("?signup=1#/vault");
+    window.history.replaceState(null, "", "/?v=foil-sor-5");
+    clearCardParam();
+    expect(window.location.search).toBe("?v=foil-sor-5");
   });
 
   it("resolves set + number to the non-token card", () => {

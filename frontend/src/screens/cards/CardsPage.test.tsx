@@ -3126,3 +3126,100 @@ describe("CardsPage ?card= boot parameter", () => {
     );
   });
 });
+
+// `?card=...&v=<printing slug>` (App Spec §5.3): the link opens the popup on
+// the printing the slug names; an unknown slug opens the usual printing; no
+// slug = the behaviour above. The parameter and its v leave the address bar.
+describe("CardsPage ?card=&v= boot printing", () => {
+  const printings = makeBaseCardDetail({
+    id: 7,
+    set_code: "SOR",
+    base_card_number: "5",
+    name: "Printings Card",
+    variants: [
+      makeVariant({ variant_id: 70, finish: "Standard", card_number: "5" }),
+      makeVariant({
+        variant_id: 71,
+        variant_type: "Hyperspace",
+        finish: "Hyperspace",
+        card_number: "271",
+      }),
+      makeVariant({
+        variant_id: 72,
+        variant_type: "Standard Foil",
+        finish: "Standard Foil",
+        card_number: "5",
+      }),
+    ],
+  });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue([...mockBaseCards, printings]);
+    mockGetBaseCardDetail.mockImplementation(async (id: number) => {
+      const found = [...mockBaseCards, printings].find((c) => c.id === id);
+      if (!found) throw new Error(`no fixture for base card ${id}`);
+      return found;
+    });
+  });
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  const activeRow = () =>
+    document.querySelector(".cp-rail__item--active")?.getAttribute("data-variant-id");
+
+  async function boot(printing: string | null) {
+    window.history.replaceState(
+      null,
+      "",
+      "/?card=sor-005" + (printing ? `&v=${printing}` : "") + "&x=1"
+    );
+    await act(async () => {
+      render(
+        <CardsPage
+          isAuthenticated={false}
+          openCardOnLoad={{ setCode: "SOR", number: "5", printing }}
+        />
+      );
+    });
+    await waitFor(() =>
+      expect(document.querySelector(".cp-title")?.textContent).toBe("Printings Card")
+    );
+  }
+
+  it("selects the printing the slug names, and drops card and v", async () => {
+    await boot("hyperspace-sor-271");
+    expect(activeRow()).toBe("71");
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it("an unknown slug opens the default printing", async () => {
+    await boot("hyperspace-twi-999");
+    expect(activeRow()).toBe("70");
+    expect(window.location.search).toBe("?x=1");
+  });
+
+  it("no slug opens the default printing, as before", async () => {
+    await boot(null);
+    expect(activeRow()).toBe("70");
+  });
+
+  it("the copy-link control copies the selected printing's page link", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await boot("standard-foil-sor-5");
+    expect(activeRow()).toBe("72");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy link to this card" }));
+    });
+    expect(writeText).toHaveBeenCalledWith(
+      "https://www.hyperspacevault.com/cards/sor/005/?v=standard-foil-sor-5"
+    );
+    expect(mockCapture).toHaveBeenCalledWith("card_link_copied", {
+      method: "copy",
+      surface: "popup",
+    });
+    expect(screen.getByRole("status").textContent).toBe("Link copied");
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+  });
+});

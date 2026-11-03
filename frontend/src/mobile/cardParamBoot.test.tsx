@@ -12,14 +12,36 @@ const data = vi.hoisted(() => ({
     set_code: string;
     base_card_number: string;
     is_token: boolean;
+    variants?: {
+      variant_id: number;
+      finish: string | null;
+      variant_type: string;
+      source_set_code: string;
+      card_number: string;
+      front_image_url: string | null;
+    }[];
   }[],
 }));
 vi.mock("../vault/useVaultData", () => ({ useVaultData: () => data }));
 
 import { CardParamBoot } from "./CardParamBoot";
 
+const printing = (variant_id: number, finish: string, card_number: string) => ({
+  variant_id,
+  finish,
+  variant_type: finish,
+  source_set_code: "SOR",
+  card_number,
+  front_image_url: null,
+});
 const CARDS = [
-  { base_card_id: 41, set_code: "SOR", base_card_number: "6", is_token: false },
+  {
+    base_card_id: 41,
+    set_code: "SOR",
+    base_card_number: "6",
+    is_token: false,
+    variants: [printing(410, "Standard", "6"), printing(411, "Hyperspace", "272")],
+  },
   { base_card_id: 99, set_code: "TWI", base_card_number: "1", is_token: true },
   { base_card_id: 42, set_code: "TWI", base_card_number: "1", is_token: false },
 ];
@@ -84,5 +106,25 @@ describe("CardParamBoot", () => {
       render(<CardParamBoot />);
     });
     expect(window.location.hash).toBe("#/vault");
+  });
+
+  // `&v=<printing slug>` (App Spec §25.0): the slug becomes the route's
+  // `?v=<variant_id>`; an unknown slug opens the usual printing; both leave
+  // the address bar with the card.
+  it.each([
+    ["hyperspace-sor-272", "#/card/41?v=411"],
+    ["hyperspace-twi-999", "#/card/41"],
+    ["Not A Slug", "#/card/41"],
+  ])("v=%j navigates to %j", async (slug, hash) => {
+    window.history.replaceState(
+      null,
+      "",
+      `/?card=sor-006&v=${encodeURIComponent(slug)}&x=1#/vault`
+    );
+    await act(async () => {
+      render(<CardParamBoot />);
+    });
+    expect(window.location.hash).toBe(hash);
+    expect(window.location.search).toBe("?x=1");
   });
 });

@@ -17,6 +17,9 @@ import {
 import { CardPopupInventoryControls, useInventoryMutation } from "./CardPopupInventory";
 import type { CardPopupNavigation } from "./CardPopupNav";
 import { orderVariants } from "./cardPopupShared";
+import { CardPopupLinkButton } from "./CardPopupLink";
+import { cardPageUrl } from "../../public/publicCatalog";
+import { defaultPrinting } from "../../utils/printingSlug";
 import { capture } from "../../analytics/analytics";
 import "./CardPopup.css";
 
@@ -45,11 +48,10 @@ export type { CardPopupNavigation };
  * (right). */
 
 /** Default the initial/displayed-on-load selection to the Standard printing
- * (the same representative rule used everywhere else a "the" card
- * image/variant is needed, e.g. GalleryGrid's cellImage). */
+ * (utils/printingSlug.ts defaultPrinting: the lowest-id Standard, else the
+ * lowest id), the printing a card link without `v` names. */
 function pickRepresentative(variants: VariantDetail[]): VariantDetail | null {
-  if (variants.length === 0) return null;
-  return variants.find((v) => v.finish === "Standard") ?? variants[0];
+  return defaultPrinting(variants);
 }
 
 /** When the Vault's variant scope is active, the popup should open on the
@@ -64,8 +66,13 @@ function pickRepresentative(variants: VariantDetail[]): VariantDetail | null {
  * filtered rows normally all match). */
 function pickInitialVariant(
   variants: VariantDetail[],
-  initialFinish: string | null | undefined
+  initialFinish: string | null | undefined,
+  initialVariantId?: number | null
 ): VariantDetail | null {
+  if (initialVariantId != null) {
+    const linked = variants.find((v) => v.variant_id === initialVariantId);
+    if (linked) return linked;
+  }
   if (initialFinish != null) {
     const scoped = variants.find((v) => (v.finish ?? v.variant_type) === initialFinish);
     if (scoped) return scoped;
@@ -110,6 +117,9 @@ interface Props {
    * pickInitialVariant above. Optional/undefined behaves exactly like null
    * (no scope). */
   initialFinish?: string | null;
+  /** The exact printing to open on (a `?card=...&v=` link, App Spec §5.3);
+   * wins over initialFinish when the card carries it. */
+  initialVariantId?: number | null;
   /** card_popup_opened's `source` (App Spec §22) -- which surface opened this
    * popup instance. Optional, defaulting to "table"; CardsPage (the only
    * production caller) always passes it explicitly. */
@@ -132,6 +142,7 @@ export function CardPopup({
   onRequestSignIn,
   navigation,
   initialFinish,
+  initialVariantId = null,
   source = "table",
   keysSuspended = false,
 }: Props) {
@@ -177,7 +188,7 @@ export function CardPopup({
         setDetail(data);
         setVariants(displayVariants);
         setSelectedVariantId(
-          pickInitialVariant(displayVariants, initialFinish)?.variant_id ?? null
+          pickInitialVariant(displayVariants, initialFinish, initialVariantId)?.variant_id ?? null
         );
         // A different base card (and even a different printing of the same
         // card -- see selectVariant below) can have different image geometry,
@@ -208,8 +219,10 @@ export function CardPopup({
     // open -- exactly when the stale zeros SHOULD be replaced. `source` joins
     // the deps too -- CardsPage always sets it in the same call as baseCardId
     // (see openPopup), so in practice it never changes independently, but the
-    // capture() call above does read it. resetFlip is a stable callback.
-  }, [baseCardId, initialFinish, quantityOverrides, source, resetFlip]);
+    // capture() call above does read it. initialVariantId likewise: CardsPage
+    // sets and clears it in the same update as baseCardId. resetFlip is a
+    // stable callback.
+  }, [baseCardId, initialFinish, initialVariantId, quantityOverrides, source, resetFlip]);
 
   const close = useCallback(() => {
     if (changed) onChanged?.();
@@ -318,6 +331,9 @@ export function CardPopup({
                 headerControls={
                   <div className="cp-header__controls">
                     {navigation && <CardPopupNavButtons navigation={navigation} />}
+                    {!detail.is_token && (
+                      <CardPopupLinkButton url={cardPageUrl(detail, selectedVariant)} />
+                    )}
                     <button type="button" className="cp-close" onClick={close} aria-label="Close">
                       ×
                     </button>

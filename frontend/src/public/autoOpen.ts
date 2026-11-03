@@ -1,4 +1,5 @@
 import { cardAppHref } from "../utils/cardParam";
+import { SLUG_PATTERN, isSlugShaped } from "../utils/printingSlug";
 import { APP_SEEN_KEY, hasSeenApp } from "../utils/appSeen";
 import {
   ANALYTICS_HOSTNAMES,
@@ -14,7 +15,9 @@ import {
 // first-time visitor see the page; the decision runs only in the browser: the
 // inline head script below (before anything paints), with the page script's
 // check before hydration as the fallback. A `page` query parameter (any
-// value, or bare) keeps the visitor on the page.
+// value, or bare) keeps the visitor on the page. The page's `?v=` printing
+// goes along when it has a slug's shape (`/?card=sor-005&v=hyperspace-sor-271`);
+// the app opens the default printing for a slug the card does not carry.
 
 /** Where to send this visit, or null to stay on the page. */
 export function autoOpenTarget(
@@ -23,8 +26,10 @@ export function autoOpenTarget(
   card: { set_code: string; base_card_number: string }
 ): string | null {
   if (!seen) return null;
-  if (new URLSearchParams(search).has("page")) return null;
-  return cardAppHref(card.set_code, card.base_card_number);
+  const q = new URLSearchParams(search);
+  if (q.has("page")) return null;
+  const v = q.get("v");
+  return cardAppHref(card.set_code, card.base_card_number, isSlugShaped(v) ? v : null);
 }
 
 /** The page entry's check: reads the marker (a throwing storage reads as
@@ -76,6 +81,8 @@ export interface AutoOpenConfig {
   flag: string;
   stalled: string;
   stallMs: number;
+  /** The printing slug's pattern (utils/printingSlug.ts SLUG_PATTERN). */
+  vPattern: string;
 }
 
 export function autoOpenConfig(
@@ -95,6 +102,7 @@ export function autoOpenConfig(
     flag: AUTO_OPEN_FLAG,
     stalled: AUTO_OPEN_STALLED_EVENT,
     stallMs,
+    vPattern: SLUG_PATTERN,
   };
 }
 
@@ -103,20 +111,25 @@ export function autoOpenConfig(
  * `page` parameter; storage that throws = stay), then the `auto_open` event
  * by sendBeacon under publicCapture's gates and identity (production
  * hostname, opt-out honoured, posthog-js's id else the page-only id), then
- * location.replace. It sets the flag to "pending" so the page script neither
+ * location.replace to the app link, with the page's `v` added when it matches
+ * vPattern (so nothing else reaches the URL). It sets the flag to "pending" so the page script neither
  * hydrates nor sends again while the navigation is under way (bootStep).
  * When replace throws, or nothing has navigated after stallMs, it shows the
  * page again, sets "stalled" and fires the stalled event, and the page
  * script hydrates. A function expression taking the config object; head.ts
  * appends the call. */
 export const AUTO_OPEN_JS = `(function (C) {
-  var s;
+  var s, q;
   try {
     s = window.localStorage;
-    if (s.getItem(C.key) !== "1" || new URLSearchParams(location.search).has("page")) return;
+    q = new URLSearchParams(location.search);
+    if (s.getItem(C.key) !== "1" || q.has("page")) return;
   } catch (e) {
     return;
   }
+  var href = C.href;
+  var v = q.get("v");
+  if (v && new RegExp(C.vPattern).test(v)) href += "&v=" + v;
   var root = document.documentElement;
   var stall = function () {
     window[C.flag] = "stalled";
@@ -148,7 +161,7 @@ export const AUTO_OPEN_JS = `(function (C) {
     }
   } catch (e) {}
   try {
-    location.replace(C.href);
+    location.replace(href);
   } catch (e) {
     stall();
     return;

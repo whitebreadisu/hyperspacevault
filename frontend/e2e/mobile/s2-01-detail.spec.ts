@@ -19,19 +19,27 @@ test("s2-01-detail-opens-from-row", async ({ page }) => {
     String(std.variant_id)
   );
   await expect(page.locator(".m-detail__title")).toHaveText(c.name);
-  // Bar order: spacer, prev, "n of m", next, X -- the X in the top-right corner.
+  // Bar order: share, prev, "n of m", next, X -- share top-left, the X in
+  // the top-right corner (App Spec §25.2).
   const bar = await page.evaluate(() => {
     const kids = [...document.querySelector(".m-cardlayer .m-hdr__bar")!.children];
     const nav = document.querySelector(".m-cardlayer .m-hdr__nav")!;
     const x = document.querySelector(".m-hdr__close")!.getBoundingClientRect();
+    const sh = document.querySelector(".m-hdr__share")!.getBoundingClientRect();
     return {
       order: kids.map((k) => k.className.split(" ").find((n) => n.startsWith("m-hdr__"))),
       nav: [...nav.children].map((k) => k.getAttribute("aria-label") ?? k.className),
       x: { right: x.right, top: x.top, w: x.width, h: x.height },
+      share: { left: sh.left, top: sh.top, w: sh.width, h: sh.height },
       iw: innerWidth,
     };
   });
-  expect(bar.order).toEqual(["m-hdr__balance", "m-hdr__nav", "m-hdr__close"]);
+  expect(bar.order).toEqual(["m-hdr__share", "m-hdr__nav", "m-hdr__close"]);
+  expect(bar.share.left).toBeLessThan(40);
+  expect(bar.share.top).toBeLessThan(12);
+  expect(bar.share.w).toBeGreaterThanOrEqual(44);
+  expect(bar.share.h).toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole("button", { name: "Share link to this card" })).toBeVisible();
   expect(bar.nav).toEqual(["Previous card", "m-hdr__pos", "Next card"]);
   expect(bar.x.right).toBeGreaterThan(bar.iw - 40);
   expect(bar.x.top).toBeLessThan(12);
@@ -81,3 +89,40 @@ test("s2-01-n-of-m-amber-when-narrowed", async ({ page }) => {
   await page.locator(".m-hdr__close").click();
   await expect(page.locator(".m-count")).toHaveText("18 cards");
 });
+
+// The share control's copy confirmation takes the "n of m" slot for a moment
+// (App Spec §25.2) without moving the chevrons, and fits, the longer
+// failure line included. The share sheet is absent here, so it copies.
+for (const [label, ok] of [
+  ["Link copied", true],
+  ["Link not copied", false],
+] as const) {
+  test(`s2-01-share-note-${ok ? "copied" : "failed"}-holds-the-chevrons`, async ({ page }) => {
+    await page.addInitScript((copyOk: boolean) => {
+      Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: () => (copyOk ? Promise.resolve() : Promise.reject(new Error("denied"))),
+        },
+        configurable: true,
+      });
+      if (!copyOk) document.execCommand = () => false;
+    }, ok);
+    await openCard(page, "ASH", 112);
+    const chevrons = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll(".m-cardlayer .m-hdr__step")].map(
+          (b) => b.getBoundingClientRect().left
+        )
+      );
+    const before = await chevrons();
+    await page.getByRole("button", { name: "Share link to this card" }).click();
+    const pos = page.locator(".m-cardlayer .m-hdr__pos");
+    await expect(pos).toHaveText(label);
+    await expect(page.locator(".m-cardlayer [role=status]")).toHaveText(label);
+    expect(await chevrons()).toEqual(before);
+    expect(await pos.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await expect(pos).toHaveText(/ of 53$/, { timeout: 4000 });
+    expect(await chevrons()).toEqual(before);
+  });
+}

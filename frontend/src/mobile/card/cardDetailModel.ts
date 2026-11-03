@@ -31,7 +31,7 @@ const finishOf = (v: InventoryVariant) => v.finish ?? v.variant_type;
 /** The printing the detail opens on: the printing the list showed (`?v=`,
  * a scoped row or a facet-driven gallery cell), else the scoped finish's
  * printing (as desktop: a scoped Vault only picks the default printing),
- * else the representative (Standard, else the first). */
+ * else the representative (utils/printingSlug.ts defaultPrinting). */
 export function entryVariant(
   card: InventoryCard,
   opts: { v?: number | null; scope?: string | null; finishes?: string[] | null } = {}

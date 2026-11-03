@@ -2,6 +2,7 @@ import type { CapMode } from "../../api/settingsLimits";
 import { decompose } from "../../utils/addCardsResolver";
 import type { AddCardsCatalogEntry, Decomposition } from "../../utils/addCardsResolver";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
+import { serializedTier } from "../../utils/printingSlug";
 import { effectiveLimit, limitBucketOf, typeCategoryOf } from "../../utils/limits";
 import type { LimitsMatrix } from "../../utils/limits";
 import type { BatchRow } from "../tool/batch";
@@ -98,11 +99,10 @@ const HINT_TWINS =
  * (App Spec §5.4); the camera asks. */
 const TIERS = ["Carbonite", "Gold", "Rose Gold"];
 
-/** A printing's tier from its image file name, or null when it has none. */
+/** A printing's tier from its image file name, or null when it has none
+ * (utils/printingSlug.ts owns the file-name rule). */
 function tierOf(v: InventoryVariant): string | null {
-  const m = /_Carb_C(_Rose_Gold|_Gold)?_[0-9a-f]+\.[a-z]+$/i.exec(v.front_image_url ?? "");
-  if (!m) return null;
-  return m[1] === "_Rose_Gold" ? "Rose Gold" : m[1] === "_Gold" ? "Gold" : "Carbonite";
+  return serializedTier(v.front_image_url);
 }
 
 /** "A, B and C". */

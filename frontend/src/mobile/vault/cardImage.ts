@@ -1,6 +1,7 @@
 import { cardImageProps } from "../../utils/cardImages";
 import type { CardImageProps, CardImageSlot } from "../../utils/cardImages";
 import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
+import { defaultPrinting } from "../../utils/printingSlug";
 
 // Which printing a row or gallery cell shows, and its image. Twins of
 // desktop screens/cards/GalleryGrid.tsx pickRepresentative and cellImage,
@@ -8,7 +9,8 @@ import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 // sizes are parameters, for the phone's thumbnail and gallery widths.
 
 /** The cell's printing: with any Finish facet value set, the lowest-numbered
- * printing carrying one; otherwise Standard, else the first. */
+ * printing carrying one; otherwise the card's default printing
+ * (utils/printingSlug.ts defaultPrinting). */
 export function pickRepresentative(
   variants: InventoryVariant[],
   activeFinishes?: Set<string>
@@ -21,7 +23,7 @@ export function pickRepresentative(
         Number(v.card_number) < Number(lowest.card_number) ? v : lowest
       );
   }
-  return variants.find((v) => v.finish === "Standard") ?? variants[0];
+  return defaultPrinting(variants);
 }
 
 /** The scoped printing (first variant carrying the raw finish), or null. */
