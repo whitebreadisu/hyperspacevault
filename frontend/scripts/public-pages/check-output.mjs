@@ -12,6 +12,10 @@
 //     /assets/ file a page loads;
 //   - a price figure ($ amount) in the meta description, og:description,
 //     twitter:description or JSON-LD (C4), or an Offer in JSON-LD;
+//   - a known swuapi markup token (`<uq>`, `<bullet>`) left literal in a
+//     page's visible text or attribute values (escaped there as
+//     `&lt;uq&gt;`) or in a description / JSON-LD (App Spec §10); any other
+//     `<tag>` there is a warning only (see below);
 //   - a sitemap URL with no file, a page file in no sitemap, a sitemap index
 //     whose children are missing, mixed origins, duplicate URLs, or a
 //     manifest that does not cover every page;
@@ -19,9 +23,13 @@
 //     or 50 MB.
 //
 //   node scripts/public-pages/check-output.mjs <distDir> (--expect-noindex | --expect-index)
-//       [--expect-origin <url>]
+//       [--expect-origin <url>] [--summary <file>]
+//
+// An unknown markup tag (one with no rendering rule) is a warning, not a
+// problem: printed as a GitHub Actions ::warning:: line and, with --summary,
+// appended to that file (the step summary); the exit code stays 0.
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileForPath, isSitemapIndex, parseLocs } from "./lib/sitemaps.mjs";
@@ -34,6 +42,15 @@ export { OFFICIAL_CDN };
 export const MAX_SITEMAP_URLS = 50_000;
 export const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 const PRICE_RE = /\$\s*\d/;
+/** A markup token as the page's escaped text shows it, and as plain text. */
+const ESCAPED_TOKEN_RE = /&lt;\/?[a-z][a-z0-9]*&gt;/gi;
+const TOKEN_RE = /<\/?[a-z][a-z0-9]*>/gi;
+/** The tokens the renderer has a rule for (utils/cardText.ts): one left
+ * literal is a renderer bug and fails. Any other tag is a token swuapi added
+ * since: a warning, so a new tag never blocks a deploy or a promote, while
+ * the page shows it as text until it gets a rule. */
+const KNOWN_TOKEN_RE = /^<\/?(uq|bullet)>$/i;
+export const isKnownToken = (t) => KNOWN_TOKEN_RE.test(t);
 
 function walk(dir) {
   if (!existsSync(dir)) return [];
@@ -80,6 +97,13 @@ function scripts(html, type) {
   return out;
 }
 
+/** Escaped markup tokens in the page outside <script> and <style> bodies:
+ * React escapes a literal `<uq>` in text or an attribute to `&lt;uq&gt;`. */
+export function visibleMarkupTokens(html) {
+  const outside = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+  return [...new Set((outside.match(ESCAPED_TOKEN_RE) ?? []).map(decode))];
+}
+
 /** "cards/sor/005/index.html" -> "card"; "cards/sor/index.html" -> "set";
  * "cards/index.html" -> "index"; anything else -> null. */
 export function pageKind(rel) {
@@ -93,12 +117,22 @@ export function pathForFile(rel) {
   return "/" + rel.replace(/index\.html$/, "");
 }
 
-/** Problems in one page. `rel` is its dist-relative posix path. */
-export function checkPage(html, { rel, expectNoindex }) {
+/** Problems in one page. `rel` is its dist-relative posix path; non-failing
+ * findings (an unknown markup tag) go to `warnings` when given. */
+export function checkPage(html, { rel, expectNoindex, warnings = [] }) {
   const kind = pageKind(rel);
   const where = rel;
   const problems = [];
   const p = (msg) => problems.push(`${where}: ${msg}`);
+  const w = (msg) => warnings.push(`${where}: ${msg}`);
+  /** Known tokens fail, unknown tags warn. */
+  const tokenFindings = (found, label) => {
+    const known = found.filter(isKnownToken);
+    const unknown = found.filter((t) => !isKnownToken(t));
+    if (known.length) p(`literal markup token in ${label}: ${known.join(", ")}`);
+    if (unknown.length)
+      w(`unknown markup tag in ${label} (no rendering rule): ${unknown.join(", ")}`);
+  };
 
   const h1 = (html.match(/<h1[\s>]/gi) ?? []).length;
   if (h1 !== 1) p(`${h1} <h1> elements (want exactly 1)`);
@@ -144,7 +178,9 @@ export function checkPage(html, { rel, expectNoindex }) {
   }
   for (const [label, text] of snippets) {
     if (PRICE_RE.test(text)) p(`price figure in ${label}: ${text.match(/\$\s*[\d.,]+/)?.[0]}`);
+    tokenFindings([...new Set(text.match(TOKEN_RE) ?? [])], label);
   }
+  tokenFindings(visibleMarkupTokens(html), "the page text");
 
   if (kind === "card") {
     if (!/\bid=["']pc-desktop["']/.test(html)) p("no desktop layout tree (#pc-desktop)");
@@ -179,7 +215,7 @@ function assetRefs(html) {
  * @param {string} distDir
  * @param {{ expectNoindex: boolean, expectOrigin?: string }} opts  every sitemap
  *   <loc> must start with `expectOrigin` (the origin the deploy wrote) when given
- * @returns {{ problems: string[], pages: number, sitemapUrls: number, kinds: Record<string, number> }}
+ * @returns {{ problems: string[], warnings: string[], pages: number, sitemapUrls: number, kinds: Record<string, number> }}
  */
 export function checkOutput(
   distDir,
@@ -198,6 +234,7 @@ export function checkOutput(
   };
   const dist = resolve(distDir);
   const problems = [];
+  const warnings = [];
   const files = walk(join(dist, "cards")).map((f) => toPosix(relative(dist, f)));
   const pageFiles = files.filter((f) => pageKind(f));
   const kinds = { card: 0, set: 0, index: 0 };
@@ -207,7 +244,7 @@ export function checkOutput(
   for (const rel of pageFiles) {
     kinds[pageKind(rel)] += 1;
     const html = readFileSync(join(dist, rel), "utf8");
-    problems.push(...checkPage(html, { rel, expectNoindex }));
+    problems.push(...checkPage(html, { rel, expectNoindex, warnings }));
     for (const a of assetRefs(html)) assets.add(a);
   }
   if (pageFiles.length > 0 && kinds.card === 0) problems.push("no card pages under cards/");
@@ -277,22 +314,30 @@ export function checkOutput(
     }
   }
 
-  return { problems, pages: pageFiles.length, sitemapUrls: sitemapUrls.size, kinds };
+  return { problems, warnings, pages: pageFiles.length, sitemapUrls: sitemapUrls.size, kinds };
 }
 
 function main(argv) {
+  const si = argv.indexOf("--summary");
+  const summary = si >= 0 ? argv[si + 1] : undefined;
+  if (si >= 0 && (!summary || summary.startsWith("--"))) {
+    console.error("--summary needs a file");
+    return 2;
+  }
   const oi = argv.indexOf("--expect-origin");
   const expectOrigin = oi >= 0 ? argv[oi + 1] : undefined;
   if (oi >= 0 && (!expectOrigin || expectOrigin.startsWith("--"))) {
     console.error("--expect-origin needs a URL");
     return 2;
   }
-  const dir = argv.find((a, i) => !a.startsWith("--") && !(oi >= 0 && i === oi + 1));
+  const dir = argv.find(
+    (a, i) => !a.startsWith("--") && !(oi >= 0 && i === oi + 1) && !(si >= 0 && i === si + 1)
+  );
   const noindex = argv.includes("--expect-noindex");
   const index = argv.includes("--expect-index");
   if (!dir || noindex === index) {
     console.error(
-      "usage: check-output.mjs <distDir> (--expect-noindex | --expect-index) [--expect-origin <url>]"
+      "usage: check-output.mjs <distDir> (--expect-noindex | --expect-index) [--expect-origin <url>] [--summary <file>]"
     );
     return 2;
   }
@@ -301,13 +346,26 @@ function main(argv) {
     `check-output: ${r.pages} pages (${r.kinds.card} card, ${r.kinds.set} set, ${r.kinds.index} index), ` +
     `${r.sitemapUrls} sitemap URLs, expect ${noindex ? "noindex" : "index"}` +
     (expectOrigin ? ` on ${expectOrigin}` : "");
+  for (const line of r.warnings) console.log(`::warning title=check-output::${line}`);
+  if (summary && r.warnings.length) {
+    appendFileSync(
+      summary,
+      [
+        "",
+        `### check-output: ${r.warnings.length} warning(s)`,
+        "",
+        ...r.warnings.map((l) => `- ::warning:: ${l}`),
+        "",
+      ].join("\n")
+    );
+  }
   if (r.problems.length) {
     console.error(`${head}: ${r.problems.length} problems`);
     for (const line of r.problems.slice(0, 100)) console.error(`  - ${line}`);
     if (r.problems.length > 100) console.error(`  ... and ${r.problems.length - 100} more`);
     return 1;
   }
-  console.log(`${head}: OK`);
+  console.log(`${head}: OK` + (r.warnings.length ? ` (${r.warnings.length} warnings)` : ""));
   return 0;
 }
 

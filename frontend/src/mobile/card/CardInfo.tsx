@@ -2,6 +2,7 @@ import type { BaseCardDetail } from "../../api/baseCards";
 import { AspectIcon } from "../../components/AspectIcon";
 import { RarityBadge } from "../../components/RarityBadge";
 import { StatBadge } from "../../components/StatBadge";
+import { CardText } from "../../components/CardText";
 import { EpicActionText } from "../../components/EpicActionText";
 import { repairText } from "../../utils/mojibake";
 import type { InventoryCard } from "../../utils/inventory";
@@ -10,9 +11,10 @@ import type { InventoryCard } from "../../utils/inventory";
 // (12 / 11 px cuts, steel ring) with desktop CardPopup.tsx's text logic:
 // a section header only on a double-sided card, Epic Action inline (one
 // shared EpicActionText, App Spec §10), the back's text under a
-// hairline. Text, artist and set name come from the
-// detail fetch (getBaseCardDetail); until it lands the panel is absent and
-// every fact that is missing reads "—".
+// hairline; every text field renders through the shared CardText (its
+// markup tokens). Text, artist and set name come from the detail fetch
+// (getBaseCardDetail); until it lands the panel is absent and every fact
+// that is missing reads "—".
 
 const ASPECT_GLOW: Record<string, string> = {
   Vigilance: "#3ea0d6",
@@ -125,16 +127,14 @@ export function CardInfo({
                 {detail.type}
               </div>
             ) : null}
-            {detail.front_text ? (
-              <p className="cp-text__body">{repairText(detail.front_text)}</p>
-            ) : null}
+            <CardText text={repairText(detail.front_text)} />
             <EpicActionText text={detail.epic_action} />
             {hasBackText ? (
               <div className="cp-text__back">
                 <div className="cp-text__header" style={{ color: glow }}>
                   {detail.type2 ?? "Back"}
                 </div>
-                <p className="cp-text__body">{repairText(detail.back_text)}</p>
+                <CardText text={repairText(detail.back_text)} />
               </div>
             ) : null}
           </div>

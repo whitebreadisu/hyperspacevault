@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   MAX_SITEMAP_BYTES,
@@ -238,5 +239,97 @@ describe("checkPage", () => {
       `<img src="https://cdn.starwarsunlimited.com//a.png"></body>`
     );
     expect(check(html)).toEqual([`${rel}: names cdn.starwarsunlimited.com`]);
+  });
+
+  // App Spec §10 "Card-text markup tokens": a known token (<uq>, <bullet>)
+  // left literal fails; an unknown tag warns and passes, so a tag swuapi adds
+  // later never blocks a deploy or a promote.
+  const withBody = (extra) =>
+    cardPage("/cards/sor/005/", {
+      body: `<div id="pc-desktop"><h1>A</h1>${extra}</div><div id="pc-phone"></div><script type="application/json" id="card-data">{"front_text":"a \\u003cuq> \\u003cfoo> unit"}</script>`,
+    });
+  const checkW = (html) => {
+    const warnings = [];
+    return { problems: checkPage(html, { rel, expectNoindex: false, warnings }), warnings };
+  };
+  const NONE = { problems: [], warnings: [] };
+
+  it("rejects a known token left literal in the page text or an attribute", () => {
+    expect(checkW(withBody(`<p class="cp-text__body">Play a &lt;uq&gt; unit.</p>`))).toEqual({
+      problems: [`${rel}: literal markup token in the page text: <uq>`],
+      warnings: [],
+    });
+    expect(check(withBody(`<p>Choose one:&lt;bullet&gt;Draw.&lt;/bullet&gt;</p>`))).toEqual([
+      `${rel}: literal markup token in the page text: <bullet>, </bullet>`,
+    ]);
+    expect(check(withBody(`<span title="a &lt;uq&gt; unit">x</span>`))).toEqual([
+      `${rel}: literal markup token in the page text: <uq>`,
+    ]);
+  });
+
+  it("warns on an unknown tag and passes; a known one beside it still fails", () => {
+    expect(checkW(withBody(`<p>A &lt;foo&gt; text &lt;/foo&gt;</p>`))).toEqual({
+      problems: [],
+      warnings: [`${rel}: unknown markup tag in the page text (no rendering rule): <foo>, </foo>`],
+    });
+    expect(checkW(withBody(`<p>A &lt;uq&gt; and &lt;foo&gt;</p>`))).toEqual({
+      problems: [`${rel}: literal markup token in the page text: <uq>`],
+      warnings: [`${rel}: unknown markup tag in the page text (no rendering rule): <foo>`],
+    });
+  });
+
+  it("passes rendered tokens, and ignores raw tokens inside the embedded card data", () => {
+    const rendered = `<p class="cp-text__body">Play a <svg class="cp-text__unique" role="img" aria-label="unique"></svg> unit.</p><ul class="cp-text__list"><li>Draw.</li></ul>`;
+    expect(checkW(withBody(rendered))).toEqual(NONE);
+    // A plain angle-bracket phrase that is not a tag is not a token.
+    expect(checkW(withBody(`<p>power &lt; 3 and &lt;3&gt;</p>`))).toEqual(NONE);
+  });
+
+  it("rejects a known token in a description or JSON-LD, and warns on an unknown one", () => {
+    expect(check(cardPage("/cards/sor/005/", { desc: "Play a &lt;uq&gt; unit" }))).toEqual([
+      `${rel}: literal markup token in meta description: <uq>`,
+      `${rel}: literal markup token in og:description: <uq>`,
+      // The meta's content attribute is also page markup outside a script.
+      `${rel}: literal markup token in the page text: <uq>`,
+    ]);
+    const ld = (name) =>
+      JSON.stringify({ "@type": "BreadcrumbList", name }).replace(/</g, "\\u003c");
+    expect(check(cardPage("/cards/sor/005/", { ld: ld("a <bullet> b") }))).toEqual([
+      `${rel}: literal markup token in JSON-LD: <bullet>`,
+    ]);
+    expect(checkW(cardPage("/cards/sor/005/", { ld: ld("a <i> b") }))).toEqual({
+      problems: [],
+      warnings: [`${rel}: unknown markup tag in JSON-LD (no rendering rule): <i>`],
+    });
+  });
+});
+
+describe("check-output unknown-tag warnings, end to end", () => {
+  it("an unknown tag leaves the dist passing, with a warning; --summary gets it", () => {
+    goodDist();
+    write(
+      "cards/sor/010/index.html",
+      cardPage("/cards/sor/010/").replace("</h1>", "</h1><p>A &lt;foo&gt; unit</p>")
+    );
+    const r = checkOutput(dist, { expectNoindex: false });
+    expect(r.problems).toEqual([]);
+    expect(r.warnings).toEqual([
+      "cards/sor/010/index.html: unknown markup tag in the page text (no rendering rule): <foo>",
+    ]);
+
+    const summary = join(dist, "summary.md");
+    // vitest runs from frontend/ (import.meta.url is not a file URL under jsdom).
+    const script = resolve("scripts/public-pages/check-output.mjs");
+    const run = spawnSync(
+      process.execPath,
+      [script, dist, "--expect-index", "--summary", summary],
+      {
+        encoding: "utf8",
+      }
+    );
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("::warning title=check-output::cards/sor/010/index.html");
+    expect(run.stdout).toMatch(/OK \(1 warnings\)/);
+    expect(readFileSync(summary, "utf8")).toContain("### check-output: 1 warning(s)");
   });
 });

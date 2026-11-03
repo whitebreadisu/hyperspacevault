@@ -4,6 +4,7 @@ import { AspectIcon } from "../../components/AspectIcon";
 import { StatBadge } from "../../components/StatBadge";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { RarityBadge } from "../../components/RarityBadge";
+import { CardText } from "../../components/CardText";
 import { EpicActionText } from "../../components/EpicActionText";
 import { repairText } from "../../utils/mojibake";
 import { CardPopupRail, type PriceRailMode } from "./CardPopupRail";
@@ -304,14 +305,14 @@ export function CardPopupView({
                   {detail.type}
                 </div>
               )}
-              {frontText && <p className="cp-text__body">{frontText}</p>}
+              <CardText text={frontText} />
               <EpicActionText text={detail.epic_action} />
               {hasBackText && (
                 <div className="cp-text__back">
                   <div className="cp-text__header" style={{ color: glow }}>
                     {detail.type2 ?? "Back"}
                   </div>
-                  <p className="cp-text__body">{backText}</p>
+                  <CardText text={backText} />
                 </div>
               )}
             </div>
