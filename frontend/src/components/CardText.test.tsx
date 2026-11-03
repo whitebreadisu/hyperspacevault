@@ -238,7 +238,11 @@ describe("card-text token census", () => {
     let marks = 0;
     let lists = 0;
     for (const page of pages) {
-      const body = renderCardBody(page).replace(/<script\b[\s\S]*?<\/script>/g, "");
+      let body = renderCardBody(page);
+      for (let prev = ""; prev !== body; ) {
+        prev = body;
+        body = body.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "");
+      }
       expect(body, `${page.card.set_code} ${page.card.base_card_number}`).not.toMatch(LITERAL);
       marks += body.split(MARK).length - 1;
       lists += body.split('class="cp-text__list"').length - 1;

@@ -121,7 +121,11 @@ const SNIPPET_META = /^(description|og:description|twitter:description)$/i;
  * that reached the page unescaped as an element (`<uq>`). The snippet metas
  * are left to the snippet check. */
 export function visibleMarkupTokens(html) {
-  const outside = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+  let outside = html;
+  for (let prev = ""; prev !== outside; ) {
+    prev = outside;
+    outside = outside.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\b[^>]*>/gi, "");
+  }
   const found = new Set();
   const scan = (text) => {
     for (const t of decode(text).match(TOKEN_RE) ?? []) found.add(t);
