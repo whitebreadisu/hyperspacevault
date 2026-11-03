@@ -61,19 +61,23 @@ export function Breadcrumbs({ crumbs }: { crumbs: { label: string; href?: string
   );
 }
 
+/** The phone tree's previous / next text links: like the desktop header
+ * chevrons, they open the neighbouring card inside the app (`/?card=`). The
+ * crawl path between card pages is the breadcrumb and the set pages. */
 export function SetNav({ prev, next }: { prev: CardLink | null; next: CardLink | null }) {
   if (!prev && !next) return null;
+  const follow = () => ctaClicked("open_card_in_app");
   return (
     <nav className="pc-setnav" aria-label="Cards in this set">
       {prev ? (
-        <a href={localHref(prev.path)} rel="prev">
+        <a href={localHref(prev.appHref)} onClick={follow}>
           ‹ {prev.label}
         </a>
       ) : (
         <span />
       )}
       {next ? (
-        <a href={localHref(next.path)} rel="next">
+        <a href={localHref(next.appHref)} onClick={follow}>
           {next.label} ›
         </a>
       ) : null}

@@ -1,11 +1,11 @@
-<!-- generated 2026-11-03 by .github/scripts/docs_index.mjs from 8d4b9ce — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-03 by .github/scripts/docs_index.mjs from 2066f3d — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 269,244 B (LF) · 25 h2 · 77 h3
+Total 269,751 B (LF) · 25 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -24,10 +24,10 @@ Total 269,244 B (LF) · 25 h2 · 77 h3
 | h3 | [§4.4 `inventory`](SWU_Application_Spec.md#44-inventory) | 109 | 236 |  |  |  |  |
 | h3 | [§4.5 Tenant settings & limits](SWU_Application_Spec.md#45-tenant-settings--limits) | 115 | 6,217 | 2026-07-12 Decided & built (BL-24, backend) | 0013, 0018 |  |  |
 | h3 | [§4.6 `feedback` — anonymous-first user feedback (BL-126, shipped 2026-07-14)](SWU_Application_Spec.md#46-feedback--anonymous-first-user-feedback-bl-126-shipped-2026-07-14) | 130 | 3,148 |  |  | `backend/app/services/feedback.py`, `backend/app/tests/test_account_deletion.py` |  |
-| h2 | [§5. UX / interaction model](SWU_Application_Spec.md#5-ux--interaction-model) | 142 | 55,677 |  |  |  |  |
+| h2 | [§5. UX / interaction model](SWU_Application_Spec.md#5-ux--interaction-model) | 142 | 56,184 |  |  |  |  |
 | h3 | [§5.1 Set pickers — base/long-tail toggle](SWU_Application_Spec.md#51-set-pickers--baselong-tail-toggle) | 144 | 1,421 | 2026-10-12 Set order — newest first ) | 0031 | `frontend/src/utils/catalog.ts`, `frontend/src/utils/setGrouping.ts` |  |
 | h3 | [§5.2 Catalog / Inventory filter semantics](SWU_Application_Spec.md#52-catalog--inventory-filter-semantics) | 150 | 1,625 |  |  | `frontend/src/utils/cardSort.ts` | "Archived 2026-11-01 — spec drift and comment-held rules (BL-317)" |
-| h3 | [§5.3 Card detail / inventory popup (S6)](SWU_Application_Spec.md#53-card-detail--inventory-popup-s6) | 156 | 3,929 | 2026-07-13 BL-111 F5 |  | `frontend/src/public/autoOpen.ts`, `frontend/src/screens/cards/CardPopup.tsx`, `frontend/src/utils/appSeen.ts`, `frontend/src/utils/cardParam.ts` |  |
+| h3 | [§5.3 Card detail / inventory popup (S6)](SWU_Application_Spec.md#53-card-detail--inventory-popup-s6) | 156 | 4,436 | 2026-07-13 BL-111 F5 |  | `frontend/src/public/autoOpen.ts`, `frontend/src/screens/cards/CardPopup.tsx`, `frontend/src/utils/appSeen.ts`, `frontend/src/utils/cardParam.ts` |  |
 | h3 | [§5.4 Add Cards — four-axis, ambiguity-gated resolver](SWU_Application_Spec.md#54-add-cards--four-axis-ambiguity-gated-resolver) | 167 | 11,025 | 2026-07-06 Cross-set batch | 0008, 0031 | `frontend/src/utils/addCardsResolver.ts`, `frontend/src/utils/setGrouping.ts` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
 | h3 | [§5.6 Faceted filters (BL-70)](SWU_Application_Spec.md#56-faceted-filters-bl-70) | 218 | 6,399 | 2026-07-13 Layout | 0013 | `frontend/src/utils/filterPanelTiers.ts` | "Archived 2026-11-01 — desktop Cards filtering follows the phone (BL-302)" |
 | h3 | [§5.7 Gallery view — stage 1 (BL-73, shipped 2026-07-11)](SWU_Application_Spec.md#57-gallery-view--stage-1-bl-73-shipped-2026-07-11) | 236 | 3,566 |  | 0012 | `docs/decisions/0012-card-image-self-hosting.md`, `frontend/src/components/FilterPanel.tsx`, `frontend/src/screens/cards/GalleryGrid.tsx` |  |

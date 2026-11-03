@@ -155,6 +155,26 @@ test.describe("with JavaScript", () => {
     await expect(page).toHaveURL(/\/cards\/$/);
   });
 
+  test("the redirect is the head script's: it works with the page bundle blocked", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.route("**/assets/*.js", (r) => r.abort());
+    await page.goto(PATH);
+    await expect(page).toHaveURL(/\/\?card=sor-005$/);
+  });
+
+  test("a phone-tree previous / next link opens the neighbour in the app", async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info), "the text links are the phone tree's");
+    await page.goto(PATH);
+    const next = page.locator("#pc-phone .pc-setnav a").last();
+    await expect(next).toHaveAttribute("href", "/?card=sor-010");
+    await next.click();
+    await expect(page).toHaveURL(/\/\?card=sor-010$/);
+  });
+
   test("?page keeps a returning browser on the card page", async ({ page }, info) => {
     await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
     await page.goto(`${PATH}?page`);

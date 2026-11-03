@@ -22,16 +22,19 @@ import { autoOpenFromLocation } from "./autoOpen";
 // (design note §6, C7); the page's own view event goes through
 // publicAnalytics.ts (production hostnames only).
 //
-// Before hydrating, a browser that has opened the app before (the app's boot
-// marker, utils/appSeen.ts) is sent to this card in the app instead
-// (autoOpen.ts): location.replace, so Back does not return to a page that
-// would redirect again. `?page` keeps the visitor here. The CTA event goes
-// out on a keepalive request, which outlives the navigation.
+// A browser that has opened the app before (the app's boot marker,
+// utils/appSeen.ts) is sent to this card in the app by the inline script at
+// the top of the head (autoOpen.ts AUTO_OPEN_JS), before the page paints;
+// when it has, this script does nothing. The same check runs here as a
+// fallback: location.replace, so Back does not return to a page that would
+// redirect again, the event on a keepalive request. `?page` keeps the
+// visitor here.
 
 const PHONE_QUERY = "(max-width: 767px)";
 
 const dataEl = document.getElementById("card-data");
-if (dataEl?.textContent) {
+const headRedirected = (window as { __hsvAutoOpen?: boolean }).__hsvAutoOpen === true;
+if (dataEl?.textContent && !headRedirected) {
   const data = JSON.parse(dataEl.textContent) as CardPageData;
   const target = autoOpenFromLocation(data.card);
   if (target) {

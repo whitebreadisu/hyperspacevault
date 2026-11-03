@@ -13,7 +13,9 @@ import {
 // session replay, no person profile. Production hostnames only, as the app's
 // initAnalytics(). The app's own capture() is never initialised on a public
 // page, so the shared components' calls to it stay no-ops; this module is the
-// only thing a public page sends. Public decks add `deck_page_viewed` here
+// only thing a public page sends, apart from the card page's inline head
+// script, which sends `card_page_cta` `auto_open` under the same allowlisted
+// shape, gates and identity (autoOpen.ts AUTO_OPEN_JS). Public decks add `deck_page_viewed` here
 // later (§7).
 
 export type ReferrerKind = "search" | "social" | "internal" | "other" | "none";

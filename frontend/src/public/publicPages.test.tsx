@@ -169,6 +169,15 @@ describe("page head", () => {
     expect(head).not.toMatch(/\$\d/);
     expect(pageDescription(page)).not.toMatch(/\d\.\d\d/);
     expect(head).not.toContain("noindex");
+    // The returning-visitor redirect is the first element, before the title.
+    expect(head.startsWith("<script>(function (C)")).toBe(true);
+    expect(head.indexOf("<script>")).toBeLessThan(head.indexOf("<title>"));
+    expect(head).toContain('"href":"/?card=sor-005"');
+  });
+
+  it("set pages and the index carry no redirect script", () => {
+    expect(setHeadHtml(buildSetPages(catalog)[0], { noindex: false })).not.toContain("<script>");
+    expect(indexHeadHtml(buildIndexPage(catalog), { noindex: false })).not.toContain("<script>");
   });
 
   it("carries a robots noindex only when asked (dev)", () => {
@@ -283,6 +292,14 @@ describe("card page calls to action", () => {
       );
       expect(tree.querySelector(".pc-foot a")!.getAttribute("href")).toBe("/");
     }
+    // The phone tree's previous / next text links open the neighbour in the
+    // app, as the desktop header chevrons do.
+    const phoneNav = [...document.querySelectorAll("#pc-phone .pc-setnav a")];
+    expect(phoneNav.map((a) => a.getAttribute("href"))).toEqual(["/?card=sor-025"]);
+    document.body.innerHTML = renderCardBody(buildPages(catalog)[1]);
+    expect(
+      [...document.querySelectorAll("#pc-phone .pc-setnav a")].map((a) => a.getAttribute("href"))
+    ).toEqual(["/?card=sor-005"]);
   });
 
   it.each([
