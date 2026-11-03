@@ -23,8 +23,9 @@
 //      sitemaps, override --allow-shrink);
 //   5. hashes every page, reads the live /sitemaps/manifest.json and writes
 //      the new manifest and the sitemaps (lib/manifest, lib/sitemaps);
-//   6. only then moves cards/, sitemaps/ and sitemap.xml into dist. A failed
-//      read or guard leaves dist without pages, and the deploy step fails
+//   6. only then moves cards/, sitemaps/ and sitemap.xml into dist. On a
+//      failed read or guard no public page or sitemap is published (the page
+//      bundle's assets may already be in dist), and the deploy step fails
 //      before `firebase deploy` (design note §3 guard 4).
 // Every guard's line goes to stdout and to --summary (the job summary), also
 // when the run fails.

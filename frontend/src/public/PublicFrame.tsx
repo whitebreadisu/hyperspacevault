@@ -2,6 +2,7 @@ import { SWUButton } from "../components/SWUButton";
 import type { CardLink } from "./publicCatalog";
 import { ctaClicked } from "./publicAnalytics";
 import { localHref } from "../utils/localHref";
+import { withSignup } from "../utils/cardParam";
 
 // The public pages' frame (design note §4 D1, D4, §7): the page bar with the
 // wordmark and one bar action, the breadcrumb, the previous / next links,
@@ -119,8 +120,10 @@ export function ArtNotice() {
 }
 
 /** The signed-out plate as the sign-up call to action (row 10, D4): same
- * plate shape and slot, one SWUButton, a quiet "Sign in" text link. Both open
- * `appHref` (a card page passes this card's `/?card=` link). */
+ * plate shape and slot, one SWUButton, a quiet "Sign in" text link. Sign in
+ * opens `appHref` (a card page passes this card's `/?card=` link); Create
+ * free account opens it with `signup=1`, so the app's dialog starts in
+ * create-account mode (utils/cardParam.ts). */
 export function SignUpPlate({
   phone = false,
   appHref = APP_URL,
@@ -131,7 +134,7 @@ export function SignUpPlate({
   const href = localHref(appHref);
   const createAccount = () => {
     ctaClicked("create_account");
-    window.location.assign(href);
+    window.location.assign(localHref(withSignup(appHref)));
   };
   return (
     <div className={"cp-plate pc-cta" + (phone ? " pc-cta--phone" : "")}>

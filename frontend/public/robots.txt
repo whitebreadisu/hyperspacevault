@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /*?card=
 
 Sitemap: https://www.hyperspacevault.com/sitemap.xml

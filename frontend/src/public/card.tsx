@@ -8,9 +8,15 @@ import "../screens/cards/cards.css";
 import "./public.css";
 import { DesktopCardPage, PhoneCardPage } from "./CardPublicPage";
 import { padNumber } from "./publicCatalog";
+import { hydrateTreesOnReveal } from "./treeHydration";
 import type { CardPageData } from "./publicCatalog";
 import { publicCapture, referrerKind } from "./publicAnalytics";
-import { autoOpenFromLocation } from "./autoOpen";
+import {
+  AUTO_OPEN_FLAG,
+  AUTO_OPEN_STALLED_EVENT,
+  autoOpenFromLocation,
+  bootStep,
+} from "./autoOpen";
 
 // The entry of the public card page document (card.html, prerendered per card
 // by scripts/public-pages/generate.mjs). It hydrates the visible layout tree
@@ -24,20 +30,25 @@ import { autoOpenFromLocation } from "./autoOpen";
 //
 // A browser that has opened the app before (the app's boot marker,
 // utils/appSeen.ts) is sent to this card in the app by the inline script at
-// the top of the head (autoOpen.ts AUTO_OPEN_JS), before the page paints;
-// when it has, this script does nothing. The same check runs here as a
-// fallback: location.replace, so Back does not return to a page that would
-// redirect again, the event on a keepalive request. `?page` keeps the
+// the top of the head (autoOpen.ts AUTO_OPEN_JS), before the page paints.
+// What this script then does is autoOpen.ts bootStep: while the head
+// script's navigation is pending it waits, and hydrates only if that
+// navigation stalls; without a head script the same check runs here as a
+// fallback (location.replace, so Back does not return to a page that would
+// redirect again; the event on a keepalive request). `?page` keeps the
 // visitor here.
 
 const PHONE_QUERY = "(max-width: 767px)";
 
 const dataEl = document.getElementById("card-data");
-const headRedirected = (window as { __hsvAutoOpen?: boolean }).__hsvAutoOpen === true;
-if (dataEl?.textContent && !headRedirected) {
+if (dataEl?.textContent) {
   const data = JSON.parse(dataEl.textContent) as CardPageData;
+  const headState = (window as unknown as Record<string, unknown>)[AUTO_OPEN_FLAG];
   const target = autoOpenFromLocation(data.card);
-  if (target) {
+  const step = bootStep(headState, target);
+  if (step === "wait") {
+    window.addEventListener(AUTO_OPEN_STALLED_EVENT, () => hydrate(data), { once: true });
+  } else if (step === "redirect" && target) {
     publicCapture("card_page_cta", { action: "auto_open" });
     window.location.replace(target);
   } else {
@@ -46,21 +57,12 @@ if (dataEl?.textContent && !headRedirected) {
 }
 
 function hydrate(data: CardPageData) {
-  const query = window.matchMedia(PHONE_QUERY);
-  const done = new Set<string>();
-  const hydrateVisible = () => {
-    const phone = query.matches;
-    const id = phone ? "pc-phone" : "pc-desktop";
-    if (done.has(id)) return;
-    done.add(id);
-    const root = document.getElementById(id);
+  hydrateTreesOnReveal(window.matchMedia(PHONE_QUERY), (phone) => {
+    const root = document.getElementById(phone ? "pc-phone" : "pc-desktop");
     if (root) {
       hydrateRoot(root, phone ? <PhoneCardPage data={data} /> : <DesktopCardPage data={data} />);
     }
-    if (done.size === 2) query.removeEventListener("change", hydrateVisible);
-  };
-  hydrateVisible();
-  query.addEventListener("change", hydrateVisible);
+  });
   publicCapture("card_page_viewed", {
     set: data.card.set_code,
     number: padNumber(data.card.base_card_number),

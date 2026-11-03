@@ -36,6 +36,32 @@ export function autoOpenFromLocation(
   return autoOpenTarget(window.location.search, hasSeenApp(storage), card);
 }
 
+/** The head script's progress, on `window.__hsvAutoOpen`: "pending" while
+ * its navigation is under way, "stalled" once it gave up (location.replace
+ * threw, or no navigation within AUTO_OPEN_STALL_MS); absent when the head
+ * script did not act. */
+export type HeadState = "pending" | "stalled";
+export const AUTO_OPEN_FLAG = "__hsvAutoOpen";
+/** Fired on window when the head script gives up, so a waiting page script
+ * hydrates late. */
+export const AUTO_OPEN_STALLED_EVENT = "hsv:auto-open-stalled";
+/** How long a redirect may take before the page is shown again. */
+export const AUTO_OPEN_STALL_MS = 4000;
+
+export type BootStep = "wait" | "redirect" | "hydrate";
+
+/** The page script's boot decision (card.tsx). `headState` is the head
+ * script's flag; `fallbackTarget` is autoOpenFromLocation's answer.
+ *   - pending: the head script is navigating and already sent the event:
+ *     wait for its stalled signal, never send or redirect again;
+ *   - stalled: the head script tried and gave up: show the page;
+ *   - absent: the head script did not act; the fallback decides. */
+export function bootStep(headState: unknown, fallbackTarget: string | null): BootStep {
+  if (headState === "pending") return "wait";
+  if (headState === "stalled") return "hydrate";
+  return fallbackTarget ? "redirect" : "hydrate";
+}
+
 /** What the inline head script needs, baked into each card page at
  * generation time (head.ts serialises it with scriptJson). */
 export interface AutoOpenConfig {
@@ -47,11 +73,15 @@ export interface AutoOpenConfig {
   idKey: string;
   optKey: string;
   relay: string;
+  flag: string;
+  stalled: string;
+  stallMs: number;
 }
 
 export function autoOpenConfig(
   card: { set_code: string; base_card_number: string },
-  hosts: readonly string[] = ANALYTICS_HOSTNAMES
+  hosts: readonly string[] = ANALYTICS_HOSTNAMES,
+  stallMs: number = AUTO_OPEN_STALL_MS
 ): AutoOpenConfig {
   return {
     href: cardAppHref(card.set_code, card.base_card_number),
@@ -62,6 +92,9 @@ export function autoOpenConfig(
     idKey: PUBLIC_ID_KEY,
     optKey: `__ph_opt_in_out_${POSTHOG_TOKEN}`,
     relay: `${RELAY_PATH}/i/v0/e/`,
+    flag: AUTO_OPEN_FLAG,
+    stalled: AUTO_OPEN_STALLED_EVENT,
+    stallMs,
   };
 }
 
@@ -70,9 +103,12 @@ export function autoOpenConfig(
  * `page` parameter; storage that throws = stay), then the `auto_open` event
  * by sendBeacon under publicCapture's gates and identity (production
  * hostname, opt-out honoured, posthog-js's id else the page-only id), then
- * location.replace. It sets `__hsvAutoOpen` so the page script neither
- * hydrates nor sends again while the navigation is under way. A function
- * expression taking the config object; head.ts appends the call. */
+ * location.replace. It sets the flag to "pending" so the page script neither
+ * hydrates nor sends again while the navigation is under way (bootStep).
+ * When replace throws, or nothing has navigated after stallMs, it shows the
+ * page again, sets "stalled" and fires the stalled event, and the page
+ * script hydrates. A function expression taking the config object; head.ts
+ * appends the call. */
 export const AUTO_OPEN_JS = `(function (C) {
   var s;
   try {
@@ -81,8 +117,14 @@ export const AUTO_OPEN_JS = `(function (C) {
   } catch (e) {
     return;
   }
-  window.__hsvAutoOpen = true;
-  document.documentElement.style.visibility = "hidden";
+  var root = document.documentElement;
+  var stall = function () {
+    window[C.flag] = "stalled";
+    root.style.visibility = "";
+    window.dispatchEvent(new Event(C.stalled));
+  };
+  window[C.flag] = "pending";
+  root.style.visibility = "hidden";
   try {
     var o = s.getItem(C.optKey);
     if (C.hosts.indexOf(location.hostname) >= 0 && o !== "0" && o !== "false" && navigator.sendBeacon) {
@@ -105,5 +147,11 @@ export const AUTO_OPEN_JS = `(function (C) {
       navigator.sendBeacon(location.origin + C.relay, new Blob([body], { type: "application/json" }));
     }
   } catch (e) {}
-  location.replace(C.href);
+  try {
+    location.replace(C.href);
+  } catch (e) {
+    stall();
+    return;
+  }
+  setTimeout(stall, C.stallMs);
 })`;

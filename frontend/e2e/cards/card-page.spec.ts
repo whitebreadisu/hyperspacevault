@@ -139,8 +139,14 @@ test.describe("with JavaScript", () => {
     await page.goto(PATH);
     const tree = page.locator(treeId(info));
     await tree.getByRole("button", { name: "Create free account" }).click();
-    await expect(page).toHaveURL(/\/\?card=sor-005$/);
+    await expect(page).toHaveURL(/\/\?card=sor-005&signup=1$/);
     expect(new URL(page.url()).pathname).toBe("/");
+  });
+
+  test("Sign in opens this card in the app without signup", async ({ page }, info) => {
+    await page.goto(PATH);
+    await page.locator(treeId(info)).getByRole("link", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/\?card=sor-005$/);
   });
 
   test("a browser that has opened the app goes straight to the card in the app", async ({
@@ -224,6 +230,42 @@ test.describe("with JavaScript", () => {
       await hyperspace.click();
       await expect(art).toHaveAttribute("src", /card_fx91002_front_320\.webp$/, { timeout: 1_000 });
     }).toPass({ timeout: 15_000 });
+    await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
+  });
+
+  test("one printing selection across both trees, crossing back and forth", async ({
+    page,
+  }, info) => {
+    const sizes = { phone: { width: 390, height: 844 }, desktop: { width: 1440, height: 900 } };
+    const artOf = (id: string) =>
+      page.locator(id).locator(id === "#pc-phone" ? "img.m-art__img" : "img.cp-image");
+    const pick = async (id: string, name: RegExp, stem: RegExp) => {
+      const button = page.locator(id).getByRole("button", { name }).first();
+      await expect(async () => {
+        await button.click();
+        await expect(artOf(id)).toHaveAttribute("src", stem, { timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
+    };
+    const first = treeId(info);
+    const second = otherTreeId(info);
+    const sizeOf = (id: string) => (id === "#pc-phone" ? sizes.phone : sizes.desktop);
+    await page.goto(PATH);
+    await page.waitForLoadState("load");
+    await pick(first, /Hyperspace/, /card_fx91002_front_320\.webp$/);
+    await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
+
+    await page.setViewportSize(sizeOf(second));
+    await expect(nameIn(page, second)).toBeVisible();
+    await expect(artOf(second)).toHaveAttribute("src", /card_fx91002_front_320\.webp$/);
+    await pick(second, /^Standard/, /card_fx91001_front_320\.webp$/);
+    expect(new URL(page.url()).searchParams.has("v")).toBe(false);
+
+    // Back, and across twice more: each tree hydrated once, still live.
+    await page.setViewportSize(sizeOf(first));
+    await expect(artOf(first)).toHaveAttribute("src", /card_fx91001_front_320\.webp$/);
+    await page.setViewportSize(sizeOf(second));
+    await page.setViewportSize(sizeOf(first));
+    await pick(first, /Hyperspace/, /card_fx91002_front_320\.webp$/);
     await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
   });
 });

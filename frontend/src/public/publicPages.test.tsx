@@ -2,7 +2,7 @@ import { act } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
-import { DesktopCardPage, PhoneCardPage } from "./CardPublicPage";
+import { DesktopCardPage, PhoneCardPage, resetPrintingSelection } from "./CardPublicPage";
 import { headHtml, indexHeadHtml, pageDescription, setHeadHtml } from "./head";
 import {
   buildIndexPage,
@@ -191,6 +191,8 @@ describe("server render and hydration", () => {
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     capture.mockClear();
+    resetPrintingSelection();
+    window.history.replaceState(null, "", "/cards/sor/005/");
     // The price history fetch never resolves: hydration is what is under test.
     vi.stubGlobal(
       "fetch",
@@ -326,7 +328,7 @@ describe("card page calls to action", () => {
       await act(async () => {
         button.click();
       });
-      expect(assign).toHaveBeenCalledWith("/?card=sor-005");
+      expect(assign).toHaveBeenCalledWith("/?card=sor-005&signup=1");
     }
   );
 
@@ -337,6 +339,59 @@ describe("card page calls to action", () => {
     expect(document.querySelector(".pc-bar__open")!.getAttribute("href")).toBe("/");
     document.body.innerHTML = renderIndexBody(buildIndexPage(catalog));
     expect(document.querySelector(".pc-brand")!.getAttribute("href")).toBe("/");
+  });
+});
+
+describe("one printing selection across both trees", () => {
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    resetPrintingSelection();
+    window.history.replaceState(null, "", "/cards/sor/005/");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("a tree hydrated later shows, and changes, the other tree's selection", async () => {
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    const desk = document.getElementById("pc-desktop")!;
+    const phone = document.getElementById("pc-phone")!;
+    await act(async () => {
+      hydrateRoot(desk, <DesktopCardPage data={page} />);
+    });
+    const deskArt = () => desk.querySelector<HTMLImageElement>("img.cp-image")!.getAttribute("src");
+    const hyperspace = [...desk.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      /Hyperspace/.test(b.textContent ?? "")
+    )!;
+    await act(async () => {
+      hyperspace.click();
+    });
+    expect(deskArt()).toMatch(/card_6502_front_320/);
+    expect(window.location.search).toMatch(/v=hyperspace-sorp-1/);
+    // The phone tree hydrates now (the viewport crossed the switch).
+    await act(async () => {
+      hydrateRoot(phone, <PhoneCardPage data={page} />);
+    });
+    const phoneArt = () =>
+      phone.querySelector<HTMLImageElement>("img.m-art__img")!.getAttribute("src");
+    expect(phoneArt()).toMatch(/card_6502_front_320/);
+    // Back to Standard on the phone: desktop follows, and ?v= is dropped.
+    const standard = [...phone.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      /Standard/.test(b.textContent ?? "")
+    )!;
+    await act(async () => {
+      standard.click();
+    });
+    expect(phoneArt()).toMatch(/card_7123_front_320/);
+    expect(deskArt()).toMatch(/card_7123_front_320/);
+    expect(window.location.search).toBe("");
   });
 });
 

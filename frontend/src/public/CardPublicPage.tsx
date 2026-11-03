@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { VariantDetail } from "../api/baseCards";
 import { SectionSeparator } from "../components/SectionSeparator";
 import { CardPopupView } from "../screens/cards/CardPopupView";
@@ -54,33 +54,58 @@ function finishSlug(v: VariantDetail): string {
   return `${base}-${v.source_set_code.toLowerCase()}-${v.card_number}`;
 }
 
-/** Selection shared by both trees: starts on the representative so the
- * hydrated markup equals the prerendered markup, then, after hydration,
- * honours a `?v=` from the address bar and keeps it in step. */
-function usePrinting(variants: VariantDetail[]) {
-  const [selectedId, setSelectedId] = useState<number | null>(
-    () => representative(variants)?.variant_id ?? null
+/** The selected printing, shared by both trees: the page's two layouts are
+ * one page, so a tree hydrated later (the viewport crossed the width switch)
+ * shows what the other tree selected. Keyed by base card id. Null = not
+ * chosen yet: the representative (also what the server rendered). */
+const selection = new Map<number, number>();
+const listeners = new Set<() => void>();
+function subscribe(fn: () => void) {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+function setSelection(cardId: number, variantId: number) {
+  selection.set(cardId, variantId);
+  for (const fn of listeners) fn();
+}
+/** Tests only: forget every selection. */
+export function resetPrintingSelection() {
+  selection.clear();
+}
+
+/** Selection shared by both trees: the server snapshot is the
+ * representative, so the hydrated markup equals the prerendered markup;
+ * then a `?v=` from the address bar (first tree to mount) or the other
+ * tree's choice applies, and every change keeps `?v=` in step. */
+function usePrinting(cardId: number, variants: VariantDetail[]) {
+  const selectedId = useSyncExternalStore(
+    subscribe,
+    () => selection.get(cardId) ?? null,
+    () => null
   );
   useEffect(() => {
+    if (selection.has(cardId)) return;
     const slug = new URLSearchParams(window.location.search).get("v");
     const hit = slug ? variants.find((v) => finishSlug(v) === slug) : null;
-    if (hit) setSelectedId(hit.variant_id);
-  }, [variants]);
+    if (hit) setSelection(cardId, hit.variant_id);
+  }, [cardId, variants]);
   const selected = useMemo(
     () => variants.find((v) => v.variant_id === selectedId) ?? representative(variants),
     [variants, selectedId]
   );
   const select = useCallback(
     (id: number) => {
-      setSelectedId(id);
       const v = variants.find((x) => x.variant_id === id);
+      setSelection(cardId, id);
       if (!v) return;
       const url = new URL(window.location.href);
       if (v === representative(variants)) url.searchParams.delete("v");
       else url.searchParams.set("v", finishSlug(v));
       window.history.replaceState(null, "", url.toString());
     },
-    [variants]
+    [cardId, variants]
   );
   return { selected, select };
 }
@@ -119,7 +144,7 @@ function crumbsFor(data: CardPageData) {
 
 export function DesktopCardPage({ data }: { data: CardPageData }) {
   const { card } = data;
-  const { selected, select } = usePrinting(card.variants);
+  const { selected, select } = usePrinting(card.id, card.variants);
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const flip = useCardFlip(selected, imageWrapRef, "fixed320");
   const resetFlip = flip.reset;
@@ -193,7 +218,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
 export function PhoneCardPage({ data }: { data: CardPageData }) {
   const { card } = data;
   const invCard = useMemo(() => toInventoryCards([card])[0], [card]);
-  const { selected, select } = usePrinting(card.variants);
+  const { selected, select } = usePrinting(card.id, card.variants);
   const variant = invCard.variants.find((v) => v.variant_id === selected?.variant_id) ?? null;
   const [showBack, setShowBack] = useState(false);
   const [priceKind, setPriceKind] = useState<PriceRailMode>("market");

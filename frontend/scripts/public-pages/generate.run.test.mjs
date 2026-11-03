@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +18,7 @@ import * as render from "../../src/public/render.tsx";
 // with hand-authored backend and live-site responses. Every network read goes
 // through the injected fetch; the page bundle and renderer are the real
 // render module with a minimal template (no Vite build). Each failing case
-// must abort before anything is moved into dist.
+// must abort before any public page or sitemap is published into dist.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(readFileSync(resolve(here, "fixtures/catalog.json"), "utf8"));
@@ -77,10 +85,29 @@ function go(fetch) {
   );
 }
 
+// What an earlier publish left in dist: a failed run must leave these
+// byte-identical (no public page or sitemap is published on failure).
+const SENTINELS = {
+  "cards/sor/005/index.html": "<!doctype html><p>previous card page</p>",
+  "sitemap.xml": "<?xml version=\"1.0\"?><sitemapindex>previous</sitemapindex>",
+  "sitemaps/cards-sor.xml": "<?xml version=\"1.0\"?><urlset>previous</urlset>",
+};
+
+function seedDist() {
+  for (const [rel, text] of Object.entries(SENTINELS)) {
+    mkdirSync(dirname(join(dist, rel)), { recursive: true });
+    writeFileSync(join(dist, rel), text);
+  }
+}
+
 function expectNothingPublished() {
-  expect(existsSync(join(dist, "cards"))).toBe(false);
-  expect(existsSync(join(dist, "sitemaps"))).toBe(false);
-  expect(existsSync(join(dist, "sitemap.xml"))).toBe(false);
+  for (const [rel, text] of Object.entries(SENTINELS)) {
+    expect(readFileSync(join(dist, rel), "utf8")).toBe(text);
+  }
+  expect(readdirSync(join(dist, "cards"), { recursive: true }).sort()).toEqual(
+    ["sor", join("sor", "005"), join("sor", "005", "index.html")].sort()
+  );
+  expect(readdirSync(join(dist, "sitemaps"))).toEqual(["cards-sor.xml"]);
 }
 
 describe("generate run() in backend mode", () => {
@@ -91,7 +118,8 @@ describe("generate run() in backend mode", () => {
     expect(existsSync(join(dist, "sitemap.xml"))).toBe(true);
   });
 
-  it("aborts a partial catalog (counts mismatch) and publishes nothing", async () => {
+  it("aborts a partial catalog (counts mismatch) and publishes no page or sitemap", async () => {
+    seedDist();
     const partial = { ...fixture, cards: fixture.cards.slice(1) };
     await expect(go(fakeFetch({ catalog: partial, list: nonTokenRows(fixture) }))).rejects.toThrow(
       /completeness guard failed/
@@ -99,7 +127,8 @@ describe("generate run() in backend mode", () => {
     expectNothingPublished();
   });
 
-  it("aborts an empty catalog and publishes nothing", async () => {
+  it("aborts an empty catalog and publishes no page or sitemap", async () => {
+    seedDist();
     const empty = { ...fixture, cards: [], counts: {} };
     await expect(go(fakeFetch({ catalog: empty, list: [] }))).rejects.toThrow(
       /completeness guard failed: .*zero card pages/
@@ -107,7 +136,8 @@ describe("generate run() in backend mode", () => {
     expectNothingPublished();
   });
 
-  it("aborts a shrink of more than 5% against the live sitemap and publishes nothing", async () => {
+  it("aborts a shrink of more than 5% against the live sitemap and publishes no page or sitemap", async () => {
+    seedDist();
     // Six card URLs live, five pages now: 83%.
     const live = urlset([
       "/cards/sor/005/",

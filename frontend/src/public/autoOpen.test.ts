@@ -1,12 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { autoOpenFromLocation, autoOpenTarget } from "./autoOpen";
-import { autoOpenScript } from "./head";
+import {
+  AUTO_OPEN_STALLED_EVENT,
+  AUTO_OPEN_STALL_MS,
+  autoOpenFromLocation,
+  autoOpenTarget,
+  bootStep,
+} from "./autoOpen";
+import { autoOpenScript, scriptJson } from "./head";
 import { isAllowedPublicEvent } from "./publicAnalytics";
 import type { CardPageData } from "./publicCatalog";
 import { APP_SEEN_KEY } from "../utils/appSeen";
 import { POSTHOG_TOKEN, PUBLIC_ID_KEY } from "../analytics/posthogConfig";
 
-// The returning-visitor redirect decision (App Spec §22, design note §4 D4).
+// The returning-visitor redirect decision (App Spec §5.3, §22; design note
+// §4 D4).
 
 const luke = { set_code: "SOR", base_card_number: "5" };
 
@@ -15,19 +22,6 @@ describe("auto-open decision", () => {
     window.localStorage.clear();
     window.history.replaceState(null, "", "/");
   });
-
-  it("opens this card in the app only when the app has been seen", () => {
-    expect(autoOpenTarget("", true, luke)).toBe("/?card=sor-005");
-    expect(autoOpenTarget("?v=hyperspace-sorp-1", true, luke)).toBe("/?card=sor-005");
-    expect(autoOpenTarget("", false, luke)).toBeNull();
-  });
-
-  it.each(["?page", "?page=", "?page=1", "?v=hyperspace-sorp-1&page", "?page&v=x"])(
-    "stays on the page for %s",
-    (search) => {
-      expect(autoOpenTarget(search, true, luke)).toBeNull();
-    }
-  );
 
   it("reads the marker and the address bar", () => {
     window.history.replaceState(null, "", "/cards/sor/005/");
@@ -54,8 +48,41 @@ describe("auto-open decision", () => {
   });
 });
 
-// The inline head script mirrors autoOpenTarget; evaluated here in jsdom
-// against the same cases.
+// One literal table for both implementations of the decision: autoOpenTarget
+// (via the stored marker) and the inline head script (evaluated in jsdom).
+// [search, stored marker (null = none), expected app href or null]
+const DECISIONS: [string, string | null, string | null][] = [
+  ["", null, null],
+  ["", "1", "/?card=sor-005"],
+  ["", "0", null],
+  ["", "true", null],
+  ["?v=hyperspace-sorp-1", "1", "/?card=sor-005"],
+  ["?v=hyperspace-sorp-1", null, null],
+  ["?page", "1", null],
+  ["?page=", "1", null],
+  ["?page=1", "1", null],
+  ["?v=x&page", "1", null],
+  ["?page&v=x", "1", null],
+  ["?page", null, null],
+];
+
+describe("auto-open decision table", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it.each(DECISIONS)("autoOpenFromLocation(%j, marker %j) = %j", (search, marker, want) => {
+    window.history.replaceState(null, "", `/cards/sor/005/${search}`);
+    if (marker != null) window.localStorage.setItem(APP_SEEN_KEY, marker);
+    expect(autoOpenFromLocation(luke)).toBe(want);
+    expect(autoOpenTarget(search, marker === "1", luke)).toBe(want);
+  });
+});
+
+type Win = Window & { __hsvAutoOpen?: string };
+const flag = () => (window as Win).__hsvAutoOpen;
+
 describe("auto-open head script", () => {
   const page = { card: { ...luke } } as unknown as CardPageData;
   const js = (hosts?: string[]) => {
@@ -65,8 +92,8 @@ describe("auto-open head script", () => {
   let replace: ReturnType<typeof vi.fn>;
   let beacon: ReturnType<typeof vi.fn>;
 
-  function runAt(search: string, hosts?: string[]) {
-    replace = vi.fn();
+  function runAt(search: string, hosts?: string[], replaceImpl?: () => void) {
+    replace = vi.fn(replaceImpl);
     vi.stubGlobal("location", {
       search,
       hostname: "localhost",
@@ -77,31 +104,31 @@ describe("auto-open head script", () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers();
     beacon = vi.fn(() => true);
     Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
-    delete (window as { __hsvAutoOpen?: boolean }).__hsvAutoOpen;
+    delete (window as Win).__hsvAutoOpen;
     document.documentElement.style.visibility = "";
     window.localStorage.clear();
   });
 
-  it.each(["", "?v=hyperspace-sorp-1", "?page", "?page=1", "?v=x&page"])(
-    "makes autoOpenTarget's decision for %s, with and without the marker",
-    (search) => {
-      for (const seen of [false, true]) {
-        window.localStorage.clear();
-        if (seen) window.localStorage.setItem(APP_SEEN_KEY, "1");
-        runAt(search);
-        const want = autoOpenTarget(search, seen, luke);
-        if (want) expect(replace).toHaveBeenCalledWith(want);
-        else expect(replace).not.toHaveBeenCalled();
-        expect((window as { __hsvAutoOpen?: boolean }).__hsvAutoOpen === true).toBe(!!want);
-        delete (window as { __hsvAutoOpen?: boolean }).__hsvAutoOpen;
-      }
+  it.each(DECISIONS)("search %j, marker %j -> %j", (search, marker, want) => {
+    if (marker != null) window.localStorage.setItem(APP_SEEN_KEY, marker);
+    runAt(search);
+    if (want) {
+      expect(replace).toHaveBeenCalledWith(want);
+      expect(flag()).toBe("pending");
+      expect(document.documentElement.style.visibility).toBe("hidden");
+    } else {
+      expect(replace).not.toHaveBeenCalled();
+      expect(flag()).toBeUndefined();
+      expect(document.documentElement.style.visibility).toBe("");
     }
-  );
+  });
 
   it("stays when storage throws", () => {
     const getter = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
@@ -109,7 +136,39 @@ describe("auto-open head script", () => {
     });
     runAt("");
     expect(replace).not.toHaveBeenCalled();
+    expect(flag()).toBeUndefined();
     getter.mockRestore();
+  });
+
+  it("shows the page again at once when location.replace throws", () => {
+    window.localStorage.setItem(APP_SEEN_KEY, "1");
+    const stalled = vi.fn();
+    window.addEventListener(AUTO_OPEN_STALLED_EVENT, stalled);
+    runAt("", undefined, () => {
+      throw new Error("blocked");
+    });
+    expect(flag()).toBe("stalled");
+    expect(document.documentElement.style.visibility).toBe("");
+    expect(stalled).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(AUTO_OPEN_STALL_MS * 2);
+    expect(stalled).toHaveBeenCalledTimes(1);
+    window.removeEventListener(AUTO_OPEN_STALLED_EVENT, stalled);
+  });
+
+  it("shows the page again when nothing has navigated after the stall timeout", () => {
+    window.localStorage.setItem(APP_SEEN_KEY, "1");
+    const stalled = vi.fn();
+    window.addEventListener(AUTO_OPEN_STALLED_EVENT, stalled);
+    runAt("");
+    vi.advanceTimersByTime(AUTO_OPEN_STALL_MS - 1);
+    expect(flag()).toBe("pending");
+    expect(document.documentElement.style.visibility).toBe("hidden");
+    expect(stalled).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(flag()).toBe("stalled");
+    expect(document.documentElement.style.visibility).toBe("");
+    expect(stalled).toHaveBeenCalledTimes(1);
+    window.removeEventListener(AUTO_OPEN_STALLED_EVENT, stalled);
   });
 
   it("sends auto_open by beacon only on an analytics hostname, as publicCapture would", async () => {
@@ -147,10 +206,33 @@ describe("auto-open head script", () => {
     expect(replace).toHaveBeenCalledWith("/?card=sor-005");
   });
 
-  it("bakes the href in as escaped JSON: no value can close the script", () => {
+  it("no value can close the script: the href is encoded and the JSON escapes <", () => {
     const evil = { card: { set_code: "SOR</script><b>", base_card_number: "5" } };
     const html = autoOpenScript(evil as unknown as CardPageData);
     expect(html.match(/<\/script/gi)).toHaveLength(1);
-    expect(html).toContain("\u003c/script>");
+    expect(html).toContain('"href":"/?card=sor%3C%2Fscript%3E%3Cb%3E-005"');
+    expect(scriptJson({ x: "</script>" })).toBe('{"x":"\\u003c/script>"}');
+  });
+});
+
+// The page script's boot decision (card.tsx), one row per branch.
+describe("page script boot step", () => {
+  it.each([
+    ["pending", "/?card=sor-005", "wait"],
+    ["pending", null, "wait"],
+    ["stalled", "/?card=sor-005", "hydrate"],
+    ["stalled", null, "hydrate"],
+    [undefined, "/?card=sor-005", "redirect"],
+    [undefined, null, "hydrate"],
+    [true, null, "hydrate"],
+  ] as const)("head %j, fallback %j -> %s", (head, target, want) => {
+    expect(bootStep(head, target)).toBe(want);
+  });
+
+  it("never redirects or sends again once the head script acted", () => {
+    // "redirect" is the only step that sends the event.
+    for (const head of ["pending", "stalled"]) {
+      expect(bootStep(head, "/?card=sor-005")).not.toBe("redirect");
+    }
   });
 });
