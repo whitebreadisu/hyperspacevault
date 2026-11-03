@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // The popup header's copy-link control (App Spec §5.3): the link is the
-// selected printing's public page on the canonical origin, copied with the
+// selected printing's public page (canonical origin on production, the page's own origin elsewhere), copied with the
 // async clipboard or the textarea fallback; tokens have no page and no
 // control; the popup's keys keep working around it.
 
@@ -142,6 +142,20 @@ describe("CardPopup copy link", () => {
       method: "copy",
       surface: "popup",
     });
+  });
+
+  it("names the canonical origin when the app runs on production", async () => {
+    // A prod Firebase domain: its own origin differs from the canonical one.
+    vi.stubGlobal("location", { hostname: "swu-prod.web.app", origin: "https://swu-prod.web.app" });
+    try {
+      await open(detail());
+      await act(async () => {
+        fireEvent.click(linkButton());
+      });
+      expect(writeText).toHaveBeenLastCalledWith("https://www.hyperspacevault.com/cards/sor/005/");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("shows Link copied for a moment, in a live region that was there before", async () => {

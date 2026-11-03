@@ -84,8 +84,15 @@ export { repairMojibake } from "../utils/mojibake";
 /** Canonical and og:url point at prod in every environment (R2). */
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
 
-/** The production hostnames; a link copied there names the canonical origin. */
-const PROD_HOSTNAMES = ["hyperspacevault.com", "www.hyperspacevault.com"];
+/** The production hostnames (the custom domains and the prod project's two
+ * Firebase domains, which serve the same pages); a link copied there names the
+ * canonical origin. */
+const PROD_HOSTNAMES = [
+  "hyperspacevault.com",
+  "www.hyperspacevault.com",
+  "swu-prod.web.app",
+  "swu-prod.firebaseapp.com",
+];
 
 /** The origin a copied card link names (App Spec §5.3): the canonical one on
  * production, the page's own origin anywhere else, so a link copied on dev

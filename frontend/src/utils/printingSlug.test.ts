@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   defaultPrinting,
   findPrintingBySlug,
@@ -365,7 +365,21 @@ describe("card link", () => {
     expect(at("swu-dev-jbapps.web.app", "https://swu-dev-jbapps.web.app")).toBe(
       "https://swu-dev-jbapps.web.app"
     );
+    for (const firebase of ["swu-prod.web.app", "swu-prod.firebaseapp.com"]) {
+      expect(at(firebase, `https://${firebase}`)).toBe("https://www.hyperspacevault.com");
+    }
     expect(at("localhost", "http://localhost:5173")).toBe("http://localhost:5173");
+    // A preview channel keeps its own origin, even on the prod project.
+    expect(at("swu-prod--pr-1-abc.web.app", "https://swu-prod--pr-1-abc.web.app")).toBe(
+      "https://swu-prod--pr-1-abc.web.app"
+    );
+    // No location (Node, the page generator): the canonical origin.
+    vi.stubGlobal("location", undefined);
+    try {
+      expect(shareOrigin()).toBe("https://www.hyperspacevault.com");
+    } finally {
+      vi.unstubAllGlobals();
+    }
     // Dev's copied link opens dev's page, not prod's.
     expect(
       cardPageUrl(card, LUKE[3], at("swu-dev-jbapps.web.app", "https://swu-dev-jbapps.web.app"))
