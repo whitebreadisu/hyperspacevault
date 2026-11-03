@@ -56,6 +56,13 @@ export function checkCompleteness({
     const want = Number(catalog.counts[code] ?? 0);
     if (have !== want) problems.push(`set ${code}: ${have} non-token cards, counts says ${want}`);
   }
+  // An empty catalog is never complete: no shrink baseline or override can
+  // make a deploy of zero card pages acceptable.
+  if (cards.length === 0 || sumCounts <= 0) {
+    problems.push(
+      `catalog has ${cards.length} non-token cards (sum(counts) ${sumCounts}); zero card pages is never a deploy`
+    );
+  }
   if (pagesRendered != null && pagesRendered !== sumCounts) {
     problems.push(`rendered ${pagesRendered} card pages but sum(counts) is ${sumCounts}`);
   }

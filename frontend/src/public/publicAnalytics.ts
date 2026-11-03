@@ -17,7 +17,8 @@ import {
 // later (§7).
 
 export type ReferrerKind = "search" | "social" | "internal" | "other" | "none";
-export type CtaAction = "create_account" | "sign_in" | "open_app" | "open_card_in_app";
+export type CtaAction =
+  "create_account" | "sign_in" | "open_app" | "open_card_in_app" | "auto_open";
 
 export interface PublicEvents {
   card_page_viewed: { set: string; number: string; referrer_kind: ReferrerKind };
@@ -31,6 +32,7 @@ const CTA_ACTIONS: readonly string[] = [
   "sign_in",
   "open_app",
   "open_card_in_app",
+  "auto_open",
 ];
 
 /** Each allowed event and the check for its properties: exactly these

@@ -210,6 +210,8 @@ export function checkOutput(
     problems.push(...checkPage(html, { rel, expectNoindex }));
     for (const a of assetRefs(html)) assets.add(a);
   }
+  if (pageFiles.length > 0 && kinds.card === 0) problems.push("no card pages under cards/");
+
   for (const rel of files.filter((f) => !pageKind(f))) {
     if (namesOfficialCdn(readFileSync(join(dist, rel), "utf8")))
       problems.push(`${rel}: names ${OFFICIAL_CDN}`);

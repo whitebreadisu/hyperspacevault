@@ -8,25 +8,32 @@ import { localHref } from "../utils/localHref";
 // the footer, the art notice and the sign-up plate. Card pages are the first
 // page type; public decks reuse the same frame later.
 
-/** Where both calls to action go (D4, default with zero app change): the app,
- * whose header offers Sign in and Create account. */
+/** The app's front door: the set pages' and the index's bar, and the footer's
+ * About & Legal. */
 export const APP_URL = "/";
 
-function goToApp() {
-  ctaClicked("create_account");
-  window.location.assign(APP_URL);
-}
+// On a card page every call to action opens THIS card in the app
+// (`/?card=sor-005`, utils/cardParam.ts; design note §4 D4): the wordmark,
+// the bar action, Create free account and Sign in. The app's card detail
+// carries its own sign-in and create-account entry. Set pages and the index
+// pass nothing and keep the app's front door.
 
-const openApp = () => ctaClicked("open_app");
-
-export function PageBar({ phone = false }: { phone?: boolean }) {
+export function PageBar({
+  phone = false,
+  appHref = APP_URL,
+}: {
+  phone?: boolean;
+  appHref?: string;
+}) {
+  const href = localHref(appHref);
+  const openApp = () => ctaClicked("open_app");
   return (
     <div className={"pc-bar" + (phone ? " pc-bar--phone" : "")}>
-      <a className="pc-brand" href={APP_URL} onClick={openApp}>
+      <a className="pc-brand" href={href} onClick={openApp}>
         <span className="pc-brand__name">[HSV] Hyperspace Vault</span>
         <span className="pc-brand__tag">Unofficial Fan Project</span>
       </a>
-      <a className="pc-bar__open" href={APP_URL} onClick={openApp}>
+      <a className="pc-bar__open" href={href} onClick={openApp}>
         Open HyperspaceVault
       </a>
     </div>
@@ -108,16 +115,28 @@ export function ArtNotice() {
 }
 
 /** The signed-out plate as the sign-up call to action (row 10, D4): same
- * plate shape and slot, one SWUButton, a quiet "Sign in" text link. */
-export function SignUpPlate({ phone = false }: { phone?: boolean }) {
+ * plate shape and slot, one SWUButton, a quiet "Sign in" text link. Both open
+ * `appHref` (a card page passes this card's `/?card=` link). */
+export function SignUpPlate({
+  phone = false,
+  appHref = APP_URL,
+}: {
+  phone?: boolean;
+  appHref?: string;
+}) {
+  const href = localHref(appHref);
+  const createAccount = () => {
+    ctaClicked("create_account");
+    window.location.assign(href);
+  };
   return (
     <div className={"cp-plate pc-cta" + (phone ? " pc-cta--phone" : "")}>
       <div className="cp-plate__inner cp-plate__inner--signed-out pc-cta__inner">
         <span className="pc-cta__msg">Track this card in your vault</span>
-        <SWUButton size={phone ? "touch" : "sm"} onClick={goToApp}>
+        <SWUButton size={phone ? "touch" : "sm"} onClick={createAccount}>
           Create free account
         </SWUButton>
-        <a className="pc-cta__signin" href={APP_URL} onClick={() => ctaClicked("sign_in")}>
+        <a className="pc-cta__signin" href={href} onClick={() => ctaClicked("sign_in")}>
           Sign in
         </a>
       </div>

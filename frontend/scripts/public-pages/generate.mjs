@@ -274,7 +274,10 @@ async function publish(stage, dist) {
   await cp(join(stage, "sitemap.xml"), join(dist, "sitemap.xml"));
 }
 
-export async function run(argv = process.argv.slice(2), env = process.env) {
+/** `deps` is for tests: `fetch` (every network read), `buildBundles` and
+ * `stageDir`; each defaults to the real one. */
+export async function run(argv = process.argv.slice(2), env = process.env, deps = {}) {
+  const { fetch, buildBundles: bundles = buildBundles, stageDir: stage = stageDir } = deps;
   const started = Date.now();
   const opts = parseArgs(argv, env);
   const dist = resolve(root, opts.dist);
@@ -303,6 +306,7 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
       const got = await fetchCatalog({
         backendUrl: opts.backend,
         expectSha: opts.expectSha,
+        fetch,
         log: (l) => console.log(l),
       });
       catalog = got.catalog;
@@ -310,7 +314,7 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
         `catalog: build_sha ${catalog.build_sha} after ${got.attempts} attempt(s), ` +
           `${Math.round(got.waitedMs / 1000)} s`
       );
-      baseCardList = await fetchBaseCardList({ backendUrl: opts.backend });
+      baseCardList = await fetchBaseCardList({ backendUrl: opts.backend, fetch });
     }
     // Fail fast on a partial read, before any build work.
     checkCompleteness({ catalog, baseCardList, listLabel });
@@ -322,20 +326,21 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
       token: opts.token,
       origin: opts.origin,
       mode: opts.images,
+      fetch,
     });
     for (const w of art.warnings) log.warning(w);
     log.line(art.line);
     const pageCatalog = withAvailableArt(catalog, art.present);
 
     // 3. Render into the staging directory.
-    const { template, render } = await buildBundles({ outDir: dist });
-    await rm(stageDir, { recursive: true, force: true });
-    await mkdir(stageDir, { recursive: true });
+    const { template, render } = await bundles({ outDir: dist });
+    await rm(stage, { recursive: true, force: true });
+    await mkdir(stage, { recursive: true });
     const written = await writePages({
       render,
       template,
       catalog: pageCatalog,
-      outDir: stageDir,
+      outDir: stage,
       noindex: opts.noindex,
     });
     const count = (k) => written.filter((w) => w.kind === k).length;
@@ -347,7 +352,7 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     if (opts.mode === "catalog") {
       log.line(`shrink guard: skipped (--catalog: no live site read); ${cards} card pages`);
     } else {
-      live = await liveCardBaseline({ origin: opts.origin });
+      live = await liveCardBaseline({ origin: opts.origin, fetch });
       log.line(
         checkShrink({
           baseline: live.baseline,
@@ -362,7 +367,7 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     // 5. Manifest and sitemaps.
     let liveManifest = null;
     if (opts.mode === "backend") {
-      const m = await fetchLiveManifest({ origin: opts.origin });
+      const m = await fetchLiveManifest({ origin: opts.origin, fetch });
       liveManifest = m.manifest;
       if (!liveManifest && live.sitemaps > 0) {
         // The live site already serves card pages but no manifest: lastmod
@@ -384,13 +389,13 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
       lastmodOf: manifest.lastmodOf,
     });
     for (const f of [...files, { path: MANIFEST_PATH, xml: JSON.stringify(manifest.manifest) }]) {
-      const out = join(stageDir, fileForPath(f.path));
+      const out = join(stage, fileForPath(f.path));
       await mkdir(dirname(out), { recursive: true });
       await writeFile(out, f.xml, "utf8");
     }
 
     // 6. Publish into dist.
-    await publish(stageDir, dist);
+    await publish(stage, dist);
     log.line(
       `public pages: ${cards} card, ${count("set")} set, ${count("index")} index and ` +
         `${files.length} sitemap files written to ${opts.dist} from ${catalog.build_sha} ` +

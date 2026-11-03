@@ -12,6 +12,7 @@ import { regionGeom, setLogoSrc, starfieldSrc } from "../mobile/card/cardDetailM
 import type { RegionGeom } from "../mobile/card/cardDetailModel";
 import { useCollapse } from "../mobile/vault/useCollapse";
 import { toInventoryCards } from "../utils/inventory";
+import { cardAppHref } from "../utils/cardParam";
 import { setPath } from "./publicCatalog";
 import type { CardLink, CardPageData } from "./publicCatalog";
 import { ctaClicked } from "./publicAnalytics";
@@ -104,6 +105,10 @@ function withPlateRoom(g: RegionGeom): RegionGeom {
 const navLink = (l: CardLink | null) => (l ? { href: l.appHref, name: l.label } : null);
 const followNav = () => ctaClicked("open_card_in_app");
 
+/** This card in the app: every call to action on the page opens it. */
+const thisCardHref = (data: CardPageData) =>
+  cardAppHref(data.card.set_code, data.card.base_card_number);
+
 function crumbsFor(data: CardPageData) {
   return [
     { label: "Cards", href: "/cards/" },
@@ -130,7 +135,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
   if (!selected) return null;
   return (
     <div className="pc-page">
-      <PageBar />
+      <PageBar appHref={thisCardHref(data)} />
       <Breadcrumbs crumbs={crumbsFor(data)} />
       <div className="cp-shell pc-shell">
         <div className="cp-modal pc-modal">
@@ -161,7 +166,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
                 </span>
               </div>
             }
-            inventorySlot={<SignUpPlate />}
+            inventorySlot={<SignUpPlate appHref={thisCardHref(data)} />}
             imageNote={<ArtNotice />}
             imagePlaceholder={<ArtPlaceholder />}
             afterBody={
@@ -245,7 +250,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
               plateSlot={
                 <div className="pc-phone__plate">
                   <ArtNotice />
-                  <SignUpPlate phone />
+                  <SignUpPlate phone appHref={thisCardHref(data)} />
                 </div>
               }
               imageMode="fixed320"
@@ -263,7 +268,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
           </div>
         </div>
         <div className="m-detail__bar">
-          <PageBar phone />
+          <PageBar phone appHref={thisCardHref(data)} />
         </div>
       </div>
     </div>

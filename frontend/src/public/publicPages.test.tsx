@@ -264,6 +264,65 @@ describe("server render and hydration", () => {
   });
 });
 
+describe("card page calls to action", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("every call to action on both trees opens this card in the app; the breadcrumb stays", () => {
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    for (const id of ["pc-desktop", "pc-phone"]) {
+      const tree = document.getElementById(id)!;
+      expect(tree.querySelector(".pc-brand")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect(tree.querySelector(".pc-bar__open")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect(tree.querySelector(".pc-cta__signin")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect([...tree.querySelectorAll(".pc-crumbs a")].map((a) => a.getAttribute("href"))).toEqual(
+        ["/cards/", "/cards/sor/"]
+      );
+      expect(tree.querySelector(".pc-foot a")!.getAttribute("href")).toBe("/");
+    }
+  });
+
+  it.each([
+    ["desktop", "pc-desktop", DesktopCardPage],
+    ["phone", "pc-phone", PhoneCardPage],
+  ] as const)(
+    "Create free account on the %s tree goes to this card in the app",
+    async (_, id, Page) => {
+      (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise(() => {}))
+      );
+      const [page] = buildPages(catalog);
+      document.body.innerHTML = renderCardBody(page);
+      const assign = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign });
+      await act(async () => {
+        hydrateRoot(document.getElementById(id)!, <Page data={page} />);
+      });
+      const button = [...document.getElementById(id)!.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Create free account")
+      )!;
+      await act(async () => {
+        button.click();
+      });
+      expect(assign).toHaveBeenCalledWith("/?card=sor-005");
+    }
+  );
+
+  it("set pages and the index keep the app's front door", () => {
+    const [set] = buildSetPages(catalog);
+    document.body.innerHTML = renderSetBody(set);
+    expect(document.querySelector(".pc-brand")!.getAttribute("href")).toBe("/");
+    expect(document.querySelector(".pc-bar__open")!.getAttribute("href")).toBe("/");
+    document.body.innerHTML = renderIndexBody(buildIndexPage(catalog));
+    expect(document.querySelector(".pc-brand")!.getAttribute("href")).toBe("/");
+  });
+});
+
 describe("set end of the header chevrons", () => {
   it("the set's last card has a prev link into the app and a disabled next", () => {
     const pages = buildPages(catalog);
@@ -485,7 +544,15 @@ describe("public analytics", () => {
         referrer_kind: "search",
       })
     ).toBe(true);
-    expect(isAllowedPublicEvent("card_page_cta", { action: "create_account" })).toBe(true);
+    for (const action of [
+      "create_account",
+      "sign_in",
+      "open_app",
+      "open_card_in_app",
+      "auto_open",
+    ]) {
+      expect(isAllowedPublicEvent("card_page_cta", { action })).toBe(true);
+    }
     // Other names, including the app's own events, are rejected.
     for (const name of ["card_popup_opened", "screen_viewed", "$pageview", "$autocapture", "x"]) {
       expect(isAllowedPublicEvent(name, {})).toBe(false);
@@ -495,6 +562,8 @@ describe("public analytics", () => {
       false
     );
     expect(isAllowedPublicEvent("card_page_cta", { action: "anything" })).toBe(false);
+    expect(isAllowedPublicEvent("card_page_cta", { action: "auto_open_x" })).toBe(false);
+    expect(isAllowedPublicEvent("card_page_cta", { action: "auto_open", set: "SOR" })).toBe(false);
     expect(isAllowedPublicEvent("card_page_viewed", { set: "SOR", number: "005" })).toBe(false);
     expect(
       isAllowedPublicEvent("card_page_viewed", {

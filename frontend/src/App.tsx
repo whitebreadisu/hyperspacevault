@@ -25,6 +25,7 @@ import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotes
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
 import { parseCardParam } from "./utils/cardParam";
+import { markAppSeen } from "./utils/appSeen";
 import { capture } from "./analytics/analytics";
 import { MobileApp } from "./mobile/MobileApp";
 import { useIsPhone } from "./mobile/useIsPhone";
@@ -386,6 +387,9 @@ function AppContent() {
 }
 
 function App() {
+  // Every boot, either tree: the marker a public card page reads to open
+  // its card here instead (utils/appSeen.ts, App Spec §5.3).
+  useEffect(() => markAppSeen(), []);
   return (
     <AuthProvider>
       <LimitsGate>
