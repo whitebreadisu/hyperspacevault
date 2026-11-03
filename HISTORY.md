@@ -15,6 +15,7 @@ the **Milestones** table is hand-written narrative.
 
 | Date | Version | Release |
 |---|---|---|
+| 2026-11-03 | v2.3 | Every card gets its own page |
 | 2026-11-02 | v2.2.1 | A few loose ends |
 | 2026-11-01 | v2.2 | Search and filters, in step |
 | 2026-10-28 | v2.1.2 | Tightening the bolts |
