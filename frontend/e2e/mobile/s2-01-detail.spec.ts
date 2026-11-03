@@ -89,3 +89,40 @@ test("s2-01-n-of-m-amber-when-narrowed", async ({ page }) => {
   await page.locator(".m-hdr__close").click();
   await expect(page.locator(".m-count")).toHaveText("18 cards");
 });
+
+// The share control's copy confirmation takes the "n of m" slot for a moment
+// (App Spec §25.2) without moving the chevrons, and fits, the longer
+// failure line included. The share sheet is absent here, so it copies.
+for (const [label, ok] of [
+  ["Link copied", true],
+  ["Link not copied", false],
+] as const) {
+  test(`s2-01-share-note-${ok ? "copied" : "failed"}-holds-the-chevrons`, async ({ page }) => {
+    await page.addInitScript((copyOk: boolean) => {
+      Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: () => (copyOk ? Promise.resolve() : Promise.reject(new Error("denied"))),
+        },
+        configurable: true,
+      });
+      if (!copyOk) document.execCommand = () => false;
+    }, ok);
+    await openCard(page, "ASH", 112);
+    const chevrons = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll(".m-cardlayer .m-hdr__step")].map(
+          (b) => b.getBoundingClientRect().left
+        )
+      );
+    const before = await chevrons();
+    await page.getByRole("button", { name: "Share link to this card" }).click();
+    const pos = page.locator(".m-cardlayer .m-hdr__pos");
+    await expect(pos).toHaveText(label);
+    await expect(page.locator(".m-cardlayer [role=status]")).toHaveText(label);
+    expect(await chevrons()).toEqual(before);
+    expect(await pos.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    await expect(pos).toHaveText(/ of 53$/, { timeout: 4000 });
+    expect(await chevrons()).toEqual(before);
+  });
+}

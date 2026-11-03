@@ -118,8 +118,11 @@
   width: 44px;
   flex: none;
 }
+/* Fixed width: the copy confirmation ("Link not copied" the longest) takes
+ * this slot for a moment without moving the chevrons. */
 .m-app .m-hdr__pos {
-  min-width: 86px;
+  width: 136px;
+  white-space: nowrap;
   text-align: center;
   font-family: var(--font-ui);
   font-size: 13px;
@@ -1256,4 +1259,17 @@
   .m-app .m-xfade--in {
     animation: none !important;
   }
+}
+
+/* Visually hidden, kept in the accessibility tree (the share status). */
+.m-app .m-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

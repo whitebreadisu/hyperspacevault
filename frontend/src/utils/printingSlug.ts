@@ -6,17 +6,26 @@
 // a database id (ids differ between environments), so a link copied on one
 // environment opens the same printing on another.
 //
-// Unique per base card: when two printings of one card would share a slug
-// (the Serialized Prestige tiers: one finish, one set, one number, told apart
-// only by the image file name, App Spec §10.5), the Carbonite tier keeps the
-// plain slug and the others add their tier (`-gold`, `-rose-gold`); any other
-// clash adds `-2`, `-3` in image-file-name order. A slug a link names that the
-// card does not carry resolves to nothing, and the caller opens the default.
+// Unique per base card, and stable across catalogue refreshes (a link keeps
+// naming the same printing):
+//   - every part goes through one slugify, so a slug is always [a-z0-9-];
+//   - a Serialized Prestige tier other than Carbonite always carries its tier
+//     (`-gold`, `-rose-gold`), read from the image file name (App Spec
+//     §10.5), whether or not its sibling tiers are in the catalogue;
+//   - every other printing's natural slug is reserved first; printings whose
+//     natural slugs clash each add a short token hashed from the printing's
+//     own identity (variant type, channel and image file stem, the same on
+//     every environment and independent of the other printings), checked
+//     against every slug of the card, so a suffixed slug never equals another
+//     printing's natural slug.
+// A slug a link names that the card does not carry resolves to nothing, and
+// the caller opens the default.
 
 export interface SluggedPrinting {
   variant_id: number;
   finish: string | null;
   variant_type: string;
+  channel: string;
   source_set_code: string;
   card_number: string;
   front_image_url: string | null;
@@ -32,18 +41,36 @@ export function isSlugShaped(raw: string | null | undefined): raw is string {
   return raw != null && SLUG.test(raw);
 }
 
-/** The printing a card opens on with no `v`: Standard, else the first (the
- * popup's and the page's representative rule). */
-export function defaultPrinting<T extends { finish: string | null }>(
+/** The printing a card opens on with no `v`: the Standard printing with the
+ * lowest variant_id, else the lowest variant_id overall (the popup's and the
+ * page's representative rule; independent of the order the API returns). */
+export function defaultPrinting<T extends { finish: string | null; variant_id: number }>(
   variants: readonly T[]
 ): T | null {
-  return variants.find((v) => v.finish === "Standard") ?? variants[0] ?? null;
+  let best: T | null = null;
+  for (const v of variants) {
+    if (!best) {
+      best = v;
+      continue;
+    }
+    const vStd = v.finish === "Standard";
+    const bStd = best.finish === "Standard";
+    if (vStd !== bStd ? vStd : v.variant_id < best.variant_id) best = v;
+  }
+  return best;
 }
 
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 function baseSlug(v: SluggedPrinting): string {
-  return `${slugify(v.finish ?? v.variant_type)}-${v.source_set_code.toLowerCase()}-${v.card_number}`;
+  return [v.finish ?? v.variant_type, v.source_set_code, v.card_number]
+    .map(slugify)
+    .filter(Boolean)
+    .join("-");
 }
 
 export type SerializedTier = "Carbonite" | "Gold" | "Rose Gold";
@@ -57,50 +84,69 @@ export function serializedTier(url: string | null | undefined): SerializedTier |
   return m[1] === "_Rose_Gold" ? "Rose Gold" : m[1] === "_Gold" ? "Gold" : "Carbonite";
 }
 
-/** The image file name without its path, so a CDN URL and its same-origin
- * copy order alike. */
-const fileName = (url: string | null) => (url ?? "").slice((url ?? "").lastIndexOf("/") + 1);
+/** The image file name without its path and extension, so a CDN URL and
+ * its same-origin copy (`/images/cards/<stem>.png`) read alike. */
+function fileStem(url: string | null): string {
+  const name = (url ?? "").slice((url ?? "").lastIndexOf("/") + 1);
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
+/** The slug a printing has on its own, before any clash. */
+function naturalSlug(v: SluggedPrinting): string {
+  const tier = serializedTier(v.front_image_url);
+  const base = baseSlug(v);
+  return tier && tier !== "Carbonite" ? `${base}-${slugify(tier)}` : base;
+}
+
+/** FNV-1a over the printing's own identity, base 36. */
+function identityToken(v: SluggedPrinting): string {
+  const key = `${v.variant_type}|${v.channel}|${fileStem(v.front_image_url)}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36).padStart(7, "0");
+}
 
 /** variant_id -> slug for every printing of one base card. */
 export function printingSlugs(variants: readonly SluggedPrinting[]): Map<number, string> {
-  const groups = new Map<string, SluggedPrinting[]>();
+  const natural = new Map<number, string>();
+  const count = new Map<string, number>();
   for (const v of variants) {
-    const key = baseSlug(v);
-    const g = groups.get(key);
-    if (g) g.push(v);
-    else groups.set(key, [v]);
+    const n = naturalSlug(v);
+    natural.set(v.variant_id, n);
+    count.set(n, (count.get(n) ?? 0) + 1);
   }
+  // Every natural slug is reserved, clashing or not.
+  const used = new Set(count.keys());
   const out = new Map<number, string>();
-  const used = new Set<string>();
-  for (const [base, group] of groups) {
-    if (group.length === 1) {
-      out.set(group[0].variant_id, base);
-      used.add(base);
-      continue;
-    }
-    const wanted = (v: SluggedPrinting) => {
-      const tier = serializedTier(v.front_image_url);
-      return tier && tier !== "Carbonite" ? `${base}-${slugify(tier)}` : base;
-    };
-    const ordered = [...group].sort((a, b) => {
-      const plain = Number(wanted(a) !== base) - Number(wanted(b) !== base);
-      if (plain !== 0) return plain;
-      const byName = fileName(a.front_image_url).localeCompare(fileName(b.front_image_url));
-      return byName !== 0 ? byName : a.variant_id - b.variant_id;
-    });
-    for (const v of ordered) {
-      let slug = wanted(v);
-      for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
-      used.add(slug);
-      out.set(v.variant_id, slug);
-    }
+  for (const v of variants) {
+    const n = natural.get(v.variant_id)!;
+    if (count.get(n) === 1) out.set(v.variant_id, n);
+  }
+  // Clashing printings in a fixed order of their identity, so the result does
+  // not depend on the order the printings arrive in.
+  const clashing = variants
+    .filter((v) => count.get(natural.get(v.variant_id)!)! > 1)
+    .map((v) => ({ v, token: identityToken(v) }))
+    .sort((a, b) => (a.token < b.token ? -1 : a.token > b.token ? 1 : 0));
+  for (const { v, token } of clashing) {
+    let slug = `${natural.get(v.variant_id)}-${token}`;
+    // Only printings with identical identity data share a token; they are
+    // told apart by a further letter, in the fixed order above.
+    for (let k = 0; used.has(slug); k++)
+      slug = `${natural.get(v.variant_id)}-${token}${k.toString(36)}`;
+    used.add(slug);
+    out.set(v.variant_id, slug);
   }
   return out;
 }
 
 /** One printing's slug among its card's printings. */
 export function printingSlug(variants: readonly SluggedPrinting[], v: SluggedPrinting): string {
-  return printingSlugs(variants).get(v.variant_id) ?? baseSlug(v);
+  return printingSlugs(variants).get(v.variant_id) ?? naturalSlug(v);
 }
 
 /** The printing a slug names, or null (unknown, or no slug). */

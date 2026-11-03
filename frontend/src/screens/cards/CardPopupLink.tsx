@@ -12,14 +12,26 @@ export const LINK_NOTE_MS = 1800;
 export function CardPopupLinkButton({ url }: { url: string }) {
   const [note, setNote] = useState<"copied" | "failed" | null>(null);
   const timer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  // False once the popup is gone, so a copy that settles after a close sets
+  // no state and starts no timer.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      window.clearTimeout(timer.current);
+    };
+  }, []);
 
   const onClick = async () => {
     const ok = await copyText(url);
     if (ok) capture("card_link_copied", { method: "copy", surface: "popup" });
+    if (!alive.current) return;
     setNote(ok ? "copied" : "failed");
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setNote(null), LINK_NOTE_MS);
+    timer.current = window.setTimeout(() => {
+      if (alive.current) setNote(null);
+    }, LINK_NOTE_MS);
   };
 
   return (
@@ -37,7 +49,7 @@ export function CardPopupLinkButton({ url }: { url: string }) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="1.6"
           strokeLinecap="square"
           strokeLinejoin="miter"
           aria-hidden="true"

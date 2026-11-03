@@ -1,8 +1,11 @@
+/// <reference types="node" />
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CardPopup } from "./CardPopup";
 import type { BaseCardDetail, VariantDetail } from "../../api/baseCards";
 import { LINK_NOTE_MS } from "./CardPopupLink";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // The popup header's copy-link control (App Spec §5.3): the link is the
 // selected printing's public page on the canonical origin, copied with the
@@ -140,13 +143,17 @@ describe("CardPopup copy link", () => {
     });
   });
 
-  it("shows Link copied for a moment", async () => {
+  it("shows Link copied for a moment, in a live region that was there before", async () => {
     await open(detail());
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("");
+    expect(region.getAttribute("aria-live")).toBe("polite");
     vi.useFakeTimers();
     await act(async () => {
       fireEvent.click(linkButton());
     });
-    expect(screen.getByRole("status").textContent).toBe("Link copied");
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toBe("Link copied");
     act(() => {
       vi.advanceTimersByTime(LINK_NOTE_MS);
     });
@@ -201,5 +208,44 @@ describe("CardPopup copy link", () => {
     );
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("keeps the empty live region in the accessibility tree (no display: none)", () => {
+    const css = readFileSync(resolve("src/screens/cards/CardPopup.css"), "utf8");
+    const rules = css.match(/\.cp-link-note[^{]*\{[^}]*\}/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) expect(r).not.toMatch(/display:\s*none|visibility:\s*hidden/);
+  });
+
+  it("a link's printing wins over the Vault scope; without it the scope applies", async () => {
+    const d = detail({
+      variants: [
+        variant({ variant_id: 1 }),
+        variant({
+          variant_id: 2,
+          variant_type: "Hyperspace",
+          finish: "Hyperspace",
+          card_number: "271",
+        }),
+        variant({ variant_id: 3, variant_type: "Standard Foil", finish: "Standard Foil" }),
+      ],
+    });
+    getBaseCardDetail.mockResolvedValue(d);
+    getPriceHistory.mockResolvedValue({ variant_id: 1, range: "90d", series: [] });
+    const active = () =>
+      document.querySelector(".cp-rail__item--active")?.getAttribute("data-variant-id");
+    const props = {
+      baseCardId: 1,
+      isAuthenticated: false,
+      setNameByCode: { SOR: "Spark of Rebellion" },
+      onClose: vi.fn(),
+      initialFinish: "Hyperspace",
+    };
+    const { rerender } = render(<CardPopup {...props} initialVariantId={3} />);
+    await waitFor(() => expect(active()).toBe("3"));
+    await act(async () => {
+      rerender(<CardPopup {...props} initialVariantId={null} />);
+    });
+    await waitFor(() => expect(active()).toBe("2"));
   });
 });

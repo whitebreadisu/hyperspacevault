@@ -19,6 +19,7 @@ import type { CardPopupNavigation } from "./CardPopupNav";
 import { orderVariants } from "./cardPopupShared";
 import { CardPopupLinkButton } from "./CardPopupLink";
 import { cardPageUrl } from "../../public/publicCatalog";
+import { defaultPrinting } from "../../utils/printingSlug";
 import { capture } from "../../analytics/analytics";
 import "./CardPopup.css";
 
@@ -47,11 +48,10 @@ export type { CardPopupNavigation };
  * (right). */
 
 /** Default the initial/displayed-on-load selection to the Standard printing
- * (the same representative rule used everywhere else a "the" card
- * image/variant is needed, e.g. GalleryGrid's cellImage). */
+ * (utils/printingSlug.ts defaultPrinting: the lowest-id Standard, else the
+ * lowest id), the printing a card link without `v` names. */
 function pickRepresentative(variants: VariantDetail[]): VariantDetail | null {
-  if (variants.length === 0) return null;
-  return variants.find((v) => v.finish === "Standard") ?? variants[0];
+  return defaultPrinting(variants);
 }
 
 /** When the Vault's variant scope is active, the popup should open on the

@@ -121,24 +121,52 @@ describe("card detail share", () => {
     });
     expect(writeText).not.toHaveBeenCalled();
     expect(linkEvents()).toEqual([]);
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.queryByText("Link copied")).toBeNull();
   });
 
   it("copies when there is no share sheet, and says so in the readout for a moment", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     setNav("clipboard", { writeText });
     render(<CardDetail id={1} params={{}} onRequestSignIn={() => {}} />);
+    // The live region is there, empty and polite, before anything is copied.
+    const region = screen.getByRole("status");
+    expect(region.textContent).toBe("");
+    expect(region.getAttribute("aria-live")).toBe("polite");
     vi.useFakeTimers();
     await act(async () => {
       fireEvent.click(shareButton());
     });
     expect(writeText).toHaveBeenCalledWith(PAGE);
-    expect(screen.getByRole("status").textContent).toBe("Link copied");
+    // The same element receives the text; the visible readout takes it too,
+    // hidden from screen readers so it is announced once.
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region.textContent).toBe("Link copied");
+    const pos = document.querySelector(".m-hdr__pos")!;
+    expect(pos.textContent).toBe("Link copied");
+    expect(pos.getAttribute("aria-hidden")).toBe("true");
+
     expect(linkEvents()).toEqual([{ method: "copy", surface: "phone", layout: "phone" }]);
     act(() => {
       vi.advanceTimersByTime(SHARE_NOTE_MS);
     });
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(region.textContent).toBe("");
+    expect(pos.textContent).toMatch(/ of /);
+  });
+
+  it("a share that settles after the detail closed sets nothing", async () => {
+    let settle!: () => void;
+    setNav(
+      "share",
+      vi.fn(() => new Promise<void>((r) => (settle = r)))
+    );
+    const { unmount } = render(<CardDetail id={1} params={{}} onRequestSignIn={() => {}} />);
+    fireEvent.click(shareButton());
+    unmount();
+    await act(async () => {
+      settle();
+    });
+    expect(linkEvents()).toEqual([{ method: "share", surface: "phone", layout: "phone" }]);
   });
 
   it("a token has no page, so no share control", () => {

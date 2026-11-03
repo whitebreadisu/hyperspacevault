@@ -172,8 +172,9 @@
 
 /* The copy-link control: the chevrons' quiet treatment around a small link
    glyph. Its confirmation sits under the cluster, out of flow, so the
-   cluster never shifts. The header reserves the extra width only when the
-   control is there. */
+   cluster never shifts; it stays in the accessibility tree while empty, so
+   a screen reader hears the text it receives. The header reserves the extra
+   width only when the control is there. */
 .cp-header:has(.cp-link-btn) {
   padding-right: 172px;
 }
@@ -195,9 +196,6 @@
   white-space: nowrap;
   color: #cfd6e4;
   pointer-events: none;
-}
-.cp-link-note:empty {
-  display: none;
 }
 .cp-link-note--failed {
   color: var(--color-danger);

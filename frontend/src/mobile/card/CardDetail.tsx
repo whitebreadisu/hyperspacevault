@@ -159,6 +159,8 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   >(null);
   const closeSheet = useCallback(() => setSheet(null), []);
   const { note: shareNote, share } = useCardShare();
+  const noteText =
+    shareNote === "copied" ? "Link copied" : shareNote === "failed" ? "Link not copied" : "";
 
   const select = (variantId: number) => {
     setSel(variantId);
@@ -441,18 +443,19 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
             >
               <MIcon name="back" size={20} />
             </button>
-            {shareNote ? (
-              <span
-                className={"m-hdr__pos" + (shareNote === "failed" ? " m-hdr__pos--failed" : "")}
-                role="status"
-              >
-                {shareNote === "copied" ? "Link copied" : "Link not copied"}
-              </span>
-            ) : (
-              <span className={"m-hdr__pos" + (nav.narrowed ? " m-hdr__pos--narrowed" : "")}>
-                {nav.pos >= 0 ? `${nav.pos + 1} of ${nav.list.length}` : ""}
-              </span>
-            )}
+            <span
+              className={
+                "m-hdr__pos" +
+                (shareNote === "failed"
+                  ? " m-hdr__pos--failed"
+                  : !shareNote && nav.narrowed
+                    ? " m-hdr__pos--narrowed"
+                    : "")
+              }
+              aria-hidden={shareNote ? true : undefined}
+            >
+              {shareNote ? noteText : nav.pos >= 0 ? `${nav.pos + 1} of ${nav.list.length}` : ""}
+            </span>
             <button
               type="button"
               className="m-iconbtn m-hdr__step"
@@ -473,6 +476,10 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
             <MIcon name="close" />
           </button>
         </div>
+        {/* Always mounted, so a screen reader hears the text it receives. */}
+        <span className="m-sr" role="status" aria-live="polite">
+          {noteText}
+        </span>
       </div>
       {sheet?.kind === "finish" && card ? (
         <FinishSheet card={card} qtyOf={stepper.qtyOf} onClose={closeSheet} />

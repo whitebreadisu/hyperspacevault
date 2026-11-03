@@ -28,6 +28,8 @@ function copyWithTextarea(text: string): boolean {
   ta.style.top = "0";
   ta.style.left = "0";
   ta.style.opacity = "0";
+  // 16 px keeps iOS from zooming the page when the textarea takes focus.
+  ta.style.fontSize = "16px";
   ta.style.pointerEvents = "none";
   document.body.appendChild(ta);
   let ok = false;
