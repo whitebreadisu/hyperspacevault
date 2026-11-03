@@ -311,6 +311,7 @@ function AppContent() {
             onOpenImportExport={() => setActiveView("import-export")}
             onQuantitiesRefreshReady={registerQuantitiesRefresh}
             openCardOnLoad={bootCard}
+            popupKeysSuspended={authModalOpen}
           />
         </div>
         {/* DeckCheckPage is always mounted (like CardsPage above), never

@@ -50,7 +50,11 @@ if (dataEl?.textContent) {
     window.addEventListener(AUTO_OPEN_STALLED_EVENT, () => hydrate(data), { once: true });
   } else if (step === "redirect" && target) {
     publicCapture("card_page_cta", { action: "auto_open" });
-    window.location.replace(target);
+    try {
+      window.location.replace(target);
+    } catch {
+      hydrate(data);
+    }
   } else {
     hydrate(data);
   }
