@@ -114,6 +114,11 @@ interface Props {
    * popup instance. Optional, defaulting to "table"; CardsPage (the only
    * production caller) always passes it explicitly. */
   source?: "table" | "gallery" | "deck_check" | "new_arrivals" | "link";
+  /** True while a shell dialog is open over the popup (App.tsx: the sign-in
+   * dialog, e.g. a `?card=...&signup=1` boot). Escape and the arrow keys then
+   * belong to that dialog: the popup's own handlers are detached, so one
+   * Escape closes only the dialog on top. */
+  keysSuspended?: boolean;
 }
 
 export function CardPopup({
@@ -128,6 +133,7 @@ export function CardPopup({
   navigation,
   initialFinish,
   source = "table",
+  keysSuspended = false,
 }: Props) {
   const { limits, capMode } = useLimits();
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
@@ -223,12 +229,15 @@ export function CardPopup({
       close();
     }
   }, [historyExpanded, close]);
-  const { handleBackdropMouseDown } = useModalDismiss(onEscape, { onBackdropClick: close });
+  const { handleBackdropMouseDown } = useModalDismiss(onEscape, {
+    onBackdropClick: close,
+    enabled: !keysSuspended,
+  });
 
   // Prev/next browsing via ArrowLeft/ArrowRight (guarded against typing
   // targets, no-op with no navigation context) -- see CardPopupNav.tsx's
   // useArrowKeyNavigation doc comment.
-  useArrowKeyNavigation(navigation);
+  useArrowKeyNavigation(keysSuspended ? undefined : navigation);
 
   const selectVariant = useCallback(
     (variantId: number) => {

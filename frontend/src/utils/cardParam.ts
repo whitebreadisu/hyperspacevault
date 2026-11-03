@@ -1,6 +1,7 @@
 // The `?card=<set>-<number>` boot parameter (design note §9 "Optional
-// extra"): a public card page's prev / next arrows
-// open a card inside the app, `/?card=sor-006`. On boot the desktop app opens
+// extra"): every action on a public card page opens a card inside the app
+// through it -- this card from the bar, the wordmark and the sign-up plate,
+// the neighbouring card from prev / next -- e.g. `/?card=sor-006`. On boot the desktop app opens
 // that card's popup and the phone app navigates to `#/card/<base_card_id>`.
 // The value names the card by set code and base number, never by database id
 // (ids differ between dev and prod); it resolves through the base-cards list
@@ -16,10 +17,11 @@ export interface CardParam {
 const PARAM = /^([a-z0-9]{2,8})-(\d{1,4})$/i;
 
 /** `sor-006`: lower-case set code, number zero-padded to 3 (the public
- * pages' URL rule). */
+ * pages' URL rule). Both parts are URI-encoded, so an unexpected character
+ * can never change the query (real codes and numbers are unchanged). */
 export function formatCardParam(setCode: string, num: string): string {
   const n = /^\d+$/.test(num) ? num.padStart(3, "0") : num;
-  return `${setCode.toLowerCase()}-${n}`;
+  return `${encodeURIComponent(setCode.toLowerCase())}-${encodeURIComponent(n)}`;
 }
 
 /** `/?card=sor-006` */
@@ -60,8 +62,38 @@ export function resolveCardParam<T extends ListedCard>(
 /** Drops `card` from the address bar without a history entry, keeping the
  * path, every other parameter and the hash. */
 export function clearCardParam(): void {
+  clearParam("card");
+}
+
+function clearParam(name: string): void {
   const url = new URL(window.location.href);
-  if (!url.searchParams.has("card")) return;
-  url.searchParams.delete("card");
+  if (!url.searchParams.has(name)) return;
+  url.searchParams.delete(name);
   window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+}
+
+// `&signup=1` (design note §9 "Optional extra"): the public card page's
+// "Create free account" adds it, `/?card=sor-005&signup=1`, so the app opens
+// its sign-in dialog in create-account mode (alongside the card when `card`
+// is there too). Read once at boot, only on `/`; any other value or absent =
+// nothing happens.
+
+/** True when the query carries `signup=1`. */
+export function parseSignupParam(search: string): boolean {
+  return new URLSearchParams(search).get("signup") === "1";
+}
+
+/** The boot read: on `/` only. */
+export function bootSignupParam(): boolean {
+  return window.location.pathname === "/" && parseSignupParam(window.location.search);
+}
+
+/** Drops `signup` from the address bar the way clearCardParam drops `card`. */
+export function clearSignupParam(): void {
+  clearParam("signup");
+}
+
+/** An app link with `signup=1` added: `/?card=sor-005` -> `/?card=sor-005&signup=1`. */
+export function withSignup(href: string): string {
+  return href + (href.includes("?") ? "&" : "?") + "signup=1";
 }

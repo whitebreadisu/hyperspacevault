@@ -27,8 +27,9 @@ const nameIn = (page: Page, id: string) =>
   page.locator(id).getByText("Luke Skywalker", { exact: true }).first();
 
 /** No backend behind `vite preview`: card art is a 1 px WebP, every API read
- * (the hydrated price history) is an empty series, and "/" (where the call to
- * action goes) is a stub document so the app does not boot. */
+ * (the hydrated price history) is an empty series, and "/" (where every call
+ * to action goes, as `/?card=sor-005`) is a stub document so the app does not
+ * boot. */
 async function stubSite(page: Page) {
   await page.route("**/images/cards/**", (r) =>
     r.fulfill({ status: 200, contentType: "image/webp", body: ONE_PX_WEBP })
@@ -134,12 +135,65 @@ test.describe("with JavaScript", () => {
     await expect(flip).toContainText("Show front");
   });
 
-  test("the call to action lands on /", async ({ page }, info) => {
+  test("the call to action opens this card in the app", async ({ page }, info) => {
     await page.goto(PATH);
     const tree = page.locator(treeId(info));
     await tree.getByRole("button", { name: "Create free account" }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/\?card=sor-005&signup=1$/);
     expect(new URL(page.url()).pathname).toBe("/");
+  });
+
+  test("Sign in opens this card in the app without signup", async ({ page }, info) => {
+    await page.goto(PATH);
+    await page.locator(treeId(info)).getByRole("link", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/\?card=sor-005$/);
+  });
+
+  test("a browser that has opened the app goes straight to the card in the app", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.goto("/cards/");
+    await page.goto(PATH);
+    await expect(page).toHaveURL(/\/\?card=sor-005$/);
+    // location.replace: Back skips the card page instead of redirecting again.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/cards\/$/);
+  });
+
+  test("the redirect is the head script's: it works with the page bundle blocked", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.route("**/assets/*.js", (r) => r.abort());
+    await page.goto(PATH);
+    await expect(page).toHaveURL(/\/\?card=sor-005$/);
+  });
+
+  test("a phone-tree previous / next link opens the neighbour in the app", async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info), "the text links are the phone tree's");
+    await page.goto(PATH);
+    const next = page.locator("#pc-phone .pc-setnav a").last();
+    await expect(next).toHaveAttribute("href", "/?card=sor-010");
+    await next.click();
+    await expect(page).toHaveURL(/\/\?card=sor-010$/);
+  });
+
+  test("?page keeps a returning browser on the card page", async ({ page }, info) => {
+    await page.addInitScript(() => window.localStorage.setItem("hsv_app_seen", "1"));
+    await page.goto(`${PATH}?page`);
+    await expect(nameIn(page, treeId(info))).toBeVisible();
+    // Hydrated: selecting a printing writes ?v= and keeps ?page.
+    const tree = page.locator(treeId(info));
+    const hyperspace = tree.getByRole("button", { name: /Hyperspace/ }).first();
+    await expect(async () => {
+      await hyperspace.click();
+      await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/, { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    expect(new URL(page.url()).searchParams.has("page")).toBe(true);
+    expect(new URL(page.url()).pathname).toBe(PATH);
   });
 
   test("the layout follows the project's width", async ({ page }, info) => {
@@ -154,5 +208,64 @@ test.describe("with JavaScript", () => {
       await expect(nameIn(page, "#pc-phone")).toBeHidden();
       await expect(page.locator("#pc-desktop .cp-rail__item")).toHaveCount(3);
     }
+  });
+
+  test("crossing the width switch hydrates the revealed tree", async ({ page }, info) => {
+    await page.goto(PATH);
+    await expect(nameIn(page, treeId(info))).toBeVisible();
+    // Wait for the first tree's hydration before resizing.
+    await page.waitForLoadState("load");
+    const other = otherTreeId(info);
+    const toPhone = !isPhone(info);
+    await page.setViewportSize(
+      toPhone ? { width: 390, height: 844 } : { width: 1440, height: 900 }
+    );
+    await expect(nameIn(page, other)).toBeVisible();
+    const tree = page.locator(other);
+    const art = toPhone ? tree.locator("img.m-art__img") : tree.locator("img.cp-image");
+    await expect(art).toHaveAttribute("src", /card_fx91001_front_320\.webp$/);
+    // A live control in the revealed tree: switching printing changes its art.
+    const hyperspace = tree.getByRole("button", { name: /Hyperspace/ }).first();
+    await expect(async () => {
+      await hyperspace.click();
+      await expect(art).toHaveAttribute("src", /card_fx91002_front_320\.webp$/, { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
+  });
+
+  test("one printing selection across both trees, crossing back and forth", async ({
+    page,
+  }, info) => {
+    const sizes = { phone: { width: 390, height: 844 }, desktop: { width: 1440, height: 900 } };
+    const artOf = (id: string) =>
+      page.locator(id).locator(id === "#pc-phone" ? "img.m-art__img" : "img.cp-image");
+    const pick = async (id: string, name: RegExp, stem: RegExp) => {
+      const button = page.locator(id).getByRole("button", { name }).first();
+      await expect(async () => {
+        await button.click();
+        await expect(artOf(id)).toHaveAttribute("src", stem, { timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
+    };
+    const first = treeId(info);
+    const second = otherTreeId(info);
+    const sizeOf = (id: string) => (id === "#pc-phone" ? sizes.phone : sizes.desktop);
+    await page.goto(PATH);
+    await page.waitForLoadState("load");
+    await pick(first, /Hyperspace/, /card_fx91002_front_320\.webp$/);
+    await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
+
+    await page.setViewportSize(sizeOf(second));
+    await expect(nameIn(page, second)).toBeVisible();
+    await expect(artOf(second)).toHaveAttribute("src", /card_fx91002_front_320\.webp$/);
+    await pick(second, /^Standard/, /card_fx91001_front_320\.webp$/);
+    expect(new URL(page.url()).searchParams.has("v")).toBe(false);
+
+    // Back, and across twice more: each tree hydrated once, still live.
+    await page.setViewportSize(sizeOf(first));
+    await expect(artOf(first)).toHaveAttribute("src", /card_fx91001_front_320\.webp$/);
+    await page.setViewportSize(sizeOf(second));
+    await page.setViewportSize(sizeOf(first));
+    await pick(first, /Hyperspace/, /card_fx91002_front_320\.webp$/);
+    await expect(page).toHaveURL(/[?&]v=hyperspace-sor-271$/);
   });
 });

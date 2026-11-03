@@ -11,12 +11,19 @@ interface Props {
   onClose: () => void;
   onSignedUp: () => void;
   onGoogleLinked: () => void;
+  /** "signup" when the app booted with `signup=1` (utils/cardParam.ts). */
+  initialMode?: "login" | "signup";
 }
 
-export function AuthLayer({ onClose, onSignedUp, onGoogleLinked }: Props) {
+export function AuthLayer({ onClose, onSignedUp, onGoogleLinked, initialMode }: Props) {
   return (
     <div className="m-authlayer">
-      <AuthModal onClose={onClose} onSignedUp={onSignedUp} onGoogleLinked={onGoogleLinked} />
+      <AuthModal
+        onClose={onClose}
+        onSignedUp={onSignedUp}
+        onGoogleLinked={onGoogleLinked}
+        initialMode={initialMode}
+      />
     </div>
   );
 }

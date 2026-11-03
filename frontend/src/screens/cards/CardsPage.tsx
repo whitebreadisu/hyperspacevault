@@ -91,6 +91,9 @@ interface Props {
    * that card and the parameter leaves the address bar. Unknown card = no
    * popup (the parameter still leaves). Absent (the default) = today's behaviour. */
   openCardOnLoad?: CardParam | null;
+  /** Passed to the card popup: a shell dialog (App.tsx's sign-in dialog) is
+   * open over it, so the popup's key handlers stand down (CardPopup). */
+  popupKeysSuspended?: boolean;
 }
 
 /** Unified Cards view -- one list for everyone, inventory data layered on by
@@ -112,6 +115,7 @@ export function CardsPage({
   onQuantitiesRefreshReady,
   shareToken,
   openCardOnLoad = null,
+  popupKeysSuspended = false,
 }: Props) {
   // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
@@ -810,6 +814,7 @@ export function CardsPage({
           onRequestSignIn={requestSignIn}
           navigation={popupNavigation}
           source={popupSource}
+          keysSuspended={popupKeysSuspended}
           // Keeps the popup's initial/per-card selection in the same finish the
           // collector is scoped to -- companion to the scoped number/sort and
           // the rail's keyboard cycling. A finish-filtered gallery click showed

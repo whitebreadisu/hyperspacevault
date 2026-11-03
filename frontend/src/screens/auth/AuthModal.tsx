@@ -79,6 +79,9 @@ interface Props {
    * be seen -- the shell would close the modal the instant `user` updates.
    * Optional for the same reason onSignedUp is. */
   onGoogleLinked?: () => void;
+  /** The form's starting mode; "signup" when the app booted with
+   * `signup=1` (utils/cardParam.ts). The in-form toggle still switches. */
+  initialMode?: Mode;
 }
 
 /** Sign-in / create-account modal, opened over the app (the header's Sign In
@@ -91,8 +94,8 @@ interface Props {
  * the account is created and the user is signed in immediately, but the
  * modal waits for an explicit dismiss instead of vanishing the moment auth
  * resolves, so the verification message actually gets seen. */
-export function AuthModal({ onClose, onSignedUp, onGoogleLinked }: Props) {
-  const [mode, setMode] = useState<Mode>("login");
+export function AuthModal({ onClose, onSignedUp, onGoogleLinked, initialMode = "login" }: Props) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -211,6 +211,7 @@ async function renderPopup(
     onChanged?: () => void;
     navigation?: CardPopupNavigation;
     initialFinish?: string | null;
+    keysSuspended?: boolean;
   } = {}
 ) {
   getBaseCardDetail.mockResolvedValue(detail);
@@ -228,6 +229,7 @@ async function renderPopup(
         onChanged={onChanged}
         navigation={opts.navigation}
         initialFinish={opts.initialFinish}
+        keysSuspended={opts.keysSuspended}
       />
     );
   });
@@ -2075,6 +2077,18 @@ describe("CardPopup prev/next navigation (BL-148, CREATE)", () => {
 
     fireEvent.keyDown(document, { key: "ArrowRight" });
     expect(nav.onNext).toHaveBeenCalledOnce();
+  });
+
+  it("with keysSuspended (a shell dialog on top), Escape and the arrows do nothing", async () => {
+    const nav = makeNav();
+    const onClose = vi.fn();
+    await renderPopup(makeDetail(), { navigation: nav, onClose, keysSuspended: true });
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(nav.onPrev).not.toHaveBeenCalled();
+    expect(nav.onNext).not.toHaveBeenCalled();
   });
 
   it("ArrowLeft/ArrowRight are no-ops at a disabled boundary", async () => {

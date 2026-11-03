@@ -24,7 +24,8 @@ import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRouteToken } from "./utils/shareRoute";
-import { parseCardParam } from "./utils/cardParam";
+import { bootSignupParam, clearSignupParam, parseCardParam } from "./utils/cardParam";
+import { markAppSeen } from "./utils/appSeen";
 import { capture } from "./analytics/analytics";
 import { MobileApp } from "./mobile/MobileApp";
 import { useIsPhone } from "./mobile/useIsPhone";
@@ -62,7 +63,16 @@ function AppContent() {
   const { user, loading, logout, emailVerified } = useAuth();
   // Phone-width viewports render the mobile app instead (App Spec §25).
   const isPhone = useIsPhone();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  // `signup=1` at boot (a public card page's "Create free account"): the
+  // sign-in dialog opens in create-account mode, beside any `?card=` popup,
+  // and the parameter leaves the address bar. The phone tree reads it in
+  // MobileApp.
+  const [bootSignup] = useState(() => !isPhone && bootSignupParam());
+  const [authModalOpen, setAuthModalOpen] = useState(bootSignup);
+  const [authMode, setAuthMode] = useState<"login" | "signup">(bootSignup ? "signup" : "login");
+  useEffect(() => {
+    if (bootSignup) clearSignupParam();
+  }, [bootSignup]);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   // About & Legal modal -- reachable three ways (App Spec §5.8): Header's
@@ -213,7 +223,10 @@ function AppContent() {
   // follow-up screen ("check your email" / the linked-account notice) and
   // closes only when the user dismisses it.
   useEffect(() => {
-    if (user && !signupInFlight && !googleLinkedInFlight) setAuthModalOpen(false);
+    if (user && !signupInFlight && !googleLinkedInFlight) {
+      setAuthModalOpen(false);
+      setAuthMode("login");
+    }
   }, [user, signupInFlight, googleLinkedInFlight]);
 
   // The settings view is forced back to "cards" for an anonymous visitor --
@@ -298,6 +311,7 @@ function AppContent() {
             onOpenImportExport={() => setActiveView("import-export")}
             onQuantitiesRefreshReady={registerQuantitiesRefresh}
             openCardOnLoad={bootCard}
+            popupKeysSuspended={authModalOpen}
           />
         </div>
         {/* DeckCheckPage is always mounted (like CardsPage above), never
@@ -356,10 +370,12 @@ function AppContent() {
       </main>
       {authModalOpen && (
         <AuthModal
+          initialMode={authMode}
           onClose={() => {
             setSignupInFlight(false);
             setGoogleLinkedInFlight(false);
             setAuthModalOpen(false);
+            setAuthMode("login");
           }}
           onSignedUp={() => setSignupInFlight(true)}
           onGoogleLinked={() => setGoogleLinkedInFlight(true)}
@@ -386,6 +402,9 @@ function AppContent() {
 }
 
 function App() {
+  // Every boot, either tree: the marker a public card page reads to open
+  // its card here instead (utils/appSeen.ts, App Spec §5.3).
+  useEffect(() => markAppSeen(), []);
   return (
     <AuthProvider>
       <LimitsGate>

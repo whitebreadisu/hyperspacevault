@@ -122,6 +122,19 @@ describe("checkOutput", () => {
     expect(p).toContain("sitemap.xml is not a sitemap index");
   });
 
+  it("flags a dist whose only pages are the set index and set pages (zero card pages)", () => {
+    goodDist();
+    rmSync(join(dist, "cards/sor/005"), { recursive: true });
+    rmSync(join(dist, "cards/sor/010"), { recursive: true });
+    const r = checkOutput(dist, { expectNoindex: false });
+    expect(r.kinds.card).toBe(0);
+    expect(r.problems).toContain("no card pages under cards/");
+    rmSync(join(dist, "cards/sor"), { recursive: true });
+    expect(checkOutput(dist, { expectNoindex: false }).problems).toContain(
+      "no card pages under cards/"
+    );
+  });
+
   it("flags a missing dist outright", () => {
     expect(checkOutput(join(dist, "nope"), { expectNoindex: false }).problems).toContain(
       "no pages under cards/"

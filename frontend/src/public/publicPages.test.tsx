@@ -2,7 +2,7 @@ import { act } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
-import { DesktopCardPage, PhoneCardPage } from "./CardPublicPage";
+import { DesktopCardPage, PhoneCardPage, resetPrintingSelection } from "./CardPublicPage";
 import { headHtml, indexHeadHtml, pageDescription, setHeadHtml } from "./head";
 import {
   buildIndexPage,
@@ -169,6 +169,15 @@ describe("page head", () => {
     expect(head).not.toMatch(/\$\d/);
     expect(pageDescription(page)).not.toMatch(/\d\.\d\d/);
     expect(head).not.toContain("noindex");
+    // The returning-visitor redirect is the first element, before the title.
+    expect(head.startsWith("<script>(function (C)")).toBe(true);
+    expect(head.indexOf("<script>")).toBeLessThan(head.indexOf("<title>"));
+    expect(head).toContain('"href":"/?card=sor-005"');
+  });
+
+  it("set pages and the index carry no redirect script", () => {
+    expect(setHeadHtml(buildSetPages(catalog)[0], { noindex: false })).not.toContain("<script>");
+    expect(indexHeadHtml(buildIndexPage(catalog), { noindex: false })).not.toContain("<script>");
   });
 
   it("carries a robots noindex only when asked (dev)", () => {
@@ -182,6 +191,8 @@ describe("server render and hydration", () => {
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     capture.mockClear();
+    resetPrintingSelection();
+    window.history.replaceState(null, "", "/cards/sor/005/");
     // The price history fetch never resolves: hydration is what is under test.
     vi.stubGlobal(
       "fetch",
@@ -261,6 +272,126 @@ describe("server render and hydration", () => {
     expect(errors).not.toHaveBeenCalled();
     expect(capture).not.toHaveBeenCalled();
     errors.mockRestore();
+  });
+});
+
+describe("card page calls to action", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("every call to action on both trees opens this card in the app; the breadcrumb stays", () => {
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    for (const id of ["pc-desktop", "pc-phone"]) {
+      const tree = document.getElementById(id)!;
+      expect(tree.querySelector(".pc-brand")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect(tree.querySelector(".pc-bar__open")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect(tree.querySelector(".pc-cta__signin")!.getAttribute("href")).toBe("/?card=sor-005");
+      expect([...tree.querySelectorAll(".pc-crumbs a")].map((a) => a.getAttribute("href"))).toEqual(
+        ["/cards/", "/cards/sor/"]
+      );
+      expect(tree.querySelector(".pc-foot a")!.getAttribute("href")).toBe("/");
+    }
+    // The phone tree's previous / next text links open the neighbour in the
+    // app, as the desktop header chevrons do.
+    const phoneNav = [...document.querySelectorAll("#pc-phone .pc-setnav a")];
+    expect(phoneNav.map((a) => a.getAttribute("href"))).toEqual(["/?card=sor-025"]);
+    document.body.innerHTML = renderCardBody(buildPages(catalog)[1]);
+    expect(
+      [...document.querySelectorAll("#pc-phone .pc-setnav a")].map((a) => a.getAttribute("href"))
+    ).toEqual(["/?card=sor-005"]);
+  });
+
+  it.each([
+    ["desktop", "pc-desktop", DesktopCardPage],
+    ["phone", "pc-phone", PhoneCardPage],
+  ] as const)(
+    "Create free account on the %s tree goes to this card in the app",
+    async (_, id, Page) => {
+      (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise(() => {}))
+      );
+      const [page] = buildPages(catalog);
+      document.body.innerHTML = renderCardBody(page);
+      const assign = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign });
+      await act(async () => {
+        hydrateRoot(document.getElementById(id)!, <Page data={page} />);
+      });
+      const button = [...document.getElementById(id)!.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Create free account")
+      )!;
+      await act(async () => {
+        button.click();
+      });
+      expect(assign).toHaveBeenCalledWith("/?card=sor-005&signup=1");
+    }
+  );
+
+  it("set pages and the index keep the app's front door", () => {
+    const [set] = buildSetPages(catalog);
+    document.body.innerHTML = renderSetBody(set);
+    expect(document.querySelector(".pc-brand")!.getAttribute("href")).toBe("/");
+    expect(document.querySelector(".pc-bar__open")!.getAttribute("href")).toBe("/");
+    document.body.innerHTML = renderIndexBody(buildIndexPage(catalog));
+    expect(document.querySelector(".pc-brand")!.getAttribute("href")).toBe("/");
+  });
+});
+
+describe("one printing selection across both trees", () => {
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    resetPrintingSelection();
+    window.history.replaceState(null, "", "/cards/sor/005/");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("a tree hydrated later shows, and changes, the other tree's selection", async () => {
+    const [page] = buildPages(catalog);
+    document.body.innerHTML = renderCardBody(page);
+    const desk = document.getElementById("pc-desktop")!;
+    const phone = document.getElementById("pc-phone")!;
+    await act(async () => {
+      hydrateRoot(desk, <DesktopCardPage data={page} />);
+    });
+    const deskArt = () => desk.querySelector<HTMLImageElement>("img.cp-image")!.getAttribute("src");
+    const hyperspace = [...desk.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      /Hyperspace/.test(b.textContent ?? "")
+    )!;
+    await act(async () => {
+      hyperspace.click();
+    });
+    expect(deskArt()).toMatch(/card_6502_front_320/);
+    expect(window.location.search).toMatch(/v=hyperspace-sorp-1/);
+    // The phone tree hydrates now (the viewport crossed the switch).
+    await act(async () => {
+      hydrateRoot(phone, <PhoneCardPage data={page} />);
+    });
+    const phoneArt = () =>
+      phone.querySelector<HTMLImageElement>("img.m-art__img")!.getAttribute("src");
+    expect(phoneArt()).toMatch(/card_6502_front_320/);
+    // Back to Standard on the phone: desktop follows, and ?v= is dropped.
+    const standard = [...phone.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      /Standard/.test(b.textContent ?? "")
+    )!;
+    await act(async () => {
+      standard.click();
+    });
+    expect(phoneArt()).toMatch(/card_7123_front_320/);
+    expect(deskArt()).toMatch(/card_7123_front_320/);
+    expect(window.location.search).toBe("");
   });
 });
 
@@ -485,7 +616,15 @@ describe("public analytics", () => {
         referrer_kind: "search",
       })
     ).toBe(true);
-    expect(isAllowedPublicEvent("card_page_cta", { action: "create_account" })).toBe(true);
+    for (const action of [
+      "create_account",
+      "sign_in",
+      "open_app",
+      "open_card_in_app",
+      "auto_open",
+    ]) {
+      expect(isAllowedPublicEvent("card_page_cta", { action })).toBe(true);
+    }
     // Other names, including the app's own events, are rejected.
     for (const name of ["card_popup_opened", "screen_viewed", "$pageview", "$autocapture", "x"]) {
       expect(isAllowedPublicEvent(name, {})).toBe(false);
@@ -495,6 +634,8 @@ describe("public analytics", () => {
       false
     );
     expect(isAllowedPublicEvent("card_page_cta", { action: "anything" })).toBe(false);
+    expect(isAllowedPublicEvent("card_page_cta", { action: "auto_open_x" })).toBe(false);
+    expect(isAllowedPublicEvent("card_page_cta", { action: "auto_open", set: "SOR" })).toBe(false);
     expect(isAllowedPublicEvent("card_page_viewed", { set: "SOR", number: "005" })).toBe(false);
     expect(
       isAllowedPublicEvent("card_page_viewed", {

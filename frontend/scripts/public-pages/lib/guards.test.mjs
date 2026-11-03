@@ -37,6 +37,21 @@ describe("completeness guard (§3 guard 1)", () => {
     );
   });
 
+  it("fails an empty catalog even when every count agrees at zero", () => {
+    const empty = { counts: {}, cards: [] };
+    expect(() => checkCompleteness({ catalog: empty, baseCardList: [] })).toThrow(
+      /zero card pages is never a deploy/
+    );
+    expect(() => checkCompleteness({ catalog: empty, baseCardList: [], pagesRendered: 0 })).toThrow(
+      GuardError
+    );
+    // Tokens only is empty too.
+    const tokens = { counts: {}, cards: [card("SOR", "T01", true)] };
+    expect(() =>
+      checkCompleteness({ catalog: tokens, baseCardList: [{ is_token: true }] })
+    ).toThrow(/zero card pages/);
+  });
+
   it("fails when fewer pages were rendered than counted", () => {
     expect(() => checkCompleteness({ catalog, baseCardList: list, pagesRendered: 2 })).toThrow(
       GuardError

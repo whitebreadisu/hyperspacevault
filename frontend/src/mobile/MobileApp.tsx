@@ -39,6 +39,7 @@ import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "../vault/useVaultData";
 import { CardParamBoot } from "./CardParamBoot";
+import { bootSignupParam, clearSignupParam } from "../utils/cardParam";
 import { Vault } from "./vault/Vault";
 import "./mobile.css";
 import "./shell.css";
@@ -167,12 +168,21 @@ export function MobileApp() {
   // this document opens the auth layer for a pending bounce and returns once
   // signed in (or walks back if the layer is closed without signing in).
   const [bounce] = useState(() => !isScanDocument() && pendingSignInReturn() !== null);
-  const [authOpen, setAuthOpen] = useState(bounce);
+  // `signup=1` at boot (a public card page's "Create free account"): the
+  // auth layer opens in create-account mode, beside any `?card=` card, and
+  // the parameter leaves the address bar (desktop: App.tsx).
+  const [bootSignup] = useState(() => !bounce && !isScanDocument() && bootSignupParam());
+  const [authOpen, setAuthOpen] = useState(bounce || bootSignup);
+  const [authMode, setAuthMode] = useState<"login" | "signup">(bootSignup ? "signup" : "login");
+  useEffect(() => {
+    if (bootSignup) clearSignupParam();
+  }, [bootSignup]);
   const [signupInFlight, setSignupInFlight] = useState(false);
   const [googleLinkedInFlight, setGoogleLinkedInFlight] = useState(false);
   useEffect(() => {
     if (user && !signupInFlight && !googleLinkedInFlight) {
       setAuthOpen(false);
+      setAuthMode("login");
       if (bounce) finishSignInBounce(true);
     }
   }, [user, signupInFlight, googleLinkedInFlight, bounce]);
@@ -182,6 +192,7 @@ export function MobileApp() {
   }, []);
   const closeAuth = useCallback(() => {
     setAuthOpen(false);
+    setAuthMode("login");
     setSignupInFlight(false);
     setGoogleLinkedInFlight(false);
     if (bounce && !user) finishSignInBounce(false);
@@ -557,6 +568,7 @@ export function MobileApp() {
           ) : null}
           {authOpen ? (
             <AuthLayer
+              initialMode={authMode}
               onClose={closeAuth}
               onSignedUp={() => setSignupInFlight(true)}
               onGoogleLinked={() => setGoogleLinkedInFlight(true)}

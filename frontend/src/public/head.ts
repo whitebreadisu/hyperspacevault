@@ -1,5 +1,6 @@
 import { CANONICAL_ORIGIN, cardPath, setPath } from "./publicCatalog";
 import type { CardPageData, IndexPageData, SetPageData } from "./publicCatalog";
+import { AUTO_OPEN_JS, autoOpenConfig } from "./autoOpen";
 
 // The public pages' <head> (design note §5, D2): title, meta description,
 // canonical, robots, Open Graph and the BreadcrumbList JSON-LD, for the card
@@ -118,21 +119,33 @@ function headLines(f: HeadFields, opts: HeadOptions): string {
     `<meta name="twitter:card" content="summary" />`,
     `<script type="application/ld+json">${scriptJson(f.jsonLd)}</script>`,
   ];
-  return lines.filter(Boolean).join("\n    ");
+  return lines.filter(Boolean).join(HEAD_SEP);
+}
+
+const HEAD_SEP = "\n    ";
+
+/** The card page's returning-visitor redirect (autoOpen.ts), first in the
+ * head; the config is JSON with `<` escaped, so no value can close the tag. */
+export function autoOpenScript(p: CardPageData, hosts?: readonly string[]): string {
+  return `<script>${AUTO_OPEN_JS}(${scriptJson(autoOpenConfig(p.card, hosts))});</script>`;
 }
 
 export function headHtml(p: CardPageData, opts: HeadOptions): string {
   const standard = p.card.variants.find((v) => v.finish === "Standard") ?? p.card.variants[0];
-  return headLines(
-    {
-      title: pageTitle(p),
-      description: pageDescription(p),
-      path: cardPath(p.card.set_code, p.card.base_card_number),
-      ogTitle: `${fullName(p.card)} · ${p.numberLabel}`,
-      image: standard?.front_images?.w320,
-      jsonLd: breadcrumbJsonLd(p),
-    },
-    opts
+  return (
+    autoOpenScript(p) +
+    HEAD_SEP +
+    headLines(
+      {
+        title: pageTitle(p),
+        description: pageDescription(p),
+        path: cardPath(p.card.set_code, p.card.base_card_number),
+        ogTitle: `${fullName(p.card)} · ${p.numberLabel}`,
+        image: standard?.front_images?.w320,
+        jsonLd: breadcrumbJsonLd(p),
+      },
+      opts
+    )
   );
 }
 
