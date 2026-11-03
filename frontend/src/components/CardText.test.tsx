@@ -239,7 +239,7 @@ describe("card-text token census", () => {
     let lists = 0;
     for (const page of pages) {
       let body = renderCardBody(page);
-      for (let prev = ""; prev !== body; ) {
+      for (let prev = ""; prev !== body;) {
         prev = body;
         body = body.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "");
       }
