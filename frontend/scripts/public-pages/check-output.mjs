@@ -35,6 +35,7 @@ import { fileURLToPath } from "node:url";
 import { fileForPath, isSitemapIndex, parseLocs } from "./lib/sitemaps.mjs";
 import { MANIFEST_PATH } from "./lib/manifest.mjs";
 import { OFFICIAL_CDN, namesOfficialCdn } from "./lib/officialCdn.mjs";
+import cardTextTokens from "../../src/utils/cardTextTokens.json" with { type: "json" };
 
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
 export { OFFICIAL_CDN };
@@ -42,15 +43,19 @@ export { OFFICIAL_CDN };
 export const MAX_SITEMAP_URLS = 50_000;
 export const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 const PRICE_RE = /\$\s*\d/;
-/** A markup token as the page's escaped text shows it, and as plain text. */
-const ESCAPED_TOKEN_RE = /&lt;\/?[a-z][a-z0-9]*&gt;/gi;
-const TOKEN_RE = /<\/?[a-z][a-z0-9]*>/gi;
-/** The tokens the renderer has a rule for (utils/cardText.ts): one left
- * literal is a renderer bug and fails. Any other tag is a token swuapi added
- * since: a warning, so a new tag never blocks a deploy or a promote, while
- * the page shows it as text until it gets a rule. */
-const KNOWN_TOKEN_RE = /^<\/?(uq|bullet)>$/i;
-export const isKnownToken = (t) => KNOWN_TOKEN_RE.test(t);
+/** A markup tag in decoded text: open, close or self-closing, with optional
+ * attributes and hyphenated names (`<uq>`, `</bullet>`, `<uq/>`,
+ * `<icon name="x">`, `<foo-bar>`). `<3` or `a < b` is not one. */
+const TOKEN_RE = /<\/?[a-z][a-z0-9-]*(?:\s[^<>]*)?\/?>/gi;
+/** The tokens the renderer has a rule for, from the renderer's own list
+ * (src/utils/cardTextTokens.json, read by utils/cardText.ts): one left literal
+ * is a renderer bug and fails. Any other tag is one swuapi added since: a
+ * warning, so a new tag never blocks a deploy or a promote, while the page
+ * shows it as text until it gets a rule. */
+export const KNOWN_TOKENS = new Set(cardTextTokens.known.map((t) => t.toLowerCase()));
+export const isKnownToken = (t) => KNOWN_TOKENS.has(t.toLowerCase());
+/** Element names a raw (unescaped) known token would parse as. */
+const KNOWN_ELEMENT_NAMES = new Set([...KNOWN_TOKENS].map((t) => t.replace(/[</>]/g, "")));
 
 function walk(dir) {
   if (!existsSync(dir)) return [];
@@ -70,13 +75,20 @@ function attr(tag, name) {
   return m ? (m[2] ?? m[3]) : null;
 }
 
-function decode(s) {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+const NAMED = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'", nbsp: " " };
+
+/** Decodes the named entities above (any case: `&LT;` is legal HTML) and
+ * every numeric one (`&#60;`, `&#x3c;`), in one pass so `&amp;lt;` stays
+ * `&lt;`. */
+export function decode(s) {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+    if (e[0] === "#") {
+      const code =
+        e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
+    }
+    return NAMED[e.toLowerCase()] ?? m;
+  });
 }
 
 function tags(html, tagName) {
@@ -97,11 +109,43 @@ function scripts(html, type) {
   return out;
 }
 
-/** Escaped markup tokens in the page outside <script> and <style> bodies:
- * React escapes a literal `<uq>` in text or an attribute to `&lt;uq&gt;`. */
+/** A page tag, quote-aware (a quoted attribute value may hold a raw `>`). */
+const TAG_RE = /<(\/?)([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>|<!--[\s\S]*?-->|<![^>]*>/g;
+const ATTR_RE = /([^\s=/>"']+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/g;
+/** The meta descriptions checkPage reads as snippets: not page text again. */
+const SNIPPET_META = /^(description|og:description|twitter:description)$/i;
+
+/** Markup tokens a reader of the page could see: in its decoded text and
+ * decoded attribute values, outside <script> and <style> bodies (the
+ * #card-data JSON holds the raw source text on purpose), plus a known token
+ * that reached the page unescaped as an element (`<uq>`). The snippet metas
+ * are left to the snippet check. */
 export function visibleMarkupTokens(html) {
   const outside = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
-  return [...new Set((outside.match(ESCAPED_TOKEN_RE) ?? []).map(decode))];
+  const found = new Set();
+  const scan = (text) => {
+    for (const t of decode(text).match(TOKEN_RE) ?? []) found.add(t);
+  };
+  let at = 0;
+  for (const m of outside.matchAll(TAG_RE)) {
+    scan(outside.slice(at, m.index));
+    at = m.index + m[0].length;
+    if (!m[2]) continue; // a comment or doctype
+    const name = m[2].toLowerCase();
+    if (KNOWN_ELEMENT_NAMES.has(name)) found.add(`<${m[1]}${name}>`);
+    const attrs = [...(m[3] ?? "").matchAll(ATTR_RE)];
+    const isSnippet =
+      name === "meta" &&
+      attrs.some(
+        ([, k, a, b, c]) => /^(name|property)$/i.test(k) && SNIPPET_META.test(a ?? b ?? c)
+      );
+    for (const [, k, a, b, c] of attrs) {
+      if (isSnippet && k.toLowerCase() === "content") continue;
+      scan(a ?? b ?? c ?? "");
+    }
+  }
+  scan(outside.slice(at));
+  return [...found];
 }
 
 /** "cards/sor/005/index.html" -> "card"; "cards/sor/index.html" -> "set";
@@ -354,7 +398,7 @@ function main(argv) {
         "",
         `### check-output: ${r.warnings.length} warning(s)`,
         "",
-        ...r.warnings.map((l) => `- ::warning:: ${l}`),
+        ...r.warnings.map((l) => `- ⚠ ${l}`),
         "",
       ].join("\n")
     );

@@ -6,7 +6,7 @@ import fixture from "../../scripts/public-pages/fixtures/catalog.json";
 import { buildPages, type PublicCatalog } from "../public/publicCatalog";
 import { DesktopCardPage, PhoneCardPage, resetPrintingSelection } from "../public/CardPublicPage";
 import { renderCardBody } from "../public/render";
-import { cardTextPlain, parseCardText } from "../utils/cardText";
+import { KNOWN_CARD_TEXT_TOKENS, cardTextPlain, parseCardText } from "../utils/cardText";
 import { CardText } from "./CardText";
 import { EpicActionText } from "./EpicActionText";
 
@@ -124,6 +124,35 @@ describe("CardText", () => {
     expect(out.split(MARK)).toHaveLength(2);
   });
 
+  it("drops a stray </bullet> or a <bullet> inside an open list: no known token left literal", () => {
+    expect(html("Deal 1 damage.</bullet>")).toBe('<p class="cp-text__body">Deal 1 damage.</p>');
+    expect(html("</bullet>")).toBe("");
+    document.body.innerHTML = html("Choose:\n<bullet>A.\n<bullet>B.</bullet>");
+    expect([...document.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["A.", "B."]);
+    document.body.innerHTML = "";
+    for (const t of KNOWN_CARD_TEXT_TOKENS) {
+      for (const text of [`a ${t} b`, `${t}`, `x\n${t}\ny ${t}`]) {
+        expect(html(text), text).not.toMatch(LITERAL);
+        expect(cardTextPlain(text), text).not.toContain(t);
+      }
+    }
+  });
+
+  it("keeps printed line breaks: edges trimmed, a blank line folded to one break", () => {
+    expect(html("\nSentinel\n\nWhen Defeated: Draw a card.\n")).toBe(
+      '<p class="cp-text__body">Sentinel\nWhen Defeated: Draw a card.</p>'
+    );
+    expect(html("Ambush \n  When Played: ready a <uq> unit.")).toMatch(
+      /^<p class="cp-text__body">Ambush\nWhen Played: ready a <svg/
+    );
+    // A list's lead-in and items carry no stray break of their own.
+    document.body.innerHTML = html("Choose one:\n\n<bullet>A.\n\nB.\n</bullet>\n");
+    expect(document.querySelector(".cp-text__para")!.textContent).toBe("Choose one:");
+    expect([...document.querySelectorAll("li")].map((li) => li.textContent)).toEqual(["A.", "B."]);
+    document.body.innerHTML = "";
+    expect(renderToString(<CardText text={"\n  \n"} />)).toBe("");
+  });
+
   it("passes an unknown tag through, so the page output check can catch it", () => {
     expect(html("A <uq> unit with <foo> text.")).toContain("&lt;foo&gt;");
   });
@@ -217,6 +246,60 @@ describe("card-text token census", () => {
     // Both trees draw them: the desktop popup view and the phone card info.
     expect(marks).toBeGreaterThanOrEqual(2 * 4);
     expect(lists).toBe(2);
+  });
+
+  /** What a reader sees in one text block, the unique mark as "[U]"; a list
+   * block as its lead-in then "• item" lines. Written from the DOM, not
+   * from the parser, so it checks the renderer against the expectations. */
+  function readout(el: Element): string {
+    const clone = el.cloneNode(true) as Element;
+    clone.querySelectorAll("svg.cp-text__unique").forEach((s) => s.replaceWith("[U]"));
+    if (clone.tagName === "P") return clone.textContent ?? "";
+    return [...clone.children]
+      .map((c) =>
+        c.tagName === "UL"
+          ? [...c.children].map((li) => `• ${li.textContent}`).join("\n")
+          : (c.textContent ?? "")
+      )
+      .join("\n");
+  }
+
+  // Hand-written from the fixture's source text (scripts/public-pages/
+  // fixtures/catalog.json), field by field, in panel order.
+  const EXPECTED: Record<string, string[]> = {
+    "SOR 5": [
+      "Action [1 resource, exhaust]: Give a Shield token.",
+      "Epic Action: If you control 6 or more resources, deploy this leader.",
+      "On Attack: You may give another unit a Shield token.",
+    ],
+    "SOR 10": [
+      "Sentinel\nFixture text: when this unit attacks, give a Shield token to a [U] unit, or to a non-[U] (non-unique) unit.",
+    ],
+    "SHD 200": [
+      "Fixture text: choose one:\n• Draw a card.\n• Heal 2 damage from a base.\n• Exhaust a [U] unit.",
+    ],
+    "TWI 1": [
+      "Fixture leader front text.",
+      "Epic Action: If you control a [U] unit and 5 or more resources, deploy this leader.",
+      "Fixture leader back text: ready a [U] unit.",
+    ],
+  };
+
+  it("every fixture text block reads exactly as written, on both trees", () => {
+    const seen: string[] = [];
+    for (const page of buildPages(catalog)) {
+      const key = `${page.card.set_code} ${page.card.base_card_number}`;
+      document.body.innerHTML = renderCardBody(page);
+      for (const id of ["pc-desktop", "pc-phone"]) {
+        const blocks = [...document.querySelectorAll(`#${id} .cp-text .cp-text__body`)].map(
+          readout
+        );
+        expect(blocks, `${key} ${id}`).toEqual(EXPECTED[key] ?? []);
+      }
+      seen.push(key);
+    }
+    document.body.innerHTML = "";
+    expect(seen).toEqual(expect.arrayContaining(Object.keys(EXPECTED)));
   });
 });
 

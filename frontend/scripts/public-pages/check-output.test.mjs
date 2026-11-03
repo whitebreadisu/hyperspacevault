@@ -7,9 +7,13 @@ import {
   MAX_SITEMAP_BYTES,
   MAX_SITEMAP_URLS,
   checkOutput,
+  KNOWN_TOKENS,
   checkPage,
+  isKnownToken,
   pageKind,
+  visibleMarkupTokens,
 } from "./check-output.mjs";
+import { KNOWN_CARD_TEXT_TOKENS } from "../../src/utils/cardText";
 import { buildSitemaps, fileForPath } from "./lib/sitemaps.mjs";
 
 const PROD = "https://www.hyperspacevault.com";
@@ -289,8 +293,11 @@ describe("checkPage", () => {
     expect(check(cardPage("/cards/sor/005/", { desc: "Play a &lt;uq&gt; unit" }))).toEqual([
       `${rel}: literal markup token in meta description: <uq>`,
       `${rel}: literal markup token in og:description: <uq>`,
-      // The meta's content attribute is also page markup outside a script.
-      `${rel}: literal markup token in the page text: <uq>`,
+    ]);
+    // Numeric entities decode too, in a description as in the page.
+    expect(check(cardPage("/cards/sor/005/", { desc: "a &#60;uq&#x3E; unit" }))).toEqual([
+      `${rel}: literal markup token in meta description: <uq>`,
+      `${rel}: literal markup token in og:description: <uq>`,
     ]);
     const ld = (name) =>
       JSON.stringify({ "@type": "BreadcrumbList", name }).replace(/</g, "\\u003c");
@@ -301,6 +308,57 @@ describe("checkPage", () => {
       problems: [],
       warnings: [`${rel}: unknown markup tag in JSON-LD (no rendering rule): <i>`],
     });
+  });
+});
+
+describe("visibleMarkupTokens", () => {
+  const page = (body) => `<html><head><title>T</title></head><body>${body}</body></html>`;
+
+  it("decodes named (any case) and numeric entities before looking", () => {
+    expect(visibleMarkupTokens(page("<p>a &lt;uq&gt; b</p>"))).toEqual(["<uq>"]);
+    expect(visibleMarkupTokens(page("<p>a &LT;uq&GT; b</p>"))).toEqual(["<uq>"]);
+    expect(visibleMarkupTokens(page("<p>a &#60;uq&#62; b</p>"))).toEqual(["<uq>"]);
+    expect(visibleMarkupTokens(page("<p>a &#x3c;/bullet&#x3E; b</p>"))).toEqual(["</bullet>"]);
+    // An escaped entity is text, not a tag.
+    expect(visibleMarkupTokens(page("<p>a &amp;lt;uq&amp;gt; b</p>"))).toEqual([]);
+  });
+
+  it("sees self-closing, attribute and hyphenated forms", () => {
+    expect(
+      visibleMarkupTokens(
+        page(
+          "<p>&lt;uq/&gt; &lt;br/&gt; &lt;icon name=&quot;x&quot;&gt; &lt;foo-bar&gt; &lt;/uq&gt;</p>"
+        )
+      )
+    ).toEqual(["<uq/>", "<br/>", '<icon name="x">', "<foo-bar>", "</uq>"]);
+    expect(visibleMarkupTokens(page("<p>power &lt; 3, &lt;3, a &lt; b &gt; c</p>"))).toEqual([]);
+  });
+
+  it("reads attribute values, raw or escaped, and a known token parsed as an element", () => {
+    expect(visibleMarkupTokens(page('<span title="a <uq> unit">x</span>'))).toEqual(["<uq>"]);
+    expect(visibleMarkupTokens(page("<span title='a &lt;bullet&gt;'>x</span>"))).toEqual([
+      "<bullet>",
+    ]);
+    expect(visibleMarkupTokens(page("<p>a <uq></uq> unit</p>"))).toEqual(["<uq>", "</uq>"]);
+  });
+
+  it("skips script and style bodies, comments and the snippet metas", () => {
+    const html = page(
+      '<script type="application/json" id="card-data">{"t":"&lt;uq&gt; <uq>"}</script>' +
+        "<style>.a::after{content:'&lt;uq&gt;'}</style><!-- &lt;uq&gt; -->" +
+        '<meta name="description" content="a &lt;uq&gt;" />' +
+        '<meta property="og:title" content="a &lt;foo&gt;" />'
+    );
+    expect(visibleMarkupTokens(html)).toEqual(["<foo>"]);
+  });
+});
+
+describe("one token list", () => {
+  it("is the renderer's list: <uq>, <bullet>, </bullet>; </uq> is not known", () => {
+    expect([...KNOWN_TOKENS]).toEqual(KNOWN_CARD_TEXT_TOKENS);
+    expect([...KNOWN_TOKENS]).toEqual(["<uq>", "<bullet>", "</bullet>"]);
+    expect(isKnownToken("</uq>")).toBe(false);
+    expect(isKnownToken("<uq/>")).toBe(false);
   });
 });
 
@@ -330,6 +388,9 @@ describe("check-output unknown-tag warnings, end to end", () => {
     expect(run.status).toBe(0);
     expect(run.stdout).toContain("::warning title=check-output::cards/sor/010/index.html");
     expect(run.stdout).toMatch(/OK \(1 warnings\)/);
-    expect(readFileSync(summary, "utf8")).toContain("### check-output: 1 warning(s)");
+    const text = readFileSync(summary, "utf8");
+    expect(text).toContain("### check-output: 1 warning(s)");
+    expect(text).toContain("- ⚠ cards/sor/010/index.html: unknown markup tag");
+    expect(text).not.toContain("::warning::");
   });
 });

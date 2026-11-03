@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import { hasCardTextMarkup, parseCardText } from "../utils/cardText";
+import { cardTextLines, hasCardTextMarkup, parseCardText } from "../utils/cardText";
 import type { CardTextInline } from "../utils/cardText";
 import "./CardText.css";
 
 // One card-text field of the rules-text panel (.cp-text), shared by desktop
 // CardPopupView, phone CardInfo, EpicActionText and so the public card pages
 // (App Spec §10, "Card-text markup tokens"): `<uq>` draws the unique mark,
-// `<bullet>` lists draw as a list. A field with no token renders the plain
-// paragraph it always did. Pure (no window or document): the pages
-// server-render and hydrate the same markup.
+// `<bullet>` lists draw as a list, printed line breaks show (CardText.css).
+// A field with no token renders one plain paragraph. Pure (no window or
+// document): the pages server-render and hydrate the same markup.
 
 /** The printed unique mark: an outlined diamond around a solid one, in the
  * text colour, sized to the line. */
@@ -45,16 +45,17 @@ export function CardText({
   /** Leads the first line (the epic-action label). */
   label?: ReactNode;
 }) {
-  if (!text) return null;
+  if (!text || !text.trim()) return null;
   if (!hasCardTextMarkup(text)) {
     return (
       <p className="cp-text__body">
         {label}
-        {text}
+        {cardTextLines(text)}
       </p>
     );
   }
   const blocks = parseCardText(text);
+  if (blocks.length === 0) return label ? <p className="cp-text__body">{label}</p> : null;
   if (blocks.length === 1 && blocks[0].kind === "paragraph") {
     return (
       <p className="cp-text__body">

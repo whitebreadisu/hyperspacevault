@@ -154,6 +154,7 @@ runs:
       run: >-
         node scripts/public-pages/check-output.mjs dist --expect-index
         --expect-origin https://www.hyperspacevault.com
+        --summary "$GITHUB_STEP_SUMMARY"
 
     - name: Deploy frontend to prod Firebase Hosting
       working-directory: frontend

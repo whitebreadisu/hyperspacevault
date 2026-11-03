@@ -155,7 +155,7 @@
       "cost": 2,
       "power": 2,
       "hp": 3,
-      "front_text": "Fixture text: when this unit attacks, give a Shield token to a <uq> unit, or to a non-<uq> (non-unique) unit.",
+      "front_text": "Sentinel\n\nFixture text: when this unit attacks, give a Shield token to a <uq> unit, or to a non-<uq> (non-unique) unit.\n",
       "aspects": ["Command"],
       "variants": [
         {

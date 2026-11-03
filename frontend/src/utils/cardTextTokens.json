@@ -1,0 +1,4 @@
+{
+  "comment": "The swuapi card-text tokens the renderer (utils/cardText.ts) has a rule for, exactly as the source writes them. The card-page output check (scripts/public-pages/check-output.mjs) fails on one of these left literal and warns on any other tag. App Spec §10.11, Card-text markup tokens.",
+  "known": ["<uq>", "<bullet>", "</bullet>"]
+}
