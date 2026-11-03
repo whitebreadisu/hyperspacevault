@@ -68,7 +68,8 @@ import { SHARE_NOTE_MS } from "./useCardShare";
 
 const spy = vi.mocked(capture);
 const linkEvents = () => spy.mock.calls.filter(([e]) => e === "card_link_copied").map(([, p]) => p);
-const PAGE = "https://www.hyperspacevault.com/cards/sor/005/";
+// Off production the link names the page's own origin (App Spec §5.3).
+const PAGE = `${window.location.origin}/cards/sor/005/`;
 const shareButton = () => screen.getByRole("button", { name: "Share link to this card" });
 
 function setNav(name: "clipboard" | "share", value: unknown) {

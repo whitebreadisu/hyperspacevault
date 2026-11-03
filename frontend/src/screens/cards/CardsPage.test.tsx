@@ -3213,7 +3213,7 @@ describe("CardsPage ?card=&v= boot printing", () => {
       fireEvent.click(screen.getByRole("button", { name: "Copy link to this card" }));
     });
     expect(writeText).toHaveBeenCalledWith(
-      "https://www.hyperspacevault.com/cards/sor/005/?v=standard-foil-sor-5"
+      `${window.location.origin}/cards/sor/005/?v=standard-foil-sor-5`
     );
     expect(mockCapture).toHaveBeenCalledWith("card_link_copied", {
       method: "copy",
