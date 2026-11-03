@@ -84,15 +84,29 @@ export { repairMojibake } from "../utils/mojibake";
 /** Canonical and og:url point at prod in every environment (R2). */
 export const CANONICAL_ORIGIN = "https://www.hyperspacevault.com";
 
+/** The production hostnames; a link copied there names the canonical origin. */
+const PROD_HOSTNAMES = ["hyperspacevault.com", "www.hyperspacevault.com"];
+
+/** The origin a copied card link names (App Spec §5.3): the canonical one on
+ * production, the page's own origin anywhere else, so a link copied on dev
+ * opens dev's page (dev's pages exist before a promote; prod's may not). */
+export function shareOrigin(
+  location: { hostname: string; origin: string } | undefined = globalThis.location
+): string {
+  if (!location || PROD_HOSTNAMES.includes(location.hostname)) return CANONICAL_ORIGIN;
+  return location.origin;
+}
+
 /** The shareable link to one printing of a card (App Spec §5.3): its public
- * page on the canonical origin, in every environment, with `?v=<slug>` unless
- * the printing is the card's default. Tokens have no page; callers hide the
+ * page on the share origin (`shareOrigin`), with `?v=<slug>` unless the
+ * printing is the card's default. Tokens have no page; callers hide the
  * control for them. */
 export function cardPageUrl(
   card: { set_code: string; base_card_number: string; variants: readonly SluggedPrinting[] },
-  printing: SluggedPrinting | null
+  printing: SluggedPrinting | null,
+  origin: string = shareOrigin()
 ): string {
-  const base = CANONICAL_ORIGIN + cardPath(card.set_code, card.base_card_number);
+  const base = origin + cardPath(card.set_code, card.base_card_number);
   const v = printing ? linkSlug(card.variants, printing) : null;
   return v ? `${base}?v=${encodeURIComponent(v)}` : base;
 }

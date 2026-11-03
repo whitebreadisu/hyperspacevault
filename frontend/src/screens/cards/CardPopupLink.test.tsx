@@ -105,7 +105,8 @@ async function open(d: BaseCardDetail, onClose = vi.fn()) {
 }
 
 const linkButton = () => screen.getByRole("button", { name: "Copy link to this card" });
-const PAGE = "https://www.hyperspacevault.com/cards/sor/005/";
+// Off production the link names the page's own origin (App Spec §5.3).
+const PAGE = `${window.location.origin}/cards/sor/005/`;
 
 describe("CardPopup copy link", () => {
   let writeText: ReturnType<typeof vi.fn>;

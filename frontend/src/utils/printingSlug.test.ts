@@ -9,7 +9,7 @@ import {
   serializedTier,
 } from "./printingSlug";
 import type { SluggedPrinting } from "./printingSlug";
-import { cardPageUrl, toPageCard } from "../public/publicCatalog";
+import { cardPageUrl, shareOrigin, toPageCard } from "../public/publicCatalog";
 import type { PublicCard, PublicCatalog } from "../public/publicCatalog";
 import fixture from "../../scripts/public-pages/fixtures/catalog.json";
 
@@ -345,11 +345,30 @@ describe("printing slug", () => {
 describe("card link", () => {
   const card = { set_code: "SOR", base_card_number: "5", variants: LUKE };
 
-  it("is the public page on the canonical origin, with v only off the default", () => {
-    expect(cardPageUrl(card, LUKE[0])).toBe("https://www.hyperspacevault.com/cards/sor/005/");
-    expect(cardPageUrl(card, LUKE[3])).toBe(
+  it("is the public page on the given origin, with v only off the default", () => {
+    const prod = "https://www.hyperspacevault.com";
+    expect(cardPageUrl(card, LUKE[0], prod)).toBe("https://www.hyperspacevault.com/cards/sor/005/");
+    expect(cardPageUrl(card, LUKE[3], prod)).toBe(
       "https://www.hyperspacevault.com/cards/sor/005/?v=weekly-play-foil-sorp-1"
     );
-    expect(cardPageUrl(card, null)).toBe("https://www.hyperspacevault.com/cards/sor/005/");
+    expect(cardPageUrl(card, null, prod)).toBe("https://www.hyperspacevault.com/cards/sor/005/");
+  });
+
+  it("names the canonical origin on production and the page's own origin elsewhere", () => {
+    const at = (hostname: string, origin: string) => shareOrigin({ hostname, origin });
+    expect(at("www.hyperspacevault.com", "https://www.hyperspacevault.com")).toBe(
+      "https://www.hyperspacevault.com"
+    );
+    expect(at("hyperspacevault.com", "https://hyperspacevault.com")).toBe(
+      "https://www.hyperspacevault.com"
+    );
+    expect(at("swu-dev-jbapps.web.app", "https://swu-dev-jbapps.web.app")).toBe(
+      "https://swu-dev-jbapps.web.app"
+    );
+    expect(at("localhost", "http://localhost:5173")).toBe("http://localhost:5173");
+    // Dev's copied link opens dev's page, not prod's.
+    expect(
+      cardPageUrl(card, LUKE[3], at("swu-dev-jbapps.web.app", "https://swu-dev-jbapps.web.app"))
+    ).toBe("https://swu-dev-jbapps.web.app/cards/sor/005/?v=weekly-play-foil-sorp-1");
   });
 });
