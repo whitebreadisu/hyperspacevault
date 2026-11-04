@@ -12,7 +12,7 @@ httpx==0.28.1
 # fields) -- FastAPI's Form()/File() params require python-multipart
 # installed at runtime, or the route registration itself raises at import
 # time (not just at request time).
-python-multipart==0.0.32
+python-multipart==0.0.33
 firebase-admin==7.7.0
 # BL-76 Phase 2 (ADR-0012): card-image mirror/backfill. Pillow stays
 # ingestion-only; google-cloud-storage gained a request-path use in Phase 3
