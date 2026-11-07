@@ -173,12 +173,14 @@ test.describe("anonymous viewer", () => {
   test("s6-03-name-in-header", async ({ page }) => {
     await openShare(page);
     // r4-8-name-in-header: the title slot reads ROWAN'S COLLECTION; no
-    // account bubble, a Sign in link; Leave feedback stays; the wordmark is
-    // not truncated (390 + 430 = the two phone projects).
+    // account bubble, a Sign in link; Leave feedback stays; the brand tag
+    // line is not truncated (390 + 430 = the two phone projects). Ported
+    // from the text wordmark's check: the initials logo replaced it.
     const f = await page.evaluate((sh) => {
       const pane = document.querySelector(sh)!;
       const l = pane.querySelector(".m-summary__label")!;
-      const w = pane.querySelector<HTMLElement>(".m-vh__word")!;
+      const w = pane.querySelector<HTMLElement>(".m-vh__tag")!;
+      const logo = pane.querySelector<HTMLImageElement>(".m-vh__brandtext img.m-vh__logo");
       const link = pane.querySelector<HTMLElement>(".m-acct--shared .m-shared-signin");
       return {
         label: l.textContent,
@@ -187,7 +189,8 @@ test.describe("anonymous viewer", () => {
         link: link ? [link.textContent, getComputedStyle(link).fontSize] : null,
         linkBox: link ? link.getBoundingClientRect().height >= 44 : false,
         fb: !!pane.querySelector(".m-vh__fb"),
-        word: w.scrollWidth <= w.clientWidth + 1,
+        logo: logo?.alt ?? null,
+        tag: w.scrollWidth <= w.clientWidth + 1,
         ver: !!pane.querySelector(".m-vh__tag .m-vh__ver"),
       };
     }, SH);
@@ -198,7 +201,8 @@ test.describe("anonymous viewer", () => {
       link: ["Sign in", "13px"],
       linkBox: true,
       fb: true,
-      word: true,
+      logo: "Hyperspace Vault",
+      tag: true,
       ver: true,
     });
     // The title chooser still works.

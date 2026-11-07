@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { formatVersionLabel } from "../../utils/version";
 import { go } from "../router";
+import { BrandLogo } from "../BrandLogo";
 import type { ShareStatus } from "./useShare";
 import "../more/more.css";
 
@@ -45,7 +46,7 @@ export function SharedStatus({
             onClick={() => go("#/about")}
             aria-label="About & Legal"
           >
-            <span className="m-vh__word">[HSV] Hyperspace Vault</span>
+            <BrandLogo />
             <span className="m-vh__tag">
               Unofficial Fan Project [<span className="m-vh__ver">{VERSION}</span>]
             </span>

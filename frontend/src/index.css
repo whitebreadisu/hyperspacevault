@@ -139,7 +139,9 @@ body {
 
 .app-header__brand {
   position: relative;
-  padding: 14px 32px 0;
+  /* 10 px top + the 46 px logo + 4 px + the 12 px tag line = 72 px; the
+     header's bottom padding (below) keeps the bar at its 120 px. */
+  padding: 10px 32px 0;
   font-family: var(--font-ui);
   font-size: 16px;
   font-weight: 600;
@@ -151,43 +153,44 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 0;
 }
 
-/* The wordmark + the "Unofficial Fan Project" line are ONE About button,
- * hover animating together. The button inherits the brand's own type (set
- * on .app-header__brand) and reproduces its two-line column layout
- * internally. Hover = the header links' shared language: a brightened take
- * on the SWU button's wake blue (#3b82f6 vs .swu-btn's #2563eb) with a
- * brighter, more pronounced glow than the button's own 9px/0.45 flare. */
+/* The brand button: the logo over the one-line tag, opening the brand
+ * chooser (Header.tsx). Hover = the header links' shared glow (the SWU
+ * button's cream flare, brighter and wider than the button's own 9px/0.45). */
 .app-header__brand-link {
   background: transparent;
   border: none;
   padding: 0;
   margin: 0;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  text-align: left;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  transition:
-    color 0.15s,
-    filter 0.3s ease;
+  transition: filter 0.3s ease;
 }
 .app-header__brand-link:hover,
 .app-header__brand-link:focus-visible {
-  color: #3b82f6;
   filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
 }
+.app-header__brand-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #fff;
+  text-align: left;
+}
+.app-header__logo {
+  display: block;
+  height: 46px;
+  width: auto;
+  margin-bottom: 4px;
+}
 
-/* The disclaimer line, a span INSIDE the About button above --
- * keeps its own smaller type, follows the button's color states. */
+/* The tag line: `UNOFFICIAL FAN PROJECT v2.3` on one line, 12 px. */
+.app-header__brand-line {
+  display: block;
+  line-height: 12px;
+  white-space: nowrap;
+}
 .app-header__brand-tag {
   font-family: var(--font-ui);
   font-size: 10px;
@@ -197,60 +200,16 @@ body {
   color: inherit;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
-
-/* Version label, the item after the About button in the brand column --
-   same layout idiom (flex-column, 3px gap, set on the shared
-   .app-header__brand parent). Opens the release-notes view (App-owned view
-   switch, see App.tsx/screens/notes/NewArrivalsPage.tsx); visible for
-   anonymous visitors too, and the permanent re-entry point while the
-   "[HSV] Updates" nav tab (below) is hidden. */
+/* The version keeps its own casing ("v2.3"). */
 .app-header__version {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font-family: var(--font-ui);
-  /* Larger than the 10px brand tag: smaller sizes read as fine print, not
-     as a click target. */
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  /* White like the rest of the header text; the unread --cue state below
-     adds the pulse (the notification signal, not the label's identity). */
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    filter 0.3s ease;
-}
-
-/* Hover: the same treatment as .app-header__brand-link above (the
-   brightened wake blue #3b82f6 + the pronounced glow); the two header
-   links share one hover language. */
-.app-header__version:hover,
-.app-header__version:focus-visible {
-  color: #3b82f6;
-  filter: drop-shadow(0 0 12px rgba(235, 226, 198, 0.8));
-}
-
-/* "[Release Notes]" rides after the version number inside the SAME
-   button/link -- smaller, spaced off the number,
-   inheriting the button's color states (rest/hover/cue) so the pair reads
-   as one label. */
-.app-header__version-sub {
-  margin-left: 6px;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 /* Subtle unread cue -- a gentle glow pulse rather than a bouncing badge.
-   The version label's cue is white text with a warm-cream pulse (the SWU
-   button-flare tone), so the label never reads amber in any state; the
-   "[HSV] UPDATES" nav tab's own cue (.nav-tab--cue / na-cue-pulse-tab
-   below) is amber. */
+   The tag line's cue (and the brand chooser's Updates button's, below) is
+   white text with a warm-cream pulse (the SWU button-flare tone), so it never
+   reads amber; the "[HSV] UPDATES" nav tab's own cue (.nav-tab--cue /
+   na-cue-pulse-tab below) is amber. */
 @keyframes na-cue-pulse {
   0%,
   100% {
@@ -265,9 +224,79 @@ body {
   }
 }
 
-.app-header__version--cue {
+.app-header__brand-line--cue,
+.hsv-chooser .m-chooser__btn--cue .m-cue {
   color: #fff;
   animation: na-cue-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-header__brand-line--cue,
+  .hsv-chooser .m-chooser__btn--cue .m-cue {
+    animation: none;
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.85),
+      0 0 7px rgba(235, 226, 198, 0.75);
+  }
+}
+
+/* The brand chooser on desktop (mobile/TitleChooser.tsx `desktop`): the
+ * phone's chooser at desktop values -- centred over desktop's modal scrim
+ * (.modal-overlay's values), the transactional card (.auth-modal-card,
+ * AuthModal.css), the full logo as its heading, X top-right, two 52 px
+ * SWUButtons stacked. */
+.hsv-chooser {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.hsv-chooser .m-chooser__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+}
+.hsv-chooser .m-chooser__card {
+  outline: none;
+}
+.hsv-chooser .m-chooser__x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.hsv-chooser .m-chooser__x:hover,
+.hsv-chooser .m-chooser__x:focus-visible {
+  color: var(--color-text);
+}
+.hsv-chooser .auth-card__title {
+  padding: 0 28px;
+}
+.hsv-chooser__logo {
+  display: block;
+  margin: 0 auto;
+  height: 46px;
+  width: auto;
+}
+.hsv-chooser .m-chooser__btns {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hsv-chooser .m-chooser__btn.swu-btn {
+  width: 100%;
 }
 
 .app-header__account {
@@ -381,11 +410,11 @@ body {
 
 /* Out of flow, the nav adds no height, so without this the header would
    collapse to the brand row and the account buttons would crowd the
-   separator. 52px of bottom padding keeps the bar tall, with the nav
-   floating dead-center of it. */
+   separator. 47px of bottom padding under the 72px brand block (+ the 1px
+   border) keeps the bar at 120px, with the nav floating dead-center of it. */
 @media (min-width: 1024px) {
   .app-header {
-    padding-bottom: 52px;
+    padding-bottom: 47px;
   }
 }
 
@@ -404,6 +433,9 @@ body {
     flex-basis: 100%;
     min-height: 44px;
     padding: 0 24px 8px;
+    /* The logo brand block is 72 px, 5 px taller than the text wordmark it
+       replaced; the nav row rides 5 px up so the header keeps its 112 px. */
+    margin-top: -5px;
   }
 }
 

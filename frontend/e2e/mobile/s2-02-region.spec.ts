@@ -198,3 +198,27 @@ test("s2-02-pull-expands", async ({ page }) => {
   await pullDown(page, x, y, 110);
   expect(await isCollapsed(page)).toBe(false);
 });
+
+// §25.2: on card detail too, the wheel gesture that collapses the art ends
+// there (the list back at its top); a fresh gesture scrolls.
+test("s2-02-collapse-holds-synthetic-wheel-events", async ({ page }) => {
+  await openCard(page, "ASH", 112);
+  const fire = (dy: number, n: number) =>
+    page.locator(detailScroll).evaluate(
+      (e, [dy, n]) => {
+        for (let i = 0; i < n; i++) {
+          e.scrollTop += dy;
+          e.dispatchEvent(new WheelEvent("wheel", { deltaY: dy, bubbles: true }));
+        }
+      },
+      [dy, n] as const
+    );
+  await fire(50, 10);
+  await page.waitForTimeout(400);
+  expect(await isCollapsed(page)).toBe(true);
+  expect(await page.locator(detailScroll).evaluate((e) => e.scrollTop)).toBe(0);
+  await fire(50, 4);
+  await page.waitForTimeout(400);
+  expect(await page.locator(detailScroll).evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+  expect(await isCollapsed(page)).toBe(true);
+});

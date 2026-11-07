@@ -146,7 +146,8 @@
 }
 
 /* Brand stack (a tap opens the title chooser; the tag line carries the
- * version). */
+ * version and, while an update is unread, the cue). 30 + 2 + 12 px fills the
+ * 44 px row. */
 .m-app .m-vh__brandtext {
   flex: 1 1 auto;
   min-width: 0;
@@ -154,7 +155,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   background: none;
   border: none;
   padding: 0;
@@ -164,16 +165,15 @@
 .m-app .m-vh__brandtext:active {
   opacity: 0.8;
 }
-.m-app .m-vh__word {
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  line-height: 1.05;
-  white-space: nowrap;
+/* The initials logo (BrandLogo.tsx): 30 px tall in an 80 px box,
+ * left-aligned. Shared by More and the shared-vault status header. */
+.m-app .m-vh__logo {
+  display: block;
+  flex: none;
+  width: 80px;
+  height: 30px;
+  object-fit: contain;
+  object-position: left center;
 }
 .m-app .m-vh__tag {
   font-family: var(--font-ui);
@@ -192,6 +192,12 @@
 .m-app .m-vh__ver {
   text-transform: none;
 }
+/* The cue layer copies the tag from data-cue, which is already in the
+ * displayed casing; uppercasing it again would turn "v2.3" into "V2.3" and
+ * shift the glow off the glyphs. */
+.m-app .m-vh__tag.m-cue::after {
+  text-transform: none;
+}
 /* Feedback (text): the 40 px SWUButton, drawn at 40, hit at 44. */
 .m-app .m-vh__fb {
   flex: none;
@@ -208,7 +214,8 @@
   letter-spacing: 0.1em;
 }
 
-/* ── Collapsed strip: [HSV] badge, funnel (narrowed only), readout ──────── */
+/* ── Collapsed strip: logo badge, funnel (narrowed only), readout ──────── */
+/* The badge: the initials logo drawn 24 px tall, hit 44 px. */
 .m-app .m-vh__hsv {
   flex: none;
   display: inline-flex;
@@ -219,16 +226,41 @@
   background: none;
   border: none;
   padding: 0;
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .m-app .m-vh__hsv:active {
   opacity: 0.8;
+}
+.m-app .m-vh__badgelogo {
+  display: block;
+  width: 64px;
+  height: 24px;
+  object-fit: contain;
+}
+.m-app .m-vh__logobox {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  line-height: 0;
+}
+/* Unread Updates: an amber glow on the logo box (the nav-tab cue's amber,
+ * index.css .nav-tab--cue), a separate layer whose opacity alone pulses on
+ * the shared d2-cue-glow keyframes (shell.css), never a badge. */
+.m-app .m-vh__hsv--cue .m-vh__logobox::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  box-shadow: 0 0 10px 2px rgba(217, 154, 31, 0.9);
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+  animation: d2-cue-glow 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-vh__hsv--cue .m-vh__logobox::after {
+    animation: none !important;
+    opacity: 0.85;
+  }
 }
 .m-app .m-vh__readout {
   min-height: 44px;

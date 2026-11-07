@@ -12,7 +12,9 @@ import "./header.css";
 // (the status rows) then the scrolling `children` (the list). `searching`
 // collapses the header to its seam and lifts
 // the content to the top -- transform + opacity only, the box grown once by
-// the same cut mechanism (header.css .m-vault--search).
+// the same cut mechanism (header.css .m-vault--search). While searching the
+// hidden header neither collapses nor holds the results (useCollapse
+// `suspended`).
 
 interface Props {
   summary: StripSummary;
@@ -51,7 +53,13 @@ export function VaultScreen({
   const rootRef = useRef<HTMLDivElement>(null);
   const hdrRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
-  const { scrollEl, collapsed, expand, pull, pullStyle } = useCollapse(startCollapsed, 320, true);
+  const { scrollEl, collapsed, expand, pull, pullStyle } = useCollapse(
+    startCollapsed,
+    320,
+    true,
+    0,
+    searching
+  );
   useHeaderSlot(rootRef, hdrRef, topRef, collapsed);
   const setScroll = useCallback(
     (el: HTMLElement | null) => {

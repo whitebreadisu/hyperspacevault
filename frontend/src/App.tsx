@@ -76,8 +76,9 @@ function AppContent() {
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   // About & Legal modal -- reachable three ways (App Spec §5.8): Header's
-  // brand button (anonymous + signed-in), UserMenu's "About & Legal" item
-  // (signed-in only) and NewArrivalsPage's "About & Legal" chip.
+  // tag-line "Unofficial Fan Project" button (anonymous + signed-in),
+  // UserMenu's "About & Legal" item (signed-in only) and NewArrivalsPage's
+  // "About & Legal" chip.
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   // Leave Feedback modal -- reachable from the header's Leave Feedback button
   // for both anonymous and signed-in visitors.

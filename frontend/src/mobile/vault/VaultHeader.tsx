@@ -4,13 +4,15 @@ import { formatMoney } from "../../utils/completion";
 import { formatVersionLabel } from "../../utils/version";
 import { MIcon } from "../icons";
 import { SWUButton } from "../../components/SWUButton";
+import { BrandLogo } from "../BrandLogo";
 
-// The Vault's app header (App Spec §25.1). Expanded: brand stack ("[HSV]
-// Hyperspace Vault" over `Unofficial Fan Project [v#.#.#]`) -- tapping it
-// opens the title
-// chooser -- then the text Feedback SWUButton and the account slot on the
-// same row, and the collection panel below. Collapsed: the strip -- the
-// [HSV] badge (opens the chooser), the amber funnel only when narrowed,
+// The Vault's app header (App Spec §25.1). Expanded: brand stack (the
+// initials logo over `Unofficial Fan Project [v#.#.#]`, the tag line carrying
+// the unread cue) -- tapping it opens the title chooser -- then the text
+// Feedback SWUButton and the account slot on the same row, and the
+// collection panel below. Collapsed: the strip -- the initials-logo badge
+// (opens the chooser; while an update is unread its box glows amber, an
+// opacity-only layer), the amber funnel only when narrowed,
 // completion %, ten ticks, "n cards", value without cents, chevron; a tap
 // anywhere on the strip but the badge expands.
 //
@@ -19,6 +21,9 @@ import { SWUButton } from "../../components/SWUButton";
 // circuit seam and the pull bar; the panel slides and fades.
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
+/** The cue layer's copy of the tag line, already in its displayed casing
+ * (the layer sets text-transform: none so the version stays "v2.3"). */
+const TAG_CUE = `UNOFFICIAL FAN PROJECT [${VERSION}]`;
 
 export interface StripSummary {
   /** Playset completion, 0-100. */
@@ -86,13 +91,11 @@ export function VaultHeader({
               tabIndex={collapsed ? -1 : undefined}
               aria-label="Hyperspace Vault: About & Legal, Updates"
             >
+              <BrandLogo />
               <span
-                className={"m-vh__word" + (unread ? " m-cue m-cue--title" : "")}
-                data-cue="[HSV] Hyperspace Vault"
+                className={"m-vh__tag" + (unread ? " m-cue m-cue--tag" : "")}
+                data-cue={TAG_CUE}
               >
-                [HSV] Hyperspace Vault
-              </span>
-              <span className="m-vh__tag">
                 Unofficial Fan Project [<span className="m-vh__ver">{VERSION}</span>]
               </span>
             </button>
@@ -108,13 +111,14 @@ export function VaultHeader({
           <div className="m-vh__strip" aria-hidden={collapsed ? undefined : true}>
             <button
               type="button"
-              className={"m-vh__hsv" + (unread ? " m-cue m-cue--badge" : "")}
-              data-cue="[HSV]"
+              className={"m-vh__hsv" + (unread ? " m-vh__hsv--cue" : "")}
               onClick={onOpenChooser}
               tabIndex={collapsed ? undefined : -1}
               aria-label="Hyperspace Vault: About & Legal, Updates"
             >
-              [HSV]
+              <span className="m-vh__logobox">
+                <BrandLogo size="badge" />
+              </span>
             </button>
             <button
               type="button"

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { formatVersionLabel } from "../../utils/version";
 import { MIcon } from "../icons";
+import { BrandLogo } from "../BrandLogo";
 import { go } from "../router";
 import "./more.css";
 
@@ -103,7 +104,7 @@ export function MoreScreen({
             onClick={() => go("#/more/about")}
             aria-label="About & Legal"
           >
-            <span className="m-vh__word">[HSV] Hyperspace Vault</span>
+            <BrandLogo />
             <span className="m-vh__tag">
               Unofficial Fan Project [<span className="m-vh__ver">{VERSION}</span>]
             </span>

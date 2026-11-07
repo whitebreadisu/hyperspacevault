@@ -10,10 +10,41 @@ import type { CSSProperties, RefObject } from "react";
 // strip (expand()), or a pull of PULL_PX that STARTS with the content already
 // at the top (the blue pull bar fills as `pull` goes 0..1), or on a desktop
 // wheel a fresh gesture (after a 250 ms gap) of WHEEL_PX upward at the top.
+//
+// The mirror hitch: the gesture that collapses ends there. When a finger
+// drag that actually scrolled, its momentum, or a wheel gesture carries the
+// list past the 28 px, the list is HELD: the scroll element gets
+// overflow-y: hidden (what stops iOS momentum -- it overrides scrollTop
+// writes, and a passive listener cannot cancel it) with scrollbar-gutter:
+// stable (no width change where scrollbars take room), and scrollTop snaps to
+// the anchor the collapsing travel started from -- 0 from the top, so the
+// first card sits under the collapsed header. A scroll event during the hold
+// is put back. The hold lasts while the finger stays down, then releases
+// RELEASE_MS after the finger lifts once no scroll event has come for that
+// long; a wheel hold releases RELEASE_MS after the wheel stream (and its put-
+// back scrolls) goes quiet, so the rest of that gesture is swallowed. The
+// scroller is therefore live again BEFORE the next gesture starts: on iOS a
+// passive touchstart cannot re-enable scrolling for its own touch, and
+// Chromium latches a wheel gesture's scroll target at its first event. The
+// last-resort cap releases HOLD_MS after the finger lifted or the last wheel
+// event, whatever scroll events keep coming (programmatic adjustments can
+// never prolong it), and a finger that has sent no touch event for STALE_MS
+// counts as lifted (a touchend lost with a detached target). A touchstart, a
+// fresh wheel gesture, expand(), `suspended` (search mode) and unmount
+// release at once. A collapse no scrolling touch or wheel drove
+// (programmatic, keyboard, a layout shift after a plain tap) does not hold, and while `suspended` nothing collapses, holds or
+// pulls. Two style writes per gesture -- on at the collapse, off at the
+// release -- none per frame.
 
 export const PULL_PX = 72;
 export const WHEEL_PX = 140;
 export const COLLAPSE_MS = 240;
+export const HOLD_MS = 800;
+export const RELEASE_MS = 120;
+export const STALE_MS = 3000;
+/** Scroll events after touchend still belong to that touch (momentum) while
+ * they keep coming at most this far apart. */
+const FLOW_GAP_MS = 200;
 
 export function prefersReducedMotion(): boolean {
   return (
@@ -33,6 +64,22 @@ interface CollapseState {
   wheelAt: number;
   wheelArmed: boolean;
   wt: ReturnType<typeof setTimeout> | undefined;
+  /** A finger is down. */
+  touching: boolean;
+  /** The last touch event seen (STALE_MS). */
+  touchAt: number;
+  /** scrollTop when the finger went down: a touch only counts as a scrolling
+   * gesture once the list has moved. */
+  touchTop: number;
+  /** The last touch's momentum may still be scrolling (see FLOW_GAP_MS). */
+  flow: boolean;
+  flowAt: number;
+  held: boolean;
+  holdAt: number;
+  /** The quiet timer (RELEASE_MS) and the last-resort cap (HOLD_MS). */
+  ht: ReturnType<typeof setTimeout> | undefined;
+  hc: ReturnType<typeof setTimeout> | undefined;
+  release: () => void;
 }
 
 export interface Collapse {
@@ -50,11 +97,15 @@ export interface Collapse {
 /** `extraRoom` (card detail): scroll room that exists only
  * while expanded for another reason -- the detail body's translateY(--d-delta)
  * extends the scrollable overflow -- subtracted the same way. */
+/** `suspended` (the Vault's search mode, where CSS hides the header): no
+ * collapse, hold or pull; entering it releases a hold, and the anchor follows
+ * the list so leaving it does not count the search scroll as collapse travel. */
 export function useCollapse(
   forced: boolean,
   minRoom = 320,
   parentCut = false,
-  extraRoom = 0
+  extraRoom = 0,
+  suspended = false
 ): Collapse {
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [collapsed, setCollapsed] = useState(forced);
@@ -69,6 +120,16 @@ export function useCollapse(
     wheelAt: 0,
     wheelArmed: false,
     wt: undefined,
+    touching: false,
+    touchAt: 0,
+    touchTop: 0,
+    flow: false,
+    flowAt: 0,
+    held: false,
+    holdAt: 0,
+    ht: undefined,
+    hc: undefined,
+    release: () => {},
   });
   useEffect(() => {
     st.current.c = collapsed;
@@ -77,11 +138,58 @@ export function useCollapse(
   useEffect(() => {
     extraRef.current = extraRoom;
   }, [extraRoom]);
+  const suspRef = useRef(suspended);
+  useEffect(() => {
+    suspRef.current = suspended;
+    if (!suspended) return;
+    const s = st.current;
+    s.release();
+    s.armed = false;
+    s.wheelArmed = false;
+    if (el) s.anchor = el.scrollTop;
+    setPull(0);
+  }, [suspended, el]);
 
   useEffect(() => {
     if (!el) return undefined;
     const s = st.current;
+    const release = () => {
+      clearTimeout(s.ht);
+      clearTimeout(s.hc);
+      if (!s.held) return;
+      s.held = false;
+      el.style.overflowY = "";
+      el.style.removeProperty("scrollbar-gutter");
+    };
+    // Release once input and scrolling have been quiet for RELEASE_MS; never
+    // under a finger.
+    const quiet = () => {
+      clearTimeout(s.ht);
+      if (s.touching) return;
+      s.ht = setTimeout(release, RELEASE_MS);
+    };
+    // The last resort: HOLD_MS after the finger lifted or the last wheel
+    // event; under a finger only once it has gone STALE_MS without a touch event.
+    const cap = () => {
+      clearTimeout(s.hc);
+      s.hc = setTimeout(() => {
+        if (s.touching && Date.now() - s.touchAt < STALE_MS) return cap();
+        s.touching = false;
+        release();
+      }, HOLD_MS);
+    };
+    const hold = (at: number) => {
+      s.held = true;
+      s.holdAt = at;
+      el.style.overflowY = "hidden";
+      el.style.setProperty("scrollbar-gutter", "stable");
+      el.scrollTop = at;
+      cap();
+      quiet();
+    };
+    s.release = release;
     const open = () => {
+      release();
       s.armed = false;
       s.wheelArmed = false;
       s.wheel = 0;
@@ -91,8 +199,24 @@ export function useCollapse(
       setCollapsed(false);
     };
     const onScroll = () => {
-      if (s.c) return; // reaching the top while collapsed does not expand
+      const now = Date.now();
+      if (s.flow && !s.touching) {
+        if (now - s.flowAt > FLOW_GAP_MS) s.flow = false;
+        else s.flowAt = now;
+      }
+      if (s.held) {
+        if (el.scrollTop !== s.holdAt) {
+          el.scrollTop = s.holdAt;
+          quiet();
+        }
+        return;
+      }
       const t = el.scrollTop;
+      if (suspRef.current) {
+        s.anchor = t;
+        return;
+      }
+      if (s.c) return; // reaching the top while collapsed does not expand
       if (t <= 6) {
         s.anchor = 0;
         return;
@@ -107,16 +231,26 @@ export function useCollapse(
       if (t - s.anchor > 28) {
         s.c = true;
         setCollapsed(true);
+        const dragged = s.touching && t !== s.touchTop;
+        if (dragged || s.flow || now - s.wheelAt <= 250) hold(s.anchor);
       }
     };
     const ts = (e: TouchEvent) => {
-      s.armed = !!(s.c && el.scrollTop <= 0 && e.touches.length === 1);
+      // Normally released already (RELEASE_MS after the last finger lifted);
+      // a touch that lands sooner releases here.
+      release();
+      s.touching = true;
+      s.touchAt = Date.now();
+      s.touchTop = el.scrollTop;
+      s.flow = false;
+      s.armed = !!(!suspRef.current && s.c && el.scrollTop <= 0 && e.touches.length === 1);
       if (s.armed) {
         s.y0 = e.touches[0].clientY;
         s.x0 = e.touches[0].clientX;
       }
     };
     const tm = (e: TouchEvent) => {
+      s.touchAt = Date.now();
       if (!s.armed) return;
       const dy = e.touches[0].clientY - s.y0;
       const dx = e.touches[0].clientX - s.x0;
@@ -129,14 +263,37 @@ export function useCollapse(
       setPull(p);
       if (p >= 1) open();
     };
-    const te = () => {
+    // On window, capture phase: a touchend that something stops on its way up
+    // still ends the touch.
+    const te = (e: TouchEvent) => {
+      if (!s.touching) return;
+      s.touchAt = Date.now();
+      if (e.touches.length > 0) return;
+      s.touching = false;
+      // Momentum counts only if this touch actually moved the list.
+      s.flow = s.held || el.scrollTop !== s.touchTop;
+      s.flowAt = Date.now();
       s.armed = false;
       setPull(0);
+      if (s.held) {
+        cap();
+        quiet();
+      }
     };
     const onWheel = (e: WheelEvent) => {
       const now = Date.now();
       const fresh = now - s.wheelAt > 250;
       s.wheelAt = now;
+      if (suspRef.current) return;
+      if (s.held) {
+        if (!fresh) {
+          // The collapsing wheel gesture is still going: stay held.
+          cap();
+          quiet();
+          return;
+        }
+        release();
+      }
       if (!s.c || el.scrollTop > 0 || e.deltaY >= 0) {
         s.wheelArmed = false;
         s.wheel = 0;
@@ -153,24 +310,30 @@ export function useCollapse(
       s.wt = setTimeout(() => setPull(0), 300);
       if (s.wheel >= WHEEL_PX) open();
     };
+    const capture = { capture: true, passive: true } as const;
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("touchstart", ts, { passive: true });
     el.addEventListener("touchmove", tm, { passive: true });
-    el.addEventListener("touchend", te, { passive: true });
-    el.addEventListener("touchcancel", te, { passive: true });
+    window.addEventListener("touchend", te, capture);
+    window.addEventListener("touchcancel", te, capture);
     el.addEventListener("wheel", onWheel, { passive: true });
     return () => {
       clearTimeout(s.wt);
+      release();
+      s.release = () => {};
+      s.touching = false;
+      s.flow = false;
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("touchstart", ts);
       el.removeEventListener("touchmove", tm);
-      el.removeEventListener("touchend", te);
-      el.removeEventListener("touchcancel", te);
+      window.removeEventListener("touchend", te, capture);
+      window.removeEventListener("touchcancel", te, capture);
       el.removeEventListener("wheel", onWheel);
     };
   }, [el, minRoom, parentCut]);
 
   const expand = useCallback(() => {
+    st.current.release();
     st.current.anchor = el ? el.scrollTop : 0;
     st.current.c = false;
     setPull(0);

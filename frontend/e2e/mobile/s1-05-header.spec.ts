@@ -7,7 +7,9 @@ import type { Page } from "@playwright/test";
 // S1-05: the expanded Vault header (rev4 `vault-rest`, `vault-fb-text`,
 // `vault-header-same-height`) -- brand stack with the bracketed version on
 // line two (R5-2), the text Feedback SWUButton drawn 40 / hit 44 on the title
-// row between the wordmark and the account slot, starfield + desktop scrim.
+// row between the brand mark and the account slot, starfield + desktop scrim.
+// The brand mark is the initials logo (PORT: it replaced the text wordmark;
+// the geometry checks below measure the logo where they measured the word).
 test.afterEach(measureEach);
 
 test.beforeEach(() => {
@@ -17,14 +19,14 @@ test.beforeEach(() => {
 const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
 const TAG = `Unofficial Fan Project [${formatVersionLabel(pkg.version)}]`;
 
-/** Title-row geometry: wordmark, tag, Feedback, account control. */
+/** Title-row geometry: logo, tag, Feedback, account control. */
 async function titleRow(page: Page) {
   await page.evaluate(() => document.fonts.ready);
   return page.evaluate(() => {
     const r = (s: string) => document.querySelector(s)!.getBoundingClientRect();
     const fb = document.querySelector(".m-vh__fb")!;
     const acct = document.querySelector(".m-acct__hit, .m-acct .swu-btn")!;
-    const word = document.querySelector(".m-vh__word") as HTMLElement;
+    const word = document.querySelector(".m-vh__logo") as HTMLElement;
     const tag = document.querySelector(".m-vh__tag") as HTMLElement;
     const top = r(".m-vh__top");
     const f = fb.getBoundingClientRect();
@@ -47,7 +49,7 @@ async function titleRow(page: Page) {
 }
 
 function expectRowFits(m: Awaited<ReturnType<typeof titleRow>>) {
-  // On the title row, wordmark and tag line wholly left of Feedback,
+  // On the title row, logo and tag line wholly left of Feedback,
   // Feedback left of the account control, nothing past the viewport.
   expect(m.fb.t).toBeGreaterThanOrEqual(m.top.t - 1);
   expect(m.fb.b).toBeLessThanOrEqual(m.top.b + 1);
@@ -67,7 +69,11 @@ function expectRowFits(m: Awaited<ReturnType<typeof titleRow>>) {
 test("s1-05-header-rest", async ({ page }) => {
   await page.goto("/#/vault");
   await expect(page.locator(".m-acct__hit")).toBeVisible();
-  await expect(page.locator(".m-vh__word")).toHaveText("[HSV] Hyperspace Vault");
+  await expect(page.locator(".m-vh__word")).toHaveCount(0);
+  await expect(page.locator(".m-vh__brandtext img.m-vh__logo")).toHaveAttribute(
+    "alt",
+    "Hyperspace Vault"
+  );
   await expect(page.locator(".m-vh__tag")).toHaveText(TAG);
   expect(TAG).toMatch(/ \[v\d+\.\d+(\.\d+)?\]$/);
   const m = await titleRow(page);
@@ -75,15 +81,30 @@ test("s1-05-header-rest", async ({ page }) => {
   expect(m.fbLabel).toBe("Leave Feedback");
   await expect(page.locator(".m-vh__fb")).toHaveText("Feedback");
 
-  // Faces: wordmark + tag line Barlow Condensed uppercase, tag 11 px.
+  // The logo: 30 px tall in an 80 px box, contained, left-aligned, loaded
+  // (REPLACE: the wordmark's face checks). Tag line Barlow Condensed
+  // uppercase, 11 px.
+  await page.locator(".m-vh__logo").evaluate((img: HTMLImageElement) => img.decode());
   const faces = await page.evaluate(() => {
-    const w = getComputedStyle(document.querySelector(".m-vh__word")!);
+    const img = document.querySelector(".m-vh__logo") as HTMLImageElement;
+    const l = getComputedStyle(img);
+    const b = img.getBoundingClientRect();
     const t = getComputedStyle(document.querySelector(".m-vh__tag")!);
-    return { wf: w.fontFamily, wt: w.textTransform, tf: t.fontFamily, ts: t.fontSize };
+    const brand = document.querySelector(".m-vh__brandtext")!.getBoundingClientRect();
+    return {
+      logo: { w: b.width, h: b.height, fit: l.objectFit, pos: l.objectPosition },
+      loaded: img.complete && img.naturalWidth > 0,
+      left: Math.round(b.left - brand.left),
+      tf: t.fontFamily,
+      tt: t.textTransform,
+      ts: t.fontSize,
+    };
   });
-  expect(faces.wf).toMatch(/Barlow Condensed/);
+  expect(faces.logo).toEqual({ w: 80, h: 30, fit: "contain", pos: "0% 50%" });
+  expect(faces.loaded).toBe(true);
+  expect(faces.left).toBe(0);
   expect(faces.tf).toMatch(/Barlow Condensed/);
-  expect(faces.wt).toBe("uppercase");
+  expect(faces.tt).toBe("uppercase");
   expect(faces.ts).toBe("11px");
   // The version keeps desktop's casing ("v1.5.1", index.css .app-header__version).
   await expect(page.locator(".m-vh__ver")).toHaveCSS("text-transform", "none");
