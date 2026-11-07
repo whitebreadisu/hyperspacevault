@@ -57,6 +57,6 @@ describe("RELEASE_NOTES content module (BL-184)", () => {
   });
 
   it("includes v2.3 as the newest entry (current HEAD of the list)", () => {
-    expect(RELEASE_NOTES[0].key).toBe("2.3");
+    expect(RELEASE_NOTES[0].key).toBe("2.4");
   });
 });

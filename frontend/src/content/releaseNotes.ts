@@ -38,6 +38,50 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-339 (phone collapse hold) + BL-340 (HSV logos, brand chooser on
+    // desktop, tab and home-screen icons) + BL-333 (analytics relay quiet on
+    // PostHog failures). Owner said "promote to prod" 2026-11-07; date =
+    // promote day (America/Chicago).
+    kind: "release",
+    key: "2.4",
+    version: "2.4",
+    date: "2026-11-07",
+    title: "A new look up top",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            title: "We have a logo",
+            body: "Hyperspace Vault has its own logo now. You'll see it in the header, on your browser tab, and on your phone's home screen if you've added the app there (remove it from your home screen and add it again to pick up the new icon).",
+          },
+          {
+            title: "Tap the logo",
+            body: 'On desktop, clicking the logo (or the line under it) now opens About & Legal and [HSV] Updates, just like on mobile. The separate "Release notes" link is gone. When there\'s something new, the line under the logo glows.',
+          },
+        ],
+      },
+      {
+        heading: "Improvements",
+        items: [
+          {
+            title: "Scrolling that keeps your place",
+            body: "On mobile, the swipe that tucks away your collection panel or a card's picture now stops there, so a quick flick doesn't send you racing down the list. Swipe again to scroll.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "Under the hood",
+            body: "Cleanup and hardening behind the scenes. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // Public card pages (App Spec 5.10 / Platform Spec 3.14) + BL-328 (copy /
     // share a card link with its printing) + BL-325 (price as-of date) +
     // BL-326 (epic-action label once, pilots too) + BL-329 (unique mark,
