@@ -410,7 +410,10 @@ test("fr1-08 caption: finish - set number at the left, the printing's price at t
   // (S2-02: 14 + 392 + 12 + 52 + 12); the browser reports 52.00003 on some
   // runs, so the bound carries a sub-pixel tolerance. A second caption line
   // would add 15 px or more.
-  expect(m.own.height).toBeLessThanOrEqual(52.5);
+  // REPLACE (BL-344): the block now ends with the stash entry / list under
+  // the plate (cardDetailModel stashGeom); the caption + plate part is
+  // what keeps its 52 px, so measure the block's top to the plate's bottom.
+  expect(m.plate.bottom - m.own.top).toBeLessThanOrEqual(52.5);
   // The same caption under the whole-pixel text condition (helpers.ts
   // wideText): still one line, the price whole and inside the block; the
   // finish - set number group is the part that may take the ellipsis.
@@ -421,7 +424,7 @@ test("fr1-08 caption: finish - set number at the left, the printing's price at t
   expect(m.priceCut).toBe(false);
   expect(m.id.right).toBeLessThanOrEqual(m.price.left);
   expect(m.price.right).toBeLessThanOrEqual(m.own.right + 0.5);
-  expect(m.own.height).toBeLessThanOrEqual(52.5);
+  expect(m.plate.bottom - m.own.top).toBeLessThanOrEqual(52.5);
   // No price: an em dash in the muted colour (this printing has no Market).
   await seg("Market").click();
   await expect(page.locator(".m-dreg__cprice")).toHaveText("—");
@@ -442,11 +445,14 @@ test("fr1-09 collapsed row: thumbnail, finish label over the plate, Market / Low
   const std = c.variants.find((v) => fin(v) === "Standard")!;
   // The collapse geometry is untouched: the expanded region for this card
   // still measures the S2-02 arithmetic (14 + 392 + 12 + 52 + 12 = 482).
+  // REPLACE (BL-344): plus the stash block under the plate -- this printing
+  // is owned and nothing is stashed, so the 44 px Stash copies entry and
+  // its 6 px gap (cardDetailModel stashGeom): 532.
   const full = await page
     .locator(".m-dreg3__bg")
     .first()
     .evaluate((e) => (e as HTMLElement).offsetHeight);
-  expect(full).toBe(482);
+  expect(full).toBe(482 + 50);
   await scrollDetail(page, 300);
   await expect(page.locator(".m-dreg3--collapsed")).toBeVisible();
   const check = (g: Awaited<ReturnType<typeof miniGeom>>, label: string, price: string) => {

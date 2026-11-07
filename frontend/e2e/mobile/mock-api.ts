@@ -52,6 +52,9 @@ export interface Recorder {
   /** BL-255 part 5: reads (and the app's log of them) that the page's own
    * navigation aborted -- excused from `failed` / `consoleErrors`, kept here. */
   navAborted: string[];
+  /** BL-344: every /api/stashes* request ("GET /api/stashes", "PUT
+   * /api/stashes/variants/7221" ...), in order. */
+  stashCalls: string[];
 }
 
 // ── BL-255 part 2: the suite never talks to the internet ───────────────────
@@ -171,6 +174,11 @@ const READ_LOG: { message: RegExp; path: RegExp }[] = [
   {
     message: /^Failed to load sets: TypeError: Failed to fetch(\n|$)/,
     path: /^\/api\/sets$/,
+  },
+  // BL-344: StashContext's first read (the list and the items together).
+  {
+    message: /^Failed to load stashes: TypeError: Failed to fetch(\n|$)/,
+    path: /^\/api\/stashes(\/items)?$/,
   },
 ];
 
@@ -342,7 +350,12 @@ export function priceSeries(market: number | null, range: string) {
 
 export async function installApiMocks(
   page: Page,
-  opts: { fixture?: CardsFixture } = {}
+  opts: {
+    fixture?: CardsFixture;
+    /** BL-344: stashes (and their items) the double starts with. */
+    stashes?: { id: number; name: string; description: string | null; created_at: string }[];
+    stashItems?: { stash_id: number; variant_id: number; quantity: number }[];
+  } = {}
 ): Promise<Recorder> {
   const rec: Recorder = {
     failed: [],
@@ -358,6 +371,7 @@ export async function installApiMocks(
     sharedReads: [],
     external: [],
     navAborted: [],
+    stashCalls: [],
   };
   recorders.set(page, rec);
   await stubExternal(page, rec.external);
@@ -447,6 +461,22 @@ export async function installApiMocks(
     revoked: boolean;
   };
   let share: ShareRow | null = null;
+  // BL-344: the stashes double (slice 1 contract). Starts with none; POST
+  // appends, PUT replaces a printing's split (409 exceeds_owned past owned).
+  // `seedStashes` (below) lets a spec start from a stashed state.
+  type StashRow = {
+    id: number;
+    name: string;
+    description: string | null;
+    created_at: string;
+  };
+  const stashes: StashRow[] = opts.stashes?.map((s) => ({ ...s })) ?? [];
+  const stashItems = new Map<string, number>(
+    (opts.stashItems ?? []).map((i) => [`${i.stash_id}:${i.variant_id}`, i.quantity])
+  );
+  let stashSeq = stashes.reduce((n, s) => Math.max(n, s.id), 0);
+  const stashCopies = (id: number) =>
+    [...stashItems].filter(([k]) => k.startsWith(id + ":")).reduce((n, [, q]) => n + q, 0);
   let tokenSeq = 0;
   const nextToken = () => `e2e-share-token-${++tokenSeq}`;
   const ok = (route: Route, body: unknown, status = 200) =>
@@ -552,6 +582,57 @@ export async function installApiMocks(
         if (tok === "tok-slow") await new Promise((r) => setTimeout(r, 1500));
         return ok(route, { name: names[tok], scope: "inventory" });
       }
+      if (path.startsWith("/api/stashes")) {
+        rec.stashCalls.push(`${method} ${path}`);
+        if (method === "GET" && path === "/api/stashes")
+          return ok(
+            route,
+            stashes.map((s) => ({ ...s, copies: stashCopies(s.id) }))
+          );
+        if (method === "GET" && path === "/api/stashes/items")
+          return ok(
+            route,
+            [...stashItems].map(([k, quantity]) => {
+              const [stash_id, variant_id] = k.split(":").map(Number);
+              return { stash_id, variant_id, quantity };
+            })
+          );
+        if (method === "POST" && path === "/api/stashes") {
+          const { name, description } = req.postDataJSON() as {
+            name: string;
+            description?: string;
+          };
+          if (stashes.some((s) => s.name.toLowerCase() === name.trim().toLowerCase()))
+            return ok(route, { detail: "duplicate_name" }, 409);
+          const s = {
+            id: ++stashSeq,
+            name: name.trim(),
+            description: description ?? null,
+            created_at: "2026-11-07T12:00:00Z",
+          };
+          stashes.push(s);
+          return ok(route, { ...s, copies: 0 }, 201);
+        }
+        const put = path.match(/^\/api\/stashes\/variants\/(\d+)$/);
+        if (method === "PUT" && put) {
+          const variantId = Number(put[1]);
+          const { allocations } = req.postDataJSON() as {
+            allocations: { stash_id: number; quantity: number }[];
+          };
+          const owned = qtyById.get(variantId) ?? 0;
+          if (allocations.reduce((n, a) => n + a.quantity, 0) > owned)
+            return ok(route, { detail: "exceeds_owned" }, 409);
+          for (const k of [...stashItems.keys()])
+            if (k.endsWith(":" + variantId)) stashItems.delete(k);
+          for (const a of allocations)
+            if (a.quantity > 0) stashItems.set(`${a.stash_id}:${variantId}`, a.quantity);
+          return ok(route, {
+            variant_id: variantId,
+            owned,
+            allocations: allocations.filter((a) => a.quantity > 0),
+          });
+        }
+      }
       if (method === "GET" && path === "/api/account") return ok(route, json("account.json"));
       // S2-05: the stepper's batched adjust; the double keeps the quantities
       // it answers with (a later GET of /quantities still reads the fixture).
@@ -560,7 +641,14 @@ export async function installApiMocks(
         const variantId = Number(adj[1]);
         const delta = Number((req.postDataJSON() as { delta: number }).delta);
         rec.adjust.push({ variantId, delta });
-        const quantity = Math.max(0, (qtyById.get(variantId) ?? 0) + delta);
+        // BL-344: decrements clamp at the printing's stashed copies.
+        const stashed = [...stashItems]
+          .filter(([k]) => k.endsWith(":" + variantId))
+          .reduce((n, [, q]) => n + q, 0);
+        const quantity = Math.max(
+          delta < 0 ? Math.min(stashed, qtyById.get(variantId) ?? 0) : 0,
+          (qtyById.get(variantId) ?? 0) + delta
+        );
         qtyById.set(variantId, quantity);
         return ok(route, {
           variant_id: variantId,

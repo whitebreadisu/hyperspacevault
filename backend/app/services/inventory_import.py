@@ -10,14 +10,18 @@ WritePlan and calls db.commit() once.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from functools import partial
 
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
-from app.ingestion.swuapi_classify import limit_bucket
+from app.ingestion.swuapi_classify import classify_variant, limit_bucket
 from app.repositories import inventory_import as inventory_import_repo
+from app.repositories import stashes as stash_repo
 from app.repositories.inventory_import import VariantMatch
 from app.schemas.inventory_import_schema import (
     ImportReport,
@@ -25,7 +29,9 @@ from app.schemas.inventory_import_schema import (
     ImportRowReport,
     ImportTotals,
     RemovedRow,
+    StashImpact,
 )
+from app.services import stashes as stash_service
 from app.services.inventory import QUANTITY_CEILING
 from app.services.inventory_io import ParsedRow, ParseNotes
 from app.services.limits import effective_limit, type_category
@@ -40,6 +46,9 @@ class WritePlan:
     mention)."""
 
     updates: dict[int, int] = field(default_factory=dict)
+    # (stash_id, variant_id, after) copy-count cuts, applied in the
+    # same transaction as `updates`.
+    stash_cuts: list[tuple[int, int, int]] = field(default_factory=list)
 
 
 @dataclass
@@ -412,6 +421,104 @@ def _replace_all_removals(
     return removed, updates
 
 
+def _printing_label(variant_type: str, set_code: str, card_number: str) -> str:
+    """`<finish> · <SET> <number>` (e.g. "Standard · SOR 005") -- the phone
+    stash sheet's sub-line. A printing without a retail finish (a promo
+    tier) falls back to its variant type."""
+    finish = classify_variant(variant_type, set_code).finish or variant_type
+    return f"{finish} · {set_code} {card_number}"
+
+
+def impacts_token(impacts: Iterable[StashImpact]) -> str:
+    """Digest of the sorted stash impacts (also defined for the empty list).
+    The preview hands it out; the commit recomputes under locks and refuses
+    to write when it differs (fold-in 1)."""
+    key = sorted((i.stash_id, i.variant_id, i.before, i.after) for i in impacts)
+    return hashlib.sha256(json.dumps(key).encode()).hexdigest()[:32]
+
+
+class StashImpactsChanged(Exception):
+    """The commit-time stash impacts differ from the previewed ones."""
+
+
+def lock_inventory_for_commit(db: Session) -> None:
+    """Commit stage, BEFORE compute_import: if the caller has any stashed
+    copies, lock all of their inventory rows (ascending variant_id; the stash
+    PUT and the steppers lock a single row, so no lock-order cycle) so the
+    impacts computed next cannot go stale. Tenants without stashes skip it."""
+    if stash_repo.has_stash_items(db):
+        stash_repo.lock_all_inventory(db)
+
+
+def apply_commit(
+    db: Session, plan: WritePlan, report: ImportReport, token: str | None
+) -> None:
+    """Commit stage: refuse (writing nothing) when the recomputed impacts
+    differ from the previewed token, otherwise apply the plan and commit.
+    An invariant violation surfacing at commit becomes ExceedsOwned."""
+    if (token is None and report.stash_impacts) or (
+        token is not None and token != report.stash_impacts_token
+    ):
+        db.rollback()
+        raise StashImpactsChanged
+    try:
+        apply_write_plan(db, plan)
+        db.commit()
+    except DBAPIError as exc:
+        db.rollback()
+        if stash_repo.is_invariant_violation(exc):
+            raise stash_service.ExceedsOwned from exc
+        raise
+
+
+def _plan_stash_impacts(
+    stash_rows: Iterable, targets: dict[int, int]
+) -> list[StashImpact]:
+    """where the plan's target quantity for a printing falls below
+    its stashed total, take the difference from stashes newest-first until
+    the invariant holds. `stash_rows` arrive newest stash first (see
+    stash_rows_for_import); `targets` maps variant_id -> new owned quantity.
+    DB-free."""
+    by_variant: dict[int, list] = {}
+    for row in stash_rows:
+        by_variant.setdefault(row.variant_id, []).append(row)
+
+    impacts: list[StashImpact] = []
+    for variant_id, rows in by_variant.items():
+        if variant_id not in targets:
+            continue
+        excess = sum(r.quantity for r in rows) - targets[variant_id]
+        for row in rows:  # newest stash first
+            if excess <= 0:
+                break
+            cut = min(row.quantity, excess)
+            excess -= cut
+            impacts.append(
+                StashImpact(
+                    stash_id=row.stash_id,
+                    stash_name=row.stash_name,
+                    variant_id=variant_id,
+                    card_name=(
+                        f"{row.card_name} - {row.subtitle}"
+                        if row.subtitle
+                        else row.card_name
+                    ),
+                    printing_label=_printing_label(
+                        row.variant_type, row.source_set_code, row.card_number
+                    ),
+                    before=row.quantity,
+                    after=row.quantity - cut,
+                )
+            )
+    # Newest stash first overall (rows were already ordered that way per
+    # variant; re-sort so the list reads stash by stash).
+    stash_order = {}
+    for row in stash_rows:
+        stash_order.setdefault(row.stash_id, len(stash_order))
+    impacts.sort(key=lambda i: (stash_order[i.stash_id], i.variant_id))
+    return impacts
+
+
 def _totals(
     shown_rows: int,
     row_reports: list[ImportRowReport],
@@ -478,6 +585,10 @@ def compute_import(  # noqa: PLR0913
         removed_rows, removal_updates = _replace_all_removals(owned)
         plan_updates.update(removal_updates)
 
+    stash_impacts = _plan_stash_impacts(
+        stash_repo.stash_rows_for_import(db), plan_updates
+    )
+
     report = ImportReport(
         stage=stage,
         mode=mode,
@@ -492,8 +603,14 @@ def compute_import(  # noqa: PLR0913
         ),
         rows=row_reports,
         removed=removed_rows,
+        stash_impacts=stash_impacts,
+        stash_impacts_token=impacts_token(stash_impacts),
     )
-    return report, WritePlan(updates=plan_updates)
+    plan = WritePlan(
+        updates=plan_updates,
+        stash_cuts=[(i.stash_id, i.variant_id, i.after) for i in stash_impacts],
+    )
+    return report, plan
 
 
 def apply_write_plan(db: Session, plan: WritePlan) -> None:
@@ -502,4 +619,7 @@ def apply_write_plan(db: Session, plan: WritePlan) -> None:
     mid-way failure (raised from here or from the router before that
     commit) leaves every row untouched (get_db's session is closed without
     committing, discarding the whole uncommitted transaction)."""
+    # Stash cuts first (same transaction); the deferred invariant triggers
+    # judge the final state at commit, so order is not load-bearing.
+    stash_repo.apply_stash_cuts(db, plan.stash_cuts)
     inventory_import_repo.apply_quantities(db, plan.updates)

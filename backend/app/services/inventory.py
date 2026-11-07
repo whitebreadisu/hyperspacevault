@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
 from typing import Literal, cast
 
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.ingestion.swuapi_classify import classify_variant, limit_bucket
 from app.repositories import inventory as inventory_repo
+from app.repositories import stashes as stash_repo
 from app.schemas.inventory_schema import (
     AdjustResponse,
     DecrementResponse,
@@ -153,12 +155,37 @@ def export_inventory(db: Session, format: str) -> tuple[str, str, str]:
     )
 
 
+def _retry_on_stash_invariant(db: Session, attempt):
+    """run `attempt()` (which locks, reads its floor and writes);
+    if the stash invariant trigger rejects the commit (a concurrent stash
+    write slipped in), roll back and run it again so the floor is re-read
+    and the clamp re-applied -- never a 500. The inventory row lock taken
+    first in every attempt makes a second failure unreachable in practice;
+    a final plain attempt bounds the loop."""
+    for _ in range(2):
+        try:
+            return attempt()
+        except DBAPIError as exc:
+            if not stash_repo.is_invariant_violation(exc):
+                raise
+            db.rollback()
+    return attempt()
+
+
 def decrement_card(db: Session, variant_id: int) -> DecrementResponse | None:
+    return _retry_on_stash_invariant(db, lambda: _decrement_once(db, variant_id))
+
+
+def _decrement_once(db: Session, variant_id: int) -> DecrementResponse | None:
+    # lock the inventory row FIRST (same order as the stash PUT),
+    # then read the stashed floor; the lock is held through the commit that
+    # upsert_decrement issues -- owned may never drop below the stashed total.
+    stash_repo.lock_owned(db, variant_id)
     variant = inventory_repo.get_variant_with_inventory(db, variant_id)
     if variant is None:
         return None
-
-    inv = inventory_repo.upsert_decrement(db, variant_id)
+    floor = stash_repo.stashed_total(db, variant_id)
+    inv = inventory_repo.upsert_decrement(db, variant_id, floor=floor)
     return DecrementResponse(variant_id=variant_id, quantity=inv.quantity)
 
 
@@ -172,7 +199,11 @@ def _at_or_over_limit(current_qty: int, max_quantity: int | None) -> bool:
 
 
 def _resolve_adjust(
-    current_qty: int, delta: int, max_quantity: int | None, cap_mode: str
+    current_qty: int,
+    delta: int,
+    max_quantity: int | None,
+    cap_mode: str,
+    floor: int = 0,
 ) -> tuple[int, int, bool, AdjustReason | None, bool]:
     """The pure decision core shared by increment_card (delta +1) and
     adjust_card (any signed delta) -- given the variant's pre-adjust
@@ -181,7 +212,9 @@ def _resolve_adjust(
     blocked, reason, over_limit). The caller resolves the limit and cap_mode
     once and passes them in; this function does no I/O:
 
-      - negative delta: always applies down to the floor (0), never blocks
+      - negative delta: always applies down to the floor (0, or the
+        printing's stashed total when it has stashed copies), never
+        blocks
         (same as decrement_card). over_limit is still reported (gated on
         cap_mode == soft, matching over_limit's "only possible in soft
         mode" invariant -- see IncrementResponse.over_limit) so a decrement
@@ -200,7 +233,7 @@ def _resolve_adjust(
         itself is reserved for the "nothing applied" case.
     """
     if delta < 0:
-        new_qty = max(current_qty + delta, 0)
+        new_qty = max(current_qty + delta, min(floor, current_qty), 0)
         applied = new_qty - current_qty
         over_limit = (
             cap_mode == CAP_MODE_SOFT
@@ -238,6 +271,10 @@ def _resolve_adjust(
 
 
 def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | None:
+    return _retry_on_stash_invariant(db, lambda: _adjust_once(db, variant_id, delta))
+
+
+def _adjust_once(db: Session, variant_id: int, delta: int) -> AdjustResponse | None:
     """The stepper's debounced-batch endpoint -- applies one signed `delta`
     (the frontend's net of however many clicks landed inside its debounce
     window) in place of `delta` separate increment/decrement round trips.
@@ -247,7 +284,12 @@ def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | No
     decision to _resolve_adjust above. `playset_complete` follows
     increment_card's rule -- singleton: "first copy acquired" (current_qty
     was 0); standard: the base-card total (summed BEFORE this write, then
-    offset by `applied`) reaching exactly COMPLETION_PLAYSET_SIZE."""
+    offset by `applied`) reaching exactly COMPLETION_PLAYSET_SIZE.
+
+    the inventory row is locked first, so every read below (quantity,
+    stashed floor) sees the locked state; the lock is held through the commit
+    the upsert issues."""
+    stash_repo.lock_owned(db, variant_id)
     variant = inventory_repo.get_variant_with_inventory(db, variant_id)
     if variant is None:
         return None
@@ -257,9 +299,11 @@ def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | No
     bucket = limit_bucket(variant.variant_type, variant.source_set_code)
     max_quantity = effective_limit(db, category, bucket)
     cap_mode = effective_cap_mode(db)
+    # a decrease stops at the printing's stashed total.
+    floor = stash_repo.stashed_total(db, variant_id) if delta < 0 else 0
 
     new_qty, applied, blocked, reason, over_limit = _resolve_adjust(
-        current_qty, delta, max_quantity, cap_mode
+        current_qty, delta, max_quantity, cap_mode, floor
     )
 
     # applied == 0 means nothing changes -- a blocked positive delta
@@ -288,13 +332,13 @@ def adjust_card(db: Session, variant_id: int, delta: int) -> AdjustResponse | No
         # acquired" check, generalized to whatever `applied` turned out to
         # be for this call.
         playset_complete = current_qty == 0
-        inv = inventory_repo.upsert_adjust(db, variant_id, applied)
+        inv = inventory_repo.upsert_adjust(db, variant_id, applied, floor=floor)
     else:
         # current_total is read BEFORE the write below, the same ordering
         # increment_card relies on, so it reflects this variant's
         # PRE-adjust contribution to the base card's total.
         current_total = inventory_repo.get_base_card_total(db, variant.base_card_id)
-        inv = inventory_repo.upsert_adjust(db, variant_id, applied)
+        inv = inventory_repo.upsert_adjust(db, variant_id, applied, floor=floor)
         new_total = current_total + applied
         playset_complete = new_total == COMPLETION_PLAYSET_SIZE
 

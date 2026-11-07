@@ -16,7 +16,19 @@ import { useVaultData } from "../../vault/useVaultData";
 import { AspectsSheet } from "./AspectsSheet";
 import { CardDetailHeader } from "./CardDetailHeader";
 import { CardPage, READ_ONLY_STEPPER } from "./CardPage";
-import { navEntryVariant, regionGeom, setLogoSrc, starfieldSrc } from "./cardDetailModel";
+import {
+  navEntryVariant,
+  regionGeom,
+  setLogoSrc,
+  stashGeom,
+  starfieldSrc,
+} from "./cardDetailModel";
+import { StashPinned, StashPlateBlock, StashSheet } from "./CardStashes";
+import type { StashHolding } from "./CardStashes";
+import { useStashes } from "../../stashes/StashContext";
+import { holdingOf, useStashEditor } from "../../stashes/useStashEditor";
+import { getPlaysetSize } from "../../utils/inventory";
+import { scopeShortName } from "../../utils/variantScope";
 import { FinishSheet } from "./FinishSheet";
 import {
   clearHandoffs,
@@ -128,8 +140,54 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const [showBack, setShowBack] = useState(false);
   const entry = card ? navEntryVariant(card, nav, params.v ? Number(params.v) : null) : null;
   const variant = (card && sel != null && card.variants.find((v) => v.variant_id === sel)) || entry;
+
+  // stashes (phone 1e). Own vault only: a share's scope mounts a
+  // disabled StashProvider, and readOnly / signed out never draw it. The
+  // owned stepper's `-` stops at the printing's stashed copies.
+  const stashData = useStashes();
+  const ownVault = isAuthenticated && !readOnly;
+  // The floor is read through a ref: the editor (which knows the staged
+  // split) is built after the stepper it limits.
+  const floorRef = useRef<(id: number) => number>(() => 0);
+  const stashFloor = useCallback((id: number) => floorRef.current(id), []);
+  const rawStepper = useStepper(patchQuantity, stashFloor);
+  const stashEditor = useStashEditor(
+    ownVault && variant ? variant.variant_id : null,
+    variant ? rawStepper.qtyOf(variant) : 0,
+    async () => {
+      if (variant) await rawStepper.settle?.(variant.variant_id);
+    }
+  );
+  // As desktop: the selected printing's floor is the larger of the saved
+  // and staged stash totals (fold-in 1, F4); other printings, the saved one.
+  const floorOf = (id: number) =>
+    variant && id === variant.variant_id ? stashEditor.floor : stashData.stashedTotal(id);
+  useEffect(() => {
+    floorRef.current = floorOf;
+  });
+  const [stashSheet, setStashSheet] = useState(false);
+  // A different printing (a route change under the sheet) closes the sheet;
+  // the editor has already discarded the draft.
+  const stashVariantId = variant?.variant_id ?? null;
+  const [sheetFor, setSheetFor] = useState(stashVariantId);
+  if (sheetFor !== stashVariantId) {
+    setSheetFor(stashVariantId);
+    setStashSheet(false);
+  }
+  const holdingFor = (v: InventoryVariant): StashHolding[] =>
+    holdingOf(stashData.stashes, stashData.allocationsFor(v.variant_id));
+  // While the first stash read is in flight an owned printing keeps the
+  // entry's room (fold-in 1, F6), so the region does not grow when it lands.
+  const stashShown = stashEditor.available || stashEditor.pending;
   const geom =
-    card && variant ? regionGeom(card, variant, showBack && !!variant.back_image_url) : null;
+    card && variant
+      ? regionGeom(
+          card,
+          variant,
+          showBack && !!variant.back_image_url,
+          stashGeom(stashShown, stashEditor.holding.length)
+        )
+      : null;
 
   // The body's translate adds --d-delta of scroll room while expanded; the
   // collapse rule must not count it.
@@ -139,10 +197,10 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
     false,
     geom ? geom.delta : 0
   );
-  const rawStepper = useStepper(patchQuantity);
   // quantity_changed as desktop's popup (CardPopupInventory.tsx).
   const stepper: Stepper = {
     ...rawStepper,
+    floorOf: (v) => floorOf(v.variant_id),
     increment: (v) => {
       capturePhone("quantity_changed", { direction: "increment", surface: "detail" });
       rawStepper.increment(v);
@@ -275,6 +333,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       busy.current ||
       e.touches.length !== 1 ||
       sheet ||
+      stashSheet ||
       target.closest?.(".m-chart__svg, .m-detail__bar")
     ) {
       t.current = null;
@@ -317,6 +376,23 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
 
   const ghost = ghostDir ? neighbour(ghostDir) : null;
   const ghostVariant: InventoryVariant | null = ghost ? navEntryVariant(ghost, nav) : null;
+  // The neighbour's stash block, read only, so its region has the height it
+  // will have once it is the current card.
+  const ghostStashShown =
+    ownVault &&
+    (stashData.ready || stashData.loading) &&
+    !!ghostVariant &&
+    ghostVariant.quantity > 0;
+  const ghostHolding = ghostStashShown && ghostVariant ? holdingFor(ghostVariant) : [];
+  const stashPlayset = card ? getPlaysetSize(card.type) : 3;
+  const openStash = () => {
+    stashEditor.open();
+    setStashSheet(true);
+  };
+  const editStash = () => {
+    stashEditor.edit();
+    setStashSheet(true);
+  };
   const xn = xf ? neighbour(xf) : null;
 
   const starfield = card ? starfieldSrc(card.set_code) : null;
@@ -394,6 +470,28 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
               onOpenFinish={isAuthenticated ? () => setSheet({ kind: "finish" }) : undefined}
               onOpenAspects={(aspects) => setSheet({ kind: "aspects", aspects })}
               onChartEngage={chartEngage}
+              stashBlock={
+                stashEditor.available ? (
+                  <StashPlateBlock
+                    holding={stashEditor.holding}
+                    playsetSize={stashPlayset}
+                    onOpen={openStash}
+                    onEdit={editStash}
+                  />
+                ) : stashEditor.pending ? (
+                  <span className="m-stash__placeholder" aria-hidden="true" />
+                ) : null
+              }
+              stashPinned={
+                stashEditor.available ? (
+                  <StashPinned
+                    holding={stashEditor.holding}
+                    playsetSize={stashPlayset}
+                    onEdit={editStash}
+                    collapsed={collapsed}
+                  />
+                ) : null
+              }
               {...common}
             />
           ) : (
@@ -406,7 +504,29 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
               key={"g" + ghost.base_card_id}
               card={ghost}
               variant={ghostVariant}
-              geom={regionGeom(ghost, ghostVariant, false)}
+              geom={regionGeom(
+                ghost,
+                ghostVariant,
+                false,
+                stashGeom(ghostStashShown, ghostHolding.length)
+              )}
+              stashBlock={
+                ghostStashShown ? (
+                  <StashPlateBlock
+                    holding={ghostHolding}
+                    playsetSize={getPlaysetSize(ghost.type)}
+                  />
+                ) : null
+              }
+              stashPinned={
+                ghostStashShown ? (
+                  <StashPinned
+                    holding={ghostHolding}
+                    playsetSize={getPlaysetSize(ghost.type)}
+                    collapsed={collapsed}
+                  />
+                ) : null
+              }
               showBack={false}
               setShowBack={() => {}}
               collapsed={collapsed}
@@ -486,6 +606,17 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
       ) : null}
       {sheet?.kind === "aspects" ? (
         <AspectsSheet aspects={sheet.aspects} onClose={closeSheet} />
+      ) : null}
+      {stashSheet && variant ? (
+        <StashSheet
+          editor={stashEditor}
+          sub={`${scopeShortName(variant.finish ?? variant.variant_type)} · ${variant.source_set_code} ${variant.card_number} · ${rawStepper.qtyOf(variant)} owned`}
+          printingLabel={`${scopeShortName(variant.finish ?? variant.variant_type)} ${variant.source_set_code} ${variant.card_number}`}
+          onClosed={() => {
+            stashEditor.cancel();
+            setStashSheet(false);
+          }}
+        />
       ) : null}
     </div>
   );

@@ -82,7 +82,9 @@ def upsert_increment(db: Session, variant_id: int) -> Inventory:
     return Inventory(**row._mapping)
 
 
-def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
+def upsert_adjust(
+    db: Session, variant_id: int, delta: int, floor: int = 0
+) -> Inventory:
     """Atomically insert-or-adjust the (tenant_id, variant_id) row by an
     arbitrary signed `delta` in a single statement -- upsert_increment/
     upsert_decrement's ON CONFLICT pattern (one atomic write, no lost
@@ -112,7 +114,9 @@ def upsert_adjust(db: Session, variant_id: int, delta: int) -> Inventory:
         .on_conflict_do_update(
             index_elements=["tenant_id", "variant_id"],
             set_={
-                "quantity": func.least(func.greatest(table.c.quantity + delta, 0), 999),
+                "quantity": func.least(
+                    func.greatest(table.c.quantity + delta, floor), 999
+                ),
                 "updated_at": func.now(),
             },
         )
@@ -153,8 +157,9 @@ def get_export_rows(db: Session):
     )
 
 
-def upsert_decrement(db: Session, variant_id: int) -> Inventory:
-    """Atomically insert-or-decrement (clamped at 0) the (tenant_id,
+def upsert_decrement(db: Session, variant_id: int, floor: int = 0) -> Inventory:
+    """Atomically insert-or-decrement (clamped at `floor`: 0, or the
+    printing's stashed total) the (tenant_id,
     variant_id) row in a single statement, mirroring upsert_increment."""
     tenant_id = _current_tenant_id(db)
     table = cast(Table, Inventory.__table__)
@@ -164,7 +169,7 @@ def upsert_decrement(db: Session, variant_id: int) -> Inventory:
         .on_conflict_do_update(
             index_elements=["tenant_id", "variant_id"],
             set_={
-                "quantity": func.greatest(table.c.quantity - 1, 0),
+                "quantity": func.greatest(table.c.quantity - 1, floor),
                 "updated_at": func.now(),
             },
         )

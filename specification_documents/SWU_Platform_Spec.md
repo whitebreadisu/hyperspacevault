@@ -118,6 +118,12 @@ One row per FastAPI route, generated from the app's dependency graph. `backend/a
 | DELETE | `/api/shares/{share_id}` | get_db | none | BL-205 |
 | PATCH | `/api/shares/{share_id}` | get_db | none | BL-205 |
 | POST | `/api/shares/{share_id}/rotate` | get_db | none | BL-205 |
+| GET | `/api/stashes` | get_db | none | BL-344 |
+| POST | `/api/stashes` | get_db | require_verified_email | BL-344 |
+| GET | `/api/stashes/items` | get_db | none | BL-344 |
+| PUT | `/api/stashes/variants/{variant_id}` | get_db | require_verified_email | BL-344 |
+| DELETE | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
+| PATCH | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
 | GET | `/health` | none | none | baseline |
 | GET | `/images/cards/{filename}` | none | none | baseline |
 

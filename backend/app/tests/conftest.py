@@ -92,6 +92,16 @@ def delete_provisioned_identity(db, firebase_uid: str) -> None:
         text("DELETE FROM users WHERE firebase_uid = :uid"), {"uid": firebase_uid}
     )
     if tenant_id is not None:
+        # BL-344: stash rows first (their invariant triggers compare against
+        # inventory; stashes carries the same no-cascade FK to tenants).
+        db.execute(
+            text("DELETE FROM stash_items WHERE tenant_id = :tenant_id"),
+            {"tenant_id": tenant_id},
+        )
+        db.execute(
+            text("DELETE FROM stashes WHERE tenant_id = :tenant_id"),
+            {"tenant_id": tenant_id},
+        )
         db.execute(
             text("DELETE FROM inventory WHERE tenant_id = :tenant_id"),
             {"tenant_id": tenant_id},

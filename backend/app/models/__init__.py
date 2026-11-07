@@ -9,6 +9,7 @@ from app.models.inventory import Inventory
 from app.models.pricing_sync_state import PricingSyncState
 from app.models.set_model import CardSet
 from app.models.share import Share
+from app.models.stash import Stash, StashItem
 from app.models.tcgplayer_product import TcgplayerProduct
 from app.models.tenant import Tenant
 from app.models.tenant_card_limit import TenantCardLimit
@@ -26,6 +27,8 @@ __all__ = [
     "Inventory",
     "PricingSyncState",
     "Share",
+    "Stash",
+    "StashItem",
     "TcgplayerProduct",
     "Tenant",
     "TenantCardLimit",

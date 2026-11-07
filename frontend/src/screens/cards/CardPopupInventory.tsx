@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { VariantDetail } from "../../api/baseCards";
 import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
 import type { LimitsMatrix } from "../../utils/limits";
@@ -11,6 +12,7 @@ import {
 } from "../../utils/limits";
 import { variantLabel } from "./cardPopupShared";
 import { capture } from "../../analytics/analytics";
+import { STASH_FLOOR_HINT } from "../../stashes/useStashEditor";
 
 /** Inventory controls: the selected printing's owned-quantity stepper
  * (InventoryPlate, with its limits/cap_mode math), the signed-out "Sign in"
@@ -43,6 +45,11 @@ interface InventoryPlateProps {
    * viewer sees the OWNER's real quantity, not a "sign in" prompt. Defaults
    * to false (interactive stepper). */
   readOnly?: boolean;
+  /** the lowest owned count `-` may reach (the printing's stashed
+   * copies). At the floor (above 0) `-` is aria-disabled with the hint. */
+  decFloor?: number;
+  /** the stash UI (desktop 1a), drawn under the readout. */
+  stashSlot?: ReactNode;
 }
 
 /** The selected printing's owned-quantity stepper (the inventory plate).
@@ -71,6 +78,8 @@ function InventoryPlate({
   onIncrement,
   onDecrement,
   readOnly = false,
+  decFloor = 0,
+  stashSlot,
 }: InventoryPlateProps) {
   const bucket = limitBucketOf(variant.finish, variant.channel);
   const rawLimit = effectiveLimit(limits, typeCategory, bucket);
@@ -85,6 +94,9 @@ function InventoryPlate({
   // locally-accumulated value rather than the server-confirmed quantity.
   const incDisabled = capMode === "soft" ? qty >= QUANTITY_CEILING : qty >= cap;
   const decDisabled = qty <= 0;
+  // every copy is in a stash -- `-` stays focusable, says why
+  // (aria-disabled + title) and does nothing.
+  const atStashFloor = !decDisabled && qty <= decFloor;
 
   // Red only PAST the limit; at the limit the count is the normal colour.
   const pastLimit = rawLimit !== null && qty > rawLimit;
@@ -115,9 +127,15 @@ function InventoryPlate({
             <button
               type="button"
               className="cp-plate__step cp-plate__step--dec"
-              aria-label={`Decrement ${variantLabel(variant)}`}
+              aria-label={
+                atStashFloor
+                  ? `Decrement ${variantLabel(variant)}. ${STASH_FLOOR_HINT}`
+                  : `Decrement ${variantLabel(variant)}`
+              }
+              aria-disabled={atStashFloor ? true : undefined}
+              title={atStashFloor ? STASH_FLOOR_HINT : undefined}
               disabled={decDisabled}
-              onClick={onDecrement}
+              onClick={atStashFloor ? undefined : onDecrement}
             >
               −
             </button>
@@ -158,6 +176,7 @@ function InventoryPlate({
             </span>
           )}
         </div>
+        {!readOnly && stashSlot}
       </div>
     </div>
   );
@@ -182,6 +201,8 @@ interface AdjustBookkeeping {
   serverQty: number;
   unflushed: number;
   timer: ReturnType<typeof setTimeout> | null;
+  /** the flush on the wire, if any (a stash Done waits for it). */
+  inflight?: Promise<void> | null;
 }
 
 // Debounce window: one network call per burst of clicks landing within 400ms
@@ -217,7 +238,10 @@ const ADJUST_DEBOUNCE_MS = 400;
 export function useInventoryMutation(
   selectedVariant: VariantDetail | null | undefined,
   setVariants: React.Dispatch<React.SetStateAction<VariantDetail[]>>,
-  setChanged: React.Dispatch<React.SetStateAction<boolean>>
+  setChanged: React.Dispatch<React.SetStateAction<boolean>>,
+  /** the selected printing's stashed copies. A decrement at or
+   * below it is never queued (the batch must not ask past the floor). */
+  decrementFloor = 0
 ) {
   const [pending, setPending] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -236,7 +260,7 @@ export function useInventoryMutation(
   // The actual network call for whatever's currently in `unflushed` -- only
   // ever invoked by flushNow below (either the debounce timer firing, or a
   // forced immediate flush), never called directly by a click.
-  const flush = useCallback(
+  const send = useCallback(
     async (variantId: number) => {
       const entry = bookkeepingRef.current.get(variantId);
       if (!entry || entry.unflushed === 0) return;
@@ -277,18 +301,35 @@ export function useInventoryMutation(
     [setDisplayedQuantity]
   );
 
+  // `send` wrapped so the call on the wire is remembered -- a stash
+  // Done awaits it (settleSelected below).
+  const flush = useCallback(
+    (variantId: number): Promise<void> => {
+      const entry = bookkeepingRef.current.get(variantId);
+      if (!entry) return Promise.resolve();
+      if (entry.unflushed === 0) return entry.inflight ?? Promise.resolve();
+      const run = send(variantId);
+      entry.inflight = run;
+      void run.finally(() => {
+        if (entry.inflight === run) entry.inflight = null;
+      });
+      return run;
+    },
+    [send]
+  );
+
   // Cancels any pending debounce timer for `variantId` and flushes RIGHT
   // NOW instead -- the "MUST flush immediately" paths (unmount, variant
   // switch, before another mutation) all funnel through this.
   const flushNow = useCallback(
-    (variantId: number) => {
+    (variantId: number): Promise<void> => {
       const entry = bookkeepingRef.current.get(variantId);
-      if (!entry) return;
+      if (!entry) return Promise.resolve();
       if (entry.timer !== null) {
         clearTimeout(entry.timer);
         entry.timer = null;
       }
-      void flush(variantId);
+      return flush(variantId);
     },
     [flush]
   );
@@ -337,9 +378,16 @@ export function useInventoryMutation(
 
   const handleDecrement = useCallback(() => {
     if (!selectedVariant) return;
+    if (selectedVariant.quantity <= decrementFloor) return;
     capture("quantity_changed", { direction: "decrement", surface: "popup" });
     bump(selectedVariant.variant_id, -1, selectedVariant.quantity);
-  }, [selectedVariant, bump]);
+  }, [selectedVariant, bump, decrementFloor]);
+
+  /** send the selected printing's open batch now and wait for it,
+   * so a stash Done is checked against the owned count on screen. */
+  const settleSelected = useCallback(async () => {
+    if (selectedVariant) await flushNow(selectedVariant.variant_id);
+  }, [selectedVariant, flushNow]);
 
   // Flush-on-variant-switch and flush-on-unmount, both from ONE effect keyed
   // on the selected variant_id -- its cleanup fires exactly when that id is
@@ -352,11 +400,11 @@ export function useInventoryMutation(
   const selectedVariantId = selectedVariant?.variant_id;
   useEffect(() => {
     return () => {
-      if (selectedVariantId != null) flushNow(selectedVariantId);
+      if (selectedVariantId != null) void flushNow(selectedVariantId);
     };
   }, [selectedVariantId, flushNow]);
 
-  return { pending, mutationError, handleIncrement, handleDecrement };
+  return { pending, mutationError, handleIncrement, handleDecrement, settleSelected };
 }
 
 /** Switches between the signed-in stepper and the signed-out nudge -- the
@@ -373,6 +421,8 @@ export function CardPopupInventoryControls({
   onIncrement,
   onDecrement,
   onRequestSignIn,
+  decFloor,
+  stashSlot,
 }: {
   isAuthenticated: boolean;
   /** Forwarded to InventoryPlate -- see its own doc comment. Only meaningful
@@ -390,6 +440,9 @@ export function CardPopupInventoryControls({
   /** Inert-teaser pattern: opens the shell's AuthModal. The signed-out
    * inventory plate's "Sign in" button routes through this. */
   onRequestSignIn?: () => void;
+  /** See InventoryPlate. Ignored when read-only. */
+  decFloor?: number;
+  stashSlot?: ReactNode;
 }) {
   if (!isAuthenticated) {
     return (
@@ -416,6 +469,8 @@ export function CardPopupInventoryControls({
       onIncrement={onIncrement}
       onDecrement={onDecrement}
       readOnly={readOnly}
+      decFloor={readOnly ? 0 : decFloor}
+      stashSlot={readOnly ? null : stashSlot}
     />
   );
 }

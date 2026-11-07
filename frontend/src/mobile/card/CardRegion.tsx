@@ -59,6 +59,10 @@ interface Props {
   /** "fixed320": the 320 px same-origin rendition only, no srcset and no
    * fallback to the official CDN (design note §5a). */
   imageMode?: "app" | "fixed320";
+  /** Phone 1e: the stash block under the plate (expanded) and the
+   * list pinned under the collapsed row; geom carries their heights. */
+  stashBlock?: ReactNode;
+  stashPinned?: ReactNode;
 }
 
 export function CardRegion({
@@ -76,6 +80,8 @@ export function CardRegion({
   onOpenFinish,
   plateSlot,
   imageMode = "app",
+  stashBlock,
+  stashPinned,
 }: Props) {
   const [phase, setPhase] = useState<"out" | "in" | null>(null);
   const { hasBack } = geom;
@@ -103,6 +109,7 @@ export function CardRegion({
     "--own-top": geom.ownTop + "px",
     "--mini-l": 16 + geom.cW + 14 + "px",
     "--flip-top": geom.flipTop + "px",
+    "--reg-min": geom.regMin + "px",
   } as CSSProperties;
   const plate = (
     <PrintingPlate
@@ -184,6 +191,7 @@ export function CardRegion({
             </span>
           </div>
           {plateNode}
+          {stashBlock}
         </div>
         <div className="m-dreg3__mini" aria-hidden={collapsed ? undefined : true}>
           <span className="m-dreg__inv">
@@ -200,6 +208,7 @@ export function CardRegion({
             </span>
           </span>
         </div>
+        {stashPinned}
         {hasBack ? (
           <div className="m-dreg__flip m-dreg3__flip" aria-hidden={collapsed ? true : undefined}>
             <button

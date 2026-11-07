@@ -3,6 +3,7 @@ import { resolveShare, ShareResolveError } from "../../api/sharedView";
 import { CardsPage } from "../cards/CardsPage";
 import { LimitsProvider } from "../../context/LimitsContext";
 import { capture } from "../../analytics/analytics";
+import { StashProvider } from "../../stashes/StashContext";
 
 type Status = "loading" | "ready" | "invalid" | "rate-limited";
 
@@ -89,7 +90,11 @@ export function SharedVaultPage({ token, onResolved }: Props) {
 
   return (
     <LimitsProvider isAuthenticated={false} shareToken={token}>
-      <CardsPage isAuthenticated={false} shareToken={token} />
+      {/* no stash data under a share -- a disabled provider shadows
+          the viewer's own (App.tsx), so nothing here can read or fetch it. */}
+      <StashProvider enabled={false}>
+        <CardsPage isAuthenticated={false} shareToken={token} />
+      </StashProvider>
     </LimitsProvider>
   );
 }

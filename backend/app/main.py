@@ -22,6 +22,7 @@ from app.routers import relay as relay_router
 from app.routers import sets as sets_router
 from app.routers import settings as settings_router
 from app.routers import shares as shares_router
+from app.routers import stashes as stashes_router
 
 configure_logging()
 
@@ -129,6 +130,7 @@ app.include_router(feedback_router.router)
 app.include_router(deck_check_router.router)
 app.include_router(shares_router.router)
 app.include_router(shares_router.shared_router)
+app.include_router(stashes_router.router)
 app.include_router(relay_router.router)
 
 

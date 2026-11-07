@@ -6,9 +6,12 @@ import {
   downloadCatalogReference,
   exportInventory,
   ImportApiError,
+  isStashCommitConflict,
+  previewStashImpacts,
   REFRESH_FAILED_BODY,
   REFRESH_FAILED_LEAD,
   runImport,
+  stashImpactCopies,
 } from "../../api/inventoryImportExport";
 import type { CapHandling, ImportMode, ImportReport } from "../../api/inventoryImportExport";
 import { BusyOverlay } from "../../components/BusyOverlay";
@@ -20,6 +23,7 @@ import { SWUButton } from "../../components/SWUButton";
 import { capturePhone, phoneScreenViewed } from "../phoneAnalytics";
 import { go } from "../router";
 import { useVaultData } from "../../vault/useVaultData";
+import { useStashes } from "../../stashes/StashContext";
 import { ImportReportList } from "./ImportReportList";
 import { CAP_OPTIONS, MODE_OPTIONS, fileFormat, problemRowsCsv } from "./importFork";
 import { ShellHead } from "./ShellHead";
@@ -103,6 +107,9 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
   // a written import failed, so the success screen can say so (desktop parity).
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
+  // a preview whose commit would cut stashes needs this ticked too.
+  const [stashCutConfirmed, setStashCutConfirmed] = useState(false);
+  const stashData = useStashes();
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -166,6 +173,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
       );
       setReport(result);
       setReplaceAllConfirmed(false);
+      setStashCutConfirmed(false);
       setStep("preview");
       scrollTop();
       capturePhone("import_dry_run", {
@@ -182,6 +190,8 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     }
   }
 
+  const stashImpacts = previewStashImpacts(report);
+  const stashCutCopies = stashImpactCopies(stashImpacts);
   const confirmBlocked =
     !file ||
     !mode ||
@@ -189,7 +199,8 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     !report ||
     committing ||
     report.totals.resolved === 0 ||
-    (mode === "replace_all" && !replaceAllConfirmed);
+    (mode === "replace_all" && !replaceAllConfirmed) ||
+    (stashImpacts.length > 0 && !stashCutConfirmed);
 
   async function handleConfirm() {
     if (!file || !mode || !capHandling || !report || confirmBlocked) return;
@@ -201,12 +212,18 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
       const result = await overlay.run(
         { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
         {
-          task: () => runImport(file, mode, capHandling, "commit"),
+          task: () =>
+            runImport(file, mode, capHandling, "commit", report.stash_impacts_token ?? null),
           settleStage: { message: "Refreshing your Vault…" },
           settle: async () => {
             // The import is already saved: a failed refetch must not read as
             // a failed import (a re-run would double merge-add quantities).
             await refreshQuantities().catch((err) => {
+              console.error(err);
+              setRefreshFailed(true);
+            });
+            // the commit may have cut stashes.
+            await stashData.refresh().catch((err) => {
               console.error(err);
               setRefreshFailed(true);
             });
@@ -218,6 +235,17 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
       scrollTop();
       capturePhone("import_committed", { mode, rows_applied: result.totals.resolved });
     } catch (err) {
+      // the stashes moved since the preview (or the commit would
+      // overfill one) -- nothing was written. Back to the configure step with
+      // the file and choices kept, so the next step is a fresh preview; the
+      // stale report and its Confirm are gone.
+      if (isStashCommitConflict(err)) {
+        setReport(null);
+        setReplaceAllConfirmed(false);
+        setStashCutConfirmed(false);
+        setStep("configure");
+        scrollTop();
+      }
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."
       );
@@ -248,6 +276,7 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
     setSuccessReport(null);
     setRefreshFailed(false);
     setReplaceAllConfirmed(false);
+    setStashCutConfirmed(false);
     setFileError(null);
     scrollTop();
   }
@@ -297,6 +326,9 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                   {dl("json", "Download JSON")}
                   {dl("csv", "Download CSV")}
                 </div>
+                {stashData.stashes.length > 0 && (
+                  <p className="ie-note ie-stash-note">Exports don&apos;t include stashes.</p>
+                )}
               </div>
               <aside className="ie-reference" aria-labelledby="ie-reference-title">
                 <div className="ie-reference__text">
@@ -450,6 +482,27 @@ function ImportExportBody({ fromMore }: { fromMore: boolean }) {
                     <span>
                       I understand this will permanently remove {removalCount}{" "}
                       {removalCount === 1 ? "card" : "cards"} not in this file.
+                    </span>
+                  </button>
+                )}
+
+                {stashImpacts.length > 0 && (
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={stashCutConfirmed}
+                    className={
+                      "ie-checkbox-row m-check m-ie__check" +
+                      (stashCutConfirmed ? " m-check--on" : "")
+                    }
+                    onClick={() => setStashCutConfirmed((c) => !c)}
+                  >
+                    <span className="m-check__box">
+                      {stashCutConfirmed ? <MIcon name="check" size={16} /> : null}
+                    </span>
+                    <span>
+                      I understand this will take {stashCutCopies}{" "}
+                      {stashCutCopies === 1 ? "copy" : "copies"} out of my stashes.
                     </span>
                   </button>
                 )}

@@ -69,6 +69,10 @@ export interface CardPageProps {
   showAspectsRow?: boolean;
   baseSetLabel?: string;
   bodyEnd?: ReactNode;
+  /** phone 1e (CardRegion): the stash block under the plate and the
+   * list pinned under the collapsed row. */
+  stashBlock?: ReactNode;
+  stashPinned?: ReactNode;
 }
 
 export function CardPage(p: CardPageProps) {
@@ -116,6 +120,8 @@ export function CardPage(p: CardPageProps) {
           onOpenFinish={ghost ? undefined : p.onOpenFinish}
           plateSlot={p.plateSlot}
           imageMode={p.imageMode}
+          stashBlock={p.stashBlock}
+          stashPinned={p.stashPinned}
         />
         <div className="m-detail__body">
           <Printings

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { ImportReport, ImportRowReport } from "../../api/inventoryImportExport";
+import { previewStashImpacts, stashImpactCopies } from "../../api/inventoryImportExport";
 import { totalCardsFromReport } from "../../screens/importexport/ImportPreviewReport";
 import { SWUButton } from "../../components/SWUButton";
 import {
@@ -112,6 +113,7 @@ export function ImportReportList({ report, onDownloadProblemRows }: Props) {
   const { totals, rows, removed, mode } = report;
   const problemRows = rows.filter((r) => r.status !== "resolved");
   const resolvedRows = rows.filter((r) => r.status === "resolved");
+  const stashImpacts = previewStashImpacts(report);
   const [view, setView] = useState<View>(problemRows.length > 0 ? "problem" : "resolved");
   useEffect(() => {
     setView(problemRows.length > 0 ? "problem" : "resolved");
@@ -154,6 +156,34 @@ export function ImportReportList({ report, onDownloadProblemRows }: Props) {
                 <div className="m-ie-row__head">
                   <span className="m-ie-row__card">{cardLabel(r.card)}</span>
                   <span className="m-ie-row__qty">Owned {r.quantity}</span>
+                </div>
+              </li>
+            )}
+          />
+        </section>
+      )}
+
+      {/* desktop ImportPreviewReport's stash-cut section, as rows. */}
+      {stashImpacts.length > 0 && (
+        <section
+          className="ie-report-section ie-report-section--danger"
+          aria-label="Copies that will be taken out of stashes"
+        >
+          <h3 className="ie-report-section__title">
+            Will be taken out of stashes ({stashImpactCopies(stashImpacts)}) — the file lowers
+            stashed printings
+          </h3>
+          <Paged
+            items={stashImpacts}
+            render={(s, i) => (
+              <li key={i} className="m-ie-row m-ie-row--removed">
+                <div className="m-ie-row__head">
+                  <span className="m-ie-row__card">
+                    {s.stash_name}: {s.card_name} {s.printing_label}
+                  </span>
+                  <span className="m-ie-row__qty">
+                    {s.before} → {s.after}
+                  </span>
                 </div>
               </li>
             )}

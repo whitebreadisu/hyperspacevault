@@ -2,9 +2,12 @@ import { useRef, useState } from "react";
 import {
   downloadBlob,
   escapeCsvFormula,
+  previewStashImpacts,
+  stashImpactCopies,
   downloadCatalogReference,
   exportInventory,
   ImportApiError,
+  isStashCommitConflict,
   REFRESH_FAILED_BODY,
   REFRESH_FAILED_LEAD,
   runImport,
@@ -20,6 +23,7 @@ import { BusyOverlay } from "../../components/BusyOverlay";
 import { useBusyOverlay } from "../../hooks/useBusyOverlay";
 import { ImportPreviewReport, totalCardsFromReport } from "./ImportPreviewReport";
 import { capture } from "../../analytics/analytics";
+import { useStashes } from "../../stashes/StashContext";
 import "./ImportExportPage.css";
 
 interface Props {
@@ -152,6 +156,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
   // a written import failed, so the success screen can say so.
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [replaceAllConfirmed, setReplaceAllConfirmed] = useState(false);
+  // a preview whose commit would cut stashes needs this ticked too.
+  const [stashCutConfirmed, setStashCutConfirmed] = useState(false);
+  const stashData = useStashes();
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -221,6 +228,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       );
       setReport(result);
       setReplaceAllConfirmed(false);
+      setStashCutConfirmed(false);
       setStep("preview");
       capture("import_dry_run", {
         format: fileFormat(file),
@@ -236,6 +244,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     }
   }
 
+  const stashImpacts = previewStashImpacts(report);
+  const stashCutCopies = stashImpactCopies(stashImpacts);
   const confirmBlocked =
     !file ||
     !mode ||
@@ -243,7 +253,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     !report ||
     committing ||
     report.totals.resolved === 0 ||
-    (mode === "replace_all" && !replaceAllConfirmed);
+    (mode === "replace_all" && !replaceAllConfirmed) ||
+    (stashImpacts.length > 0 && !stashCutConfirmed);
 
   async function handleConfirm() {
     if (!file || !mode || !capHandling || confirmBlocked) return;
@@ -259,7 +270,8 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
       const result = await overlay.run(
         { message: `Applying ${count.toLocaleString()} ${count === 1 ? "card" : "cards"}…` },
         {
-          task: () => runImport(file, mode, capHandling, "commit"),
+          task: () =>
+            runImport(file, mode, capHandling, "commit", report.stash_impacts_token ?? null),
           settleStage: { message: "Refreshing your Vault…" },
           // onImported (CardsPage's refreshQuantities, via App.tsx) does not
           // catch its own errors. The import is already written by now, so a
@@ -269,6 +281,13 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
           settle: async () => {
             try {
               await onImported?.();
+            } catch (err) {
+              console.error(err);
+              setRefreshFailed(true);
+            }
+            // the commit may have cut stashes.
+            try {
+              await stashData.refresh();
             } catch (err) {
               console.error(err);
               setRefreshFailed(true);
@@ -286,6 +305,16 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
         console.error(err);
       }
     } catch (err) {
+      // the stashes moved since the preview (or the commit would
+      // overfill one) -- nothing was written. Back to the configure step with
+      // the file and choices kept, so the next step is a fresh preview; the
+      // stale report and its Confirm are gone.
+      if (isStashCommitConflict(err)) {
+        setReport(null);
+        setReplaceAllConfirmed(false);
+        setStashCutConfirmed(false);
+        setStep("configure");
+      }
       setFileError(
         err instanceof ImportApiError ? err.message : "Something went wrong committing that import."
       );
@@ -318,6 +347,7 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
     setSuccessReport(null);
     setRefreshFailed(false);
     setReplaceAllConfirmed(false);
+    setStashCutConfirmed(false);
     setFileError(null);
   }
 
@@ -364,6 +394,9 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
                   {downloadingKinds.has("csv") ? "Preparing…" : "Download CSV"}
                 </SWUButton>
               </div>
+              {stashData.stashes.length > 0 && (
+                <p className="ie-note ie-stash-note">Exports don&apos;t include stashes.</p>
+              )}
             </div>
             <aside className="ie-reference" aria-labelledby="ie-reference-title">
               <div className="ie-reference__text">
@@ -546,6 +579,20 @@ export function ImportExportPage({ onBackToVault, onImported }: Props) {
                 <span>
                   I understand this will permanently remove {removalCount}{" "}
                   {removalCount === 1 ? "card" : "cards"} not in this file.
+                </span>
+              </label>
+            )}
+
+            {stashImpacts.length > 0 && (
+              <label className="ie-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={stashCutConfirmed}
+                  onChange={(e) => setStashCutConfirmed(e.target.checked)}
+                />
+                <span>
+                  I understand this will take {stashCutCopies}{" "}
+                  {stashCutCopies === 1 ? "copy" : "copies"} out of my stashes.
                 </span>
               </label>
             )}

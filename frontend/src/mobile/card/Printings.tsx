@@ -9,6 +9,7 @@ import { PriceSeg } from "../vault/CompletionHeader";
 import { priceAttribution } from "../../utils/priceAttribution";
 import { groupPrintings, orderPrintings, railPrice, stepperState } from "./cardDetailModel";
 import type { Stepper } from "./useStepper";
+import { STASH_FLOOR_HINT } from "../../stashes/useStashEditor";
 
 // The printings rail (App Spec §25.2) -- desktop CardPopupRail.tsx's order
 // (base set first, other sources alphabetically, card number ascending),
@@ -127,6 +128,7 @@ export function Printings({
                     isAuthenticated={isAuthenticated}
                     incDisabled={st.incDisabled}
                     decDisabled={st.decDisabled}
+                    atStashFloor={!st.decDisabled && qty <= (stepper.floorOf?.(v) ?? 0)}
                     pastLimit={st.pastLimit}
                     overLimit={st.softOverLimit}
                     pending={stepper.pending}
@@ -164,6 +166,7 @@ function Step({
   isAuthenticated,
   incDisabled,
   decDisabled,
+  atStashFloor = false,
   pastLimit,
   overLimit,
   pending,
@@ -176,6 +179,8 @@ function Step({
   isAuthenticated: boolean;
   incDisabled: boolean;
   decDisabled: boolean;
+  /** every copy is stashed -- `-` is aria-disabled with the hint. */
+  atStashFloor?: boolean;
   pastLimit: boolean;
   overLimit: boolean;
   pending: boolean;
@@ -217,8 +222,9 @@ function Step({
         type="button"
         className="m-step"
         disabled={decDisabled}
-        onClick={onDec}
-        aria-label={`Decrement ${label}`}
+        aria-disabled={atStashFloor ? true : undefined}
+        onClick={atStashFloor ? undefined : onDec}
+        aria-label={atStashFloor ? `Decrement ${label}. ${STASH_FLOOR_HINT}` : `Decrement ${label}`}
       >
         −
       </button>

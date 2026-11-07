@@ -100,6 +100,20 @@ class RemovedRow(BaseModel):
     quantity: int
 
 
+class StashImpact(BaseModel):
+    """one stash copy-count the import would cut so the stashed total
+    of a printing never exceeds its new owned quantity. Newest stash first;
+    the commit applies exactly these cuts."""
+
+    stash_id: int
+    stash_name: str
+    variant_id: int
+    card_name: str
+    printing_label: str
+    before: int
+    after: int
+
+
 class ImportReport(BaseModel):
     stage: ImportStage
     mode: ImportMode
@@ -108,3 +122,5 @@ class ImportReport(BaseModel):
     totals: ImportTotals
     rows: list[ImportRowReport]
     removed: list[RemovedRow] = []
+    stash_impacts: list[StashImpact] = []
+    stash_impacts_token: str = ""

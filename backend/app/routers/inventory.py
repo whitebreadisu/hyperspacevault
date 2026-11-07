@@ -28,6 +28,7 @@ from app.schemas.inventory_schema import (
 from app.services import inventory as inventory_service
 from app.services import inventory_import as inventory_import_service
 from app.services import inventory_io, swudb_import, swunlimiteddb_import
+from app.services import stashes as stash_service
 
 # Upload limits on the raw file, checked before any parsing: 10 MB / 20,000
 # rows (App Spec §17.2). The whole catalog is well under the row cap, so no
@@ -208,6 +209,7 @@ def import_inventory(
     mode: Literal["merge_add", "replace", "replace_all"] = Form(...),
     cap_handling: Literal["add_above", "trim"] = Form(...),
     stage: Literal["dry_run", "commit"] = Form(...),
+    stash_impacts_token: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     # Tenant rate limit checked first, before reading the upload at all:
@@ -292,6 +294,11 @@ def import_inventory(
     if len(parse_result.rows) > IMPORT_MAX_ROWS:
         raise HTTPException(status_code=422, detail="too_many_rows")
 
+    if stage == "commit":
+        # lock inventory first (same order as the stash PUT) so the
+        # stash impacts computed below cannot go stale before the write.
+        inventory_import_service.lock_inventory_for_commit(db)
+
     report, plan = inventory_import_service.compute_import(
         db,
         parse_result.rows,
@@ -302,8 +309,14 @@ def import_inventory(
     )
 
     if stage == "commit":
-        inventory_import_service.apply_write_plan(db, plan)
-        db.commit()
+        try:
+            inventory_import_service.apply_commit(db, plan, report, stash_impacts_token)
+        except inventory_import_service.StashImpactsChanged:
+            raise HTTPException(
+                status_code=409, detail="stash_impacts_changed"
+            ) from None
+        except stash_service.ExceedsOwned:
+            raise HTTPException(status_code=409, detail="exceeds_owned") from None
         report.committed = True
 
     return report

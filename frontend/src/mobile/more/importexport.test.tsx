@@ -146,7 +146,9 @@ describe("S4-11 preview + commit", () => {
     fireEvent.click(btn("Confirm import"));
     await screen.findByText(/Import complete — 2 rows written\./);
     expect(runImport).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(runImport).mock.calls[1]).toEqual([f, "merge_add", "trim", "commit"]);
+    // PORT (BL-344 fold-in 1): the commit also carries the preview's
+    // stash_impacts_token (this fixture has none, so null).
+    expect(vi.mocked(runImport).mock.calls[1]).toEqual([f, "merge_add", "trim", "commit", null]);
     expect(vi.mocked(getQuantities).mock.calls.length).toBeGreaterThan(before);
   });
 

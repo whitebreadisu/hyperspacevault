@@ -21,6 +21,8 @@ interface Book {
   serverQty: number;
   unflushed: number;
   timer: ReturnType<typeof setTimeout> | null;
+  /** the call on the wire, if any (a stash Done waits for it). */
+  inflight?: Promise<void> | null;
 }
 
 export interface Stepper {
@@ -30,9 +32,19 @@ export interface Stepper {
   decrement: (v: InventoryVariant) => void;
   pending: boolean;
   error: string | null;
+  /** the lowest owned count `-` may reach (the printing's stashed
+   * copies); absent = 0. */
+  floorOf?: (v: InventoryVariant) => number;
+  /** send the printing's open batch now and wait for it. */
+  settle?: (variantId: number) => Promise<void>;
 }
 
-export function useStepper(patchQuantity: (variantId: number, quantity: number) => void): Stepper {
+/** `floorOf`: a decrement at or below the printing's stashed total
+ * is never queued -- owned can never go below it. */
+export function useStepper(
+  patchQuantity: (variantId: number, quantity: number) => void,
+  floorOf?: (variantId: number) => number
+): Stepper {
   const [shown, setShown] = useState<Record<number, number>>({});
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +54,10 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
   useEffect(() => {
     patchRef.current = patchQuantity;
   }, [patchQuantity]);
+  const floorRef = useRef(floorOf);
+  useEffect(() => {
+    floorRef.current = floorOf;
+  }, [floorOf]);
   const live = useRef(true);
 
   const show = useCallback((id: number, q: number | null) => {
@@ -54,7 +70,7 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
     });
   }, []);
 
-  const flush = useCallback(
+  const send = useCallback(
     async (id: number) => {
       const e = book.current.get(id);
       if (!e || e.unflushed === 0) return;
@@ -85,6 +101,35 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
     [show]
   );
 
+  // `send`, remembering the call on the wire for settle().
+  const flush = useCallback(
+    (id: number): Promise<void> => {
+      const e = book.current.get(id);
+      if (!e) return Promise.resolve();
+      if (e.unflushed === 0) return e.inflight ?? Promise.resolve();
+      const run = send(id);
+      e.inflight = run;
+      void run.finally(() => {
+        if (e.inflight === run) e.inflight = null;
+      });
+      return run;
+    },
+    [send]
+  );
+
+  const settle = useCallback(
+    (id: number): Promise<void> => {
+      const e = book.current.get(id);
+      if (!e) return Promise.resolve();
+      if (e.timer !== null) {
+        clearTimeout(e.timer);
+        e.timer = null;
+      }
+      return flush(id);
+    },
+    [flush]
+  );
+
   const bump = useCallback(
     (v: InventoryVariant, delta: 1 | -1) => {
       const id = v.variant_id;
@@ -93,6 +138,7 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
         e = { serverQty: v.quantity, unflushed: 0, timer: null };
         book.current.set(id, e);
       }
+      if (delta < 0 && e.serverQty + e.unflushed <= (floorRef.current?.(id) ?? 0)) return;
       e.unflushed += delta;
       show(id, e.serverQty + e.unflushed);
       if (e.timer !== null) clearTimeout(e.timer);
@@ -127,5 +173,7 @@ export function useStepper(patchQuantity: (variantId: number, quantity: number) 
     decrement: (v) => bump(v, -1),
     pending,
     error,
+    floorOf: floorOf ? (v) => floorOf(v.variant_id) : undefined,
+    settle,
   };
 }

@@ -8,6 +8,7 @@ import {
   plateState,
   railPrice,
   regionGeom,
+  stashGeom,
   stepperState,
 } from "./cardDetailModel";
 import { navPosition } from "./navList";
@@ -133,6 +134,34 @@ describe("S2-02 region geometry (rev4 regionGeom)", () => {
     expect(back.land).toBe(false);
     expect(front.full - back.full).toBe(238 - 392);
     expect(front.hasBack).toBe(true);
+  });
+});
+
+describe("BL-344 region geometry with the stash block (phone 1e)", () => {
+  const plain = regionGeom({ type: "Unit" }, { back_image_url: "x" }, false);
+  it("no stash UI (signed out, a share, 0 owned) leaves the region as it was", () => {
+    expect(stashGeom(false, 5)).toEqual({ expanded: 0, pinned: 0 });
+    const g = regionGeom({ type: "Unit" }, { back_image_url: "x" }, false, stashGeom(false, 0));
+    expect(g).toEqual(plain);
+    expect([g.regMin, g.pinned]).toEqual([100, 0]);
+  });
+  it("Stash copies (nothing stashed): +50 under the plate, nothing pinned", () => {
+    const g = regionGeom({ type: "Unit" }, { back_image_url: "x" }, false, stashGeom(true, 0));
+    expect(g.full - plain.full).toBe(6 + 44);
+    expect(g.flipTop - plain.flipTop).toBe(6 + 44);
+    expect(g.ownTop).toBe(plain.ownTop);
+    expect([g.regMin, g.pinned]).toEqual([100, 0]);
+    expect(g.delta).toBe(g.full - 100);
+  });
+  it("the read-only list: header + 40 px rows under the plate, the same list pinned", () => {
+    const g = regionGeom({ type: "Unit" }, { back_image_url: "x" }, false, stashGeom(true, 2));
+    expect(g.full - plain.full).toBe(6 + 44 + 2 * 40);
+    expect(g.pinned).toBe(44 + 2 * 40 + 7);
+    // The pinned list is part of the fixed region: the layout box grows by
+    // it and the body's offset is measured from there.
+    expect(g.regMin).toBe(100 + g.pinned);
+    expect(g.delta).toBe(g.full - g.regMin);
+    expect(g.delta).toBeGreaterThan(0);
   });
 });
 
