@@ -820,3 +820,35 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 ### §25.6 — Shared header bullet, wordmark sentence (verbatim)
 
 > the wordmark and version line are unchanged and the wordmark never truncates (the shared header sets the wordmark's letter-spacing to 0.06em so the 13 px Sign in link beside Feedback never pushes it past its box).
+
+### Owner change after the first build (2026-11-07, same PR) — sentences replaced before merge (verbatim)
+
+The owner moved the desktop logo and tag line onto the brand chooser and the phone's collapsed badge and chooser heading onto the initials logo. The first-build sentences, never merged, as they stood:
+
+#### §5.8 — About & Legal, the header opener
+
+> the header's "Unofficial Fan Project" button on the tag line under the logo (visible to anonymous and signed-in visitors alike)
+
+#### §5.12 — Header brand bullet
+
+> - **Header brand (BL-340):** the full logo (`assets/brand/hsv-logo-full@{2,3}x.webp`, alt "Hyperspace Vault") is 46 px tall, auto width, 4 px above the tag line, and a click goes to the Vault. One tag line under it, in `.app-header__brand-tag` type (10 px, uppercase by CSS): "Unofficial Fan Project" (a button, opens About & Legal, §5.8) and the version (a button, `formatVersionLabel`, `text-transform: none`, opens [HSV] Updates, §20, and carries the unread cue). Both tag buttons are white at rest and on hover (`#ffffff`) with the header links' cream glow. No "[Release Notes]" sub-label. The header stays 120 px tall at 1440 px (brand block 72 px + 47 px bottom padding + 1 px border).
+
+#### §25.1 — Shell bullet, chooser and cue sentence
+
+> Brand-stack / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the tag line (the collapsed strip's `[HSV]` text badge when collapsed), never on More.
+
+#### §25.4 — Unread cue bullet, primary-cue sentence
+
+> The tag-line / badge glow is the primary cue;
+
+## Archived 2026-11-07 — collapse hold release timing (BL-339)
+
+**Disposition:** → archive. The review round of BL-339 (same PR) releases the hold shortly after the finger lifts or the wheel goes quiet instead of on the next gesture, counts only touches that moved the list, and suspends the hold in search mode; §25.2's layout-probe claim is qualified for a held collapse. No new ADR.
+
+### §25.1 — Collapse bullet, hold sentences (first build, never merged; verbatim)
+
+> the list snaps back to the top the travel started from (the first card right under the collapsed strip) and stays held for the rest of that finger drag, its momentum included, or that wheel gesture; the next touch, or a fresh wheel gesture (after a 250 ms gap), scrolls normally. A collapse no touch or wheel drove (keyboard, programmatic) is not held, and a hold always releases after 800 ms with no touch, wheel or scroll.
+
+### §25.2 — Card detail, layout-probe clause (verbatim)
+
+> the art region collapses on scroll by transform + opacity only (layout probe: 0 layouts / 0 shifts at 390 and 430);

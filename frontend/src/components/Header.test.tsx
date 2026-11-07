@@ -1,6 +1,13 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { Header } from "./Header";
+
+const BRAND = /^Hyperspace Vault, Unofficial Fan Project v\d+\.\d+.* - About & Legal and Updates$/;
+/** Open the brand chooser (the logo + tag line button) and return the dialog. */
+function openChooser() {
+  fireEvent.click(screen.getByRole("button", { name: BRAND }));
+  return screen.getByRole("dialog");
+}
 
 // DISPOSITION (BL-126, PORT/signature-only): every render call in this file
 // gained the required onOpenFeedback prop (the same churn BL-23/BL-87/BL-25/
@@ -605,6 +612,9 @@ describe("Header settings-view nav (BL-25)", () => {
 // regardless of auth state (unlike the UserMenu item below, which only
 // exists once signed in), so both an anonymous and an authenticated render
 // are covered here.
+// PORT: the tag line is no longer its own About button; the brand button
+// opens the chooser and its About & Legal button calls onOpenAbout, for a
+// signed-out visitor too.
 describe("Header brand-line About microcopy (BL-125)", () => {
   it("shows the microcopy and fires onOpenAbout when anonymous", () => {
     const onOpenAbout = vi.fn();
@@ -620,11 +630,10 @@ describe("Header brand-line About microcopy (BL-125)", () => {
       />
     );
 
-    const tag = screen.getByRole("button", { name: /unofficial fan project/i });
-    expect(tag).toBeInTheDocument();
-
-    fireEvent.click(tag);
+    const dlg = openChooser();
+    fireEvent.click(within(dlg).getByRole("button", { name: "About & Legal" }));
     expect(onOpenAbout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows the microcopy and fires onOpenAbout when authenticated", () => {
@@ -641,8 +650,8 @@ describe("Header brand-line About microcopy (BL-125)", () => {
       />
     );
 
-    const tag = screen.getByRole("button", { name: /unofficial fan project/i });
-    fireEvent.click(tag);
+    const dlg = openChooser();
+    fireEvent.click(within(dlg).getByRole("button", { name: "About & Legal" }));
     expect(onOpenAbout).toHaveBeenCalledTimes(1);
   });
 });
@@ -765,8 +774,11 @@ describe("Header Leave Feedback button (BL-126)", () => {
 // (conditionally rendered -- present only while hasUnread or already the
 // active view, leftmost of the peer nav tabs, carrying the shared amber cue
 // class while unread).
+// PORT: the version is plain text on the tag line; Updates is reached through
+// the brand chooser, and the version label's cue moved to the tag line and
+// the chooser's Updates button.
 describe("Header version label + New Arrivals nav (BL-184)", () => {
-  it("always shows the version label, even with no onOpenNotes/hasUnread wired", () => {
+  it("always shows the version on the tag line, even with no onOpenNotes/hasUnread wired", () => {
     render(
       <Header
         userEmail={null}
@@ -778,10 +790,12 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenFeedback={vi.fn()}
       />
     );
-    expect(screen.getByRole("button", { name: /^v\d+\.\d+/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: BRAND }).textContent).toMatch(
+      /^Unofficial Fan Project v\d+\.\d+/
+    );
   });
 
-  it("fires onOpenNotes when the version label is clicked", () => {
+  it("fires onOpenNotes from the brand chooser's Updates button", () => {
     const onOpenNotes = vi.fn();
     render(
       <Header
@@ -795,8 +809,10 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
         onOpenNotes={onOpenNotes}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /^v\d+\.\d+/ }));
+    const dlg = openChooser();
+    fireEvent.click(within(dlg).getByRole("button", { name: "[HSV] Updates" }));
     expect(onOpenNotes).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("does not render the New Arrivals nav tab when hasUnread is false and it isn't the active view", () => {
@@ -831,7 +847,7 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(tabs.map((t) => t.textContent)).toEqual(["[HSV] Updates", "Vault", "Deck Check"]);
   });
 
-  it("carries the cue class on both the nav tab and the version label while hasUnread is true", () => {
+  it("carries the cue on the nav tab, the tag line and the chooser's Updates button while hasUnread is true", () => {
     render(
       <Header
         userEmail={null}
@@ -847,12 +863,17 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).toContain(
       "nav-tab--cue"
     );
-    expect(screen.getByRole("button", { name: /^v\d+\.\d+/ }).className).toContain(
-      "app-header__version--cue"
-    );
+    const tag = screen
+      .getByRole("button", { name: BRAND })
+      .querySelector(".app-header__brand-line")!;
+    expect(tag.className).toContain("app-header__brand-line--cue");
+    const dlg = openChooser();
+    const updates = within(dlg).getByRole("button", { name: "[HSV] Updates" });
+    expect(updates.className).toContain("m-chooser__btn--cue");
+    expect(updates.querySelector(".m-cue")).not.toBeNull();
   });
 
-  it("carries no cue class on either entry point once hasUnread is false", () => {
+  it("carries no cue on the nav tab, the tag line or the chooser once hasUnread is false", () => {
     render(
       <Header
         userEmail={null}
@@ -868,9 +889,14 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
       "nav-tab--cue"
     );
-    expect(screen.getByRole("button", { name: /^v\d+\.\d+/ }).className).not.toContain(
-      "app-header__version--cue"
-    );
+    const tag = screen
+      .getByRole("button", { name: BRAND })
+      .querySelector(".app-header__brand-line")!;
+    expect(tag.className).not.toContain("app-header__brand-line--cue");
+    const dlg = openChooser();
+    const updates = within(dlg).getByRole("button", { name: "[HSV] Updates" });
+    expect(updates.className).not.toContain("m-chooser__btn--cue");
+    expect(updates.querySelector(".m-cue")).toBeNull();
   });
 
   it("keeps the New Arrivals nav tab visible while it's the active view even once hasUnread is false", () => {
@@ -1039,12 +1065,16 @@ describe("Header shared-vault nav (BL-205)", () => {
   });
 });
 
-// DISPOSITION (CREATE): the full logo replaces the text wordmark and goes to
-// the Vault; one tag line under it holds "Unofficial Fan Project" (About &
-// Legal, covered above) and the version button ([HSV] Updates, covered in
-// the version-label block above); the "[Release Notes]" sub-label is gone.
-describe("Header logo and one-line brand tag", () => {
-  function renderBrand(props: { onNavigateCards?: () => void; onOpenNotes?: () => void } = {}) {
+// DISPOSITION (REPLACE): the logo no longer goes to the Vault and the tag
+// line no longer holds two buttons. The logo and the one-line tag are one
+// button whose name says what it opens; it opens the brand chooser (About &
+// Legal / [HSV] Updates). The DOM-only "tag and version on one line" and
+// "styled as the tag" tests are retired: the one-line claim is asserted with
+// rendered geometry in e2e (s6-11-desktop-smoke, desktop-1440).
+describe("Header brand button and chooser", () => {
+  function renderBrand(
+    props: { onNavigateCards?: () => void; onOpenNotes?: () => void; onOpenAbout?: () => void } = {}
+  ) {
     return render(
       <Header
         userEmail={null}
@@ -1059,30 +1089,47 @@ describe("Header logo and one-line brand tag", () => {
     );
   }
 
-  it("shows the full logo with its alt text, and a click goes to the Vault", () => {
-    const onNavigateCards = vi.fn();
-    renderBrand({ onNavigateCards });
+  it("shows the full logo at its intrinsic size inside the brand button", () => {
+    renderBrand();
     const logo = screen.getByRole("img", { name: "Hyperspace Vault" });
     expect(logo.getAttribute("srcset")).toMatch(/ 2x, .* 3x$/);
+    expect(logo.getAttribute("width")).toBe("158");
+    expect(logo.getAttribute("height")).toBe("46");
+    expect(screen.getByRole("button", { name: BRAND }).contains(logo)).toBe(true);
     expect(screen.queryByText(/\[HSV\] Hyperspace Vault/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Hyperspace Vault" }));
-    expect(onNavigateCards).toHaveBeenCalledTimes(1);
-  });
-
-  it("puts the tag and the version on one line, with no Release Notes sub-label", () => {
-    const { container } = renderBrand();
-    const line = container.querySelector(".app-header__brand-line")!;
-    const buttons = Array.from(line.querySelectorAll("button")).map((b) => b.textContent);
-    expect(buttons).toEqual(["Unofficial Fan Project", expect.stringMatching(/^v\d+\.\d+/)]);
     expect(screen.queryByText(/release notes/i)).not.toBeInTheDocument();
   });
 
-  it("the version button is styled as the tag and opens Updates", () => {
+  it("opens the chooser instead of going to the Vault; X closes it", () => {
+    const onNavigateCards = vi.fn();
+    renderBrand({ onNavigateCards });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const dlg = openChooser();
+    expect(onNavigateCards).not.toHaveBeenCalled();
+    expect(
+      within(dlg)
+        .getAllByRole("button")
+        .map((b) => b.textContent)
+    ).toEqual(["", "About & Legal", "[HSV] Updates"]);
+    expect(within(dlg).getByRole("img", { name: "Hyperspace Vault" })).toBeInTheDocument();
+    fireEvent.click(within(dlg).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Escape closes the chooser without calling either handler", () => {
+    const onOpenAbout = vi.fn();
     const onOpenNotes = vi.fn();
-    renderBrand({ onOpenNotes });
-    const version = screen.getByRole("button", { name: /^v\d+\.\d+.*\[HSV\] Updates$/ });
-    expect(version.className).toContain("app-header__brand-tag");
-    fireEvent.click(version);
-    expect(onOpenNotes).toHaveBeenCalledTimes(1);
+    renderBrand({ onOpenAbout, onOpenNotes });
+    openChooser();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onOpenAbout).not.toHaveBeenCalled();
+    expect(onOpenNotes).not.toHaveBeenCalled();
+  });
+
+  it("has no separate About or version buttons on the tag line", () => {
+    renderBrand();
+    expect(screen.queryByRole("button", { name: /^unofficial fan project$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^v\d+\.\d+/ })).toBeNull();
   });
 });

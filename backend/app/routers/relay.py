@@ -21,17 +21,28 @@ Two upstream hosts, per PostHog's documented reverse-proxy contract:
 
 Failure posture: analytics must never break the app, and a
 PostHog outage must never page us. On the ingestion path an upstream
-timeout, transport error or 5xx is answered `200 {"status": 1}` (what
-PostHog itself returns for an accepted event, so posthog-js treats it as
-delivered and does not retry) and logged as ONE WARNING line (error class
-or upstream status, plus the path -- never payload, headers or query).
-The browser therefore never sees a 5xx, so Cloud Run's request log and the
-`high_5xx_rate` alert (Platform Spec 4.3) stay quiet. Accepted trade-off:
-events from a failed moment are dropped rather than retried by the SDK.
-Upstream 2xx/3xx/4xx pass through unchanged. The asset path
-(/api/relay/static/*) is NOT masked: a failed JS asset is not an accepted
-event, so it keeps a plain 502 (transport failure) or the upstream status.
-Nothing here raises into the app's error surface.
+timeout, transport error or 5xx is answered without a 5xx, by endpoint
+category (see _category):
+  - capture and replay endpoints (`/e/`, `/i/v0/e/`, `/s/`, `/batch/`,
+    `/engage/`, `/capture/`) get `200 {"status": 1}` -- what PostHog itself
+    returns for an accepted event, so posthog-js treats it as delivered and
+    does not retry (its retry queue re-sends any non-200 that is not 4xx).
+  - every other ingestion endpoint (`/flags/`, `/decide/`, `/array/...`)
+    gets a bodyless `204`. posthog-js only parses JSON from a status-200
+    response, reads `statusCode !== 200` as a failed flags load
+    (posthog-featureflags handleResponse) and an absent `json` as a failed
+    remote-config load (remote-config _onRemoteConfig, `{ ok: false }`), so
+    a fake `200 {"status": 1}` there would pass a failed load off as
+    success. 204 is not a 5xx, so the alert stays quiet.
+Each is logged as ONE WARNING line carrying the endpoint category plus the
+error class or upstream status -- never the path (caller-controlled text),
+query, payload or headers. The browser never sees a 5xx, so Cloud Run's
+request log and the `high_5xx_rate` alert (Platform Spec 4.3) stay quiet.
+Accepted trade-off: events from a failed moment are dropped rather than
+retried by the SDK. Upstream 2xx/3xx/4xx pass through unchanged. The asset
+path (/api/relay/static/*) is NOT masked: a failed JS asset is not an
+accepted event, so it keeps a plain 502 (transport failure) or the upstream
+status. Nothing here raises into the app's error surface.
 """
 
 import logging
@@ -73,9 +84,32 @@ def _upstream_url(path: str, query: str) -> str:
     return url
 
 
-def _accepted() -> Response:
-    """The success answer PostHog gives for an accepted ingestion request."""
-    return Response(content=b'{"status": 1}', media_type="application/json")
+_CAPTURE_SEGMENTS = frozenset({"e", "i", "batch", "engage", "capture"})
+
+
+def _category(path: str) -> str:
+    """Coarse endpoint category from the first path segment: capture, replay,
+    flags, config or other. Drives the failure answer and the log line, so
+    caller-controlled path text never reaches the logs."""
+    first = path.split("/", 1)[0]
+    if first in _CAPTURE_SEGMENTS:
+        return "capture"
+    if first == "s":
+        return "replay"
+    if first in ("flags", "decide"):
+        return "flags"
+    if first == "array":
+        return "config"
+    return "other"
+
+
+def _failure_answer(category: str) -> Response:
+    """Non-5xx answer for a failed ingestion request. Event endpoints get the
+    success body PostHog gives for an accepted request; everything else gets a
+    bodyless 204, which posthog-js reads as a failed load."""
+    if category in ("capture", "replay"):
+        return Response(content=b'{"status": 1}', media_type="application/json")
+    return Response(status_code=204)
 
 
 @router.api_route("/{path:path}", methods=["GET", "POST"])
@@ -103,16 +137,24 @@ async def relay(path: str, request: Request) -> Response:
             headers=headers,
         )
     except httpx.HTTPError as exc:
-        # Log the class and path, not the payload or query -- analytics
-        # bodies and ids never belong in our logs.
-        logger.warning("relay upstream error: %s path=/%s", type(exc).__name__, path)
-        return Response(status_code=502) if is_asset else _accepted()
+        if is_asset:
+            return Response(status_code=502)
+        # Log the class and endpoint category only -- the path is
+        # caller-controlled; bodies and ids never belong in our logs.
+        category = _category(path)
+        logger.warning(
+            "relay upstream error: %s endpoint=%s", type(exc).__name__, category
+        )
+        return _failure_answer(category)
 
     if upstream_response.status_code >= 500 and not is_asset:
+        category = _category(path)
         logger.warning(
-            "relay upstream status: %d path=/%s", upstream_response.status_code, path
+            "relay upstream status: %d endpoint=%s",
+            upstream_response.status_code,
+            category,
         )
-        return _accepted()
+        return _failure_answer(category)
 
     return Response(
         content=upstream_response.content,

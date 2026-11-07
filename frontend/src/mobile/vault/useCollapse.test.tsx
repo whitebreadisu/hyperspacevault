@@ -1,10 +1,13 @@
 import { act, fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HOLD_MS, useCollapse } from "./useCollapse";
+import { HOLD_MS, RELEASE_MS, STALE_MS, useCollapse } from "./useCollapse";
 
 // The collapse-side hitch (App Spec §25.1 Collapse). The gesture that collapses ends there: the
-// list is held at the collapsing travel's anchor (its top) until the next
-// touchstart, a fresh wheel gesture, expand(), unmount or the HOLD_MS fallback.
+// list is held at the collapsing travel's anchor (its top) while the finger is
+// down, then released RELEASE_MS after the finger lifts (or the wheel stream
+// goes quiet), so the next gesture finds the list live; a touchstart, a fresh
+// wheel gesture, expand(), search mode and unmount release at once, and the
+// HOLD_MS cap bounds it.
 // jsdom does not scroll, so the stub element carries its own scrollTop /
 // scrollHeight / clientHeight and each test fires the scroll events a browser
 // would.
@@ -41,10 +44,13 @@ const wheel = (el: HTMLElement, deltaY: number) => act(() => void fireEvent.whee
 const advance = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
 
 function mount(el: HTMLElement, forced = false) {
-  const h = renderHook(() => useCollapse(forced));
+  const h = renderHook(({ searching }) => useCollapse(forced, 320, false, 0, searching), {
+    initialProps: { searching: false },
+  });
   act(() => h.result.current.scrollEl(el));
   return h;
 }
+const held = (el: HTMLElement) => el.style.overflowY === "hidden";
 
 /** A finger drag (still down) that travels past the 28 px. */
 function dragCollapse(el: HTMLElement) {
@@ -86,17 +92,33 @@ describe("useCollapse hold", () => {
     expect(el.style.overflowY).toBe("hidden");
   });
 
-  it("the next touchstart releases; that touch scrolls and does not re-hold", () => {
+  // REPLACE (the touchstart release came too late on iOS, where a passive
+  // touchstart cannot make its own touch scroll): the hold ends RELEASE_MS
+  // after the finger lifts, before the next touch.
+  it("releases RELEASE_MS after the finger lifts; the next touch scrolls and does not re-hold", () => {
     const el = stubScroller();
     const h = mount(el);
     dragCollapse(el);
     up(el);
-    advance(100);
+    advance(RELEASE_MS - 1);
+    expect(held(el)).toBe(true);
+    advance(1);
+    expect(held(el)).toBe(false);
     down(el);
-    expect(el.style.overflowY).toBe("");
     scrollTo(el, 300);
     expect(el.scrollTop).toBe(300);
     expect(h.result.current.collapsed).toBe(true);
+  });
+
+  it("a touch that lands inside RELEASE_MS releases at its touchstart", () => {
+    const el = stubScroller();
+    mount(el);
+    dragCollapse(el);
+    up(el);
+    advance(40);
+    expect(held(el)).toBe(true);
+    down(el);
+    expect(held(el)).toBe(false);
   });
 
   it("the release touch starts at the top while collapsed, so a pull from there still expands", () => {
@@ -131,33 +153,102 @@ describe("useCollapse hold", () => {
     expect(el.style.overflowY).toBe("hidden");
   });
 
-  it("a fresh wheel gesture (after 250 ms) releases and scrolls", () => {
+  // REPLACE (Chromium latches a wheel gesture's scroll target at its first
+  // event, so releasing on the next gesture's first event was too late): the
+  // wheel hold ends RELEASE_MS after the stream goes quiet, before a fresh
+  // gesture (> 250 ms) can start.
+  it("a wheel hold releases once the wheel stream goes quiet; the next wheel scrolls", () => {
     const el = stubScroller();
     mount(el);
     wheel(el, 40);
     scrollTo(el, 40);
-    expect(el.style.overflowY).toBe("hidden");
+    expect(held(el)).toBe(true);
+    advance(RELEASE_MS - 1);
+    expect(held(el)).toBe(true);
+    advance(1);
+    expect(held(el)).toBe(false);
     advance(300);
     wheel(el, 40);
-    expect(el.style.overflowY).toBe("");
     scrollTo(el, 40);
     expect(el.scrollTop).toBe(40);
   });
 
-  it("the fallback releases after HOLD_MS of quiet, but never under a finger", () => {
+  // REPLACE (the fallback was the only release after a lift; it is now the
+  // last resort behind RELEASE_MS).
+  it("never releases under a finger; releases RELEASE_MS after it lifts", () => {
     const el = stubScroller();
     mount(el);
     dragCollapse(el);
-    advance(HOLD_MS * 3);
-    expect(el.style.overflowY).toBe("hidden"); // finger still down
+    for (let i = 0; i < 4; i++) {
+      advance(HOLD_MS / 2);
+      move(el, 300 - i * 10); // the finger is still down and moving
+    }
+    expect(held(el)).toBe(true);
     up(el);
-    advance(HOLD_MS - 1);
-    expect(el.style.overflowY).toBe("hidden");
-    advance(1);
-    expect(el.style.overflowY).toBe("");
+    advance(RELEASE_MS);
+    expect(held(el)).toBe(false);
     expect(el.style.getPropertyValue("scrollbar-gutter")).toBe("");
     scrollTo(el, 500); // e.g. a keyboard scroll
     expect(el.scrollTop).toBe(500);
+  });
+
+  it("scroll events after the lift cannot prolong the hold past HOLD_MS", () => {
+    const el = stubScroller();
+    mount(el);
+    dragCollapse(el);
+    up(el);
+    // A put-back scroll every 50 ms (momentum, or a programmatic adjustment).
+    for (let t = 50; t < HOLD_MS; t += 50) {
+      advance(50);
+      scrollTo(el, 30);
+      expect(held(el)).toBe(true);
+    }
+    advance(50);
+    expect(held(el)).toBe(false);
+  });
+
+  it("a finger that sends nothing for STALE_MS counts as lifted (lost touchend)", () => {
+    const el = stubScroller();
+    mount(el);
+    dragCollapse(el);
+    advance(STALE_MS - HOLD_MS);
+    expect(held(el)).toBe(true);
+    advance(HOLD_MS * 2);
+    expect(held(el)).toBe(false);
+  });
+
+  it("touchcancel ends the touch: the hold releases RELEASE_MS later", () => {
+    const el = stubScroller();
+    mount(el);
+    dragCollapse(el);
+    act(() => void fireEvent.touchCancel(el, { touches: [] }));
+    advance(RELEASE_MS);
+    expect(held(el)).toBe(false);
+  });
+
+  it("a touchend that never reaches the list (window, capture) still ends the touch", () => {
+    const el = stubScroller();
+    mount(el);
+    dragCollapse(el);
+    // Something above the list stops the touchend before it gets there.
+    const stop = (e: Event) => e.stopPropagation();
+    document.addEventListener("touchend", stop, { capture: true });
+    act(() => void fireEvent.touchEnd(el, { touches: [] }));
+    document.removeEventListener("touchend", stop, { capture: true });
+    advance(RELEASE_MS);
+    expect(held(el)).toBe(false);
+  });
+
+  it("a plain tap, then a layout scroll within the momentum window, does not hold", () => {
+    const el = stubScroller();
+    const h = mount(el);
+    down(el);
+    up(el);
+    advance(50); // < FLOW_GAP_MS (200)
+    scrollTo(el, 60);
+    expect(h.result.current.collapsed).toBe(true);
+    expect(el.scrollTop).toBe(60);
+    expect(held(el)).toBe(false);
   });
 
   it("expand() releases", () => {
@@ -248,5 +339,30 @@ describe("useCollapse hold", () => {
     scrollTo(el, 0);
     up(el);
     expect(h.result.current.collapsed).toBe(true);
+  });
+
+  it("search mode never collapses or holds; the first swipe in the results scrolls", () => {
+    const el = stubScroller();
+    const h = mount(el);
+    h.rerender({ searching: true });
+    dragCollapse(el);
+    scrollTo(el, 400);
+    up(el);
+    expect(h.result.current.collapsed).toBe(false);
+    expect(el.scrollTop).toBe(400);
+    expect(held(el)).toBe(false);
+    // Leaving search mid-list: the search scroll is not collapse travel.
+    h.rerender({ searching: false });
+    scrollTo(el, 410);
+    expect(h.result.current.collapsed).toBe(false);
+  });
+
+  it("entering search releases a hold at once", () => {
+    const el = stubScroller();
+    const h = mount(el);
+    dragCollapse(el);
+    expect(held(el)).toBe(true);
+    h.rerender({ searching: true });
+    expect(held(el)).toBe(false);
   });
 });

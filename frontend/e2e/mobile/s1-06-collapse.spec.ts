@@ -360,9 +360,9 @@ async function drag(page: Page, x: number, y: number, dy: number) {
   };
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
   await more(dy);
-  const lift = async () => {
+  const lift = async (settle = 400) => {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(settle);
   };
   return { more, lift };
 }
@@ -399,6 +399,61 @@ test("s1-06-collapse-holds-wheel", async ({ page }) => {
   // A fresh wheel gesture (> 250 ms later) scrolls.
   await wheel(page, SCROLL, Array(6).fill(60));
   expect(await held(page)).toBe("auto");
+  expect(await scrollTop(page)).toBeGreaterThan(0);
+  expect(await isCollapsed(page)).toBe(true);
+});
+
+// The hold ends shortly after the finger lifts, so a quick second swipe finds
+// the list live (on iOS its own passive touchstart could not release it).
+test("s1-06-collapse-hold-quick-second-swipe", async ({ page }) => {
+  await openVault(page);
+  const c = await center(page, SCROLL);
+  const g = await drag(page, c.x, c.y + 120, -160);
+  expect(await held(page)).toBe("hidden");
+  await g.lift(200);
+  expect(await held(page)).toBe("auto");
+  expect(await scrollTop(page)).toBe(0);
+  const g2 = await drag(page, c.x, c.y + 120, -260);
+  await g2.lift();
+  expect(await scrollTop(page)).toBeGreaterThan(40);
+  expect(await isCollapsed(page)).toBe(true);
+});
+
+// Search mode hides the header: the first swipe in the results scrolls, and
+// nothing collapses or holds.
+test("s1-06-search-first-swipe-scrolls", async ({ page }) => {
+  await openVault(page);
+  await page.locator(".m-search__input").focus();
+  await expect(page.locator(".m-vault--search")).toHaveCount(1);
+  await page.waitForTimeout(400);
+  const c = await center(page, SCROLL);
+  const g = await drag(page, c.x, c.y + 120, -260);
+  expect(await held(page)).toBe("auto");
+  expect(await scrollTop(page)).toBeGreaterThan(40);
+  await g.lift();
+  expect(await isCollapsed(page)).toBe(false);
+  expect(await scrollTop(page)).toBeGreaterThan(40);
+});
+
+// Native wheel input (Chromium's own wheel default action, not synthetic
+// events): the collapsing gesture is held, the next one scrolls.
+test("s1-06-collapse-holds-native-wheel", async ({ page }) => {
+  await openVault(page);
+  const c = await center(page, SCROLL);
+  await page.mouse.move(c.x, c.y);
+  for (let i = 0; i < 8; i++) {
+    await page.mouse.wheel(0, 60);
+    await page.waitForTimeout(16);
+  }
+  await page.waitForTimeout(400);
+  expect(await isCollapsed(page)).toBe(true);
+  expect(await scrollTop(page)).toBe(0);
+  expect(await held(page)).toBe("auto");
+  for (let i = 0; i < 4; i++) {
+    await page.mouse.wheel(0, 60);
+    await page.waitForTimeout(16);
+  }
+  await page.waitForTimeout(400);
   expect(await scrollTop(page)).toBeGreaterThan(0);
   expect(await isCollapsed(page)).toBe(true);
 });

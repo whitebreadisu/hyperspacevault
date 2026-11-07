@@ -253,6 +253,13 @@
   margin: 0;
   padding: 0 40px;
 }
+/* The initials logo heads the chooser (BrandLogo size="heading"). */
+.m-app .m-chooser__logo {
+  display: block;
+  margin: 0 auto;
+  width: 80px;
+  height: 30px;
+}
 .m-app .m-chooser__btns {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,15 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import App from "./App";
+
+/** The header's brand button (logo + tag line) opens the brand chooser; pick
+ * one of its two buttons. */
+function viaBrandChooser(choice: "About & Legal" | "[HSV] Updates") {
+  fireEvent.click(screen.getByRole("button", { name: /About & Legal and Updates$/ }));
+  const chooser = screen.getByRole("dialog", { name: "Hyperspace Vault" });
+  fireEvent.click(within(chooser).getByRole("button", { name: choice }));
+}
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
 
 const { mockUseAuth } = vi.hoisted(() => ({
@@ -604,13 +612,16 @@ describe("App deck-check pane (BL-142)", () => {
 // the anonymous-reachability case that's unique to this modal (Header's
 // brand-line microcopy, unlike the avatar-menu-gated modals, is visible
 // regardless of auth state).
+// PORT: the brand-line microcopy is no longer its own button; the header's
+// brand button opens the brand chooser, whose About & Legal button opens the
+// modal (still reachable signed out).
 describe("App About modal (BL-125)", () => {
-  it("opens the about modal from the header brand-line microcopy when anonymous", () => {
+  it("opens the about modal from the header brand chooser when anonymous", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /unofficial fan project/i }));
+    viaBrandChooser("About & Legal");
 
     expect(screen.getByRole("dialog", { name: /about this project/i })).toBeInTheDocument();
   });
@@ -619,7 +630,7 @@ describe("App About modal (BL-125)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /unofficial fan project/i }));
+    viaBrandChooser("About & Legal");
     expect(screen.getByRole("dialog", { name: /about this project/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("close-about-modal"));
@@ -831,6 +842,9 @@ describe("App import-export pane (BL-54 S3)", () => {
 // its version label), the pane's own always-mounted/display-toggled wiring,
 // and anonymous reachability (unlike Settings, this pane has no auth guard
 // at all).
+// PORT: the version label is plain text on the brand tag line; its entry
+// point is now the brand chooser's Updates button, and its cue moved to the
+// tag line.
 describe("App New Arrivals pane (BL-184)", () => {
   beforeEach(() => {
     mockHasUnread.mockReset();
@@ -839,16 +853,14 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockLatestEntryKey.mockReturnValue("1.3");
   });
 
-  it("shows the New Arrivals nav tab + cue class on both entry points when unread", () => {
+  it("shows the New Arrivals nav tab + cue class on it and on the brand tag line when unread", () => {
     mockHasUnread.mockReturnValue(true);
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
     const tab = screen.getByRole("button", { name: "[HSV] Updates" });
     expect(tab.className).toContain("nav-tab--cue");
-    expect(screen.getByRole("button", { name: /^v\d+\.\d+/ }).className).toContain(
-      "app-header__version--cue"
-    );
+    expect(document.querySelector(".app-header__brand-line--cue")).not.toBeNull();
   });
 
   it("renders no New Arrivals nav tab when nothing is unread", () => {
@@ -859,13 +871,13 @@ describe("App New Arrivals pane (BL-184)", () => {
     expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
   });
 
-  it("the version label is always present and always opens the notes view, unread or not", () => {
+  it("the brand chooser's Updates button always opens the notes view, unread or not", () => {
     mockHasUnread.mockReturnValue(false);
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
     expect(screen.getByText("new-arrivals-page-stub")).not.toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /^v\d+\.\d+/ }));
+    viaBrandChooser("[HSV] Updates");
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
   });
 
@@ -878,22 +890,20 @@ describe("App New Arrivals pane (BL-184)", () => {
 
     expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
-    // Cue is gone from the version label; the nav tab itself stays visible
+    // Cue is gone from the tag line; the nav tab itself stays visible
     // (it's now the active view) but carries no cue class anymore.
-    expect(screen.getByRole("button", { name: /^v\d+\.\d+/ }).className).not.toContain(
-      "app-header__version--cue"
-    );
+    expect(document.querySelector(".app-header__brand-line--cue")).toBeNull();
     expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
       "nav-tab--cue"
     );
   });
 
-  it("marks seen and opens the view identically from the version label", () => {
+  it("marks seen and opens the view identically from the brand chooser", () => {
     mockHasUnread.mockReturnValue(true);
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^v\d+\.\d+/ }));
+    viaBrandChooser("[HSV] Updates");
 
     expect(mockSaveLastSeenKey).toHaveBeenCalledWith("1.3");
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();

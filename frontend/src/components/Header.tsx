@@ -1,8 +1,11 @@
+import { useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { SWUButton } from "./SWUButton";
 import { UserMenu } from "./UserMenu";
 import { formatVersionLabel } from "../utils/version";
 import logoFull2x from "../assets/brand/hsv-logo-full@2x.webp";
 import logoFull3x from "../assets/brand/hsv-logo-full@3x.webp";
+import { TitleChooser } from "../mobile/TitleChooser";
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
@@ -32,8 +35,8 @@ interface Props {
   onChangePassword: () => void;
   onOpenSettings: () => void;
   /** Opens the About & Legal modal. The header has two of its openers: the
-   * tag line's "Unofficial Fan Project" button below (anonymous +
-   * signed-in alike) and the UserMenu's
+   * brand chooser's About & Legal button (the logo and tag line open the
+   * chooser; anonymous + signed-in alike) and the UserMenu's
    * "About & Legal" item (signed-in only); the release-notes page's chip is
    * the third (App Spec §5.8). App owns the modal state either way, same as
    * onSignIn/onChangePassword above. */
@@ -62,7 +65,7 @@ interface Props {
    * of Vault/Deck Check), disappearing the moment the user navigates back
    * to Vault. */
   view?: AppView;
-  /** Switches to the Vault: the Vault tab / way-back button and the logo. */
+  /** Switches to the Vault: the Vault tab / way-back button. */
   onNavigateCards?: () => void;
   /** Switches to the Deck Check pane. Visible to anonymous visitors too
    * (Deck Check is a peer nav tab, not avatar-menu-gated like Settings) --
@@ -73,13 +76,13 @@ interface Props {
   /** Threaded straight through to UserMenu -- see its own doc comment.
    * Optional; when omitted, UserMenu's own default of `true` applies. */
   hasPasswordProvider?: boolean;
-  /** Opens the "new-arrivals" release-notes view -- the version label's
-   * onClick always, and the "[HSV] Updates" nav item's onClick whenever
+  /** Opens the "new-arrivals" release-notes view -- the brand chooser's
+   * Updates button always, and the "[HSV] Updates" nav item's onClick whenever
    * it's rendered (see `hasUnread` below). Optional, matching
    * onNavigateDeckCheck's shape. */
   onOpenNotes?: () => void;
-  /** Drives BOTH the "[HSV] Updates" nav item's presence and the subtle
-   * amber cue on it + the brand column's version label
+  /** Drives the "[HSV] Updates" nav item's presence and its amber cue, plus
+   * the cream cue on the brand tag line and the chooser's Updates button
    * (utils/releaseNotesSeen.ts's hasUnread()) -- App computes this once and
    * passes it down, rather than Header reaching into localStorage itself.
    * Defaults to false (no nav item, no cue) -- see showNewArrivalsTab below
@@ -136,47 +139,60 @@ export function Header({
   // identically -- shareName only clears when the session itself is gone
   // (App never clears it just because the view navigated elsewhere).
   const showSharedTab = shareName != null;
+  const [chooser, setChooser] = useState(false);
+  const closeChooser = useCallback(() => setChooser(false), []);
 
   return (
     <header className="app-header">
       <div className="app-header__brand">
-        {/* The full logo goes to the Vault. One tag line below it carries
-            two text buttons in the brand-tag style: "Unofficial Fan Project"
-            opens About & Legal (the header's only About entry for a signed-out
-            visitor), and the version opens [HSV] Updates -- the permanent
-            re-entry point once the nav item is gone -- carrying the unread
-            cue while hasUnread is true. */}
+        {/* The logo and the one-line tag under it are one button that opens
+            the brand chooser (About & Legal / [HSV] Updates), as the phone's
+            brand stack does: the header's only About entry for a signed-out
+            visitor, and the permanent re-entry to Updates once the nav tab
+            is gone. The tag line carries the unread cue. */}
         <button
           type="button"
-          className="app-header__brand-link app-header__logo"
-          onClick={onNavigateCards}
+          className="app-header__brand-link app-header__brand-btn"
+          onClick={() => setChooser(true)}
+          aria-haspopup="dialog"
+          aria-label={`Hyperspace Vault, Unofficial Fan Project ${VERSION} - About & Legal and Updates`}
         >
           <img
+            className="app-header__logo"
             src={logoFull2x}
             srcSet={`${logoFull2x} 2x, ${logoFull3x} 3x`}
             alt="Hyperspace Vault"
+            width={158}
             height={46}
           />
-        </button>
-        <span className="app-header__brand-line">
-          <button
-            type="button"
-            className="app-header__brand-tag app-header__tag-btn"
-            onClick={onOpenAbout}
-          >
-            Unofficial Fan Project
-          </button>
-          <button
-            type="button"
-            className={`app-header__brand-tag app-header__tag-btn app-header__version${
-              hasUnread ? " app-header__version--cue" : ""
+          <span
+            className={`app-header__brand-tag app-header__brand-line${
+              hasUnread ? " app-header__brand-line--cue" : ""
             }`}
-            onClick={onOpenNotes}
-            aria-label={`${VERSION}, [HSV] Updates`}
           >
-            {VERSION}
-          </button>
-        </span>
+            Unofficial Fan Project <span className="app-header__version">{VERSION}</span>
+          </span>
+        </button>
+        {/* Portalled to <body>: the brand column's uppercase / text-shadow
+            styling must not reach the dialog. */}
+        {chooser
+          ? createPortal(
+              <TitleChooser
+                desktop
+                unread={hasUnread}
+                onClose={closeChooser}
+                onAbout={() => {
+                  setChooser(false);
+                  onOpenAbout();
+                }}
+                onUpdates={() => {
+                  setChooser(false);
+                  onOpenNotes?.();
+                }}
+              />,
+              document.body
+            )
+          : null}
       </div>
 
       <nav className="app-header__nav">

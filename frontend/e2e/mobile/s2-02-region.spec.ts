@@ -201,7 +201,7 @@ test("s2-02-pull-expands", async ({ page }) => {
 
 // §25.2: on card detail too, the wheel gesture that collapses the art ends
 // there (the list back at its top); a fresh gesture scrolls.
-test("s2-02-collapse-holds", async ({ page }) => {
+test("s2-02-collapse-holds-synthetic-wheel-events", async ({ page }) => {
   await openCard(page, "ASH", 112);
   const fire = (dy: number, n: number) =>
     page.locator(detailScroll).evaluate(

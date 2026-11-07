@@ -4,10 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { VaultHeader } from "./VaultHeader";
 import { MoreScreen } from "../more/MoreScreen";
 import { SharedStatus } from "../shared/SharedStatus";
+import { TitleChooser } from "../TitleChooser";
 
 // DISPOSITION (CREATE): the phone brand mark is the initials logo (App Spec
-// §25.1); the unread-Updates cue rides on the tag line under it, and the
-// collapsed strip keeps its "[HSV]" text badge with its own cue.
+// §25.1); the unread-Updates cue rides on the tag line under it.
+// REPLACE: the collapsed strip's "[HSV]" text badge is the initials logo too,
+// its cue an amber glow class on the logo box; the vacuous "no cue on the
+// logo" check (an img never carries the text cue) became an exact count of
+// text cues plus the badge's glow class.
 
 function renderHeader(unread: boolean, onOpenChooser = vi.fn()) {
   return render(
@@ -51,14 +55,37 @@ describe("phone Vault header brand", () => {
     const tag = container.querySelector(".m-vh__tag")!;
     expect(tag.classList.contains("m-cue")).toBe(true);
     expect(tag.getAttribute("data-cue")).toMatch(/^UNOFFICIAL FAN PROJECT \[v\d+\.\d+(\.\d+)?\]$/);
-    expect(container.querySelector(".m-vh__logo.m-cue")).toBeNull();
-    // The collapsed strip's text badge keeps its own cue.
-    expect(container.querySelector(".m-vh__hsv.m-cue")).not.toBeNull();
+    // The tag line is the only text cue; the collapsed badge glows instead.
+    expect(container.querySelectorAll(".m-cue")).toHaveLength(1);
+    expect(container.querySelector(".m-vh__hsv")!.classList.contains("m-vh__hsv--cue")).toBe(true);
   });
 
   it("carries no cue anywhere once the update is read", () => {
     const { container } = renderHeader(false);
     expect(container.querySelector(".m-cue")).toBeNull();
+    expect(container.querySelector(".m-vh__hsv--cue")).toBeNull();
+  });
+
+  it("the collapsed badge is the initials logo, no [HSV] text, and opens the chooser", () => {
+    const onOpenChooser = vi.fn();
+    const { container } = renderHeader(false, onOpenChooser);
+    const badge = container.querySelector(".m-vh__hsv")!;
+    expect(badge.textContent).toBe("");
+    const img = badge.querySelector(".m-vh__logobox img.m-vh__badgelogo")!;
+    expect(img.getAttribute("alt")).toBe("Hyperspace Vault");
+    expect([img.getAttribute("width"), img.getAttribute("height")]).toEqual(["64", "24"]);
+    expect(badge.getAttribute("aria-label")).toBe("Hyperspace Vault: About & Legal, Updates");
+    fireEvent.click(badge);
+    expect(onOpenChooser).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("phone title chooser heading", () => {
+  it("is the initials logo, not the [HSV] text", () => {
+    render(<TitleChooser unread={false} onClose={vi.fn()} onAbout={vi.fn()} onUpdates={vi.fn()} />);
+    const dlg = screen.getByRole("dialog", { name: "Hyperspace Vault" });
+    expect(dlg.querySelector("h2 img.m-chooser__logo")).not.toBeNull();
+    expect(dlg.textContent).not.toMatch(/\[HSV\] Hyperspace Vault/);
   });
 });
 
