@@ -512,7 +512,7 @@ def _plan_stash_impacts(
             )
     # Newest stash first overall (rows were already ordered that way per
     # variant; re-sort so the list reads stash by stash).
-    stash_order = {}
+    stash_order: dict[int, int] = {}
     for row in stash_rows:
         stash_order.setdefault(row.stash_id, len(stash_order))
     impacts.sort(key=lambda i: (stash_order[i.stash_id], i.variant_id))
