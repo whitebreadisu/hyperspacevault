@@ -38,6 +38,7 @@ import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "../vault/useVaultData";
+import { StashProvider } from "../stashes/StashContext";
 import { CardParamBoot } from "./CardParamBoot";
 import { bootSignupParam, clearSignupParam } from "../utils/cardParam";
 import { Vault } from "./vault/Vault";
@@ -112,7 +113,10 @@ function ShareScope({ token, children }: { token: string; children: ReactNode })
   const value = useVaultDataSource(false, token);
   return (
     <LimitsProvider isAuthenticated={false} shareToken={token}>
-      <VaultDataValue value={value}>{children}</VaultDataValue>
+      {/* nothing under a share reads or fetches stash data. */}
+      <StashProvider enabled={false}>
+        <VaultDataValue value={value}>{children}</VaultDataValue>
+      </StashProvider>
     </LimitsProvider>
   );
 }
@@ -488,96 +492,99 @@ export function MobileApp() {
 
   return (
     <VaultDataProvider isAuthenticated={!!user}>
-      <CardParamBoot disabled={inShare} />
-      <div
-        className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}
-        data-share={inShare ? "shown" : undefined}
-      >
-        <SheetHost>
-          <div
-            className={"m-app__screen" + (ownParked ? " m-app__screen--parked" : "")}
-            key={screen.key}
-            data-pane={screen.key === "vault" ? "own" : undefined}
-            aria-hidden={ownParked ? true : undefined}
-            inert={cardId != null || toolShown || acctLayer != null || ownParked}
-          >
-            {screen.el}
-          </div>
-          {share.token && share.status !== "ready" ? sharedPane : null}
-          {share.token && share.status === "ready" ? (
-            <ShareScope token={share.token}>
-              {sharedPane}
-              {inShare && cardId != null ? (
-                <CardDetail
-                  key={cardId}
-                  id={cardId}
-                  params={route.params}
-                  onRequestSignIn={openSignIn}
-                />
-              ) : null}
-              {inShare ? <FinishSheetHost /> : null}
-            </ShareScope>
-          ) : null}
-          <div
-            className="m-app__nav"
-            inert={cardId != null || toolShown || acctLayer != null}
-            style={{ display: "contents" }}
-          >
-            <MobileNav route={navRoute} share={navShare} />
-          </div>
-          {toolShown && !inShare ? (
-            <ToolLayer
-              params={isTool ? route.params : {}}
-              camera={cameraShown}
-              covered={cardId != null}
-              onRequestSignIn={openSignIn}
-            />
-          ) : null}
-          {cardId != null && !inShare ? (
-            <CardDetail
-              key={cardId}
-              id={cardId}
-              params={route.params}
-              onRequestSignIn={openSignIn}
-            />
-          ) : null}
-          {/* Owned by finish opened from a Vault row. */}
-          {inShare ? null : <FinishSheetHost />}
-          {chooserOpen ? (
-            <TitleChooser
-              unread={cue.unread}
-              onClose={closeChooser}
-              onAbout={() => {
-                setChooserOpen(false);
-                go("#/about");
-              }}
-              onUpdates={() => {
-                setChooserOpen(false);
-                go("#/more/updates");
-              }}
-            />
-          ) : null}
-          {/* A signed-out visitor is being redirected (guard above): the layer
+      {/* the caller's own stashes, signed in and on the own vault only. */}
+      <StashProvider enabled={!!user} paused={inShare}>
+        <CardParamBoot disabled={inShare} />
+        <div
+          className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}
+          data-share={inShare ? "shown" : undefined}
+        >
+          <SheetHost>
+            <div
+              className={"m-app__screen" + (ownParked ? " m-app__screen--parked" : "")}
+              key={screen.key}
+              data-pane={screen.key === "vault" ? "own" : undefined}
+              aria-hidden={ownParked ? true : undefined}
+              inert={cardId != null || toolShown || acctLayer != null || ownParked}
+            >
+              {screen.el}
+            </div>
+            {share.token && share.status !== "ready" ? sharedPane : null}
+            {share.token && share.status === "ready" ? (
+              <ShareScope token={share.token}>
+                {sharedPane}
+                {inShare && cardId != null ? (
+                  <CardDetail
+                    key={cardId}
+                    id={cardId}
+                    params={route.params}
+                    onRequestSignIn={openSignIn}
+                  />
+                ) : null}
+                {inShare ? <FinishSheetHost /> : null}
+              </ShareScope>
+            ) : null}
+            <div
+              className="m-app__nav"
+              inert={cardId != null || toolShown || acctLayer != null}
+              style={{ display: "contents" }}
+            >
+              <MobileNav route={navRoute} share={navShare} />
+            </div>
+            {toolShown && !inShare ? (
+              <ToolLayer
+                params={isTool ? route.params : {}}
+                camera={cameraShown}
+                covered={cardId != null}
+                onRequestSignIn={openSignIn}
+              />
+            ) : null}
+            {cardId != null && !inShare ? (
+              <CardDetail
+                key={cardId}
+                id={cardId}
+                params={route.params}
+                onRequestSignIn={openSignIn}
+              />
+            ) : null}
+            {/* Owned by finish opened from a Vault row. */}
+            {inShare ? null : <FinishSheetHost />}
+            {chooserOpen ? (
+              <TitleChooser
+                unread={cue.unread}
+                onClose={closeChooser}
+                onAbout={() => {
+                  setChooserOpen(false);
+                  go("#/about");
+                }}
+                onUpdates={() => {
+                  setChooserOpen(false);
+                  go("#/more/updates");
+                }}
+              />
+            ) : null}
+            {/* A signed-out visitor is being redirected (guard above): the layer
               would otherwise mount for a frame and call its API unauthenticated. */}
-          {acctLayer && user && !inShare ? (
-            <AccountLayer
-              key={acctLayer}
-              kind={acctLayer}
-              onClose={() => backOr(acctLayer === "delete" ? "#/more/settings" : "#/more")}
-            />
-          ) : null}
-          {authOpen ? (
-            <AuthLayer
-              initialMode={authMode}
-              onClose={closeAuth}
-              onSignedUp={() => setSignupInFlight(true)}
-              onGoogleLinked={() => setGoogleLinkedInFlight(true)}
-            />
-          ) : null}
-        </SheetHost>
-      </div>
-      {/* A phone on its side (App Spec §25.0) -- the app above stays mounted. */}
-      <RotateScreen />
+            {acctLayer && user && !inShare ? (
+              <AccountLayer
+                key={acctLayer}
+                kind={acctLayer}
+                onClose={() => backOr(acctLayer === "delete" ? "#/more/settings" : "#/more")}
+              />
+            ) : null}
+            {authOpen ? (
+              <AuthLayer
+                initialMode={authMode}
+                onClose={closeAuth}
+                onSignedUp={() => setSignupInFlight(true)}
+                onGoogleLinked={() => setGoogleLinkedInFlight(true)}
+              />
+            ) : null}
+          </SheetHost>
+        </div>
+        {/* A phone on its side (App Spec §25.0) -- the app above stays mounted. */}
+        <RotateScreen />
+      </StashProvider>
     </VaultDataProvider>
   );
 }

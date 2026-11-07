@@ -35,7 +35,7 @@ Every route that opens a database session acquires authentication and tenant con
 
 | Session dependency (`app/database.py`) | Token | Tenant context | Routes (registry §1.3) | Since |
 |---|---|---|---|---|
-| `get_db` | verified via `get_current_identity`; `401` on a missing or invalid token | the caller's tenant, auto-provisioned on the first request (§1.4) | inventory, settings, deck check, account deletion, owner-side share management | baseline |
+| `get_db` | verified via `get_current_identity`; `401` on a missing or invalid token | the caller's tenant, auto-provisioned on the first request (§1.4) | inventory, settings, deck check, account deletion, owner-side share management, stashes (BL-344) | baseline |
 | `get_catalog_db` | none inspected | strictly tenant-less — both session GUCs cleared to `''` on checkout | `GET /api/sets[/…]`, `GET /api/base-cards` (list), price history, `GET /api/catalog/reference.csv` | BL-56 / BL-101 ([ADR-0008](../docs/decisions/0008-anonymous-catalog-reads.md)) |
 | `get_optional_db` | verified when present (`401` for a present-but-invalid token); anonymous otherwise | the caller's tenant with a valid token, else tenant-less (`request.state.tenant_id = None`) | `GET /api/base-cards/{id}` (real per-tenant `quantity`, `0` anonymous); `POST /api/feedback` (anonymous submission is first-class — consent semantics live in `app/services/feedback.py`, data model App Spec §4.6) | BL-56; BL-126 |
 | `get_shared_db` | none inspected — the ≥128-bit share token is the credential | tenant-less until the `shares_token_select` policy (migration 0030) resolves the matching **unrevoked** share, then the share owner's tenant, so the two data routes reuse the owner's own service reads unchanged | `GET /api/shared/{token}[/quantities|/limits]` — the platform's first unauthenticated read of tenant data | BL-205 ([ADR-0019](../docs/decisions/0019-sharing-secret-link-trust-model.md); semantics — 404 for invalid and revoked alike, per-IP rate limit, `Cache-Control: private, max-age=30`, soft revocation, one active share per scope — App Spec §19.1) |
@@ -118,6 +118,12 @@ One row per FastAPI route, generated from the app's dependency graph. `backend/a
 | DELETE | `/api/shares/{share_id}` | get_db | none | BL-205 |
 | PATCH | `/api/shares/{share_id}` | get_db | none | BL-205 |
 | POST | `/api/shares/{share_id}/rotate` | get_db | none | BL-205 |
+| GET | `/api/stashes` | get_db | none | BL-344 |
+| POST | `/api/stashes` | get_db | require_verified_email | BL-344 |
+| GET | `/api/stashes/items` | get_db | none | BL-344 |
+| PUT | `/api/stashes/variants/{variant_id}` | get_db | require_verified_email | BL-344 |
+| DELETE | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
+| PATCH | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
 | GET | `/health` | none | none | baseline |
 | GET | `/images/cards/{filename}` | none | none | baseline |
 
@@ -153,6 +159,7 @@ One row per FastAPI route, generated from the app's dependency graph. `backend/a
 | `0027_add_feedback_table` | BL-126 (user feedback). The codebase's **first tenant-optional table** (`tenant_id` nullable — anonymous submissions are first-class), so it departs from the single blanket `tenant_isolation` pattern with three command-specific policies: `feedback_insert`, `feedback_select_own_tenant`, `feedback_purge_delete` (no UPDATE policy — nothing mutates a row). Data model and consent semantics: App Spec §4.6. |
 | `0030_add_shares_table` | BL-205 (secret-link sharing). Creates `shares` with two policies: `shares_tenant_all` (owner-side CRUD under the caller's tenant) and `shares_token_select` — `FOR SELECT`, visible only when `app.share_token` equals the row's token **and** the row is unrevoked; `get_shared_db` sets that GUC first, then the owner tenant (§1.1); `purge_tenant` clears `shares` on account deletion. |
 | `0031_rename_inventory_variant_index` | BL-269 (2026-10-28). Renames `ix_inventory_card_id` to `ix_inventory_variant_id` (`ALTER INDEX ... RENAME`, metadata-only: the index kept its `card_id`-era name from 0001 after 0022 renamed the column). Lets `alembic check` — now a CI `backend` step — report no drift. |
+| `0032_add_stashes` | BL-344 (stashes). Creates `stashes` (unique per tenant on `lower(name)`, `UNIQUE(id, tenant_id)`) and `stash_items` (composite FK `(stash_id, tenant_id)` → `stashes(id, tenant_id)` `ON DELETE CASCADE`). Both: `ENABLE` + `FORCE ROW LEVEL SECURITY`, tenant policy as `shares_tenant_all`, grants to `swu_app` as `shares`. Deferred constraint triggers (`stash_check_invariant()`, which locks the `(tenant, variant)` inventory row `FOR UPDATE` before summing) reject any write leaving `Σ stash_items.quantity > inventory.quantity` (`stash_invariant`, SQLSTATE 23514) — on `stash_items` insert/update and on `inventory` quantity-lowering update and delete. RLS alone would let a share session read these tables; no shared route reads them (tested). |
 
 Net effect: `swu_app` can read the full `inventory`/`users`/`tenants`/catalog tables it's granted, and — as of 0024 — can also delete rows it owns from all three. RLS transparently filters `inventory` and `users` to the caller's own rows for every command including `DELETE`; `tenants` carries no RLS at all, so its `DELETE` (BL-87's account-purge endpoint) is scoped purely by the application's explicit `tenant_id` filter, sourced only from the verified token. `tenants` remains otherwise write-only-plus-id for `swu_app` (still no way to read another tenant's name).
 

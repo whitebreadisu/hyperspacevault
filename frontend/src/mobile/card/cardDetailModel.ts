@@ -143,6 +143,29 @@ export function isLandscapeFront(card: Pick<InventoryCard, "type">): boolean {
  * never changes). */
 export const REG_MIN = 100;
 
+/** Phone 1e: the stash block's heights. `expanded` sits between the
+ * plate and Show back (the 44 px Stash copies button, or the read-only list);
+ * `pinned` is the list kept under the collapsed row, part of the fixed
+ * region (0 when nothing of the printing is stashed). */
+export interface StashGeom {
+  expanded: number;
+  pinned: number;
+}
+
+export const NO_STASH: StashGeom = { expanded: 0, pinned: 0 };
+
+/** Phone stash block metrics (README 1e): 44 px entry / list header, 40 px
+ * rows; the plate block's 6 px gap above it; the pinned list adds its 6 px
+ * bottom padding and 1 px hairline. */
+export const STASH_ROW_H = 40;
+export const STASH_HEAD_H = 44;
+export function stashGeom(shown: boolean, rows: number): StashGeom {
+  if (!shown) return NO_STASH;
+  if (rows === 0) return { expanded: 6 + STASH_HEAD_H, pinned: 0 };
+  const list = STASH_HEAD_H + rows * STASH_ROW_H;
+  return { expanded: 6 + list, pinned: list + 6 + 1 };
+}
+
 export interface RegionGeom {
   hasBack: boolean;
   land: boolean;
@@ -154,6 +177,10 @@ export interface RegionGeom {
   full: number;
   delta: number;
   flipTop: number;
+  /** The region's layout box: 100 px, plus the pinned stash list. */
+  regMin: number;
+  /** The pinned stash list's height (0 = none). */
+  pinned: number;
 }
 
 /** Pure arithmetic per card / printing / face, so nothing
@@ -162,7 +189,8 @@ export interface RegionGeom {
 export function regionGeom(
   card: Pick<InventoryCard, "type">,
   variant: Pick<InventoryVariant, "back_image_url">,
-  back: boolean
+  back: boolean,
+  stash: StashGeom = NO_STASH
 ): RegionGeom {
   const hasBack = !!variant.back_image_url;
   const land = !back && isLandscapeFront(card);
@@ -171,7 +199,8 @@ export function regionGeom(
   const cH = 80;
   const cW = Math.round(land ? (cH * 7) / 5 : (cH * 5) / 7);
   const ownTop = 14 + artH + 12;
-  const full = ownTop + 52 + (hasBack ? 54 : 0) + 12;
+  const full = ownTop + 52 + stash.expanded + (hasBack ? 54 : 0) + 12;
+  const regMin = REG_MIN + stash.pinned;
   return {
     hasBack,
     land,
@@ -181,8 +210,10 @@ export function regionGeom(
     cW,
     ownTop,
     full,
-    delta: full - REG_MIN,
-    flipTop: ownTop + 58,
+    delta: full - regMin,
+    flipTop: ownTop + 58 + stash.expanded,
+    regMin,
+    pinned: stash.pinned,
   };
 }
 

@@ -177,7 +177,8 @@
   position: sticky;
   top: 0;
   z-index: 3;
-  height: 100px;
+  /* 100 px, plus a pinned stash list (BL-344, cardDetailModel stashGeom). */
+  height: var(--reg-min, 100px);
   overflow: visible;
 }
 .m-app .m-dreg3__bg {
@@ -526,6 +527,241 @@
   min-height: 44px;
   padding: 0 18px;
   font-size: 12px;
+}
+
+/* ── Stashes (BL-344 phone 1e) ─────────────────────────────────────────
+ * Under the plate in the expanded block (the 280 px column), and pinned
+ * under the collapsed row (top 100 px, inside the region's box; it fades in
+ * with the mini row, transform + opacity only). Heights are fixed:
+ * cardDetailModel stashGeom does the arithmetic. */
+/* Holds the entry's 44 px while the first stash read is in flight. */
+.m-app .m-stash__placeholder {
+  display: block;
+  height: 44px;
+}
+.m-app .m-stash__entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  width: 100%;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: #9fb0cc;
+  text-align: left;
+}
+.m-app .m-stash__entry:active {
+  background: rgba(37, 99, 235, 0.14);
+}
+.m-app .m-stash__entrylabel {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.m-app .m-stash__list {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-stash__head {
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+.m-app .m-stash__heading {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stash__textbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #9fb0cc;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.m-app .m-stash__textbtn:active {
+  color: var(--color-text);
+}
+.m-app .m-stash__edit {
+  min-width: 44px;
+  height: 44px;
+  justify-content: center;
+  gap: 6px;
+  margin-right: -6px;
+  padding: 0 6px;
+}
+.m-app .m-stash__readrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(211, 211, 212, 0.1);
+}
+.m-app .m-stash__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stash__name--vault {
+  color: #9fb0cc;
+}
+.m-app .m-dreg3__pinned {
+  position: absolute;
+  top: 100px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0 16px 6px;
+  opacity: 0;
+  transform: translateY(12px);
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear var(--m-collapse);
+}
+.m-app .m-dreg3--collapsed .m-dreg3__pinned {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    opacity 0.16s ease 0.08s,
+    transform var(--m-collapse) var(--m-collapse-ease),
+    visibility 0s linear;
+}
+.m-app .m-dreg3__pinned .m-stash__name {
+  font-size: 15px;
+}
+
+/* The sheet: rows mode */
+.m-app .m-stash__rows {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-stash__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  border-top: 1px solid rgba(211, 211, 212, 0.1);
+}
+.m-app .m-stash__row .m-stash__name {
+  font-size: 16px;
+}
+.m-app .m-stash__vault {
+  flex: none;
+  width: 120px;
+  text-align: center;
+  font-family: "Russo One", sans-serif;
+  font-size: 18px;
+  color: #4a5570;
+}
+.m-app .m-stash__num--on {
+  color: #fff;
+}
+.m-app .m-stash__vault--empty {
+  color: var(--color-danger);
+}
+.m-app .m-stash__new {
+  min-height: 48px;
+  border-top: 1px solid rgba(211, 211, 212, 0.1);
+}
+.m-app .m-stash__plus {
+  font-size: 18px;
+  line-height: 1;
+}
+.m-app .m-stash__saveerror {
+  margin: 4px 0 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+.m-app .m-stash__foot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+/* The sheet: New stash mode */
+.m-app .m-stash__create {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+.m-app .m-stash__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.m-app .m-stash__label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stash__input,
+.m-app .m-stash__textarea {
+  box-sizing: border-box;
+  width: 100%;
+  background: #0b0f1f;
+  border: 1px solid #2a3558;
+  border-radius: 0;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+.m-app .m-stash__input {
+  height: 48px;
+  padding: 0 12px;
+}
+.m-app .m-stash__textarea {
+  min-height: 76px;
+  padding: 10px 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+.m-app .m-stash__textarea::placeholder {
+  color: var(--color-text-muted);
+}
+.m-app .m-stash__input:focus,
+.m-app .m-stash__textarea:focus {
+  border-color: var(--color-primary);
+}
+.m-app .m-stash__error {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-danger);
 }
 
 /* ── The plate's hit box (the plate itself is the gallery plate) ───────── */
@@ -1252,6 +1488,7 @@
   .m-app .m-dreg3__own,
   .m-app .m-dreg3__mini,
   .m-app .m-dreg3__flip,
+  .m-app .m-dreg3__pinned,
   .m-app .m-detail__body {
     transition: none !important;
   }

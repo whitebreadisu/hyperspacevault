@@ -84,6 +84,30 @@ export interface RemovedRow {
   quantity: number;
 }
 
+/** one stash the commit would cut (newest stash first) because the
+ * file lowers or removes a stashed printing. */
+export interface StashImpact {
+  stash_id: number;
+  stash_name: string;
+  variant_id: number;
+  card_name: string;
+  printing_label: string;
+  before: number;
+  after: number;
+}
+
+/** Copies an import would take out of stashes, summed over its impacts. */
+export function stashImpactCopies(impacts: StashImpact[] | undefined): number {
+  return (impacts ?? []).reduce((n, i) => n + Math.max(0, i.before - i.after), 0);
+}
+
+/** The preview's impacts, empty for a commit report or a backend
+ * that predates the field. */
+export function previewStashImpacts(report: ImportReport | null): StashImpact[] {
+  if (!report || report.stage !== "dry_run") return [];
+  return report.stash_impacts ?? [];
+}
+
 /** The full report -- the response shape of both the dry_run and commit
  * stages of POST /api/inventory/import (only `committed` and the actual DB
  * state differ between them). */
@@ -95,6 +119,12 @@ export interface ImportReport {
   totals: ImportTotals;
   rows: ImportRowReport[];
   removed: RemovedRow[];
+  /** present on the preview; empty when no stash is affected. */
+  stash_impacts?: StashImpact[];
+  /** (contract fold-in 1): a digest of the preview's impacts, present
+   * even when they are empty; the commit sends it back, and the server
+   * refuses (409 stash_impacts_changed) when its own recount differs. */
+  stash_impacts_token?: string;
 }
 
 /** The full-file 422 codes the router raises before any report exists
@@ -114,6 +144,10 @@ export type ImportErrorCode =
   // toImportApiError below recognizes its `.error` field specifically
   // rather than the string-detail path the other FILE_ERROR_CODES share.
   | "rate_limited"
+  // Commit only (409): the stash cuts differ from the preview's, or
+  // the commit would leave stashes holding more than owned. Nothing written.
+  | "stash_impacts_changed"
+  | "exceeds_owned"
   | "unknown";
 
 const FILE_ERROR_CODES: ReadonlySet<string> = new Set([
@@ -132,8 +166,19 @@ const CODE_MESSAGES: Record<ImportErrorCode, string> = {
   email_not_verified: "Verify your email to import or export your collection.",
   rate_limited:
     "You've hit the import limit for now (it resets within the hour). Take a short break and try again — your file is fine to re-use.",
+  stash_impacts_changed: "Your stashes changed since the preview. Preview the file again.",
+  exceeds_owned:
+    "This import would leave a stash holding more copies than you own, so nothing was written. Preview the file again.",
   unknown: "Something went wrong. Please try again.",
 };
+
+/** the commit refusals that send the user back to a fresh preview. */
+export function isStashCommitConflict(err: unknown): boolean {
+  return (
+    err instanceof ImportApiError &&
+    (err.code === "stash_impacts_changed" || err.code === "exceeds_owned")
+  );
+}
 
 /** A parsed-body typed error: extends the shared CodedApiError base
  * (api/errors.ts), as api/deckCheck.ts's DeckCheckApiError does. The
@@ -161,11 +206,13 @@ async function toImportApiError(res: Response): Promise<ImportApiError> {
       ? (detail as ImportErrorCode)
       : detail === "email_not_verified"
         ? "email_not_verified"
-        : typeof detail === "object" &&
-            detail !== null &&
-            (detail as { error?: unknown }).error === "rate_limited"
-          ? "rate_limited"
-          : "unknown";
+        : res.status === 409 && (detail === "stash_impacts_changed" || detail === "exceeds_owned")
+          ? detail
+          : typeof detail === "object" &&
+              detail !== null &&
+              (detail as { error?: unknown }).error === "rate_limited"
+            ? "rate_limited"
+            : "unknown";
   return new ImportApiError(code, res.status);
 }
 
@@ -180,13 +227,17 @@ export async function runImport(
   file: File,
   mode: ImportMode,
   capHandling: CapHandling,
-  stage: ImportStage
+  stage: ImportStage,
+  /** the preview's stash_impacts_token, sent back on the commit. */
+  stashImpactsToken?: string | null
 ): Promise<ImportReport> {
   const body = new FormData();
   body.append("file", file);
   body.append("mode", mode);
   body.append("cap_handling", capHandling);
   body.append("stage", stage);
+  if (stage === "commit" && stashImpactsToken != null)
+    body.append("stash_impacts_token", stashImpactsToken);
 
   const res = await authedFetch("/api/inventory/import", { method: "POST", body });
   if (!res.ok) throw await toImportApiError(res);

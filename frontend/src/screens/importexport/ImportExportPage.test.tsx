@@ -589,7 +589,9 @@ describe("ImportExportPage import stepper (BL-54 S3, CREATE)", () => {
       fireEvent.click(screen.getByRole("button", { name: /confirm import/i }));
     });
 
-    expect(runImport).toHaveBeenNthCalledWith(2, file, "merge_add", "add_above", "commit");
+    // PORT (BL-344 fold-in 1): the commit also carries the preview's
+    // stash_impacts_token (this fixture has none, so null).
+    expect(runImport).toHaveBeenNthCalledWith(2, file, "merge_add", "add_above", "commit", null);
     expect(screen.getByRole("status")).toHaveTextContent(/import complete/i);
     expect(screen.getByText(/1 row written/i)).toBeInTheDocument();
 

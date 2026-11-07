@@ -404,6 +404,9 @@ class TestComputeImportWiring:
         )
         monkeypatch.setattr(repo, "get_owned_rows_excluding", _owned)
         monkeypatch.setattr(svc, "effective_limit", _limit)
+        # BL-344: PORTED -- compute_import now reads the tenant's stash rows;
+        # this DB-free wiring fixture has none.
+        monkeypatch.setattr(svc.stash_repo, "stash_rows_for_import", lambda _db: [])
         return state
 
     def _rows(self):

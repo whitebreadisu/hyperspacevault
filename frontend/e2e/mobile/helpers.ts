@@ -90,9 +90,9 @@ export async function authState(
  * test may sign out afterwards. */
 export async function harnessPage(
   page: Page,
-  opts: { fixture?: CardsFixture; session: boolean }
+  opts: { fixture?: CardsFixture; session: boolean; stashSeed?: StashSeed }
 ): Promise<Recorder> {
-  const rec = await installApiMocks(page, { fixture: opts.fixture });
+  const rec = await installApiMocks(page, { fixture: opts.fixture, ...opts.stashSeed });
   await page.addInitScript(hideEmulatorBanner);
   if (opts.session) {
     const goto = page.goto.bind(page);
@@ -124,12 +124,20 @@ export function expectNoInternet(rec: Recorder): void {
 
 /** `test` with the API mocks installed on every page; pick the catalogue with
  * `test.use({ cardsFixture: "base-cards-600" })`. */
-export const test = base.extend<{ cardsFixture: CardsFixture }>({
+/** BL-344: the stashes the double starts with (`test.use({ stashSeed })`). */
+export interface StashSeed {
+  stashes?: { id: number; name: string; description: string | null; created_at: string }[];
+  stashItems?: { stash_id: number; variant_id: number; quantity: number }[];
+}
+
+export const test = base.extend<{ cardsFixture: CardsFixture; stashSeed: StashSeed }>({
   cardsFixture: ["base-cards", { option: true }],
-  page: async ({ page, cardsFixture, storageState }, provide) => {
+  stashSeed: [{}, { option: true }],
+  page: async ({ page, cardsFixture, stashSeed, storageState }, provide) => {
     const rec = await harnessPage(page, {
       fixture: cardsFixture,
       session: hasStoredSession(storageState),
+      stashSeed,
     });
     await provide(page);
     expectNoInternet(rec);

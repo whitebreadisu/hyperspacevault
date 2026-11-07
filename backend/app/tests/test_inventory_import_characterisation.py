@@ -27,6 +27,8 @@ from contextlib import contextmanager
 import pytest
 from sqlalchemy import event, text
 
+from app.services.inventory_import import impacts_token
+
 pytestmark = pytest.mark.skipif(
     "DATABASE_URL" not in os.environ or "APP_DATABASE_URL" not in os.environ,
     reason="requires DATABASE_URL and APP_DATABASE_URL -- run inside the backend container",
@@ -382,6 +384,10 @@ def _expected_report(mode: str, cap_handling: str, stage: str) -> dict:
         },
         "rows": rows,
         "removed": removed,
+        # BL-344: PORTED -- the report gained stash_impacts; this tenant has
+        # no stashes, so the characterised behaviour is the empty list.
+        "stash_impacts": [],
+        "stash_impacts_token": impacts_token([]),
     }
 
 

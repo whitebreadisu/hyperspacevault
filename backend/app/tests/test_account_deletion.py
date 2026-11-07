@@ -90,6 +90,10 @@ def _cleanup_tenant(db, tenant_id: int, uid: str) -> None:
     deleted everything via DELETE /api/account (each statement here then
     matches zero rows)."""
     db.rollback()
+    db.execute(
+        text("DELETE FROM stash_items WHERE tenant_id = :tid"), {"tid": tenant_id}
+    )
+    db.execute(text("DELETE FROM stashes WHERE tenant_id = :tid"), {"tid": tenant_id})
     db.execute(text("DELETE FROM inventory WHERE tenant_id = :tid"), {"tid": tenant_id})
     db.execute(
         text("DELETE FROM tenant_card_limits WHERE tenant_id = :tid"),

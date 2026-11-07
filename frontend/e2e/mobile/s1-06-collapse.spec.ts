@@ -437,23 +437,41 @@ test("s1-06-search-first-swipe-scrolls", async ({ page }) => {
 
 // Native wheel input (Chromium's own wheel default action, not synthetic
 // events): the collapsing gesture is held, the next one scrolls.
+//
+// The hold's windows (120 ms quiet, 250 ms fresh gesture) run on the page
+// clock, so the test drives that clock. Each page.mouse.wheel waits for a
+// renderer round trip (measured 8-342 ms under the default worker count), so
+// a real-time 16 ms pause between calls left real gaps of 137-600 ms in the
+// stream: under load the "one gesture" was two, and the hold rightly released
+// between them. Paused, the page clock moves only 16 ms per event: the stream
+// the hook sees is 16 ms apart at any load. The real waits between the two
+// gestures stay, so Chromium's own wheel latching also sees two gestures.
+const WHEEL_GAP = 16;
+async function wheelStream(page: Page, n: number) {
+  for (let i = 0; i < n; i++) {
+    await page.mouse.wheel(0, 60);
+    await page.clock.runFor(WHEEL_GAP);
+  }
+}
+async function quietAfterStream(page: Page) {
+  await page.waitForTimeout(400);
+  await page.clock.runFor(400);
+  await page.waitForTimeout(100);
+}
+
 test("s1-06-collapse-holds-native-wheel", async ({ page }) => {
+  await page.clock.install();
   await openVault(page);
+  await page.clock.pauseAt(Date.now() + 1000);
   const c = await center(page, SCROLL);
   await page.mouse.move(c.x, c.y);
-  for (let i = 0; i < 8; i++) {
-    await page.mouse.wheel(0, 60);
-    await page.waitForTimeout(16);
-  }
-  await page.waitForTimeout(400);
+  await wheelStream(page, 8);
+  await quietAfterStream(page);
   expect(await isCollapsed(page)).toBe(true);
   expect(await scrollTop(page)).toBe(0);
   expect(await held(page)).toBe("auto");
-  for (let i = 0; i < 4; i++) {
-    await page.mouse.wheel(0, 60);
-    await page.waitForTimeout(16);
-  }
-  await page.waitForTimeout(400);
+  await wheelStream(page, 4);
+  await quietAfterStream(page);
   expect(await scrollTop(page)).toBeGreaterThan(0);
   expect(await isCollapsed(page)).toBe(true);
 });

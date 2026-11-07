@@ -289,3 +289,33 @@ describe("escapeCsvFormula (BL-322)", () => {
     expect(escapeCsvFormula("a=b")).toBe("a=b");
   });
 });
+
+// BL-344 contract fold-in 1: the commit carries the preview's
+// stash_impacts_token as one more form field; the two 409 refusals map to
+// their own codes.
+describe("runImport stash_impacts_token (BL-344)", () => {
+  beforeEach(() => {
+    authState.currentUser = null;
+    vi.restoreAllMocks();
+  });
+  const file = new File(["q\n"], "cards.csv", { type: "text/csv" });
+
+  it("a commit sends the token; a dry run and a missing token send none", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => jsonResponse({}));
+    await runImport(file, "replace", "add_above", "commit", "abc123");
+    await runImport(file, "replace", "add_above", "dry_run", "abc123");
+    await runImport(file, "replace", "add_above", "commit", null);
+    const sent = fetchSpy.mock.calls.map(([, init]) =>
+      (init?.body as FormData).get("stash_impacts_token")
+    );
+    expect(sent).toEqual(["abc123", null, null]);
+  });
+
+  it.each(["stash_impacts_changed", "exceeds_owned"])("409 %s is its own code", async (code) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ detail: code }, 409));
+    const err = await runImport(file, "replace", "add_above", "commit", "t").catch((e) => e);
+    expect(err).toBeInstanceOf(ImportApiError);
+    expect((err as ImportApiError).code).toBe(code);
+    expect((err as ImportApiError).message).toMatch(/Preview the file again\.$/);
+  });
+});

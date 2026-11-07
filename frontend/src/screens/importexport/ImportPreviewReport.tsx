@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ImportReport, ImportRowCard, ImportRowReport } from "../../api/inventoryImportExport";
+import { previewStashImpacts, stashImpactCopies } from "../../api/inventoryImportExport";
 import { SWUButton } from "../../components/SWUButton";
 
 interface Props {
@@ -169,6 +170,7 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
   }, [report]);
 
   const totalCards = totalCardsFromReport(report);
+  const stashImpacts = previewStashImpacts(report);
   const problemAligned = view === "problem";
   const resolvedAligned = view === "resolved";
 
@@ -217,6 +219,46 @@ export function ImportPreviewReport({ report, onDownloadProblemRows }: Props) {
                   <tr key={i} className="ie-table__row--removed">
                     <td>{cardLabel(r.card)}</td>
                     <td className="ie-table__num">{r.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* the stash cuts the commit would make, always visible in
+          the same danger treatment as the removal list. */}
+      {stashImpacts.length > 0 && (
+        <section
+          className="ie-report-section ie-report-section--danger"
+          aria-label="Copies that will be taken out of stashes"
+        >
+          <h3 className="ie-report-section__title">
+            Will be taken out of stashes ({stashImpactCopies(stashImpacts)}) — the file lowers
+            stashed printings
+          </h3>
+          <div className="ie-table-wrap">
+            <table className="ie-table">
+              <thead>
+                <tr>
+                  <th scope="col">Stash</th>
+                  <th scope="col">Card</th>
+                  <th scope="col" className="ie-table__th-num">
+                    Copies
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stashImpacts.map((s, i) => (
+                  <tr key={i} className="ie-table__row--removed">
+                    <td>{s.stash_name}</td>
+                    <td>
+                      {s.card_name} {s.printing_label}
+                    </td>
+                    <td className="ie-table__num">
+                      {s.before} → {s.after}
+                    </td>
                   </tr>
                 ))}
               </tbody>

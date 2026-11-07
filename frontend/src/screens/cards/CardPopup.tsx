@@ -21,6 +21,10 @@ import { CardPopupLinkButton } from "./CardPopupLink";
 import { cardPageUrl } from "../../public/publicCatalog";
 import { defaultPrinting } from "../../utils/printingSlug";
 import { capture } from "../../analytics/analytics";
+import { getPlaysetSize } from "../../utils/inventory";
+import { useStashEditor } from "../../stashes/useStashEditor";
+import { CardPopupStashes } from "./CardPopupStashes";
+import { variantLabel } from "./cardPopupShared";
 import "./CardPopup.css";
 
 export type { CardPopupNavigation };
@@ -301,11 +305,22 @@ export function CardPopup({
 
   const typeCategory = typeCategoryOf(detail?.type ?? "Unit");
 
-  const { pending, mutationError, handleIncrement, handleDecrement } = useInventoryMutation(
-    selectedVariant,
-    setVariants,
-    setChanged
+  // stashes (desktop 1a): the selected printing's staged split. Own
+  // vault only -- the shared vault's page mounts a disabled StashProvider,
+  // and readOnly / signed out never draw it. Done first settles the owned
+  // stepper's open batch (settleRef, filled once the mutation hook exists).
+  const settleRef = useRef<() => Promise<void>>(async () => {});
+  const stashEditor = useStashEditor(
+    isAuthenticated && !readOnly ? (selectedVariant?.variant_id ?? null) : null,
+    selectedVariant?.quantity ?? 0,
+    () => settleRef.current()
   );
+
+  const { pending, mutationError, handleIncrement, handleDecrement, settleSelected } =
+    useInventoryMutation(selectedVariant, setVariants, setChanged, stashEditor.floor);
+  useEffect(() => {
+    settleRef.current = settleSelected;
+  }, [settleSelected]);
 
   return (
     <>
@@ -358,6 +373,16 @@ export function CardPopup({
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
                     onRequestSignIn={onRequestSignIn}
+                    decFloor={stashEditor.floor}
+                    stashSlot={
+                      stashEditor.available ? (
+                        <CardPopupStashes
+                          editor={stashEditor}
+                          playsetSize={getPlaysetSize(detail.type)}
+                          printingLabel={variantLabel(selectedVariant)}
+                        />
+                      ) : null
+                    }
                   />
                 }
                 afterBody={

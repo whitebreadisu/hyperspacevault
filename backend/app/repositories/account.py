@@ -14,7 +14,7 @@ def _current_tenant_id(db: Session) -> int:
 
 def purge_tenant(db: Session) -> None:
     """Permanently delete every row belonging to the caller's own tenant,
-    in FK-safe order (inventory / limit overrides / settings / feedback /
+    in FK-safe order (stashes / inventory / limit overrides / settings / feedback /
     shares -> users -> tenants), inside one transaction -- a single
     commit() at the end means
     a failure partway through leaves nothing committed (db.close()'s
@@ -52,6 +52,16 @@ def purge_tenant(db: Session) -> None:
     """
     tenant_id = _current_tenant_id(db)
 
+    # stash rows go before inventory (the stash invariant triggers
+    # compare the two) and before the tenants row (no-cascade FK).
+    db.execute(
+        text("DELETE FROM stash_items WHERE tenant_id = :tenant_id"),
+        {"tenant_id": tenant_id},
+    )
+    db.execute(
+        text("DELETE FROM stashes WHERE tenant_id = :tenant_id"),
+        {"tenant_id": tenant_id},
+    )
     db.execute(
         text("DELETE FROM inventory WHERE tenant_id = :tenant_id"),
         {"tenant_id": tenant_id},
