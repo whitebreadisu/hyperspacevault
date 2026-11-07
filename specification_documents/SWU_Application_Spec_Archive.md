@@ -796,3 +796,27 @@ Disposition log: `analysis/BL271_Purity_Dispositions_2026-10-18.md` (private). N
 ### §17.3 — Post-commit refresh, phone sentence (verbatim)
 
 > The phone's Import screen swallows the refetch failure and shows the same success screen without the note.
+
+## Archived 2026-11-07 — header logos and one-line brand tag (BL-340)
+
+**Disposition:** → archive. BL-340 replaced the desktop and phone text wordmark with the new logos, put the desktop version on one tag line with "Unofficial Fan Project" (the "[Release Notes]" sub-label is gone), and moved the phone unread cue from the title text to the tag line (owner, 2026-11-07). The replacement text states what the code does. No new ADR.
+
+### §5.8 — About & Legal, the header opener (verbatim)
+
+> the header's brand button (the "[HSV] Hyperspace Vault" wordmark with its "Unofficial Fan Project" line, visible to anonymous and signed-in visitors alike);
+
+### §5.12 — Header polish bullet (verbatim)
+
+> - **Header polish (BL-227, v1.4):** the header's version and fan-project links are white at rest with the buttons' blue hover glow; nav-tab hover is unified; `.inv-summary__actions` wraps at narrow widths like the summary blocks (PR #148).
+
+### §25.1 — Shell bullet, header sentences (verbatim)
+
+> Header: `[HSV] Hyperspace Vault` over `Unofficial Fan Project [v#.#.#]`, text Feedback button, account slot (Sign in / avatar menu: Settings, Change Password with a password provider only, About & Legal, Log Out). Title / badge tap opens the About & Legal / [HSV] Updates chooser; the unread release-notes cue glows on the title (badge when collapsed), never on More.
+
+### §25.4 — Unread cue bullet, primary-cue sentence (verbatim)
+
+> The title / badge glow is the primary cue;
+
+### §25.6 — Shared header bullet, wordmark sentence (verbatim)
+
+> the wordmark and version line are unchanged and the wordmark never truncates (the shared header sets the wordmark's letter-spacing to 0.06em so the 13 px Sign in link beside Feedback never pushes it past its box).

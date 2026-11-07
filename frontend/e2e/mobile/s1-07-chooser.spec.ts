@@ -3,8 +3,10 @@ import type { Page } from "@playwright/test";
 
 // S1-07 (R5-2): the title / [HSV] badge opens the chooser (replaces rev4
 // r4-10-wordmark-opens-about); the unread cue is an opacity-only layer on the
-// title / badge (from d2-0-cue-opacity-only) and must not cost the collapse
-// its layout bound while it runs (d2-0-probe-with-cue-animating).
+// tag line / badge (from d2-0-cue-opacity-only) and must not cost the collapse
+// its layout bound while it runs (d2-0-probe-with-cue-animating). REPLACE:
+// the cue moved from the title text to the tag line when the initials logo
+// replaced the wordmark; the assertions are the same, on the tag line.
 test.afterEach(measureEach);
 
 test.beforeEach(async ({ page }, info) => {
@@ -64,7 +66,7 @@ test("s1-07-title-chooser", async ({ page }) => {
   await page.locator(".m-chooser__x").click();
   await expect(page.locator(".m-chooser")).toHaveCount(0);
   await expect(page).toHaveURL(/#\/vault$/);
-  await expect(page.locator(".m-vh__word.m-cue")).toHaveCount(1);
+  await expect(page.locator(".m-vh__tag.m-cue")).toHaveCount(1);
 
   // Collapsed: the badge opens the same chooser and does not expand the strip.
   await scrollBy(page, ".m-vault__scroll", 420);
@@ -110,7 +112,7 @@ test("s1-07-cue-opacity-only-on-title", async ({ page }) => {
   expect(r.bad).toEqual([]);
   expect(r.cue).toBeGreaterThanOrEqual(1);
   const own = await page.evaluate(() => {
-    const w = document.querySelector(".m-vh__word")!;
+    const w = document.querySelector(".m-vh__tag")!;
     const after = getComputedStyle(w, "::after");
     const more = document.querySelector(".m-nav .m-tab:last-child")!;
     return {
@@ -140,7 +142,7 @@ test("s1-07-cue-opacity-only-on-title", async ({ page }) => {
   // BL-250 S4-04 PORT: the real Updates screen renders (its mount clears).
   await expect(page.locator(".m-updates")).toBeVisible();
   await page.locator(".m-nav .m-tab", { hasText: "Vault" }).click();
-  await expect(page.locator(".m-vh__word")).toBeVisible();
+  await expect(page.locator(".m-vh__tag")).toBeVisible();
   await expect(page.locator(".m-cue")).toHaveCount(0);
   await page.waitForTimeout(300); // let the tab's 0.15 s colour transition finish
   expect(await page.evaluate(anims)).toEqual({ cue: 0, bad: [] });
@@ -156,9 +158,9 @@ test("s1-07-cue-opacity-only-on-title", async ({ page }) => {
   await expect(page.locator(".m-row").first()).toBeVisible();
   await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
   await page.reload();
-  await expect(page.locator(".m-vh__word.m-cue")).toHaveCount(1);
+  await expect(page.locator(".m-vh__tag.m-cue")).toHaveCount(1);
   const rm = await page.evaluate(() => {
-    const a = getComputedStyle(document.querySelector(".m-vh__word")!, "::after");
+    const a = getComputedStyle(document.querySelector(".m-vh__tag")!, "::after");
     return { name: a.animationName, op: +a.opacity };
   });
   expect(rm.name).toBe("none");

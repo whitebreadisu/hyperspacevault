@@ -194,7 +194,8 @@ describe("S4-04 unread cue rule", () => {
       await act(async () => fireEvent.click(container.querySelector(".m-vh__brandtext")!));
       expect(container.querySelector(".m-chooser__btn--cue .m-cue")).not.toBeNull();
       await act(async () => fireEvent.click(container.querySelector(".m-chooser__x")!));
-      expect(container.querySelector(".m-vh__word.m-cue")).not.toBeNull();
+      // PORT: the cue moved from the title text to the tag line.
+      expect(container.querySelector(".m-vh__tag.m-cue")).not.toBeNull();
       expect(localStorage.getItem(SEEN)).toBeNull();
       await goHash("#/more");
       expect(container.querySelector('[data-more="updates"]')).not.toBeNull();

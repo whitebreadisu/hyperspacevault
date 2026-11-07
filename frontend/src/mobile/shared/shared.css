@@ -164,11 +164,3 @@
   visibility: hidden;
   pointer-events: none;
 }
-
-/* With the share's "Sign in" text link beside Feedback the wordmark has
- * about 1 px of headroom at 390 px and overflows with Linux fonts. In the
- * shared header only, the wordmark's tracking eases from 0.1em to 0.06em
- * (the wordmark is never truncated). */
-.m-app .m-vh__top:has(.m-acct--shared) .m-vh__word {
-  letter-spacing: 0.06em;
-}

@@ -68,7 +68,7 @@ test("s4-04-cue-opacity-only", async ({ page }) => {
   await expect(page).toHaveURL(/#\/more$/);
   await expect(page.locator(".m-morerow--cue, .m-cue")).toHaveCount(0);
   await page.locator(".m-nav .m-tab", { hasText: "Vault" }).click();
-  await expect(page.locator(".m-vh__word")).toBeVisible();
+  await expect(page.locator(".m-vh__logo")).toBeVisible();
   await expect(page.locator(".m-cue")).toHaveCount(0);
 
   // Reduced motion: a steady glow on the More row, no pulse.

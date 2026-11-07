@@ -1038,3 +1038,51 @@ describe("Header shared-vault nav (BL-205)", () => {
     expect(screen.queryByText("Bobs big vault")).not.toBeInTheDocument();
   });
 });
+
+// DISPOSITION (CREATE): the full logo replaces the text wordmark and goes to
+// the Vault; one tag line under it holds "Unofficial Fan Project" (About &
+// Legal, covered above) and the version button ([HSV] Updates, covered in
+// the version-label block above); the "[Release Notes]" sub-label is gone.
+describe("Header logo and one-line brand tag", () => {
+  function renderBrand(props: { onNavigateCards?: () => void; onOpenNotes?: () => void } = {}) {
+    return render(
+      <Header
+        userEmail={null}
+        onLogout={vi.fn()}
+        onSignIn={vi.fn()}
+        onChangePassword={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onOpenAbout={vi.fn()}
+        onOpenFeedback={vi.fn()}
+        {...props}
+      />
+    );
+  }
+
+  it("shows the full logo with its alt text, and a click goes to the Vault", () => {
+    const onNavigateCards = vi.fn();
+    renderBrand({ onNavigateCards });
+    const logo = screen.getByRole("img", { name: "Hyperspace Vault" });
+    expect(logo.getAttribute("srcset")).toMatch(/ 2x, .* 3x$/);
+    expect(screen.queryByText(/\[HSV\] Hyperspace Vault/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hyperspace Vault" }));
+    expect(onNavigateCards).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the tag and the version on one line, with no Release Notes sub-label", () => {
+    const { container } = renderBrand();
+    const line = container.querySelector(".app-header__brand-line")!;
+    const buttons = Array.from(line.querySelectorAll("button")).map((b) => b.textContent);
+    expect(buttons).toEqual(["Unofficial Fan Project", expect.stringMatching(/^v\d+\.\d+/)]);
+    expect(screen.queryByText(/release notes/i)).not.toBeInTheDocument();
+  });
+
+  it("the version button is styled as the tag and opens Updates", () => {
+    const onOpenNotes = vi.fn();
+    renderBrand({ onOpenNotes });
+    const version = screen.getByRole("button", { name: /^v\d+\.\d+.*\[HSV\] Updates$/ });
+    expect(version.className).toContain("app-header__brand-tag");
+    fireEvent.click(version);
+    expect(onOpenNotes).toHaveBeenCalledTimes(1);
+  });
+});

@@ -146,7 +146,8 @@
 }
 
 /* Brand stack (a tap opens the title chooser; the tag line carries the
- * version). */
+ * version and, while an update is unread, the cue). 30 + 2 + 12 px fills the
+ * 44 px row. */
 .m-app .m-vh__brandtext {
   flex: 1 1 auto;
   min-width: 0;
@@ -154,7 +155,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   background: none;
   border: none;
   padding: 0;
@@ -164,16 +165,15 @@
 .m-app .m-vh__brandtext:active {
   opacity: 0.8;
 }
-.m-app .m-vh__word {
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  line-height: 1.05;
-  white-space: nowrap;
+/* The initials logo (BrandLogo.tsx): 30 px tall in an 80 px box,
+ * left-aligned. Shared by More and the shared-vault status header. */
+.m-app .m-vh__logo {
+  display: block;
+  flex: none;
+  width: 80px;
+  height: 30px;
+  object-fit: contain;
+  object-position: left center;
 }
 .m-app .m-vh__tag {
   font-family: var(--font-ui);
@@ -190,6 +190,12 @@
 /* The version keeps desktop's casing (index.css .app-header__version is not
  * uppercased: "v1.5.1"), so the tag line reads "UNOFFICIAL FAN PROJECT [v1.5.1]". */
 .m-app .m-vh__ver {
+  text-transform: none;
+}
+/* The cue layer copies the tag from data-cue, which is already in the
+ * displayed casing; uppercasing it again would turn "v2.3" into "V2.3" and
+ * shift the glow off the glyphs. */
+.m-app .m-vh__tag.m-cue::after {
   text-transform: none;
 }
 /* Feedback (text): the 40 px SWUButton, drawn at 40, hit at 44. */

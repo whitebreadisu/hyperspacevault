@@ -5,6 +5,8 @@ visitors emit events), so these tests run without DATABASE_URL, monkeypatching
 the module-level httpx client the way TestSecurityHeaders leans on /health.
 """
 
+import logging
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -116,8 +118,8 @@ class TestResponsePassthrough:
 
 
 class TestFailurePosture:
-    """Analytics must never break the app: upstream trouble is a quiet 502,
-    never an exception into the app's error surface."""
+    """Analytics must never break the app or page us (BL-333): ingestion-path
+    upstream trouble is an accepted 200 plus one WARNING, never a 5xx."""
 
     @pytest.mark.parametrize(
         "error",
@@ -127,16 +129,69 @@ class TestFailurePosture:
             httpx.ProtocolError("bad"),
         ],
     )
-    def test_upstream_errors_become_502(self, monkeypatch, error):
+    def test_upstream_errors_answer_accepted_and_warn(self, monkeypatch, caplog, error):
         monkeypatch.setattr(relay, "_client", RecordingClient(error=error))
-        response = client.post("/api/relay/e", content=b"{}")
-        assert response.status_code == 502
+        with caplog.at_level(logging.WARNING, logger=relay.logger.name):
+            response = client.post("/api/relay/e?distinct_id=secret-id", content=b"{}")
+        assert response.status_code == 200
+        assert response.json() == {"status": 1}
+        records = [r for r in caplog.records if r.name == relay.logger.name]
+        assert len(records) == 1
+        assert records[0].levelno == logging.WARNING
+        message = records[0].getMessage()
+        assert type(error).__name__ in message
+        assert "/e" in message
+        assert "secret-id" not in message
 
-    def test_upstream_5xx_passes_through_without_raising(self, monkeypatch):
+    def test_upstream_5xx_answers_accepted_and_warns(self, monkeypatch, caplog):
         monkeypatch.setattr(
             relay, "_client", RecordingClient(response=httpx.Response(503))
         )
-        assert client.post("/api/relay/e").status_code == 503
+        with caplog.at_level(logging.WARNING, logger=relay.logger.name):
+            response = client.post("/api/relay/i/v0/e/?token=secret", content=b"{}")
+        assert response.status_code == 200
+        assert response.json() == {"status": 1}
+        records = [r for r in caplog.records if r.name == relay.logger.name]
+        assert len(records) == 1
+        assert records[0].levelno == logging.WARNING
+        message = records[0].getMessage()
+        assert "503" in message
+        assert "/i/v0/e/" in message
+        assert "secret" not in message
+
+    def test_upstream_4xx_passes_through(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            relay,
+            "_client",
+            RecordingClient(response=httpx.Response(400, content=b"bad")),
+        )
+        with caplog.at_level(logging.WARNING, logger=relay.logger.name):
+            response = client.post("/api/relay/e")
+        assert response.status_code == 400
+        assert response.content == b"bad"
+        assert not [r for r in caplog.records if r.name == relay.logger.name]
+
+    def test_upstream_200_passes_through(self, monkeypatch):
+        monkeypatch.setattr(
+            relay,
+            "_client",
+            RecordingClient(response=httpx.Response(200, content=b"upstream-body")),
+        )
+        response = client.post("/api/relay/e")
+        assert response.status_code == 200
+        assert response.content == b"upstream-body"
+
+    def test_static_asset_failure_is_not_masked(self, monkeypatch):
+        monkeypatch.setattr(
+            relay, "_client", RecordingClient(error=httpx.ReadTimeout("slow"))
+        )
+        assert client.get("/api/relay/static/recorder.js").status_code == 502
+
+    def test_static_asset_upstream_5xx_passes_through(self, monkeypatch):
+        monkeypatch.setattr(
+            relay, "_client", RecordingClient(response=httpx.Response(503))
+        )
+        assert client.get("/api/relay/static/recorder.js").status_code == 503
 
 
 class TestMethodSurface:

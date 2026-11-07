@@ -19,9 +19,19 @@ Two upstream hosts, per PostHog's documented reverse-proxy contract:
   /api/relay/*         -> us.i.posthog.com          (event ingestion,
                           /decide config, flags)
 
-Failure posture: analytics must never break the app. Upstream errors and
-timeouts come back as plain 502s; the client SDK retries/batches on its
-own. Nothing here raises into the app's error surface.
+Failure posture: analytics must never break the app, and a
+PostHog outage must never page us. On the ingestion path an upstream
+timeout, transport error or 5xx is answered `200 {"status": 1}` (what
+PostHog itself returns for an accepted event, so posthog-js treats it as
+delivered and does not retry) and logged as ONE WARNING line (error class
+or upstream status, plus the path -- never payload, headers or query).
+The browser therefore never sees a 5xx, so Cloud Run's request log and the
+`high_5xx_rate` alert (Platform Spec 4.3) stay quiet. Accepted trade-off:
+events from a failed moment are dropped rather than retried by the SDK.
+Upstream 2xx/3xx/4xx pass through unchanged. The asset path
+(/api/relay/static/*) is NOT masked: a failed JS asset is not an accepted
+event, so it keeps a plain 502 (transport failure) or the upstream status.
+Nothing here raises into the app's error surface.
 """
 
 import logging
@@ -63,6 +73,11 @@ def _upstream_url(path: str, query: str) -> str:
     return url
 
 
+def _accepted() -> Response:
+    """The success answer PostHog gives for an accepted ingestion request."""
+    return Response(content=b'{"status": 1}', media_type="application/json")
+
+
 @router.api_route("/{path:path}", methods=["GET", "POST"])
 async def relay(path: str, request: Request) -> Response:
     upstream = _upstream_url(path, request.url.query)
@@ -79,6 +94,7 @@ async def relay(path: str, request: Request) -> Response:
     if request.client is not None and request.client.host:
         headers["x-forwarded-for"] = request.client.host
 
+    is_asset = path.startswith("static/")
     try:
         upstream_response = await _client.request(
             request.method,
@@ -87,10 +103,16 @@ async def relay(path: str, request: Request) -> Response:
             headers=headers,
         )
     except httpx.HTTPError as exc:
-        # Log the class, not the payload -- analytics bodies never belong
-        # in our logs.
-        logger.warning("relay upstream error: %s", type(exc).__name__)
-        return Response(status_code=502)
+        # Log the class and path, not the payload or query -- analytics
+        # bodies and ids never belong in our logs.
+        logger.warning("relay upstream error: %s path=/%s", type(exc).__name__, path)
+        return Response(status_code=502) if is_asset else _accepted()
+
+    if upstream_response.status_code >= 500 and not is_asset:
+        logger.warning(
+            "relay upstream status: %d path=/%s", upstream_response.status_code, path
+        )
+        return _accepted()
 
     return Response(
         content=upstream_response.content,
