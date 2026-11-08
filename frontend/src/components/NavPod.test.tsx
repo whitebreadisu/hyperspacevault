@@ -208,7 +208,11 @@ describe("the stash menu", () => {
   });
 });
 
-describe("glide motion", () => {
+// PORT (R2-1 fold-in): these cover NavPod's own clip phase and folding
+// (classes, aria-hidden, the 650 ms clip timer), which the glide rewrite
+// kept; the width glide itself is covered by podGlide.test.ts (lifecycle)
+// and r1-01-header-widths.spec.ts (per-frame path in the browser).
+describe("glide motion: clip phase and folding", () => {
   function views(rerender: (ui: React.ReactElement) => void, view: AppView) {
     rerender(
       <StashProvider enabled>
@@ -239,7 +243,11 @@ describe("glide motion", () => {
     await mount({ view: "deck-check" });
     const vaultSubs = document.querySelector(".pod__item--vault .pod__subs")!;
     expect(vaultSubs).toHaveAttribute("aria-hidden", "true");
-    expect((vaultSubs as HTMLElement).style.maxWidth).toBe("0px");
+    // REPLACE (owner 2026-11-08, the pod glide): a folded group is closed by
+    // class (NavPod.css: max-width 0) and the header's glide writes its
+    // width, 0, inline; React no longer writes its max-width.
+    expect(vaultSubs).not.toHaveClass("pod__subs--open");
+    expect((vaultSubs as HTMLElement).style.width).toBe("0px");
     expect(screen.getByRole("button", { name: "Deck Check" })).toHaveAttribute(
       "aria-current",
       "page"

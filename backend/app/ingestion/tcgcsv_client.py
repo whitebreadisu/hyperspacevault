@@ -103,6 +103,7 @@ ROOT_SET_GROUP_IDS: dict[str, int] = {
     "HMW": 24812,
     "IBH": 24386,
     "TS26": 24622,
+    "IC27": 24888,  # "Icons 2027 Edition", publishedOn 2026-11-20
 }
 
 # Weekly Play tcgcsv groupId map (App Spec §16.3b), checked against the category-79

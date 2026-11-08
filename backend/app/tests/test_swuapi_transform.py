@@ -33,6 +33,11 @@ Disposition of every test that was in this file before the split:
   - test_render_exceptions_doc_with_zam_only                -> moved (census)
   - test_render_exceptions_doc_with_no_exceptions            -> unchanged
     (already synthetic)
+
+BL-349 / ADR-0039 (2026-11-08, earliest-released tie-break for the §10.6
+fallback): test_ambiguous_fallback_raises_instead_of_guessing -> kept, its
+docstring narrowed (both matches sit in one set, which the tie-break still
+cannot decide); new tests below pin the tie-break itself.
 """
 
 from collections import Counter
@@ -41,6 +46,7 @@ import pytest
 
 from app.ingestion.swuapi_transform import (
     BASE_SET_CODES,
+    CANONICAL_RELEASE_DATES,
     AmbiguousFallbackError,
     render_exceptions_doc,
     transform,
@@ -168,8 +174,9 @@ def test_card_variants_keyed_on_swuapi_id_not_base_card_and_variant_type(result)
 
 
 def test_ambiguous_fallback_raises_instead_of_guessing():
-    """If a future card's fallback ever returns >1 non-token Standard
-    match, ingestion must stop rather than pick one (mapping spec §6)."""
+    """Two non-token Standard matches in the SAME set (and an undated one at
+    that): the earliest-released tie-break cannot decide, so ingestion must
+    stop rather than pick one (mapping spec §6, ADR-0039)."""
     export = {
         "sets": [{"code": "XX1", "name": "Test Set"}],
         "cards": [
@@ -216,3 +223,184 @@ def test_render_exceptions_doc_with_no_exceptions():
     doc = render_exceptions_doc([])
     assert "## Current exceptions (0)" in doc
     assert "None" in doc
+
+
+def _card(uuid, set_code, number, variant_type, name="Echo Base", type_="Base"):
+    return {
+        "uuid": uuid,
+        "name": name,
+        "subtitle": None,
+        "type": type_,
+        "rarity": "Common",
+        "set_code": set_code,
+        "card_number": number,
+        "variant_type": variant_type,
+        "variant_of_uuid": None,
+    }
+
+
+def _anchor_set(result, swuapi_id):
+    base_by_id = {b["swuapi_id"]: b for b in result.base_cards}
+    variant = next(v for v in result.card_variants if v["swuapi_id"] == swuapi_id)
+    return base_by_id[variant["base_card_swuapi_id"]]["set_code"]
+
+
+def test_fallback_tie_break_picks_the_earliest_released_set():
+    """BL-349: GG_2 Echo Base matched SOR_24 and its IC27 reprint; the
+    original printing (earliest-released set) must win, whichever order the
+    export lists them in (ADR-0039)."""
+    for order in (("IC27", "SOR"), ("SOR", "IC27")):
+        cards = [_card("gg-2", "GG", "2", "Hyperspace Foil")] + [
+            _card(f"std-{code}", code, "24", "Standard") for code in order
+        ]
+        export = {
+            "sets": [{"code": c, "name": c} for c in ("GG", "SOR", "IC27")],
+            "cards": cards,
+        }
+        result = transform(export)
+        assert _anchor_set(result, "gg-2") == "SOR"
+        assert result.exceptions == []
+
+
+def test_fallback_tie_break_uses_swuapi_date_for_an_uncurated_set():
+    """A set outside CANONICAL_RELEASE_DATES is ordered by swuapi's own
+    sets[].release_date; the curated table still wins where it has a date."""
+    export = {
+        "sets": [
+            {"code": "GG", "name": "GG"},
+            {"code": "ZZ1", "name": "Old", "release_date": "2023-01-01T00:00:00.000Z"},
+            {"code": "SOR", "name": "SOR"},
+        ],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-sor", "SOR", "24", "Standard"),
+            _card("std-zz1", "ZZ1", "1", "Standard"),
+        ],
+    }
+    assert _anchor_set(transform(export), "gg-2") == "ZZ1"
+
+
+def test_fallback_tie_break_equal_dates_fall_back_to_set_code():
+    """Two sets released the same day: the set code is the stable secondary
+    key (alphabetical), so the result never depends on export order."""
+    for order in (("ZB1", "ZA1"), ("ZA1", "ZB1")):
+        export = {
+            "sets": [{"code": "GG", "name": "GG"}]
+            + [{"code": c, "name": c, "release_date": "2030-01-01"} for c in order],
+            "cards": [_card("gg-2", "GG", "2", "Hyperspace Foil")]
+            + [_card(f"std-{c}", c, "1", "Standard") for c in order],
+        }
+        assert _anchor_set(transform(export), "gg-2") == "ZA1"
+
+
+def test_fallback_tie_break_raises_when_a_match_set_is_undated():
+    """No release date for one of the matched sets -> no principled order,
+    so the hard stop stays (add the date, or decide manually)."""
+    export = {
+        "sets": [{"code": c, "name": c} for c in ("GG", "SOR", "ZZ9")],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-sor", "SOR", "24", "Standard"),
+            _card("std-zz9", "ZZ9", "1", "Standard"),
+        ],
+    }
+    with pytest.raises(AmbiguousFallbackError, match="ZZ9"):
+        transform(export)
+
+
+def test_fallback_tie_break_raises_on_two_matches_in_the_earliest_set():
+    """Two Standard roots of the same name in the earliest set: the key
+    (date, set code) ties, so nothing can decide -- still a hard stop, even
+    though a later set also matches."""
+    export = {
+        "sets": [{"code": c, "name": c} for c in ("GG", "SOR", "IC27")],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-sor-a", "SOR", "24", "Standard"),
+            _card("std-sor-b", "SOR", "25", "Standard"),
+            _card("std-ic27", "IC27", "10", "Standard"),
+        ],
+    }
+    with pytest.raises(AmbiguousFallbackError, match="earliest-released set SOR"):
+        transform(export)
+
+
+def test_fallback_single_match_needs_no_release_date():
+    """One match anchors as before -- the tie-break (and its date lookup)
+    only runs for two or more."""
+    export = {
+        "sets": [{"code": c, "name": c} for c in ("GG", "ZZ9")],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-zz9", "ZZ9", "1", "Standard"),
+        ],
+    }
+    assert _anchor_set(transform(export), "gg-2") == "ZZ9"
+
+
+def test_fallback_tie_break_curated_date_beats_a_conflicting_swuapi_date():
+    """The curated CANONICAL_RELEASE_DATES wins over swuapi's own date: an
+    upstream edit that dates SOR after IC27 must not flip the tie, and the
+    stored sets row follows the same precedence (ADR-0039)."""
+    export = {
+        "sets": [
+            {"code": "GG", "name": "GG"},
+            {"code": "SOR", "name": "SOR", "release_date": "2030-01-01T00:00:00.000Z"},
+            {"code": "IC27", "name": "IC27", "release_date": "2020-01-01"},
+        ],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-sor", "SOR", "24", "Standard"),
+            _card("std-ic27", "IC27", "10", "Standard"),
+        ],
+    }
+    result = transform(export)
+    assert _anchor_set(result, "gg-2") == "SOR"
+    stored = {s["code"]: s["release_date"] for s in result.sets}
+    assert stored["SOR"] == CANONICAL_RELEASE_DATES["SOR"]
+    assert stored["IC27"] == CANONICAL_RELEASE_DATES["IC27"]
+
+
+def test_fallback_tie_break_unique_earliest_match_wins_over_later_duplicates():
+    """One SOR match plus two IC27 matches: the earliest set holds exactly
+    one, so it wins -- duplicates in a LATER set never stop ingestion."""
+    export = {
+        "sets": [{"code": c, "name": c} for c in ("GG", "SOR", "IC27")],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-ic27-a", "IC27", "10", "Standard"),
+            _card("std-ic27-b", "IC27", "11", "Standard"),
+            _card("std-sor", "SOR", "24", "Standard"),
+        ],
+    }
+    result = transform(export)
+    base_by_id = {b["swuapi_id"]: b for b in result.base_cards}
+    variant = next(v for v in result.card_variants if v["swuapi_id"] == "gg-2")
+    assert variant["base_card_swuapi_id"] == "std-sor"
+    assert base_by_id["std-sor"]["set_code"] == "SOR"
+
+
+def test_fallback_tie_break_unparseable_swuapi_date_counts_as_undated():
+    """A non-ISO upstream date is not string-compared: the set is treated as
+    undated, so a tie involving it stops ingestion."""
+    export = {
+        "sets": [
+            {"code": "GG", "name": "GG"},
+            {"code": "SOR", "name": "SOR"},
+            {"code": "ZZ1", "name": "ZZ1", "release_date": "March 2023"},
+        ],
+        "cards": [
+            _card("gg-2", "GG", "2", "Hyperspace Foil"),
+            _card("std-sor", "SOR", "24", "Standard"),
+            _card("std-zz1", "ZZ1", "1", "Standard"),
+        ],
+    }
+    with pytest.raises(AmbiguousFallbackError, match="ZZ1"):
+        transform(export)
+
+
+def test_ic27_is_a_curated_base_set_with_a_release_date():
+    """BL-349: IC27 is curated as a base set and dated (2026-11-20 street
+    date), so the tie-break can order it."""
+    assert "IC27" in BASE_SET_CODES
+    assert CANONICAL_RELEASE_DATES["IC27"] == "2026-11-20"

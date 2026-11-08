@@ -39,12 +39,13 @@ describe("setGrouping constants", () => {
     expect(SET_CANONICAL).toEqual(["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"]);
   });
 
-  it("SET_SECONDARY is IBH then TS26", () => {
-    expect(SET_SECONDARY).toEqual(["IBH", "TS26"]);
+  // PORT (BL-349): IC27 joins the secondary block, appended in release order.
+  it("SET_SECONDARY is IBH, TS26, then IC27 (release order)", () => {
+    expect(SET_SECONDARY).toEqual(["IBH", "TS26", "IC27"]);
   });
 
   it("BASE_SET_ORDER concatenates canonical then secondary -- every base set", () => {
-    expect(BASE_SET_ORDER).toHaveLength(11);
+    expect(BASE_SET_ORDER).toHaveLength(12);
     expect(BASE_SET_ORDER).toEqual([...SET_CANONICAL, ...SET_SECONDARY]);
   });
 
@@ -225,10 +226,11 @@ describe("headerLogoCodesFor (Add Cards locked-header base-set logos)", () => {
 describe("FR2-01 set order newest first (BL-258)", () => {
   const MAIN = ["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"];
 
-  it("fr2-01 main block is literal newest first; IBH, TS26 follow it", () => {
+  // PORT (BL-349): IC27 follows TS26 (secondary block, release order).
+  it("fr2-01 main block is literal newest first; IBH, TS26, IC27 follow it", () => {
     expect(SET_CANONICAL).toEqual(MAIN);
-    expect(SET_SECONDARY).toEqual(["IBH", "TS26"]);
-    expect(BASE_SET_ORDER).toEqual([...MAIN, "IBH", "TS26"]);
+    expect(SET_SECONDARY).toEqual(["IBH", "TS26", "IC27"]);
+    expect(BASE_SET_ORDER).toEqual([...MAIN, "IBH", "TS26", "IC27"]);
   });
 
   it("fr2-01 Weekly Play nests under its base in the new order", () => {
@@ -237,7 +239,7 @@ describe("FR2-01 set order newest first (BL-258)", () => {
       ...MAIN.map((c) => makeSet(weeklyPlayCodeFor(c), { is_base_set: false })),
     ];
     const { baseGroups } = allSetsGroups(sets);
-    expect(baseGroups.map((g) => g.key)).toEqual([...MAIN, "IBH", "TS26"]);
+    expect(baseGroups.map((g) => g.key)).toEqual([...MAIN, "IBH", "TS26", "IC27"]); // PORT (BL-349)
     expect(baseGroups[0].memberCodes).toEqual(["HMW", "HMWP"]);
     expect(baseGroups[8].memberCodes).toEqual(["SOR", "SORP"]);
     expect(baseGroups[9].memberCodes).toEqual(["IBH"]);

@@ -36,6 +36,7 @@ const STARFIELD_SET_CODES = new Set([
   "ASH",
   "HMW",
   "IBH",
+  "IC27",
 ]);
 
 /** Logo roster (public/images/set_*.png) = starfield roster + TS26, which has

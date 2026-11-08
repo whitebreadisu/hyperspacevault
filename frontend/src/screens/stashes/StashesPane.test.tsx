@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Stash, StashItem } from "../../api/stashes";
 import { phoneCard } from "../../mobile/vault/phoneCardFixtures";
 import { StashProvider } from "../../stashes/StashContext";
 import { RETURN_ERRORS } from "../../stashes/useStashReturn";
 import type { InventoryCard } from "../../utils/inventory";
-import { StashesPane } from "./StashesPane";
+import { RAIL_DOCK_MIN_WIDTH, StashesPane } from "./StashesPane";
 
 // The desktop Stashes page, design 1b, one test (or more) per README state
 // against the real StashesPane inside a StashProvider with the stash API
@@ -724,34 +724,144 @@ describe("R1-6: Market / Low in the rail and the value tile", () => {
   });
 });
 
-describe("R1-7: the rail collapses", () => {
-  it("collapses to the edge tab, keeps every stash a click away, and is remembered", async () => {
+// Replaced (R2-2, owner 2026-11-08): the rail docks or floats like the
+// Vault's filter sidebar. Docked (window >= RAIL_DOCK_MIN_WIDTH) its tab
+// unfolds the docked rail (the list reflows); narrower the tab floats it.
+// Retires the old single-mode tests "collapses to the edge tab, keeps every
+// stash a click away, and is remembered" (the flyout from a folded docked
+// rail is designed away) and moves "Escape closes the flyout" to the
+// floating mode.
+describe("R1-7 / R2-2: the rail docks or floats", () => {
+  const width = window.innerWidth;
+  function setWidth(w: number) {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: w });
+    window.dispatchEvent(new Event("resize"));
+  }
+  afterEach(() => setWidth(width));
+  const tab = () => screen.getByRole("button", { name: "Stashes, 3: show the list" });
+  const rail = () => screen.queryByRole("complementary", { name: "Stashes" });
+  async function floating() {
+    setWidth(RAIL_DOCK_MIN_WIDTH - 1);
+    render(<Harness />);
+    await screen.findByRole("heading", { name: "Red binder" });
+  }
+
+  it("docks from RAIL_DOCK_MIN_WIDTH (1284: the column ratios plus rail, gutter, padding)", () => {
+    expect(RAIL_DOCK_MIN_WIDTH).toBe(1284);
+  });
+
+  it("docked: folds to the edge tab and back, remembered per viewer", async () => {
+    setWidth(RAIL_DOCK_MIN_WIDTH);
     const r = await ready();
     fireEvent.click(screen.getByRole("button", { name: "Collapse the stash list" }));
-    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
+    expect(rail()).toBeNull();
     expect(window.localStorage.getItem("swu.stashes.railCollapsed")).toBe("1");
-    fireEvent.click(screen.getByRole("button", { name: "Stashes, 3: show the list" }));
-    const flyout = within(screen.getByRole("complementary", { name: "Stashes" }));
-    fireEvent.click(flyout.getByRole("button", { name: /Trade stash/ }));
-    // The pick shows that stash and the flyout closes; the rail stays folded.
-    expect(screen.getByRole("heading", { name: "Trade stash" })).toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
     r.unmount();
-    // A fresh visit opens folded.
+    // A fresh visit opens folded; the tab unfolds the docked rail (no flyout).
     render(<Harness />);
     fireEvent.click(await screen.findByRole("button", { name: "Stashes, 3: show the list" }));
-    fireEvent.click(screen.getByRole("button", { name: "Keep the stash list open" }));
+    expect(rail()!.className).not.toContain("sp-rail--flyout");
     expect(screen.getByRole("button", { name: "Collapse the stash list" })).toBeInTheDocument();
     expect(window.localStorage.getItem("swu.stashes.railCollapsed")).toBe("0");
   });
 
-  it("Escape closes the flyout", async () => {
+  it("docked: focus moves chevron -> tab on fold and tab -> chevron on unfold", async () => {
+    setWidth(RAIL_DOCK_MIN_WIDTH);
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse the stash list" }));
-    fireEvent.click(screen.getByRole("button", { name: "Stashes, 3: show the list" }));
-    expect(screen.getByRole("complementary", { name: "Stashes" })).toBeInTheDocument();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
+    const chevron = screen.getByRole("button", { name: "Collapse the stash list" });
+    chevron.focus();
+    fireEvent.click(chevron);
+    expect(document.activeElement).toBe(tab());
+    fireEvent.click(tab());
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Collapse the stash list" })
+    );
+  });
+
+  it("floating: the tab floats the rail; a pick closes it and focuses the stash heading", async () => {
+    await floating();
+    // No docked rail below the threshold: the tab only.
+    expect(rail()).toBeNull();
+    fireEvent.click(tab());
+    expect(rail()!.className).toContain("sp-rail--flyout");
+    const row = within(rail()!).getByRole("button", { name: /Trade stash/ });
+    row.focus();
+    fireEvent.click(row);
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Trade stash" }));
+    // Floating never writes the docked state.
+    expect(window.localStorage.getItem("swu.stashes.railCollapsed")).toBeNull();
+  });
+
+  it("floating: the chevron and Escape close it and return focus to the tab", async () => {
+    await floating();
+    fireEvent.click(tab());
+    const hide = screen.getByRole("button", { name: "Hide the stash list" });
+    hide.focus();
+    fireEvent.click(hide);
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(tab());
+    fireEvent.click(tab());
+    within(rail()!)
+      .getByRole("button", { name: /Red binder/ })
+      .focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(tab());
+  });
+
+  it("floating: a click outside closes it; focus returns to the tab only if it was lost", async () => {
+    await floating();
+    fireEvent.click(tab());
+    within(rail()!)
+      .getByRole("button", { name: /Red binder/ })
+      .focus();
+    fireEvent.mouseDown(document.body);
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(tab());
+    // Clicking another control keeps that control's focus.
+    fireEvent.click(tab());
+    const pencil = screen.getByRole("button", { name: "Edit name and description" });
+    pencil.focus();
+    fireEvent.mouseDown(pencil);
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(pencil);
+  });
+
+  it("Escape closes only the topmost layer: an open Set | # menu first", async () => {
+    await floating();
+    fireEvent.click(tab());
+    // A menu opened from the keyboard path, over the flyout.
+    act(() => {
+      const menu = document.createElement("div");
+      menu.className = "sp-numsort__menu";
+      document.body.appendChild(menu);
+    });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(rail()).not.toBeNull();
+    document.querySelector(".sp-numsort__menu")!.remove();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(rail()).toBeNull();
+  });
+
+  it("follows the window across the threshold, dropping an open flyout and keeping focus", async () => {
+    setWidth(RAIL_DOCK_MIN_WIDTH + 100);
+    await ready();
+    expect(rail()).toBeInTheDocument();
+    screen.getByRole("button", { name: "Collapse the stash list" }).focus();
+    act(() => setWidth(RAIL_DOCK_MIN_WIDTH - 100));
+    expect(rail()).toBeNull();
+    expect(document.activeElement).toBe(tab());
+    fireEvent.click(tab());
+    expect(rail()!.className).toContain("sp-rail--flyout");
+    within(rail()!)
+      .getByRole("button", { name: /Red binder/ })
+      .focus();
+    act(() => setWidth(RAIL_DOCK_MIN_WIDTH + 100));
+    expect(rail()!.className).not.toContain("sp-rail--flyout");
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Collapse the stash list" })
+    );
   });
 });
 

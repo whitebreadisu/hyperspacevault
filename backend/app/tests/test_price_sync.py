@@ -11,7 +11,11 @@ from datetime import date
 import pytest
 from sqlalchemy import text
 
-from app.ingestion.tcgcsv_client import ALL_PRICED_GROUP_IDS, WEEKLY_PLAY_GROUP_IDS
+from app.ingestion.tcgcsv_client import (
+    ALL_PRICED_GROUP_IDS,
+    ROOT_SET_GROUP_IDS,
+    WEEKLY_PLAY_GROUP_IDS,
+)
 from app.jobs.price_sync import WATERMARK_KEY, get_watermark, run_sync
 
 pytestmark = pytest.mark.skipif(
@@ -436,3 +440,12 @@ def test_tcgcsv_client_sends_required_user_agent_and_throttles(monkeypatch):
     monkeypatch.setattr(tcgcsv_client.time, "sleep", lambda s: slept.append(s))
     tcgcsv_client.throttle()
     assert slept == [tcgcsv_client.MIN_REQUEST_INTERVAL_SECONDS]
+
+
+def test_ic27_root_group_is_mapped():
+    """BL-349: Icons 2027 Edition is tcgcsv group 24888 (category 79,
+    publishedOn 2026-11-20), priced like any other root set; it has no
+    Weekly Play group."""
+    assert ROOT_SET_GROUP_IDS["IC27"] == 24888
+    assert ALL_PRICED_GROUP_IDS["IC27"] == 24888
+    assert "IC27P" not in WEEKLY_PLAY_GROUP_IDS

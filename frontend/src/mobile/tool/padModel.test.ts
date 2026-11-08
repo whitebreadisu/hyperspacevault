@@ -165,7 +165,7 @@ describe("S3-05 set / precon choosers = desktop constants", () => {
 // CREATE (BL-258): FR2-05 -- literal phone picker orders (the e2e fixture
 // now carries HMW and HMWP, so HMW is observable first).
 describe("FR2-05 phone set pickers newest first (BL-258)", () => {
-  it("fr2-05 keypad chooser: HMW is the first row, IBH and TS26 last in the base block", () => {
+  it("fr2-05 keypad chooser: HMW is the first row, IBH, TS26 and IC27 last in the base block", () => {
     const g = setSheetGroups(sets);
     expect(g.base.canonical.map((x) => x.key)).toEqual([
       "HMW",
@@ -178,7 +178,8 @@ describe("FR2-05 phone set pickers newest first (BL-258)", () => {
       "SHD",
       "SOR",
     ]);
-    expect(g.base.secondary.map((x) => x.key)).toEqual(["IBH", "TS26"]);
+    // PORT (BL-349): the fixture's sets carry IC27, the last secondary base set.
+    expect(g.base.secondary.map((x) => x.key)).toEqual(["IBH", "TS26", "IC27"]);
     expect(g.all.baseGroups.map((x) => x.key)).toEqual([
       "HMW",
       "ASH",
@@ -191,6 +192,7 @@ describe("FR2-05 phone set pickers newest first (BL-258)", () => {
       "SOR",
       "IBH",
       "TS26",
+      "IC27",
     ]);
     expect(g.all.baseGroups[0].memberCodes).toEqual(["HMW", "HMWP"]);
   });
@@ -198,7 +200,7 @@ describe("FR2-05 phone set pickers newest first (BL-258)", () => {
   it("fr2-05 Set picker (Filters): HMW is the first logo chip; Weekly Play tail mirrors it", () => {
     const g = setPickerGroups(sets);
     expect(g.base[0]).toBe("HMW");
-    expect(g.base.slice(-3)).toEqual(["SOR", "IBH", "TS26"]);
+    expect(g.base.slice(-4)).toEqual(["SOR", "IBH", "TS26", "IC27"]); // PORT (BL-349)
     expect(g.weekly[0]).toBe("HMWP");
     expect(g.weekly.slice(-1)).toEqual(["SORP"]);
   });

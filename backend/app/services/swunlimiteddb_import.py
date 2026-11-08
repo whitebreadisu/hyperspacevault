@@ -116,6 +116,11 @@ SET_CODE_MAP: dict[str, str] = {
     "IBH": "IBH",
     "TS26": "TS26",
     "HMW": "HMW",
+    # IC27 (2026-11-08): pre-release spot-check matched -- the
+    # tool's card pages carry IC27_010 Echo Base, IC27_057 Director Krennic,
+    # IC27_150 Frozen in Carbonite, the catalog's numbers. Re-check at
+    # street date (2026-11-20) as HMW's hold taught.
+    "IC27": "IC27",
 }
 
 # Columns that resolve to a single, direct variant_type on the

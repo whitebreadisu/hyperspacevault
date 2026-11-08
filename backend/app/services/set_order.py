@@ -6,8 +6,9 @@ card numbers lexicographically ("10" before "2").
 
 Group order (newest sets first, ADR-0031):
 1. Base sets, main block NEWEST FIRST (HMW ... SOR) -- the same order the
-   Vault uses (frontend/src/utils/setGrouping.ts SET_CANONICAL), then IBH
-   and TS26 (setGrouping.ts SET_SECONDARY). A new main set is added at the
+   Vault uses (frontend/src/utils/setGrouping.ts SET_CANONICAL), then the
+   secondary base sets IBH, TS26, IC27 in release order (setGrouping.ts
+   SET_SECONDARY; a new one is appended). A new main set is added at the
    FRONT.
 2. Weekly Play sets, mirroring the base block (HMWP ... SORP; a new main
    set's Weekly Play code is added at the front of this block too).
@@ -24,7 +25,8 @@ variant_type as the final tiebreaker.
 
 CURATED_EXPORT_SET_ORDER = [
     # Base sets: main block newest first (Vault's on-screen order), then
-    # IBH and TS26. New main set -> add at the FRONT.
+    # the secondary base sets in release order (IBH, TS26, IC27; a new one
+    # is appended). New main set -> add at the FRONT.
     "HMW",
     "ASH",
     "LAW",
@@ -36,6 +38,7 @@ CURATED_EXPORT_SET_ORDER = [
     "SOR",
     "IBH",
     "TS26",
+    "IC27",
     # Weekly Play, mirroring the base block. New main set's -> FRONT.
     "HMWP",
     "ASHP",

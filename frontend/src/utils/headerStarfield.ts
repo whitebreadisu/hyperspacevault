@@ -1,11 +1,11 @@
 /** The app-header starfield is randomly selected once per app open. Pool =
- * the ten shipped starfields (TS26 is a base set but has NO starfield asset
+ * the eleven shipped starfields (TS26 is a base set but has NO starfield asset
  * -- it joins the pool when one exists; index.css's
  * `var(--header-starfield, url(.../starfield_ASH.jpg))` keeps ASH as the
  * no-JS fallback either way).
  *
  * No-repeat-of-last: localStorage remembers the previous pick and the next
- * open draws from the other nine, because a repeat reads as "it didn't
+ * open draws from the other ten, because a repeat reads as "it didn't
  * change" rather than as randomness. */
 
 // Deliberately oldest-first and append-only (release-note art is assigned by
@@ -21,6 +21,7 @@ export const HEADER_STARFIELD_CODES = [
   "ASH",
   "HMW",
   "IBH",
+  "IC27",
 ] as const;
 
 const LAST_PICK_KEY = "swu.headerStarfield.last";

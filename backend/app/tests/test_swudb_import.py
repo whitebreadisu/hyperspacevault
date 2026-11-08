@@ -35,6 +35,7 @@ class TestSetCodeMap:
             "ASH",
             "C26",
             "IBH",
+            "IC27",  # BL-349: added at onboarding, 57/57 rows spot-checked
             "J25",
             "JTL",
             "JTLP",

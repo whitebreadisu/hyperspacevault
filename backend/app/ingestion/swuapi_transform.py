@@ -6,7 +6,8 @@ module implements App Spec §10 exactly:
   - variant_of_uuid root resolution (walk to the ultimate root, <=2 hops,
     SWU_Standard_Variant_Mapping_Spec.md §3/§8).
   - the (name, subtitle) fallback re-anchoring for non-Standard roots,
-    tokens exempt (§10.6).
+    tokens exempt (§10.6); several matches -> the earliest-released set
+    wins (mapping spec §6, ADR-0039).
   - is_token / is_base_set classification (§10.7, §4.1).
   - stamp_group consolidation (§10.5), via swuapi_classify's curated
     finish/channel/stamp rules.
@@ -42,30 +43,43 @@ BASE_SET_CODES = {
     "HMW",
     "TS26",
     "IBH",
+    "IC27",
 }
 
 # The swuapi export does not include release_date for most sets. This table
 # supplies the canonical dates for the known base sets so that ORDER BY
 # release_date works correctly in a fresh DB (otherwise all dates are null
-# and ordering falls back to insertion order, which varies by environment).
+# and ordering falls back to insertion order, which varies by environment),
+# and it is the release order the §10.6 fallback tie-break uses
+# (_pick_earliest_released, ADR-0039). Every entry is the street date from
+# the set's official product page (starwarsunlimited.com/products/<slug>,
+# its "releaseDate" field), checked 2026-11-08; SHD, LOF, SEC and LAW were
+# corrected that day (they had carried pre-announcement dates).
 # Add new base sets here as they are confirmed.
 CANONICAL_RELEASE_DATES: dict[str, str] = {
     "SOR": "2024-03-08",
-    "SHD": "2024-08-02",
+    "SHD": "2024-07-12",
     "TWI": "2024-11-08",
     "JTL": "2025-03-14",
-    "LOF": "2025-06-06",
-    "SEC": "2025-09-12",
-    "LAW": "2025-12-05",
+    "LOF": "2025-07-11",
+    "IBH": "2025-10-03",
+    "SEC": "2025-11-07",
+    "LAW": "2026-03-13",
+    "TS26": "2026-05-08",
+    "ASH": "2026-07-17",
+    "HMW": "2026-10-09",
+    "IC27": "2026-11-20",
 }
 
 
 class AmbiguousFallbackError(ValueError):
     """Raised when the §10.6 fallback finds more than one non-token
-    Standard match for a non-Standard root -- per the mapping spec (§6),
-    this must stop ingestion for manual review rather than guess. Zero
-    matches is not raised: the root is recorded as an exception (flagged,
-    never blocked)."""
+    Standard match for a non-Standard root and the earliest-released-set
+    tie-break (mapping spec §6, ADR-0039) cannot pick one: a match's set
+    has no known release date, or two matches share the earliest
+    (release date, set code) -- i.e. sit in the same set. Ingestion stops
+    for manual review rather than guess. Zero matches is not raised: the
+    root is recorded as an exception (flagged, never blocked)."""
 
 
 @dataclass
@@ -173,6 +187,79 @@ def _fallback_matches(root: dict, cards: list[dict]) -> list[dict]:
     ]
 
 
+def _parse_release_date(value: object) -> datetime.date | None:
+    """The date part of an ISO date or timestamp ("2024-03-08" or
+    "2024-03-08T00:00:00.000Z"); None for anything else, so a malformed
+    upstream value counts as undated rather than mis-ordering a tie."""
+    try:
+        return datetime.date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _set_release_date(code: str, swuapi_value: object) -> object:
+    """The one release-date precedence, shared by the sets rows and the
+    fallback tie-break (ADR-0039): the curated CANONICAL_RELEASE_DATES first
+    (so an upstream edit can never flip a settled tie or the stored date),
+    else swuapi's own sets[].release_date as given."""
+    return CANONICAL_RELEASE_DATES.get(code) or swuapi_value or None
+
+
+def _set_release_dates(export_sets: list[dict]) -> dict[str, datetime.date]:
+    """set code -> release date for the fallback tie-break, by
+    _set_release_date's precedence. A curated date that does not parse is a
+    code error and raises; an unparseable upstream date leaves its set
+    undated."""
+    dates: dict[str, datetime.date] = {}
+    for code, curated in CANONICAL_RELEASE_DATES.items():
+        parsed = _parse_release_date(curated)
+        if parsed is None:
+            raise ValueError(f"CANONICAL_RELEASE_DATES[{code!r}] is not an ISO date")
+        dates[code] = parsed
+    for s in export_sets:
+        if s["code"] in dates:
+            continue
+        parsed = _parse_release_date(s.get("release_date"))
+        if parsed is not None:
+            dates[s["code"]] = parsed
+    return dates
+
+
+def _pick_earliest_released(
+    root: dict, matches: list[dict], release_dates: dict[str, datetime.date]
+) -> dict:
+    """Mapping spec §6 tie-break (ADR-0039): of several non-token Standard
+    (name, subtitle) matches, the one in the earliest-released set wins --
+    the original printing, which reprints (IC27 reprinting SOR's Echo Base)
+    must not displace. Order key: (release date, set code), set code being
+    the stable secondary key for two sets released the same day. Only the
+    earliest set's matches matter: one there wins however many later sets
+    also match. Raises AmbiguousFallbackError when a match's set has no
+    known release date, or when the earliest set holds two or more matches
+    -- nothing principled can decide those."""
+    label = f"{root['set_code']}_{root['card_number']} ({root['name']!r})"
+    undated = sorted({m["set_code"] for m in matches} - release_dates.keys())
+    if undated:
+        raise AmbiguousFallbackError(
+            f"{label} matched {len(matches)} non-token Standard roots and "
+            f"set(s) {', '.join(undated)} have no release date for the "
+            "earliest-released tie-break -- add it to CANONICAL_RELEASE_DATES "
+            "or decide manually (SWU_Standard_Variant_Mapping_Spec.md §6)"
+        )
+    earliest_set = min(
+        {m["set_code"] for m in matches}, key=lambda c: (release_dates[c], c)
+    )
+    in_earliest = [m for m in matches if m["set_code"] == earliest_set]
+    if len(in_earliest) > 1:
+        raise AmbiguousFallbackError(
+            f"{label} matched {len(matches)} non-token Standard roots, "
+            f"{len(in_earliest)} of them in its earliest-released set "
+            f"{earliest_set}; expected at most one there -- stop and decide "
+            "manually (SWU_Standard_Variant_Mapping_Spec.md §6)"
+        )
+    return in_earliest[0]
+
+
 def transform(export: dict) -> IngestionResult:
     cards = export["cards"]
     by_uuid = {c["uuid"]: c for c in cards}
@@ -186,22 +273,22 @@ def transform(export: dict) -> IngestionResult:
     # matches they'd otherwise hit (e.g. GG_5 "Experience" matches 7).
     anchor_uuid: dict[str, str] = {}
     exceptions: list[dict] = []
+    release_dates = _set_release_dates(export.get("sets") or [])
     for card in cards:
         if card["variant_of_uuid"] is not None or card["variant_type"] == "Standard":
             continue
         if _is_token(card):
             continue
         matches = _fallback_matches(card, cards)
-        if len(matches) == 1:
-            anchor_uuid[card["uuid"]] = _resolve_root(matches[0], by_uuid)["uuid"]
-        elif len(matches) == 0:
+        if len(matches) == 0:
             exceptions.append(card)
-        else:
-            raise AmbiguousFallbackError(
-                f"{card['set_code']}_{card['card_number']} ({card['name']!r}) matched "
-                f"{len(matches)} non-token Standard roots; expected 0 or 1 -- stop and "
-                "decide manually (SWU_Standard_Variant_Mapping_Spec.md §6)"
-            )
+            continue
+        match = (
+            matches[0]
+            if len(matches) == 1
+            else _pick_earliest_released(card, matches, release_dates)
+        )
+        anchor_uuid[card["uuid"]] = _resolve_root(match, by_uuid)["uuid"]
 
     def final_base_card_uuid(card_uuid: str) -> str:
         root_uuid = structural_root_uuid[card_uuid]
@@ -275,7 +362,7 @@ def transform(export: dict) -> IngestionResult:
     sets: list[dict] = []
     for s in export["sets"]:
         code = s["code"]
-        release_date = s.get("release_date") or CANONICAL_RELEASE_DATES.get(code)
+        release_date = _set_release_date(code, s.get("release_date"))
         sets.append(
             {
                 "code": code,
@@ -338,9 +425,10 @@ def render_exceptions_doc(exceptions: list[dict]) -> str:
         "**Definition:** a card is a "
         "standard-anchor exception if and only if it is a root "
         "(`variant_of_uuid: null`) whose own `variant_type` is **not** "
-        '"Standard" **and** it has **no unique non-token `(name, subtitle)` '
-        "match** to a Standard root elsewhere in the corpus (i.e. the "
-        "fallback below cannot resolve it). See "
+        '"Standard" **and** the `(name, subtitle)` fallback below finds **no '
+        "non-token Standard match** elsewhere in the corpus (several matches "
+        "are settled by the earliest-released-set tie-break, ADR-0039, or "
+        "stop ingestion when it cannot decide). See "
         "[`SWU_Standard_Variant_Mapping_Spec.md`](SWU_Standard_Variant_Mapping_Spec.md) "
         "§6 for the full definition and philosophy.",
         "",
@@ -375,7 +463,7 @@ def render_exceptions_doc(exceptions: list[dict]) -> str:
             "---",
             "",
             "*This file is regenerated by the swuapi ingestion script on each "
-            "run. A card lands here only if the §6 fallback finds no unique "
+            "run. A card lands here only if the §6 fallback finds no "
             "non-token Standard match.*",
         ]
     )

@@ -58,6 +58,8 @@ const cards = M_CARDS.map(slimCard);
 const EXTRA_SETS = [
   { code: "HMW", name: "Homeworlds", is_base_set: true, release_date: null },
   { code: "HMWP", name: "Homeworlds Weekly Play", is_base_set: false, release_date: null },
+  // BL-349: Icons 2027 Edition, a secondary base set (no Weekly Play).
+  { code: "IC27", name: "Icons 2027 Edition", is_base_set: true, release_date: null },
 ];
 const sets = [...M_SETS, ...EXTRA_SETS.filter((e) => !M_SETS.some((s) => s.code === e.code))].map(
   (s, i) => ({ id: i + 1, ...s })

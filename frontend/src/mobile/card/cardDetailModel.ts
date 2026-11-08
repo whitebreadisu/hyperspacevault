@@ -124,6 +124,7 @@ const STARFIELD_SET_CODES = new Set([
   "ASH",
   "HMW",
   "IBH",
+  "IC27",
 ]);
 const LOGO_SET_CODES = new Set([...STARFIELD_SET_CODES, "TS26"]);
 

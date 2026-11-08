@@ -10,8 +10,9 @@ import type { CardSet } from "../api/sets";
  * multi-select key off these same constants.
  *
  * ORDER RULE (App Spec §5.1, ADR-0031): main-release sets are listed
- * NEWEST FIRST (HMW ... SOR). Intro Battle: Hoth and Twin Suns keep their
- * place after the main block; Weekly Play sets follow their base set;
+ * NEWEST FIRST (HMW ... SOR). The secondary base sets (Intro Battle: Hoth,
+ * Twin Suns, Icons 2027) keep their place after the main block, in release
+ * order (a new secondary set is appended); Weekly Play sets follow their base set;
  * every other set keeps its existing position. **A new main set is added
  * at the FRONT of SET_CANONICAL** (and of the backend blocks in
  * services/set_order.py).
@@ -31,9 +32,10 @@ export const SET_CANONICAL: readonly string[] = [
   "SOR",
 ];
 
-/** Secondary base sets, kept after the main block (IBH, TS26) -- UI-mechanically the same tier as
+/** Secondary base sets, kept after the main block in release order (IBH,
+ * TS26, IC27; a new one is appended) -- UI-mechanically the same tier as
  * canonical (View 2's base-group list), but a separate block in View 1. */
-export const SET_SECONDARY: readonly string[] = ["IBH", "TS26"];
+export const SET_SECONDARY: readonly string[] = ["IBH", "TS26", "IC27"];
 
 /** Every base set, canonical then secondary -- the guaranteed base-only
  * ordering (View 1). */
@@ -70,7 +72,7 @@ export function isSecondaryBaseSet(code: string): boolean {
 
 /** True for a main-release set (a SET_CANONICAL member) or the Weekly
  * Play companion of one -- the block the Set column's descending sort reverses
- * (oldest first). IBH, TS26 and every other set are outside it. */
+ * (oldest first). IBH, TS26, IC27 and every other set are outside it. */
 export function isMainBlockSet(code: string): boolean {
   return SET_CANONICAL.some((base) => base === code || weeklyPlayCodeFor(base) === code);
 }
