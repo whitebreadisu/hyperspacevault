@@ -128,6 +128,13 @@ function AppContent() {
   // ALSO forces out signed-in-but-unverified users: import/export is gated
   // on verified email (App Spec §17.3), while Settings stays ungated.
   const [activeView, setActiveView] = useState<AppView>("cards");
+  // The Stashes page's selected stash (the pod's stash menu picks one; null =
+  // the page's default, its first stash). Kept while away, like the panes.
+  const [stashId, setStashId] = useState<number | null>(null);
+  const openStashes = useCallback((id: number | null) => {
+    if (id != null) setStashId(id);
+    setActiveView("stashes");
+  }, []);
 
   // Opens the "New Arrivals" view from either entry point (Header's nav tab
   // and its version label share this one handler). Marks the latest entry
@@ -241,8 +248,10 @@ function AppContent() {
   // second guard forcing it back to "cards" for a signed-in but unverified
   // user -- the one view-forcing rule in this app that reads emailVerified,
   // since import/export (unlike Settings) is gated on it.
+  // "stashes" is signed-in only too (no Stashes page or names signed out).
   const view: AppView =
-    !user && (activeView === "settings" || activeView === "import-export")
+    !user &&
+    (activeView === "settings" || activeView === "import-export" || activeView === "stashes")
       ? "cards"
       : user && !emailVerified && activeView === "import-export"
         ? "cards"
@@ -262,6 +271,7 @@ function AppContent() {
     if (loading || isPhone) return;
     const screenByView: Record<AppView, string> = {
       cards: "vault",
+      stashes: "stashes",
       "deck-check": "deck_check",
       "new-arrivals": "new_arrivals",
       shared: "shared_view",
@@ -295,6 +305,7 @@ function AppContent() {
           onOpenFeedback={() => setFeedbackModalOpen(true)}
           view={view}
           onNavigateCards={() => setActiveView("cards")}
+          onNavigateStashes={openStashes}
           onNavigateDeckCheck={() => setActiveView("deck-check")}
           hasPasswordProvider={hasPasswordProvider(user)}
           onOpenNotes={openNotes}
@@ -309,8 +320,12 @@ function AppContent() {
             while visible (CardsPage's .screen is a direct flex child of
             .app-main by design); display:none hides the inactive pane
             without unmounting it. */}
-          <div style={{ display: view === "cards" ? "contents" : "none" }}>
+          {/* The Collection and the Stashes page are one CardsPage: the
+            Stashes page is the Vault narrowed to a stash, under the same
+            filters (CardsPage `stashPage`). */}
+          <div style={{ display: view === "cards" || view === "stashes" ? "contents" : "none" }}>
             <CardsPage
+              stashPage={view === "stashes" ? { selectedId: stashId, onSelect: setStashId } : null}
               isAuthenticated={!!user}
               onRequestSignIn={() => setAuthModalOpen(true)}
               isEmailVerified={emailVerified}

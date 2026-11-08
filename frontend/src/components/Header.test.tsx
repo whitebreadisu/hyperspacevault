@@ -103,202 +103,11 @@ describe("Header auth slot (BL-56 §5.5)", () => {
   });
 });
 
-// DISPOSITION (BL-142, CREATE): net-new coverage for the two-tab peer nav
-// bar (Vault / Deck Check) that replaces the old single-label nav on the
-// cards/deck-check views -- Header's own doc comment covers why Settings
-// keeps its separate way-back-button shape rather than joining this row.
-describe("Header peer nav (BL-142)", () => {
-  it("shows both Vault and Deck Check tabs, Vault active by default", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-      />
-    );
-    const vaultTab = screen.getByRole("button", { name: "Vault" });
-    const deckCheckTab = screen.getByRole("button", { name: "Deck Check" });
-    expect(vaultTab.className).toContain("nav-tab--active");
-    expect(deckCheckTab.className).not.toContain("nav-tab--active");
-  });
-
-  it("marks Deck Check active and Vault inactive when view is deck-check", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="deck-check"
-      />
-    );
-    const vaultTab = screen.getByRole("button", { name: "Vault" });
-    const deckCheckTab = screen.getByRole("button", { name: "Deck Check" });
-    expect(deckCheckTab.className).toContain("nav-tab--active");
-    expect(vaultTab.className).not.toContain("nav-tab--active");
-  });
-
-  it("calls onNavigateDeckCheck when the Deck Check tab is clicked", () => {
-    const onNavigateDeckCheck = vi.fn();
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        onNavigateDeckCheck={onNavigateDeckCheck}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
-    expect(onNavigateDeckCheck).toHaveBeenCalledTimes(1);
-  });
-
-  it("calls onNavigateCards when the Vault tab is clicked from the deck-check view", () => {
-    const onNavigateCards = vi.fn();
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="deck-check"
-        onNavigateCards={onNavigateCards}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
-    expect(onNavigateCards).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not render a Deck Check tab on the settings view (unchanged shape: way-back + active Settings tab only)", () => {
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="settings"
-      />
-    );
-    expect(screen.queryByRole("button", { name: "Deck Check" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Vault" })).toBeInTheDocument();
-    expect(screen.getByText("Settings").className).toContain("nav-tab--active");
-  });
-});
-
 // DISPOSITION (BL-22, CREATE): new coverage for the avatar dropdown menu
 // itself -- initial rendering, open/close interactions (click toggle,
 // Escape, outside click), and a11y attributes -- none of which existed
 // before this slice introduced the menu. Render calls updated for BL-23's
 // required onChangePassword prop; assertions unchanged.
-// DISPOSITION (BL-54 S3, CREATE): net-new coverage for the transient
-// "Import / Export" tab -- mirrors "Header settings-view nav (BL-25)" below
-// (way-back Vault button + one active tab), the shape the `view` prop's own
-// doc comment says this view reuses, plus the "not rendered on any other
-// view" transience check (§8.1 P10) the peer nav tests above don't need
-// since Vault/Deck Check are permanent tabs, not transient ones.
-describe("Header import-export nav (BL-54 S3)", () => {
-  it("renders an active 'Import / Export' tab plus a Vault button that navigates back", () => {
-    const onNavigateCards = vi.fn();
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="import-export"
-        onNavigateCards={onNavigateCards}
-      />
-    );
-
-    const tab = screen.getByText("Import / Export");
-    expect(tab.className).toContain("nav-tab--active");
-
-    const vaultTab = screen.getByRole("button", { name: "Vault" });
-    expect(vaultTab.className).not.toContain("nav-tab--active");
-    fireEvent.click(vaultTab);
-    expect(onNavigateCards).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not render a Deck Check tab on the import-export view (same shape as settings)", () => {
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="import-export"
-      />
-    );
-    expect(screen.queryByRole("button", { name: "Deck Check" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Vault" })).toBeInTheDocument();
-  });
-
-  it("does not render the Import / Export tab on any other view (transient tab)", () => {
-    const { rerender } = render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-      />
-    );
-    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
-
-    rerender(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="deck-check"
-      />
-    );
-    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
-
-    rerender(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="settings"
-      />
-    );
-    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
-  });
-});
-
 describe("Header avatar menu (BL-22)", () => {
   it("shows the uppercased first letter of the email as the avatar initial", () => {
     render(
@@ -571,42 +380,6 @@ describe("Header avatar menu Settings item (BL-25)", () => {
   });
 });
 
-// DISPOSITION (BL-129 R3, PORT then BL-143, REPLACE label only): the
-// way-back button and the default active tab both used to read "Cards",
-// then "Inventory" (BL-129 R3); BL-143 renames the label again to "Vault"
-// (nav label only -- the AppView id/routing key stays "cards", untouched).
-// The navigation behavior these tests protect (way-back click fires
-// onNavigateCards) is unchanged; the "no Settings tab on the default view"
-// assertion is superseded by BL-142's two-tab bar -- re-expressed as "shows
-// both Vault and Deck Check tabs..." in the "Header peer nav (BL-142)"
-// describe block above.
-describe("Header settings-view nav (BL-25)", () => {
-  it("renders an active Settings tab plus a Vault button that navigates back", () => {
-    const onNavigateCards = vi.fn();
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="settings"
-        onNavigateCards={onNavigateCards}
-      />
-    );
-
-    const settingsTab = screen.getByText("Settings");
-    expect(settingsTab.className).toContain("nav-tab--active");
-
-    const vaultTab = screen.getByRole("button", { name: "Vault" });
-    expect(vaultTab.className).not.toContain("nav-tab--active");
-    fireEvent.click(vaultTab);
-    expect(onNavigateCards).toHaveBeenCalledTimes(1);
-  });
-});
-
 // DISPOSITION (BL-125, CREATE): new coverage for the header brand-line
 // "Unofficial Fan Project" microcopy that opens the About modal -- reachable
 // regardless of auth state (unlike the UserMenu item below, which only
@@ -814,255 +587,6 @@ describe("Header version label + New Arrivals nav (BL-184)", () => {
     expect(onOpenNotes).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
-
-  it("does not render the New Arrivals nav tab when hasUnread is false and it isn't the active view", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-      />
-    );
-    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
-  });
-
-  it("renders the New Arrivals nav tab, leftmost of the peer tabs, when hasUnread is true", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        hasUnread
-      />
-    );
-    const tabs = screen.getAllByRole("button", { name: /^(\[HSV\] Updates|Vault|Deck Check)$/ });
-    expect(tabs.map((t) => t.textContent)).toEqual(["[HSV] Updates", "Vault", "Deck Check"]);
-  });
-
-  it("carries the cue on the nav tab, the tag line and the chooser's Updates button while hasUnread is true", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        hasUnread
-      />
-    );
-    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).toContain(
-      "nav-tab--cue"
-    );
-    const tag = screen
-      .getByRole("button", { name: BRAND })
-      .querySelector(".app-header__brand-line")!;
-    expect(tag.className).toContain("app-header__brand-line--cue");
-    const dlg = openChooser();
-    const updates = within(dlg).getByRole("button", { name: "[HSV] Updates" });
-    expect(updates.className).toContain("m-chooser__btn--cue");
-    expect(updates.querySelector(".m-cue")).not.toBeNull();
-  });
-
-  it("carries no cue on the nav tab, the tag line or the chooser once hasUnread is false", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="new-arrivals"
-      />
-    );
-    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
-      "nav-tab--cue"
-    );
-    const tag = screen
-      .getByRole("button", { name: BRAND })
-      .querySelector(".app-header__brand-line")!;
-    expect(tag.className).not.toContain("app-header__brand-line--cue");
-    const dlg = openChooser();
-    const updates = within(dlg).getByRole("button", { name: "[HSV] Updates" });
-    expect(updates.className).not.toContain("m-chooser__btn--cue");
-    expect(updates.querySelector(".m-cue")).toBeNull();
-  });
-
-  it("keeps the New Arrivals nav tab visible while it's the active view even once hasUnread is false", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="new-arrivals"
-      />
-    );
-    const tab = screen.getByRole("button", { name: "[HSV] Updates" });
-    expect(tab.className).toContain("nav-tab--active");
-  });
-
-  it("fires onOpenNotes when the New Arrivals nav tab is clicked", () => {
-    const onOpenNotes = vi.fn();
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        hasUnread
-        onOpenNotes={onOpenNotes}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
-    expect(onOpenNotes).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not render the New Arrivals tab on the settings/import-export shape (same as Deck Check)", () => {
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="settings"
-        hasUnread
-      />
-    );
-    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
-  });
-});
-
-// DISPOSITION (BL-205, CREATE): net-new coverage for the shared-vault nav
-// tab -- rendered whenever a share session exists (shareName non-null),
-// labeled with the OWNER-CHOSEN name (not a generic label, §19.1), and
-// reachable regardless of auth state (anonymous or signed in).
-describe("Header shared-vault nav (BL-205)", () => {
-  it("does not render the shared tab when shareName is null (no share session)", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-      />
-    );
-    expect(screen.queryByRole("button", { name: "Bobs big vault" })).not.toBeInTheDocument();
-  });
-
-  it("renders the shared tab labeled with the share's owner-chosen name, alongside Vault/Deck Check", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        shareName="Bobs big vault"
-      />
-    );
-    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
-    expect(screen.getByText("Vault")).toBeInTheDocument();
-    expect(screen.getByText("Deck Check")).toBeInTheDocument();
-    // Never a generic label -- the owner-chosen name IS the label (§19.1).
-    expect(screen.queryByText(/shared with me/i)).not.toBeInTheDocument();
-  });
-
-  it("marks the shared tab active when view is 'shared'", () => {
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        shareName="Bobs big vault"
-        view="shared"
-      />
-    );
-    expect(screen.getByRole("button", { name: "Bobs big vault" }).className).toContain(
-      "nav-tab--active"
-    );
-  });
-
-  it("fires onNavigateShared when clicked", () => {
-    const onNavigateShared = vi.fn();
-    render(
-      <Header
-        userEmail={null}
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        shareName="Bobs big vault"
-        onNavigateShared={onNavigateShared}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Bobs big vault" }));
-    expect(onNavigateShared).toHaveBeenCalledTimes(1);
-  });
-
-  it("is reachable identically for a signed-in user", () => {
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        shareName="Bobs big vault"
-      />
-    );
-    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
-  });
-
-  it("does not render the shared tab on the settings/import-export shape (same as Deck Check)", () => {
-    render(
-      <Header
-        userEmail="a@b.com"
-        onLogout={vi.fn()}
-        onSignIn={vi.fn()}
-        onChangePassword={vi.fn()}
-        onOpenSettings={vi.fn()}
-        onOpenAbout={vi.fn()}
-        onOpenFeedback={vi.fn()}
-        view="settings"
-        shareName="Bobs big vault"
-      />
-    );
-    expect(screen.queryByText("Bobs big vault")).not.toBeInTheDocument();
-  });
 });
 
 // DISPOSITION (REPLACE): the logo no longer goes to the Vault and the tag
@@ -1131,5 +655,225 @@ describe("Header brand button and chooser", () => {
     renderBrand();
     expect(screen.queryByRole("button", { name: /^unofficial fan project$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^v\d+\.\d+/ })).toBeNull();
+  });
+});
+
+// DISPOSITION (v3.0 Command pod): the peer tab bar (Vault, Deck Check, the
+// conditional [HSV] Updates and share tabs) and the settings / import-export
+// "way-back Vault + one active tab" shape are replaced by the Command pod
+// (NavPod.tsx). Each old test, by its old describe:
+//   peer nav: "both tabs, Vault active" -> PORT ("Vault lit with Collection
+//     current by default"); "Deck Check active on deck-check" -> PORT ("Decks
+//     lit, Deck Check current"); "onNavigateDeckCheck on click" -> PORT (the
+//     Decks item and its Deck Check sub item); "Vault from deck-check" ->
+//     PORT (the Vault item); "no Deck Check on settings" -> REPLACE ("no
+//     item lit on settings / import-export, the pod is unchanged").
+//   import-export nav: "active Import / Export tab + way-back Vault" and
+//     settings-view nav: "active Settings tab + way-back Vault" -> REPLACE
+//     (same test as above: nothing lit; the Vault item goes back); "no Deck
+//     Check on import-export" -> RETIRE (the pod keeps Decks on every view);
+//     "Import / Export tab transient" -> RETIRE (no such tab exists).
+//   New Arrivals nav: "hidden when not unread" and "visible while active"
+//     -> PORT (the pod's Updates item keeps that rule, owner 2026-11-07);
+//     "not on settings" -> REPLACE ("shown on settings while unread": the
+//     pod keeps its items on every view); "leftmost" -> REPLACE ("Vault,
+//     Decks, Updates in that order"); the cue / no-cue tests -> PORT (the
+//     amber cue now sits on the Updates label); "fires onOpenNotes" -> PORT.
+//   shared-vault nav: "no tab without a share" -> PORT; "named by the
+//     owner" -> PORT (a Vault sub item); "active when shared" -> PORT
+//     (amber Vault item, the share sub item current, My vault beside it);
+//     "fires onNavigateShared" -> PORT; "signed in too" -> PORT; "not on
+//     settings" -> PORT (folded away with the Vault item).
+// Stash entries (the Stashes sub item, its hover menu), the glide motion and
+// reduced motion are covered in NavPod.test.tsx.
+const BASE = {
+  onLogout: () => {},
+  onSignIn: () => {},
+  onChangePassword: () => {},
+  onOpenSettings: () => {},
+  onOpenAbout: () => {},
+  onOpenFeedback: () => {},
+};
+const top = (id: string) => document.querySelector<HTMLElement>(`[data-top="${id}"]`)!;
+const sub = (key: string) => screen.queryByRole("button", { name: SUB_NAME[key] ?? key });
+const SUB_NAME: Record<string, string> = {
+  collection: "Collection",
+  stashes: "Stashes",
+  "deck-check": "Deck Check",
+  own: "My vault",
+};
+
+describe("Header Command pod", () => {
+  it("lights Vault with Collection current by default; Decks and Updates are items", () => {
+    render(<Header userEmail={null} {...BASE} />);
+    expect(top("vault").closest(".pod__item")!.className).toContain("pod__item--on");
+    expect(sub("collection")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Decks" })).toBeInTheDocument();
+    // Deck Check is folded away while Decks is not lit.
+    expect(sub("deck-check")).toBeNull();
+  });
+
+  it("orders the items Vault, Decks, [HSV] Updates (Updates while unread)", () => {
+    render(<Header userEmail={null} {...BASE} hasUnread />);
+    const items = [...document.querySelectorAll<HTMLElement>("[data-top]")].map(
+      (b) => b.dataset.top
+    );
+    expect(items).toEqual(["vault", "decks", "updates"]);
+    expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
+  });
+
+  it("lights Decks with Deck Check current on deck-check", () => {
+    render(<Header userEmail={null} {...BASE} view="deck-check" />);
+    expect(top("decks").closest(".pod__item")!.className).toContain("pod__item--on");
+    expect(top("vault").closest(".pod__item")!.className).not.toContain("pod__item--on");
+    expect(sub("deck-check")).toHaveAttribute("aria-current", "page");
+    expect(sub("collection")).toBeNull();
+  });
+
+  it("calls onNavigateDeckCheck from the Decks item and from Deck Check", () => {
+    const onNavigateDeckCheck = vi.fn();
+    render(
+      <Header
+        userEmail={null}
+        {...BASE}
+        view="deck-check"
+        onNavigateDeckCheck={onNavigateDeckCheck}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
+    fireEvent.click(sub("deck-check")!);
+    expect(onNavigateDeckCheck).toHaveBeenCalledTimes(2);
+  });
+
+  it("calls onNavigateCards from the Vault item and from Collection", () => {
+    const onNavigateCards = vi.fn();
+    render(<Header userEmail={null} {...BASE} onNavigateCards={onNavigateCards} />);
+    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+    fireEvent.click(sub("collection")!);
+    expect(onNavigateCards).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["settings", "import-export"] as const)(
+    "lights no item on %s and the Vault item goes back to the Vault",
+    (view) => {
+      const onNavigateCards = vi.fn();
+      render(
+        <Header userEmail="a@b.com" {...BASE} view={view} onNavigateCards={onNavigateCards} />
+      );
+      expect(document.querySelectorAll(".pod__item--on")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: "Collection" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+      expect(onNavigateCards).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it("does not show the Updates item when nothing is unread and it isn't the view", () => {
+    render(<Header userEmail={null} {...BASE} />);
+    expect(screen.queryByRole("button", { name: "[HSV] Updates" })).toBeNull();
+    expect(document.querySelector('[data-top="updates"]')).toBeNull();
+  });
+
+  it("keeps the Updates item while it is the view, even once read", () => {
+    render(<Header userEmail={null} {...BASE} view="new-arrivals" />);
+    expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
+  });
+
+  it.each(["cards", "deck-check", "settings", "import-export"] as const)(
+    "shows the Updates item while unread (%s)",
+    (view) => {
+      render(<Header userEmail="a@b.com" {...BASE} view={view} hasUnread />);
+      expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
+    }
+  );
+
+  it("lights Updates on new-arrivals", () => {
+    render(<Header userEmail={null} {...BASE} view="new-arrivals" />);
+    expect(top("updates")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("carries the amber cue on the Updates label, the tag line and the chooser while unread", () => {
+    render(<Header userEmail={null} {...BASE} hasUnread />);
+    expect(top("updates").querySelector(".pod__label")!.className).toContain("nav-tab--cue");
+    const tag = screen
+      .getByRole("button", { name: BRAND })
+      .querySelector(".app-header__brand-line")!;
+    expect(tag.className).toContain("app-header__brand-line--cue");
+    const dlg = openChooser();
+    const updates = within(dlg).getByRole("button", { name: "[HSV] Updates" });
+    expect(updates.className).toContain("m-chooser__btn--cue");
+  });
+
+  it("carries no cue anywhere once read", () => {
+    render(<Header userEmail={null} {...BASE} view="new-arrivals" />);
+    expect(top("updates").querySelector(".pod__label")!.className).not.toContain("nav-tab--cue");
+    const tag = screen
+      .getByRole("button", { name: BRAND })
+      .querySelector(".app-header__brand-line")!;
+    expect(tag.className).not.toContain("app-header__brand-line--cue");
+  });
+
+  it("fires onOpenNotes from the Updates item", () => {
+    const onOpenNotes = vi.fn();
+    render(<Header userEmail={null} {...BASE} hasUnread onOpenNotes={onOpenNotes} />);
+    fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
+    expect(onOpenNotes).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Header Command pod: shared vault", () => {
+  it("lists no share without a share session", () => {
+    render(<Header userEmail={null} {...BASE} />);
+    expect(screen.queryByRole("button", { name: "Bobs big vault" })).toBeNull();
+  });
+
+  it("lists the share by its owner-chosen name under Vault, signed out or in", () => {
+    const { unmount } = render(<Header userEmail={null} {...BASE} shareName="Bobs big vault" />);
+    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
+    expect(screen.queryByText(/shared with me/i)).not.toBeInTheDocument();
+    unmount();
+    render(<Header userEmail="a@b.com" {...BASE} shareName="Bobs big vault" />);
+    expect(screen.getByRole("button", { name: "Bobs big vault" })).toBeInTheDocument();
+  });
+
+  it("turns the Vault item amber on the shared view: My vault · the share, current", () => {
+    const onNavigateCards = vi.fn();
+    render(
+      <Header
+        userEmail="a@b.com"
+        {...BASE}
+        shareName="Bobs big vault"
+        view="shared"
+        onNavigateCards={onNavigateCards}
+      />
+    );
+    expect(top("vault").closest(".pod__item")!.className).toContain("pod__item--amber");
+    expect(screen.getByTestId("nav-pod").className).toContain("pod--shared");
+    expect(screen.getByRole("button", { name: "Bobs big vault" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    expect(sub("collection")).toBeNull();
+    expect(sub("stashes")).toBeNull();
+    fireEvent.click(sub("own")!);
+    expect(onNavigateCards).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires onNavigateShared from the share's sub item", () => {
+    const onNavigateShared = vi.fn();
+    render(
+      <Header
+        userEmail={null}
+        {...BASE}
+        shareName="Bobs big vault"
+        onNavigateShared={onNavigateShared}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Bobs big vault" }));
+    expect(onNavigateShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("folds the share away with the Vault item on settings", () => {
+    render(<Header userEmail="a@b.com" {...BASE} view="settings" shareName="Bobs big vault" />);
+    expect(screen.queryByRole("button", { name: "Bobs big vault" })).toBeNull();
   });
 });

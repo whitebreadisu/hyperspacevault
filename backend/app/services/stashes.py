@@ -12,6 +12,8 @@ from app.models.stash import Stash
 from app.repositories import stashes as stash_repo
 from app.schemas.stash_schema import (
     AllocationResponse,
+    MoveResponse,
+    RemainingItem,
     SplitResponse,
     StashItemResponse,
     StashResponse,
@@ -154,3 +156,76 @@ def set_variant_split(
             if q > 0
         ],
     )
+
+
+class ExceedsStash(Exception):
+    pass
+
+
+def _move_response(db: Session, stash_id: int, after: dict[int, int]) -> MoveResponse:
+    return MoveResponse(
+        stash_id=stash_id,
+        copies=stash_repo.copies_for(db, stash_id),
+        items=[
+            RemainingItem(variant_id=v, quantity=q) for v, q in sorted(after.items())
+        ],
+    )
+
+
+def return_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveResponse:
+    """Move copies from a stash back to the Vault (owned is unchanged).
+    All or nothing: any quantity above what the stash holds writes nothing."""
+    if stash_repo.get_stash(db, stash_id) is None:
+        raise StashNotFound
+    ids = sorted(wanted)
+    # Same lock order as the split PUT, so the two serialize per printing.
+    stash_repo.lock_inventory_rows(db, ids)
+    # Lock the stash itself (after the inventory rows): a concurrent DELETE
+    # waits for this move, and one that already won makes this a 404.
+    if not stash_repo.lock_stash(db, stash_id):
+        db.rollback()
+        raise StashNotFound
+    held = stash_repo.stash_quantities(db, stash_id, ids)
+    if any(wanted[v] > held.get(v, 0) for v in ids):
+        db.rollback()
+        raise ExceedsStash
+    after = {v: held[v] - wanted[v] for v in ids}
+    try:
+        stash_repo.set_stash_quantities(db, stash_id, after)
+        # Read the response while the locks are still held, then commit.
+        response = _move_response(db, stash_id, after)
+        db.commit()
+    except DBAPIError:
+        db.rollback()
+        raise
+    return response
+
+
+def restore_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveResponse:
+    """Undo of a return: put copies back into the stash. All or nothing:
+    the Vault must still hold enough unstashed copies of every printing."""
+    if stash_repo.get_stash(db, stash_id) is None:
+        raise StashNotFound
+    ids = sorted(wanted)
+    owned = stash_repo.lock_inventory_rows(db, ids)
+    if not stash_repo.lock_stash(db, stash_id):
+        db.rollback()
+        raise StashNotFound
+    totals = stash_repo.stashed_totals(db, ids)
+    if any(wanted[v] > owned.get(v, 0) - totals.get(v, 0) for v in ids):
+        db.rollback()
+        raise ExceedsOwned
+    held = stash_repo.stash_quantities(db, stash_id, ids)
+    after = {v: held.get(v, 0) + wanted[v] for v in ids}
+    try:
+        stash_repo.set_stash_quantities(db, stash_id, after)
+        response = _move_response(db, stash_id, after)
+        db.commit()
+    except DBAPIError as exc:
+        db.rollback()
+        if stash_repo.is_invariant_violation(exc):
+            raise ExceedsOwned from exc
+        if isinstance(exc, IntegrityError) and stash_repo.pg_error(exc)[0] == "23503":
+            raise StashNotFound from exc
+        raise
+    return response

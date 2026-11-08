@@ -124,6 +124,8 @@ One row per FastAPI route, generated from the app's dependency graph. `backend/a
 | PUT | `/api/stashes/variants/{variant_id}` | get_db | require_verified_email | BL-344 |
 | DELETE | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
 | PATCH | `/api/stashes/{stash_id}` | get_db | require_verified_email | BL-344 |
+| POST | `/api/stashes/{stash_id}/restore` | get_db | require_verified_email | BL-344 |
+| POST | `/api/stashes/{stash_id}/return` | get_db | require_verified_email | BL-344 |
 | GET | `/health` | none | none | baseline |
 | GET | `/images/cards/{filename}` | none | none | baseline |
 

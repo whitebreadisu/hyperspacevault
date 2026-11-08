@@ -70,7 +70,9 @@ test("s6-11-desktop-smoke-shared-page-renders", async ({ page }) => {
   await page.goto("/shared/tok-1");
   await expect(page.locator(".app-layout")).toBeVisible();
   await expect(page.locator(".m-app")).toHaveCount(0);
-  await expect(page.locator(".nav-tab--active")).toContainText("Rowan");
+  // PORT (v3.0 Command pod): the share is the Vault item's current sub item.
+  await expect(page.locator('[data-sub="shared"]')).toHaveAttribute("aria-current", "page");
+  await expect(page.locator('[data-sub="shared"]')).toContainText("Rowan");
   await expect(page.locator("tbody tr").nth(5)).toBeVisible();
 });
 
@@ -105,12 +107,14 @@ test("s6-11-desktop-brand-one-line-tag-and-height", async ({ page }) => {
   expect(g.tagLines, JSON.stringify(g)).toBe(1);
   expect(g.tagH).toBeLessThanOrEqual(13);
   expect(g.tagTop).toBeGreaterThanOrEqual(g.logoBottom);
-  // The header keeps its pre-logo heights (App Spec §5.12): 120 px at 1440,
-  // 112 px at 900 where the nav takes its own row.
+  // The header keeps its 120 px at 1440 (the Command pod hangs inside it).
+  // REPLACE (v3.0 Command pod): at 900 the nav takes its own row, now the
+  // 62 px pod under the 72 px brand row, + the 1 px border -- 135 px (was 112 with the 44 px
+  // tab row).
   expect(Math.round(g.header)).toBe(120);
   await page.setViewportSize({ width: 900, height: 900 });
   const narrow = await brandGeometry(page);
-  expect(Math.round(narrow.header)).toBe(112);
+  expect(Math.round(narrow.header)).toBe(135);
   expect(narrow.tagLines).toBe(1);
 });
 
@@ -127,10 +131,11 @@ test("s6-11-desktop-brand-chooser", async ({ page }) => {
   const brand = page.getByRole("button", {
     name: /^Hyperspace Vault, Unofficial Fan Project v\d+\.\d+.* - About & Legal and Updates$/,
   });
-  // Unread: the tag line pulses (the nav tab keeps its own amber cue).
+  // Unread: the tag line pulses (the pod's Updates label keeps its own amber
+  // cue; PORT from the old nav tab, v3.0 Command pod).
   await expect(page.locator(".app-header__brand-line--cue")).toHaveCount(1);
   await expect(page.locator(".app-header__brand-line")).toHaveCSS("animation-name", "na-cue-pulse");
-  await expect(page.locator(".nav-tab--cue")).toHaveText("[HSV] Updates");
+  await expect(page.locator(".pod__label.nav-tab--cue")).toHaveText("Updates");
 
   await brand.click();
   const dlg = page.locator(".hsv-chooser [role=dialog]");
@@ -163,7 +168,7 @@ test("s6-11-desktop-brand-chooser", async ({ page }) => {
   await brand.click();
   await dlg.locator(".swu-btn", { hasText: "[HSV] Updates" }).click();
   await expect(dlg).toHaveCount(0);
-  await expect(page.locator(".nav-tab--active")).toHaveText("[HSV] Updates");
+  await expect(page.locator('[data-top="updates"]')).toHaveAttribute("aria-current", "page");
   await expect(page.locator(".app-header__brand-line--cue")).toHaveCount(0);
 });
 

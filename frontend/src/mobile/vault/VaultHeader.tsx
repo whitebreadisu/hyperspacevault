@@ -36,6 +36,14 @@ export interface StripSummary {
   authed?: boolean;
 }
 
+/** Another screen's strip readout in the Vault's header frame (a stash:
+ * COPIES / VALUE): what the collapsed strip shows instead of the Vault's
+ * completion readout, and its accessible name. */
+export interface StripReadout {
+  content: ReactNode;
+  label: string;
+}
+
 interface Props {
   hdrRef: RefObject<HTMLElement | null>;
   topRef: RefObject<HTMLDivElement | null>;
@@ -47,6 +55,7 @@ interface Props {
   onOpenFeedback: () => void;
   account: ReactNode;
   panel: ReactNode;
+  readout?: StripReadout;
 }
 
 export function VaultHeader({
@@ -60,6 +69,7 @@ export function VaultHeader({
   onOpenFeedback,
   account,
   panel,
+  readout,
 }: Props) {
   const authed = summary.authed !== false;
   const filled = authed ? Math.round(summary.pct / 10) : 0;
@@ -125,29 +135,43 @@ export function VaultHeader({
               className="m-vh__readout"
               onClick={onExpand}
               tabIndex={collapsed ? undefined : -1}
-              aria-label={`Collection${summary.narrowed ? ", filtered totals" : ""}: playsets ${pct}, ${copies} cards, ${value}. Expand the header`}
+              aria-label={
+                readout
+                  ? `${readout.label}. Expand the header`
+                  : `Collection${summary.narrowed ? ", filtered totals" : ""}: playsets ${pct}, ${copies} cards, ${value}. Expand the header`
+              }
             >
-              {summary.narrowed ? (
+              {readout ? (
+                <>
+                  {readout.content}
+                  <MIcon name="chevdown" size={16} className="m-vh__chev" />
+                </>
+              ) : null}
+              {readout ? null : summary.narrowed ? (
                 <span className="m-vh__narrow" aria-hidden="true">
                   <MIcon name="filter" size={14} />
                 </span>
               ) : null}
-              <span className="m-vh__pct">{pct}</span>
-              <span className="inv-summary__ticks m-vh__ticks">
-                {Array.from({ length: 10 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={
-                      "inv-summary__tick" + (i < filled ? " inv-summary__tick--filled" : "")
-                    }
-                  />
-                ))}
-              </span>
-              <span className="m-vh__fact m-vh__fact--cards">
-                <span className="m-vh__n">{copies}</span> cards
-              </span>
-              <span className="m-vh__value">{value}</span>
-              <MIcon name="chevdown" size={16} className="m-vh__chev" />
+              {readout ? null : (
+                <>
+                  <span className="m-vh__pct">{pct}</span>
+                  <span className="inv-summary__ticks m-vh__ticks">
+                    {Array.from({ length: 10 }, (_, i) => (
+                      <span
+                        key={i}
+                        className={
+                          "inv-summary__tick" + (i < filled ? " inv-summary__tick--filled" : "")
+                        }
+                      />
+                    ))}
+                  </span>
+                  <span className="m-vh__fact m-vh__fact--cards">
+                    <span className="m-vh__n">{copies}</span> cards
+                  </span>
+                  <span className="m-vh__value">{value}</span>
+                  <MIcon name="chevdown" size={16} className="m-vh__chev" />
+                </>
+              )}
             </button>
           </div>
         </div>

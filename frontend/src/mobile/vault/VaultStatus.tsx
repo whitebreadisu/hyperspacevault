@@ -28,13 +28,15 @@ const GALLERY_SIZE_OPTIONS: { key: GallerySize; label: string; icon: IconName }[
 
 export const SEARCH_PLACEHOLDER = "Search the vault";
 
-function SearchField({
+/** The search box (also the Stashes page's, with its own placeholder). */
+export function SearchField({
   value,
   onChange,
   inputRef,
   onFocus,
   onBlur,
   narrowed,
+  placeholder = SEARCH_PLACEHOLDER,
 }: {
   value: string;
   onChange: (q: string) => void;
@@ -44,6 +46,7 @@ function SearchField({
   /** Clear is on the row (a filter or scope is active): the field is at its
    * narrowest, so the hint drops to 14 px (App Spec §25.1). */
   narrowed: boolean;
+  placeholder?: string;
 }) {
   return (
     <form
@@ -61,8 +64,8 @@ function SearchField({
         type="search"
         enterKeyHint="search"
         value={value}
-        placeholder={SEARCH_PLACEHOLDER}
-        aria-label={SEARCH_PLACEHOLDER}
+        placeholder={placeholder}
+        aria-label={placeholder}
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}

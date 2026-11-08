@@ -203,3 +203,81 @@ def apply_stash_cuts(db: Session, cuts: list[tuple[int, int, int]]) -> None:
         else:
             query.update({StashItem.quantity: after}, synchronize_session=False)
     db.flush()
+
+
+def lock_inventory_rows(db: Session, variant_ids: list[int]) -> dict[int, int]:
+    """Lock the caller's inventory rows for these printings FOR UPDATE in
+    ascending variant_id (the order every stash writer uses) and return
+    {variant_id: owned}. A printing with no row is simply absent."""
+    if not variant_ids:
+        return {}
+    rows = (
+        db.query(Inventory.variant_id, Inventory.quantity)
+        .filter(Inventory.variant_id.in_(variant_ids))
+        .order_by(Inventory.variant_id)
+        .with_for_update()
+        .all()
+    )
+    return {r.variant_id: int(r.quantity) for r in rows}
+
+
+def stash_quantities(
+    db: Session, stash_id: int, variant_ids: list[int]
+) -> dict[int, int]:
+    """{variant_id: quantity} the stash holds for these printings."""
+    rows = (
+        db.query(StashItem.variant_id, StashItem.quantity)
+        .filter(StashItem.stash_id == stash_id, StashItem.variant_id.in_(variant_ids))
+        .all()
+    )
+    return {r.variant_id: int(r.quantity) for r in rows}
+
+
+def stashed_totals(db: Session, variant_ids: list[int]) -> dict[int, int]:
+    """{variant_id: copies across all the caller's stashes}."""
+    rows = (
+        db.query(StashItem.variant_id, func.sum(StashItem.quantity))
+        .filter(StashItem.variant_id.in_(variant_ids))
+        .group_by(StashItem.variant_id)
+        .all()
+    )
+    return {vid: int(total) for vid, total in rows}
+
+
+def lock_stash(db: Session, stash_id: int) -> bool:
+    """Lock the stash row (FOR NO KEY UPDATE) until the transaction ends, so
+    a concurrent DELETE of it waits for the move to commit. False when the
+    stash is gone. Always taken after the inventory rows."""
+    return (
+        db.query(Stash.id)
+        .filter(Stash.id == stash_id)
+        .with_for_update(key_share=True)
+        .first()
+        is not None
+    )
+
+
+def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> None:
+    """Set the stash's quantity for each printing (0 deletes the row,
+    a missing row is inserted). Does not commit."""
+    tenant_id = current_tenant_id(db)
+    existing = stash_quantities(db, stash_id, list(after))
+    for variant_id, quantity in sorted(after.items()):
+        row = db.query(StashItem).filter(
+            StashItem.stash_id == stash_id, StashItem.variant_id == variant_id
+        )
+        if variant_id in existing:
+            if quantity <= 0:
+                row.delete(synchronize_session=False)
+            else:
+                row.update({StashItem.quantity: quantity}, synchronize_session=False)
+        elif quantity > 0:
+            db.add(
+                StashItem(
+                    stash_id=stash_id,
+                    tenant_id=tenant_id,
+                    variant_id=variant_id,
+                    quantity=quantity,
+                )
+            )
+    db.flush()

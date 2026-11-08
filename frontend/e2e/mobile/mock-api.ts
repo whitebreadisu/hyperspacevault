@@ -311,6 +311,15 @@ function parseImport(body: string) {
 }
 
 const recorders = new WeakMap<Page, Recorder>();
+/** Drop the ERR_ABORTED entry Chromium records for a fulfilled 204 on
+ * DELETE /api/stashes/{id} (the app itself sees the 204). */
+export function dropDelete204(page: Page): void {
+  const rec = recorderFor(page);
+  rec.failed = rec.failed.filter(
+    (f) => !/^DELETE \S+\/api\/stashes\/\d+ \(net::ERR_ABORTED\)$/.test(f)
+  );
+}
+
 export const recorderFor = (page: Page): Recorder =>
   recorders.get(page) ?? {
     failed: [],
@@ -630,6 +639,75 @@ export async function installApiMocks(
             variant_id: variantId,
             owned,
             allocations: allocations.filter((a) => a.quantity > 0),
+          });
+        }
+        // The Stashes page: rename / redescribe, delete (copies back to the
+        // Vault), return (409 exceeds_stash past what the stash holds) and
+        // restore, the Undo (409 exceeds_owned past what the Vault holds).
+        const one = path.match(/^\/api\/stashes\/(\d+)$/);
+        const one_ = one ? stashes.find((s) => s.id === Number(one[1])) : undefined;
+        if (one && !one_) return ok(route, { detail: "Not found" }, 404);
+        if (method === "PATCH" && one_) {
+          const patch = req.postDataJSON() as { name?: string; description?: string | null };
+          if (
+            patch.name != null &&
+            stashes.some(
+              (s) => s.id !== one_.id && s.name.toLowerCase() === patch.name!.trim().toLowerCase()
+            )
+          )
+            return ok(route, { detail: "duplicate_name" }, 409);
+          if (patch.name != null) one_.name = patch.name.trim();
+          if ("description" in patch) one_.description = patch.description ?? null;
+          return ok(route, { ...one_, copies: stashCopies(one_.id) });
+        }
+        if (method === "DELETE" && one_) {
+          stashes.splice(stashes.indexOf(one_), 1);
+          for (const k of [...stashItems.keys()])
+            if (k.startsWith(one_.id + ":")) stashItems.delete(k);
+          // The real endpoint answers 204 with no body.
+          // Chromium reports a fulfilled 204 as ERR_ABORTED in requestfailed
+          // (the app sees the 204); specs that delete drop that one entry
+          // with dropDelete204().
+          return route.fulfill({ status: 204 });
+        }
+        const move = path.match(/^\/api\/stashes\/(\d+)\/(return|restore)$/);
+        if (method === "POST" && move) {
+          const stashId = Number(move[1]);
+          if (!stashes.some((s) => s.id === stashId))
+            return ok(route, { detail: "Not found" }, 404);
+          const { items } = req.postDataJSON() as {
+            items: { variant_id: number; quantity: number }[];
+          };
+          // The backend's 422s: an empty list, a repeated printing, a
+          // quantity under 1 or over 999 (nothing written).
+          if (
+            !Array.isArray(items) ||
+            items.length === 0 ||
+            new Set(items.map((i) => i.variant_id)).size !== items.length ||
+            items.some((i) => !Number.isInteger(i.quantity) || i.quantity < 1 || i.quantity > 999)
+          )
+            return ok(route, { detail: "invalid" }, 422);
+          const held = (v: number) => stashItems.get(`${stashId}:${v}`) ?? 0;
+          const stashedAll = (v: number) =>
+            [...stashItems].filter(([k]) => k.endsWith(":" + v)).reduce((n, [, q]) => n + q, 0);
+          if (move[2] === "return") {
+            if (items.some((i) => i.quantity > held(i.variant_id)))
+              return ok(route, { detail: "exceeds_stash" }, 409);
+          } else if (
+            items.some(
+              (i) => i.quantity > (qtyById.get(i.variant_id) ?? 0) - stashedAll(i.variant_id)
+            )
+          )
+            return ok(route, { detail: "exceeds_owned" }, 409);
+          for (const i of items) {
+            const next = held(i.variant_id) + (move[2] === "return" ? -i.quantity : i.quantity);
+            if (next > 0) stashItems.set(`${stashId}:${i.variant_id}`, next);
+            else stashItems.delete(`${stashId}:${i.variant_id}`);
+          }
+          return ok(route, {
+            stash_id: stashId,
+            copies: stashCopies(stashId),
+            items: items.map((i) => ({ variant_id: i.variant_id, quantity: held(i.variant_id) })),
           });
         }
       }

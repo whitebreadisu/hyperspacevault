@@ -84,6 +84,8 @@ export const SCREEN_VIEWED_SCREENS = [
   "shared_view",
   "deck_check",
   "new_arrivals",
+  // The Vault's Stashes page, both layouts.
+  "stashes",
 ] as const;
 export type ScreenViewedScreen = (typeof SCREEN_VIEWED_SCREENS)[number];
 

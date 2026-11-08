@@ -11,6 +11,8 @@ from app.auth import require_verified_email
 from app.database import get_db
 from app.http_cache import tenant_no_store
 from app.schemas.stash_schema import (
+    MoveRequest,
+    MoveResponse,
     SplitRequest,
     SplitResponse,
     StashCreateRequest,
@@ -98,6 +100,38 @@ def set_variant_split(
         return stash_service.set_variant_split(db, variant_id, allocations)
     except stash_service.VariantNotFound:
         raise _not_found("Card") from None
+    except stash_service.StashNotFound:
+        raise _not_found() from None
+    except stash_service.ExceedsOwned:
+        raise HTTPException(status_code=409, detail="exceeds_owned") from None
+
+
+def _wanted(body: MoveRequest) -> dict[int, int]:
+    return {i.variant_id: i.quantity for i in body.items}
+
+
+@router.post(
+    "/{stash_id}/return",
+    response_model=MoveResponse,
+    dependencies=[Depends(require_verified_email)],
+)
+def return_items(stash_id: int, body: MoveRequest, db: Session = Depends(get_db)):
+    try:
+        return stash_service.return_items(db, stash_id, _wanted(body))
+    except stash_service.StashNotFound:
+        raise _not_found() from None
+    except stash_service.ExceedsStash:
+        raise HTTPException(status_code=409, detail="exceeds_stash") from None
+
+
+@router.post(
+    "/{stash_id}/restore",
+    response_model=MoveResponse,
+    dependencies=[Depends(require_verified_email)],
+)
+def restore_items(stash_id: int, body: MoveRequest, db: Session = Depends(get_db)):
+    try:
+        return stash_service.restore_items(db, stash_id, _wanted(body))
     except stash_service.StashNotFound:
         raise _not_found() from None
     except stash_service.ExceedsOwned:

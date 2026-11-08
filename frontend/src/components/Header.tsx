@@ -6,27 +6,20 @@ import { formatVersionLabel } from "../utils/version";
 import logoFull2x from "../assets/brand/hsv-logo-full@2x.webp";
 import logoFull3x from "../assets/brand/hsv-logo-full@3x.webp";
 import { TitleChooser } from "../mobile/TitleChooser";
+import { useStashes } from "../stashes/StashContext";
+import { NavPod } from "./NavPod";
+import type { PodSub, PodTop } from "./NavPod";
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
-// "import-export" is a transient view -- reachable only via CardsPage's
-// Import / Export button (verified users), never a permanent nav
-// tab like "deck-check". See the `view` prop's doc comment and the nav
-// render branch below for how it borrows the settings-view shape (way-back
-// Vault button + one active tab) rather than joining the two-tab bar.
-//
-// "new-arrivals" is the release-notes view -- a real peer nav tab
-// like "deck-check" (not the settings/import-export transient shape), except
-// its tab is only ever RENDERED while unread content exists or it's the
-// active view (see the `hasUnread` prop and the nav render branch below) --
-// unlike Vault/Deck Check, which are always present.
-//
-// "shared" is the viewer-mode Vault for a shared link -- a peer nav tab
-// like "new-arrivals", rendered only while a share session exists (see the
-// `shareName` prop below), never gated by auth state (App Spec §19.1:
-// anonymous viewers get the shared view too).
+// The views the shell shows (App.tsx). "cards" is the Vault's Collection and
+// "stashes" the Vault's Stashes page (signed in, own vault only);
+// "deck-check" sits under Decks; "new-arrivals" is [HSV] Updates; "shared"
+// is the viewer-mode Vault for a shared link (App Spec §19.1). "settings"
+// and "import-export" are reached from the avatar menu and the Vault's
+// Import / Export button; no pod item is lit on them.
 export type AppView =
-  "cards" | "deck-check" | "settings" | "import-export" | "new-arrivals" | "shared";
+  "cards" | "stashes" | "deck-check" | "settings" | "import-export" | "new-arrivals" | "shared";
 
 interface Props {
   userEmail: string | null;
@@ -46,66 +39,41 @@ interface Props {
    * Sign In/UserMenu split it sits next to) -- App owns the modal state,
    * same pattern as onOpenAbout. */
   onOpenFeedback: () => void;
-  /** Which App pane is active. On the settings view the nav becomes a
-   * Vault *button* (the way back) plus an active Settings tab, so the
-   * settings surface reads as a page with the same navigation furniture as
-   * the rest of the app -- Settings itself stays reachable only via the
-   * avatar menu, not a permanent tab. Defaults to "cards" (the plain
-   * cards-view header).
-   *
-   * On the other views the nav is a bar of peer tabs: Vault and Deck Check
-   * always, plus the conditional "[HSV] Updates" and shared-vault tabs. The
-   * Vault tab's AppView id is "cards", and in-screen code keeps the
-   * "Inventory" name (InventorySummary, api/inventory.ts, etc.); only the
-   * nav label says Vault.
-   *
-   * "import-export" reuses the settings-view shape (way-back Vault button +
-   * a single active tab) rather than the tab bar -- it's a transient tab,
-   * only ever rendered while this view is active (never a permanent peer
-   * of Vault/Deck Check), disappearing the moment the user navigates back
-   * to Vault. */
+  /** Which App pane is active: it decides the pod's lit item and sub item
+   * (NavPod.tsx). Defaults to "cards". */
   view?: AppView;
-  /** Switches to the Vault: the Vault tab / way-back button. */
+  /** Switches to the Vault's Collection (the Vault item, Collection, My vault). */
   onNavigateCards?: () => void;
-  /** Switches to the Deck Check pane. Visible to anonymous visitors too
-   * (Deck Check is a peer nav tab, not avatar-menu-gated like Settings) --
-   * DeckCheckPage itself gates the auth-only content behind a sign-in
-   * prompt, the same onRequestSignIn idiom CardsPage's anonymous controls
-   * use. Optional. */
+  /** Opens the Stashes page, on one stash or (null) the page's default.
+   * Signed in on the own vault only: the Stashes entries exist only while
+   * the stash context is on (StashContext `enabled`). */
+  onNavigateStashes?: (stashId: number | null) => void;
+  /** Switches to the Deck Check pane (Decks and its Deck Check sub item).
+   * Visible to anonymous visitors too -- DeckCheckPage itself gates the
+   * auth-only content behind a sign-in prompt. Optional. */
   onNavigateDeckCheck?: () => void;
   /** Threaded straight through to UserMenu -- see its own doc comment.
    * Optional; when omitted, UserMenu's own default of `true` applies. */
   hasPasswordProvider?: boolean;
   /** Opens the "new-arrivals" release-notes view -- the brand chooser's
-   * Updates button always, and the "[HSV] Updates" nav item's onClick whenever
-   * it's rendered (see `hasUnread` below). Optional, matching
-   * onNavigateDeckCheck's shape. */
+   * Updates button and the pod's [HSV] Updates item. Optional. */
   onOpenNotes?: () => void;
-  /** Drives the "[HSV] Updates" nav item's presence and its amber cue, plus
-   * the cream cue on the brand tag line and the chooser's Updates button
+  /** Drives the [HSV] Updates item (shown while unread or the view) and its amber cue, plus the cream cue on the
+   * brand tag line and the chooser's Updates button
    * (utils/releaseNotesSeen.ts's hasUnread()) -- App computes this once and
-   * passes it down, rather than Header reaching into localStorage itself.
-   * Defaults to false (no nav item, no cue) -- see showNewArrivalsTab below
-   * for the `hasUnread || view === "new-arrivals"` visibility rule that
-   * keeps the active tab from vanishing the instant it's opened and the
-   * unread flag clears. */
+   * passes it down. Defaults to false. */
   hasUnread?: boolean;
-  /** The active share's owner-chosen name -- "the share's name appears as a
-   * header item alongside Vault and Deck Check" (App Spec §19.1). App
-   * derives this from sessionStorage (utils/shareSession.ts) rather than
-   * Header reaching into storage itself, the same App-owns-the-state
-   * pattern as `hasUnread` above. The nav item is rendered whenever this is
-   * non-null (mirrors "whenever sessionStorage holds a share" -- App only
-   * sets it once a resolve has actually succeeded, see App.tsx). Optional;
-   * null renders no item. */
+  /** The active share's owner-chosen name (App Spec §19.1): while non-null
+   * the Vault item lists it as a sub item. App derives it from
+   * sessionStorage (utils/shareSession.ts) and only sets it once a resolve
+   * has succeeded. Optional; null lists no share. */
   shareName?: string | null;
   /** Switches to the shared-vault pane. Optional, matching
    * onNavigateDeckCheck's shape. */
   onNavigateShared?: () => void;
 }
 
-/** The app header: brand column, the nav tab bar (see the `view` prop's
- * doc comment above for the settings / import-export special case), and
+/** The app header: brand column, the Command pod (NavPod.tsx), and
  * the top-right account slot. The account slot shows Sign In when
  * anonymous, replaced by the avatar dropdown menu once authenticated.
  * onLogout, onChangePassword, onOpenSettings and onOpenAbout all thread
@@ -123,6 +91,7 @@ export function Header({
   onOpenFeedback,
   view = "cards",
   onNavigateCards,
+  onNavigateStashes,
   onNavigateDeckCheck,
   hasPasswordProvider,
   onOpenNotes,
@@ -130,15 +99,54 @@ export function Header({
   shareName = null,
   onNavigateShared,
 }: Props) {
-  // The nav item stays visible while unread OR while it's the
-  // active view -- the latter half is what keeps it from vanishing the
-  // instant App clears the unread flag on open (see App.tsx's onOpenNotes).
-  const showNewArrivalsTab = hasUnread || view === "new-arrivals";
-  // Unlike showNewArrivalsTab above, presence alone (no `|| view
-  // === "shared"` fallback needed) already covers both "away" and "active"
-  // identically -- shareName only clears when the session itself is gone
-  // (App never clears it just because the view navigated elsewhere).
-  const showSharedTab = shareName != null;
+  // Stash entries (the Stashes sub item, its menu): signed in, own vault.
+  const stash = useStashes();
+  const stashesOn = stash.enabled && !!userEmail && onNavigateStashes != null;
+  const inShared = view === "shared";
+  const top: PodTop =
+    view === "cards" || view === "stashes" || view === "shared"
+      ? "vault"
+      : view === "deck-check"
+        ? "decks"
+        : view === "new-arrivals"
+          ? "updates"
+          : null;
+  const toCards = () => onNavigateCards?.();
+  const vaultSubs: PodSub[] = [];
+  if (inShared) {
+    // The shared vault shown: My vault · the share's name, amber.
+    vaultSubs.push({ key: "own", label: "My vault", on: false, onClick: toCards });
+  } else {
+    vaultSubs.push({
+      key: "collection",
+      label: "Collection",
+      on: view === "cards",
+      onClick: toCards,
+    });
+    if (stashesOn)
+      vaultSubs.push({
+        key: "stashes",
+        label: "Stashes",
+        on: view === "stashes",
+        onClick: () => onNavigateStashes?.(null),
+        menu: true,
+      });
+  }
+  if (shareName != null)
+    vaultSubs.push({
+      key: "shared",
+      label: shareName,
+      on: inShared,
+      onClick: () => onNavigateShared?.(),
+    });
+  const decksSubs: PodSub[] = [
+    {
+      key: "deck-check",
+      label: "Deck Check",
+      on: view === "deck-check",
+      onClick: () => onNavigateDeckCheck?.(),
+    },
+  ];
   const [chooser, setChooser] = useState(false);
   const closeChooser = useCallback(() => setChooser(false), []);
 
@@ -195,63 +203,21 @@ export function Header({
           : null}
       </div>
 
-      <nav className="app-header__nav">
-        {/* Settings and import-export share one shape (way-back Vault button
-            + one active tab; see the `view` prop's doc comment above) --
-            only the active tab's label differs. Every other view renders
-            the peer-tab bar: "[HSV] Updates" (leftmost, CONDITIONAL -- see
-            showNewArrivalsTab above), Vault, Deck Check, then the
-            conditional shared-vault tab. */}
-        {view === "settings" || view === "import-export" ? (
-          <>
-            <button type="button" className="nav-tab" onClick={onNavigateCards}>
-              Vault
-            </button>
-            <span className="nav-tab nav-tab--active">
-              {view === "settings" ? "Settings" : "Import / Export"}
-            </span>
-          </>
-        ) : (
-          <>
-            {showNewArrivalsTab && (
-              <button
-                type="button"
-                className={`nav-tab${view === "new-arrivals" ? " nav-tab--active" : ""}${
-                  hasUnread ? " nav-tab--cue" : ""
-                }`}
-                onClick={onOpenNotes}
-              >
-                [HSV] Updates
-              </button>
-            )}
-            <button
-              type="button"
-              className={`nav-tab${view === "cards" ? " nav-tab--active" : ""}`}
-              onClick={onNavigateCards}
-            >
-              Vault
-            </button>
-            <button
-              type="button"
-              className={`nav-tab${view === "deck-check" ? " nav-tab--active" : ""}`}
-              onClick={onNavigateDeckCheck}
-            >
-              Deck Check
-            </button>
-            {/* The share's OWNER-CHOSEN name IS the label (App Spec §19.1) --
-                no generic "Shared with me" text (see the `shareName` prop's
-                own doc comment). */}
-            {showSharedTab && (
-              <button
-                type="button"
-                className={`nav-tab${view === "shared" ? " nav-tab--active" : ""}`}
-                onClick={onNavigateShared}
-              >
-                {shareName}
-              </button>
-            )}
-          </>
-        )}
+      <nav className="app-header__nav" aria-label="Main">
+        <NavPod
+          top={top}
+          vaultSubs={vaultSubs}
+          decksSubs={decksSubs}
+          onVault={inShared ? () => onNavigateShared?.() : toCards}
+          onDecks={() => onNavigateDeckCheck?.()}
+          onUpdates={() => onOpenNotes?.()}
+          shared={inShared}
+          unread={hasUnread}
+          showUpdates={hasUnread || view === "new-arrivals"}
+          stashes={stashesOn && !inShared ? stash.stashes : null}
+          onOpenStash={(id) => onNavigateStashes?.(id)}
+          onAllStashes={() => onNavigateStashes?.(null)}
+        />
       </nav>
 
       <div className="app-header__account">

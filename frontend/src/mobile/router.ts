@@ -12,7 +12,7 @@ export interface Route {
 
 /** First segments the phone app has a screen for. Anything else normalises
  * to the Vault. */
-const KNOWN_ROOTS = new Set(["vault", "card", "more", "pad", "camera", "about"]);
+const KNOWN_ROOTS = new Set(["vault", "stashes", "card", "more", "pad", "camera", "about"]);
 
 export function parseHash(h: string | null | undefined): Route {
   const stripped = (h ?? "").replace(/^#\/?/, "") || "vault";

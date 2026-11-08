@@ -39,7 +39,13 @@ export interface VariantAllocationResult {
 
 /** The contract's typed 409s plus the shape failures the UI branches on. */
 export type StashErrorCode =
-  "duplicate_name" | "stash_limit" | "exceeds_owned" | "not_found" | "invalid" | "unknown";
+  | "duplicate_name"
+  | "stash_limit"
+  | "exceeds_owned"
+  | "exceeds_stash"
+  | "not_found"
+  | "invalid"
+  | "unknown";
 
 export class StashApiError extends CodedApiError<StashErrorCode> {
   constructor(code: StashErrorCode, status: number) {
@@ -48,7 +54,12 @@ export class StashApiError extends CodedApiError<StashErrorCode> {
   }
 }
 
-const KNOWN_409 = new Set<StashErrorCode>(["duplicate_name", "stash_limit", "exceeds_owned"]);
+const KNOWN_409 = new Set<StashErrorCode>([
+  "duplicate_name",
+  "stash_limit",
+  "exceeds_owned",
+  "exceeds_stash",
+]);
 
 async function readDetail(res: Response): Promise<unknown> {
   try {
@@ -98,7 +109,7 @@ export async function createStash(name: string, description?: string | null): Pr
   return res.json();
 }
 
-/** PATCH /api/stashes/{id} -- rename / redescribe (UI is slice 2). */
+/** PATCH /api/stashes/{id} -- rename / redescribe (409 duplicate_name). */
 export async function updateStash(
   id: number,
   patch: { name?: string; description?: string | null }
@@ -112,7 +123,7 @@ export async function updateStash(
   return res.json();
 }
 
-/** DELETE /api/stashes/{id} -- its copies return to the Vault (UI is slice 2). */
+/** DELETE /api/stashes/{id} -- its copies return to the Vault. */
 export async function deleteStash(id: number): Promise<void> {
   const res = await authedFetch(`/api/stashes/${id}`, { method: "DELETE" });
   await throwIfFailed(res);
@@ -131,4 +142,46 @@ export async function putVariantAllocations(
   });
   await throwIfFailed(res);
   return res.json();
+}
+
+/** One printing's quantity in a return / restore body or result. */
+export interface StashMove {
+  variant_id: number;
+  quantity: number;
+}
+
+/** The stash after a return or restore: its remaining quantity for each
+ * printing sent (0 when the row is gone) and its new total. */
+export interface StashMoveResult {
+  stash_id: number;
+  copies: number;
+  items: StashMove[];
+}
+
+async function moveItems(
+  stashId: number,
+  action: "return" | "restore",
+  items: StashMove[]
+): Promise<StashMoveResult> {
+  const res = await authedFetch(`/api/stashes/${stashId}/${action}`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ items }),
+  });
+  await throwIfFailed(res);
+  return res.json();
+}
+
+/** POST /api/stashes/{id}/return -- copies leave the stash for the Vault
+ * (owned unchanged). 409 exceeds_stash when a quantity passes what the
+ * stash holds (nothing written). */
+export function returnStashItems(stashId: number, items: StashMove[]): Promise<StashMoveResult> {
+  return moveItems(stashId, "return", items);
+}
+
+/** POST /api/stashes/{id}/restore -- the Undo of a return: copies go back
+ * from the Vault into the stash. 409 exceeds_owned when the Vault no longer
+ * holds enough copies (nothing written). */
+export function restoreStashItems(stashId: number, items: StashMove[]): Promise<StashMoveResult> {
+  return moveItems(stashId, "restore", items);
 }

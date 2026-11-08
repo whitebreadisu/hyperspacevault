@@ -1,0 +1,729 @@
+/* The phone Stashes page (design 1d "List + in-row return"): the Stashes
+   list (StashesScreen.tsx) and inside a stash (StashScreen.tsx), plus the
+   stash sheets. Exact values are the handoff's. Scoped under .m-app. */
+
+/* ── The Stashes list ─────────────────────────────────────────────────── */
+.m-app .m-stashes__head {
+  padding: 16px 12px 4px;
+}
+.m-app .m-stashes__note {
+  margin: 0;
+  padding: 24px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #cfd6e4;
+  text-align: center;
+}
+.m-app .m-stashes__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 28px 28px 0;
+  text-align: center;
+}
+.m-app .m-stashes__emptytext {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: #cfd6e4;
+  text-wrap: pretty;
+}
+.m-app .m-stashes__group {
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+}
+.m-app .m-stashes__grouphead {
+  padding: 0 16px 6px;
+}
+.m-app .m-stashes__label {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stashes__new {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 24px;
+}
+.m-app .m-stashes__group .m-stashes__new {
+  border-top: 1px solid #1e2748;
+}
+.m-app .m-stashrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 76px;
+  padding: 6px 8px 6px 0;
+  border-top: 1px solid #1e2748;
+  color: #e6e6e6;
+}
+.m-app .m-stashrow__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 0 16px;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+.m-app .m-stashrow__main:active {
+  background: rgba(37, 99, 235, 0.1);
+}
+.m-app .m-stashrow__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.m-app .m-stashrow__name {
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashrow__desc {
+  font-size: 14px;
+  color: #9fb0cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashrow__nums {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.m-app .m-stashrow__copies {
+  font-family: "Russo One", sans-serif;
+  font-size: 16px;
+}
+.m-app .m-stashrow__copies--zero {
+  color: #6b7a99;
+}
+.m-app .m-stashrow__value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #cfd6e4;
+}
+.m-app .m-stashrow__pencil {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid #2a3558;
+  color: #cfd6e4;
+}
+.m-app .m-stashrow__pencil:active {
+  background: rgba(37, 99, 235, 0.2);
+}
+.m-app .m-stashrow__chev {
+  flex: none;
+  display: inline-flex;
+  color: #9fb0cc;
+}
+
+/* ── Inside a stash: the panel and the collapsed strip ────────────────── */
+.m-app .m-stashpanel {
+  position: relative;
+}
+.m-app .m-stashpanel .m-summary__inner {
+  padding: 8px 10px 10px 14px;
+}
+.m-app .m-stashpanel__head {
+  align-items: flex-start;
+}
+.m-app .m-stashpanel__titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+}
+.m-app .m-stashpanel__name {
+  font-family: var(--font-body);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #e6e6e6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Drawn 28 px tall (the line), hit 44 px: 8 px of padding above and below
+   cancelled by the same negative margins. */
+.m-app .m-stashpanel__desc {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  margin: -8px 0;
+  background-clip: content-box;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 28px;
+  color: #cfd6e4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashpanel__desc--none {
+  color: #6b7a99;
+}
+.m-app .m-stashpanel__desc--open {
+  background: rgba(37, 99, 235, 0.18);
+}
+.m-app .m-stashpanel__stats {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+  padding-top: 6px;
+}
+.m-app .m-stashpanel__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.m-app .m-stashpanel__label,
+.m-app .m-stashstrip__label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stashpanel__copies {
+  font-family: "Russo One", sans-serif;
+  font-size: 22px;
+  line-height: 1.1;
+}
+.m-app .m-stashpanel__value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  line-height: 1.1;
+}
+.m-app .m-stashpanel__sub {
+  min-height: 14px;
+  font-size: 12px;
+  color: #178a3a;
+}
+/* The description popover: steel ring, X top-right; a tap outside closes. */
+.m-app .m-stashpop {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 68px;
+  z-index: 9;
+  padding: 1.5px;
+  background: rgba(211, 211, 212, 0.5);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.7));
+}
+.m-app .m-stashpop__inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 4px 14px 14px;
+  background: #0f1528;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+}
+.m-app .m-stashpop__text {
+  flex: 1;
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: #e6e6e6;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.m-app .m-stashpop__close {
+  margin-top: -8px;
+}
+/* The collapsed strip's readout (in the header bar slot). */
+.m-app .m-stashstrip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  padding-left: 6px;
+}
+.m-app .m-stashstrip__fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.m-app .m-stashstrip__copies {
+  font-family: "Russo One", sans-serif;
+  font-size: 17px;
+}
+.m-app .m-stashstrip__value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+/* ── Status rows, feedback ─────────────────────────────────────────────── */
+.m-app .m-stashctl__status {
+  gap: 6px;
+}
+.m-app .m-stashctl__mode {
+  flex: none;
+  height: 44px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid #2a3558;
+  color: #cfd6e4;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.m-app .m-stashctl__mode--on {
+  background: rgba(37, 99, 235, 0.28);
+  border-color: #2563eb;
+  color: #ffffff;
+}
+.m-app .m-stashctl__icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: rgba(9, 11, 20, 0.5);
+  border: 1px solid #2a3558;
+  color: #cfd6e4;
+}
+.m-app .m-stashctl__view .m-seg__btn {
+  width: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.m-app .m-stashok {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  margin: 4px -12px 0;
+  padding: 0 4px 0 14px;
+  background: rgba(23, 138, 58, 0.12);
+  border-bottom: 1px solid rgba(23, 138, 58, 0.5);
+  color: #178a3a;
+}
+.m-app .m-stashok__text {
+  flex: 1;
+  font-size: 14.5px;
+  line-height: 1.35;
+  color: #e6e6e6;
+}
+.m-app .m-stashok__undo {
+  min-height: 44px;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  color: #9fb0cc;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.m-app .m-stasherr {
+  padding: 8px 2px 0;
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────────── */
+.m-app .m-stashlines {
+  display: flex;
+  flex-direction: column;
+}
+.m-app .m-stashline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 92px;
+  padding: 0 12px 0 0;
+  background: #0f1528;
+  border-bottom: 1px solid #1e2748;
+  color: #e6e6e6;
+}
+.m-app .m-stashline--active {
+  background: rgba(37, 99, 235, 0.16);
+}
+.m-app .m-stashline__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 0 12px;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+.m-app .m-stashline--dim .m-stashline__thumb,
+.m-app .m-stashline--dim .m-stashline__text,
+.m-app .m-stashline--dim .m-stashline__total {
+  opacity: 0.45;
+}
+.m-app .m-stashline__check {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #6b7a99;
+  background: transparent;
+  color: #ffffff;
+}
+.m-app .m-stashline__check--on {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+.m-app .m-stashline__thumb {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 64px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #0b0f1f;
+}
+.m-app .m-stashline__thumb img {
+  display: block;
+  width: 46px;
+  height: 64px;
+  object-fit: cover;
+}
+.m-app .m-stashline__thumb img.m-img--rotated {
+  position: absolute;
+  left: -9px;
+  top: 9px;
+  width: 64px;
+  height: 46px;
+  transform: rotate(90deg);
+}
+.m-app .m-stashline__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-app .m-stashline__name {
+  font-size: 16.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashline__sub {
+  font-size: 14px;
+  font-style: italic;
+  color: #9fb0cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashline__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-width: 0;
+}
+.m-app .m-stashline__num {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: #9fb0cc;
+}
+.m-app .m-stashline__fin {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-stashline__side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.m-app .m-stashline__total {
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+}
+.m-app .m-stashline__ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m-app .m-stashline__chip.playset-chip {
+  min-width: 30px;
+  padding: 5px 7px;
+  font-size: 13px;
+  background: #0b0f1f;
+  border-color: #2a3558;
+}
+.m-app .m-stashline__chip.playset-chip--complete {
+  border-color: rgba(23, 138, 58, 0.6);
+}
+.m-app .m-stashline__chip.playset-chip--empty {
+  border-color: #1e2748;
+}
+/* The row's controls are 44 x 44 hits; the drawn shape (Return 44 x 36,
+   − and trash 44 x 40) is the ::before layer. */
+.m-app .m-stashline__return,
+.m-app .m-stashline__minus,
+.m-app .m-stashline__trash {
+  position: relative;
+  z-index: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #cfd6e4;
+}
+.m-app .m-stashline__return::before,
+.m-app .m-stashline__minus::before,
+.m-app .m-stashline__trash::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  z-index: -1;
+  box-sizing: border-box;
+  background: rgba(9, 11, 20, 0.5);
+  border: 1px solid #2a3558;
+  border-radius: 3px;
+}
+.m-app .m-stashline__return::before {
+  top: 4px;
+  bottom: 4px;
+}
+.m-app .m-stashline__minus {
+  padding-bottom: 3px;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+}
+.m-app .m-stashline__minus::before {
+  background: #2563eb;
+  border: none;
+  border-radius: 0;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.m-app .m-stashline__minus:active::before {
+  background: #1d4ed8;
+}
+.m-app .m-stashline__trash:active {
+  color: #f87171;
+}
+.m-app .m-stashline__trash:active::before {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: #f87171;
+}
+
+/* ── Gallery ──────────────────────────────────────────────────────────── */
+.m-app .m-stashgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+  padding: 14px 12px 16px;
+}
+.m-app .m-stashtile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+}
+.m-app .m-stashtile__art {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 7;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0b0f1f;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+.m-app .m-stashtile__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.m-app .m-stashtile__img--rotated {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140%;
+  height: 71.4%;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.m-app .m-stashtile__plate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 6px;
+  background: #0b0e18;
+  border: 1px solid rgba(211, 211, 212, 0.25);
+}
+.m-app .m-stashtile__chip.playset-chip {
+  min-width: 22px;
+  padding: 4px 5px;
+  font-size: 12px;
+  border-radius: 3px;
+  background: #0f1528;
+}
+.m-app .m-stashtile__fin {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.m-app .m-stashtile__price {
+  margin-top: -2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #cfd6e4;
+  text-align: right;
+}
+
+/* ── Bulk select: the pinned panel above the bar ──────────────────────── */
+.m-app .m-stashbulk {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #0f1528;
+  border-top: 1px solid rgba(37, 99, 235, 0.55);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+}
+.m-app .m-stashbulk__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-app .m-stashbulk__count {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.m-app .m-stashbulk__note {
+  font-size: 13px;
+  color: #cfd6e4;
+}
+
+/* ── Sheets ───────────────────────────────────────────────────────────── */
+.m-app .m-stashsheet__form,
+.m-app .m-stashsheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 16px 12px;
+}
+.m-app .m-stashsheet__lead {
+  margin: 0;
+  font-size: 16px;
+  color: #e6e6e6;
+}
+.m-app .m-stashsheet__fine {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #9fb0cc;
+}
+.m-app .m-stashsheet__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.m-app .m-stashsheet__danger,
+.m-app .m-stashsheet__text {
+  min-height: 44px;
+  padding: 0 8px;
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stashsheet__danger {
+  color: #f87171;
+}
+.m-app .m-stashsheet__destroy {
+  min-height: 44px;
+  padding: 0 18px;
+  background: #c0202e;
+  border: none;
+  color: #ffffff;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* The shared Name field at phone size: a 44 px input in a 46 px box. */
+.m-app .m-stashsheet .sp-field__box:not(.sp-field__box--area) {
+  min-height: 46px;
+}
+.m-app .m-stashsheet .sp-field__input {
+  min-height: 44px;
+}

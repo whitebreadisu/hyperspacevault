@@ -30,7 +30,8 @@ journeyTest(
       return;
     }
 
-    await page.locator(".app-header").getByRole("button", { name: "Deck Check" }).click();
+    // Deck Check sits under the Command pod's Decks item (v3.0 navigation).
+    await page.locator(".app-header").getByRole("button", { name: "Decks" }).click();
     await page.getByRole("textbox").fill(DECK);
     await page.getByRole("button", { name: "Check deck" }).click();
 

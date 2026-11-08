@@ -132,13 +132,16 @@ vi.mock("./screens/cards/CardsPage", () => ({
     isAuthenticated,
     onOpenImportExport,
     openCardOnLoad,
+    stashPage,
   }: {
     isAuthenticated: boolean;
     onOpenImportExport?: () => void;
     openCardOnLoad?: { setCode: string; number: string } | null;
+    stashPage?: { selectedId: number | null } | null;
   }) => (
     <div>
       <p>cards-page:{isAuthenticated ? "auth" : "anon"}</p>
+      <p>stash-page:{stashPage ? String(stashPage.selectedId) : "off"}</p>
       <p>
         open-card:{openCardOnLoad ? `${openCardOnLoad.setCode}-${openCardOnLoad.number}` : "none"}
       </p>
@@ -547,6 +550,30 @@ describe("App settings pane (BL-25)", () => {
   });
 });
 
+// CREATE (v3.0 Stashes page): the Stashes page is the Vault's CardsPage with
+// `stashPage` set; it exists signed in only, so signing out on it falls back
+// to the Collection.
+describe("App Stashes view", () => {
+  it("opens from the pod's Stashes item and falls back to the Collection on sign-out", () => {
+    mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
+    const { rerender } = render(<App />);
+    expect(screen.getByText("stash-page:off")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Stashes" }));
+    expect(screen.getByText("stash-page:null")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Stashes" })).toHaveAttribute("aria-current", "page");
+
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    rerender(<App />);
+    expect(screen.getByText("stash-page:off")).toBeInTheDocument();
+    expect(screen.getByText("cards-page:anon")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Stashes" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Collection" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+  });
+});
+
 // DISPOSITION (BL-142, CREATE): the deck-check pane's App-level
 // orchestration -- unlike Settings (App settings pane, above), this pane is
 // ALWAYS mounted (even for anonymous visitors, like CardsPage) and its nav
@@ -554,6 +581,9 @@ describe("App settings pane (BL-25)", () => {
 // an avatar-menu-gated one. DeckCheckPage itself is stubbed (see the
 // vi.mock above) -- its own auth-gating/entry/result behavior has its
 // dedicated test file (DeckCheckPage.test.tsx).
+// PORT (v3.0 Command pod): Deck Check sits under the Decks item; the Decks
+// item opens the pane, so these clicks moved from the old Deck Check tab to
+// Decks. Assertions unchanged.
 describe("App deck-check pane (BL-142)", () => {
   it("mounts the deck-check pane (anonymous) hidden until the Deck Check tab is selected", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
@@ -567,7 +597,7 @@ describe("App deck-check pane (BL-142)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
     expect(screen.getByText("deck-check-page:anon")).toBeVisible();
     expect(screen.getByText("cards-page:anon")).not.toBeVisible();
   });
@@ -576,7 +606,7 @@ describe("App deck-check pane (BL-142)", () => {
     mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
     expect(screen.getByText("deck-check-page:auth")).toBeVisible();
   });
 
@@ -584,7 +614,7 @@ describe("App deck-check pane (BL-142)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
     expect(screen.getByText("deck-check-page:anon")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Vault" }));
@@ -596,7 +626,7 @@ describe("App deck-check pane (BL-142)", () => {
     mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
     const { rerender } = render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
     expect(screen.getByText("deck-check-page:auth")).toBeVisible();
 
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
@@ -750,7 +780,9 @@ describe("App import-export pane (BL-54 S3)", () => {
   // while this view is active, gone the moment Vault is clicked. Header
   // itself is real here (not stubbed), so this exercises the actual
   // nav-branch wiring, not just App's pane-visibility switch above.
-  it("shows the transient 'Import / Export' header tab only while the pane is active, and returns to Cards via Vault", () => {
+  // REPLACE (v3.0 Command pod): there is no transient Import / Export tab;
+  // no pod item is lit while the pane shows, and the Vault item goes back.
+  it("lights no pod item while the pane is active, and returns to Cards via Vault", () => {
     mockUseAuth.mockReturnValue({
       user: { email: "a@b.com" },
       loading: false,
@@ -759,13 +791,13 @@ describe("App import-export pane (BL-54 S3)", () => {
     });
     render(<App />);
 
-    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".pod__item--on")).toHaveLength(1);
 
     fireEvent.click(screen.getByText("trigger-open-import-export"));
-    expect(screen.getByText("Import / Export").className).toContain("nav-tab--active");
+    expect(document.querySelectorAll(".pod__item--on")).toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Vault" }));
-    expect(screen.queryByText("Import / Export")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".pod__item--on")).toHaveLength(1);
     expect(screen.getByText("cards-page:auth")).toBeVisible();
     expect(screen.getByText("import-export-page-stub")).not.toBeVisible();
   });
@@ -858,17 +890,20 @@ describe("App New Arrivals pane (BL-184)", () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
+    // PORT: the amber cue sits on the pod's Updates label.
     const tab = screen.getByRole("button", { name: "[HSV] Updates" });
-    expect(tab.className).toContain("nav-tab--cue");
+    expect(tab.querySelector(".pod__label")!.className).toContain("nav-tab--cue");
     expect(document.querySelector(".app-header__brand-line--cue")).not.toBeNull();
   });
 
-  it("renders no New Arrivals nav tab when nothing is unread", () => {
+  // PORT (v3.0 Command pod): the pod's Updates item keeps the old tab's rule
+  // (owner, 2026-11-07): absent while nothing is unread.
+  it("renders no Updates item when nothing is unread", () => {
     mockHasUnread.mockReturnValue(false);
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
 
-    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "[HSV] Updates" })).not.toBeInTheDocument();
   });
 
   it("the brand chooser's Updates button always opens the notes view, unread or not", () => {
@@ -893,9 +928,9 @@ describe("App New Arrivals pane (BL-184)", () => {
     // Cue is gone from the tag line; the nav tab itself stays visible
     // (it's now the active view) but carries no cue class anymore.
     expect(document.querySelector(".app-header__brand-line--cue")).toBeNull();
-    expect(screen.getByRole("button", { name: "[HSV] Updates" }).className).not.toContain(
-      "nav-tab--cue"
-    );
+    expect(
+      screen.getByRole("button", { name: "[HSV] Updates" }).querySelector(".pod__label")!.className
+    ).not.toContain("nav-tab--cue");
   });
 
   it("marks seen and opens the view identically from the brand chooser", () => {
@@ -909,7 +944,9 @@ describe("App New Arrivals pane (BL-184)", () => {
     expect(screen.getByText("new-arrivals-page-stub")).toBeVisible();
   });
 
-  it("hides the New Arrivals nav tab again once the user navigates to another view", () => {
+  // PORT (v3.0 Command pod): the Updates item goes again once the user
+  // navigates away (now Decks, where Deck Check lives).
+  it("hides the Updates item again once the user navigates to another view", () => {
     mockHasUnread.mockReturnValue(true);
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
     render(<App />);
@@ -917,8 +954,8 @@ describe("App New Arrivals pane (BL-184)", () => {
     fireEvent.click(screen.getByRole("button", { name: "[HSV] Updates" }));
     expect(screen.getByRole("button", { name: "[HSV] Updates" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Deck Check" }));
-    expect(screen.queryByText("[HSV] Updates")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
+    expect(screen.queryByRole("button", { name: "[HSV] Updates" })).not.toBeInTheDocument();
   });
 
   it("mounts the New Arrivals pane hidden until opened, and keeps it mounted (display-toggled) afterward", () => {
@@ -996,9 +1033,10 @@ describe("App shared-vault pane (BL-205)", () => {
 
     fireEvent.click(screen.getByText("trigger-share-resolved"));
 
+    // PORT: the share is a Vault sub item, current on the shared view.
     const tab = screen.getByRole("button", { name: "Name for tok-1" });
     expect(tab).toBeInTheDocument();
-    expect(tab.className).toContain("nav-tab--active");
+    expect(tab).toHaveAttribute("aria-current", "page");
     expect(loadShareSession()).toEqual({ token: "tok-1", name: "Name for tok-1" });
   });
 
@@ -1043,7 +1081,8 @@ describe("App shared-vault pane (BL-205)", () => {
     expect(screen.getByText("shared-vault-page:tok-2")).toBeVisible();
     expect(screen.getByText("cards-page:anon")).not.toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Vault" }));
+    // PORT: on the shared view the way back is the pod's "My vault".
+    fireEvent.click(screen.getByRole("button", { name: "My vault" }));
     expect(screen.getByText("cards-page:anon")).toBeVisible();
     // Still mounted, just hidden -- not unmounted (state-preservation, same
     // shape as every other pane).
