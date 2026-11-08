@@ -23,6 +23,10 @@ export interface StashItem {
   stash_id: number;
   variant_id: number;
   quantity: number;
+  /** When copies of this printing last went into this stash (ISO; the row's
+   * creation or its last quantity rise). The Stashes page's "Recently
+   * stashed" sort. */
+  stashed_at?: string;
 }
 
 export interface StashAllocation {
@@ -129,17 +133,44 @@ export async function deleteStash(id: number): Promise<void> {
   await throwIfFailed(res);
 }
 
+/** 409 `split_changed`: the stored split was not the `expected` one; nothing
+ * was written. Carries the stored split and owned count. */
+export class SplitChangedError extends Error {
+  constructor(public readonly current: VariantAllocationResult) {
+    super("Stash request failed: split_changed (409)");
+    this.name = "SplitChangedError";
+  }
+}
+
 /** PUT /api/stashes/variants/{variant_id} -- the printing's full split
- * (an omitted stash = 0). 409 exceeds_owned when the sum passes owned. */
+ * (an omitted stash = 0). 409 exceeds_owned when the sum passes owned.
+ * `expected` (optional): the split the caller last saw; when the stored one
+ * differs, nothing is written and SplitChangedError carries it. */
 export async function putVariantAllocations(
   variantId: number,
-  allocations: StashAllocation[]
+  allocations: StashAllocation[],
+  opts: { expected?: StashAllocation[]; signal?: AbortSignal } = {}
 ): Promise<VariantAllocationResult> {
+  const body: { allocations: StashAllocation[]; expected?: StashAllocation[] } = { allocations };
+  if (opts.expected) body.expected = opts.expected;
   const res = await authedFetch(`/api/stashes/variants/${variantId}`, {
     method: "PUT",
     headers: JSON_HEADERS,
-    body: JSON.stringify({ allocations }),
+    body: JSON.stringify(body),
+    signal: opts.signal,
   });
+  if (res.status === 409) {
+    const data = await res
+      .clone()
+      .json()
+      .catch(() => null);
+    if (data?.detail === "split_changed")
+      throw new SplitChangedError({
+        variant_id: data.variant_id,
+        owned: data.owned,
+        allocations: data.allocations ?? [],
+      });
+  }
   await throwIfFailed(res);
   return res.json();
 }

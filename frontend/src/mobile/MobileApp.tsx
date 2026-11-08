@@ -536,7 +536,7 @@ export function MobileApp() {
   return (
     <VaultDataProvider isAuthenticated={!!user}>
       {/* the caller's own stashes, signed in and on the own vault only. */}
-      <StashProvider enabled={!!user} paused={inShare}>
+      <StashProvider enabled={!!user} paused={inShare} uid={user?.uid ?? null}>
         <CardParamBoot disabled={inShare} />
         <div
           className={

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SWUButton } from "./SWUButton";
 import { UserMenu } from "./UserMenu";
@@ -11,6 +11,11 @@ import { NavPod } from "./NavPod";
 import type { PodSub, PodTop } from "./NavPod";
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
+
+type Density = "full" | "compact" | "tight" | "minimal";
+const DENSITIES: Density[] = ["full", "compact", "tight", "minimal"];
+/** The narrowest a sub item gets at the minimal step's last resort. */
+const SUB_FLOOR_PX = 24;
 
 // The views the shell shows (App.tsx). "cards" is the Vault's Collection and
 // "stashes" the Vault's Stashes page (signed in, own vault only);
@@ -150,8 +155,99 @@ export function Header({
   const [chooser, setChooser] = useState(false);
   const closeChooser = useCallback(() => setChooser(false), []);
 
+  // Header density (index.css): the roomiest step -- full, compact, tight,
+  // minimal --
+  // whose content fits the bar on one row. Measured, not a fixed width, so
+  // a share's name, [HSV] Updates or the signed-out account slot move the
+  // step. Written to the DOM directly (no re-render), with each open sub-item
+  // group measured at its whole width (`data-measuring`), so the result does
+  // not depend on the step already shown and cannot oscillate. Re-measured
+  // whenever the bar, the brand, the pod or the account slot changes size.
+  const headerRef = useRef<HTMLElement>(null);
+  // The step shown, for what renders differently in it (the minimal step's
+  // tooltips); the CSS reads the attribute written below.
+  const [density, setDensity] = useState<Density>("full");
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return undefined;
+    const overflows = () => el.scrollWidth > el.clientWidth;
+    const fit = () => {
+      el.setAttribute("data-measuring", "");
+      el.style.removeProperty("--pod-sub-max");
+      let chosen: Density = "minimal";
+      for (const d of DENSITIES) {
+        el.setAttribute("data-density", d);
+        if (!overflows()) {
+          chosen = d;
+          break;
+        }
+      }
+      el.setAttribute("data-density", chosen);
+      // The last resort (NavPod.css): still too wide at the minimal step --
+      // wider font metrics than ours, a long share name -- so cap every sub
+      // item at the widest width that fits (binary search, whole pixels),
+      // down to a 24 px floor.
+      if (chosen === "minimal" && overflows()) {
+        const subs = Array.from(el.querySelectorAll<HTMLElement>(".pod__subs--open .pod__sub"));
+        let hi = Math.max(0, ...subs.map((s) => Math.ceil(s.getBoundingClientRect().width)));
+        let lo = SUB_FLOOR_PX;
+        const at = (px: number) => el.style.setProperty("--pod-sub-max", `${px}px`);
+        if (hi > lo) {
+          at(lo);
+          if (!overflows()) {
+            while (hi - lo > 1) {
+              const mid = Math.floor((lo + hi) / 2);
+              at(mid);
+              if (overflows()) hi = mid;
+              else lo = mid;
+            }
+          }
+          at(lo);
+        }
+      }
+      el.removeAttribute("data-measuring");
+      setDensity(chosen);
+    };
+    fit();
+    // A step change resizes the observed boxes: re-fit on the next frame,
+    // never inside the observer's own delivery (which would loop). The
+    // window's resize is watched too, for a browser without ResizeObserver,
+    // and the header's subtree: an item or a whole pod replaced (sign-in,
+    // a share) is observed again.
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    };
+    window.addEventListener("resize", later);
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(later);
+    const observeAll = () => {
+      if (!ro) return;
+      ro.disconnect();
+      ro.observe(el);
+      for (const child of Array.from(el.children)) ro.observe(child);
+      for (const node of Array.from(el.querySelectorAll(".pod, .pod__item, .pod__subsinner")))
+        ro.observe(node);
+    };
+    observeAll();
+    const mo =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(() => {
+            observeAll();
+            later();
+          });
+    mo?.observe(el, { childList: true, subtree: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", later);
+      ro?.disconnect();
+      mo?.disconnect();
+    };
+  }, []);
+
   return (
-    <header className="app-header">
+    <header className="app-header" ref={headerRef}>
       <div className="app-header__brand">
         {/* The logo and the one-line tag under it are one button that opens
             the brand chooser (About & Legal / [HSV] Updates), as the phone's
@@ -217,6 +313,7 @@ export function Header({
           stashes={stashesOn && !inShared ? stash.stashes : null}
           onOpenStash={(id) => onNavigateStashes?.(id)}
           onAllStashes={() => onNavigateStashes?.(null)}
+          iconOnly={density === "minimal"}
         />
       </nav>
 
@@ -224,8 +321,9 @@ export function Header({
         {/* The app's standard SWUButton, same size="sm" as Sign In below, so
             there is exactly one button treatment in this slot (an accented
             fill would read as a second competing CTA next to Sign In). */}
-        <SWUButton size="sm" onClick={onOpenFeedback}>
-          Leave Feedback
+        <SWUButton size="sm" onClick={onOpenFeedback} ariaLabel="Leave Feedback">
+          {/* "Leave " drops below 900 px (index.css header density). */}
+          <span className="app-header__fb-long">{"Leave "}</span>Feedback
         </SWUButton>
         {userEmail ? (
           <UserMenu

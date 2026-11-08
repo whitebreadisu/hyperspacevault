@@ -4,10 +4,15 @@ import { useModalDismiss } from "../../hooks/useModalDismiss";
 import type { Stash } from "../../api/stashes";
 import { DESCRIPTION_MAX, NAME_MAX } from "../../stashes/useStashMeta";
 import type { MetaError, StashMeta } from "../../stashes/useStashMeta";
+import { STASH_COPY } from "../../stashes/stashContents";
 import "../../stashes/stashFields.css";
+import "../auth/AuthModal.css";
 
-// The Stashes page's two desktop modals, transactional family (rounded card,
-// blue top bar, X top-right; design 1b B2 and E3).
+// The Stashes page's two desktop modals, on the transactional family's own
+// classes (AuthModal.css: `auth-modal-card` with its blue top bar, X
+// top-right, `auth-card__subtitle` heading; the delete confirm is
+// DeleteAccountModal's `auth-danger-warning` + `auth-cancel` /
+// `auth-danger-submit` pair). Design 1b B2 and E3.
 
 /** Name (/40) and Description (/280) with counters; a duplicate name turns
  * the name field red with the inline error + recommendation (E2). */
@@ -121,7 +126,7 @@ export function CreateStashModal({
   return (
     <div className="auth-modal-overlay modal-overlay sp-scrim" onClick={close}>
       <div
-        className="sp-modal"
+        className="auth-modal-card sp-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="sp-create-title"
@@ -130,7 +135,7 @@ export function CreateStashModal({
         <button type="button" className="auth-modal-close" onClick={close} aria-label="Close">
           ×
         </button>
-        <h2 className="sp-modal__title" id="sp-create-title">
+        <h2 className="auth-card__subtitle sp-modal__title" id="sp-create-title">
           New stash
         </h2>
         <form
@@ -187,7 +192,7 @@ export function DeleteStashModal({
   return (
     <div className="auth-modal-overlay modal-overlay sp-scrim" onClick={close}>
       <div
-        className="sp-modal"
+        className="auth-modal-card sp-modal"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="sp-del-title"
@@ -197,25 +202,23 @@ export function DeleteStashModal({
         <button type="button" className="auth-modal-close" onClick={close} aria-label="Close">
           ×
         </button>
-        <h2 className="sp-modal__title" id="sp-del-title">
+        <h2 className="auth-card__subtitle sp-modal__title" id="sp-del-title">
           Delete {stash.name}?
         </h2>
         <div id="sp-del-body" className="sp-modal__body">
-          <p className="sp-modal__lead">
-            Its {stash.copies} {stash.copies === 1 ? "copy goes" : "copies go"} back to your Vault.
+          <p className="auth-danger-warning sp-modal__lead">
+            {STASH_COPY.deleteLead(stash.copies)}
           </p>
-          <p className="sp-modal__fine">
-            You still own every copy. Only the stash and its name and description are deleted.
-          </p>
+          <p className="auth-danger-warning">{STASH_COPY.deleteFine}</p>
         </div>
         <MetaErrorLine error={meta.error} />
-        <div className="sp-modal__actions">
-          <button type="button" className="sp-textbtn" onClick={close}>
+        <div className="auth-modal-actions">
+          <button type="button" className="auth-cancel" onClick={close}>
             Cancel
           </button>
           <button
             type="button"
-            className="sp-dangerbtn"
+            className="auth-danger-submit"
             aria-disabled={meta.busy || undefined}
             onClick={async () => {
               if (meta.busy) return;

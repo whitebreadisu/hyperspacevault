@@ -50,6 +50,9 @@ interface Props {
   stashes: Stash[] | null;
   onOpenStash: (id: number) => void;
   onAllStashes: () => void;
+  /** The header's minimal step: the top items show their glyph alone, so
+   * each carries its name as a tooltip too. */
+  iconOnly?: boolean;
 }
 
 const CLIP_MS = 650;
@@ -249,6 +252,7 @@ function Item({
   cue,
   onClick,
   children,
+  iconOnly = false,
 }: {
   id: string;
   label: string;
@@ -258,7 +262,9 @@ function Item({
   cue?: boolean;
   onClick: () => void;
   children?: ReactNode;
+  iconOnly?: boolean;
 }) {
+  const name = id === "updates" ? "[HSV] Updates" : label;
   return (
     <div
       className={
@@ -273,7 +279,10 @@ function Item({
         className="pod__top"
         onClick={onClick}
         aria-current={on && !children ? "page" : undefined}
-        aria-label={id === "updates" ? "[HSV] Updates" : undefined}
+        // The name stays the accessible name when the header's minimal step
+        // hides the label (index.css header density).
+        aria-label={name}
+        title={iconOnly ? name : undefined}
         data-top={id}
       >
         {glyph}
@@ -298,6 +307,7 @@ export function NavPod({
   stashes,
   onOpenStash,
   onAllStashes,
+  iconOnly = false,
 }: Props) {
   // The clip phase: on while the subsections move, lifted CLIP_MS after the
   // active item (or the sub item lit) changes.
@@ -367,6 +377,7 @@ export function NavPod({
           on={top === "vault"}
           amber={shared}
           onClick={pick(onVault)}
+          iconOnly={iconOnly}
         >
           <Subs
             open={top === "vault"}
@@ -383,6 +394,7 @@ export function NavPod({
           glyph={<DecksGlyph />}
           on={top === "decks"}
           onClick={pick(onDecks)}
+          iconOnly={iconOnly}
         >
           <Subs
             open={top === "decks"}
@@ -401,6 +413,7 @@ export function NavPod({
             on={top === "updates"}
             cue={unread}
             onClick={pick(onUpdates)}
+            iconOnly={iconOnly}
           />
         ) : null}
       </div>

@@ -13,12 +13,12 @@ import {
   deleteStash,
   getStashes,
   getStashItems,
-  putVariantAllocations,
   restoreStashItems,
   returnStashItems,
   updateStash,
 } from "../api/stashes";
 import type { Stash, StashItem, StashMove, StashMoveResult } from "../api/stashes";
+import { stashSaveStore } from "./stashSaveStore";
 
 // The stash data source: the caller's stash list and the sparse
 // (stash, printing) quantities, for the card detail's stash UI, the owned
@@ -33,7 +33,7 @@ import type { Stash, StashItem, StashMove, StashMoveResult } from "../api/stashe
 //     and nothing exposed, but what was loaded is kept, so returning to the
 //     own vault needs no refetch (fold-in 1, F6).
 //   - No provider at all reads as disabled (tests and the public card page).
-// Refreshed after a Done commit (saveVariant), after an import commit
+// Refreshed after a card-detail stash save (stashSaveStore.ts), after an import commit
 // (refresh, called by both import screens) and after every Stashes-page
 // write (returnItems, restoreItems, update, remove), so the card detail, the
 // nav menus and the Stashes page agree. A return / restore applies the
@@ -63,10 +63,11 @@ export interface StashData {
   retry: () => Promise<void>;
   /** POST a new empty stash and append it to the list. */
   create: (name: string, description: string | null) => Promise<Stash>;
-  /** PUT the printing's full split, then refresh. */
-  saveVariant: (variantId: number, allocations: Record<number, number>) => Promise<void>;
   /** One stash's non-zero printings, as `{variant_id, quantity}`. */
   itemsOf: (stashId: number) => StashMove[];
+  /** When copies of a printing last went into a stash (ISO), from the last
+   * read; null when unknown (the Stashes page's "Recently stashed" sort). */
+  stashedAtOf: (stashId: number, variantId: number) => string | null;
   /** POST .../return (copies back to the Vault), then refresh. */
   returnItems: (stashId: number, items: StashMove[]) => Promise<void>;
   /** POST .../restore (the Undo of a return), then refresh. */
@@ -95,8 +96,8 @@ const DISABLED: StashData = {
   stale: false,
   retry: async () => {},
   create: unavailable,
-  saveVariant: unavailable,
   itemsOf: () => [],
+  stashedAtOf: () => null,
   returnItems: unavailable,
   restoreItems: unavailable,
   update: unavailable,
@@ -121,15 +122,22 @@ function indexItems(items: StashItem[]): ByVariant {
 export function StashProvider({
   enabled,
   paused = false,
+  uid = null,
   children,
 }: {
   enabled: boolean;
   /** Keep what was loaded but fetch and expose nothing (a share is shown). */
   paused?: boolean;
+  /** The signed-in user: a different one (a direct switch keeps `enabled`
+   * true) drops everything held and reads again, and an answer to the
+   * previous user's read is ignored. */
+  uid?: string | null;
   children: ReactNode;
 }) {
   const [stashes, setStashes] = useState<Stash[]>([]);
   const [byVariant, setByVariant] = useState<ByVariant>(() => new Map());
+  // "stash:variant" -> stashed_at, from the last read.
+  const [stashedAt, setStashedAt] = useState<Map<string, string>>(() => new Map());
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [stale, setStale] = useState(false);
@@ -138,28 +146,40 @@ export function StashProvider({
   const epoch = useRef(0);
   const loaded = useRef(false);
 
+  // Reads are sequenced: an answer older than the newest read started is
+  // ignored, so an out-of-order re-read can never show an old split.
+  const readSeq = useRef(0);
   const load = useCallback(async () => {
     const mine = epoch.current;
+    const seq = ++readSeq.current;
     const [list, items] = await Promise.all([getStashes(), getStashItems()]);
-    if (mine !== epoch.current) return;
+    if (mine !== epoch.current || seq !== readSeq.current) return;
     loaded.current = true;
     setStashes(list);
     setByVariant(indexItems(items));
+    setStashedAt(
+      new Map(
+        items.flatMap((it) =>
+          it.stashed_at ? [[`${it.stash_id}:${it.variant_id}`, it.stashed_at] as const] : []
+        )
+      )
+    );
     setReady(true);
     setFailed(false);
     setStale(false);
   }, []);
 
-  // Signing in or out: drop everything held.
+  // Signing in or out, or another user: drop everything held.
   useEffect(() => {
     epoch.current += 1;
     loaded.current = false;
     setStashes([]);
     setByVariant(new Map());
+    setStashedAt(new Map());
     setReady(false);
     setFailed(false);
     setStale(false);
-  }, [enabled]);
+  }, [enabled, uid]);
 
   // The first read, once the own vault is in view (not while paused).
   useEffect(() => {
@@ -170,7 +190,7 @@ export function StashProvider({
       console.error("Failed to load stashes:", err);
       if (mine === epoch.current) setFailed(true);
     });
-  }, [enabled, paused, load]);
+  }, [enabled, paused, load, uid]);
 
   const liveRef = useRef(enabled && !paused);
   useEffect(() => {
@@ -188,18 +208,12 @@ export function StashProvider({
     return s;
   }, []);
 
-  const saveVariant = useCallback(
-    async (variantId: number, allocations: Record<number, number>) => {
-      const body = Object.entries(allocations)
-        .map(([id, q]) => ({ stash_id: Number(id), quantity: q }))
-        .filter((a) => a.quantity > 0);
-      const mine = epoch.current;
-      const result = await putVariantAllocations(variantId, body);
-      // A sign-out (or in) while the PUT was out: its answer is not this
-      // session's to show.
-      if (mine !== epoch.current) return;
-      // The response is the stored split: show it at once, then re-read the
-      // list (each stash's `copies`) and the items.
+  // A card-detail stash save landed (stashSaveStore.ts, which owns the
+  // PUT; a 409 split_changed carries the stored split too): show it at
+  // once, then re-read.
+  useEffect(() => {
+    if (!enabled) return undefined;
+    return stashSaveStore.onSaved((variantId, result) => {
       setByVariant((prev) => {
         const next = new Map(prev);
         const row: Record<number, number> = {};
@@ -208,10 +222,9 @@ export function StashProvider({
         else next.delete(variantId);
         return next;
       });
-      await load().catch((err) => console.error(err));
-    },
-    [load]
-  );
+      if (liveRef.current) load().catch((err) => console.error(err));
+    });
+  }, [enabled, load]);
 
   // After a write the server's state wins: re-read the list and the items.
   // The write itself already landed, so a failed re-read never fails the
@@ -331,8 +344,8 @@ export function StashProvider({
       stale,
       retry: reload,
       create,
-      saveVariant,
       itemsOf: (id) => byStash.get(id) ?? [],
+      stashedAtOf: (id, vid) => stashedAt.get(`${id}:${vid}`) ?? null,
       returnItems,
       restoreItems,
       update,
@@ -346,11 +359,11 @@ export function StashProvider({
     stashes,
     byVariant,
     byStash,
+    stashedAt,
     refresh,
     stale,
     reload,
     create,
-    saveVariant,
     returnItems,
     restoreItems,
     update,

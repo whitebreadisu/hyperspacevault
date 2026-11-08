@@ -5,7 +5,8 @@ import { byNum, fin, openCard, scrollDetail } from "./card-helpers";
 
 // BL-344 slice 1, phone 1e "Stash sheet" (claude_design/design_handoff_card_stash
 // README): the entry under the owned plate, the New stash and rows modes of
-// the sheet, staged Done / Cancel, the read-only list on the plate and pinned
+// the sheet, save on click with Done / the X closing (BL-344 R1-11: no
+// Cancel), the read-only list on the plate and pinned
 // under the collapsed art, the owned stepper's decrease floor, and no stash
 // calls or UI in a shared vault or signed out. The stashes double lives in
 // mock-api.ts (stashCalls records every /api/stashes* request).
@@ -68,11 +69,16 @@ test("bl344-first-stash-done", async ({ page }) => {
     expect(box.height).toBeGreaterThanOrEqual(44);
   }
   await shot(page, "e1-all-stashed");
-  expect(recorderFor(page).stashCalls.some((c) => c.startsWith("PUT"))).toBe(false);
+  // REPLACE (R1-11): the clicks save themselves (one coalesced PUT), the
+  // sheet stays open; Done only closes it.
+  await expect
+    .poll(() => recorderFor(page).stashCalls.filter((c) => c.startsWith("PUT")))
+    .toEqual([`PUT /api/stashes/variants/${STD.variant_id}`]);
+  await expect(sheet).toHaveCount(1);
+  await expect(sheet.getByRole("button", { name: "Cancel" })).toHaveCount(0);
 
   await sheet.getByRole("button", { name: "Done" }).click();
   await expect(sheet).toHaveCount(0);
-  expect(recorderFor(page).stashCalls).toContain(`PUT /api/stashes/variants/${STD.variant_id}`);
 
   // c1: the read-only list on the plate.
   const list = page.locator(".m-dreg3__own .m-stash__list");
@@ -123,7 +129,9 @@ test.describe("seeded", () => {
     },
   });
 
-  test("bl344-edit-cancel-discards", async ({ page }) => {
+  // REPLACE (R1-11): was "the X = Cancel discards"; the X now closes and
+  // the move is saved.
+  test("bl344-edit-x-keeps-the-move", async ({ page }) => {
     await openCard(page, "ASH", 112);
     const list = page.locator(".m-dreg3__own .m-stash__list");
     await expect(list.locator(".m-stash__name")).toHaveText(["Red binder"]);
@@ -137,11 +145,13 @@ test.describe("seeded", () => {
     await expect(sheet.locator('.m-stash__row[data-stash="2"] .m-step__qty')).toHaveText("1");
     await settle(page);
     await shot(page, "d1-move");
-    // The X = Cancel: nothing written, the list unchanged.
+    // The X closes the sheet and sends the move; the list shows it.
     await sheet.locator(".m-sheet__close").click();
     await expect(sheet).toHaveCount(0);
-    expect(recorderFor(page).stashCalls.some((c) => c.startsWith("PUT"))).toBe(false);
-    await expect(list.locator(".m-stash__name")).toHaveText(["Red binder"]);
+    await expect
+      .poll(() => recorderFor(page).stashCalls.filter((c) => c.startsWith("PUT")).length)
+      .toBe(1);
+    await expect(list.locator(".m-stash__name")).toHaveText(["Trade stash"]);
   });
 
   test("bl344-duplicate-name-inline", async ({ page }) => {

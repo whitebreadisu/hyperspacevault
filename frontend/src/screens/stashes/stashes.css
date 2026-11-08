@@ -1,25 +1,59 @@
 /* The desktop Stashes page (StashesPane.tsx; design 1b "Master-detail").
-   Exact values are the handoff's. Steel-ring panels are two clip-path
-   layers (::before ring, ::after fill); a CSS border cannot follow a cut. */
+   Built on the Vault's own elements -- the collection tiles
+   (`inv-summary__block`), the view toggle, the table (`data-table`), the
+   gallery cell and plate (cards.css), the sort header, the filter dropdown
+   list, FilterPanel's edge tab and the transactional modal (AuthModal.css).
+   This file holds only the page's own layout and the parts the Vault has no
+   element for (the rail, the head, the In-stash control). Steel-ring panels
+   are two clip-path layers (::before ring, ::after fill); a CSS border
+   cannot follow a cut. */
 
 .sp-page {
   font-family: var(--font-body);
   color: var(--color-text);
   padding-top: 6px;
+  min-height: 0;
 }
+/* The Vault's overlay pin indents its content column 24px for the floating
+   filter sidebar (cards.css); here the sidebar floats inside the list. */
+.cards-layout:has(.ifp-sidebar) .cards-content.sp-page {
+  margin-left: 0;
+}
+/* Like the Vault, the page never scrolls: the rail's list and the card
+   list scroll inside their own boxes (cards-content is the flex column). */
 .sp-layout {
+  flex: 1;
+  min-height: 0;
   display: flex;
   gap: 20px;
-  align-items: flex-start;
+  align-items: stretch;
   min-width: 0;
 }
 
-/* ── Rail ─────────────────────────────────────────────── */
-.sp-rail {
+/* ── Rail ─────────────────────────────────────────────────────────────────
+   As tall as its stashes, never taller than the page: past that its list
+   scrolls on its own, so 50 stashes never stretch the layout (R1-10). */
+.sp-railwrap {
   position: relative;
   flex: none;
+  z-index: 32;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sp-railwrap--folded {
+  /* The edge tab's own box is absolute (FilterPanel.css); reserve its
+     width. */
+  width: 34px;
+}
+.sp-rail {
+  position: relative;
   width: 292px;
   isolation: isolate;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .sp-rail::before,
 .sp-rail::after {
@@ -53,7 +87,19 @@
     0 13px
   );
 }
+/* The flyout from the collapsed tab floats over the pane, like the Vault's
+   undocked filter sidebar. */
+.sp-rail--flyout {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-height: 100%;
+  z-index: 35;
+  filter: drop-shadow(18px 10px 34px rgba(0, 0, 0, 0.55));
+}
 .sp-rail__inner {
+  flex: 0 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -73,21 +119,54 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.sp-rail__fold {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  margin-right: -4px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+.sp-rail__fold:hover,
+.sp-rail__fold:focus-visible {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
 .sp-rail__list {
+  flex: 0 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  margin-right: -6px;
+  padding-right: 6px;
 }
 .sp-railrow {
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 3px;
   padding: 10px 12px;
   background: rgba(15, 21, 40, 0.85);
   border: none;
-  border-left: 3px solid #1e2748;
+  border-left: 3px solid var(--color-border);
   clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
-  color: #e6e6e6;
+  color: var(--color-text);
+  /* Desktop has no global button font reset (skill, Vault reference
+     elements): names and descriptions are Barlow. */
+  font: inherit;
   text-align: left;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -99,7 +178,7 @@
 .sp-railrow--on,
 .sp-railrow--on:hover {
   background: rgba(37, 99, 235, 0.28);
-  border-left-color: #2563eb;
+  border-left-color: var(--color-primary);
 }
 .sp-railrow__line {
   display: flex;
@@ -110,7 +189,8 @@
 .sp-railrow__name {
   flex: 1;
   min-width: 0;
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -121,16 +201,17 @@
 }
 .sp-railrow__copies {
   font-family: "Russo One", sans-serif;
-  font-size: 14px;
+  font-size: 13px;
 }
 .sp-railrow__copies--zero {
-  color: #6b7a99;
+  color: var(--color-text-muted);
 }
 .sp-railrow__desc {
   flex: 1;
   min-width: 0;
+  font-family: var(--font-body);
   font-size: 13px;
-  color: #9fb0cc;
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -151,92 +232,51 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #9fb0cc;
+  color: var(--color-text-muted);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .sp-newbtn:hover,
 .sp-newbtn:focus-visible {
   background: rgba(37, 99, 235, 0.14);
-  color: #ffffff;
+  color: var(--color-text);
 }
 .sp-newbtn__plus {
   font-size: 17px;
   line-height: 1;
 }
-
-/* Market | Low and the view toggle. */
-.sp-seg,
-.sp-viewseg,
-.sp-unitseg {
-  display: inline-flex;
-  border: 1px solid #2a3558;
-  background: rgba(9, 11, 20, 0.5);
+/* The collapsed tab (FilterPanel's ifp-sidebar-tab): the stash count in the
+   Russo counter face above the vertical label. */
+.sp-railtab {
+  top: 0;
 }
-.sp-seg__btn,
-.sp-viewseg__btn,
-.sp-unitseg__btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #6b7a99;
-}
-.sp-seg__btn {
-  padding: 3px 9px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-}
-.sp-seg__btn--on {
-  background: rgba(37, 99, 235, 0.35);
-  color: #ffffff;
-}
-.sp-viewseg {
-  flex: none;
-}
-.sp-viewseg__btn {
-  padding: 9px 18px;
-  font-size: 14px;
-  letter-spacing: 0.12em;
-  color: #9fb0cc;
-}
-.sp-viewseg__btn--on {
-  background: rgba(37, 99, 235, 0.9);
-  color: #ffffff;
-}
-.sp-unitseg {
-  background: transparent;
-}
-.sp-unitseg__btn {
-  padding: 1px 5px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-}
-.sp-unitseg__btn--on {
-  background: rgba(37, 99, 235, 0.35);
-  color: #ffffff;
+.sp-railtab__count {
+  font-family: "Russo One", sans-serif;
+  font-size: 12px;
+  color: var(--color-text);
 }
 
-/* ── Content pane ─────────────────────────────────────── */
+/* ── Content pane ─────────────────────────────────────────────────────── */
 .sp-content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 .sp-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 14px;
+  min-width: 0;
 }
 .sp-head {
-  flex: 1;
+  flex: 1 1 320px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -256,6 +296,7 @@
   line-height: 1.15;
   text-transform: none;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 .sp-read__descline {
   display: flex;
@@ -263,14 +304,14 @@
   gap: 6px;
 }
 .sp-read__desc {
-  font-size: 15.5px;
+  font-size: 15px;
   line-height: 1.45;
   color: #cfd6e4;
   text-wrap: pretty;
   overflow-wrap: anywhere;
 }
 .sp-read__desc--none {
-  color: #6b7a99;
+  color: var(--color-text-muted);
 }
 .sp-pencil {
   flex: none;
@@ -282,79 +323,39 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #9fb0cc;
+  color: var(--color-text-muted);
 }
 .sp-pencil:hover,
 .sp-pencil:focus-visible {
   background: rgba(37, 99, 235, 0.2);
   color: #ffffff;
 }
+.sp-pencil--danger:hover,
+.sp-pencil--danger:focus-visible {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--color-danger);
+}
 
+/* The Cards / Value tiles are the Vault's collection tiles; not clickable
+   here, so the hover ring stays at rest (blue = interactive only). */
 .sp-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
-.sp-stat {
-  position: relative;
+.sp-stat .inv-summary__block-inner {
   min-width: 150px;
-  isolation: isolate;
 }
-.sp-stat::before,
-.sp-stat::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
+.sp-stat:hover .inv-summary__block {
+  background: var(--color-border);
 }
-.sp-stat::before {
-  inset: 0;
-  background: rgba(211, 211, 212, 0.28);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
-}
-.sp-stat::after {
-  inset: 1.5px;
-  background: #0b0f1f;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
-}
-.sp-stat__inner {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 16px;
-}
-.sp-stat__label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9fb0cc;
-}
-.sp-stat__tag {
-  padding: 1px 6px;
-  border: 1px solid #2a3558;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: #cfd6e4;
-}
-.sp-stat__line {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.sp-stat__value {
-  font-family: "Russo One", sans-serif;
-  font-size: 24px;
-  line-height: 1;
-}
-.sp-stat__value--mono {
-  font-family: var(--font-mono);
-}
+/* "N back in Vault": the tile sub at the Vault size, green = success. */
 .sp-stat__sub {
-  font-size: 13px;
-  color: #178a3a;
+  color: var(--aspect-command);
+}
+.sp-viewtoggle {
+  flex: none;
+  margin-right: 0;
 }
 
 /* Feedback and errors. */
@@ -366,12 +367,12 @@
   padding: 0 8px 0 14px;
   background: rgba(23, 138, 58, 0.12);
   border: 1px solid rgba(23, 138, 58, 0.5);
-  color: #178a3a;
+  color: var(--aspect-command);
 }
 .sp-ok__text {
   flex: 1;
-  font-size: 15px;
-  color: #e6e6e6;
+  font-size: 14px;
+  color: var(--color-text);
 }
 .sp-textbtn {
   min-height: 36px;
@@ -379,21 +380,21 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #9fb0cc;
+  color: var(--color-text-muted);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .sp-textbtn:hover,
 .sp-textbtn:focus-visible {
   background: rgba(37, 99, 235, 0.14);
-  color: #ffffff;
+  color: var(--color-text);
 }
 .sp-textbtn--danger,
 .sp-textbtn--danger:hover {
-  color: #f87171;
+  color: var(--color-danger);
 }
 .sp-textbtn--danger:hover,
 .sp-textbtn--danger:focus-visible {
@@ -402,113 +403,144 @@
 .sp-zero {
   margin: 0;
   padding: 28px 4px;
-  font-size: 17px;
+  font-size: 16px;
   color: #cfd6e4;
 }
 
-/* ── Table ────────────────────────────────────────────── */
-.sp-table {
-  background: #0f1528;
-  border: 1px solid #1e2748;
-  padding: 0 14px;
+/* ── The card list: the Vault filters' anchor (R1-5) ──────────────────────
+   CardsPage portals FilterPanel into `.sp-list__filters`. Undocked, the
+   wrap is pinned (cards.css overlay rule) to this box's top-left and the
+   sidebar floats over the list; docked (FilterPanel.css media query) it
+   sits in-flow beside the list. The collapsed tab floats in the gutter. */
+.sp-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
 }
-.sp-tr {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) 150px 150px 110px 130px;
-  align-items: center;
-  min-height: 54px;
-  border-bottom: 1px solid rgba(211, 211, 212, 0.08);
-  cursor: pointer;
+.sp-list__filters {
+  flex: none;
+  align-self: flex-start;
+  position: relative;
+  z-index: 30;
 }
-.sp-tr:not(.sp-tr--head):hover {
-  background: rgba(37, 99, 235, 0.1);
+/* The tab's gutter, kept while the sidebar floats open so the list never
+   shifts; a docked sidebar takes its own width instead. */
+.sp-list__filters {
+  width: 36px;
 }
-.sp-tr--head {
-  min-height: 46px;
-  border-bottom: 1px solid #1e2748;
-  cursor: default;
+@media (min-width: 1918px) and (min-height: 1052px) {
+  .sp-list__filters:has(.ifp-sidebar) {
+    width: auto;
+    margin-right: 24px;
+  }
 }
-.sp-th {
+.sp-list__body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9fb0cc;
 }
-.sp-th--qty {
+.sp-list .ifp-sidebar-tab-ring,
+.sp-list .ifp-sidebar {
+  top: 0;
+}
+
+/* ── Sort (R1-15 / R1-16) ─────────────────────────────────────────────── */
+.sp-numsort {
+  position: relative;
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
 }
-.sp-th--value {
+.sp-numsort__by {
+  color: var(--color-text);
+}
+/* In the table's narrow first column the base / card tag sits under the
+   label, so the header fits whatever the font metrics (CI 2026-11-08). */
+.sp-table thead .sp-numsort {
+  flex-direction: column;
   align-items: flex-end;
-  padding-right: 12px;
+  gap: 2px;
 }
-.sp-th__btn {
-  background: none;
-  border: none;
-  padding: 0;
+.sp-numsort__menu {
+  right: auto;
+  min-width: 210px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.sp-numsort__dir {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* ── Table (the Vault's data-table) ───────────────────────────────────── */
+.sp-tablewrap {
+  margin-left: 0;
+}
+.sp-table {
+  min-width: 760px;
+}
+.sp-table .sp-tr {
   cursor: pointer;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  color: inherit;
 }
-.sp-th__btn:hover,
-.sp-th__btn:focus-visible {
-  color: #ffffff;
+.sp-table thead th.sp-th--qty {
+  text-align: center;
+}
+.sp-table thead th.sp-th--value {
+  text-align: right;
+  padding-right: 38px;
+}
+.sp-th__value {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 .sp-td--num {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: #9fb0cc;
+  width: auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+/* Set | # right-aligned like the Vault's td-cardnum; the header follows. */
+.sp-table thead th:first-child {
+  text-align: right;
+  padding-right: 8px;
 }
 .sp-namebtn {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
   max-width: 100%;
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-}
-.sp-name {
-  font-size: 16px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-}
-.sp-sub {
-  font-size: 13.5px;
-  font-style: italic;
-  color: #9fb0cc;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
-.sp-td--printing {
+/* The finish (B2): the Vault's finish-label role (Condensed 12/600), in the
+   primary text colour -- on this list it is the row's distinguishing
+   datum. */
+.sp-table td.sp-td--printing {
   font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.sp-td--qty {
-  display: flex;
-  justify-content: center;
+.sp-table td.sp-td--qty {
   cursor: default;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 .sp-ctl {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 .sp-minus {
@@ -517,9 +549,10 @@
   display: grid;
   place-items: center;
   padding: 0 0 2px;
-  background: #2563eb;
+  background: var(--color-primary);
   color: #ffffff;
   border: none;
+  font-family: var(--font-ui);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -527,19 +560,7 @@
 }
 .sp-minus--pressed,
 .sp-minus:active {
-  background: #1d4ed8;
-}
-.sp-chip.playset-chip {
-  min-width: 30px;
-  font-size: 13px;
-  background: #0b0f1f;
-  border-color: #2a3558;
-}
-.sp-chip.playset-chip--complete {
-  border-color: rgba(23, 138, 58, 0.6);
-}
-.sp-chip.playset-chip--empty {
-  border-color: #1e2748;
+  background: var(--color-primary-dim);
 }
 .sp-trash {
   width: 28px;
@@ -547,9 +568,9 @@
   display: grid;
   place-items: center;
   background: transparent;
-  border: 1px solid #2a3558;
+  border: 1px solid var(--color-border);
   border-radius: 3px;
-  color: #9fb0cc;
+  color: var(--color-text-muted);
   cursor: pointer;
   transition:
     background-color 0.12s ease,
@@ -559,114 +580,59 @@
 .sp-trash:hover,
 .sp-trash:focus-visible {
   background: rgba(248, 113, 113, 0.14);
-  color: #f87171;
-  border-color: #f87171;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
-.sp-td--value {
-  text-align: right;
-  padding-right: 12px;
-  font-family: var(--font-mono);
-  font-size: 14px;
+/* Fit, never clip, whatever the font metrics: the stash table's header
+   labels, finish names and rarity labels wrap onto a second line when a
+   column is narrower than its text (the Vault's fixed column widths stay;
+   CI 2026-11-08 clipped a header under Linux font metrics). */
+.sp-table thead th {
+  white-space: normal;
 }
-.sp-td--none {
-  color: #6b7a99;
+.sp-table td.sp-td--printing {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sp-table td.sp-td--rarity {
+  white-space: normal;
+}
+.sp-table td.sp-td--rarity .rarity-badge {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.sp-table td.sp-td--rarity .rarity-badge__label {
+  overflow-wrap: anywhere;
 }
 
-/* ── Gallery ──────────────────────────────────────────── */
+/* ── Gallery (the Vault's gallery-cell + gallery-plate) ───────────────── */
 .sp-gallery {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
   display: grid;
-  grid-template-columns: repeat(auto-fill, 132px);
-  gap: 18px 16px;
-}
-.sp-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 132px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: inherit;
-}
-.sp-tile__art {
-  position: relative;
-  display: block;
-  width: 132px;
-  height: 184px;
-  border-radius: 7px;
-  overflow: hidden;
-  background: #0b0f1f;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-}
-.sp-tile:hover .sp-tile__art,
-.sp-tile:focus-visible .sp-tile__art {
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.5),
-    0 0 0 2px rgba(37, 99, 235, 0.7);
-}
-.sp-tile__img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-/* Landscape art (a base, a back-less leader) turned into the portrait cell. */
-.sp-tile__img--rotated {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 184px;
-  height: 132px;
-  transform: translate(-50%, -50%) rotate(90deg);
-}
-.sp-plate {
-  position: relative;
-  display: block;
-  height: 34px;
-  isolation: isolate;
-}
-.sp-plate::before,
-.sp-plate::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-}
-.sp-plate::before {
-  inset: 0;
-  background: rgba(211, 211, 212, 0.3);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
-}
-.sp-plate::after {
-  inset: 1px;
-  background: #0b0e18;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  grid-template-columns: repeat(auto-fill, 140px);
+  gap: 14px;
+  padding: 2px 0 12px;
 }
 .sp-plate__inner {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  height: 100%;
-  padding: 0 8px 0 6px;
-}
-.sp-plate__chip.playset-chip {
-  min-width: 22px;
-  padding: 4px 5px;
-  font-size: 12px;
-  background: #0f1528;
+  justify-content: flex-start;
 }
 .sp-plate__fin {
   flex: 1;
   min-width: 0;
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
+  color: var(--color-text);
 }
 .sp-plate__price {
   font-family: var(--font-mono);
@@ -674,7 +640,7 @@
   color: #cfd6e4;
 }
 
-/* ── No stashes, edit, modals ─────────────────────────── */
+/* ── No stashes, edit, modals ─────────────────────────────────────────── */
 .sp-empty {
   display: flex;
   flex-direction: column;
@@ -685,14 +651,14 @@
 .sp-empty__title {
   margin: 0;
   font-family: var(--font-ui);
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .sp-empty__text {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.5;
   color: #cfd6e4;
 }
@@ -718,81 +684,27 @@
 .sp-edit__gap {
   flex: 1;
 }
-.sp-scrim {
-  background: rgba(5, 6, 11, 0.66);
-}
-.sp-modal {
-  position: relative;
-  width: min(520px, 100%);
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
-  padding: 32px 28px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  box-shadow: 0 32px 80px -16px rgba(0, 0, 0, 0.8);
-}
-.sp-modal::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 4px;
-  background: #2563eb;
-}
-.sp-modal__title {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+/* The transactional card (auth-modal-card) at the stash forms' width. */
+.sp-modal.auth-modal-card {
+  width: min(460px, 100%);
 }
 .sp-modal__form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 .sp-modal__body {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.sp-modal__lead {
-  margin: 0;
-  font-size: 16px;
-  color: #e6e6e6;
-}
-.sp-modal__fine {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: #9fb0cc;
+.sp-modal__lead.auth-danger-warning {
+  font-size: 15px;
+  color: var(--color-text);
 }
 .sp-modal__actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 14px;
-}
-.sp-dangerbtn {
-  min-height: 40px;
-  padding: 0 18px;
-  background: #c0202e;
-  border: none;
-  cursor: pointer;
-  color: #ffffff;
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-.sp-dangerbtn:hover,
-.sp-dangerbtn:focus-visible {
-  background: #d62a39;
 }

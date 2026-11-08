@@ -107,10 +107,19 @@ body {
   position: relative;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--color-border);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  /* One row at every desktop width: brand | Command pod |
+     account. The side columns share the leftover space equally, so the pod
+     sits dead centre of the bar, and never shrink below their content, so a
+     crowded bar pushes the pod off centre rather than under the brand or the
+     account slot. Nothing wraps: the pod hangs from the top edge at every
+     width. 47 px of bottom padding under the 72 px brand block (+ the 1 px
+     border) keeps the bar at 120 px. The density steps below (compact,
+     tight) narrow the content so the row fits down to the phone breakpoint. */
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  column-gap: 12px;
+  align-items: start;
+  padding-bottom: 47px;
 }
 
 /* Starfield center strip under a left-to-right dark gradient. The art is
@@ -139,6 +148,7 @@ body {
 
 .app-header__brand {
   position: relative;
+  justify-self: start;
   /* 10 px top + the 46 px logo + 4 px + the 12 px tag line = 72 px; the
      header's bottom padding (below) keeps the bar at its 120 px. */
   padding: 10px 32px 0;
@@ -301,6 +311,7 @@ body {
 
 .app-header__account {
   position: relative;
+  justify-self: end;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -387,49 +398,65 @@ body {
 }
 
 .app-header__nav {
-  /* At >=1024px the Command pod (components/NavPod.tsx) is out of flow, hung
-     from the header's top edge and centred on the whole bar
-     (left 50% + translateX(-50%)), so it never pushes the brand block or the
-     account slot; the header keeps its 120 px. Below 1024px the media query
-     returns it to its own full-width row. Being positioned is also what
-     makes it paint above the ::before starfield layer. */
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  /* The Command pod (components/NavPod.tsx) hangs from the header's top
+     edge in the grid's centre column at every width. Being positioned is
+     also what makes it paint above the ::before starfield layer. */
+  position: relative;
+  grid-column: 2;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   z-index: 3;
 }
 
-/* Out of flow, the nav adds no height, so without this the header would
-   collapse to the brand row and the account buttons would crowd the
-   separator. 47px of bottom padding under the 72px brand block (+ the 1px
-   border) keeps the bar at 120px, with the nav floating dead-center of it. */
-@media (min-width: 1024px) {
-  .app-header {
-    padding-bottom: 47px;
-  }
+/* Header density steps (NavPod.css narrows the pod in the
+   same steps). Header.tsx measures the row and sets `data-density` to the
+   roomiest step whose content fits the window -- full, compact, tight --
+   so the steps follow what the row holds (signed in or out, [HSV] Updates,
+   a share's name), not a fixed width. Compact: the side columns lose half
+   their edge padding. Tight: the logo steps down to 38 px and "Leave
+   Feedback" reads "Feedback" (its accessible name stays "Leave Feedback").
+   While measuring, an open sub-item group shows its whole width (its
+   animated max-width may lag a step change)... */
+.app-header[data-measuring] .pod__subs--open {
+  max-width: none !important;
+}
+/* ...a closing group counts as closed (its max-width may still be on its
+   way down), and the stash menu (hidden or not) is not part of the row. */
+.app-header[data-measuring] .pod__subs:not(.pod__subs--open) {
+  max-width: 0 !important;
+}
+.app-header[data-measuring] .pod-menu {
+  display: none !important;
+}
+.app-header:is([data-density="compact"], [data-density="tight"], [data-density="minimal"])
+  .app-header__brand {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.app-header:is([data-density="compact"], [data-density="tight"], [data-density="minimal"])
+  .app-header__account {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
-/* Narrow-viewport layout, where an absolutely-centered nav would collide
-   with the wide brand block: order:1 + flex-basis:100% put the nav on its
-   own full-width row after brand + account (which share the top row,
-   account in the top-right corner), with a row-centered label and bottom
-   clearance above the separator. */
-@media (max-width: 1023px) {
-  .app-header__nav {
-    position: relative;
-    top: auto;
-    left: auto;
-    transform: none;
-    order: 1;
-    flex-basis: 100%;
-    /* The 62 px pod under the 72 px brand row: the header is 135 px here
-       (the 44 px tab row it replaced made 112). */
-    padding: 0 24px;
-  }
+.app-header:is([data-density="tight"], [data-density="minimal"]) .app-header__brand {
+  padding-left: 12px;
+  padding-right: 8px;
+  /* 16 + the 38 px logo + 6 + the 12 px tag line = the same 72 px. */
+  padding-top: 16px;
+}
+.app-header:is([data-density="tight"], [data-density="minimal"]) .app-header__logo {
+  height: 38px;
+  margin-bottom: 6px;
+}
+.app-header:is([data-density="tight"], [data-density="minimal"]) .app-header__account {
+  gap: 8px;
+  padding-left: 8px;
+  padding-right: 12px;
+}
+.app-header:is([data-density="tight"], [data-density="minimal"]) .app-header__fb-long {
+  display: none;
 }
 
 .nav-tab {

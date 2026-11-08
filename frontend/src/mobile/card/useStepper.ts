@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
 import type { InventoryVariant } from "../../utils/inventory";
+import { registerOwnedFlusher, trackOwnedRequest } from "../../utils/ownedSettle";
 
 // The detail's stepper mutation -- desktop
 // CardPopupInventory.tsx useInventoryMutation's semantics: every
@@ -21,8 +22,6 @@ interface Book {
   serverQty: number;
   unflushed: number;
   timer: ReturnType<typeof setTimeout> | null;
-  /** the call on the wire, if any (a stash Done waits for it). */
-  inflight?: Promise<void> | null;
 }
 
 export interface Stepper {
@@ -32,11 +31,12 @@ export interface Stepper {
   decrement: (v: InventoryVariant) => void;
   pending: boolean;
   error: string | null;
+  /** A second line under the error: a stash save for a printing no longer
+   * shown that failed (CardDetail). */
+  notice?: string | null;
   /** the lowest owned count `-` may reach (the printing's stashed
    * copies); absent = 0. */
   floorOf?: (v: InventoryVariant) => number;
-  /** send the printing's open batch now and wait for it. */
-  settle?: (variantId: number) => Promise<void>;
 }
 
 /** `floorOf`: a decrement at or below the printing's stashed total
@@ -82,7 +82,9 @@ export function useStepper(
         setError(null);
       }
       try {
-        const r = await adjustCard(id, delta);
+        // Tracked per printing (utils/ownedSettle.ts): a stash save for this
+        // printing waits for every owned request on the wire.
+        const r = await trackOwnedRequest(id, adjustCard(id, delta));
         e.serverQty = r.quantity;
         patchRef.current(id, r.quantity);
         // Nothing tapped since the call left: the shared map now carries it.
@@ -101,32 +103,19 @@ export function useStepper(
     [show]
   );
 
-  // `send`, remembering the call on the wire for settle().
-  const flush = useCallback(
-    (id: number): Promise<void> => {
-      const e = book.current.get(id);
-      if (!e) return Promise.resolve();
-      if (e.unflushed === 0) return e.inflight ?? Promise.resolve();
-      const run = send(id);
-      e.inflight = run;
-      void run.finally(() => {
-        if (e.inflight === run) e.inflight = null;
-      });
-      return run;
-    },
-    [send]
-  );
+  const flush = useCallback((id: number): Promise<void> => send(id), [send]);
 
-  const settle = useCallback(
-    (id: number): Promise<void> => {
-      const e = book.current.get(id);
-      if (!e) return Promise.resolve();
-      if (e.timer !== null) {
+  // A stash save for a printing first sends this stepper's open batch for
+  // it, even after the printing changed (utils/ownedSettle.ts).
+  useEffect(
+    () =>
+      registerOwnedFlusher((id) => {
+        const e = book.current.get(id);
+        if (!e || e.timer === null) return;
         clearTimeout(e.timer);
         e.timer = null;
-      }
-      return flush(id);
-    },
+        void flush(id);
+      }),
     [flush]
   );
 
@@ -174,6 +163,5 @@ export function useStepper(
     pending,
     error,
     floorOf: floorOf ? (v) => floorOf(v.variant_id) : undefined,
-    settle,
   };
 }

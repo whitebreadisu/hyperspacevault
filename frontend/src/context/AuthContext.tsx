@@ -11,6 +11,11 @@ import { auth, googleResolver } from "../firebase";
 import { takeGoogleRedirectPending } from "../utils/googleAuth";
 import { createAuthChannel, TAB_ID, type AuthChannelMessage } from "../utils/authChannel";
 import { capture } from "../analytics/analytics";
+import { stashSaveStore } from "../stashes/stashSaveStore";
+
+// A queued stash save is sent only while the user who made it is still the
+// one Firebase holds (checked when it is queued and when it is sent).
+stashSaveStore.setUidSource(() => auth.currentUser?.uid ?? null);
 
 interface AuthContextValue {
   user: User | null;
@@ -51,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return onAuthStateChanged(auth, (nextUser) => {
+      // The card detail's stash saves belong to one user: a different one
+      // (sign-out, sign-in, a switch) drops what is open or queued.
+      stashSaveStore.setUser(nextUser?.uid ?? null);
       setUser(nextUser);
       setEmailVerified(nextUser?.emailVerified ?? false);
       setLoading(false);

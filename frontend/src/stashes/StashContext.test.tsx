@@ -33,6 +33,7 @@ vi.mock("../api/stashes", async (orig) => ({
 }));
 
 import { StashProvider, useStashes } from "./StashContext";
+import { resetStashSaveStoreForTests, stashSaveStore } from "./stashSaveStore";
 
 let seen: StashData | null = null;
 function Probe() {
@@ -47,6 +48,7 @@ const STASH = { id: 1, name: "Red binder", description: null, created_at: "x", c
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetStashSaveStoreForTests();
   seen = null;
   getStashes.mockResolvedValue([STASH]);
   getStashItems.mockResolvedValue([
@@ -87,7 +89,10 @@ describe("BL-344 StashProvider", () => {
     expect(seen!.stashedTotal(8)).toBe(0);
   });
 
-  it("saveVariant PUTs the non-zero split, shows the response, then re-reads", async () => {
+  // PORT (R1-11 round 4): the provider's saveVariant was a second PUT path
+  // outside the save store's queue and is gone; the store's save lands here
+  // the same way (the response at once, then a re-read).
+  it("a card-detail save (the save store) shows the response, then re-reads", async () => {
     putVariantAllocations.mockResolvedValue({
       variant_id: 7,
       owned: 3,
@@ -101,11 +106,96 @@ describe("BL-344 StashProvider", () => {
     await waitFor(() => expect(seen!.ready).toBe(true));
     getStashItems.mockResolvedValue([{ stash_id: 1, variant_id: 7, quantity: 3 }]);
     await act(async () => {
-      await seen!.saveVariant(7, { 1: 3, 2: 0 });
+      stashSaveStore.edit(7, { 1: 2, 2: 1 }, () => ({ 1: 3, 2: 0 }));
+      stashSaveStore.flush(7);
     });
-    expect(putVariantAllocations).toHaveBeenCalledWith(7, [{ stash_id: 1, quantity: 3 }]);
-    expect(getStashes).toHaveBeenCalledTimes(2);
-    expect(seen!.allocationsFor(7)).toEqual({ 1: 3 });
+    await waitFor(() => expect(getStashes).toHaveBeenCalledTimes(2));
+    expect(putVariantAllocations).toHaveBeenCalledWith(7, [{ stash_id: 1, quantity: 3 }], {
+      expected: [
+        { stash_id: 1, quantity: 2 },
+        { stash_id: 2, quantity: 1 },
+      ],
+      signal: expect.any(AbortSignal),
+    });
+    await waitFor(() => expect(seen!.allocationsFor(7)).toEqual({ 1: 3 }));
+  });
+
+  // CREATE (R1-11 round 4): reads are sequenced -- an answer older than the
+  // newest read started is ignored.
+  it("an older re-read that answers last does not overwrite a newer one", async () => {
+    render(
+      <StashProvider enabled>
+        <Probe />
+      </StashProvider>
+    );
+    await waitFor(() => expect(seen!.ready).toBe(true));
+    let resolveOlder!: (v: unknown) => void;
+    const older = { promise: new Promise((r) => (resolveOlder = r)) };
+    getStashItems.mockReturnValueOnce(older.promise);
+    getStashItems.mockResolvedValueOnce([{ stash_id: 1, variant_id: 7, quantity: 1 }]);
+    let first!: Promise<void>;
+    await act(async () => {
+      first = seen!.refresh();
+      await seen!.refresh();
+    });
+    expect(seen!.allocationsFor(7)).toEqual({ 1: 1 });
+    await act(async () => {
+      resolveOlder([{ stash_id: 1, variant_id: 7, quantity: 3 }]);
+      await first;
+    });
+    expect(seen!.allocationsFor(7)).toEqual({ 1: 1 });
+  });
+
+  // CREATE (R1-11 round 5): a direct user switch keeps `enabled` true; the
+  // provider drops user A's data and ignores A's read that answers late.
+  it("a direct user switch: A's late read is ignored and B sees only B's data", async () => {
+    let resolveA!: (v: unknown) => void;
+    getStashItems.mockReturnValueOnce(new Promise((r) => (resolveA = r)));
+    const { rerender } = render(
+      <StashProvider enabled uid="user-a">
+        <Probe />
+      </StashProvider>
+    );
+    getStashes.mockResolvedValue([{ ...STASH, id: 9, name: "B's binder" }]);
+    getStashItems.mockResolvedValue([{ stash_id: 9, variant_id: 7, quantity: 1 }]);
+    rerender(
+      <StashProvider enabled uid="user-b">
+        <Probe />
+      </StashProvider>
+    );
+    await waitFor(() => expect(seen!.ready).toBe(true));
+    await act(async () => {
+      resolveA([{ stash_id: 1, variant_id: 7, quantity: 2 }]);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(seen!.stashes.map((s) => s.name)).toEqual(["B's binder"]);
+    expect(seen!.allocationsFor(7)).toEqual({ 9: 1 });
+  });
+
+  it("a direct user switch after A's data loaded: A's list goes, B's is read", async () => {
+    const { rerender } = render(
+      <StashProvider enabled uid="user-a">
+        <Probe />
+      </StashProvider>
+    );
+    await waitFor(() => expect(seen!.ready).toBe(true));
+    expect(seen!.stashes.map((s) => s.name)).toEqual(["Red binder"]);
+    let resolveB!: (v: unknown) => void;
+    getStashes.mockResolvedValue([{ ...STASH, id: 9, name: "B's binder" }]);
+    getStashItems.mockReturnValueOnce(new Promise((r) => (resolveB = r)));
+    rerender(
+      <StashProvider enabled uid="user-b">
+        <Probe />
+      </StashProvider>
+    );
+    // Before B's read lands, nothing of A's is shown.
+    await waitFor(() => expect(seen!.stashes).toEqual([]));
+    expect(seen!.allocationsFor(7)).toEqual({});
+    await act(async () => {
+      resolveB([{ stash_id: 9, variant_id: 7, quantity: 1 }]);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(seen!.stashes.map((s) => s.name)).toEqual(["B's binder"]);
   });
 
   it("turning off drops what was held (a switch into a share, a sign-out)", async () => {
@@ -243,7 +333,9 @@ describe("StashProvider writes across a session change and a failed re-read", ()
     expect(getStashItems.mock.calls.length).toBe(reads);
   });
 
-  it("saveVariant answered after a sign-out is not applied", async () => {
+  // PORT (R1-11 round 4): a save answered after the user changed is not
+  // applied (the store's generation; the provider's own read stands).
+  it("a save answered after a user change is not applied", async () => {
     const { rerender } = render(
       <StashProvider enabled>
         <Probe />
@@ -252,10 +344,12 @@ describe("StashProvider writes across a session change and a failed re-read", ()
     await waitFor(() => expect(seen!.ready).toBe(true));
     const answer = deferred<unknown>();
     putVariantAllocations.mockReturnValue(answer.promise);
-    let pending!: Promise<void>;
     act(() => {
-      pending = seen!.saveVariant(7, { 1: 0, 2: 0 });
+      stashSaveStore.edit(7, { 1: 2, 2: 1 }, () => ({ 1: 0, 2: 0 }));
+      stashSaveStore.flush(7);
     });
+    await waitFor(() => expect(putVariantAllocations).toHaveBeenCalledTimes(1));
+    stashSaveStore.setUser("someone-else");
     rerender(
       <StashProvider enabled={false}>
         <Probe />
@@ -269,7 +363,7 @@ describe("StashProvider writes across a session change and a failed re-read", ()
     await waitFor(() => expect(seen!.ready).toBe(true));
     await act(async () => {
       answer.resolve({ variant_id: 7, owned: 3, allocations: [] });
-      await pending;
+      await new Promise((r) => setTimeout(r, 0));
     });
     expect(seen!.allocationsFor(7)).toEqual({ 1: 2, 2: 1 });
   });

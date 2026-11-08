@@ -13,6 +13,7 @@ import {
 import { variantLabel } from "./cardPopupShared";
 import { capture } from "../../analytics/analytics";
 import { STASH_FLOOR_HINT } from "../../stashes/useStashEditor";
+import { registerOwnedFlusher, trackOwnedRequest } from "../../utils/ownedSettle";
 
 /** Inventory controls: the selected printing's owned-quantity stepper
  * (InventoryPlate, with its limits/cap_mode math), the signed-out "Sign in"
@@ -201,8 +202,6 @@ interface AdjustBookkeeping {
   serverQty: number;
   unflushed: number;
   timer: ReturnType<typeof setTimeout> | null;
-  /** the flush on the wire, if any (a stash Done waits for it). */
-  inflight?: Promise<void> | null;
 }
 
 // Debounce window: one network call per burst of clicks landing within 400ms
@@ -274,7 +273,9 @@ export function useInventoryMutation(
       setPending(true);
       setMutationError(null);
       try {
-        const result = await adjustCard(variantId, delta);
+        // Tracked per printing (utils/ownedSettle.ts): a stash save for this
+        // printing waits for every owned request on the wire.
+        const result = await trackOwnedRequest(variantId, adjustCard(variantId, delta));
         // result.over_limit/blocked are informational only for the *response
         // itself* -- the over-limit indicator is derived fresh on every render
         // from the resolved quantity vs. the effective limit (see
@@ -301,19 +302,11 @@ export function useInventoryMutation(
     [setDisplayedQuantity]
   );
 
-  // `send` wrapped so the call on the wire is remembered -- a stash
-  // Done awaits it (settleSelected below).
   const flush = useCallback(
     (variantId: number): Promise<void> => {
       const entry = bookkeepingRef.current.get(variantId);
-      if (!entry) return Promise.resolve();
-      if (entry.unflushed === 0) return entry.inflight ?? Promise.resolve();
-      const run = send(variantId);
-      entry.inflight = run;
-      void run.finally(() => {
-        if (entry.inflight === run) entry.inflight = null;
-      });
-      return run;
+      if (!entry || entry.unflushed === 0) return Promise.resolve();
+      return send(variantId);
     },
     [send]
   );
@@ -383,11 +376,15 @@ export function useInventoryMutation(
     bump(selectedVariant.variant_id, -1, selectedVariant.quantity);
   }, [selectedVariant, bump, decrementFloor]);
 
-  /** send the selected printing's open batch now and wait for it,
-   * so a stash Done is checked against the owned count on screen. */
-  const settleSelected = useCallback(async () => {
-    if (selectedVariant) await flushNow(selectedVariant.variant_id);
-  }, [selectedVariant, flushNow]);
+  // A stash save for a printing first sends this stepper's open batch for
+  // it (utils/ownedSettle.ts).
+  useEffect(
+    () =>
+      registerOwnedFlusher((variantId) => {
+        void flushNow(variantId);
+      }),
+    [flushNow]
+  );
 
   // Flush-on-variant-switch and flush-on-unmount, both from ONE effect keyed
   // on the selected variant_id -- its cleanup fires exactly when that id is
@@ -404,7 +401,7 @@ export function useInventoryMutation(
     };
   }, [selectedVariantId, flushNow]);
 
-  return { pending, mutationError, handleIncrement, handleDecrement, settleSelected };
+  return { pending, mutationError, handleIncrement, handleDecrement };
 }
 
 /** Switches between the signed-in stepper and the signed-out nudge -- the

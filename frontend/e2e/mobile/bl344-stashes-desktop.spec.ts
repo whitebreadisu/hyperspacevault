@@ -51,9 +51,12 @@ test("bl344-desktop-first-stash", async ({ page }) => {
   await row.locator(".cp-stash__step").nth(1).click();
   await expect(page.locator(`${PANEL} .cp-stash__vault`)).toHaveText("0");
   await shot(page, "e1");
+  // R1-11: the clicks save themselves (one coalesced PUT); Done collapses.
+  await expect
+    .poll(() => recorderFor(page).stashCalls.filter((c) => c.startsWith("PUT")))
+    .toEqual([`PUT /api/stashes/variants/${STD.variant_id}`]);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.locator(`${PANEL} .cp-stash__readrow`)).toHaveCount(1);
-  expect(recorderFor(page).stashCalls).toContain(`PUT /api/stashes/variants/${STD.variant_id}`);
   const dec = page.locator(".cp-plate__step--dec");
   await expect(dec).toHaveAttribute("aria-disabled", "true");
   await expect(dec).toHaveAttribute("title", "All copies are stashed. Remove from a stash first.");
@@ -72,7 +75,9 @@ test.describe("seeded", () => {
     },
   });
 
-  test("bl344-desktop-edit-and-cancel", async ({ page }) => {
+  // REPLACE (R1-11): was "edit and Cancel" (nothing written). Cancel is
+  // gone; a click saves, Done collapses onto the saved list.
+  test("bl344-desktop-edit-saves-on-click", async ({ page }) => {
     await openLuke(page);
     await expect(page.locator(`${PANEL} .cp-stash__readrow .cp-stash__name`)).toHaveText([
       "Red binder",
@@ -81,8 +86,16 @@ test.describe("seeded", () => {
     await expect(page.locator(`${PANEL} .cp-stash__row`)).toHaveCount(4);
     await page.locator(`${PANEL} .cp-stash__row[data-stash="2"] .cp-stash__step`).nth(1).click();
     await shot(page, "c2-d1");
-    await page.locator(`${PANEL} .cp-stash__foot`).getByRole("button", { name: "Cancel" }).click();
-    await expect(page.locator(`${PANEL} .cp-stash__readrow`)).toHaveCount(1);
-    expect(recorderFor(page).stashCalls.some((c) => c.startsWith("PUT"))).toBe(false);
+    await expect(
+      page.locator(`${PANEL} .cp-stash__foot`).getByRole("button", { name: "Cancel" })
+    ).toHaveCount(0);
+    await expect
+      .poll(() => recorderFor(page).stashCalls.filter((c) => c.startsWith("PUT")).length)
+      .toBe(1);
+    await page.locator(`${PANEL} .cp-stash__foot`).getByRole("button", { name: "Done" }).click();
+    await expect(page.locator(`${PANEL} .cp-stash__readrow .cp-stash__name`)).toHaveText([
+      "Red binder",
+      "Trade stash",
+    ]);
   });
 });

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { getSets } from "../../api/sets";
 import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
+import { trackOwnedRequest } from "../../utils/ownedSettle";
 import { runImport, ImportApiError } from "../../api/inventoryImportExport";
 import { SWUButton } from "../../components/SWUButton";
 import { SectionSeparator } from "../../components/SectionSeparator";
@@ -409,7 +410,8 @@ export function AddCardsModal({ catalog, onClose, onCommitted }: Props) {
               );
             }
             for (const [variantId, delta] of deltaByVariant) {
-              await adjustCard(variantId, delta);
+              // Tracked: a stash save for this printing waits for it.
+              await trackOwnedRequest(variantId, adjustCard(variantId, delta));
             }
           },
           settleStage: { message: "Refreshing your Vault…" },

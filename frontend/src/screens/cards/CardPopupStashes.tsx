@@ -11,8 +11,9 @@ import type { StashEditor } from "../../stashes/useStashEditor";
 //   a2     New stash: Name + Description, Create stash / Cancel; Create goes
 //          straight to the rows with the new stash in them, nothing moved;
 //   b2..e1 the rows: Vault first (a number only, red at 0 when every copy is
-//          stashed), then every stash with a small -/+; + New stash; Cancel /
-//          Done (staged; Done = one PUT for the printing);
+//          stashed), then every stash with a small -/+ that saves on click
+//          (useStashEditor: coalesced, serialized, rolled back on failure);
+//          + New stash; Done collapses the rows (no Cancel);
 //   c1     read only: "Stashes" + Edit, one row per stash holding it, with
 //          the playset chip (green at the card's playset size).
 // e2 (0 owned), f1 (shared) and f2 (signed out) draw nothing: the caller
@@ -248,19 +249,10 @@ function EditRows({ editor, printingLabel }: { editor: StashEditor; printingLabe
           {editor.saveError}
         </p>
       ) : null}
+      {/* Every -/+ saves on its own (useStashEditor); Done only collapses
+          the rows. No Cancel. */}
       <div className="cp-stash__foot">
-        <button type="button" className="cp-stash__text" onClick={editor.cancel}>
-          Cancel
-        </button>
-        <SWUButton
-          active={!editor.busy}
-          ariaDisabled={editor.busy}
-          onClick={() => {
-            if (!editor.busy) void editor.done();
-          }}
-        >
-          Done
-        </SWUButton>
+        <SWUButton onClick={editor.done}>Done</SWUButton>
       </div>
     </div>
   );

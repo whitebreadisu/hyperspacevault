@@ -96,6 +96,8 @@ function moved(id: number, moves: { variant_id: number; quantity: number }[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The rail's folded state is per viewer (localStorage); each test starts open.
+  window.localStorage.removeItem("swu.stashes.railCollapsed");
   stashes = [
     stash(1, "Red binder", "Blue binder on the shelf"),
     stash(2, "Trade stash"),
@@ -173,7 +175,9 @@ function Harness({
   );
 }
 
-const rows = () => document.querySelectorAll(".sp-tr:not(.sp-tr--head)");
+const rows = () => document.querySelectorAll("tbody .sp-tr");
+const table = () => screen.getByRole("table", { name: "Copies in this stash" });
+const order = () => [...rows()].map((r) => r.getAttribute("data-variant"));
 const row = (vid: number) => document.querySelector<HTMLElement>(`.sp-tr[data-variant="${vid}"]`)!;
 async function ready(props: Parameters<typeof Harness>[0] = {}) {
   const r = render(<Harness {...props} />);
@@ -197,30 +201,134 @@ describe("A1 / C1: rail and table", () => {
     expect(screen.getAllByText("Blue binder on the shelf")).toHaveLength(2);
   });
 
-  it("draws one row per printing in Set | # order, with the printing's own number", async () => {
+  // Replaces "draws one row per printing in Set | # order" (R1-15,
+  // 2026-11-08: the default is the base card number, so Luke's two
+  // printings sit together).
+  it("draws one row per printing, base card order first, with the printing's own number", async () => {
     await ready();
     expect(rows()).toHaveLength(3);
-    expect([...rows()].map((r) => r.getAttribute("data-variant"))).toEqual(["11", "21", "12"]);
+    expect(order()).toEqual(["11", "12", "21"]);
     expect(within(row(12)).getByText("SOR 269")).toBeInTheDocument();
     expect(within(row(12)).getByText("Hyperspace")).toBeInTheDocument();
     expect(within(row(11)).getByText("$8.00")).toBeInTheDocument();
     // The leader's single copy is its playset: the chip is green.
-    expect(row(21).querySelector(".sp-chip")!.className).toContain("playset-chip--complete");
+    expect(row(21).querySelector(".playset-chip")!.className).toContain("playset-chip--complete");
   });
 
+  // Ported (the header is the Vault's data-table th-sort-btn; the sort bar
+  // carries a second Name button bound to the same sort).
   it("re-sorts by a header and flips on a second click", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Name" }));
-    expect([...rows()].map((r) => r.getAttribute("data-variant"))).toEqual(["21", "11", "12"]);
-    fireEvent.click(screen.getByRole("button", { name: /^Name/ }));
-    // Ties (Luke's two printings) keep Set | # order.
-    expect([...rows()].map((r) => r.getAttribute("data-variant"))).toEqual(["11", "12", "21"]);
+    fireEvent.click(within(table()).getByRole("button", { name: "Name" }));
+    expect(order()).toEqual(["21", "11", "12"]);
+    expect(within(table()).getByRole("button", { name: "Name" }).className).toContain(
+      "th-sort-btn--asc"
+    );
+    fireEvent.click(within(table()).getByRole("button", { name: "Name" }));
+    // Ties (Luke's two printings) keep base card order.
+    expect(order()).toEqual(["11", "12", "21"]);
   });
 
+  // Ported: Unit / Total is the Vault's ValueSwitch (was a two-button seg).
   it("switches the Value column between Total and Unit", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Unit" }));
+    fireEvent.click(screen.getByRole("switch", { name: /Showing total value/ }));
     expect(within(row(11)).getByText("$4.00")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: /Showing unit value/ })).toBeInTheDocument();
+  });
+
+  it("R1-15: Set | # offers base card number or card number", async () => {
+    await ready();
+    const head = within(table()).getByRole("button", { name: /^Set \| #/ });
+    expect(head).toHaveAttribute("aria-haspopup", "menu");
+    fireEvent.click(head);
+    const menu = screen.getByRole("menu", { name: "Sort Set | # by" });
+    expect(within(menu).getByRole("menuitemradio", { name: /Base card number/ })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Card number" }));
+    // The printing's own number: SOR 5, SOR 10, SOR 269.
+    expect(order()).toEqual(["11", "21", "12"]);
+    expect(screen.queryByRole("menu")).toBeNull();
+    // Picking the active choice again flips its direction.
+    fireEvent.click(within(table()).getByRole("button", { name: /^Set \| #/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Card number/ }));
+    expect(order()).toEqual(["12", "21", "11"]);
+  });
+
+  it("the sort bar marks its active entry on the button (no aria-sort off a header)", async () => {
+    await ready();
+    const bar = screen.getByRole("group", { name: "Sort" });
+    expect(bar.querySelector("[aria-sort]")).toBeNull();
+    const b = within(bar);
+    expect(b.getByRole("button", { name: /^Set \| #/ })).toHaveAttribute("aria-current", "true");
+    expect(b.getByRole("button", { name: /^Set \| #/ })).toHaveAccessibleName(
+      "Set | #, sorted by base card number, ascending"
+    );
+    expect(b.getByRole("button", { name: "Sort by Name" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    fireEvent.click(b.getByRole("button", { name: "Sort by Name" }));
+    // Pressed, with the direction in its name; pressing again flips it.
+    const name = b.getByRole("button", { name: "Sort by Name, ascending" });
+    expect(name).toHaveAttribute("aria-pressed", "true");
+    expect(name.className).toContain("th-sort-btn--asc");
+    fireEvent.click(name);
+    expect(b.getByRole("button", { name: "Sort by Name, descending" }).className).toContain(
+      "th-sort-btn--desc"
+    );
+    expect(b.getByRole("button", { name: /^Set \| #/ })).not.toHaveAttribute("aria-current");
+    // The table's column headers keep aria-sort.
+    expect(within(table()).getByRole("columnheader", { name: /Name/ })).toHaveAttribute(
+      "aria-sort",
+      "descending"
+    );
+  });
+
+  it("only one Set | # menu is open at a time", async () => {
+    await ready();
+    const bar = within(screen.getByRole("group", { name: "Sort" }));
+    fireEvent.click(within(table()).getByRole("button", { name: /^Set \| #/ }));
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    fireEvent.click(bar.getByRole("button", { name: /^Set \| #/ }));
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(bar.getByRole("button", { name: /^Set \| #/ })).toHaveAttribute("aria-expanded", "true");
+    expect(within(table()).getByRole("button", { name: /^Set \| #/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+  });
+
+  it("R1-16: the sort bar sorts by Copies in stash, Rarity and Recently stashed", async () => {
+    items = [
+      { stash_id: 1, variant_id: 11, quantity: 2, stashed_at: "2026-11-01T10:00:00" },
+      { stash_id: 1, variant_id: 12, quantity: 1, stashed_at: "2026-11-08T10:00:00" },
+      { stash_id: 1, variant_id: 21, quantity: 1, stashed_at: "2026-11-04T10:00:00" },
+    ];
+    await ready();
+    const bar = within(screen.getByRole("group", { name: "Sort" }));
+    for (const label of [
+      "Set | #",
+      "Name",
+      "Value",
+      "Copies in stash",
+      "Rarity",
+      "Recently stashed",
+    ])
+      expect(
+        bar.getByRole("button", { name: label === "Set | #" ? /^Set \| #/ : `Sort by ${label}` })
+      ).toBeInTheDocument();
+    fireEvent.click(bar.getByRole("button", { name: "Sort by Recently stashed" }));
+    // Newest first on the first pick.
+    expect(order()).toEqual(["12", "21", "11"]);
+    fireEvent.click(bar.getByRole("button", { name: "Sort by Copies in stash" }));
+    expect(order()[2]).toBe("11");
+    // The table header and the bar share one sort.
+    expect(within(table()).getByRole("button", { name: "In stash" }).className).toContain(
+      "th-sort-btn--asc"
+    );
   });
 
   it("opens the card detail on that printing from a row", async () => {
@@ -250,7 +358,10 @@ describe("C2 / C3", () => {
   it("C2: the gallery draws one tile per printing", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
-    expect(document.querySelectorAll(".sp-tile")).toHaveLength(3);
+    expect(document.querySelectorAll(".sp-gallery .gallery-cell")).toHaveLength(3);
+    // The Vault's plate: green ring and count at a playset (the leader's 1).
+    const vader = screen.getByRole("button", { name: "Darth Vader, Standard, 1 in this stash" });
+    expect(vader.querySelector(".gallery-plate")!.className).toContain("gallery-plate--complete");
     expect(
       screen.getByRole("button", { name: "Luke Skywalker, Hyperspace, 1 in this stash" })
     ).toBeInTheDocument();
@@ -328,7 +439,7 @@ describe("D1 / D2: taking copies out, with Undo", () => {
       fireEvent.click(within(row(11)).getByRole("button", { name: /Return one/ }));
     });
     expect(api.returnStashItems).toHaveBeenCalledWith(1, [{ variant_id: 11, quantity: 1 }]);
-    await waitFor(() => expect(row(11).querySelector(".sp-chip")!.textContent).toBe("1"));
+    await waitFor(() => expect(row(11).querySelector(".playset-chip")!.textContent).toBe("1"));
     expect(screen.getByRole("status")).toHaveTextContent(
       "1 Luke Skywalker · Standard is back in your Vault."
     );
@@ -338,7 +449,7 @@ describe("D1 / D2: taking copies out, with Undo", () => {
       fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     });
     expect(api.restoreStashItems).toHaveBeenCalledWith(1, [{ variant_id: 11, quantity: 1 }]);
-    await waitFor(() => expect(row(11).querySelector(".sp-chip")!.textContent).toBe("2"));
+    await waitFor(() => expect(row(11).querySelector(".playset-chip")!.textContent).toBe("2"));
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -404,7 +515,7 @@ describe("refresh failures", () => {
     await act(async () => {
       fireEvent.click(within(row(11)).getByRole("button", { name: /Return one/ }));
     });
-    expect(row(11).querySelector(".sp-chip")!.textContent).toBe("1");
+    expect(row(11).querySelector(".playset-chip")!.textContent).toBe("1");
     expect(document.querySelector(".sp-railrow__copies")!.textContent).toBe("3");
     expect(screen.getByText(/The stash list did not refresh\./)).toBeInTheDocument();
     await act(async () => {
@@ -425,7 +536,7 @@ describe("refresh failures", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     });
-    expect(row(11).querySelector(".sp-chip")!.textContent).toBe("2");
+    expect(row(11).querySelector(".playset-chip")!.textContent).toBe("2");
     expect(screen.getByText(/The stash list did not refresh\./)).toBeInTheDocument();
     err.mockRestore();
   });
@@ -490,13 +601,15 @@ describe("E1 / E2 / E3", () => {
     );
   });
 
+  // Copy replaced (R1-9, 2026-11-08: the confirm says every card returns,
+  // with the count).
   it("E3: delete asks first, then the copies go back and the next stash shows", async () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: "Edit name and description" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete stash" }));
     const dlg = screen.getByRole("alertdialog");
     expect(dlg).toHaveTextContent("Delete Red binder?");
-    expect(dlg).toHaveTextContent("Its 4 copies go back to your Vault.");
+    expect(dlg).toHaveTextContent("Every card in it returns to your Vault: 4 copies.");
     expect(dlg).toHaveTextContent(
       "You still own every copy. Only the stash and its name and description are deleted."
     );
@@ -515,5 +628,213 @@ describe("E1 / E2 / E3", () => {
         "Trade stash"
       )
     );
+  });
+});
+
+describe("R1-9: delete from the Stashes screen", () => {
+  it("the head's trash opens the confirm with the count; the stash beside it shows after", async () => {
+    await ready({ start: 3 });
+    fireEvent.click(screen.getByRole("button", { name: "Delete New box" }));
+    const dlg = screen.getByRole("alertdialog");
+    expect(dlg).toHaveTextContent("Delete New box?");
+    expect(dlg).toHaveTextContent("It holds no copies.");
+    await act(async () => {
+      fireEvent.click(within(dlg).getByRole("button", { name: "Delete stash" }));
+    });
+    expect(api.deleteStash).toHaveBeenCalledWith(3);
+    // The last stash goes: its neighbour before it shows.
+    await waitFor(() =>
+      expect(document.querySelector(".sp-railrow--on .sp-railrow__name")!.textContent).toBe(
+        "Trade stash"
+      )
+    );
+  });
+
+  it("deleting the only stash lands on the no-stashes state", async () => {
+    stashes = [stash(1, "Red binder")];
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "Every card in it returns to your Vault: 4 copies."
+    );
+    await act(async () => {
+      fireEvent.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete stash" })
+      );
+    });
+    expect(
+      await screen.findByText(
+        "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("uses the transactional modal family", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
+    const dlg = screen.getByRole("alertdialog");
+    expect(dlg.className).toContain("auth-modal-card");
+    expect(within(dlg).getByRole("button", { name: "Delete stash" }).className).toContain(
+      "auth-danger-submit"
+    );
+  });
+});
+
+describe("R1-6: Market / Low in the rail and the value tile", () => {
+  function PriceHarness() {
+    const [kind, setKind] = useState<"market" | "low">("market");
+    return (
+      <StashProvider enabled>
+        <StashesPane
+          cards={CARDS}
+          list={CARDS}
+          finishes={new Set()}
+          setOrder={{}}
+          priceKind={kind}
+          onPriceKind={setKind}
+          selectedId={null}
+          onSelect={() => {}}
+          onOpenPrinting={() => {}}
+        />
+      </StashProvider>
+    );
+  }
+  it("both switches show and drive one state", async () => {
+    render(<PriceHarness />);
+    await screen.findByRole("heading", { name: "Stashes" });
+    const rail = within(screen.getByRole("complementary", { name: "Stashes" }));
+    const tile = document.querySelector<HTMLElement>(".sp-stats .inv-summary__pricemode")!;
+    expect(rail.getByRole("switch", { name: /Showing market price/ })).toBeInTheDocument();
+    expect(within(tile).getByRole("switch", { name: /Showing market price/ })).toBeInTheDocument();
+    fireEvent.click(within(tile).getByRole("switch"));
+    expect(rail.getByRole("switch", { name: /Showing low price/ })).toBeInTheDocument();
+    // Low = half of market in the fixture: $19.00 -> $9.50.
+    expect(document.querySelector(".sp-railrow__value")!.textContent).toBe("$9.50");
+    fireEvent.click(rail.getByRole("switch"));
+    expect(within(tile).getByRole("switch", { name: /Showing market price/ })).toBeInTheDocument();
+  });
+
+  it("the tiles are the Vault's collection tiles", async () => {
+    await ready();
+    const tiles = document.querySelectorAll(".sp-stats .inv-summary__block-wrap");
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0].querySelector(".inv-summary__label")!.textContent).toBe("Cards");
+    expect(tiles[0].querySelector(".inv-summary__value")!.textContent).toBe("4");
+    expect(tiles[1].querySelector(".inv-summary__value")!.textContent).toBe("$19.00");
+  });
+});
+
+describe("R1-7: the rail collapses", () => {
+  it("collapses to the edge tab, keeps every stash a click away, and is remembered", async () => {
+    const r = await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse the stash list" }));
+    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
+    expect(window.localStorage.getItem("swu.stashes.railCollapsed")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: "Stashes, 3: show the list" }));
+    const flyout = within(screen.getByRole("complementary", { name: "Stashes" }));
+    fireEvent.click(flyout.getByRole("button", { name: /Trade stash/ }));
+    // The pick shows that stash and the flyout closes; the rail stays folded.
+    expect(screen.getByRole("heading", { name: "Trade stash" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
+    r.unmount();
+    // A fresh visit opens folded.
+    render(<Harness />);
+    fireEvent.click(await screen.findByRole("button", { name: "Stashes, 3: show the list" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep the stash list open" }));
+    expect(screen.getByRole("button", { name: "Collapse the stash list" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("swu.stashes.railCollapsed")).toBe("0");
+  });
+
+  it("Escape closes the flyout", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse the stash list" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stashes, 3: show the list" }));
+    expect(screen.getByRole("complementary", { name: "Stashes" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "Stashes" })).toBeNull();
+  });
+});
+
+describe("R1-5: the filters' slot", () => {
+  // Replaced (review fold-in, 2026-11-08): an empty stash keeps the list
+  // area and its corner, so the filters anchor the same way on every stash.
+  it("hands CardsPage the card list's corner, an empty stash included", async () => {
+    const slot = vi.fn();
+    function SlotHarness() {
+      const [selected, setSelected] = useState<number | null>(1);
+      return (
+        <StashProvider enabled>
+          <StashesPane
+            cards={CARDS}
+            list={CARDS}
+            finishes={new Set()}
+            setOrder={{}}
+            priceKind="market"
+            onPriceKind={() => {}}
+            selectedId={selected}
+            onSelect={setSelected}
+            onOpenPrinting={() => {}}
+            onFilterSlot={slot}
+          />
+        </StashProvider>
+      );
+    }
+    render(<SlotHarness />);
+    await screen.findByRole("heading", { name: "Stashes" });
+    const el = slot.mock.lastCall![0] as HTMLElement;
+    expect(el.className).toBe("sp-list__filters");
+    expect(el.parentElement!.className).toBe("sp-list");
+    fireEvent.click(screen.getByRole("button", { name: /New box/ }));
+    expect(screen.getByText(/New box has no copies/)).toBeInTheDocument();
+    const after = slot.mock.lastCall![0] as HTMLElement;
+    expect(after).not.toBeNull();
+    expect(after.className).toBe("sp-list__filters");
+  });
+});
+
+describe("R1-10: scale", () => {
+  it("60 stashes with long names all list in the rail", async () => {
+    stashes = Array.from({ length: 60 }, (_, i) => stash(i + 1, `Stash number ${i + 1}`));
+    stashes[59].name = "x".repeat(40);
+    await ready();
+    const rail = document.querySelector(".sp-rail__list")!;
+    expect(rail.querySelectorAll(".sp-railrow")).toHaveLength(60);
+    expect(screen.getByRole("button", { name: new RegExp("x{40}") })).toBeInTheDocument();
+  });
+
+  it("a stash with hundreds of printings draws every row, a card's printings together", async () => {
+    const many = Array.from({ length: 150 }, (_, i) =>
+      phoneCard({
+        id: 100 + i,
+        name: `Card ${i}`,
+        number: String(i + 1),
+        variants: [
+          { id: 1000 + i * 2, finish: "Standard", number: String(i + 1), market: 1 },
+          { id: 1001 + i * 2, finish: "Hyperspace", number: String(300 + i), market: 2 },
+        ],
+      })
+    );
+    items = many.flatMap((c) =>
+      c.variants.map((v) => ({ stash_id: 1, variant_id: v.variant_id, quantity: 1 }))
+    );
+    render(
+      <StashProvider enabled>
+        <StashesPane
+          cards={many}
+          list={many}
+          finishes={new Set()}
+          setOrder={{}}
+          priceKind="market"
+          onPriceKind={() => {}}
+          selectedId={1}
+          onSelect={() => {}}
+          onOpenPrinting={() => {}}
+        />
+      </StashProvider>
+    );
+    await screen.findByRole("heading", { name: "Stashes" });
+    expect(rows()).toHaveLength(300);
+    expect(order().slice(0, 4)).toEqual(["1000", "1001", "1002", "1003"]);
+    expect(document.querySelector(".sp-stats .inv-summary__value")!.textContent).toBe("300");
   });
 });

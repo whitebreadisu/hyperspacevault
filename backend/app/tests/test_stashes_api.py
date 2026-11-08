@@ -87,6 +87,15 @@ def _stash(client, name="Binder", **extra) -> dict:
     return resp.json()
 
 
+def _items(client) -> list[dict]:
+    """GET /api/stashes/items without each row's stashed_at (a timestamp;
+    TestStashedAt covers it)."""
+    return [
+        {k: v for k, v in i.items() if k != "stashed_at"}
+        for i in client.get("/api/stashes/items").json()
+    ]
+
+
 def _split(client, variant_id: int, allocations: list[tuple[int, int]]):
     return client.put(
         f"/api/stashes/variants/{variant_id}",
@@ -222,7 +231,7 @@ class TestSplit:
         # Omitted stash = 0; explicit zero stores no row.
         resp = _split(tc, v1, [(b["id"], 1), (a["id"], 0)])
         assert resp.json()["allocations"] == [{"stash_id": b["id"], "quantity": 1}]
-        items = tc.get("/api/stashes/items").json()
+        items = _items(tc)
         assert items == [{"stash_id": b["id"], "variant_id": v1, "quantity": 1}]
         # Empty allocations clears the printing entirely.
         assert _split(tc, v1, []).json()["allocations"] == []
@@ -235,9 +244,7 @@ class TestSplit:
         _split(tc, v1, [(s["id"], 2)])
         _split(tc, v2, [(s["id"], 1)])
         _split(tc, v1, [])
-        assert tc.get("/api/stashes/items").json() == [
-            {"stash_id": s["id"], "variant_id": v2, "quantity": 1}
-        ]
+        assert _items(tc) == [{"stash_id": s["id"], "variant_id": v2, "quantity": 1}]
 
     def test_exceeds_owned_409(self, tc, db, tenant_id, v1):
         _own(db, tenant_id, v1, 2)
@@ -289,6 +296,98 @@ class TestSplit:
             assert other.delete(f"/api/stashes/{mine['id']}").status_code == 404
             # Same name is fine across tenants.
             assert other.post("/api/stashes", json={"name": "Mine"}).status_code == 201
+        finally:
+            delete_provisioned_identity(db, OTHER_UID)
+
+
+class TestSplitExpected:
+    """Optimistic concurrency on the split PUT: `expected` is the split the
+    client last saw; a mismatch writes nothing and answers 409
+    `split_changed` with the stored split."""
+
+    def _put(self, client, variant_id, allocations, expected):
+        body = {"allocations": [{"stash_id": s, "quantity": q} for s, q in allocations]}
+        if expected is not None:
+            body["expected"] = [{"stash_id": s, "quantity": q} for s, q in expected]
+        return client.put(f"/api/stashes/variants/{variant_id}", json=body)
+
+    def test_matching_expected_writes(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 3)
+        a, b = _stash(tc, "A"), _stash(tc, "B")
+        assert _split(tc, v1, [(a["id"], 1)]).status_code == 200
+        # Zeros in `expected` are the same as absent.
+        resp = self._put(tc, v1, [(b["id"], 2)], [(a["id"], 1), (b["id"], 0)])
+        assert resp.status_code == 200, resp.text
+        assert _items(tc) == [{"stash_id": b["id"], "variant_id": v1, "quantity": 2}]
+
+    def test_mismatch_is_409_with_the_stored_split_and_writes_nothing(
+        self, tc, db, tenant_id, v1
+    ):
+        _own(db, tenant_id, v1, 3)
+        a, b = _stash(tc, "A"), _stash(tc, "B")
+        _split(tc, v1, [(a["id"], 2)])
+        # The client still thinks nothing is stashed (a return elsewhere, etc.).
+        resp = self._put(tc, v1, [(b["id"], 1)], [])
+        assert resp.status_code == 409
+        assert resp.json() == {
+            "detail": "split_changed",
+            "variant_id": v1,
+            "owned": 3,
+            "allocations": [{"stash_id": a["id"], "quantity": 2}],
+        }
+        assert resp.headers["cache-control"] == "private, no-store"
+        assert _items(tc) == [{"stash_id": a["id"], "variant_id": v1, "quantity": 2}]
+
+    def test_absent_expected_replaces_as_before(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 3)
+        a, b = _stash(tc, "A"), _stash(tc, "B")
+        _split(tc, v1, [(a["id"], 2)])
+        resp = self._put(tc, v1, [(b["id"], 1)], None)
+        assert resp.status_code == 200
+        assert _items(tc) == [{"stash_id": b["id"], "variant_id": v1, "quantity": 1}]
+
+    def test_expected_checked_before_exceeds_owned(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 1)
+        a = _stash(tc, "A")
+        _split(tc, v1, [(a["id"], 1)])
+        resp = self._put(tc, v1, [(a["id"], 5)], [])
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "split_changed"
+
+    def test_duplicate_stash_in_expected_422(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 3)
+        a = _stash(tc, "A")
+        resp = self._put(tc, v1, [(a["id"], 1)], [(a["id"], 0), (a["id"], 0)])
+        assert resp.status_code == 422
+
+    def test_tenant_isolation_unchanged(self, tc, make_client, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 2)
+        mine = _stash(tc, "Mine")
+        _split(tc, v1, [(mine["id"], 1)])
+        other = make_client(OTHER_UID, OTHER_EMAIL)
+        try:
+            other.get("/api/stashes")
+            other_tenant = db.execute(
+                text("SELECT tenant_id FROM users WHERE firebase_uid = :u"),
+                {"u": OTHER_UID},
+            ).scalar_one()
+            _own(db, other_tenant, v1, 5)
+            # Their view of my printing is their own (empty) split: no leak
+            # of mine in a 409, and their write never touches my rows.
+            theirs = _stash(other, "Theirs")
+            resp = self._put(other, v1, [(theirs["id"], 1)], [(mine["id"], 1)])
+            assert resp.status_code == 409
+            assert resp.json()["allocations"] == []
+            assert self._put(other, v1, [(mine["id"], 1)], []).status_code == 404
+            # My row is untouched (admin read: the client fixtures share one
+            # auth override, so `tc` would now ask as the other tenant).
+            assert (
+                db.execute(
+                    text("SELECT quantity FROM stash_items WHERE stash_id = :s"),
+                    {"s": mine["id"]},
+                ).scalar_one()
+                == 1
+            )
         finally:
             delete_provisioned_identity(db, OTHER_UID)
 
@@ -536,7 +635,7 @@ class TestImport:
             ("New", 2, 0),
             ("Old", 2, 1),
         ]
-        items = tc.get("/api/stashes/items").json()
+        items = _items(tc)
         assert items == [{"stash_id": old["id"], "variant_id": v1, "quantity": 1}]
 
     def test_replace_all_removal_cuts_every_stash_of_the_printing(
@@ -684,3 +783,59 @@ def test_swu_app_sees_only_its_own_tenants_rows(tc, db, app_db, tenant_id, v1):
     assert counts("") == (0, 0)  # no tenant: nothing
     assert counts(str(tenant_id)) == (1, 1)
     assert counts("999999999") == (0, 0)  # another tenant: nothing
+
+
+# ---------------------------------------------------------------------------
+# stashed_at (migration 0033; the Stashes page's "Recently stashed" sort)
+# ---------------------------------------------------------------------------
+
+
+class TestStashedAt:
+    def _at(self, tc, stash_id: int, variant_id: int) -> str:
+        for i in tc.get("/api/stashes/items").json():
+            if i["stash_id"] == stash_id and i["variant_id"] == variant_id:
+                return i["stashed_at"]
+        raise AssertionError("no such row")
+
+    def _age(self, db, stash_id: int, variant_id: int) -> None:
+        """Push one row's stashed_at a day back (admin connection)."""
+        db.execute(
+            text(
+                "UPDATE stash_items SET stashed_at = stashed_at - interval '1 day' "
+                "WHERE stash_id = :s AND variant_id = :v"
+            ),
+            {"s": stash_id, "v": variant_id},
+        )
+        db.commit()
+
+    def test_items_carry_stashed_at(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 2)
+        s = _stash(tc)
+        _split(tc, v1, [(s["id"], 1)])
+        (row,) = tc.get("/api/stashes/items").json()
+        assert set(row) == {"stash_id", "variant_id", "quantity", "stashed_at"}
+
+    def test_split_keeps_it_unless_the_quantity_rises(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 5)
+        a, b = _stash(tc, "A"), _stash(tc, "B")
+        _split(tc, v1, [(a["id"], 2), (b["id"], 2)])
+        self._age(db, a["id"], v1)
+        self._age(db, b["id"], v1)
+        aged_a = self._at(tc, a["id"], v1)
+        aged_b = self._at(tc, b["id"], v1)
+        # A drops to 1 (kept), B rises to 3 (re-stamped).
+        _split(tc, v1, [(a["id"], 1), (b["id"], 3)])
+        assert self._at(tc, a["id"], v1) == aged_a
+        assert self._at(tc, b["id"], v1) > aged_b
+
+    def test_return_keeps_it_restore_restamps(self, tc, db, tenant_id, v1):
+        _own(db, tenant_id, v1, 3)
+        s = _stash(tc)
+        _split(tc, v1, [(s["id"], 3)])
+        self._age(db, s["id"], v1)
+        aged = self._at(tc, s["id"], v1)
+        move = {"items": [{"variant_id": v1, "quantity": 1}]}
+        assert tc.post(f"/api/stashes/{s['id']}/return", json=move).status_code == 200
+        assert self._at(tc, s["id"], v1) == aged
+        assert tc.post(f"/api/stashes/{s['id']}/restore", json=move).status_code == 200
+        assert self._at(tc, s["id"], v1) > aged

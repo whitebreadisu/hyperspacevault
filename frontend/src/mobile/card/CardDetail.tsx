@@ -27,6 +27,7 @@ import { StashPinned, StashPlateBlock, StashSheet } from "./CardStashes";
 import type { StashHolding } from "./CardStashes";
 import { useStashes } from "../../stashes/StashContext";
 import { holdingOf, useStashEditor } from "../../stashes/useStashEditor";
+import { stashSaveStore } from "../../stashes/stashSaveStore";
 import { getPlaysetSize } from "../../utils/inventory";
 import { scopeShortName } from "../../utils/variantScope";
 import { FinishSheet } from "./FinishSheet";
@@ -151,23 +152,35 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const floorRef = useRef<(id: number) => number>(() => 0);
   const stashFloor = useCallback((id: number) => floorRef.current(id), []);
   const rawStepper = useStepper(patchQuantity, stashFloor);
+  // A stash save first settles its printing's owned requests, even after a
+  // printing change (utils/ownedSettle.ts).
   const stashEditor = useStashEditor(
     ownVault && variant ? variant.variant_id : null,
     variant ? rawStepper.qtyOf(variant) : 0,
-    async () => {
-      if (variant) await rawStepper.settle?.(variant.variant_id);
+    {
+      label: variant
+        ? `${scopeShortName(variant.finish ?? variant.variant_type)} ${variant.source_set_code} ${variant.card_number}`
+        : undefined,
     }
   );
   // As desktop: the selected printing's floor is the larger of the saved
   // and staged stash totals (fold-in 1, F4); other printings, the saved one.
   const floorOf = (id: number) =>
-    variant && id === variant.variant_id ? stashEditor.floor : stashData.stashedTotal(id);
+    variant && id === variant.variant_id
+      ? stashEditor.floor
+      : Math.max(stashData.stashedTotal(id), stashSaveStore.desiredTotal(id) ?? 0);
   useEffect(() => {
     floorRef.current = floorOf;
   });
   const [stashSheet, setStashSheet] = useState(false);
+  // A save that fails after the sheet closed reopens it on the rolled-back
+  // rows with the message (useStashEditor puts the editor back in edit).
+  const stashReopen = stashEditor.mode === "edit" && stashEditor.saveError != null;
+  useEffect(() => {
+    if (stashReopen) setStashSheet(true);
+  }, [stashReopen]);
   // A different printing (a route change under the sheet) closes the sheet;
-  // the editor has already discarded the draft.
+  // the editor sends the old printing's open window.
   const stashVariantId = variant?.variant_id ?? null;
   const [sheetFor, setSheetFor] = useState(stashVariantId);
   if (sheetFor !== stashVariantId) {
@@ -200,6 +213,9 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   // quantity_changed as desktop's popup (CardPopupInventory.tsx).
   const stepper: Stepper = {
     ...rawStepper,
+    // The Variants error lines: the owned stepper's and a failed stash save
+    // for a printing no longer shown -- both when both, as desktop.
+    notice: stashEditor.notice,
     floorOf: (v) => floorOf(v.variant_id),
     increment: (v) => {
       capturePhone("quantity_changed", { direction: "increment", surface: "detail" });
@@ -613,7 +629,8 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
           sub={`${scopeShortName(variant.finish ?? variant.variant_type)} · ${variant.source_set_code} ${variant.card_number} · ${rawStepper.qtyOf(variant)} owned`}
           printingLabel={`${scopeShortName(variant.finish ?? variant.variant_type)} ${variant.source_set_code} ${variant.card_number}`}
           onClosed={() => {
-            stashEditor.cancel();
+            // Closing never discards: it sends any open save (R1-11).
+            stashEditor.done();
             setStashSheet(false);
           }}
         />

@@ -73,6 +73,10 @@
   padding: 10px 28px;
   text-align: left;
 }
+/* One line per message (the owned stepper's and a stash save's). */
+.cp-mutation-error__line {
+  margin: 0;
+}
 
 /* ── Header ─────────────────────────────────────────────── */
 .cp-header {

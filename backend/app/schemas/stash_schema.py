@@ -73,6 +73,8 @@ class StashItemResponse(BaseModel):
     stash_id: int
     variant_id: int
     quantity: int
+    # When copies of this printing last went into this stash (R1-16 sort).
+    stashed_at: datetime
 
 
 class AllocationRequest(BaseModel):
@@ -82,10 +84,16 @@ class AllocationRequest(BaseModel):
 
 class SplitRequest(BaseModel):
     allocations: list[AllocationRequest]
+    # Optimistic concurrency (optional): the split the client last saw. When
+    # it differs from the stored split the PUT writes nothing and answers 409
+    # `split_changed` with the stored split. Absent = replace unconditionally.
+    expected: list[AllocationRequest] | None = None
 
-    @field_validator("allocations")
+    @field_validator("allocations", "expected")
     @classmethod
-    def _unique_stashes(cls, value: list[AllocationRequest]):
+    def _unique_stashes(cls, value: list[AllocationRequest] | None):
+        if value is None:
+            return value
         ids = [a.stash_id for a in value]
         if len(ids) != len(set(ids)):
             raise ValueError("a stash may appear only once in allocations")
@@ -98,6 +106,15 @@ class AllocationResponse(BaseModel):
 
 
 class SplitResponse(BaseModel):
+    variant_id: int
+    owned: int
+    allocations: list[AllocationResponse]
+
+
+class SplitConflictResponse(BaseModel):
+    """409 `split_changed`: the stored split (and owned) the PUT found."""
+
+    detail: str
     variant_id: int
     owned: int
     allocations: list[AllocationResponse]

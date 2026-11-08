@@ -36,15 +36,14 @@ export interface LastReturn {
   copies: number;
   /** "1 Luke Skywalker · Standard is back in your Vault." */
   text: string;
-  /** The printings returned in full (the phone's bulk rows dim at 0). */
-  emptied: number[];
 }
 
 export interface StashReturn {
   last: LastReturn | null;
   error: ReturnError | null;
   busy: boolean;
-  /** Return `quantity` copies of each row (one row = − or trash; many = bulk). */
+  /** Return `quantity` copies of each row (the − returns one, the trash
+   * all of the printing; several rows go in one request). */
   returnRows: (rows: { row: StashPrinting; quantity: number }[]) => Promise<boolean>;
   undo: () => Promise<boolean>;
 }
@@ -97,9 +96,6 @@ export function useStashReturn(stashId: number | null): StashReturn {
           items,
           copies: items.reduce((n, i) => n + i.quantity, 0),
           text: returnSentence(picked),
-          emptied: picked
-            .filter((r) => r.quantity >= r.row.qty)
-            .map((r) => r.row.variant.variant_id),
         });
         return true;
       } catch (err) {

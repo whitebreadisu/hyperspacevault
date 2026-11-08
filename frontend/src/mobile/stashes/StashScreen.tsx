@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
 import { CheckIcon, PencilIcon, ReturnIcon, TrashIcon } from "../../screens/stashes/stashIcons";
 import { useStashes } from "../../stashes/StashContext";
@@ -8,7 +7,7 @@ import {
   DEFAULT_STASH_SORT,
   finishName,
   narrowPrintings,
-  orderByCards,
+  nextStashSort,
   STASH_COPY,
   usePrintingIndex,
   printingLabel,
@@ -20,11 +19,12 @@ import {
   totalPrice,
   unitPrice,
 } from "../../stashes/stashContents";
-import type { StashPrinting } from "../../stashes/stashContents";
+import type { StashPrinting, StashSort } from "../../stashes/stashContents";
 import { useStashMeta } from "../../stashes/useStashMeta";
 import { useStashReturn } from "../../stashes/useStashReturn";
 import { parseCardDisplay } from "../../utils/catalog";
 import { formatMoney } from "../../utils/completion";
+import { getPlaysetSize } from "../../utils/inventory";
 import { formatCardValue } from "../../utils/variantScope";
 import type { PriceMode } from "../../utils/variantScope";
 import { useVaultData } from "../../vault/useVaultData";
@@ -34,39 +34,43 @@ import { MIcon } from "../icons";
 import { go } from "../router";
 import { cellImage } from "../vault/cardImage";
 import { PriceSeg } from "../vault/CompletionHeader";
-import { SortSheet, sortLabel } from "../vault/SortSheet";
 import { useVaultView } from "../vault/useVaultView";
 import { VaultScreen } from "../vault/VaultScreen";
 import { SearchField } from "../vault/VaultStatus";
 import { DeleteStashSheet, EditStashSheet } from "./StashSheets";
+import { StashSortSheet, stashSortLabel } from "./StashSortSheet";
 import "./stashes.css";
 
 // Inside a stash at #/stashes/<id> (design 1d), in the Vault's own frame
-// (VaultScreen: useCollapse + useHeaderSlot, App Spec §25.1 Collapse). The
-// expanded panel below the header bar holds the name, the one-line
-// description (a tap opens the full text in a popover), Market | Low and
-// COPIES / VALUE; collapsed, COPIES / VALUE ride in the header bar's strip
-// slot -- same hold, pull bar and never-re-expand-on-scroll rules as the
-// Vault. Below: the Vault's status rows (search, Filters; count, Select,
-// pencil, sort, list / gallery), the return feedback line, then one row per
-// printing. A row's resting control is its count chip + Return; Return makes
-// the row active with desktop's − / chip / trash, and the row goes back to
-// resting when another row is tapped or a scroll starts. Select checks rows
-// for a pinned "Return N to Vault". The bottom bar's Vault menu is the way
-// back to the Stashes list (no X, no back chevron).
+// (VaultScreen: useCollapse + useHeaderSlot, App Spec §25.1 Collapse) -- the
+// same collapse, hold and pull as the Vault panel and the card-detail art
+// (R1-12). The expanded panel below the header bar holds the name, the
+// one-line description (a tap opens the full text in a popover), Market |
+// Low and COPIES / VALUE (the Vault panel's `m-metric` tiles); collapsed,
+// the header bar's strip carries two lines -- the stash name over COPIES and
+// VALUE, the Vault readout's own type roles. Below: the Vault's status rows
+// (search, Filters; count, pencil, trash, sort, list / gallery), the return
+// feedback line, then one row per printing (the Vault row's `m-row__*`
+// classes). A row's resting control is its count chip + Return; Return
+// makes the row active with desktop's − / chip / trash, and the row goes
+// back to resting when another row is tapped or a scroll starts. The sort
+// is the stash's own (StashSortSheet), default Set | # by base card. The
+// bottom bar's Vault menu is the way back to the Stashes list (no X, no
+// back chevron).
 
 type SheetName = "filters" | "sort" | "edit" | "delete" | null;
 
-function Readout({ copies, value }: { copies: string; value: string }) {
+/** The collapsed strip: the stash name over the Vault readout's copies
+ * fact and value (header.css m-vh__fact / m-vh__n / m-vh__value). */
+function Readout({ name, copies, value }: { name: string; copies: string; value: string }) {
   return (
     <span className="m-stashstrip">
-      <span className="m-stashstrip__fact">
-        <span className="m-stashstrip__label">Copies</span>
-        <span className="m-stashstrip__copies">{copies}</span>
-      </span>
-      <span className="m-stashstrip__fact">
-        <span className="m-stashstrip__label">Value</span>
-        <span className="m-stashstrip__value">{value}</span>
+      <span className="m-stashstrip__name">{name}</span>
+      <span className="m-stashstrip__facts">
+        <span className="m-vh__fact m-vh__fact--cards">
+          <span className="m-vh__n">{copies}</span> copies
+        </span>
+        <span className="m-vh__value">{value}</span>
       </span>
     </span>
   );
@@ -129,15 +133,15 @@ function Panel({
           <PriceSeg mode={priceKind} onChange={onPriceKind} />
         </div>
         <div className="m-stashpanel__stats">
-          <span className="m-stashpanel__stat">
-            <span className="m-stashpanel__label">Copies</span>
-            <span className="m-stashpanel__copies">{copies}</span>
-            <span className="m-stashpanel__sub">{sub ?? ""}</span>
+          <span className="m-metric">
+            <span className="m-metric__label">Copies</span>
+            <span className="m-metric__value">{copies}</span>
+            <span className="m-metric__sub m-stashpanel__sub">{sub ?? ""}</span>
           </span>
-          <span className="m-stashpanel__stat">
-            <span className="m-stashpanel__label">Value</span>
-            <span className="m-stashpanel__value">{value}</span>
-            <span className="m-stashpanel__sub" />
+          <span className="m-metric">
+            <span className="m-metric__label">Value</span>
+            <span className="m-metric__value m-metric__value--money">{value}</span>
+            <span className="m-metric__sub" />
           </span>
         </div>
       </div>
@@ -163,7 +167,7 @@ function Panel({
 function Thumb({ row }: { row: StashPrinting }) {
   const img = cellImage(row.card, row.variant, "thumb", "46px");
   return (
-    <span className="m-stashline__thumb">
+    <span className="m-row__thumb">
       {img.images ? (
         <img
           className={img.rotated ? "m-img--rotated" : undefined}
@@ -185,71 +189,50 @@ function Line({
   row,
   priceKind,
   active,
-  selecting,
-  checked,
-  dimmed,
   busy,
   onOpen,
   onActivate,
-  onCheck,
   onReturn,
 }: {
   row: StashPrinting;
   priceKind: PriceMode;
   active: boolean;
-  selecting: boolean;
-  checked: boolean;
-  dimmed: boolean;
   busy: boolean;
   onOpen: () => void;
   onActivate: () => void;
-  onCheck: () => void;
   onReturn: (quantity: number) => void;
 }) {
   const { displayName, subtitle } = parseCardDisplay(row.card);
   const label = printingLabel(row);
   const fin = finishName(row.variant);
-  const qty = dimmed ? 0 : row.qty;
+  const total = totalPrice(row, priceKind);
   return (
     <div
-      className={
-        "m-stashline" +
-        (active ? " m-stashline--active" : "") +
-        (dimmed ? " m-stashline--dim" : "") +
-        (checked ? " m-stashline--checked" : "")
-      }
+      className={"m-stashline" + (active ? " m-stashline--active" : "")}
       data-variant={row.variant.variant_id}
     >
       <button
         type="button"
         className="m-stashline__main"
-        onClick={selecting ? onCheck : onOpen}
-        aria-label={
-          selecting
-            ? `${label}, ${row.qty} in this stash: ${checked ? "selected" : "select"}`
-            : `${displayName}${subtitle ? ", " + subtitle : ""}, ${printingNumber(row.variant)} ${fin}: open card`
-        }
-        aria-pressed={selecting ? checked : undefined}
+        onClick={onOpen}
+        aria-label={`${displayName}${subtitle ? ", " + subtitle : ""}, ${printingNumber(row.variant)} ${fin}: open card`}
       >
-        {selecting ? (
-          <span className={"m-stashline__check" + (checked ? " m-stashline__check--on" : "")}>
-            {checked ? <CheckIcon size={15} width={3.4} /> : null}
-          </span>
-        ) : null}
         <Thumb row={row} />
-        <span className="m-stashline__text">
-          <span className="m-stashline__name">{displayName}</span>
-          {subtitle ? <span className="m-stashline__sub">{subtitle}</span> : null}
-          <span className="m-stashline__meta">
-            <span className="m-stashline__num">{printingNumber(row.variant)}</span>
-            <span className="m-stashline__fin">{fin}</span>
+        <span className="m-row__text m-stashline__text">
+          <span className="m-row__name">{displayName}</span>
+          {subtitle ? <span className="m-row__sub">{subtitle}</span> : null}
+          <span className="m-row__meta">
+            <span className="m-row__num">{printingNumber(row.variant)}</span>
+            <span className="m-row__type m-stashline__fin">{fin}</span>
           </span>
         </span>
       </button>
       <span className="m-stashline__side">
-        <span className="m-stashline__total">{formatCardValue(totalPrice(row, priceKind))}</span>
+        <span className={"m-row__price" + (total == null ? " m-row__price--none" : "")}>
+          {formatCardValue(total)}
+        </span>
         <span className="m-stashline__ctl">
-          {active && !selecting ? (
+          {active ? (
             <button
               type="button"
               className="m-stashline__minus"
@@ -260,8 +243,8 @@ function Line({
               −
             </button>
           ) : null}
-          <span className={stashChipClass(qty, row.card) + " m-stashline__chip"}>{qty}</span>
-          {selecting || dimmed ? null : active ? (
+          <span className={stashChipClass(row.qty, row.card)}>{row.qty}</span>
+          {active ? (
             <button
               type="button"
               className="m-stashline__trash"
@@ -287,6 +270,9 @@ function Line({
   );
 }
 
+/** A gallery tile: the Vault's `m-cell` / `m-cell__frame` over the Vault's
+ * phone plate (`gallery-plate m-plate`, green ring at a playset) with the
+ * count, the finish and, under it, the unit price. */
 function Tile({
   row,
   priceKind,
@@ -299,20 +285,19 @@ function Tile({
   const img = cellImage(row.card, row.variant, "thumb", "(max-width: 500px) 30vw, 120px");
   const { displayName } = parseCardDisplay(row.card);
   const fin = finishName(row.variant);
+  const complete = row.qty >= getPlaysetSize(row.card.type);
   return (
     <button
       type="button"
-      className="m-stashtile"
+      className={"m-cell m-stashtile" + (img.images ? "" : " m-cell--empty")}
       data-variant={row.variant.variant_id}
       onClick={onOpen}
       aria-label={`${displayName}, ${fin}, ${row.qty} in this stash`}
     >
-      <span className="m-stashtile__art">
+      <span className="m-cell__frame">
         {img.images ? (
           <img
-            className={
-              img.rotated ? "m-stashtile__img m-stashtile__img--rotated" : "m-stashtile__img"
-            }
+            className={img.rotated ? "m-img--rotated" : undefined}
             src={img.images.src}
             srcSet={img.images.srcSet}
             sizes={img.images.sizes}
@@ -324,9 +309,15 @@ function Tile({
           />
         ) : null}
       </span>
-      <span className="m-stashtile__plate">
-        <span className={stashChipClass(row.qty, row.card) + " m-stashtile__chip"}>{row.qty}</span>
-        <span className="m-stashtile__fin">{fin}</span>
+      <span className={"gallery-plate m-plate" + (complete ? " gallery-plate--complete" : "")}>
+        <span className="gallery-plate__inner m-stashtile__plate">
+          <span
+            className={"gallery-plate__total" + (complete ? " gallery-plate__total--complete" : "")}
+          >
+            {row.qty}
+          </span>
+          <span className="m-stashtile__fin">{fin}</span>
+        </span>
       </span>
       <span className="m-stashtile__price">{formatCardValue(unitPrice(row, priceKind))}</span>
     </button>
@@ -358,12 +349,11 @@ export function StashScreen({
   const meta = useStashMeta();
   const [view, setView] = useState<"rows" | "gallery">("rows");
   const [sheet, setSheet] = useState<SheetName>(null);
+  const [sort, setSort] = useState<StashSort>(DEFAULT_STASH_SORT);
   const [searching, setSearching] = useState(false);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [selecting, setSelecting] = useState(false);
-  const [checked, setChecked] = useState<Set<number>>(() => new Set());
 
   // A stash that is gone (deleted elsewhere, a stale link) leads to the list.
   useEffect(() => {
@@ -390,48 +380,21 @@ export function StashScreen({
 
   const sid = stash?.id ?? null;
   const index = usePrintingIndex(cards);
-  const { itemsOf } = ctx;
+  const { itemsOf, stashedAtOf } = ctx;
   const all = useMemo(
-    () => (sid != null ? stashPrintings(index, itemsOf(sid)) : []),
-    [index, itemsOf, sid]
+    () => (sid != null ? stashPrintings(index, itemsOf(sid), (vid) => stashedAtOf(sid, vid)) : []),
+    [index, itemsOf, stashedAtOf, sid]
   );
-  // The printings the last bulk return emptied stay, dimmed at 0, beside
-  // its Undo (design 1d "done").
-  const ghosts = useMemo(() => {
-    const last = ret.last;
-    if (!last || last.items.length < 2) return [];
-    const present = new Set(all.map((r) => r.variant.variant_id));
-    const out: StashPrinting[] = [];
-    for (const vid of last.emptied) {
-      const hit = index.get(vid);
-      if (present.has(vid) || !hit) continue;
-      out.push({ ...hit, qty: last.items.find((i) => i.variant_id === vid)!.quantity });
-    }
-    return out;
-  }, [ret.last, all, index]);
-  const rows = useMemo(() => {
-    const narrowed = narrowPrintings([...all, ...ghosts], vv.list, vv.state.filters.finish);
-    // Set | # orders printings by their own number; Value by each row's
-    // value as shown (the printing's price x its copies in the stash); the
-    // other sorts are the Vault's card order.
-    if (vv.sort.column === "number")
-      return sortPrintings(
-        narrowed,
-        { ...DEFAULT_STASH_SORT, direction: vv.sort.direction },
+  const rows = useMemo(
+    () =>
+      sortPrintings(
+        narrowPrintings(all, vv.list, vv.state.filters.finish),
+        sort,
         setOrder,
         vv.priceKind
-      );
-    if (vv.sort.column === "value")
-      return sortPrintings(
-        narrowed,
-        { column: "value", direction: vv.sort.direction },
-        setOrder,
-        vv.priceKind,
-        (r) => totalPrice(r, vv.priceKind)
-      );
-    return orderByCards(narrowed, vv.list, setOrder);
-  }, [all, ghosts, vv.list, vv.state.filters.finish, vv.sort, setOrder, vv.priceKind]);
-  const ghostIds = new Set(ghosts.map((g) => g.variant.variant_id));
+      ),
+    [all, vv.list, vv.state.filters.finish, sort, setOrder, vv.priceKind]
+  );
 
   const totals = stashTotals(all, vv.priceKind);
   const copies = totals.copies.toLocaleString();
@@ -454,15 +417,6 @@ export function StashScreen({
     go("#/card/" + r.card.base_card_id + "?v=" + r.variant.variant_id);
   };
 
-  const checkedRows = rows.filter(
-    (r) => checked.has(r.variant.variant_id) && !ghostIds.has(r.variant.variant_id)
-  );
-  const checkedCopies = checkedRows.reduce((n, r) => n + r.qty, 0);
-  const endSelect = () => {
-    setSelecting(false);
-    setChecked(new Set());
-  };
-
   if (!stash) {
     return (
       <div className="m-screen">
@@ -480,7 +434,7 @@ export function StashScreen({
     );
   }
 
-  const zero = all.length === 0 && ghosts.length === 0;
+  const zero = all.length === 0;
   const n = rows.length;
   const controls = (
     <div className="m-vault__controls m-stashctl">
@@ -514,20 +468,6 @@ export function StashScreen({
         <span className={"m-count" + (vv.narrowed ? " m-count--narrowed" : "")}>
           {n} {n === 1 ? "printing" : "printings"}
         </span>
-        {zero ? null : (
-          <button
-            type="button"
-            className={"m-stashctl__mode" + (selecting ? " m-stashctl__mode--on" : "")}
-            aria-pressed={selecting}
-            onClick={() => {
-              setActiveId(null);
-              if (selecting) endSelect();
-              else setSelecting(true);
-            }}
-          >
-            {selecting ? "Cancel" : "Select"}
-          </button>
-        )}
         <button
           type="button"
           className="m-stashctl__icon"
@@ -541,10 +481,21 @@ export function StashScreen({
         </button>
         <button
           type="button"
+          className="m-stashctl__icon m-stashctl__icon--danger"
+          aria-label={`Delete ${stash.name}`}
+          onClick={() => {
+            meta.clearError();
+            setSheet("delete");
+          }}
+        >
+          <TrashIcon size={18} />
+        </button>
+        <button
+          type="button"
           className="m-sortbtn m-sortbtn--icon"
           onClick={() => setSheet("sort")}
           aria-haspopup="dialog"
-          aria-label={sortLabel(vv.sort)}
+          aria-label={stashSortLabel(sort)}
         >
           <MIcon name="sort" size={20} />
         </button>
@@ -608,7 +559,7 @@ export function StashScreen({
         className="m-stashscreen"
         summary={{ pct: 0, copies: totals.copies, value: totals.value, narrowed: false }}
         readout={{
-          content: <Readout copies={copies} value={value} />,
+          content: <Readout name={stash.name} copies={copies} value={value} />,
           label: `${stash.name}: copies ${copies}, value ${value}`,
         }}
         panel={
@@ -646,23 +597,12 @@ export function StashScreen({
                   row={r}
                   priceKind={vv.priceKind}
                   active={activeId === vid}
-                  selecting={selecting}
-                  checked={checked.has(vid)}
-                  dimmed={ghostIds.has(vid)}
                   busy={ret.busy}
                   onOpen={() => {
                     if (activeId != null && activeId !== vid) setActiveId(null);
                     else openRow(r);
                   }}
                   onActivate={() => setActiveId(vid)}
-                  onCheck={() =>
-                    setChecked((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(vid)) next.delete(vid);
-                      else next.add(vid);
-                      return next;
-                    })
-                  }
                   onReturn={(quantity) => {
                     void ret.returnRows([{ row: r, quantity }]).then((ok) => {
                       if (ok && quantity >= r.qty) setActiveId(null);
@@ -674,44 +614,17 @@ export function StashScreen({
           </div>
         ) : (
           <div className="m-stashgrid">
-            {rows
-              .filter((r) => !ghostIds.has(r.variant.variant_id))
-              .map((r) => (
-                <Tile
-                  key={r.variant.variant_id}
-                  row={r}
-                  priceKind={vv.priceKind}
-                  onOpen={() => openRow(r)}
-                />
-              ))}
+            {rows.map((r) => (
+              <Tile
+                key={r.variant.variant_id}
+                row={r}
+                priceKind={vv.priceKind}
+                onOpen={() => openRow(r)}
+              />
+            ))}
           </div>
         )}
       </VaultScreen>
-      {selecting ? (
-        <div className="m-stashbulk" role="region" aria-label="Selected copies">
-          <span className="m-stashbulk__text">
-            <span className="m-stashbulk__count">
-              {checkedRows.length} selected · {checkedCopies}{" "}
-              {checkedCopies === 1 ? "copy" : "copies"}
-            </span>
-            <span className="m-stashbulk__note">Owned counts stay the same</span>
-          </span>
-          <SWUButton
-            size="touch"
-            active={checkedCopies > 0 && !ret.busy}
-            ariaDisabled={checkedCopies === 0 || ret.busy}
-            onClick={async () => {
-              if (checkedCopies === 0 || ret.busy) return;
-              const ok = await ret.returnRows(
-                checkedRows.map((row) => ({ row, quantity: row.qty }))
-              );
-              if (ok) endSelect();
-            }}
-          >
-            Return {checkedCopies} to Vault
-          </SWUButton>
-        </div>
-      ) : null}
       {sheet === "filters" ? (
         <FiltersSheet
           vv={vv}
@@ -723,7 +636,11 @@ export function StashScreen({
         />
       ) : null}
       {sheet === "sort" ? (
-        <SortSheet sort={vv.sort} onPick={vv.pickSort} onClose={() => setSheet(null)} />
+        <StashSortSheet
+          sort={sort}
+          onPick={(c) => setSort((prev) => nextStashSort(prev, c))}
+          onClose={() => setSheet(null)}
+        />
       ) : null}
       {sheet === "edit" ? (
         <EditStashSheet
