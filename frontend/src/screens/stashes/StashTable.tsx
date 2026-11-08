@@ -32,11 +32,11 @@ export type ValueUnit = "unit" | "total";
 
 const COLS: { col: StashSortColumn; label: string; width: number; cls?: string }[] = [
   { col: "base", label: "Set | #", width: 92 },
-  { col: "name", label: "Name", width: 230 },
+  { col: "name", label: "Name", width: 212 },
   { col: "printing", label: "Printing", width: 130 },
   { col: "qty", label: "In stash", width: 150, cls: "sp-th--qty" },
   { col: "value", label: "Value", width: 140, cls: "th-value sp-th--value" },
-  { col: "rarity", label: "Rarity", width: 130 },
+  { col: "rarity", label: "Rarity", width: 148 },
 ];
 
 export function StashTable({
@@ -136,6 +136,7 @@ export function StashTable({
                   <button
                     type="button"
                     className="card-name-link sp-namebtn"
+                    title={displayName}
                     onClick={(e) => {
                       e.stopPropagation();
                       onOpen(r);
@@ -180,7 +181,7 @@ export function StashTable({
                 <td className={"td-value" + (price == null ? " cell-muted" : "")}>
                   {formatCardValue(price)}
                 </td>
-                <td className="td-ellipsis sp-td--rarity">
+                <td className="sp-td--rarity">
                   <RarityBadge rarity={r.card.rarity} />
                 </td>
               </tr>

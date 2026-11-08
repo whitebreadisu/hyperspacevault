@@ -336,33 +336,47 @@ test.describe("many stashes", () => {
   });
 });
 
+// R1-8 at 1280 and 1920, with the web fonts and with the browser's fallback
+// faces (an empty Google Fonts stylesheet: CI fail 2026-11-08 showed one
+// header clipping under different metrics). Nothing may clip either way.
 for (const width of [1280, 1920]) {
-  test.describe(`table at ${width}`, () => {
-    test.use({ stashSeed: SEED, viewport: { width, height: 1080 } });
-    test(`stashes-desktop-table-balance-${width}`, async ({ page }) => {
-      await openStashes(page);
-      const th = page.locator(".sp-table thead th");
-      await expect(th).toHaveCount(6);
-      const w = await th.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
-      const [num, name, printing, qty, value, rarity] = w;
-      // Name leads but does not take the slack; Value and Rarity have room.
-      expect(name).toBeLessThan((num + printing + qty + value + rarity) * 0.5);
-      expect(value).toBeGreaterThanOrEqual(120);
-      expect(rarity).toBeGreaterThanOrEqual(80);
-      expect(qty).toBeGreaterThanOrEqual(130);
-      // No header text is clipped.
-      const clipped = await th.evaluateAll(
-        (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length
-      );
-      expect(clipped).toBe(0);
-      // Nor any Rarity cell (badge + label).
-      const rarityClipped = await page
-        .locator(".sp-table tbody td.sp-td--rarity")
-        .evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length);
-      expect(rarityClipped).toBe(0);
-      await shot(page, `table-${width}`, true);
+  for (const fonts of ["web", "fallback", "wide"] as const) {
+    test.describe(`table at ${width}, ${fonts} fonts`, () => {
+      test.use({ stashSeed: SEED, viewport: { width, height: 1080 } });
+      test(`stashes-desktop-table-balance-${width}-${fonts}`, async ({ page }) => {
+        if (fonts === "fallback")
+          await page.route("https://fonts.googleapis.com/css2**", (route) =>
+            route.fulfill({ status: 200, contentType: "text/css", body: "" })
+          );
+        await openStashes(page);
+        await page.evaluate(() => document.fonts.ready);
+        if (fonts === "wide")
+          await page.addStyleTag({
+            content:
+              ".sp-table, .sp-table * { font-family: Verdana, 'DejaVu Sans', sans-serif !important; }",
+          });
+        const th = page.locator(".sp-table thead th");
+        await expect(th).toHaveCount(6);
+        const w = await th.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+        const [num, name, printing, qty, value, rarity] = w;
+        // Name leads but does not take the slack; Value and Rarity have room.
+        expect(name).toBeLessThan((num + printing + qty + value + rarity) * 0.5);
+        expect(value).toBeGreaterThanOrEqual(120);
+        expect(rarity).toBeGreaterThanOrEqual(80);
+        expect(qty).toBeGreaterThanOrEqual(130);
+        // No header or cell is clipped (named, so a failure says which).
+        const clipped = await page
+          .locator(".sp-table thead th, .sp-table tbody td")
+          .evaluateAll((els) =>
+            els
+              .filter((e) => e.scrollWidth > e.clientWidth + 1)
+              .map((e) => `${e.tagName} ${e.className} "${(e.textContent ?? "").trim()}"`)
+          );
+        expect(clipped).toEqual([]);
+        await shot(page, `table-${width}-${fonts}`, true);
+      });
     });
-  });
+  }
 }
 
 // R1-8: the page never scrolls sideways, at any desktop width (the table

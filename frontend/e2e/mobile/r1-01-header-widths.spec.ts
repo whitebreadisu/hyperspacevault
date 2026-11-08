@@ -230,3 +230,37 @@ test.describe("with a share", () => {
     await sweep(page);
   });
 });
+
+// CI fold-in: the header must fit whatever the font metrics (CI's Linux
+// rendering came out ~10 px wider than ours). The header's text is forced
+// into a much wider face here (Arial / DejaVu Sans); the minimal step's
+// measured last resort (sub items capped with an ellipsis) has to absorb it.
+test.describe("with wider font metrics", () => {
+  test.use({ storageState: "e2e/.auth/phone.json" });
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      document.addEventListener("DOMContentLoaded", () => {
+        const s = document.createElement("style");
+        s.textContent =
+          '.app-header, .app-header * { font-family: Arial, "DejaVu Sans", sans-serif !important; }';
+        document.head.appendChild(s);
+      });
+    });
+  });
+
+  test("r1-01-header-fits-wide-metrics-signed-in", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+    await sweep(page);
+  });
+
+  test("r1-01-header-fits-wide-metrics-holding-a-share", async ({ page }) => {
+    await page.goto("/shared/tok-long");
+    await page.locator('[data-sub="own"]').click();
+    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+    await sweep(page);
+    // Capped items keep their full names.
+    await page.setViewportSize({ width: 768, height: 700 });
+    await expect(page.locator('[data-sub="shared"]')).toHaveText("Rowan's Big Hyperspace Binder!");
+  });
+});

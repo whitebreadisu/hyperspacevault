@@ -460,6 +460,13 @@
 .sp-numsort__by {
   color: var(--color-text);
 }
+/* In the table's narrow first column the base / card tag sits under the
+   label, so the header fits whatever the font metrics (CI 2026-11-08). */
+.sp-table thead .sp-numsort {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
 .sp-numsort__menu {
   right: auto;
   min-width: 210px;
@@ -524,8 +531,6 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .sp-table td.sp-td--qty {
   cursor: default;
@@ -578,8 +583,26 @@
   color: var(--color-danger);
   border-color: var(--color-danger);
 }
+/* Fit, never clip, whatever the font metrics: the stash table's header
+   labels, finish names and rarity labels wrap onto a second line when a
+   column is narrower than its text (the Vault's fixed column widths stay;
+   CI 2026-11-08 clipped a header under Linux font metrics). */
+.sp-table thead th {
+  white-space: normal;
+}
+.sp-table td.sp-td--printing {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .sp-table td.sp-td--rarity {
-  line-height: 0;
+  white-space: normal;
+}
+.sp-table td.sp-td--rarity .rarity-badge {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.sp-table td.sp-td--rarity .rarity-badge__label {
+  overflow-wrap: anywhere;
 }
 
 /* ── Gallery (the Vault's gallery-cell + gallery-plate) ───────────────── */

@@ -14,6 +14,8 @@ const VERSION = formatVersionLabel(__APP_VERSION__);
 
 type Density = "full" | "compact" | "tight" | "minimal";
 const DENSITIES: Density[] = ["full", "compact", "tight", "minimal"];
+/** The narrowest a sub item gets at the minimal step's last resort. */
+const SUB_FLOOR_PX = 24;
 
 // The views the shell shows (App.tsx). "cards" is the Vault's Collection and
 // "stashes" the Vault's Stashes page (signed in, own vault only);
@@ -168,17 +170,41 @@ export function Header({
   useLayoutEffect(() => {
     const el = headerRef.current;
     if (!el) return undefined;
+    const overflows = () => el.scrollWidth > el.clientWidth;
     const fit = () => {
       el.setAttribute("data-measuring", "");
+      el.style.removeProperty("--pod-sub-max");
       let chosen: Density = "minimal";
       for (const d of DENSITIES) {
         el.setAttribute("data-density", d);
-        if (el.scrollWidth <= el.clientWidth) {
+        if (!overflows()) {
           chosen = d;
           break;
         }
       }
       el.setAttribute("data-density", chosen);
+      // The last resort (NavPod.css): still too wide at the minimal step --
+      // wider font metrics than ours, a long share name -- so cap every sub
+      // item at the widest width that fits (binary search, whole pixels),
+      // down to a 24 px floor.
+      if (chosen === "minimal" && overflows()) {
+        const subs = Array.from(el.querySelectorAll<HTMLElement>(".pod__subs--open .pod__sub"));
+        let hi = Math.max(0, ...subs.map((s) => Math.ceil(s.getBoundingClientRect().width)));
+        let lo = SUB_FLOOR_PX;
+        const at = (px: number) => el.style.setProperty("--pod-sub-max", `${px}px`);
+        if (hi > lo) {
+          at(lo);
+          if (!overflows()) {
+            while (hi - lo > 1) {
+              const mid = Math.floor((lo + hi) / 2);
+              at(mid);
+              if (overflows()) hi = mid;
+              else lo = mid;
+            }
+          }
+          at(lo);
+        }
+      }
       el.removeAttribute("data-measuring");
       setDensity(chosen);
     };

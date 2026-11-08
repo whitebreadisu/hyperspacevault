@@ -449,3 +449,16 @@
 .app-header[data-density="minimal"] .pod__label {
   display: none;
 }
+/* The last resort, measured (Header.tsx): when even the minimal step does
+   not fit -- wider font metrics than the shipped web fonts, a long share
+   name -- every sub item is capped at the widest value that fits
+   (`--pod-sub-max`, border box) and ends in an ellipsis. Its full name stays
+   its text and accessible name. */
+.app-header[data-density="minimal"] .pod__sub {
+  max-width: var(--pod-sub-max, none);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-header[data-density="minimal"] .pod__sub[data-sub="shared"] {
+  max-width: min(64px, var(--pod-sub-max, 64px));
+}
