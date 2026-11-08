@@ -171,6 +171,10 @@ export function Header({
     const el = headerRef.current;
     if (!el) return undefined;
     const overflows = () => el.scrollWidth > el.clientWidth;
+    // The boxes watched for a change, and their sizes when the last fit ended.
+    let observed: HTMLElement[] = [];
+    const settled = new WeakMap<Element, string>();
+    const sizeOf = (n: HTMLElement) => `${n.offsetWidth}x${n.offsetHeight}`;
     const fit = () => {
       el.setAttribute("data-measuring", "");
       el.style.removeProperty("--pod-sub-max");
@@ -207,8 +211,10 @@ export function Header({
       }
       el.removeAttribute("data-measuring");
       setDensity(chosen);
+      // What the fit left behind: an observer report of exactly these
+      // sizes is the fit's own doing, not a change to measure again.
+      for (const node of observed) settled.set(node, sizeOf(node));
     };
-    fit();
     // A step change resizes the observed boxes: re-fit on the next frame,
     // never inside the observer's own delivery (which would loop). The
     // window's resize is watched too, for a browser without ResizeObserver,
@@ -220,16 +226,29 @@ export function Header({
       frame = requestAnimationFrame(fit);
     };
     window.addEventListener("resize", later);
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(later);
+    // A report is acted on only when a box's size differs from the one the
+    // last fit left: the fit's own step and cap writes settle in one pass.
+    const ro =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver((entries) => {
+            const changed = entries.some(
+              (e) => settled.get(e.target) !== sizeOf(e.target as HTMLElement)
+            );
+            if (changed) later();
+          });
     const observeAll = () => {
+      observed = [
+        el,
+        ...Array.from(el.children),
+        ...Array.from(el.querySelectorAll(".pod, .pod__item, .pod__subsinner")),
+      ] as HTMLElement[];
       if (!ro) return;
       ro.disconnect();
-      ro.observe(el);
-      for (const child of Array.from(el.children)) ro.observe(child);
-      for (const node of Array.from(el.querySelectorAll(".pod, .pod__item, .pod__subsinner")))
-        ro.observe(node);
+      for (const node of observed) ro.observe(node);
     };
     observeAll();
+    fit();
     const mo =
       typeof MutationObserver === "undefined"
         ? null

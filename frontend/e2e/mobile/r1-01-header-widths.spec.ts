@@ -22,6 +22,13 @@ test.afterEach(async ({ page }) => {
 });
 
 const WIDTHS = [...Array.from({ length: 29 }, (_, i) => 768 + i * 40), 899, 900, 1079, 1080, 1920];
+// Every sweep runs as three tests over thirds of WIDTHS (same widths, same
+// assertions): a whole sweep could pass the 30 s test timeout on a loaded
+// runner (main CI run 42512316231; --repeat-each with parallel workers here).
+const SORTED = [...WIDTHS].sort((a, b) => a - b);
+const PARTS = [0, 1, 2].map((k) =>
+  SORTED.slice(Math.round((k * SORTED.length) / 3), Math.round(((k + 1) * SORTED.length) / 3))
+);
 
 async function measure(page: Page) {
   return page.evaluate(() => {
@@ -88,9 +95,35 @@ function roomierFits(page: Page) {
   });
 }
 
-async function sweep(page: Page) {
+/** Wait `n` animation frames. */
+function frames(page: Page, n: number) {
+  return page.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let left = count;
+        const step = () => (--left <= 0 ? resolve() : requestAnimationFrame(step));
+        requestAnimationFrame(step);
+      }),
+    n
+  );
+}
+
+/** The header's step, sub-item cap, pod width and re-measure count. */
+function state(page: Page) {
+  return page.evaluate(() => {
+    const h = document.querySelector(".app-header") as HTMLElement;
+    return {
+      density: h.getAttribute("data-density"),
+      cap: h.style.getPropertyValue("--pod-sub-max"),
+      pod: Math.round(document.querySelector(".pod")!.getBoundingClientRect().width),
+      fits: (window as unknown as { __fits: number }).__fits,
+    };
+  });
+}
+
+async function sweep(page: Page, widths: number[]) {
   await page.evaluate(() => document.fonts.ready);
-  for (const w of WIDTHS) {
+  for (const w of widths) {
     await page.setViewportSize({ width: w, height: 700 });
     // Scroll the content: the header never moves with it.
     await page.mouse.move(w / 2, 600);
@@ -128,34 +161,85 @@ test.describe("signed in", () => {
     },
   });
 
-  test("r1-01-header-pinned-every-width-signed-in", async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        localStorage.removeItem("swu.releaseNotes.lastSeen");
-      } catch {
-        /* the Updates item shows while unread */
-      }
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-pinned-every-width-signed-in (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.addInitScript(() => {
+        try {
+          localStorage.removeItem("swu.releaseNotes.lastSeen");
+        } catch {
+          /* the Updates item shows while unread */
+        }
+      });
+      await page.goto("/");
+      await expect(page.locator('[data-sub="stashes"]')).toBeVisible();
+      await expect(page.locator('[data-top="updates"]')).toBeVisible();
+      await sweep(page, widths);
     });
-    await page.goto("/");
-    await expect(page.locator('[data-sub="stashes"]')).toBeVisible();
-    await expect(page.locator('[data-top="updates"]')).toBeVisible();
-    await sweep(page);
-    // The Stashes page carries the same header.
-    await page.setViewportSize({ width: 1440, height: 700 });
-    await page.locator('[data-sub="stashes"]').click();
-    await expect(page.locator(".sp-page")).toBeVisible();
-    await sweep(page);
+
+  // The Stashes page carries the same header. Its own test (main CI run
+  // 42512316231: two full sweeps in one test passed the 30 s test timeout
+  // on a loaded runner; the header itself was idle).
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-pinned-every-width-stashes-page (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.addInitScript(() => {
+        try {
+          localStorage.removeItem("swu.releaseNotes.lastSeen");
+        } catch {
+          /* the Updates item shows while unread */
+        }
+      });
+      await page.goto("/");
+      await page.locator('[data-sub="stashes"]').click();
+      await expect(page.locator(".sp-page")).toBeVisible();
+      await expect(page.locator('[data-top="updates"]')).toBeVisible();
+      await sweep(page, widths);
+    });
+
+  // The fit converges in one pass and then stays put: across 20 frames after
+  // settling, no re-measure runs and the step and the sub-item cap do not
+  // change -- at a full, a compact, a tight and a minimal width.
+  test("r1-01-header-step-is-stable-after-settling", async ({ page }) => {
+    await page.goto("/shared/tok-long");
+    await page.locator('[data-sub="own"]').click();
+    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+    await page.evaluate(() => {
+      const h = document.querySelector(".app-header")!;
+      const w = window as unknown as { __fits: number };
+      w.__fits = 0;
+      new MutationObserver((ms) => {
+        for (const m of ms)
+          if (m.attributeName === "data-measuring" && h.hasAttribute("data-measuring"))
+            w.__fits += 1;
+      }).observe(h, { attributes: true });
+    });
+    for (const width of [1920, 1100, 900, 768]) {
+      await page.setViewportSize({ width, height: 700 });
+      await expect.poll(() => roomierFits(page), { message: `settles at ${width}` }).toBe(false);
+      await frames(page, 2);
+      const before = await state(page);
+      await frames(page, 20);
+      const after = await state(page);
+      expect(after, `stable at ${width}`).toEqual(before);
+      expect(after.fits - before.fits, `re-measures at ${width}`).toBe(0);
+    }
   });
 });
 
 test.describe("signed out", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("r1-01-header-pinned-every-width-signed-out", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".app-header__account").getByText("Sign In")).toBeVisible();
-    await sweep(page);
-  });
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-pinned-every-width-signed-out (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.goto("/");
+      await expect(page.locator(".app-header__account").getByText("Sign In")).toBeVisible();
+      await sweep(page, widths);
+    });
 });
 
 test("r1-01-feedback-label-steps-down", async ({ page }) => {
@@ -188,12 +272,15 @@ test.describe("with a share", () => {
     },
   });
 
-  test("r1-01-header-pinned-every-width-viewing-a-share", async ({ page }) => {
-    await page.goto("/shared/tok-long");
-    await expect(page.locator('[data-sub="shared"]')).toHaveAttribute("aria-current", "page");
-    await expect(page.locator('[data-sub="own"]')).toBeVisible();
-    await sweep(page);
-  });
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-pinned-every-width-viewing-a-share (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.goto("/shared/tok-long");
+      await expect(page.locator('[data-sub="shared"]')).toHaveAttribute("aria-current", "page");
+      await expect(page.locator('[data-sub="own"]')).toBeVisible();
+      await sweep(page, widths);
+    });
 
   test("r1-01-minimal-step-icon-only-items-keep-their-names", async ({ page }) => {
     await page.goto("/shared/tok-long");
@@ -220,15 +307,18 @@ test.describe("with a share", () => {
     await expect(pod.locator('[data-top="vault"]')).not.toHaveAttribute("title", /.*/);
   });
 
-  test("r1-01-header-pinned-every-width-holding-a-share", async ({ page }) => {
-    await page.goto("/shared/tok-long");
-    await expect(page.locator('[data-sub="shared"]')).toHaveAttribute("aria-current", "page");
-    await page.locator('[data-sub="own"]').click();
-    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
-    await expect(page.locator('[data-sub="stashes"]')).toBeVisible();
-    await expect(page.locator('[data-sub="shared"]')).toBeVisible();
-    await sweep(page);
-  });
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-pinned-every-width-holding-a-share (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.goto("/shared/tok-long");
+      await expect(page.locator('[data-sub="shared"]')).toHaveAttribute("aria-current", "page");
+      await page.locator('[data-sub="own"]').click();
+      await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+      await expect(page.locator('[data-sub="stashes"]')).toBeVisible();
+      await expect(page.locator('[data-sub="shared"]')).toBeVisible();
+      await sweep(page, widths);
+    });
 });
 
 // CI fold-in: the header must fit whatever the font metrics (CI's Linux
@@ -248,19 +338,36 @@ test.describe("with wider font metrics", () => {
     });
   });
 
-  test("r1-01-header-fits-wide-metrics-signed-in", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
-    await sweep(page);
-  });
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-fits-wide-metrics-signed-in (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.goto("/");
+      await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+      await sweep(page, widths);
+    });
 
-  test("r1-01-header-fits-wide-metrics-holding-a-share", async ({ page }) => {
-    await page.goto("/shared/tok-long");
-    await page.locator('[data-sub="own"]').click();
-    await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
-    await sweep(page);
-    // Capped items keep their full names.
-    await page.setViewportSize({ width: 768, height: 700 });
-    await expect(page.locator('[data-sub="shared"]')).toHaveText("Rowan's Big Hyperspace Binder!");
-  });
+  for (const [i, widths] of PARTS.entries())
+    test(`r1-01-header-fits-wide-metrics-holding-a-share (part ${i + 1} of ${PARTS.length})`, async ({
+      page,
+    }) => {
+      await page.goto("/shared/tok-long");
+      await page.locator('[data-sub="own"]').click();
+      await expect(page.locator('[data-sub="collection"]')).toHaveAttribute("aria-current", "page");
+      await sweep(page, widths);
+      // Capped items keep their full names.
+      await page.setViewportSize({ width: 768, height: 700 });
+      await expect(page.locator('[data-sub="shared"]')).toHaveText(
+        "Rowan's Big Hyperspace Binder!"
+      );
+      // The measured cap is in use here, and it holds still once settled.
+      await expect.poll(() => roomierFits(page)).toBe(false);
+      await frames(page, 2);
+      const before = await state(page);
+      expect(before.density).toBe("minimal");
+      expect(before.cap).not.toBe("");
+      await frames(page, 20);
+      const after = await state(page);
+      expect({ ...after, fits: 0 }).toEqual({ ...before, fits: 0 });
+    });
 });
