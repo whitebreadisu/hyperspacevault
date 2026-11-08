@@ -5,14 +5,17 @@ verified email (ADR-0034). Nothing here is reachable through a share token.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.auth import require_verified_email
 from app.database import get_db
-from app.http_cache import tenant_no_store
+from app.http_cache import TENANT_CACHE_CONTROL, tenant_no_store
 from app.schemas.stash_schema import (
+    AllocationResponse,
     MoveRequest,
     MoveResponse,
+    SplitConflictResponse,
     SplitRequest,
     SplitResponse,
     StashCreateRequest,
@@ -91,13 +94,34 @@ def delete_stash(stash_id: int, db: Session = Depends(get_db)):
     "/variants/{variant_id}",
     response_model=SplitResponse,
     dependencies=[Depends(require_verified_email)],
+    responses={409: {"model": SplitConflictResponse}},
 )
 def set_variant_split(
     variant_id: int, body: SplitRequest, db: Session = Depends(get_db)
 ):
     allocations = {a.stash_id: a.quantity for a in body.allocations}
+    expected = (
+        None
+        if body.expected is None
+        else {a.stash_id: a.quantity for a in body.expected}
+    )
     try:
-        return stash_service.set_variant_split(db, variant_id, allocations)
+        return stash_service.set_variant_split(db, variant_id, allocations, expected)
+    except stash_service.SplitChanged as changed:
+        return JSONResponse(
+            status_code=409,
+            content=SplitConflictResponse(
+                detail="split_changed",
+                variant_id=variant_id,
+                owned=changed.owned,
+                allocations=[
+                    AllocationResponse(stash_id=s, quantity=q)
+                    for s, q in sorted(changed.current.items())
+                ],
+            ).model_dump(),
+            # A returned response skips the router's tenant_no_store header.
+            headers={"Cache-Control": TENANT_CACHE_CONTROL},
+        )
     except stash_service.VariantNotFound:
         raise _not_found("Card") from None
     except stash_service.StashNotFound:

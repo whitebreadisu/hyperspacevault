@@ -13,7 +13,9 @@ import type { InventoryCard, InventoryVariant } from "../../utils/inventory";
 //   c2 Edit -> rows from the saved split  d1 stash -> stash   d2 stash -> Vault
 //   e1 all stashed: Vault 0 red, + off    e2 0 owned: nothing
 //   f1 a share / f2 signed out: nothing drawn, nothing fetched
-// plus X = Cancel, staged Done (one PUT), and the owned stepper's floor.
+// plus save on click (BL-344 R1-11: no Cancel; Done, the X and the scrim
+// close the sheet and send the open window; a failure reopens it rolled
+// back with the message), and the owned stepper's floor.
 // Pixel sizes (44 px targets, the pinned list's place) are measured in the
 // browser: e2e/mobile/bl344-stashes.spec.ts.
 
@@ -40,12 +42,19 @@ const { getStashes, getStashItems, createStash, putVariantAllocations } = vi.hoi
   createStash: vi.fn(),
   putVariantAllocations: vi.fn(),
 }));
+// The save store sends `expected` and an abort signal as a third argument;
+// assertions read the first two (the printing and the split) on
+// `putVariantAllocations`, and the third on `putOptions`.
+const putOptions: unknown[] = [];
 vi.mock("../../api/stashes", async (orig) => ({
   ...(await orig<typeof import("../../api/stashes")>()),
   getStashes,
   getStashItems,
   createStash,
-  putVariantAllocations,
+  putVariantAllocations: (variantId: number, allocations: unknown, opts: unknown) => {
+    putOptions.push(opts);
+    return putVariantAllocations(variantId, allocations);
+  },
 }));
 
 const v = (id: number, finish: string, num: string, quantity: number): InventoryVariant => ({
@@ -96,6 +105,8 @@ vi.mock("../../vault/useVaultData", () => ({
 
 import { StashApiError } from "../../api/stashes";
 import { StashProvider } from "../../stashes/StashContext";
+import { resetStashSaveStoreForTests } from "../../stashes/stashSaveStore";
+import { resetOwnedSettleForTests } from "../../utils/ownedSettle";
 import { STASH_ERRORS, STASH_FLOOR_HINT } from "../../stashes/useStashEditor";
 import { SheetHost } from "../Sheet";
 import { CardDetail } from "./CardDetail";
@@ -148,6 +159,10 @@ const closed = () => waitFor(() => expect(sheet()).toBeNull(), { timeout: 2000 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The save store and the owned tracker are app-wide modules.
+  resetStashSaveStoreForTests();
+  resetOwnedSettleForTests();
+  putOptions.length = 0;
   resetNavForTest();
   window.location.hash = "#/card/1";
   vault.isAuthenticated = true;
@@ -217,6 +232,8 @@ describe("BL-344 phone 1e states", () => {
     expect(vaultNum().textContent).toBe("3");
   });
 
+  // REPLACE (R1-11): was staged; the clicks save themselves and Done sends
+  // the still-open window at once, then closes.
   it("b2: + stashes from the Vault; Done sends one PUT and closes", async () => {
     seed(ALL, []);
     await renderDetail();
@@ -321,30 +338,78 @@ describe("BL-344 phone 1e states", () => {
 });
 
 describe("BL-344 phone staging", () => {
-  it("the X = Cancel: nothing written, the list unchanged", async () => {
+  // Disposition (R1-11): "the X = Cancel" REPLACE -> the X closes and sends
+  // the open window; "the footer Cancel discards too" RETIRE (Cancel is
+  // designed away) -> "the rows' foot is Done alone".
+  it("the X closes the sheet and sends the open window: nothing is discarded", async () => {
     seed(ALL, [{ stash_id: 1, variant_id: STD, quantity: 1 }]);
     await renderDetail();
     await waitFor(() => expect(listNames(own())).toEqual(["Red binder"]));
     await click(within(own()).getByRole("button", { name: /edit/i }));
     await click(plus(2));
+    getStashItems.mockResolvedValue([
+      { stash_id: 1, variant_id: STD, quantity: 1 },
+      { stash_id: 2, variant_id: STD, quantity: 1 },
+    ]);
     await click(within(sheet()!).getByRole("button", { name: "Close" }));
     await closed();
-    expect(putVariantAllocations).not.toHaveBeenCalled();
-    expect(listNames(own())).toEqual(["Red binder"]);
-    // Reopening starts from the saved split again.
-    await click(within(own()).getByRole("button", { name: /edit/i }));
-    expect(count(2)).toBe("0");
+    expect(putVariantAllocations).toHaveBeenCalledTimes(1);
+    expect(putVariantAllocations).toHaveBeenCalledWith(STD, [
+      { stash_id: 1, quantity: 1 },
+      { stash_id: 2, quantity: 1 },
+    ]);
+    await waitFor(() => expect(listNames(own())).toEqual(["Red binder", "Trade stash"]));
   });
 
-  it("the footer Cancel discards too", async () => {
+  it("the rows' foot is Done alone (no Cancel)", async () => {
     seed(ALL, [{ stash_id: 1, variant_id: STD, quantity: 1 }]);
     await renderDetail();
     await waitFor(() => expect(listNames(own())).toEqual(["Red binder"]));
     await click(within(own()).getByRole("button", { name: /edit/i }));
-    await click(plus(3));
-    await click(within(sheet()!).getByRole("button", { name: "Cancel" }));
-    await closed();
-    expect(putVariantAllocations).not.toHaveBeenCalled();
+    const foot = sheet()!.querySelector(".m-stash__foot") as HTMLElement;
+    expect(
+      within(foot)
+        .getAllByRole("button")
+        .map((b) => b.textContent)
+    ).toEqual(["Done"]);
+    expect(within(sheet()!).queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("rapid clicks save once, after the window, with the latest split", async () => {
+    seed(ALL, []);
+    await renderDetail();
+    await waitFor(() => expect(entry()).not.toBeNull());
+    await click(entry()!);
+    await click(plus(1));
+    await click(plus(2));
+    await click(plus(2));
+    await click(minus(2));
+    expect([count(1), count(2), vaultNum().textContent]).toEqual(["1", "1", "1"]);
+    await waitFor(() => expect(putVariantAllocations).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+    });
+    expect(putVariantAllocations).toHaveBeenCalledTimes(1);
+    expect(putVariantAllocations).toHaveBeenCalledWith(STD, [
+      { stash_id: 1, quantity: 1 },
+      { stash_id: 2, quantity: 1 },
+    ]);
+    expect(sheet()).not.toBeNull(); // saving never closes the sheet
+  });
+
+  it("a save that fails after Done reopens the sheet, rolled back, with the message", async () => {
+    seed(ALL, [{ stash_id: 1, variant_id: STD, quantity: 1 }]);
+    putVariantAllocations.mockRejectedValue(new StashApiError("unknown", 500));
+    await renderDetail();
+    await waitFor(() => expect(listNames(own())).toEqual(["Red binder"]));
+    await click(within(own()).getByRole("button", { name: /edit/i }));
+    await click(plus(2));
+    await click(within(sheet()!).getByRole("button", { name: "Done" }));
+    await waitFor(() =>
+      expect(within(sheet()!).getByRole("alert").textContent).toBe(STASH_ERRORS.saveFailed)
+    );
+    expect([count(1), count(2), vaultNum().textContent]).toEqual(["1", "0", "2"]);
+    expect(listNames(own())).toEqual(["Red binder"]);
   });
 
   it("a duplicate name is an inline error under Name", async () => {
@@ -418,20 +483,27 @@ describe("BL-344 fold-in round 1 (phone)", () => {
     expect(putVariantAllocations).toHaveBeenCalledWith(STD, [{ stash_id: 1, quantity: 1 }]);
   });
 
-  it("F3: a printing change discards the draft (and closes the sheet)", async () => {
+  // REPLACE (R1-11): a printing change no longer discards; it sends the
+  // open window for the old printing (and still closes the sheet).
+  it("F3: a printing change sends the open window (and closes the sheet)", async () => {
     seed(ALL, [{ stash_id: 1, variant_id: STD, quantity: 1 }]);
     await renderDetail();
     await waitFor(() => expect(listNames(own())).toEqual(["Red binder"]));
     await click(within(own()).getByRole("button", { name: /edit/i }));
     await click(plus(2));
+    getStashItems.mockResolvedValue([
+      { stash_id: 1, variant_id: STD, quantity: 1 },
+      { stash_id: 2, variant_id: STD, quantity: 1 },
+    ]);
     // A printing change under the sheet (the rail; a route change does the same).
     await click(document.querySelector(`.m-print[data-variant="${HYP}"] .m-print__main`)!);
     expect(sheet()).toBeNull();
+    expect(putVariantAllocations).toHaveBeenCalledWith(STD, [
+      { stash_id: 1, quantity: 1 },
+      { stash_id: 2, quantity: 1 },
+    ]);
     await click(document.querySelector(`.m-print[data-variant="${STD}"] .m-print__main`)!);
-    await click(within(own()).getByRole("button", { name: /edit/i }));
-    expect(count(2)).toBe("0");
-    expect(count(1)).toBe("1");
-    expect(putVariantAllocations).not.toHaveBeenCalled();
+    await waitFor(() => expect(listNames(own())).toEqual(["Red binder", "Trade stash"]));
   });
 
   it("F4: the owned - floor counts the staged split too (max of saved and staged)", async () => {
@@ -467,5 +539,35 @@ describe("BL-344 fold-in round 1 (phone)", () => {
     });
     await waitFor(() => expect(entry()).not.toBeNull());
     expect(full()).toBe(before);
+  });
+});
+
+// Review fold-in (combined branch, 2026-11-08): a stash save settles ITS
+// printing's owned batch, even after the printing changed (the phone stepper
+// does not flush on a printing change by itself).
+describe("BL-344 R1-11 fold-in (phone)", () => {
+  it("printing change with an owned batch open: the stash PUT waits for that printing's adjust", async () => {
+    seed(ALL, []);
+    const adj = deferred<{ variant_id: number; quantity: number }>();
+    adjustCard.mockReturnValue(adj.promise);
+    await renderDetail();
+    await waitFor(() => expect(entry()).not.toBeNull());
+    await click(
+      document.querySelector('.m-print.cp-rail__item--active .m-step[aria-label^="Decrement"]')!
+    ); // 3 -> 2, batch open
+    await click(entry()!);
+    await click(plus(1));
+    await click(document.querySelector(`.m-print[data-variant="${HYP}"] .m-print__main`)!);
+    expect(sheet()).toBeNull();
+    await waitFor(() => expect(adjustCard).toHaveBeenCalledWith(STD, -1));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(putVariantAllocations).not.toHaveBeenCalled();
+    await act(async () => {
+      adj.resolve({ variant_id: STD, quantity: 2 });
+    });
+    await waitFor(() => expect(putVariantAllocations).toHaveBeenCalledTimes(1));
+    expect(putVariantAllocations).toHaveBeenCalledWith(STD, [{ stash_id: 1, quantity: 1 }]);
   });
 });

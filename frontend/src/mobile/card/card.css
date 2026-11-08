@@ -706,6 +706,10 @@
   justify-content: space-between;
   gap: 14px;
 }
+/* The rows' foot holds Done alone (no Cancel, BL-344 R1-11): right side. */
+.m-app .m-stash__foot--rows {
+  justify-content: flex-end;
+}
 
 /* The sheet: New stash mode */
 .m-app .m-stash__create {
@@ -1026,6 +1030,9 @@
   font-family: var(--font-body);
   font-size: 14px;
   text-align: left;
+}
+.m-app .m-print__error .cp-mutation-error__line {
+  margin: 0;
 }
 
 /* ── Card text + facts (.cp-text is desktop's, CardPopup.css) ──────────── */

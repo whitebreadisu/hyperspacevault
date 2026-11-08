@@ -3223,3 +3223,57 @@ describe("CardsPage ?card=&v= boot printing", () => {
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
   });
 });
+
+// CREATE (BL-341 R1-13): switching the Vault page between Collection and
+// Stashes (App.tsx `vaultPage`), either way, clears the filters; a rerender
+// on the same page keeps them.
+describe("CardsPage vaultPage switch clears the filters (R1-13)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue(mockBaseCards);
+  });
+
+  it("Collection -> Stashes -> Collection: the search clears on each switch only", async () => {
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(<CardsPage isAuthenticated vaultPage="collection" />);
+    });
+    const input = () => screen.getByPlaceholderText("Search cards…") as HTMLInputElement;
+    fireEvent.change(input(), { target: { value: "luke" } });
+    expect(input().value).toBe("luke");
+    await act(async () => {
+      utils.rerender(<CardsPage isAuthenticated vaultPage="collection" />);
+    });
+    expect(input().value).toBe("luke");
+    await act(async () => {
+      utils.rerender(<CardsPage isAuthenticated vaultPage="stashes" />);
+    });
+    expect(input().value).toBe("");
+    fireEvent.change(input(), { target: { value: "vader" } });
+    await act(async () => {
+      utils.rerender(<CardsPage isAuthenticated vaultPage="collection" />);
+    });
+    expect(input().value).toBe("");
+  });
+
+  // Fold-in (review of R1-13): the switch clears every filter kind, not only
+  // the search -- a facet (Set) and a Collection toggle too, so a partial
+  // reset fails here.
+  it("the switch also clears a facet and a Collection toggle", async () => {
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(<CardsPage isAuthenticated vaultPage="collection" />);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Set — All sets" }));
+    fireEvent.click(screen.getByRole("option", { name: "SOR — Spark of Rebellion" }));
+    expect(screen.queryByRole("button", { name: "Set — All sets" })).toBeNull();
+    const owned = () => screen.getByRole("button", { name: /show only cards i own/i });
+    fireEvent.click(owned());
+    expect(owned()).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      utils.rerender(<CardsPage isAuthenticated vaultPage="stashes" />);
+    });
+    expect(screen.getByRole("button", { name: "Set — All sets" })).toBeInTheDocument();
+    expect(owned()).toHaveAttribute("aria-pressed", "false");
+  });
+});

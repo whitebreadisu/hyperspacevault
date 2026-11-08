@@ -108,13 +108,14 @@ test("s6-11-desktop-brand-one-line-tag-and-height", async ({ page }) => {
   expect(g.tagH).toBeLessThanOrEqual(13);
   expect(g.tagTop).toBeGreaterThanOrEqual(g.logoBottom);
   // The header keeps its 120 px at 1440 (the Command pod hangs inside it).
-  // REPLACE (v3.0 Command pod): at 900 the nav takes its own row, now the
-  // 62 px pod under the 72 px brand row, + the 1 px border -- 135 px (was 112 with the 44 px
-  // tab row).
+  // REPLACE (BL-341 R1-1): the pod no longer drops to a second row below
+  // 1024 px (the 135 px header), it stays hung from the top edge and the
+  // header stays 120 px at every desktop width; the full width sweep is
+  // r1-01-header-widths.spec.ts. 900 is the compact step's narrowest width.
   expect(Math.round(g.header)).toBe(120);
   await page.setViewportSize({ width: 900, height: 900 });
   const narrow = await brandGeometry(page);
-  expect(Math.round(narrow.header)).toBe(135);
+  expect(Math.round(narrow.header)).toBe(120);
   expect(narrow.tagLines).toBe(1);
 });
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
 import { MetaErrorLine, StashNameFields } from "../../screens/stashes/StashModals";
+import { STASH_COPY } from "../../stashes/stashContents";
 import type { StashMeta } from "../../stashes/useStashMeta";
 import { Sheet, useSheetClose } from "../Sheet";
 
@@ -234,12 +235,8 @@ export function DeleteStashSheet({
       }
     >
       <div className="m-stashsheet__body">
-        <p className="m-stashsheet__lead">
-          Its {stash.copies} {stash.copies === 1 ? "copy goes" : "copies go"} back to your Vault.
-        </p>
-        <p className="m-stashsheet__fine">
-          You still own every copy. Only the stash and its name and description are deleted.
-        </p>
+        <p className="m-stashsheet__lead">{STASH_COPY.deleteLead(stash.copies)}</p>
+        <p className="m-stashsheet__fine">{STASH_COPY.deleteFine}</p>
         <MetaErrorLine error={meta.error} />
       </div>
     </Sheet>

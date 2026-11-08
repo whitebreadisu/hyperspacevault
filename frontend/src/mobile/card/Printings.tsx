@@ -83,10 +83,16 @@ export function Printings({
         </h2>
         <PriceSeg mode={priceKind} onChange={onPriceKind} />
       </div>
-      {stepper.error ? (
-        <p className="cp-status cp-status--error cp-mutation-error m-print__error" role="alert">
-          {stepper.error}
-        </p>
+      {stepper.error || stepper.notice ? (
+        <div className="cp-status cp-status--error cp-mutation-error m-print__error" role="alert">
+          {[stepper.error, stepper.notice]
+            .filter((m): m is string => !!m)
+            .map((m) => (
+              <p key={m} className="cp-mutation-error__line">
+                {m}
+              </p>
+            ))}
+        </div>
       ) : null}
       {groups.map((g) => (
         <div key={g.setCode} className="m-printgroup">

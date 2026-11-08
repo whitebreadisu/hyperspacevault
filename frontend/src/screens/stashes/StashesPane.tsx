@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
 import { useStashes } from "../../stashes/StashContext";
 import {
   DEFAULT_STASH_SORT,
   narrowPrintings,
+  nextStashSort,
   sortPrintings,
   STASH_COPY,
   stashPrintings,
@@ -21,21 +23,26 @@ import { formatMoney } from "../../utils/completion";
 import type { SetOrderMap } from "../../utils/catalog";
 import type { InventoryCard } from "../../utils/inventory";
 import type { PriceMode } from "../../utils/variantScope";
-import { CheckIcon, PencilIcon } from "./stashIcons";
+import { CardsValueKindToggle } from "../cards/VariantScopeControls";
+import { CheckIcon, PencilIcon, TrashIcon } from "./stashIcons";
 import { CreateStashModal, DeleteStashModal, MetaErrorLine, StashNameFields } from "./StashModals";
 import { StashGallery } from "./StashGallery";
+import { StashSortBar } from "./StashSort";
 import { StashTable } from "./StashTable";
 import type { ValueUnit } from "./StashTable";
 import "./stashes.css";
 
 // The desktop Stashes page, design 1b "Master-detail" (App Spec §26): the
-// stash rail (creation order, + New stash) beside the content pane, which is
-// the Vault narrowed to the selected stash -- its head (name, full
-// description, pencil for the in-place edit), Cards and Value panels, the
-// Table | Gallery toggle, the return feedback line with Undo, and the
-// printing-level table or gallery. The Vault's filters (CardsPage's
-// FilterPanel, beside this pane) narrow the rows. This page never adds
-// copies and never changes an owned count. Desktop does not collapse.
+// stash rail (creation order, Market / Low, + New stash; collapsible, R1-7)
+// beside the content pane, which is the Vault narrowed to the selected
+// stash -- its head (name, full description, pencil for the in-place edit,
+// trash for delete), Cards and Value tiles (the Vault's collection tiles;
+// the Value tile carries Market / Low too, bound to the same state, R1-6),
+// the Table | Gallery toggle, the sort bar (R1-16), the return feedback line
+// with Undo, and the printing-level table or gallery. The Vault's filters
+// (CardsPage's FilterPanel, portalled into `onFilterSlot`, R1-5) float at
+// the card list's top-left and narrow the rows. This page never adds copies
+// and never changes an owned count.
 
 interface Props {
   /** The catalogue with the caller's quantities (every card). */
@@ -51,31 +58,38 @@ interface Props {
   onSelect: (id: number | null) => void;
   /** Opens the card detail on a printing; `order` is the pane's card order. */
   onOpenPrinting: (cardId: number, variantId: number, order: number[]) => void;
+  /** The element CardsPage portals the Vault's FilterPanel into: the card
+   * list's top-left corner (null while no list shows). */
+  onFilterSlot?: (el: HTMLElement | null) => void;
 }
 
-function PriceSeg({
-  kind,
-  onKind,
-  className,
-}: {
-  kind: PriceMode;
-  onKind: (k: PriceMode) => void;
-  className: string;
-}) {
+/** The rail's collapsed state, per viewer (the tableWidthTier pattern:
+ * best-effort localStorage; missing or unreadable = expanded). */
+export const RAIL_KEY = "swu.stashes.railCollapsed";
+function loadRailCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(RAIL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function saveRailCollapsed(on: boolean): void {
+  try {
+    window.localStorage.setItem(RAIL_KEY, on ? "1" : "0");
+  } catch {
+    /* best-effort */
+  }
+}
+
+function ChevronIcon({ dir }: { dir: "left" | "right" }) {
   return (
-    <span className={"sp-seg " + className} role="group" aria-label="Price">
-      {(["market", "low"] as const).map((k) => (
-        <button
-          key={k}
-          type="button"
-          className={"sp-seg__btn" + (kind === k ? " sp-seg__btn--on" : "")}
-          aria-pressed={kind === k}
-          onClick={() => onKind(k)}
-        >
-          {k === "market" ? "Market" : "Low"}
-        </button>
-      ))}
-    </span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={dir === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"}
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+    </svg>
   );
 }
 
@@ -87,6 +101,8 @@ function Rail({
   onPriceKind,
   onSelect,
   onNew,
+  flyout = false,
+  onFold,
 }: {
   stashes: Stash[];
   selectedId: number;
@@ -95,13 +111,31 @@ function Rail({
   onPriceKind: (k: PriceMode) => void;
   onSelect: (id: number) => void;
   onNew: () => void;
+  /** Floated over the pane from the collapsed tab. */
+  flyout?: boolean;
+  /** Docked: collapse. Flyout: keep the rail open (expand). */
+  onFold: () => void;
 }) {
+  const fold = flyout ? "Keep the stash list open" : "Collapse the stash list";
   return (
-    <aside className="sp-rail" aria-label="Stashes">
+    <aside
+      className={"sp-rail" + (flyout ? " sp-rail--flyout" : "")}
+      aria-label="Stashes"
+      id={flyout ? "sp-rail-flyout" : undefined}
+    >
       <div className="sp-rail__inner">
         <div className="sp-rail__head">
           <h1 className="sp-rail__title">Stashes</h1>
-          <PriceSeg kind={priceKind} onKind={onPriceKind} className="sp-seg--rail" />
+          <CardsValueKindToggle kind={priceKind} onChange={onPriceKind} />
+          <button
+            type="button"
+            className="sp-rail__fold"
+            onClick={onFold}
+            aria-label={fold}
+            title={fold}
+          >
+            <ChevronIcon dir={flyout ? "right" : "left"} />
+          </button>
         </div>
         <div className="sp-rail__list">
           {stashes.map((s) => {
@@ -114,6 +148,7 @@ function Rail({
                 aria-current={on ? "true" : undefined}
                 onClick={() => onSelect(s.id)}
                 data-stash={s.id}
+                title={s.name}
               >
                 <span className="sp-railrow__line">
                   <span className="sp-railrow__name">{s.name}</span>
@@ -148,32 +183,55 @@ function Rail({
   );
 }
 
-function StatPanel({
+/** The collapsed rail: the Vault's edge tab (FilterPanel's
+ * `ifp-sidebar-tab`) with the stash count and "Stashes"; a click floats the
+ * full list over the pane, so every stash stays one click away. */
+function RailTab({ count, open, onOpen }: { count: number; open: boolean; onOpen: () => void }) {
+  return (
+    <span className="ifp-sidebar-tab-ring sp-railtab">
+      <button
+        type="button"
+        className="ifp-sidebar-tab"
+        onClick={onOpen}
+        aria-expanded={open}
+        aria-controls={open ? "sp-rail-flyout" : undefined}
+        aria-label={`Stashes, ${count}: show the list`}
+      >
+        <span className="sp-railtab__count">{count}</span>
+        <span className="ifp-sidebar-tab__label">Stashes</span>
+      </button>
+    </span>
+  );
+}
+
+/** A Vault collection tile (InventorySummary's `inv-summary__block`). Not
+ * clickable here, so it keeps its resting ring on hover (sp-stat). */
+function StatTile({
   label,
-  tag,
   value,
-  mono,
   sub,
+  control,
 }: {
   label: string;
-  tag?: string;
   value: string;
-  mono?: boolean;
   sub?: string | null;
+  control?: ReactNode;
 }) {
   return (
-    <div className="sp-stat">
-      <div className="sp-stat__inner">
-        <span className="sp-stat__label">
-          {label}
-          {tag ? <span className="sp-stat__tag">{tag}</span> : null}
+    <span className="inv-summary__block-wrap sp-stat">
+      <span className="inv-summary__block">
+        <span className="inv-summary__block-inner">
+          <span className="inv-summary__label-row">
+            <span className="inv-summary__label">{label}</span>
+            {control}
+          </span>
+          <span className="inv-summary__value-row">
+            <span className="inv-summary__value">{value}</span>
+            {sub ? <span className="inv-summary__sub sp-stat__sub">{sub}</span> : null}
+          </span>
         </span>
-        <span className="sp-stat__line">
-          <span className={"sp-stat__value" + (mono ? " sp-stat__value--mono" : "")}>{value}</span>
-          {sub ? <span className="sp-stat__sub">{sub}</span> : null}
-        </span>
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }
 
@@ -250,6 +308,7 @@ export function StashesPane({
   selectedId,
   onSelect,
   onOpenPrinting,
+  onFilterSlot,
 }: Props) {
   const ctx = useStashes();
   const meta = useStashMeta();
@@ -258,7 +317,11 @@ export function StashesPane({
   const [valueUnit, setValueUnit] = useState<ValueUnit>("total");
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  // The stash to land on after a delete (its neighbour), or null.
+  const [deleting, setDeleting] = useState<{ next: number | null } | null>(null);
+  const [collapsed, setCollapsed] = useState(loadRailCollapsed);
+  const [flyout, setFlyout] = useState(false);
+  const railRef = useRef<HTMLDivElement>(null);
 
   const stash = ctx.stashes.find((s) => s.id === selectedId) ?? ctx.stashes[0] ?? null;
   const id = stash?.id ?? null;
@@ -271,11 +334,37 @@ export function StashesPane({
     setEditing(false);
   }
 
+  const fold = (on: boolean) => {
+    setCollapsed(on);
+    setFlyout(false);
+    saveRailCollapsed(on);
+  };
+
+  // The flyout closes on a click outside it or Escape.
+  useEffect(() => {
+    if (!flyout) return undefined;
+    const outside = (e: MouseEvent) => {
+      if (railRef.current && !railRef.current.contains(e.target as Node)) setFlyout(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFlyout(false);
+    };
+    document.addEventListener("mousedown", outside);
+    window.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      window.removeEventListener("keydown", key);
+    };
+  }, [flyout]);
+
+  // The FilterPanel slot is the card list's corner; it unmounts with the list.
+  const slotRef = useCallback((el: HTMLDivElement | null) => onFilterSlot?.(el), [onFilterSlot]);
+
   const index = usePrintingIndex(cards);
-  const { itemsOf } = ctx;
+  const { itemsOf, stashedAtOf } = ctx;
   const all = useMemo(
-    () => (id != null ? stashPrintings(index, itemsOf(id)) : []),
-    [index, itemsOf, id]
+    () => (id != null ? stashPrintings(index, itemsOf(id), (vid) => stashedAtOf(id, vid)) : []),
+    [index, itemsOf, stashedAtOf, id]
   );
   const totals = stashTotals(all, priceKind);
   const rows = useMemo(
@@ -288,16 +377,18 @@ export function StashesPane({
   const values = useStashValues(index, ctx, priceKind);
   const valueOf = (s: Stash) => values.get(s.id) ?? 0;
 
-  const pickSort = (column: StashSortColumn) =>
-    setSort((prev) =>
-      prev.column === column
-        ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { column, direction: "asc" }
-    );
+  const pickSort = (column: StashSortColumn) => setSort((prev) => nextStashSort(prev, column));
   const open = (r: StashPrinting) => {
     const order: number[] = [];
     for (const x of rows) if (!order.includes(x.card.base_card_id)) order.push(x.card.base_card_id);
     onOpenPrinting(r.card.base_card_id, r.variant.variant_id, order);
+  };
+  const startDelete = () => {
+    if (!stash) return;
+    meta.clearError();
+    const at = ctx.stashes.findIndex((s) => s.id === stash.id);
+    const next = ctx.stashes[at + 1] ?? ctx.stashes[at - 1] ?? null;
+    setDeleting({ next: next ? next.id : null });
   };
 
   const modals = (
@@ -316,11 +407,13 @@ export function StashesPane({
         <DeleteStashModal
           stash={stash}
           meta={meta}
-          onClose={() => setDeleting(false)}
+          onClose={() => setDeleting(null)}
           onDeleted={() => {
-            setDeleting(false);
+            const next = deleting.next;
+            setDeleting(null);
             setEditing(false);
-            onSelect(null);
+            // Land on the stash beside the deleted one, else the empty state.
+            onSelect(next);
           }}
         />
       ) : null}
@@ -359,22 +452,43 @@ export function StashesPane({
     );
   }
 
+  const newStash = () => {
+    meta.clearError();
+    setFlyout(false);
+    setCreating(true);
+  };
+  const railProps = {
+    stashes: ctx.stashes,
+    selectedId: stash.id,
+    valueOf,
+    priceKind,
+    onPriceKind,
+    onNew: newStash,
+  };
   const zero = all.length === 0;
   return (
     <div className="cards-content sp-page">
-      <div className="sp-layout">
-        <Rail
-          stashes={ctx.stashes}
-          selectedId={stash.id}
-          valueOf={valueOf}
-          priceKind={priceKind}
-          onPriceKind={onPriceKind}
-          onSelect={onSelect}
-          onNew={() => {
-            meta.clearError();
-            setCreating(true);
-          }}
-        />
+      <div className={"sp-layout" + (collapsed ? " sp-layout--folded" : "")}>
+        {collapsed ? (
+          <div className="sp-railwrap sp-railwrap--folded" ref={railRef}>
+            <RailTab count={ctx.stashes.length} open={flyout} onOpen={() => setFlyout((o) => !o)} />
+            {flyout ? (
+              <Rail
+                {...railProps}
+                flyout
+                onFold={() => fold(false)}
+                onSelect={(sid) => {
+                  setFlyout(false);
+                  onSelect(sid);
+                }}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <div className="sp-railwrap">
+            <Rail {...railProps} onSelect={onSelect} onFold={() => fold(true)} />
+          </div>
+        )}
         <section className="sp-content" aria-label={stash.name}>
           <div className="sp-top">
             <div className="sp-head">
@@ -384,10 +498,7 @@ export function StashesPane({
                   stash={stash}
                   meta={meta}
                   onDone={() => setEditing(false)}
-                  onDelete={() => {
-                    meta.clearError();
-                    setDeleting(true);
-                  }}
+                  onDelete={startDelete}
                 />
               ) : (
                 <div className="sp-read">
@@ -404,6 +515,7 @@ export function StashesPane({
                       type="button"
                       className="sp-pencil"
                       aria-label="Edit name and description"
+                      title="Edit name and description"
                       onClick={() => {
                         meta.clearError();
                         setEditing(true);
@@ -411,29 +523,46 @@ export function StashesPane({
                     >
                       <PencilIcon size={15} />
                     </button>
+                    <button
+                      type="button"
+                      className="sp-pencil sp-pencil--danger"
+                      aria-label={`Delete ${stash.name}`}
+                      title="Delete stash"
+                      onClick={startDelete}
+                    >
+                      <TrashIcon size={15} />
+                    </button>
                   </span>
                 </div>
               )}
               <div className="sp-stats">
-                <StatPanel
+                <StatTile
                   label="Cards"
                   value={totals.copies.toLocaleString()}
                   sub={ret.last ? `${ret.last.copies} back in Vault` : null}
                 />
-                <StatPanel
+                <StatTile
                   label="Value"
-                  tag={priceKind === "market" ? "Market" : "Low"}
                   value={totals.copies === 0 ? "—" : formatMoney(totals.value)}
-                  mono
+                  control={
+                    // The Vault's placement (InventorySummary PriceModeToggle) of the
+                    // shared Market / Low switch, the rail's own component.
+                    <span className="inv-summary__pricemode">
+                      <CardsValueKindToggle kind={priceKind} onChange={onPriceKind} />
+                    </span>
+                  }
                 />
               </div>
             </div>
-            <span className="sp-viewseg" role="group" aria-label="View">
+            <span role="group" aria-label="View" className="inv-summary__view-toggle sp-viewtoggle">
               {(["table", "gallery"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
-                  className={"sp-viewseg__btn" + (view === v ? " sp-viewseg__btn--on" : "")}
+                  className={
+                    "inv-summary__view-toggle-btn" +
+                    (view === v ? " inv-summary__view-toggle-btn--active" : "")
+                  }
                   aria-pressed={view === v}
                   onClick={() => setView(v)}
                 >
@@ -469,25 +598,35 @@ export function StashesPane({
               {ret.error.what} <span className="sp-error__hint">{ret.error.hint}</span>
             </p>
           ) : null}
-          {zero ? (
-            <p className="sp-zero">{STASH_COPY.zero(stash.name)}</p>
-          ) : rows.length === 0 ? (
-            <p className="sp-zero">{STASH_COPY.filtered}</p>
-          ) : view === "table" ? (
-            <StashTable
-              rows={rows}
-              sort={sort}
-              onSort={pickSort}
-              priceKind={priceKind}
-              valueUnit={valueUnit}
-              onValueUnit={setValueUnit}
-              busy={ret.busy}
-              onOpen={open}
-              onReturn={(row, quantity) => void ret.returnRows([{ row, quantity }])}
-            />
-          ) : (
-            <StashGallery rows={rows} priceKind={priceKind} onOpen={open} />
-          )}
+          {/* The list area is always drawn for a stash, so the filters keep
+              one anchor (an empty stash included). */}
+          <div className="sp-list">
+            <div className="sp-list__filters" ref={slotRef} />
+            <div className="sp-list__body">
+              {zero ? (
+                <p className="sp-zero">{STASH_COPY.zero(stash.name)}</p>
+              ) : (
+                <StashSortBar sort={sort} onSort={pickSort} />
+              )}
+              {zero ? null : rows.length === 0 ? (
+                <p className="sp-zero">{STASH_COPY.filtered}</p>
+              ) : view === "table" ? (
+                <StashTable
+                  rows={rows}
+                  sort={sort}
+                  onSort={pickSort}
+                  priceKind={priceKind}
+                  valueUnit={valueUnit}
+                  onValueUnit={setValueUnit}
+                  busy={ret.busy}
+                  onOpen={open}
+                  onReturn={(row, quantity) => void ret.returnRows([{ row, quantity }])}
+                />
+              ) : (
+                <StashGallery rows={rows} priceKind={priceKind} onOpen={open} />
+              )}
+            </div>
+          </div>
         </section>
       </div>
       {modals}

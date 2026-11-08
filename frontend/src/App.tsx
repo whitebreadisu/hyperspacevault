@@ -257,6 +257,14 @@ function AppContent() {
         ? "cards"
         : activeView;
 
+  // The Vault page last shown, Collection or Stashes: it
+  // changes only on a switch between the two, never on a visit elsewhere
+  // (Deck Check, Settings, ...), so CardsPage clears its filters on that
+  // switch alone and keeps them across every other visit, as before.
+  const [vaultPage, setVaultPage] = useState<"collection" | "stashes">("collection");
+  const shownVaultPage = view === "stashes" ? "stashes" : view === "cards" ? "collection" : null;
+  if (shownVaultPage && shownVaultPage !== vaultPage) setVaultPage(shownVaultPage);
+
   // screen_viewed (App Spec §22): tracks the EFFECTIVE pane (post-forcing
   // `view`, not raw activeView -- a forced-back-to-cards visitor viewed
   // cards). Taxonomy names, not AppView ids: the analytics contract survives
@@ -293,7 +301,7 @@ function AppContent() {
   // on the own vault only; paused (kept, not refetched) while the shared
   // vault pane shows.
   return (
-    <StashProvider enabled={!!user} paused={view === "shared"}>
+    <StashProvider enabled={!!user} paused={view === "shared"} uid={user?.uid ?? null}>
       <div className="app-layout">
         <Header
           userEmail={user?.email ?? null}
@@ -326,6 +334,7 @@ function AppContent() {
           <div style={{ display: view === "cards" || view === "stashes" ? "contents" : "none" }}>
             <CardsPage
               stashPage={view === "stashes" ? { selectedId: stashId, onSelect: setStashId } : null}
+              vaultPage={vaultPage}
               isAuthenticated={!!user}
               onRequestSignIn={() => setAuthModalOpen(true)}
               isEmailVerified={emailVerified}

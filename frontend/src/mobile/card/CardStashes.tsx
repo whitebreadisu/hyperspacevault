@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Stash } from "../../api/stashes";
 import { SWUButton } from "../../components/SWUButton";
 import {
@@ -19,8 +19,9 @@ import { Sheet, useSheetClose } from "../Sheet";
 //     holding it, playset chip);
 //   - StashPinned: the same list kept under the collapsed art row, part of
 //     the fixed region (cardDetailModel stashGeom sizes both);
-//   - StashSheet: New stash mode (a2) and rows mode (b2..e1); the X, the
-//     scrim, Escape or a drag down = Cancel; 44 px targets throughout.
+//   - StashSheet: New stash mode (a2) and rows mode (b2..e1); each -/+ saves
+//     on click; Done, the X, the scrim, Escape or a drag down close the
+//     sheet (no Cancel); 44 px targets throughout.
 
 export interface StashHolding {
   stash: Stash;
@@ -229,8 +230,7 @@ function RowsBody({
   printingLabel: string;
   onNew: () => void;
 }) {
-  // While the sheet sinks after Done the editor is back in read mode: its
-  // rows then carry the saved split rather than an emptied draft.
+  // The rows show the split as clicked (saved + saves still on the wire).
   const vault = editor.vault;
   return (
     <div className="m-stash__rows" aria-label="Stash copies">
@@ -296,29 +296,17 @@ function RowsBody({
 }
 
 function RowsFoot({ editor }: { editor: StashEditor }) {
+  // Every -/+ saves on its own (useStashEditor); Done only closes the sheet.
+  // It sends an open save at once; the X, the scrim, Escape and a drag down
+  // do the same through the sheet's onClosed. No Cancel.
   const close = useSheetClose();
-  // Done closes the sheet once the save is through. The Sheet is `locked`
-  // while busy and reads that in an effect of its own, so the close waits
-  // for the render that unlocks it (a timer after this effect, which runs
-  // before the Sheet's).
-  const [closeAfterSave, setCloseAfterSave] = useState(false);
-  useEffect(() => {
-    if (!closeAfterSave || editor.busy) return undefined;
-    const t = setTimeout(close, 0);
-    return () => clearTimeout(t);
-  }, [closeAfterSave, editor.busy, close]);
   return (
-    <div className="m-stash__foot">
-      <button type="button" className="m-stash__textbtn" onClick={close}>
-        Cancel
-      </button>
+    <div className="m-stash__foot m-stash__foot--rows">
       <SWUButton
         size="touch"
-        active={!editor.busy}
-        ariaDisabled={editor.busy}
-        onClick={async () => {
-          if (editor.busy) return;
-          if (await editor.done()) setCloseAfterSave(true);
+        onClick={() => {
+          editor.done();
+          close();
         }}
       >
         Done

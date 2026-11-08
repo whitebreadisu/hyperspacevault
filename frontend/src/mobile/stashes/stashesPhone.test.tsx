@@ -21,7 +21,8 @@ import { StashScreen } from "./StashScreen";
 // (expanded panel below the bar, COPIES / VALUE in the collapsed strip slot,
 // collapsing by useCollapse on scroll), the resting Return -> active row
 // (− / chip / trash) reverting on another row's tap or on a scroll, Undo,
-// bulk Select with the pinned Return, the description popover, the gallery.
+// the description popover, the gallery, the stash's own sort sheet and
+// delete from inside the stash. Bulk Select was removed (R1-14).
 
 const api = vi.hoisted(() => ({
   getStashes: vi.fn(),
@@ -387,7 +388,8 @@ describe("the Stashes list", () => {
     );
     fireEvent.click(within(dlg).getByRole("button", { name: "Delete stash" }));
     const del = await screen.findByRole("dialog", { name: "Delete Trade stash?" });
-    expect(del).toHaveTextContent("Its 0 copies go back to your Vault.");
+    // Copy replaced (R1-9, 2026-11-08): every card returns, with the count.
+    expect(del).toHaveTextContent("It holds no copies.");
     await act(async () => {
       fireEvent.click(within(del).getByRole("button", { name: "Delete stash" }));
     });
@@ -441,11 +443,14 @@ describe("inside a stash", () => {
     const header = document.querySelector(".m-vh")!;
     const panel = header.querySelector(".m-vh__panel")!;
     expect(within(panel as HTMLElement).getByText("Red binder")).toBeInTheDocument();
-    expect(panel.querySelector(".m-stashpanel__copies")!.textContent).toBe("4");
+    // Ported: the panel's numbers are the Vault panel's m-metric tiles, the
+    // strip's the Vault readout's roles, with the stash name on top (R1-12).
+    expect(panel.querySelector(".m-metric__value")!.textContent).toBe("4");
     const strip = header.querySelector(".m-vh__strip")!;
     expect(strip.querySelector(".m-stashstrip")).not.toBeNull();
-    expect(strip.querySelector(".m-stashstrip__copies")!.textContent).toBe("4");
-    expect(strip.querySelector(".m-stashstrip__value")!.textContent).toBe("$19.00");
+    expect(strip.querySelector(".m-stashstrip__name")!.textContent).toBe("Red binder");
+    expect(strip.querySelector(".m-vh__n")!.textContent).toBe("4");
+    expect(strip.querySelector(".m-vh__value")!.textContent).toBe("$19.00");
     // Expanded: the strip is out of the a11y tree, the panel in it.
     expect(strip).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("4 printings".replace("4", "3"))).toBeInTheDocument();
@@ -520,9 +525,7 @@ describe("inside a stash", () => {
       fireEvent.click(within(line(11)).getByRole("button", { name: /Return one/ }));
     });
     expect(api.returnStashItems).toHaveBeenCalledWith(1, [{ variant_id: 11, quantity: 1 }]);
-    await waitFor(() =>
-      expect(line(11).querySelector(".m-stashline__chip")!.textContent).toBe("1")
-    );
+    await waitFor(() => expect(line(11).querySelector(".playset-chip")!.textContent).toBe("1"));
     expect(screen.getByRole("status")).toHaveTextContent(
       "1 Luke Skywalker · Standard is back in your Vault."
     );
@@ -531,37 +534,83 @@ describe("inside a stash", () => {
       fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     });
     expect(api.restoreStashItems).toHaveBeenCalledWith(1, [{ variant_id: 11, quantity: 1 }]);
-    await waitFor(() =>
-      expect(line(11).querySelector(".m-stashline__chip")!.textContent).toBe("2")
-    );
+    await waitFor(() => expect(line(11).querySelector(".playset-chip")!.textContent).toBe("2"));
     await act(async () => {
       fireEvent.click(within(line(11)).getByRole("button", { name: /Return all 2/ }));
     });
     await waitFor(() => expect(line(11)).toBeNull());
   });
 
-  it("bulk: Select, check rows, Return N to Vault; the returned rows dim at 0 beside Undo", async () => {
+  // Retired: "bulk: Select, check rows, Return N to Vault; the returned rows
+  // dim at 0 beside Undo" and "bulk Undo restores exactly what was returned
+  // and the rows recover" -- owner removed, 2026-11-08 R1-14 (desktop has no
+  // bulk return). This test pins the removal.
+  it("has no Select mode and no pinned bulk Return (R1-14)", async () => {
     await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.click(line(11).querySelector(".m-stashline__main")!);
-    fireEvent.click(line(21).querySelector(".m-stashline__main")!);
-    const bulk = screen.getByRole("region", { name: "Selected copies" });
-    expect(bulk).toHaveTextContent("2 selected · 3 copies");
-    expect(bulk).toHaveTextContent("Owned counts stay the same");
-    await act(async () => {
-      fireEvent.click(within(bulk).getByRole("button", { name: "Return 3 to Vault" }));
-    });
-    expect(api.returnStashItems).toHaveBeenCalledWith(1, [
-      { variant_id: 11, quantity: 2 },
-      { variant_id: 21, quantity: 1 },
-    ]);
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("3 copies are back in your Vault.")
-    );
+    expect(screen.queryByRole("button", { name: "Select" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Selected copies" })).toBeNull();
-    expect(line(11).className).toContain("m-stashline--dim");
-    expect(line(11).querySelector(".m-stashline__chip")!.textContent).toBe("0");
-    expect(line(21).className).toContain("m-stashline--dim");
+    expect(document.querySelector(".m-stashbulk")).toBeNull();
+  });
+
+  it("defaults to Set | # by base card; the sort sheet has the stash's own sorts", async () => {
+    await ready();
+    const order = () =>
+      [...document.querySelectorAll(".m-stashline")].map((e) => e.getAttribute("data-variant"));
+    expect(order()).toEqual(["11", "12", "21"]);
+    fireEvent.click(screen.getByRole("button", { name: /^Sort: Set \| # \(base card\)/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Sort" });
+    const labels = [...sheet.querySelectorAll(".m-choice__row > span:first-child")].map(
+      (e) => e.textContent
+    );
+    expect(labels).toEqual([
+      "Set | # (base card)",
+      "Set | # (this printing)",
+      "Name",
+      "Value",
+      "Copies in stash",
+      "Rarity",
+      "Recently stashed",
+    ]);
+    fireEvent.click(within(sheet).getByRole("button", { name: "Set | # (this printing)" }));
+    await waitFor(() => expect(order()).toEqual(["11", "21", "12"]));
+  });
+
+  it("Recently stashed puts the newest first", async () => {
+    items = [
+      { stash_id: 1, variant_id: 11, quantity: 2, stashed_at: "2026-11-01T10:00:00" },
+      { stash_id: 1, variant_id: 12, quantity: 1, stashed_at: "2026-11-02T10:00:00" },
+      { stash_id: 1, variant_id: 21, quantity: 1, stashed_at: "2026-11-08T10:00:00" },
+    ];
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /^Sort:/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Recently stashed" }));
+    await waitFor(() =>
+      expect(
+        [...document.querySelectorAll(".m-stashline")].map((e) => e.getAttribute("data-variant"))
+      ).toEqual(["21", "12", "11"])
+    );
+  });
+
+  it("R1-9: the trash in the status row deletes the stash after a confirm with the count", async () => {
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
+    const del = await screen.findByRole("dialog", { name: "Delete Red binder?" });
+    expect(del).toHaveTextContent("Every card in it returns to your Vault: 4 copies.");
+    await act(async () => {
+      fireEvent.click(within(del).getByRole("button", { name: "Delete stash" }));
+    });
+    expect(api.deleteStash).toHaveBeenCalledWith(1);
+    // It lands on the Stashes list.
+    await waitFor(() => expect(window.location.hash).toBe("#/stashes"));
+  });
+
+  it("rows use the Vault row's type roles and the plain count chip", async () => {
+    await ready();
+    expect(line(12).querySelector(".m-row__name")!.textContent).toBe("Luke Skywalker");
+    expect(line(12).querySelector(".m-row__num")!.textContent).toBe("SOR 269");
+    expect(line(12).querySelector(".m-row__type")!.textContent).toBe("Hyperspace");
+    expect(line(12).querySelector(".m-row__thumb")).not.toBeNull();
+    expect(line(21).querySelector(".playset-chip")!.className).toContain("playset-chip--complete");
   });
 
   it("the description opens in a popover; a tap outside closes it", async () => {
@@ -600,27 +649,6 @@ describe("inside a stash", () => {
     await waitFor(() => expect(order()).toEqual(["11", "12", "21"]));
   });
 
-  it("bulk Undo restores exactly what was returned and the rows recover", async () => {
-    await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Select" }));
-    fireEvent.click(line(11).querySelector(".m-stashline__main")!);
-    fireEvent.click(line(21).querySelector(".m-stashline__main")!);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Return 3 to Vault" }));
-    });
-    await waitFor(() => expect(line(11).className).toContain("m-stashline--dim"));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    });
-    expect(api.restoreStashItems).toHaveBeenCalledWith(1, [
-      { variant_id: 11, quantity: 2 },
-      { variant_id: 21, quantity: 1 },
-    ]);
-    await waitFor(() => expect(line(11).className).not.toContain("m-stashline--dim"));
-    expect(line(11).querySelector(".m-stashline__chip")!.textContent).toBe("2");
-    expect(line(21).querySelector(".m-stashline__chip")!.textContent).toBe("1");
-  });
-
   it("a return shows the server's answer even when the refresh fails, with Try again", async () => {
     await ready();
     api.getStashItems.mockRejectedValueOnce(new Error("offline"));
@@ -629,8 +657,8 @@ describe("inside a stash", () => {
     await act(async () => {
       fireEvent.click(within(line(11)).getByRole("button", { name: /Return one/ }));
     });
-    expect(line(11).querySelector(".m-stashline__chip")!.textContent).toBe("1");
-    expect(document.querySelector(".m-stashpanel__copies")!.textContent).toBe("3");
+    expect(line(11).querySelector(".playset-chip")!.textContent).toBe("1");
+    expect(document.querySelector(".m-stashpanel .m-metric__value")!.textContent).toBe("3");
     expect(screen.getByText("The stash list did not refresh.")).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -669,5 +697,67 @@ describe("inside a stash", () => {
         "Trade stash has no copies. Copies go into a stash from a card’s detail."
       )
     ).toBeInTheDocument();
+  });
+});
+
+describe("R1-10: scale on the phone", () => {
+  it("60 stashes with long names all list, one row each", async () => {
+    stashes = Array.from({ length: 60 }, (_, i) => mk(i + 1, `Stash number ${i + 1}`));
+    stashes[59].name = "y".repeat(40);
+    render(
+      <Shell>
+        <StashesScreen account={null} unread={false} onOpenChooser={() => {}} />
+      </Shell>
+    );
+    await screen.findByRole("button", {
+      name: "Stash number 1, 4 copies",
+    });
+    expect(document.querySelectorAll(".m-stashrow")).toHaveLength(60);
+    expect(screen.getByRole("button", { name: new RegExp("^y{40},") })).toBeInTheDocument();
+    // The list scrolls inside the screen's own scroller.
+    expect(document.querySelector(".m-more__scroll .m-stashes__group")).not.toBeNull();
+  });
+
+  it("a stash with hundreds of printings draws every row", async () => {
+    const many = Array.from({ length: 120 }, (_, i) =>
+      phoneCard({
+        id: 100 + i,
+        name: `Card ${i}`,
+        number: String(i + 1),
+        variants: [
+          { id: 1000 + i * 2, finish: "Standard", number: String(i + 1), market: 1 },
+          { id: 1001 + i * 2, finish: "Hyperspace", number: String(300 + i), market: 2 },
+        ],
+      })
+    );
+    items = many.flatMap((c) =>
+      c.variants.map((v) => ({ stash_id: 1, variant_id: v.variant_id, quantity: 1 }))
+    );
+    render(
+      <LimitsProvider isAuthenticated={false}>
+        <VaultDataValue value={data(many)}>
+          <StashProvider enabled>
+            <div className="m-app">
+              <SheetHost>
+                <StashScreen
+                  stashId={1}
+                  account={null}
+                  unread={false}
+                  onOpenChooser={() => {}}
+                  onOpenFeedback={() => {}}
+                  onSearchMode={() => {}}
+                />
+              </SheetHost>
+            </div>
+          </StashProvider>
+        </VaultDataValue>
+      </LimitsProvider>
+    );
+    await waitFor(() => expect(document.querySelectorAll(".m-stashline")).toHaveLength(240));
+    expect(screen.getByText("240 printings")).toBeInTheDocument();
+    const first = [...document.querySelectorAll(".m-stashline")]
+      .slice(0, 2)
+      .map((e) => e.getAttribute("data-variant"));
+    expect(first).toEqual(["1000", "1001"]);
   });
 });

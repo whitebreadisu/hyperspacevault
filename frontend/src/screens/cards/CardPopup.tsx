@@ -307,20 +307,23 @@ export function CardPopup({
 
   // stashes (desktop 1a): the selected printing's staged split. Own
   // vault only -- the shared vault's page mounts a disabled StashProvider,
-  // and readOnly / signed out never draw it. Done first settles the owned
-  // stepper's open batch (settleRef, filled once the mutation hook exists).
-  const settleRef = useRef<() => Promise<void>>(async () => {});
+  // and readOnly / signed out never draw it. A stash save first settles
+  // its printing's owned requests (utils/ownedSettle.ts).
   const stashEditor = useStashEditor(
     isAuthenticated && !readOnly ? (selectedVariant?.variant_id ?? null) : null,
     selectedVariant?.quantity ?? 0,
-    () => settleRef.current()
+    { label: selectedVariant ? variantLabel(selectedVariant) : undefined }
   );
 
-  const { pending, mutationError, handleIncrement, handleDecrement, settleSelected } =
-    useInventoryMutation(selectedVariant, setVariants, setChanged, stashEditor.floor);
-  useEffect(() => {
-    settleRef.current = settleSelected;
-  }, [settleSelected]);
+  const { pending, mutationError, handleIncrement, handleDecrement } = useInventoryMutation(
+    selectedVariant,
+    setVariants,
+    setChanged,
+    stashEditor.floor
+  );
+  // The card's error line: the owned stepper's and a stash save for a
+  // printing no longer shown that failed and was undone -- both when both.
+  const notices = [mutationError, stashEditor.notice].filter((m): m is string => !!m);
 
   return (
     <>
@@ -355,9 +358,13 @@ export function CardPopup({
                   </div>
                 }
                 notice={
-                  mutationError && (
-                    <div className="cp-status cp-status--error cp-mutation-error">
-                      {mutationError}
+                  notices.length > 0 && (
+                    <div className="cp-status cp-status--error cp-mutation-error" role="alert">
+                      {notices.map((m) => (
+                        <p key={m} className="cp-mutation-error__line">
+                          {m}
+                        </p>
+                      ))}
                     </div>
                   )
                 }

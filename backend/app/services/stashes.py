@@ -105,9 +105,15 @@ def patch_stash(db: Session, stash_id: int, changes: dict) -> StashResponse:
 
 
 def delete_stash(db: Session, stash_id: int) -> None:
+    """Delete a stash; its rows cascade, the copies return to the Vault.
+    Same lock protocol as every stash writer: the inventory rows of the
+    printings it holds first (ascending variant_id), then the stash row (the
+    DELETE itself), so a split PUT, return or restore on one of those
+    printings either finishes first or sees the stash gone."""
     stash = stash_repo.get_stash(db, stash_id)
     if stash is None:
         raise StashNotFound
+    stash_repo.lock_inventory_rows(db, stash_repo.stash_variant_ids(db, stash_id))
     stash_repo.delete_stash(db, stash)
     db.commit()
 
@@ -115,16 +121,34 @@ def delete_stash(db: Session, stash_id: int) -> None:
 def list_items(db: Session) -> list[StashItemResponse]:
     return [
         StashItemResponse(
-            stash_id=i.stash_id, variant_id=i.variant_id, quantity=i.quantity
+            stash_id=i.stash_id,
+            variant_id=i.variant_id,
+            quantity=i.quantity,
+            stashed_at=i.stashed_at,
         )
         for i in stash_repo.list_items(db)
     ]
 
 
+class SplitChanged(Exception):
+    """The stored split is not the one the client expected (nothing written)."""
+
+    def __init__(self, owned: int, current: dict[int, int]):
+        super().__init__("split_changed")
+        self.owned = owned
+        self.current = current
+
+
 def set_variant_split(
-    db: Session, variant_id: int, allocations: dict[int, int]
+    db: Session,
+    variant_id: int,
+    allocations: dict[int, int],
+    expected: dict[int, int] | None = None,
 ) -> SplitResponse:
-    """Replace the whole split for one printing (omitted stash = 0)."""
+    """Replace the whole split for one printing (omitted stash = 0). With
+    `expected`, only if the stored split equals it (zeros ignored): checked
+    under the printing's inventory lock, which every stash write takes
+    first, so a return, restore or import cannot slip in between."""
     if not stash_repo.variant_exists(db, variant_id):
         raise VariantNotFound
     # Every referenced stash must be the caller's, zero-quantity ones too.
@@ -132,6 +156,11 @@ def set_variant_split(
         raise StashNotFound
 
     owned = stash_repo.lock_owned(db, variant_id)
+    if expected is not None:
+        current = stash_repo.variant_split(db, variant_id)
+        if {s: q for s, q in expected.items() if q > 0} != current:
+            db.rollback()
+            raise SplitChanged(owned, current)
     if sum(allocations.values()) > owned:
         db.rollback()
         raise ExceedsOwned

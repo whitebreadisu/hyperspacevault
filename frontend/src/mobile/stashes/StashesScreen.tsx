@@ -114,7 +114,7 @@ export function StashesScreen({
         ) : (
           <section className="m-stashes__group" aria-label="Your stashes">
             <div className="m-summary__head m-stashes__grouphead">
-              <h2 className="m-stashes__label">Your stashes</h2>
+              <h2 className="m-summary__label m-stashes__label">Your stashes</h2>
               <PriceSeg mode={priceKind} onChange={setPriceKind} />
             </div>
             {ctx.stashes.map((s) => (

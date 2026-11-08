@@ -96,18 +96,23 @@ test.describe("seeded", () => {
 
   test("stashes-desktop-table-gallery-return-undo", async ({ page }) => {
     await openStashes(page);
-    const rows = page.locator(".sp-tr:not(.sp-tr--head)");
+    const rows = page.locator("tbody .sp-tr");
     await expect(page.locator(".sp-read__name")).toHaveText("Red binder");
-    // Printing-level rows in Set | # order: the two Luke printings are two rows.
+    // Printing-level rows, base card order: the two Luke printings are two
+    // rows, side by side (R1-15).
     await expect(rows).toHaveCount(7);
     await expect(page.locator('.sp-tr[data-variant="17"] .sp-td--printing')).toHaveText("Standard");
     await expect(page.locator('.sp-tr[data-variant="8932"] .sp-td--num')).toHaveText("ASH 614");
     await expect(page.locator(".sp-stat").first()).toContainText("12");
+    const lukeRows = await rows.evaluateAll((els) =>
+      els.map((e) => e.getAttribute("data-variant"))
+    );
+    expect(Math.abs(lukeRows.indexOf("17") - lukeRows.indexOf("8932"))).toBe(1);
     await shot(page, "a1-c1-table", true);
 
     // D1: − on Luke Standard, 2 -> 1, the green line + Undo.
     await page.locator('.sp-tr[data-variant="17"] .sp-minus').click();
-    await expect(page.locator('.sp-tr[data-variant="17"] .sp-chip')).toHaveText("1");
+    await expect(page.locator('.sp-tr[data-variant="17"] .playset-chip')).toHaveText("1");
     await expect(page.locator(".sp-ok__text")).toHaveText(
       "1 Luke Skywalker · Standard is back in your Vault."
     );
@@ -118,7 +123,7 @@ test.describe("seeded", () => {
     // Undo restores exactly what was returned.
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.locator(".sp-ok")).toHaveCount(0);
-    await expect(page.locator('.sp-tr[data-variant="17"] .sp-chip')).toHaveText("2");
+    await expect(page.locator('.sp-tr[data-variant="17"] .playset-chip')).toHaveText("2");
     expect(recorderFor(page).stashCalls).toContain("POST /api/stashes/1/restore");
 
     // D2: trash returns every copy; the row leaves.
@@ -132,7 +137,7 @@ test.describe("seeded", () => {
 
     // C2: the gallery, one tile per printing with its own art.
     await page.getByRole("button", { name: "Gallery" }).click();
-    await expect(page.locator(".sp-tile")).toHaveCount(6);
+    await expect(page.locator(".sp-gallery .gallery-cell")).toHaveCount(6);
     await shot(page, "c2-gallery", true);
 
     // A row click opens the card detail on that printing.
@@ -191,12 +196,43 @@ test.describe("seeded", () => {
 
   test("stashes-desktop-filters-narrow-the-pane", async ({ page }) => {
     await openStashes(page);
-    const rows = page.locator(".sp-tr:not(.sp-tr--head)");
+    const rows = page.locator("tbody .sp-tr");
     await expect(rows).toHaveCount(7);
+    // R1-5: the filters sit at the card list's top-left, not the page's.
+    const list = await page.locator(".sp-list").boundingBox();
+    const tab = await page.locator(".sp-list .ifp-sidebar-tab-ring").boundingBox();
+    expect(Math.round(tab!.x)).toBe(Math.round(list!.x));
+    expect(Math.round(tab!.y)).toBe(Math.round(list!.y));
+    const pane = async () => (await page.locator(".sp-content").boundingBox())!;
+    const table = async () => (await page.locator(".sp-tablewrap").boundingBox())!;
+    const [paneBefore, tableBefore] = [await pane(), await table()];
+    await shot(page, "filters-closed");
     await page.locator(".ifp-sidebar-tab").click();
+    const panel = await page.locator(".sp-list .ifp-sidebar").boundingBox();
+    expect(Math.round(panel!.x)).toBe(Math.round(list!.x));
+    expect(Math.round(panel!.y)).toBe(Math.round(list!.y));
+    // Opening the filters moves nothing (no 24 px overlay-pin indent).
+    expect(Math.round((await pane()).x)).toBe(Math.round(paneBefore.x));
+    expect(Math.round((await table()).x)).toBe(Math.round(tableBefore.x));
     await page.getByPlaceholder("Search cards…").fill("Luke");
     await expect(rows).toHaveCount(3);
     await shot(page, "filtered", true);
+    // One FilterPanel for the page's life: the search survives a stash change
+    // and an empty stash anchors the filters at its list corner too.
+    await page.mouse.move(5, 5);
+    await page.locator('.sp-railrow[data-stash="3"]').click();
+    await expect(page.locator(".sp-zero")).toBeVisible();
+    const empty = await page.locator(".sp-list").boundingBox();
+    const corner = page.locator(".sp-list .ifp-sidebar-tab-ring, .sp-list .ifp-sidebar").first();
+    const box = await corner.boundingBox();
+    expect(Math.round(box!.x)).toBe(Math.round(empty!.x));
+    expect(Math.round(box!.y)).toBe(Math.round(empty!.y));
+    await page.locator('.sp-railrow[data-stash="1"]').click();
+    if (await page.locator(".sp-list .ifp-sidebar-tab").count())
+      await page.locator(".ifp-sidebar-tab").click();
+    await expect(page.getByPlaceholder("Search cards…")).toHaveValue("Luke");
+    await expect(rows).toHaveCount(3);
+    await shot(page, "filters-empty-stash", true);
   });
 
   test("stashes-desktop-zero-edit-dup-delete-create", async ({ page }) => {
@@ -233,7 +269,7 @@ test.describe("seeded", () => {
     await page.getByRole("button", { name: "Delete stash" }).click();
     const dlg = page.getByRole("alertdialog");
     await expect(dlg).toContainText("Delete Red binder?");
-    await expect(dlg).toContainText("Its 12 copies go back to your Vault.");
+    await expect(dlg).toContainText("Every card in it returns to your Vault: 12 copies.");
     await shot(page, "e3-delete");
     await dlg.getByRole("button", { name: "Delete stash" }).click();
     await expect(page.locator(".sp-railrow")).toHaveCount(2);
@@ -249,6 +285,112 @@ test.describe("seeded", () => {
     await expect(page.locator(".sp-railrow--on .sp-railrow__name")).toHaveText("With Bob");
   });
 });
+
+// R1-7 / R1-8 / R1-10 at the extremes: 50 stashes (the per-user cap) with
+// long names, the rail folded and unfolded, and the table's column balance
+// at 1280 and 1920.
+const MANY = {
+  stashes: Array.from({ length: 50 }, (_, i) => ({
+    id: i + 1,
+    name: i === 49 ? "W".repeat(40) : `Stash ${i + 1} on the long shelf by the door`.slice(0, 40),
+    description: i % 3 ? null : "A description long enough to need an ellipsis in the rail row",
+    created_at: `2026-10-${String((i % 28) + 1).padStart(2, "0")}T00:00:00Z`,
+  })),
+  stashItems: SEED.stashItems.filter((i) => i.stash_id === 1),
+};
+
+test.describe("many stashes", () => {
+  test.use({ stashSeed: MANY });
+
+  test("stashes-desktop-rail-scale-and-fold", async ({ page }) => {
+    await openStashes(page);
+    const list = page.locator(".sp-rail__list");
+    await expect(list.locator(".sp-railrow")).toHaveCount(50);
+    // The rail's list scrolls on its own; the page does not grow with it.
+    const box = await list.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
+    expect(box.sh).toBeGreaterThan(box.ch);
+    const vh = page.viewportSize()!.height;
+    const rail = await page.locator(".sp-rail").boundingBox();
+    expect(rail!.y + rail!.height).toBeLessThanOrEqual(vh + 1);
+    await list.locator(".sp-railrow").last().scrollIntoViewIfNeeded();
+    await expect(list.locator(".sp-railrow").last()).toBeVisible();
+    await shot(page, "rail-50");
+
+    // Fold: the edge tab; the list stays one click away; remembered.
+    await page.getByRole("button", { name: "Collapse the stash list" }).click();
+    await expect(page.locator(".sp-rail")).toHaveCount(0);
+    const before = await page.locator(".sp-content").boundingBox();
+    await shot(page, "rail-folded");
+    await page.getByRole("button", { name: "Stashes, 50: show the list" }).click();
+    await expect(page.locator(".sp-rail--flyout .sp-railrow")).toHaveCount(50);
+    // The flyout floats: the pane does not move.
+    const after = await page.locator(".sp-content").boundingBox();
+    expect(Math.round(after!.x)).toBe(Math.round(before!.x));
+    await shot(page, "rail-flyout");
+    await page.locator('.sp-rail--flyout .sp-railrow[data-stash="50"]').click();
+    await expect(page.locator(".sp-read__name")).toHaveText("W".repeat(40));
+    await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
+    // A fresh visit opens folded (per viewer).
+    await openStashes(page);
+    await expect(page.getByRole("button", { name: "Stashes, 50: show the list" })).toBeVisible();
+  });
+});
+
+for (const width of [1280, 1920]) {
+  test.describe(`table at ${width}`, () => {
+    test.use({ stashSeed: SEED, viewport: { width, height: 1080 } });
+    test(`stashes-desktop-table-balance-${width}`, async ({ page }) => {
+      await openStashes(page);
+      const th = page.locator(".sp-table thead th");
+      await expect(th).toHaveCount(6);
+      const w = await th.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+      const [num, name, printing, qty, value, rarity] = w;
+      // Name leads but does not take the slack; Value and Rarity have room.
+      expect(name).toBeLessThan((num + printing + qty + value + rarity) * 0.5);
+      expect(value).toBeGreaterThanOrEqual(120);
+      expect(rarity).toBeGreaterThanOrEqual(80);
+      expect(qty).toBeGreaterThanOrEqual(130);
+      // No header text is clipped.
+      const clipped = await th.evaluateAll(
+        (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length
+      );
+      expect(clipped).toBe(0);
+      // Nor any Rarity cell (badge + label).
+      const rarityClipped = await page
+        .locator(".sp-table tbody td.sp-td--rarity")
+        .evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length);
+      expect(rarityClipped).toBe(0);
+      await shot(page, `table-${width}`, true);
+    });
+  });
+}
+
+// R1-8: the page never scrolls sideways, at any desktop width (the table
+// scrolls inside its own wrapper, the head wraps).
+for (const width of [768, 1024, 1280, 1920]) {
+  test.describe(`page width ${width}`, () => {
+    test.use({ stashSeed: SEED, viewport: { width, height: 900 } });
+    test(`stashes-desktop-no-horizontal-overflow-${width}`, async ({ page }) => {
+      await openStashes(page);
+      await expect(page.locator("tbody .sp-tr").first()).toBeVisible();
+      const over = () =>
+        page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      // The Stashes page itself stays inside the window (checked first, so a
+      // header overflow -- r1-01-header-widths -- reads as that, not this).
+      const pageRight = await page
+        .locator(".sp-page")
+        .evaluate((e) => Math.max(e.getBoundingClientRect().right, e.scrollWidth));
+      expect(pageRight, "stash page right edge").toBeLessThanOrEqual(width);
+      expect(await over()).toBeLessThanOrEqual(0);
+      await page.getByRole("button", { name: "Gallery" }).click();
+      expect(await over()).toBeLessThanOrEqual(0);
+      await page.getByRole("button", { name: "Table" }).click();
+      await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      expect(await over()).toBeLessThanOrEqual(0);
+      await shot(page, `overflow-${width}`, true);
+    });
+  });
+}
 
 test("stashes-desktop-no-stashes", async ({ page }) => {
   await openStashes(page);

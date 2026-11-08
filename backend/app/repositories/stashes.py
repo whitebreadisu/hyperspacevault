@@ -86,6 +86,14 @@ def add_stash(db: Session, name: str, description: str | None) -> Stash:
     return stash
 
 
+def stash_variant_ids(db: Session, stash_id: int) -> list[int]:
+    """The printings a stash holds, ascending."""
+    return sorted(
+        int(r.variant_id)
+        for r in db.query(StashItem.variant_id).filter(StashItem.stash_id == stash_id)
+    )
+
+
 def delete_stash(db: Session, stash: Stash) -> None:
     # stash_items rows go with it (ON DELETE CASCADE): the copies return to
     # the Vault, owned is untouched.
@@ -133,25 +141,45 @@ def lock_owned(db: Session, variant_id: int) -> int:
     return int(qty) if qty is not None else 0
 
 
+def variant_split(db: Session, variant_id: int) -> dict[int, int]:
+    """One printing's stored split (non-zero rows only)."""
+    return {
+        int(r.stash_id): int(r.quantity)
+        for r in db.query(StashItem.stash_id, StashItem.quantity).filter(
+            StashItem.variant_id == variant_id, StashItem.quantity > 0
+        )
+    }
+
+
 def replace_variant_split(
     db: Session, variant_id: int, allocations: dict[int, int]
 ) -> None:
     """Full replace of one printing's split: rows for every non-zero
-    allocation, none for the rest. Does not commit."""
+    allocation, none for the rest. A row whose quantity does not rise keeps
+    its stashed_at (migration 0033); a new or raised one takes now. Does not
+    commit."""
+    before = {
+        r.stash_id: (int(r.quantity), r.stashed_at)
+        for r in db.query(
+            StashItem.stash_id, StashItem.quantity, StashItem.stashed_at
+        ).filter(StashItem.variant_id == variant_id)
+    }
     db.query(StashItem).filter(StashItem.variant_id == variant_id).delete(
         synchronize_session=False
     )
     tenant_id = current_tenant_id(db)
     for stash_id, quantity in allocations.items():
         if quantity > 0:
-            db.add(
-                StashItem(
-                    stash_id=stash_id,
-                    tenant_id=tenant_id,
-                    variant_id=variant_id,
-                    quantity=quantity,
-                )
+            row = StashItem(
+                stash_id=stash_id,
+                tenant_id=tenant_id,
+                variant_id=variant_id,
+                quantity=quantity,
             )
+            old = before.get(stash_id)
+            if old is not None and quantity <= old[0]:
+                row.stashed_at = old[1]
+            db.add(row)
     db.flush()
 
 
@@ -259,7 +287,8 @@ def lock_stash(db: Session, stash_id: int) -> bool:
 
 def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> None:
     """Set the stash's quantity for each printing (0 deletes the row,
-    a missing row is inserted). Does not commit."""
+    a missing row is inserted; a raised quantity re-stamps stashed_at).
+    Does not commit."""
     tenant_id = current_tenant_id(db)
     existing = stash_quantities(db, stash_id, list(after))
     for variant_id, quantity in sorted(after.items()):
@@ -269,6 +298,12 @@ def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> N
         if variant_id in existing:
             if quantity <= 0:
                 row.delete(synchronize_session=False)
+            elif quantity > existing[variant_id]:
+                # Copies went in (an Undo restore): stashed_at moves to now.
+                row.update(
+                    {StashItem.quantity: quantity, StashItem.stashed_at: func.now()},
+                    synchronize_session=False,
+                )
             else:
                 row.update({StashItem.quantity: quantity}, synchronize_session=False)
         elif quantity > 0:

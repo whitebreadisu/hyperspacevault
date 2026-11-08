@@ -302,9 +302,10 @@ def test_stale_token_is_409_and_writes_nothing(tc, db, tenant_id, v1):
     assert resp.status_code == 409
     assert resp.json()["detail"] == "stash_impacts_changed"
     assert _owned(tc)[v1] == 5
-    assert tc.get("/api/stashes/items").json() == [
-        {"stash_id": old["id"], "variant_id": v1, "quantity": 2}
-    ]
+    assert [
+        {k: v for k, v in i.items() if k != "stashed_at"}
+        for i in tc.get("/api/stashes/items").json()
+    ] == [{"stash_id": old["id"], "variant_id": v1, "quantity": 2}]
 
 
 def test_missing_token_with_impacts_is_409(tc, db, tenant_id, v1):

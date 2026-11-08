@@ -41,6 +41,7 @@ import {
   withToggle,
 } from "../../vault/vaultModel";
 import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
+import { InSlot } from "../stashes/InSlot";
 import { StashesPane } from "../stashes/StashesPane";
 import "./cards.css";
 
@@ -100,6 +101,11 @@ interface Props {
    * signed in, own vault): the content column becomes the Stashes page
    * (StashesPane) under the same filters, with the stash it is on. */
   stashPage?: { selectedId: number | null; onSelect: (id: number | null) => void } | null;
+  /** The Vault page last shown (App.tsx): a switch between Collection and
+   * Stashes, either way, clears the filters (search, facets, finish scope,
+   * Collection toggles). Sort, view mode and every other
+   * setting are kept, and a visit to another pane clears nothing. */
+  vaultPage?: "collection" | "stashes";
 }
 
 /** Unified Cards view -- one list for everyone, inventory data layered on by
@@ -123,6 +129,7 @@ export function CardsPage({
   openCardOnLoad = null,
   popupKeysSuspended = false,
   stashPage = null,
+  vaultPage = "collection",
 }: Props) {
   // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
@@ -160,6 +167,12 @@ export function CardsPage({
   // are blocked.
   const [vaultState, setVaultState] = useState<VaultFilterState>(freshFilterState);
   const { filters, scope, toggles } = vaultState;
+  // R1-13: Collection <-> Stashes starts each page unfiltered.
+  const [filtersFor, setFiltersFor] = useState(vaultPage);
+  if (filtersFor !== vaultPage) {
+    setFiltersFor(vaultPage);
+    setVaultState(freshFilterState());
+  }
   const [modalOpen, setModalOpen] = useState(false);
   // Owner-side share management modal (App Spec §19.1) -- the Vault header's
   // share affordance. Never rendered in read-only viewer mode (see the
@@ -171,6 +184,8 @@ export function CardsPage({
   // governs which component below renders `list` -- FilterPanel only
   // displays/controls the value (see its ViewMode prop).
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  // The Stashes page's card-list corner, where the FilterPanel goes there.
+  const [filterSlot, setFilterSlot] = useState<HTMLElement | null>(null);
   // ONE unified popup state: every opener (table name click, table
   // Playset-cell click, gallery cell click) targets the same popup. The Name
   // cell's click for anonymous users still opens it (its plate shows "Sign in
@@ -588,22 +603,26 @@ export function CardsPage({
         // center the [sidebar + content] pair as one unit, while narrower
         // viewports (or the collapsed rail) float the sidebar over the table --
         // see cards.css's `.cards-layout` comment for the full mechanism and
-        // the breakpoint arithmetic in FilterPanel.css.
+        // the breakpoint arithmetic in FilterPanel.css. On the Stashes page
+        // the same FilterPanel is portalled into the pane's card-list corner
+        // (StashesPane onFilterSlot), so it floats over the stash's cards,
+        // not the page's left edge.
         <div className="cards-layout">
-          <FilterPanel
-            filters={filters}
-            setFilters={handleFilterPanelChange}
-            cards={toggled as BaseCard[]}
-            onResetAll={resetExternalFilters}
-            externalActiveCount={externalActiveCount}
-            onFieldChanged={handleFieldChanged}
-          >
-            {/* The completion popovers' set selection IS the sidebar's own Set
+          <InSlot slot={stashPage && !readOnly ? filterSlot : null}>
+            <FilterPanel
+              filters={filters}
+              setFilters={handleFilterPanelChange}
+              cards={toggled as BaseCard[]}
+              onResetAll={resetExternalFilters}
+              externalActiveCount={externalActiveCount}
+              onFieldChanged={handleFieldChanged}
+            >
+              {/* The completion popovers' set selection IS the sidebar's own Set
                 facet (no second dimension to surface here) -- a popover
                 row-click shows up in the Set field's own chip/dropdown exactly
                 like a sidebar click would. */}
-            <div className="ifp-toggle-row">
-              {/* While `scope` is active, each pl-toggle below also carries
+              <div className="ifp-toggle-row">
+                {/* While `scope` is active, each pl-toggle below also carries
                   `pl-toggle--scoped` -- the same amber outline/text/background
                   token family the # th uses (cards.css copies
                   `.vs-header-scope__trigger--on` verbatim), signaling that
@@ -615,70 +634,71 @@ export function CardsPage({
                   viewer too -- the owner's real quantities exist to filter on
                   even when the VIEWER is anonymous; signed out with no share,
                   each is an inert teaser that routes to sign-in. */}
-              <div className="ifp-toggle-row__buttons">
-                <button
-                  type="button"
-                  className={`pl-toggle${toggles.incomplete ? " pl-toggle--on" : ""}${
-                    hasData ? "" : " pl-toggle--disabled"
-                  }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => clickToggle("incomplete", "completion")}
-                  aria-pressed={toggles.incomplete}
-                  aria-disabled={!hasData}
-                >
-                  <span className="pl-toggle__box" />
-                  <span className="pl-toggle__label">Show only incomplete playsets</span>
-                </button>
-                {/* Turning this on clears "no inventory" (owned total > 0 vs.
+                <div className="ifp-toggle-row__buttons">
+                  <button
+                    type="button"
+                    className={`pl-toggle${toggles.incomplete ? " pl-toggle--on" : ""}${
+                      hasData ? "" : " pl-toggle--disabled"
+                    }${scope ? " pl-toggle--scoped" : ""}`}
+                    onClick={() => clickToggle("incomplete", "completion")}
+                    aria-pressed={toggles.incomplete}
+                    aria-disabled={!hasData}
+                  >
+                    <span className="pl-toggle__box" />
+                    <span className="pl-toggle__label">Show only incomplete playsets</span>
+                  </button>
+                  {/* Turning this on clears "no inventory" (owned total > 0 vs.
                     === 0). */}
-                <button
-                  type="button"
-                  className={`pl-toggle${toggles.owned ? " pl-toggle--on" : ""}${
-                    hasData ? "" : " pl-toggle--disabled"
-                  }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => clickToggle("owned", "owned")}
-                  aria-pressed={toggles.owned}
-                  aria-disabled={!hasData}
-                >
-                  <span className="pl-toggle__box" />
-                  <span className="pl-toggle__label">Show only cards I own</span>
-                </button>
-                {/* The "what am I missing" view. Turning it on clears "cards I
+                  <button
+                    type="button"
+                    className={`pl-toggle${toggles.owned ? " pl-toggle--on" : ""}${
+                      hasData ? "" : " pl-toggle--disabled"
+                    }${scope ? " pl-toggle--scoped" : ""}`}
+                    onClick={() => clickToggle("owned", "owned")}
+                    aria-pressed={toggles.owned}
+                    aria-disabled={!hasData}
+                  >
+                    <span className="pl-toggle__box" />
+                    <span className="pl-toggle__label">Show only cards I own</span>
+                  </button>
+                  {/* The "what am I missing" view. Turning it on clears "cards I
                     own" and "over keep limit" (over-cap implies owned). */}
-                <button
-                  type="button"
-                  className={`pl-toggle${toggles.unowned ? " pl-toggle--on" : ""}${
-                    hasData ? "" : " pl-toggle--disabled"
-                  }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => clickToggle("unowned", "no_inventory")}
-                  aria-pressed={toggles.unowned}
-                  aria-disabled={!hasData}
-                >
-                  <span className="pl-toggle__box" />
-                  <span className="pl-toggle__label">Only cards with no inventory</span>
-                </button>
-                {/* "Over my keep limit" discovery filter. Turning it on clears
+                  <button
+                    type="button"
+                    className={`pl-toggle${toggles.unowned ? " pl-toggle--on" : ""}${
+                      hasData ? "" : " pl-toggle--disabled"
+                    }${scope ? " pl-toggle--scoped" : ""}`}
+                    onClick={() => clickToggle("unowned", "no_inventory")}
+                    aria-pressed={toggles.unowned}
+                    aria-disabled={!hasData}
+                  >
+                    <span className="pl-toggle__box" />
+                    <span className="pl-toggle__label">Only cards with no inventory</span>
+                  </button>
+                  {/* "Over my keep limit" discovery filter. Turning it on clears
                     "no inventory". */}
-                <button
-                  type="button"
-                  className={`pl-toggle${toggles.overcap ? " pl-toggle--on" : ""}${
-                    hasData ? "" : " pl-toggle--disabled"
-                  }${scope ? " pl-toggle--scoped" : ""}`}
-                  onClick={() => clickToggle("overcap", "over_cap")}
-                  aria-pressed={toggles.overcap}
-                  aria-disabled={!hasData}
-                >
-                  <span className="pl-toggle__box" />
-                  <span className="pl-toggle__label">Over keep limit</span>
-                </button>
-              </div>
-              {/* Quiet persistent nudge near the toggles for anonymous users --
+                  <button
+                    type="button"
+                    className={`pl-toggle${toggles.overcap ? " pl-toggle--on" : ""}${
+                      hasData ? "" : " pl-toggle--disabled"
+                    }${scope ? " pl-toggle--scoped" : ""}`}
+                    onClick={() => clickToggle("overcap", "over_cap")}
+                    aria-pressed={toggles.overcap}
+                    aria-disabled={!hasData}
+                  >
+                    <span className="pl-toggle__box" />
+                    <span className="pl-toggle__label">Over keep limit</span>
+                  </button>
+                </div>
+                {/* Quiet persistent nudge near the toggles for anonymous users --
                   the passive half of the layered nudge treatment (the
                   click-to-prompt above is the active half). Suppressed for a
                   read-only shared-vault view (`hasData` is true there too) --
                   there's nothing to log in FOR on someone else's Vault. */}
-              {!hasData && <p className="ifp-toggle-nudge">Log in to track your collection</p>}
-            </div>
-          </FilterPanel>
+                {!hasData && <p className="ifp-toggle-nudge">Log in to track your collection</p>}
+              </div>
+            </FilterPanel>
+          </InSlot>
           {stashPage && !readOnly ? (
             <StashesPane
               cards={cards}
@@ -690,6 +710,7 @@ export function CardsPage({
               selectedId={stashPage.selectedId}
               onSelect={stashPage.onSelect}
               onOpenPrinting={openPrinting}
+              onFilterSlot={setFilterSlot}
             />
           ) : (
             <div className="cards-content">

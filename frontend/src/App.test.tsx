@@ -133,15 +133,18 @@ vi.mock("./screens/cards/CardsPage", () => ({
     onOpenImportExport,
     openCardOnLoad,
     stashPage,
+    vaultPage,
   }: {
     isAuthenticated: boolean;
     onOpenImportExport?: () => void;
     openCardOnLoad?: { setCode: string; number: string } | null;
     stashPage?: { selectedId: number | null } | null;
+    vaultPage?: string;
   }) => (
     <div>
       <p>cards-page:{isAuthenticated ? "auth" : "anon"}</p>
       <p>stash-page:{stashPage ? String(stashPage.selectedId) : "off"}</p>
+      <p>vault-page:{vaultPage}</p>
       <p>
         open-card:{openCardOnLoad ? `${openCardOnLoad.setCode}-${openCardOnLoad.number}` : "none"}
       </p>
@@ -554,6 +557,25 @@ describe("App settings pane (BL-25)", () => {
 // `stashPage` set; it exists signed in only, so signing out on it falls back
 // to the Collection.
 describe("App Stashes view", () => {
+  // CREATE (BL-341 R1-13): CardsPage clears its filters when `vaultPage`
+  // changes; it changes on a Collection <-> Stashes switch only, never on a
+  // visit to another pane.
+  it("vaultPage follows Collection <-> Stashes and holds across other panes", () => {
+    mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
+    render(<App />);
+    expect(screen.getByText("vault-page:collection")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Stashes" }));
+    expect(screen.getByText("vault-page:stashes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Decks" }));
+    expect(screen.getByText("vault-page:stashes")).toBeInTheDocument();
+    // Back to Stashes (folded under Vault while Decks is lit: by its data-sub).
+    fireEvent.click(document.querySelector('[data-sub="stashes"]')!);
+    expect(screen.getByText("stash-page:null")).toBeVisible();
+    expect(screen.getByText("vault-page:stashes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Collection" }));
+    expect(screen.getByText("vault-page:collection")).toBeInTheDocument();
+  });
+
   it("opens from the pod's Stashes item and falls back to the Collection on sign-out", () => {
     mockUseAuth.mockReturnValue({ user: { email: "a@b.com" }, loading: false, logout: vi.fn() });
     const { rerender } = render(<App />);

@@ -853,6 +853,18 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 
 > the art region collapses on scroll by transform + opacity only (layout probe: 0 layouts / 0 shifts at 390 and 430);
 
+## Archived 2026-11-08 — dev feel-check round 1: header widths, stash saves, filter clear (BL-341, BL-344)
+
+**Disposition:** → archive. The owner's dev feel-check (2026-11-08) retired the 135 px two-row narrow header (R1-1: the pod read as detached from the top), the staged Done / Cancel stash edit (R1-11: saves on click), and added the Collection ↔ Stashes filter clear (R1-13; the old §26 desktop clause is unchanged text, extended).
+
+### §5.12 Header brand — narrow-width height clause (verbatim)
+
+> The header keeps the text wordmark's heights (measured 2026-11-07 at 1440 and 900 px against the dev build of main): 120 px at 1024 px and wider (brand block 72 px + 47 px bottom padding + 1 px border) and 135 px below 1024 px, where the navigation pod takes its own row (owner, 2026-11-07: the 62 px pod does not fit the old 44 px row).
+
+### §26 Card detail — staged edit rows clause (verbatim)
+
+> Edits are staged: Done commits one `PUT`, Cancel (or the sheet's X / drag-down) discards; changing printing or card discards the draft.
+
 ## Archived 2026-11-08 — v3.0 navigation pod and Stashes page (BL-341, BL-344)
 
 **Disposition:** → archive. BL-341's navigation pod replaced the desktop nav tabs (narrow-width header 112 → 135 px, owner 2026-11-07; Import / Export no longer gets a transient tab), and BL-344 slice 2 built the Stashes page, so §26's not-built line is superseded.

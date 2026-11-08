@@ -74,3 +74,7 @@ class StashItem(Base):
         Integer, ForeignKey("card_variants.id"), primary_key=True
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    # When copies last went in (row created or quantity raised; migration 0033).
+    stashed_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )

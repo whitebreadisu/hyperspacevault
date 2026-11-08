@@ -26,13 +26,22 @@ export const STASH_COPY = {
   loadFailed: "Your stashes did not load.",
   staleFailed: "The stash list did not refresh.",
   retry: "Try again",
-} as const;
+  /** The delete confirm (R1-9): every card in the stash returns to the
+   * Vault, with the count. */
+  deleteLead: (copies: number) =>
+    copies === 0
+      ? "It holds no copies."
+      : `Every card in it returns to your Vault: ${copies.toLocaleString()} ${copies === 1 ? "copy" : "copies"}.`,
+  deleteFine: "You still own every copy. Only the stash and its name and description are deleted.",
+};
 
 export interface StashPrinting {
   card: InventoryCard;
   variant: InventoryVariant;
   /** Copies of this printing in the stash. */
   qty: number;
+  /** When copies last went in (ISO), when known: "Recently stashed". */
+  stashedAt?: string | null;
 }
 
 /** The printing's finish name ("Hyperspace"), as the Vault names it. */
@@ -43,6 +52,12 @@ export function finishName(v: InventoryVariant): string {
 /** The printing's own number ("SOR 269"). */
 export function printingNumber(v: InventoryVariant): string {
   return `${v.source_set_code} ${v.card_number}`;
+}
+
+/** The base card's number ("SOR 5"): every printing of a card shares it
+ * (the variant mapping, mapping spec §2). */
+export function baseNumber(card: InventoryCard): string {
+  return `${card.set_code} ${card.base_card_number}`;
 }
 
 /** "Luke Skywalker · Standard". */
@@ -91,7 +106,8 @@ export function usePrintingIndex(cards: InventoryCard[]): PrintingIndex {
  * for a fresh catalogue) is skipped. */
 export function stashPrintings(
   source: InventoryCard[] | PrintingIndex,
-  items: StashMove[]
+  items: StashMove[],
+  stashedAtOf?: (variantId: number) => string | null
 ): StashPrinting[] {
   if (items.length === 0) return [];
   const index = Array.isArray(source) ? printingIndex(source) : source;
@@ -99,7 +115,10 @@ export function stashPrintings(
   for (const it of items) {
     if (it.quantity <= 0) continue;
     const hit = index.get(it.variant_id);
-    if (hit) out.push({ card: hit.card, variant: hit.variant, qty: it.quantity });
+    if (!hit) continue;
+    const row: StashPrinting = { card: hit.card, variant: hit.variant, qty: it.quantity };
+    if (stashedAtOf) row.stashedAt = stashedAtOf(it.variant_id);
+    out.push(row);
   }
   return out;
 }
@@ -156,13 +175,45 @@ export function stashTotals(
   return { copies, value };
 }
 
-export type StashSortColumn = "number" | "name" | "printing" | "qty" | "value" | "rarity";
+/** "base" = Set | # by the base card's number (a card's printings sit
+ * together); "number" = Set | # by the printing's own number; "recent" =
+ * Recently stashed. */
+export type StashSortColumn =
+  "base" | "number" | "name" | "printing" | "qty" | "value" | "rarity" | "recent";
 export interface StashSort {
   column: StashSortColumn;
   direction: "asc" | "desc";
 }
-/** Set | # ascending: binder order. */
-export const DEFAULT_STASH_SORT: StashSort = { column: "number", direction: "asc" };
+/** Set | # by base card number, ascending (R1-15): binder order with every
+ * printing of a card side by side. */
+export const DEFAULT_STASH_SORT: StashSort = { column: "base", direction: "asc" };
+
+/** The sort control's entries (R1-16), both layouts. The two Set | # sorts
+ * share one entry with a secondary choice. */
+export const STASH_SORT_LABELS: Record<StashSortColumn, string> = {
+  base: "Set | # (base card)",
+  number: "Set | # (this printing)",
+  name: "Name",
+  printing: "Printing",
+  qty: "Copies in stash",
+  value: "Value",
+  rarity: "Rarity",
+  recent: "Recently stashed",
+};
+/** The base / actual secondary choice under Set | #. */
+export const NUMBER_SORT_CHOICES: { column: "base" | "number"; label: string }[] = [
+  { column: "base", label: "Base card number" },
+  { column: "number", label: "Card number" },
+];
+
+/** A pick from a sort control, the Vault's rule: a new column lands
+ * ascending, the active column flips direction. One exception: Recently
+ * stashed lands descending (newest first). */
+export function nextStashSort(prev: StashSort, column: StashSortColumn): StashSort {
+  if (prev.column === column)
+    return { column, direction: prev.direction === "asc" ? "desc" : "asc" };
+  return { column, direction: column === "recent" ? "desc" : "asc" };
+}
 
 const RARITY_RANK: Record<string, number> = {
   Special: 0,
@@ -172,20 +223,58 @@ const RARITY_RANK: Record<string, number> = {
   Legendary: 4,
 };
 
-function compareNumber(a: StashPrinting, b: StashPrinting, setOrder: SetOrderMap): number {
-  const [at, ak] = setReleaseRank(a.variant.source_set_code, setOrder);
-  const [bt, bk] = setReleaseRank(b.variant.source_set_code, setOrder);
+function compareSetNumber(
+  aSet: string,
+  aNum: string,
+  bSet: string,
+  bNum: string,
+  setOrder: SetOrderMap
+): number {
+  const [at, ak] = setReleaseRank(aSet, setOrder);
+  const [bt, bk] = setReleaseRank(bSet, setOrder);
   if (at !== bt) return at - bt;
   if (ak !== bk) return ak < bk ? -1 : 1;
-  const an = Number(a.variant.card_number);
-  const bn = Number(b.variant.card_number);
+  const an = Number(aNum);
+  const bn = Number(bNum);
   if (an !== bn && !Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
-  return a.variant.card_number.localeCompare(b.variant.card_number);
+  return aNum.localeCompare(bNum);
 }
 
-/** The pane's order. Ties fall to Set | # (the printing's own set, newest
- * main set first as everywhere, then its number). Unpriced rows sort last
- * under Value in both directions. */
+/** The printing's own Set | #. */
+function compareNumber(a: StashPrinting, b: StashPrinting, setOrder: SetOrderMap): number {
+  return compareSetNumber(
+    a.variant.source_set_code,
+    a.variant.card_number,
+    b.variant.source_set_code,
+    b.variant.card_number,
+    setOrder
+  );
+}
+
+/** The base card's Set | #, then the base card itself (two cards can share
+ * a set and base number -- in-set collisions, mapping spec section 5 D),
+ * then the printing's own number, then the printing (several printings can
+ * share one number, e.g. serialized triples): a card's printings together,
+ * in a stable order. */
+function compareBase(a: StashPrinting, b: StashPrinting, setOrder: SetOrderMap): number {
+  return (
+    compareSetNumber(
+      a.card.set_code,
+      a.card.base_card_number,
+      b.card.set_code,
+      b.card.base_card_number,
+      setOrder
+    ) ||
+    a.card.base_card_id - b.card.base_card_id ||
+    compareNumber(a, b, setOrder) ||
+    a.variant.variant_id - b.variant.variant_id
+  );
+}
+
+/** The pane's order. Ties fall to Set | # by base card, then the
+ * printing's own number (newest main set first as everywhere). Unpriced
+ * rows sort last under Value in both directions; an unknown stash time
+ * sorts last under Recently stashed (ascending = oldest first). */
 export function sortPrintings(
   rows: StashPrinting[],
   sort: StashSort,
@@ -194,6 +283,7 @@ export function sortPrintings(
   valueOf: (r: StashPrinting) => number | null = (r) => totalPrice(r, mode)
 ): StashPrinting[] {
   const dir = sort.direction === "asc" ? 1 : -1;
+  const tie = (a: StashPrinting, b: StashPrinting) => compareBase(a, b, setOrder);
   const by = (a: StashPrinting, b: StashPrinting): number => {
     switch (sort.column) {
       case "name":
@@ -221,24 +311,27 @@ export function sortPrintings(
         if (av != null) return -1;
         if (bv != null) return 1;
       } else if (av !== bv) return (av - bv) * dir;
-      return compareNumber(a, b, setOrder);
+      return tie(a, b);
     }
-    if (sort.column === "number") return compareNumber(a, b, setOrder) * dir;
-    return by(a, b) * dir || compareNumber(a, b, setOrder);
-  });
-}
-
-/** Rows in the order of an outside card list (the phone's Sort sheet sorts
- * cards): cards in `list` order, a card's printings by Set | #. */
-export function orderByCards(
-  rows: StashPrinting[],
-  list: InventoryCard[],
-  setOrder: SetOrderMap
-): StashPrinting[] {
-  const rank = new Map(list.map((c, i) => [c.base_card_id, i]));
-  return rows.slice().sort((a, b) => {
-    const d = (rank.get(a.card.base_card_id) ?? 1e9) - (rank.get(b.card.base_card_id) ?? 1e9);
-    return d || compareNumber(a, b, setOrder);
+    if (sort.column === "recent") {
+      const at = a.stashedAt ? Date.parse(a.stashedAt) : NaN;
+      const bt = b.stashedAt ? Date.parse(b.stashedAt) : NaN;
+      const an = Number.isNaN(at);
+      const bn = Number.isNaN(bt);
+      if (an || bn) {
+        if (!an) return -1;
+        if (!bn) return 1;
+      } else if (at !== bt) return (at - bt) * dir;
+      return tie(a, b);
+    }
+    if (sort.column === "base") return compareBase(a, b, setOrder) * dir;
+    if (sort.column === "number")
+      return (
+        (compareNumber(a, b, setOrder) ||
+          a.variant.variant_id - b.variant.variant_id ||
+          compareBase(a, b, setOrder)) * dir
+      );
+    return by(a, b) * dir || tie(a, b);
   });
 }
 

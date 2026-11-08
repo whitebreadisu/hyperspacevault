@@ -504,3 +504,31 @@ def test_response_is_the_state_at_the_moves_commit(tc, db, tenant_id, v1, pause,
     assert body["items"] == [{"variant_id": v1, "quantity": 2}]
     # The PUT ran afterwards and replaced the printing's whole split.
     assert _db_state(db, s["id"]) == {}
+
+
+def test_delete_takes_the_printings_inventory_locks_first(
+    tc, db, tenant_id, v1, admin_engine
+):
+    """A stash delete follows the stash-writer lock protocol: it waits for a
+    transaction holding the inventory row of a printing the stash holds."""
+    _own(db, tenant_id, v1, 3)
+    s = _stash(tc)
+    _split(tc, v1, [(s["id"], 2)])
+    conn = admin_engine.connect()
+    conn.execute(
+        text(
+            "SELECT quantity FROM inventory WHERE tenant_id = :t AND variant_id = :v "
+            "FOR UPDATE"
+        ),
+        {"t": tenant_id, "v": v1},
+    )
+    deleter, box = _run(lambda: tc.delete(f"/api/stashes/{s['id']}"))
+    try:
+        _assert_blocked_thread(deleter)
+        conn.commit()
+        deleter.join(timeout=10)
+        assert not deleter.is_alive()
+    finally:
+        conn.close()
+    assert box["r"].status_code == 204
+    assert _db_state(db, s["id"]) == {}

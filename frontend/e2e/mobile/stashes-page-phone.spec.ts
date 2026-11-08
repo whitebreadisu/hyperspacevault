@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, measureEach, scrollBy, test } from "./helpers";
+import { expect, measureEach, scrollBy, test, wheel } from "./helpers";
 import { dropDelete204, recorderFor } from "./mock-api";
 import { CARDS, QTY } from "./card-helpers";
 
@@ -8,9 +8,10 @@ import { CARDS, QTY } from "./card-helpers";
 // double: the menu (Collection · Stashes · the stash list), the list
 // screen, inside a stash with the panel collapsing by the Vault's mechanism
 // (collapsed COPIES / VALUE in the header bar slot), the resting Return ->
-// active row (− / chip / trash) reverting on scroll, Undo, bulk Select,
-// gallery, the description popover, the edit / duplicate / delete sheets,
-// and no Stashes entries signed out. Screenshots land in $BL344_SHOTS.
+// active row (− / chip / trash) reverting on scroll, Undo, the gallery,
+// the stash's own sort, the description popover, the edit / duplicate /
+// delete sheets, delete from inside a stash, and no Stashes entries signed
+// out. Bulk Select was removed (R1-14). Screenshots land in $BL344_SHOTS.
 test.afterEach(measureEach);
 test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone page");
@@ -122,7 +123,9 @@ test.describe("seeded", () => {
     await page.goto("/#/stashes/1");
     await expect(page.locator(".m-stashpanel__name")).toHaveText("Red binder");
     await expect(page.locator(".m-stashline").first()).toBeVisible();
-    await expect(page.locator(".m-stashpanel__copies")).toHaveText(String(RED_COPIES));
+    await expect(page.locator(".m-stashpanel .m-metric__value").first()).toHaveText(
+      String(RED_COPIES)
+    );
     await settle(page);
     await shot(page, "inside-expanded");
 
@@ -143,7 +146,7 @@ test.describe("seeded", () => {
     await expect(luke).toHaveClass(/m-stashline--active/);
     await shot(page, "active-row");
     await luke.locator(".m-stashline__minus").click();
-    await expect(luke.locator(".m-stashline__chip")).toHaveText("1");
+    await expect(luke.locator(".playset-chip")).toHaveText("1");
     await expect(page.locator(".m-stashok__text")).toHaveText(
       "1 Luke Skywalker · Standard is back in your Vault."
     );
@@ -154,7 +157,7 @@ test.describe("seeded", () => {
     // Undo puts it back.
     await page.locator(".m-stashok__undo").click();
     await expect(page.locator(".m-stashok")).toHaveCount(0);
-    await expect(luke.locator(".m-stashline__chip")).toHaveText("2");
+    await expect(luke.locator(".playset-chip")).toHaveText("2");
     expect(recorderFor(page).stashCalls).toContain("POST /api/stashes/1/restore");
 
     // The row stays active through − and Undo. Starting a scroll reverts
@@ -164,8 +167,10 @@ test.describe("seeded", () => {
     await scrollBy(page, SCROLL, 420);
     await expect(page.locator(".m-stashline--active")).toHaveCount(0);
     await expect(page.locator(".m-vh--collapsed")).toBeAttached();
-    await expect(page.locator(".m-vh__strip .m-stashstrip")).toContainText("Copies");
-    await expect(page.locator(".m-vh__strip .m-stashstrip__copies")).toHaveText(String(RED_COPIES));
+    // R1-12: two lines -- the stash name over copies and value.
+    await expect(page.locator(".m-vh__strip .m-stashstrip__name")).toHaveText("Red binder");
+    await expect(page.locator(".m-vh__strip .m-stashstrip")).toContainText("copies");
+    await expect(page.locator(".m-vh__strip .m-vh__n")).toHaveText(String(RED_COPIES));
     await shot(page, "collapsed");
     // Back at the top it stays collapsed (never re-expands on scroll).
     await scrollBy(page, SCROLL, -900);
@@ -183,36 +188,70 @@ test.describe("seeded", () => {
     );
   });
 
-  test("stashes-phone-bulk-and-gallery", async ({ page }) => {
+  // Was "stashes-phone-bulk-and-gallery": its bulk Select half is retired --
+  // owner removed, 2026-11-08 R1-14 (desktop has no bulk return); the
+  // gallery half is kept, on the Vault's m-cell / plate.
+  test("stashes-phone-gallery-sort-delete", async ({ page }) => {
     await page.goto("/#/stashes/1");
     await expect(page.locator(".m-stashline").first()).toBeVisible();
-    await page.getByRole("button", { name: "Select" }).click();
-    const lines = page.locator(".m-stashline");
-    await lines.nth(0).locator(".m-stashline__main").click();
-    await lines.nth(1).locator(".m-stashline__main").click();
-    const bulk = page.locator(".m-stashbulk");
-    await expect(bulk).toBeVisible();
-    await expect(bulk.locator(".m-stashbulk__count")).toContainText("2 selected");
-    await shot(page, "bulk");
-    const copies = Number(
-      ((await bulk.getByRole("button").textContent()) ?? "").match(/Return (\d+)/)![1]
-    );
-    await bulk.getByRole("button", { name: /Return \d+ to Vault/ }).click();
-    await expect(bulk).toHaveCount(0);
-    await expect(page.locator(".m-stashok__text")).toHaveText(
-      `${copies} ${copies === 1 ? "copy is" : "copies are"} back in your Vault.`
-    );
-    // The returned rows stay, dimmed at 0, beside Undo.
-    await expect(page.locator(".m-stashline--dim")).toHaveCount(2);
-    await shot(page, "bulk-done");
+    await expect(page.getByRole("button", { name: "Select" })).toHaveCount(0);
+
+    // R1-15 / R1-16: the stash's own sort, default Set | # by base card.
+    await page.getByRole("button", { name: /^Sort: Set \| # \(base card\)/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Sort" });
+    await expect(sheet.locator(".m-choice__row > span:first-child")).toHaveText([
+      "Set | # (base card)",
+      "Set | # (this printing)",
+      "Name",
+      "Value",
+      "Copies in stash",
+      "Rarity",
+      "Recently stashed",
+    ]);
+    await settle(page);
+    await shot(page, "sort-sheet");
+    await sheet.getByRole("button", { name: "Name" }).click();
+    await expect(page.getByRole("button", { name: /^Sort: Name, ascending/ })).toBeVisible();
 
     await page.getByRole("button", { name: "Gallery" }).click();
-    await expect(page.locator(".m-stashtile").first()).toBeVisible();
+    await expect(page.locator(".m-stashgrid .m-cell").first()).toBeVisible();
+    await expect(page.locator(".m-stashgrid .gallery-plate").first()).toBeVisible();
     await shot(page, "gallery");
 
     // A tile opens the card detail on that printing.
     await page.locator(".m-stashtile").first().click();
     await expect(page).toHaveURL(/#\/card\/\d+\?v=\d+/);
+
+    // R1-9: delete from inside the stash, with the count; it lands on the list.
+    await page.goto("/#/stashes/2");
+    await page.getByRole("button", { name: "Delete Trade stash" }).click();
+    const del = page.locator(".m-stashsheet");
+    await expect(del.locator(".m-sheet__title")).toHaveText("Delete Trade stash?");
+    await expect(del).toContainText("Every card in it returns to your Vault: 2 copies.");
+    await settle(page);
+    await shot(page, "delete-inside");
+    await del.locator(".m-stashsheet__destroy").click();
+    await expect(page).toHaveURL(/#\/stashes$/);
+    await expect(page.locator(".m-stashrow")).toHaveCount(2);
+    expect(recorderFor(page).stashCalls).toContain("DELETE /api/stashes/2");
+    dropDelete204(page);
+  });
+
+  // R1-12: the stash panel collapses with the Vault's hold -- the wheel
+  // gesture that collapses ends there; the next one scrolls (s1-06).
+  test("stashes-phone-collapse-holds-like-the-vault", async ({ page }) => {
+    await page.goto("/#/stashes/1");
+    await expect(page.locator(".m-stashline").first()).toBeVisible();
+    await settle(page);
+    const top = () => page.locator(SCROLL).evaluate((e) => e.scrollTop);
+    await wheel(page, SCROLL, Array(12).fill(60));
+    await expect(page.locator(".m-vh--collapsed")).toBeAttached();
+    expect(await top()).toBe(0);
+    await wheel(page, SCROLL, Array(6).fill(60));
+    expect(await page.locator(SCROLL).evaluate((e) => getComputedStyle(e).overflowY)).toBe("auto");
+    expect(await top()).toBeGreaterThan(0);
+    await expect(page.locator(".m-vh--collapsed")).toBeAttached();
+    await shot(page, "collapsed-two-line");
   });
 
   test("stashes-phone-share-own-vault-menu", async ({ page }) => {

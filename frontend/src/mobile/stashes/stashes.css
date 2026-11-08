@@ -1,6 +1,11 @@
 /* The phone Stashes page (design 1d "List + in-row return"): the Stashes
    list (StashesScreen.tsx) and inside a stash (StashScreen.tsx), plus the
-   stash sheets. Exact values are the handoff's. Scoped under .m-app. */
+   stash sheets. Built on the phone Vault's elements -- the panel and its
+   metrics (header.css m-summary / m-metric), the collapsed readout's type
+   roles (m-vh__fact / m-vh__n / m-vh__value), the row (vault.css m-row__*),
+   the gallery cell and plate (m-cell, gallery-plate m-plate) and the count
+   chip (cards.css .playset-chip, no overrides). This file holds the page's
+   own layout and controls. Scoped under .m-app. */
 
 /* ── The Stashes list ─────────────────────────────────────────────────── */
 .m-app .m-stashes__head {
@@ -24,7 +29,7 @@
 }
 .m-app .m-stashes__emptytext {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
   color: #cfd6e4;
   text-wrap: pretty;
@@ -37,15 +42,10 @@
 .m-app .m-stashes__grouphead {
   padding: 0 16px 6px;
 }
+/* "Your stashes" is the Vault panel's m-summary__label; layout only here. */
 .m-app .m-stashes__label {
   flex: 1;
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #9fb0cc;
 }
 .m-app .m-stashes__new {
   display: flex;
@@ -53,7 +53,7 @@
   padding: 20px 0 24px;
 }
 .m-app .m-stashes__group .m-stashes__new {
-  border-top: 1px solid #1e2748;
+  border-top: 1px solid var(--color-border);
 }
 .m-app .m-stashrow {
   display: flex;
@@ -61,8 +61,8 @@
   gap: 8px;
   min-height: 76px;
   padding: 6px 8px 6px 0;
-  border-top: 1px solid #1e2748;
-  color: #e6e6e6;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 .m-app .m-stashrow__main {
   flex: 1;
@@ -88,15 +88,15 @@
   gap: 3px;
 }
 .m-app .m-stashrow__name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .m-app .m-stashrow__desc {
-  font-size: 14px;
-  color: #9fb0cc;
+  font-size: 13px;
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,10 +110,10 @@
 }
 .m-app .m-stashrow__copies {
   font-family: "Russo One", sans-serif;
-  font-size: 16px;
+  font-size: 15px;
 }
 .m-app .m-stashrow__copies--zero {
-  color: #6b7a99;
+  color: var(--color-text-muted);
 }
 .m-app .m-stashrow__value {
   font-family: var(--font-mono);
@@ -127,7 +127,7 @@
   display: grid;
   place-items: center;
   background: transparent;
-  border: 1px solid #2a3558;
+  border: 1px solid var(--color-border);
   color: #cfd6e4;
 }
 .m-app .m-stashrow__pencil:active {
@@ -162,7 +162,7 @@
   font-size: 20px;
   font-weight: 600;
   line-height: 1.2;
-  color: #e6e6e6;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -188,48 +188,25 @@
   text-overflow: ellipsis;
 }
 .m-app .m-stashpanel__desc--none {
-  color: #6b7a99;
+  color: var(--color-text-muted);
 }
 .m-app .m-stashpanel__desc--open {
   background: rgba(37, 99, 235, 0.18);
 }
+/* COPIES / VALUE: the Vault panel's m-metric tiles, two across. */
 .m-app .m-stashpanel__stats {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
   gap: 8px;
   padding-top: 6px;
 }
-.m-app .m-stashpanel__stat {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-.m-app .m-stashpanel__label,
-.m-app .m-stashstrip__label {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #9fb0cc;
-}
-.m-app .m-stashpanel__copies {
-  font-family: "Russo One", sans-serif;
-  font-size: 22px;
-  line-height: 1.1;
-}
-.m-app .m-stashpanel__value {
-  font-family: var(--font-mono);
-  font-size: 22px;
-  line-height: 1.1;
-}
+/* "N back in Vault": the metric sub at the Vault size, green = success. */
 .m-app .m-stashpanel__sub {
-  min-height: 14px;
-  font-size: 12px;
-  color: #178a3a;
+  min-height: 15px;
+  color: var(--aspect-command);
 }
-/* The description popover: steel ring, X top-right; a tap outside closes. */
+/* The description popover: steel ring cut at both corners, X top-right; a
+   tap outside closes. */
 .m-app .m-stashpop {
   position: absolute;
   left: 8px;
@@ -238,7 +215,14 @@
   z-index: 9;
   padding: 1.5px;
   background: rgba(211, 211, 212, 0.5);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
   filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.7));
 }
 .m-app .m-stashpop__inner {
@@ -246,65 +230,64 @@
   align-items: flex-start;
   gap: 6px;
   padding: 12px 4px 14px 14px;
-  background: #0f1528;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+  background: var(--bg-surface);
+  clip-path: polygon(
+    11px 0,
+    100% 0,
+    100% calc(100% - 11px),
+    calc(100% - 11px) 100%,
+    0 100%,
+    0 11px
+  );
 }
 .m-app .m-stashpop__text {
   flex: 1;
   margin: 0;
   font-size: 15.5px;
   line-height: 1.5;
-  color: #e6e6e6;
+  color: var(--color-text);
   text-wrap: pretty;
   overflow-wrap: anywhere;
 }
 .m-app .m-stashpop__close {
   margin-top: -8px;
 }
-/* The collapsed strip's readout (in the header bar slot). */
+/* The collapsed strip (R1-12): two lines in the 44 px bar -- the stash
+   name, then copies and value in the Vault readout's own roles. */
 .m-app .m-stashstrip {
-  display: flex;
-  align-items: center;
-  gap: 18px;
+  flex: 1;
   min-width: 0;
-  padding-left: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding-left: 4px;
 }
-.m-app .m-stashstrip__fact {
-  display: inline-flex;
+.m-app .m-stashstrip__name {
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+.m-app .m-stashstrip__facts {
+  display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 12px;
   white-space: nowrap;
 }
-.m-app .m-stashstrip__copies {
-  font-family: "Russo One", sans-serif;
-  font-size: 17px;
-}
-.m-app .m-stashstrip__value {
-  font-family: var(--font-mono);
-  font-size: 16px;
+.m-app .m-stashstrip__facts .m-vh__value {
+  font-size: 15px;
 }
 
 /* ── Status rows, feedback ─────────────────────────────────────────────── */
 .m-app .m-stashctl__status {
   gap: 6px;
-}
-.m-app .m-stashctl__mode {
-  flex: none;
-  height: 44px;
-  padding: 0 12px;
-  background: transparent;
-  border: 1px solid #2a3558;
-  color: #cfd6e4;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.m-app .m-stashctl__mode--on {
-  background: rgba(37, 99, 235, 0.28);
-  border-color: #2563eb;
-  color: #ffffff;
 }
 .m-app .m-stashctl__icon {
   flex: none;
@@ -313,8 +296,16 @@
   display: grid;
   place-items: center;
   background: rgba(9, 11, 20, 0.5);
-  border: 1px solid #2a3558;
+  border: 1px solid var(--color-border);
   color: #cfd6e4;
+}
+.m-app .m-stashctl__icon:active {
+  background: rgba(37, 99, 235, 0.2);
+}
+.m-app .m-stashctl__icon--danger:active {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 .m-app .m-stashctl__view .m-seg__btn {
   width: 44px;
@@ -331,13 +322,13 @@
   padding: 0 4px 0 14px;
   background: rgba(23, 138, 58, 0.12);
   border-bottom: 1px solid rgba(23, 138, 58, 0.5);
-  color: #178a3a;
+  color: var(--aspect-command);
 }
 .m-app .m-stashok__text {
   flex: 1;
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.35;
-  color: #e6e6e6;
+  color: var(--color-text);
 }
 .m-app .m-stashok__undo {
   min-height: 44px;
@@ -346,16 +337,16 @@
   border: none;
   color: #9fb0cc;
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .m-app .m-stasherr {
   padding: 8px 2px 0;
 }
 
-/* ── Rows ─────────────────────────────────────────────────────────────── */
+/* ── Rows (the Vault row's m-row__* type roles) ───────────────────────── */
 .m-app .m-stashlines {
   display: flex;
   flex-direction: column;
@@ -364,11 +355,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 92px;
+  min-height: 82px;
   padding: 0 12px 0 0;
-  background: #0f1528;
-  border-bottom: 1px solid #1e2748;
-  color: #e6e6e6;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  transition: background 0.12s ease;
 }
 .m-app .m-stashline--active {
   background: rgba(37, 99, 235, 0.16);
@@ -376,100 +367,26 @@
 .m-app .m-stashline__main {
   flex: 1;
   min-width: 0;
-  min-height: 92px;
+  min-height: 82px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 0 0 12px;
+  gap: 12px;
+  padding: 9px 0 9px 16px;
   background: none;
   border: none;
   color: inherit;
   text-align: left;
 }
-.m-app .m-stashline--dim .m-stashline__thumb,
-.m-app .m-stashline--dim .m-stashline__text,
-.m-app .m-stashline--dim .m-stashline__total {
-  opacity: 0.45;
-}
-.m-app .m-stashline__check {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  border: 1.5px solid #6b7a99;
-  background: transparent;
-  color: #ffffff;
-}
-.m-app .m-stashline__check--on {
-  border-color: #2563eb;
-  background: #2563eb;
-}
-.m-app .m-stashline__thumb {
-  position: relative;
-  flex: none;
-  width: 46px;
-  height: 64px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #0b0f1f;
-}
-.m-app .m-stashline__thumb img {
-  display: block;
-  width: 46px;
-  height: 64px;
-  object-fit: cover;
-}
-.m-app .m-stashline__thumb img.m-img--rotated {
-  position: absolute;
-  left: -9px;
-  top: 9px;
-  width: 64px;
-  height: 46px;
-  transform: rotate(90deg);
+.m-app .m-stashline__main:active {
+  background: rgba(37, 99, 235, 0.1);
 }
 .m-app .m-stashline__text {
   flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.m-app .m-stashline__name {
-  font-size: 16.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.m-app .m-stashline__sub {
-  font-size: 14px;
-  font-style: italic;
-  color: #9fb0cc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.m-app .m-stashline__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  min-width: 0;
-}
-.m-app .m-stashline__num {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  color: #9fb0cc;
 }
 .m-app .m-stashline__fin {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .m-app .m-stashline__side {
   flex: none;
@@ -478,27 +395,10 @@
   align-items: flex-end;
   gap: 6px;
 }
-.m-app .m-stashline__total {
-  font-family: var(--font-mono);
-  font-size: 14.5px;
-}
 .m-app .m-stashline__ctl {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-.m-app .m-stashline__chip.playset-chip {
-  min-width: 30px;
-  padding: 5px 7px;
-  font-size: 13px;
-  background: #0b0f1f;
-  border-color: #2a3558;
-}
-.m-app .m-stashline__chip.playset-chip--complete {
-  border-color: rgba(23, 138, 58, 0.6);
-}
-.m-app .m-stashline__chip.playset-chip--empty {
-  border-color: #1e2748;
 }
 /* The row's controls are 44 x 44 hits; the drawn shape (Return 44 x 36,
    − and trash 44 x 40) is the ::before layer. */
@@ -528,7 +428,7 @@
   z-index: -1;
   box-sizing: border-box;
   background: rgba(9, 11, 20, 0.5);
-  border: 1px solid #2a3558;
+  border: 1px solid var(--color-border);
   border-radius: 3px;
 }
 .m-app .m-stashline__return::before {
@@ -542,84 +442,43 @@
   line-height: 1;
 }
 .m-app .m-stashline__minus::before {
-  background: #2563eb;
+  background: var(--color-primary);
   border: none;
   border-radius: 0;
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
 }
 .m-app .m-stashline__minus:active::before {
-  background: #1d4ed8;
+  background: var(--color-primary-dim);
 }
 .m-app .m-stashline__trash:active {
-  color: #f87171;
+  color: var(--color-danger);
 }
 .m-app .m-stashline__trash:active::before {
   background: rgba(248, 113, 113, 0.14);
-  border-color: #f87171;
+  border-color: var(--color-danger);
 }
 
-/* ── Gallery ──────────────────────────────────────────────────────────── */
+/* ── Gallery (the Vault's m-cell + gallery-plate m-plate) ─────────────── */
 .m-app .m-stashgrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px 10px;
   padding: 14px 12px 16px;
 }
-.m-app .m-stashtile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-}
-.m-app .m-stashtile__art {
-  position: relative;
-  display: block;
-  aspect-ratio: 5 / 7;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #0b0f1f;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
-}
-.m-app .m-stashtile__img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.m-app .m-stashtile__img--rotated {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 140%;
-  height: 71.4%;
-  transform: translate(-50%, -50%) rotate(90deg);
-}
 .m-app .m-stashtile__plate {
-  display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 6px;
-  height: 30px;
-  padding: 0 6px;
-  background: #0b0e18;
-  border: 1px solid rgba(211, 211, 212, 0.25);
+  padding: 0 6px 0 8px;
 }
-.m-app .m-stashtile__chip.playset-chip {
-  min-width: 22px;
-  padding: 4px 5px;
-  font-size: 12px;
-  border-radius: 3px;
-  background: #0f1528;
+.m-app .m-stashtile .gallery-plate__total {
+  font-size: 13px;
 }
 .m-app .m-stashtile__fin {
   flex: 1;
   min-width: 0;
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -635,36 +494,6 @@
   text-align: right;
 }
 
-/* ── Bulk select: the pinned panel above the bar ──────────────────────── */
-.m-app .m-stashbulk {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #0f1528;
-  border-top: 1px solid rgba(37, 99, 235, 0.55);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
-}
-.m-app .m-stashbulk__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.m-app .m-stashbulk__count {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.m-app .m-stashbulk__note {
-  font-size: 13px;
-  color: #cfd6e4;
-}
-
 /* ── Sheets ───────────────────────────────────────────────────────────── */
 .m-app .m-stashsheet__form,
 .m-app .m-stashsheet__body {
@@ -676,7 +505,7 @@
 .m-app .m-stashsheet__lead {
   margin: 0;
   font-size: 16px;
-  color: #e6e6e6;
+  color: var(--color-text);
 }
 .m-app .m-stashsheet__fine {
   margin: 0;
@@ -704,8 +533,11 @@
   color: #9fb0cc;
 }
 .m-app .m-stashsheet__danger {
-  color: #f87171;
+  color: var(--color-danger);
 }
+/* The sheet's destructive confirm (B7): the phone has no transactional
+   destructive class to reuse; the skill's destructive fill, angle-cut like
+   the phone's other primary controls. */
 .m-app .m-stashsheet__destroy {
   min-height: 44px;
   padding: 0 18px;
@@ -720,10 +552,19 @@
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
 }
 
-/* The shared Name field at phone size: a 44 px input in a 46 px box. */
+/* The shared Name / Description fields at phone size (B3): the desktop
+   field role's colours and radius, the label and text raised for touch,
+   a 44 px input in a 46 px box. */
+.m-app .m-stashsheet .sp-field__label {
+  font-size: 12px;
+}
 .m-app .m-stashsheet .sp-field__box:not(.sp-field__box--area) {
   min-height: 46px;
 }
 .m-app .m-stashsheet .sp-field__input {
   min-height: 44px;
+  font-size: 16px;
+}
+.m-app .m-stashsheet .sp-field__textarea {
+  font-size: 16px;
 }

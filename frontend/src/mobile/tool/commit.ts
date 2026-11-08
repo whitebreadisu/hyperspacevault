@@ -1,4 +1,5 @@
 import { adjustCard, EmailNotVerifiedError } from "../../api/inventory";
+import { trackOwnedRequest } from "../../utils/ownedSettle";
 import { ImportApiError, runImport } from "../../api/inventoryImportExport";
 import type { CapHandling, ImportReport } from "../../api/inventoryImportExport";
 import type { CapMode } from "../../api/settingsLimits";
@@ -119,7 +120,8 @@ export async function executeCommit(plan: CommitPlan): Promise<void> {
   const doneImports = new Set<CapHandling>();
   try {
     for (const [variantId, delta] of plan.adjust) {
-      await adjustCard(variantId, delta);
+      // Tracked: a stash save for this printing waits for it.
+      await trackOwnedRequest(variantId, adjustCard(variantId, delta));
       doneVariants.add(variantId);
     }
   } catch (err) {
