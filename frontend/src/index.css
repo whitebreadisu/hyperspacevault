@@ -387,25 +387,20 @@ body {
 }
 
 .app-header__nav {
-  /* At >=1024px the nav is out of flow, absolutely centered on both axes
-     against .app-header (position:relative), so it sits dead-center of the
-     whole header bar rather than on a second row below brand + account. Below
-     1024px the brand block and nav could collide, so the media query below
-     returns it to its own full-width row. Being positioned (absolute here,
-     relative below) is also what makes it paint above the ::before starfield
-     layer -- see .app-header::before's comment; the text-shadow itself lives
-     on each .nav-tab, not on this wrapper. Mid-header, the active-tab
-     underline sits far clear of the header separator, so no clearance
-     padding is needed at these widths. */
+  /* At >=1024px the Command pod (components/NavPod.tsx) is out of flow, hung
+     from the header's top edge and centred on the whole bar
+     (left 50% + translateX(-50%)), so it never pushes the brand block or the
+     account slot; the header keeps its 120 px. Below 1024px the media query
+     returns it to its own full-width row. Being positioned is also what
+     makes it paint above the ::before starfield layer. */
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 24px;
+  align-items: flex-start;
   justify-content: center;
+  z-index: 3;
 }
 
 /* Out of flow, the nav adds no height, so without this the header would
@@ -431,11 +426,9 @@ body {
     transform: none;
     order: 1;
     flex-basis: 100%;
-    min-height: 44px;
-    padding: 0 24px 8px;
-    /* The logo brand block is 72 px, 5 px taller than the text wordmark it
-       replaced; the nav row rides 5 px up so the header keeps its 112 px. */
-    margin-top: -5px;
+    /* The 62 px pod under the 72 px brand row: the header is 135 px here
+       (the 44 px tab row it replaced made 112). */
+    padding: 0 24px;
   }
 }
 

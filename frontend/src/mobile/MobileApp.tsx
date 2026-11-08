@@ -42,6 +42,8 @@ import { StashProvider } from "../stashes/StashContext";
 import { CardParamBoot } from "./CardParamBoot";
 import { bootSignupParam, clearSignupParam } from "../utils/cardParam";
 import { Vault } from "./vault/Vault";
+import { StashesScreen } from "./stashes/StashesScreen";
+import { StashScreen } from "./stashes/StashScreen";
 import "./mobile.css";
 import "./shell.css";
 
@@ -61,6 +63,8 @@ interface Screen {
 function screenKey(route: Route): string | null {
   const [a, b] = route.segs;
   if (a === "about") return "about";
+  // The Vault's Stashes page: the list, or inside one stash.
+  if (a === "stashes") return /^\d+$/.test(b ?? "") ? "stashes/" + b : "stashes";
   if (a !== "more") return null;
   // Settings; Delete Account is a layer over it, so its
   // route keeps the Settings screen mounted underneath.
@@ -79,6 +83,8 @@ function screenKey(route: Route): string | null {
  * desktop's `new_arrivals` (App Spec §22 names it for the same screen). */
 const SCREEN_VIEWED: Record<string, ScreenViewedScreen> = {
   vault: "vault",
+  // The Stashes page, the list and inside a stash alike.
+  stashes: "stashes",
   more: "more",
   "more/settings": "settings",
   password: "password",
@@ -299,11 +305,19 @@ export function MobileApp() {
   if (!inShare && ownParams !== vaultParams) setOwnParams(vaultParams);
   if (inShare && sharedParams !== vaultParams) setSharedParams(vaultParams);
 
-  const routeKey = (cardId == null || toolShown ? screenKey(screenRoute) : null) ?? "vault";
+  // A card opened from the Stashes page layers over that page (it stays
+  // mounted under the card, as the Vault does).
+  const routeKey =
+    (cardId == null || toolShown
+      ? screenKey(screenRoute)
+      : baseRoute.segs[0] === "stashes"
+        ? screenKey(baseRoute)
+        : null) ?? "vault";
+  const stashKey = routeKey === "stashes" || routeKey.startsWith("stashes/");
   // Inside a share the own-account routes show the trimmed More (the
   // effect below rewrites the hash) -- never their screens, not for a frame.
-  const blocked = inShare && BLOCKED_IN_SHARE.has(routeKey);
-  const rawKey = blocked ? "more" : routeKey;
+  const blocked = inShare && (BLOCKED_IN_SHARE.has(routeKey) || stashKey);
+  const rawKey = blocked ? (stashKey ? "vault" : "more") : routeKey;
   // Change Password and Delete Account are layers
   // (desktop's modals, unchanged) over a screen that stays mounted beneath:
   // Delete over Settings (its route maps to the Settings key), Password over
@@ -338,11 +352,13 @@ export function MobileApp() {
       return;
     }
     if (blocked) {
-      go("#/more", true);
+      go(stashKey ? "#/vault" : "#/more", true);
       return;
     }
     if (loading) return;
     if (!user && (rawKey === "more/settings" || isPassword)) go("#/vault", true);
+    // No Stashes page signed out (no stash names either).
+    else if (!user && stashKey) go("#/vault", true);
     else if (user && isPassword && !pwProvider) go("#/more", true);
     // Signed out at the Sharing deep link -> More, with sign-in raised
     // (the More row does the same for a tap; desktop's Share button opens it).
@@ -361,6 +377,7 @@ export function MobileApp() {
     inShare,
     isTool,
     blocked,
+    stashKey,
   ]);
   // A More sub-page entered from More shows the back chevron; entered any
   // other way (chooser, account menu, rail chip, deep link) the X. The
@@ -406,6 +423,23 @@ export function MobileApp() {
         />
       );
     if (k === "more/feedback") return <FeedbackScreen onClose={back} fromMore={fromMore} />;
+    // The Stashes page: signed in on the own vault (the guard above sends
+    // anyone else to the Vault; nothing renders for that frame).
+    if (k === "stashes" && user)
+      return <StashesScreen account={account} unread={cue.unread} onOpenChooser={openChooser} />;
+    if (k.startsWith("stashes/") && user)
+      return (
+        <StashScreen
+          key={k}
+          stashId={Number(k.slice("stashes/".length))}
+          account={account}
+          unread={cue.unread}
+          onOpenChooser={openChooser}
+          onOpenFeedback={() => go("#/more/feedback")}
+          onSearchMode={setSearchMode}
+          onRequestSignIn={openSignIn}
+        />
+      );
     return null;
   };
 
@@ -467,7 +501,13 @@ export function MobileApp() {
   // The password / delete / sharing layers report as their own screens;
   // closing one back onto the screen beneath it is not a new view of that
   // screen. The shared vault reports as desktop's shared_view.
-  const viewKey = acctLayer ?? (screen.key === "vault" && inShare ? "shared" : screen.key);
+  const viewKey =
+    acctLayer ??
+    (screen.key === "vault" && inShare
+      ? "shared"
+      : screen.key.startsWith("stashes/")
+        ? "stashes"
+        : screen.key);
   const prevView = useRef(viewKey);
   // The last non-layer screen actually reported, so closing a layer
   // onto a screen that was never reported (cold deep link, guard redirect)
@@ -496,7 +536,12 @@ export function MobileApp() {
       <StashProvider enabled={!!user} paused={inShare}>
         <CardParamBoot disabled={inShare} />
         <div
-          className={"m-app" + (searchMode && screen.key === "vault" ? " m-app--search" : "")}
+          className={
+            "m-app" +
+            (searchMode && (screen.key === "vault" || screen.key.startsWith("stashes/"))
+              ? " m-app--search"
+              : "")
+          }
           data-share={inShare ? "shown" : undefined}
         >
           <SheetHost>

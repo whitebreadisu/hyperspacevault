@@ -41,6 +41,7 @@ import {
   withToggle,
 } from "../../vault/vaultModel";
 import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
+import { StashesPane } from "../stashes/StashesPane";
 import "./cards.css";
 
 interface Props {
@@ -95,6 +96,10 @@ interface Props {
   /** Passed to the card popup: a shell dialog (App.tsx's sign-in dialog) is
    * open over it, so the popup's key handlers stand down (CardPopup). */
   popupKeysSuspended?: boolean;
+  /** Set while the Vault's Stashes page shows (App.tsx view "stashes",
+   * signed in, own vault): the content column becomes the Stashes page
+   * (StashesPane) under the same filters, with the stash it is on. */
+  stashPage?: { selectedId: number | null; onSelect: (id: number | null) => void } | null;
 }
 
 /** Unified Cards view -- one list for everyone, inventory data layered on by
@@ -117,6 +122,7 @@ export function CardsPage({
   shareToken,
   openCardOnLoad = null,
   popupKeysSuspended = false,
+  stashPage = null,
 }: Props) {
   // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
@@ -523,6 +529,16 @@ export function CardsPage({
     [openPopup]
   );
 
+  // A Stashes-page row or tile: the detail opens on that printing and
+  // prev / next browse the pane's cards in its order.
+  const openPrinting = useCallback((cardId: number, variantId: number, order: number[]) => {
+    setGalleryDisplayedFinish(null);
+    setPopupCardIds(order);
+    setPopupBaseCardId(cardId);
+    setPopupSource("table");
+    setLinkPrinting({ cardId, variantId });
+  }, []);
+
   const closePopup = useCallback(() => {
     setPopupBaseCardId(null);
     setPopupCardIds(null);
@@ -663,39 +679,52 @@ export function CardsPage({
               {!hasData && <p className="ifp-toggle-nudge">Log in to track your collection</p>}
             </div>
           </FilterPanel>
-          <div className="cards-content">
-            <InventorySummary
-              filteredCards={list}
-              allCards={all}
-              breakdownCards={breakdown}
-              selectedSetCodes={filters.set}
-              onPickSetCode={pickFilterSet}
-              isNarrowed={narrowed}
-              baseSetCodes={baseSetCodes}
-              orderedBaseSets={orderedBaseSets}
-              isAuthenticated={hasData}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              widthTier={widthTier}
-              onWidthTierChange={handleWidthTierChange}
-            >
-              {/* Mutation affordances are REMOVED (not just disabled) in
+          {stashPage && !readOnly ? (
+            <StashesPane
+              cards={cards}
+              list={list}
+              finishes={filters.finish}
+              setOrder={setOrder}
+              priceKind={priceKind}
+              onPriceKind={handlePriceKindChange}
+              selectedId={stashPage.selectedId}
+              onSelect={stashPage.onSelect}
+              onOpenPrinting={openPrinting}
+            />
+          ) : (
+            <div className="cards-content">
+              <InventorySummary
+                filteredCards={list}
+                allCards={all}
+                breakdownCards={breakdown}
+                selectedSetCodes={filters.set}
+                onPickSetCode={pickFilterSet}
+                isNarrowed={narrowed}
+                baseSetCodes={baseSetCodes}
+                orderedBaseSets={orderedBaseSets}
+                isAuthenticated={hasData}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                widthTier={widthTier}
+                onWidthTierChange={handleWidthTierChange}
+              >
+                {/* Mutation affordances are REMOVED (not just disabled) in
                   read-only viewer mode (App Spec §19.1) -- Add Cards and
                   Import/Export never render at all for a shared vault. */}
-              {!readOnly && (
-                <>
-                  <SWUButton
-                    size="sm"
-                    active={isAuthenticated}
-                    ariaDisabled={!isAuthenticated}
-                    onClick={() => {
-                      if (isAuthenticated) setModalOpen(true);
-                      else requestSignIn();
-                    }}
-                  >
-                    Add Cards
-                  </SWUButton>
-                  {/* Same standard SWUButton, immediately right of Add Cards,
+                {!readOnly && (
+                  <>
+                    <SWUButton
+                      size="sm"
+                      active={isAuthenticated}
+                      ariaDisabled={!isAuthenticated}
+                      onClick={() => {
+                        if (isAuthenticated) setModalOpen(true);
+                        else requestSignIn();
+                      }}
+                    >
+                      Add Cards
+                    </SWUButton>
+                    {/* Same standard SWUButton, immediately right of Add Cards,
                       rendered for every auth state. Three-way click routing
                       mirrors the toggles' two-way routing above, extended with
                       the verified-email gate: anonymous -> requestSignIn (the
@@ -704,112 +733,113 @@ export function CardsPage({
                       App-owned and unreachable, see onOpenImportExport?:
                       undefined-safe call); verified -> onOpenImportExport
                       (App's activeView switch). */}
-                  <SWUButton
-                    size="sm"
-                    active={isAuthenticated && isEmailVerified}
-                    ariaDisabled={!(isAuthenticated && isEmailVerified)}
-                    onClick={() => {
-                      if (isAuthenticated && isEmailVerified) onOpenImportExport?.();
-                      else if (!isAuthenticated) requestSignIn();
-                      else setImportExportNudge(true);
-                    }}
-                  >
-                    Import / Export
-                  </SWUButton>
-                  {/* The Vault header's share affordance (App Spec §19.1) --
+                    <SWUButton
+                      size="sm"
+                      active={isAuthenticated && isEmailVerified}
+                      ariaDisabled={!(isAuthenticated && isEmailVerified)}
+                      onClick={() => {
+                        if (isAuthenticated && isEmailVerified) onOpenImportExport?.();
+                        else if (!isAuthenticated) requestSignIn();
+                        else setImportExportNudge(true);
+                      }}
+                    >
+                      Import / Export
+                    </SWUButton>
+                    {/* The Vault header's share affordance (App Spec §19.1) --
                       same inert-teaser routing as Add Cards above (anonymous
                       -> requestSignIn; signed-in -> opens ShareManageModal).
                       Unlike Import/Export, sharing isn't gated on verified
                       email -- §19.1 doesn't call for that gate, and sharing a
                       Vault carries none of import/export's data-integrity
                       stakes. */}
-                  <SWUButton
-                    size="sm"
-                    active={isAuthenticated}
-                    ariaDisabled={!isAuthenticated}
-                    onClick={() => {
-                      if (isAuthenticated) setShareManageModalOpen(true);
-                      else requestSignIn();
-                    }}
-                  >
-                    Share
-                  </SWUButton>
-                </>
-              )}
-            </InventorySummary>
-            {/* The verify-email nudge -- a quiet inline message revealed by
+                    <SWUButton
+                      size="sm"
+                      active={isAuthenticated}
+                      ariaDisabled={!isAuthenticated}
+                      onClick={() => {
+                        if (isAuthenticated) setShareManageModalOpen(true);
+                        else requestSignIn();
+                      }}
+                    >
+                      Share
+                    </SWUButton>
+                  </>
+                )}
+              </InventorySummary>
+              {/* The verify-email nudge -- a quiet inline message revealed by
                 the click above, the unverified counterpart to the anonymous
                 click-to-sign-in-modal above it. Points at the site-wide
                 VerifyEmailBanner (App.tsx) rather than opening anything of its
                 own, since that banner is already the app's one verify-email
                 affordance. */}
-            {!readOnly && importExportNudge && isAuthenticated && !isEmailVerified && (
-              <p className="ie-entry-nudge">
-                Verify your email to import or export your collection — see the banner above.
-              </p>
-            )}
-            {!readOnly && modalOpen && (
-              <AddCardsModal
-                catalog={addCardsCatalog}
-                onClose={() => setModalOpen(false)}
-                // Awaited -- the modal's own commit-stage busy overlay holds
-                // its "Refreshing your Vault…" stage on this promise before
-                // dismissing. Errors are swallowed here so a failed refresh
-                // never rejects the overlay's own settle step.
-                onCommitted={async () => {
-                  await refreshQuantities().catch(console.error);
-                }}
-              />
-            )}
-            {!readOnly && shareManageModalOpen && (
-              <ShareManageModal onClose={() => setShareManageModalOpen(false)} />
-            )}
-            {viewMode === "table" ? (
-              <CardsTable
-                cards={list}
-                setNameByCode={setNameByCode}
-                isAuthenticated={hasData}
-                onSelectCard={openPopupFromTable}
-                onSelectInventory={openPopupFromTable}
-                scope={scope}
-                onScopeChange={handleScopeChange}
-                priceKind={priceKind}
-                onPriceKindChange={handlePriceKindChange}
-                valueDisplay={valueDisplay}
-                onValueDisplayChange={handleValueDisplayChange}
-                sortState={sortState}
-                onSortChange={handleSortChange}
-                widthTier={widthTier}
-              />
-            ) : (
-              // The Gallery view inherits the same ordering as the table --
-              // GalleryGrid itself has no sort affordance of its own, it just
-              // renders whatever order it's handed. The sort/scope AFFORDANCE
-              // lives one level up, in GallerySortHeader -- the same
-              // sortState/scope owned here, so a sort or scope change made from
-              // the gallery header is visible in the table too the next time
-              // the view is switched (no separate gallery-local state).
-              <>
-                <GallerySortHeader
-                  sortState={sortState}
-                  onSortChange={handleSortChange}
+              {!readOnly && importExportNudge && isAuthenticated && !isEmailVerified && (
+                <p className="ie-entry-nudge">
+                  Verify your email to import or export your collection — see the banner above.
+                </p>
+              )}
+              {!readOnly && modalOpen && (
+                <AddCardsModal
+                  catalog={addCardsCatalog}
+                  onClose={() => setModalOpen(false)}
+                  // Awaited -- the modal's own commit-stage busy overlay holds
+                  // its "Refreshing your Vault…" stage on this promise before
+                  // dismissing. Errors are swallowed here so a failed refresh
+                  // never rejects the overlay's own settle step.
+                  onCommitted={async () => {
+                    await refreshQuantities().catch(console.error);
+                  }}
+                />
+              )}
+              {!readOnly && shareManageModalOpen && (
+                <ShareManageModal onClose={() => setShareManageModalOpen(false)} />
+              )}
+              {viewMode === "table" ? (
+                <CardsTable
+                  cards={list}
+                  setNameByCode={setNameByCode}
+                  isAuthenticated={hasData}
+                  onSelectCard={openPopupFromTable}
+                  onSelectInventory={openPopupFromTable}
                   scope={scope}
                   onScopeChange={handleScopeChange}
-                  valueDisplay={valueDisplay}
-                  onValueDisplayChange={handleValueDisplayChange}
                   priceKind={priceKind}
                   onPriceKindChange={handlePriceKindChange}
+                  valueDisplay={valueDisplay}
+                  onValueDisplayChange={handleValueDisplayChange}
+                  sortState={sortState}
+                  onSortChange={handleSortChange}
+                  widthTier={widthTier}
                 />
-                <GalleryGrid
-                  cards={list}
-                  onSelectCard={openPopupFromGallery}
-                  activeFinishes={filters.finish}
-                  isAuthenticated={hasData}
-                  scope={scope}
-                />
-              </>
-            )}
-          </div>
+              ) : (
+                // The Gallery view inherits the same ordering as the table --
+                // GalleryGrid itself has no sort affordance of its own, it just
+                // renders whatever order it's handed. The sort/scope AFFORDANCE
+                // lives one level up, in GallerySortHeader -- the same
+                // sortState/scope owned here, so a sort or scope change made from
+                // the gallery header is visible in the table too the next time
+                // the view is switched (no separate gallery-local state).
+                <>
+                  <GallerySortHeader
+                    sortState={sortState}
+                    onSortChange={handleSortChange}
+                    scope={scope}
+                    onScopeChange={handleScopeChange}
+                    valueDisplay={valueDisplay}
+                    onValueDisplayChange={handleValueDisplayChange}
+                    priceKind={priceKind}
+                    onPriceKindChange={handlePriceKindChange}
+                  />
+                  <GalleryGrid
+                    cards={list}
+                    onSelectCard={openPopupFromGallery}
+                    activeFinishes={filters.finish}
+                    isAuthenticated={hasData}
+                    scope={scope}
+                  />
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
       {popupBaseCardId != null && (

@@ -852,3 +852,19 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### §25.2 — Card detail, layout-probe clause (verbatim)
 
 > the art region collapses on scroll by transform + opacity only (layout probe: 0 layouts / 0 shifts at 390 and 430);
+
+## Archived 2026-11-08 — v3.0 navigation pod and Stashes page (BL-341, BL-344)
+
+**Disposition:** → archive. BL-341's navigation pod replaced the desktop nav tabs (narrow-width header 112 → 135 px, owner 2026-11-07; Import / Export no longer gets a transient tab), and BL-344 slice 2 built the Stashes page, so §26's not-built line is superseded.
+
+### §5.12 Header brand — narrow-width height clause (verbatim)
+
+> and 112 px below 1024 px, where the nav takes its own row and sits 5 px higher (`margin-top: -5px`) to absorb the logo block's extra 5 px.
+
+### §17 Entry — transient header tab clause (verbatim)
+
+> with a transient header tab that exists only while active
+
+### §26 — Slice 2 status line (verbatim)
+
+> **Slice 2 (not built):** the Stashes page under the Vault (list, a stash's printing-level contents with the Vault's filters and list ↔ gallery switch, taking copies out, rename / description / delete) and the stash-narrowed Vault, after the owner's Claude Design pass; ships with the v3.0 navigation (BL-341).

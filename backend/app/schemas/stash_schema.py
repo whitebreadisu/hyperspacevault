@@ -101,3 +101,33 @@ class SplitResponse(BaseModel):
     variant_id: int
     owned: int
     allocations: list[AllocationResponse]
+
+
+class MoveItem(BaseModel):
+    variant_id: int
+    quantity: int = Field(ge=1, le=999)
+
+
+class MoveRequest(BaseModel):
+    """Body of a stash return / restore: one entry per printing."""
+
+    items: list[MoveItem] = Field(min_length=1)
+
+    @field_validator("items")
+    @classmethod
+    def _unique_variants(cls, value: list[MoveItem]):
+        ids = [i.variant_id for i in value]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a printing may appear only once in items")
+        return value
+
+
+class RemainingItem(BaseModel):
+    variant_id: int
+    quantity: int
+
+
+class MoveResponse(BaseModel):
+    stash_id: int
+    copies: int
+    items: list[RemainingItem]

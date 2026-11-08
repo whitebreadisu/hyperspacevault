@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { VerifyEmailBanner } from "../../components/VerifyEmailBanner";
 import { useCollapse, useHeaderSlot } from "./useCollapse";
 import { VaultHeader } from "./VaultHeader";
-import type { StripSummary } from "./VaultHeader";
+import type { StripReadout, StripSummary } from "./VaultHeader";
 import "./header.css";
 
 // The Vault screen's frame -- the collapsing header overlay, its layout slot
@@ -33,6 +33,11 @@ interface Props {
   onScrollEl?: (el: HTMLElement | null) => void;
   /** Re-keys the scroll container (a view change starts at the top). */
   listKey?: string;
+  /** Another screen in this frame (a stash): its collapsed strip readout,
+   * in place of the Vault's completion readout. */
+  readout?: StripReadout;
+  /** Extra class on the screen root. */
+  className?: string;
   children: ReactNode;
 }
 
@@ -48,6 +53,8 @@ export function VaultScreen({
   searching = false,
   onScrollEl,
   listKey,
+  readout,
+  className,
   children,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -76,7 +83,8 @@ export function VaultScreen({
         "m-screen m-vault" +
         (collapsed ? " m-vh--collapsed" : "") +
         (pull > 0 ? " m-pulling" : "") +
-        (searching ? " m-vault--search" : "")
+        (searching ? " m-vault--search" : "") +
+        (className ? " " + className : "")
       }
       style={pullStyle}
     >
@@ -91,6 +99,7 @@ export function VaultScreen({
         onOpenFeedback={onOpenFeedback}
         account={account}
         panel={panel}
+        readout={readout}
       />
       <div className="m-vh__slot" aria-hidden="true" />
       <div className="m-vault__below">

@@ -123,6 +123,128 @@
   background: rgba(235, 226, 198, 0.45);
 }
 
+/* ── The bottom bar's tap-again menu (MobileNav.tsx: the Vault tab, tapped while lit) ──────────────────── */
+.m-app .m-navmenu-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 100vh;
+  background: rgba(5, 6, 11, 0.6);
+  animation: m-fade 0.15s ease;
+}
+.m-app .m-navmenu {
+  position: absolute;
+  left: 8px;
+  right: 120px;
+  bottom: calc(100% + 10px);
+  z-index: 2;
+  padding: 1.5px;
+  background: rgba(211, 211, 212, 0.42);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+  animation: m-navmenu-in 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes m-navmenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.m-app .m-navmenu__inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%);
+}
+.m-app .m-navmenu__head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 18px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-navmenu__head--on {
+  color: #ffffff;
+}
+.m-app .m-navmenu__head--on::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  bottom: 8px;
+  width: 36px;
+  height: 2px;
+  background: #2563eb;
+}
+.m-app .m-navmenu__rule {
+  height: 1px;
+  margin: 4px 18px;
+  background: #1e2748;
+}
+.m-app .m-navmenu__label {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 18px 4px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-navmenu__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 18px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #e6e6e6;
+}
+.m-app .m-navmenu__row:active {
+  background: rgba(37, 99, 235, 0.16);
+}
+.m-app .m-navmenu__name {
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-app .m-navmenu__count {
+  flex: none;
+  font-family: "Russo One", sans-serif;
+  font-size: 13px;
+  color: #cfd6e4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-app .m-navmenu,
+  .m-app .m-navmenu-scrim {
+    animation: none;
+  }
+}
+
 /* ── Empty state ────────────────────────────────────────────────────────── */
 .m-app .m-empty {
   padding: 40px 24px;
@@ -371,4 +493,15 @@
     animation: none !important;
     opacity: 0.85;
   }
+}
+
+/* The held share's row in the Vault menu: amber, its owner-chosen name. */
+.m-app .m-navmenu__share {
+  color: #f2c14e;
+}
+.m-app .m-navmenu__sharename {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

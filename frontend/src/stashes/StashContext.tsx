@@ -8,8 +8,17 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { createStash, getStashes, getStashItems, putVariantAllocations } from "../api/stashes";
-import type { Stash, StashItem } from "../api/stashes";
+import {
+  createStash,
+  deleteStash,
+  getStashes,
+  getStashItems,
+  putVariantAllocations,
+  restoreStashItems,
+  returnStashItems,
+  updateStash,
+} from "../api/stashes";
+import type { Stash, StashItem, StashMove, StashMoveResult } from "../api/stashes";
 
 // The stash data source: the caller's stash list and the sparse
 // (stash, printing) quantities, for the card detail's stash UI, the owned
@@ -24,8 +33,13 @@ import type { Stash, StashItem } from "../api/stashes";
 //     and nothing exposed, but what was loaded is kept, so returning to the
 //     own vault needs no refetch (fold-in 1, F6).
 //   - No provider at all reads as disabled (tests and the public card page).
-// Refreshed after a Done commit (saveVariant) and after an import commit
-// (refresh, called by both import screens).
+// Refreshed after a Done commit (saveVariant), after an import commit
+// (refresh, called by both import screens) and after every Stashes-page
+// write (returnItems, restoreItems, update, remove), so the card detail, the
+// nav menus and the Stashes page agree. A return / restore applies the
+// response (the stash's remaining quantities and new total) at once, before
+// the re-read. A failed first read sets `failed`; a failed re-read after a
+// write sets `stale`; both are cleared by `retry`, which the pages offer.
 
 export interface StashData {
   /** Signed in, own vault. */
@@ -41,11 +55,31 @@ export interface StashData {
   /** Copies of one printing held in stashes. */
   stashedTotal: (variantId: number) => number;
   refresh: () => Promise<void>;
+  /** The first read failed (nothing loaded): the pages offer `retry`. */
+  failed: boolean;
+  /** A re-read after a write failed: what shows may be behind the server. */
+  stale: boolean;
+  /** Re-read; never throws (sets `failed` / `stale` instead). */
+  retry: () => Promise<void>;
   /** POST a new empty stash and append it to the list. */
   create: (name: string, description: string | null) => Promise<Stash>;
   /** PUT the printing's full split, then refresh. */
   saveVariant: (variantId: number, allocations: Record<number, number>) => Promise<void>;
+  /** One stash's non-zero printings, as `{variant_id, quantity}`. */
+  itemsOf: (stashId: number) => StashMove[];
+  /** POST .../return (copies back to the Vault), then refresh. */
+  returnItems: (stashId: number, items: StashMove[]) => Promise<void>;
+  /** POST .../restore (the Undo of a return), then refresh. */
+  restoreItems: (stashId: number, items: StashMove[]) => Promise<void>;
+  /** PATCH a stash's name / description, then refresh. */
+  update: (stashId: number, patch: { name?: string; description?: string | null }) => Promise<void>;
+  /** DELETE a stash (its copies return to the Vault), then refresh. */
+  remove: (stashId: number) => Promise<void>;
 }
+
+const unavailable = async () => {
+  throw new Error("Stashes are not available here.");
+};
 
 const EMPTY: Record<number, number> = {};
 
@@ -57,12 +91,16 @@ const DISABLED: StashData = {
   allocationsFor: () => EMPTY,
   stashedTotal: () => 0,
   refresh: async () => {},
-  create: async () => {
-    throw new Error("Stashes are not available here.");
-  },
-  saveVariant: async () => {
-    throw new Error("Stashes are not available here.");
-  },
+  failed: false,
+  stale: false,
+  retry: async () => {},
+  create: unavailable,
+  saveVariant: unavailable,
+  itemsOf: () => [],
+  returnItems: unavailable,
+  restoreItems: unavailable,
+  update: unavailable,
+  remove: unavailable,
 };
 
 const StashContext = createContext<StashData>(DISABLED);
@@ -94,6 +132,7 @@ export function StashProvider({
   const [byVariant, setByVariant] = useState<ByVariant>(() => new Map());
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [stale, setStale] = useState(false);
   // Bumped on every enable change, so a fetch that lands after a sign-out
   // is dropped.
   const epoch = useRef(0);
@@ -108,6 +147,7 @@ export function StashProvider({
     setByVariant(indexItems(items));
     setReady(true);
     setFailed(false);
+    setStale(false);
   }, []);
 
   // Signing in or out: drop everything held.
@@ -118,6 +158,7 @@ export function StashProvider({
     setByVariant(new Map());
     setReady(false);
     setFailed(false);
+    setStale(false);
   }, [enabled]);
 
   // The first read, once the own vault is in view (not while paused).
@@ -168,6 +209,82 @@ export function StashProvider({
     [load]
   );
 
+  // After a write the server's state wins: re-read the list and the items.
+  // The write itself already landed, so a failed re-read never fails the
+  // write: it marks the data `stale` and the pages offer a retry.
+  const reload = useCallback(async () => {
+    const mine = epoch.current;
+    try {
+      await load();
+    } catch (err) {
+      console.error("Failed to refresh stashes:", err);
+      if (mine !== epoch.current) return;
+      if (loaded.current) setStale(true);
+      else setFailed(true);
+    }
+  }, [load]);
+
+  // A return / restore answer: the stash's remaining quantity for each
+  // printing sent (0 = the row is gone) and its new total.
+  const applyMove = useCallback((res: StashMoveResult) => {
+    setByVariant((prev) => {
+      const next = new Map(prev);
+      for (const it of res.items) {
+        const row = { ...(next.get(it.variant_id) ?? {}) };
+        if (it.quantity > 0) row[res.stash_id] = it.quantity;
+        else delete row[res.stash_id];
+        if (Object.keys(row).length) next.set(it.variant_id, row);
+        else next.delete(it.variant_id);
+      }
+      return next;
+    });
+    setStashes((prev) =>
+      prev.map((s) => (s.id === res.stash_id ? { ...s, copies: res.copies } : s))
+    );
+  }, []);
+
+  const returnItems = useCallback(
+    async (stashId: number, items: StashMove[]) => {
+      applyMove(await returnStashItems(stashId, items));
+      await reload();
+    },
+    [applyMove, reload]
+  );
+  const restoreItems = useCallback(
+    async (stashId: number, items: StashMove[]) => {
+      applyMove(await restoreStashItems(stashId, items));
+      await reload();
+    },
+    [applyMove, reload]
+  );
+  const update = useCallback(
+    async (stashId: number, patch: { name?: string; description?: string | null }) => {
+      const s = await updateStash(stashId, patch);
+      setStashes((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
+      await reload();
+    },
+    [reload]
+  );
+  const remove = useCallback(
+    async (stashId: number) => {
+      await deleteStash(stashId);
+      setStashes((prev) => prev.filter((x) => x.id !== stashId));
+      await reload();
+    },
+    [reload]
+  );
+
+  const byStash = useMemo(() => {
+    const m = new Map<number, StashMove[]>();
+    for (const [variant_id, row] of byVariant)
+      for (const [id, quantity] of Object.entries(row)) {
+        const list = m.get(Number(id)) ?? [];
+        list.push({ variant_id, quantity });
+        m.set(Number(id), list);
+      }
+    return m;
+  }, [byVariant]);
+
   const value = useMemo<StashData>(() => {
     if (!enabled || paused) return DISABLED;
     return {
@@ -184,10 +301,35 @@ export function StashProvider({
         return n;
       },
       refresh,
+      failed,
+      stale,
+      retry: reload,
       create,
       saveVariant,
+      itemsOf: (id) => byStash.get(id) ?? [],
+      returnItems,
+      restoreItems,
+      update,
+      remove,
     };
-  }, [enabled, paused, ready, failed, stashes, byVariant, refresh, create, saveVariant]);
+  }, [
+    enabled,
+    paused,
+    ready,
+    failed,
+    stashes,
+    byVariant,
+    byStash,
+    refresh,
+    stale,
+    reload,
+    create,
+    saveVariant,
+    returnItems,
+    restoreItems,
+    update,
+    remove,
+  ]);
 
   return <StashContext.Provider value={value}>{children}</StashContext.Provider>;
 }

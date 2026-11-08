@@ -1,0 +1,357 @@
+/* The desktop Command pod (NavPod.tsx; v3.0 navigation handoff 1c, "glide").
+   Exact values are the handoff's. The ring is two clip-path layers (a CSS
+   border cannot follow a clip-path): the steel outer layer and the #0f1528
+   inner layer inset 1.5 px (top 0), both with the bottom corners cut. */
+
+.pod {
+  --pod-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --pod-ring: rgba(211, 211, 212, 0.42);
+  position: relative;
+  height: 62px;
+  z-index: 2;
+  text-shadow: none;
+}
+.pod--shared {
+  --pod-ring: rgba(217, 154, 31, 0.6);
+}
+.pod::before,
+.pod::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.pod::before {
+  inset: 0;
+  background: var(--pod-ring);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 16px),
+    calc(100% - 16px) 100%,
+    16px 100%,
+    0 calc(100% - 16px)
+  );
+}
+.pod::after {
+  inset: 0 1.5px 1.5px;
+  background: #0f1528;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 15px),
+    calc(100% - 15px) 100%,
+    15px 100%,
+    0 calc(100% - 15px)
+  );
+}
+
+.pod__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  padding: 0 22px;
+}
+
+.pod__item {
+  display: flex;
+  align-items: stretch;
+  background-color: transparent;
+  transition: background-color 320ms ease;
+}
+.pod__item--on {
+  background-color: rgba(37, 99, 235, 0.12);
+}
+.pod__item--amber {
+  background-color: rgba(217, 154, 31, 0.1);
+}
+
+.pod__top {
+  position: relative;
+  width: 88px;
+  flex: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #9fb0cc;
+  transition: color 200ms ease;
+}
+.pod__item--updates .pod__top {
+  width: 104px;
+}
+.pod__top:hover,
+.pod__top:focus-visible {
+  color: #ffffff;
+}
+.pod__item--on .pod__top {
+  color: #ffffff;
+}
+.pod__item--amber .pod__top {
+  color: #f2c14e;
+}
+.pod__label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-shadow: none;
+}
+/* .nav-tab--cue's amber pulse, on the pod's small label. */
+.pod__label--cue {
+  border-radius: 2px;
+}
+.pod__hsv {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 20px;
+}
+.pod__bar {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 3px;
+  background: #2563eb;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 320ms var(--pod-ease);
+}
+.pod__item--amber .pod__bar {
+  background: #f2c14e;
+}
+.pod__item--on .pod__bar,
+.pod__item--amber .pod__bar {
+  transform: scaleX(1);
+}
+
+/* Subsections, unfolding beside the active item. */
+.pod__subs {
+  display: flex;
+  align-items: stretch;
+  overflow-x: visible;
+  overflow-y: visible;
+  transition: max-width 320ms var(--pod-ease);
+}
+.pod__subs:not(.pod__subs--open),
+.pod__subs--clip {
+  overflow-x: clip;
+}
+.pod__subsinner {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+.pod__divider {
+  flex: none;
+  width: 1px;
+  background: #2a3558;
+  margin: 14px 4px 18px 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.pod__subs--open .pod__divider {
+  opacity: 1;
+}
+.pod__trail {
+  flex: none;
+  width: 8px;
+}
+.pod__subwrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.pod__subs--open .pod__subwrap {
+  opacity: 1;
+  transition: opacity 320ms var(--pod-ease) 90ms;
+}
+.pod__sub {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 0 14px 6px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7a99;
+  transition: color 200ms ease;
+}
+.pod__sub:hover,
+.pod__sub:focus-visible {
+  color: #cfd6e4;
+}
+.pod__sub--on,
+.pod__sub--on:hover {
+  color: #ffffff;
+}
+.pod__item--amber .pod__sub--on {
+  color: #f2c14e;
+}
+.pod__subbar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 14px;
+  height: 2px;
+  background: #2563eb;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 320ms var(--pod-ease);
+}
+.pod__item--amber .pod__subbar {
+  background: #f2c14e;
+}
+.pod__sub--on .pod__subbar {
+  transform: scaleX(1);
+}
+
+/* The stash menu under Stashes. */
+.pod-menu {
+  position: absolute;
+  top: 100%;
+  left: -6px;
+  padding-top: 6px;
+  z-index: 30;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    opacity 180ms var(--pod-ease),
+    transform 180ms var(--pod-ease);
+}
+.pod-menu--open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.pod-menu__panel {
+  position: relative;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 8px;
+  isolation: isolate;
+}
+.pod-menu__panel::before,
+.pod-menu__panel::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+}
+.pod-menu__panel::before {
+  inset: 0;
+  background: rgba(211, 211, 212, 0.42);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.pod-menu__panel::after {
+  inset: 1.5px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+}
+.pod-menu__head {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.pod-menu__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 9px 16px;
+  text-align: left;
+  color: #e6e6e6;
+}
+.pod-menu__row:hover,
+.pod-menu__row:focus-visible {
+  background: rgba(37, 99, 235, 0.16);
+}
+.pod-menu__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pod-menu__count {
+  flex: none;
+  font-family: "Russo One", sans-serif;
+  font-size: 13px;
+  color: #cfd6e4;
+}
+.pod-menu__rule {
+  height: 1px;
+  background: #1e2748;
+  margin: 6px 16px;
+}
+.pod-menu__all {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 9px 16px 4px;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.pod-menu__all:hover,
+.pod-menu__all:focus-visible {
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pod__item,
+  .pod__top,
+  .pod__bar,
+  .pod__subs,
+  .pod__divider,
+  .pod__subwrap,
+  .pod__subs--open .pod__subwrap,
+  .pod__sub,
+  .pod__subbar,
+  .pod-menu {
+    transition: none;
+  }
+  .pod-menu {
+    transform: none;
+  }
+  .nav-tab--cue.pod__label--cue {
+    animation: none;
+    text-shadow: 0 0 10px rgba(217, 154, 31, 0.9);
+  }
+}
