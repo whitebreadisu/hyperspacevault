@@ -193,7 +193,11 @@ export function StashProvider({
       const body = Object.entries(allocations)
         .map(([id, q]) => ({ stash_id: Number(id), quantity: q }))
         .filter((a) => a.quantity > 0);
+      const mine = epoch.current;
       const result = await putVariantAllocations(variantId, body);
+      // A sign-out (or in) while the PUT was out: its answer is not this
+      // session's to show.
+      if (mine !== epoch.current) return;
       // The response is the stored split: show it at once, then re-read the
       // list (each stash's `copies`) and the items.
       setByVariant((prev) => {
@@ -245,14 +249,21 @@ export function StashProvider({
 
   const returnItems = useCallback(
     async (stashId: number, items: StashMove[]) => {
-      applyMove(await returnStashItems(stashId, items));
+      const mine = epoch.current;
+      const res = await returnStashItems(stashId, items);
+      // Signed out (or in) while it was out: nothing to apply or re-read.
+      if (mine !== epoch.current) return;
+      applyMove(res);
       await reload();
     },
     [applyMove, reload]
   );
   const restoreItems = useCallback(
     async (stashId: number, items: StashMove[]) => {
-      applyMove(await restoreStashItems(stashId, items));
+      const mine = epoch.current;
+      const res = await restoreStashItems(stashId, items);
+      if (mine !== epoch.current) return;
+      applyMove(res);
       await reload();
     },
     [applyMove, reload]
@@ -267,8 +278,23 @@ export function StashProvider({
   );
   const remove = useCallback(
     async (stashId: number) => {
+      const mine = epoch.current;
       await deleteStash(stashId);
+      if (mine !== epoch.current) return;
       setStashes((prev) => prev.filter((x) => x.id !== stashId));
+      // Its copies are back in the Vault: drop it from every printing's
+      // split now, so stashedTotal is right even if the re-read fails.
+      setByVariant((prev) => {
+        const next = new Map(prev);
+        for (const [vid, row] of prev) {
+          if (!(stashId in row)) continue;
+          const rest = { ...row };
+          delete rest[stashId];
+          if (Object.keys(rest).length) next.set(vid, rest);
+          else next.delete(vid);
+        }
+        return next;
+      });
       await reload();
     },
     [reload]

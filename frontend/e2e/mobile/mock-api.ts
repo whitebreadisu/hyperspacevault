@@ -679,12 +679,12 @@ export async function installApiMocks(
             items: { variant_id: number; quantity: number }[];
           };
           // The backend's 422s: an empty list, a repeated printing, a
-          // quantity under 1 (nothing written).
+          // quantity under 1 or over 999 (nothing written).
           if (
             !Array.isArray(items) ||
             items.length === 0 ||
             new Set(items.map((i) => i.variant_id)).size !== items.length ||
-            items.some((i) => !Number.isInteger(i.quantity) || i.quantity < 1)
+            items.some((i) => !Number.isInteger(i.quantity) || i.quantity < 1 || i.quantity > 999)
           )
             return ok(route, { detail: "invalid" }, 422);
           const held = (v: number) => stashItems.get(`${stashId}:${v}`) ?? 0;

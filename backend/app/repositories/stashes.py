@@ -244,10 +244,22 @@ def stashed_totals(db: Session, variant_ids: list[int]) -> dict[int, int]:
     return {vid: int(total) for vid, total in rows}
 
 
-def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> bool:
+def lock_stash(db: Session, stash_id: int) -> bool:
+    """Lock the stash row (FOR NO KEY UPDATE) until the transaction ends, so
+    a concurrent DELETE of it waits for the move to commit. False when the
+    stash is gone. Always taken after the inventory rows."""
+    return (
+        db.query(Stash.id)
+        .filter(Stash.id == stash_id)
+        .with_for_update(key_share=True)
+        .first()
+        is not None
+    )
+
+
+def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> None:
     """Set the stash's quantity for each printing (0 deletes the row,
-    a missing row is inserted). Does not commit. Returns False when a row
-    that was read a moment ago is gone (the stash was deleted meanwhile)."""
+    a missing row is inserted). Does not commit."""
     tenant_id = current_tenant_id(db)
     existing = stash_quantities(db, stash_id, list(after))
     for variant_id, quantity in sorted(after.items()):
@@ -256,13 +268,9 @@ def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> b
         )
         if variant_id in existing:
             if quantity <= 0:
-                changed = row.delete(synchronize_session=False)
+                row.delete(synchronize_session=False)
             else:
-                changed = row.update(
-                    {StashItem.quantity: quantity}, synchronize_session=False
-                )
-            if changed != 1:
-                return False
+                row.update({StashItem.quantity: quantity}, synchronize_session=False)
         elif quantity > 0:
             db.add(
                 StashItem(
@@ -273,4 +281,3 @@ def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> b
                 )
             )
     db.flush()
-    return True

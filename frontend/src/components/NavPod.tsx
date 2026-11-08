@@ -323,10 +323,15 @@ export function NavPod({
       if (e.key !== "Escape") return;
       setMenuOpen(false);
       const pod = podRef.current;
-      if (!pod) return;
-      // The focus below must not reopen the menu (the sub item's onFocus).
+      // Focus moves only when it is in the pod (the menu or Stashes): an
+      // Escape typed elsewhere closes the menu and leaves focus alone.
+      if (!pod || !pod.contains(document.activeElement)) return;
+      const stashes = pod.querySelector<HTMLElement>('[data-sub="stashes"]');
+      if (!stashes || document.activeElement === stashes) return;
+      // The focus below must not reopen the menu (the sub item's onFocus);
+      // set only when a focus event will follow and clear it.
       pod.dataset.escaped = "1";
-      pod.querySelector<HTMLElement>('[data-sub="stashes"]')?.focus();
+      stashes.focus();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

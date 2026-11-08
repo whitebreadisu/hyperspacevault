@@ -54,6 +54,12 @@ import { resetMediaMatches, setMediaMatches } from "../../test/setup";
 import { resetRouterForTest } from "../router";
 import { PHONE_QUERY } from "../useIsPhone";
 
+const screensViewed = () =>
+  vi
+    .mocked(capture)
+    .mock.calls.filter(([e]) => e === "screen_viewed")
+    .map(([, p]) => (p as { screen: string }).screen);
+
 async function boot(path: string, hash: string) {
   window.history.pushState({}, "", path + hash);
   setMediaMatches(PHONE_QUERY, true);
@@ -97,6 +103,8 @@ describe("phone Stashes routes", () => {
     expect(window.location.hash).toBe("#/vault");
     expect(r.container.querySelector(".m-stashscreen, .m-stashes")).toBeNull();
     expect(r.container.textContent).not.toContain("Red binder");
+    // The share shown is reported as the shared vault, never as stashes.
+    expect(screensViewed()).not.toContain("stashes");
   });
 
   it("signed out, #/stashes lands on #/vault and nothing is fetched", async () => {
@@ -104,6 +112,8 @@ describe("phone Stashes routes", () => {
     expect(window.location.hash).toBe("#/vault");
     expect(r.container.querySelector(".m-stashes")).toBeNull();
     expect(api.getStashes).not.toHaveBeenCalled();
+    // The redirected deep link reports nothing as stashes.
+    expect(screensViewed()).not.toContain("stashes");
   });
 });
 

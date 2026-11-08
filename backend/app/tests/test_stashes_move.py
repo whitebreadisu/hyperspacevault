@@ -344,33 +344,163 @@ def test_restore_waits_for_concurrent_owned_decrease(
     assert _db_state(db, s["id"]) == {}
 
 
-@pytest.mark.parametrize("verb", ["return", "restore"])
-def test_stash_deleted_while_waiting_for_locks_is_404(
-    tc, db, tenant_id, v1, admin_engine, verb
-):
-    _own(db, tenant_id, v1, 3)
-    s = _stash(tc)
-    _split(tc, v1, [(s["id"], 2)])
-    conn = admin_engine.connect()
-    conn.execute(
-        text("SELECT 1 FROM inventory WHERE tenant_id=:t AND variant_id=:v FOR UPDATE"),
-        {"t": tenant_id, "v": v1},
-    )
+# ---------------------------------------------------------------------------
+# Stash row lock: a DELETE of the stash vs a move
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def pause(monkeypatch):
+    """Pause the next move right after it took its locks (it is about to
+    read the stash quantities) until the test releases it. Returns
+    (reached, release, armed); a test arms it once its setup is done."""
+    from app.repositories import stashes as repo
+
+    reached, release, armed = (threading.Event() for _ in range(3))
+    real = repo.stash_quantities
+
+    def wrapper(*args, **kwargs):
+        if armed.is_set() and not reached.is_set():
+            reached.set()
+            assert release.wait(15)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(repo, "stash_quantities", wrapper)
+    return reached, release, armed
+
+
+def _run(fn):
     box = {}
 
-    def call():
-        box["r"] = _move(tc, verb, s["id"], [(v1, 1)])
+    def go():
+        box["r"] = fn()
 
-    t = threading.Thread(target=call)
+    t = threading.Thread(target=go)
     t.start()
-    try:
-        t.join(timeout=0.6)
-        assert t.is_alive(), "call should wait on the inventory row lock"
+    return t, box
+
+
+def _assert_blocked_thread(thread, seconds=0.6):
+    thread.join(timeout=seconds)
+    assert thread.is_alive(), "expected the call to be waiting on a lock"
+
+
+def _prepare(tc, db, tenant_id, v1, verb, pause=None):
+    """Owned 3, all stashed; for restore, 2 copies are already returned.
+    Arms the pause hook after the setup return has passed through it."""
+    _own(db, tenant_id, v1, 3)
+    s = _stash(tc)
+    _split(tc, v1, [(s["id"], 3)])
+    if verb == "restore":
+        assert _move(tc, "return", s["id"], [(v1, 2)]).status_code == 200
+    if pause is not None:
+        pause[2].set()
+    return s
+
+
+@pytest.mark.parametrize("verb", ["return", "restore"])
+def test_delete_waits_for_a_move_that_holds_the_stash_lock(
+    tc, db, tenant_id, v1, admin_engine, pause, verb
+):
+    reached, release, armed = pause
+    s = _prepare(tc, db, tenant_id, v1, verb, pause)
+    mover, box = _run(lambda: _move(tc, verb, s["id"], [(v1, 1)]))
+    assert reached.wait(10), "the move never reached its locked section"
+    conn = admin_engine.connect()
+
+    def delete():
         conn.execute(text("DELETE FROM stashes WHERE id = :s"), {"s": s["id"]})
         conn.commit()
-        t.join(timeout=10)
-        assert not t.is_alive()
+
+    deleter, _ = _run(delete)
+    try:
+        _assert_blocked_thread(deleter)
+        release.set()
+        mover.join(timeout=10)
+        deleter.join(timeout=10)
+        assert not mover.is_alive() and not deleter.is_alive()
+    finally:
+        release.set()
+        conn.close()
+    assert box["r"].status_code == 200, box["r"].text
+    assert box["r"].json()["stash_id"] == s["id"]
+    # The delete ran after the move committed, and cascaded its rows.
+    gone = db.execute(
+        text("SELECT count(*) FROM stashes WHERE id = :s"), {"s": s["id"]}
+    ).scalar_one()
+    assert gone == 0
+    assert _db_state(db, s["id"]) == {}
+
+
+@pytest.mark.parametrize("verb", ["return", "restore"])
+def test_move_after_a_delete_holding_the_stash_lock_is_404(
+    tc, db, tenant_id, v1, admin_engine, monkeypatch, verb
+):
+    """The delete holds the stash row first; the move waits on the stash
+    lock, then answers 404 without reading or writing any quantity."""
+    from app.repositories import stashes as repo
+
+    s = _prepare(tc, db, tenant_id, v1, verb)
+    calls = []
+    real = repo.stash_quantities
+
+    def spy(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(repo, "stash_quantities", spy)
+    conn = admin_engine.connect()
+    conn.execute(text("DELETE FROM stashes WHERE id = :s"), {"s": s["id"]})
+    mover, box = _run(lambda: _move(tc, verb, s["id"], [(v1, 1)]))
+    try:
+        _assert_blocked_thread(mover)
+        conn.commit()
+        mover.join(timeout=10)
+        assert not mover.is_alive()
     finally:
         conn.close()
     assert box["r"].status_code == 404
+    assert calls == []
+    assert _db_state(db, s["id"]) == {}
+    owned = db.execute(
+        text("SELECT quantity FROM inventory WHERE tenant_id=:t AND variant_id=:v"),
+        {"t": tenant_id, "v": v1},
+    ).scalar_one()
+    assert owned == 3
+
+
+@pytest.mark.parametrize("verb", ["return", "restore"])
+def test_response_is_the_state_at_the_moves_commit(tc, db, tenant_id, v1, pause, verb):
+    """A PUT on the same printing is blocked behind the move's locks and
+    commits right after it; the move's response must be the state at the
+    move's own commit, not the PUT's."""
+    reached, release, armed = pause
+    _own(db, tenant_id, v1, 4)
+    s, other = _stash(tc), _stash(tc, "Other")
+    _split(tc, v1, [(s["id"], 3), (other["id"], 1)])
+    if verb == "restore":
+        assert _move(tc, "return", s["id"], [(v1, 2)]).status_code == 200
+    armed.set()
+    mover, box = _run(lambda: _move(tc, verb, s["id"], [(v1, 1)]))
+    assert reached.wait(10)
+    putter, pbox = _run(
+        lambda: tc.put(
+            f"/api/stashes/variants/{v1}",
+            json={"allocations": [{"stash_id": other["id"], "quantity": 1}]},
+        )
+    )
+    try:
+        _assert_blocked_thread(putter)
+        release.set()
+        mover.join(timeout=10)
+        putter.join(timeout=10)
+        assert not mover.is_alive() and not putter.is_alive()
+    finally:
+        release.set()
+    assert pbox["r"].status_code == 200, pbox["r"].text
+    # return: 3 - 1 = 2; restore: (3 - 2) + 1 = 2.
+    body = box["r"].json()
+    assert body["copies"] == 2
+    assert body["items"] == [{"variant_id": v1, "quantity": 2}]
+    # The PUT ran afterwards and replaced the printing's whole split.
     assert _db_state(db, s["id"]) == {}

@@ -142,6 +142,53 @@ test.describe("seeded", () => {
     await expect(page.locator(".cp-modal")).toContainText("Hyperspace Foil");
   });
 
+  test("stashes-desktop-mock-validates-like-the-backend", async ({ page }) => {
+    // The double's return / restore answer the backend's 422s and write
+    // nothing: empty, a repeated printing, a quantity under 1 or over 999.
+    await page.goto("/");
+    const post = (action: string, items: unknown[]) =>
+      page.evaluate(
+        async ([a, body]) => {
+          const r = await fetch(`/api/stashes/1/${a}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: body }),
+          });
+          return r.status;
+        },
+        [action, items] as const
+      );
+    const held = () =>
+      page.evaluate(async () => {
+        const r = await fetch("/api/stashes/items");
+        const rows = (await r.json()) as {
+          stash_id: number;
+          variant_id: number;
+          quantity: number;
+        }[];
+        return rows.find((i) => i.stash_id === 1 && i.variant_id === 17)?.quantity;
+      });
+    for (const action of ["return", "restore"]) {
+      expect(await post(action, [])).toBe(422);
+      expect(await post(action, [{ variant_id: 17, quantity: 1000 }])).toBe(422);
+      expect(await post(action, [{ variant_id: 17, quantity: 0 }])).toBe(422);
+      expect(
+        await post(action, [
+          { variant_id: 17, quantity: 1 },
+          { variant_id: 17, quantity: 1 },
+        ])
+      ).toBe(422);
+    }
+    expect(await held()).toBe(2);
+    // Past what the stash holds / the Vault holds: 409, nothing written.
+    expect(await post("return", [{ variant_id: 17, quantity: 3 }])).toBe(409);
+    expect(await post("restore", [{ variant_id: 17, quantity: 1 }])).toBe(409);
+    expect(await held()).toBe(2);
+    // The browser logs each refused fetch as a console error: expected here.
+    const rec = recorderFor(page);
+    rec.consoleErrors = rec.consoleErrors.filter((m) => !/status of 4(09|22)/.test(m));
+  });
+
   test("stashes-desktop-filters-narrow-the-pane", async ({ page }) => {
     await openStashes(page);
     const rows = page.locator(".sp-tr:not(.sp-tr--head)");

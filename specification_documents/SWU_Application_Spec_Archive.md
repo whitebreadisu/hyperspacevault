@@ -868,3 +868,15 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### §26 — Slice 2 status line (verbatim)
 
 > **Slice 2 (not built):** the Stashes page under the Vault (list, a stash's printing-level contents with the Vault's filters and list ↔ gallery switch, taking copies out, rename / description / delete) and the stash-narrowed Vault, after the owner's Claude Design pass; ships with the v3.0 navigation (BL-341).
+
+### §5.12 Header brand — Updates cue clause (verbatim)
+
+> the "[HSV] Updates" nav tab keeps its amber cue.
+
+### §17 Entry — in-pane heading rationale (verbatim)
+
+> (no in-pane heading — the tab names the view, dev-review round 2)
+
+### §25.6 — status screen, desktop clause (verbatim)
+
+> (desktop keeps its header tabs)

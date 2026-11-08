@@ -522,6 +522,9 @@ export function MobileApp() {
     if (closing && !acctLayer && viewKey === lastReportedScreen.current) return;
     // A signed-out visitor on an account route is being sent to the Vault.
     if (!user && (viewKey === "more/settings" || acctLayer)) return;
+    // Nor is a signed-out visitor at a Stashes deep link (the guard sends
+    // them to the Vault; a share shown already reports as the shared vault).
+    if (!user && viewKey === "stashes") return;
     // A Google-only account at the Change Password deep link is bounced to More.
     if (acctLayer === "password" && !pwProvider) return;
     if (!acctLayer) lastReportedScreen.current = viewKey;

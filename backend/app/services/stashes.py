@@ -180,8 +180,9 @@ def return_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveResp
     ids = sorted(wanted)
     # Same lock order as the split PUT, so the two serialize per printing.
     stash_repo.lock_inventory_rows(db, ids)
-    # The stash may have been deleted while we waited for the locks.
-    if stash_repo.get_stash(db, stash_id) is None:
+    # Lock the stash itself (after the inventory rows): a concurrent DELETE
+    # waits for this move, and one that already won makes this a 404.
+    if not stash_repo.lock_stash(db, stash_id):
         db.rollback()
         raise StashNotFound
     held = stash_repo.stash_quantities(db, stash_id, ids)
@@ -190,9 +191,7 @@ def return_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveResp
         raise ExceedsStash
     after = {v: held[v] - wanted[v] for v in ids}
     try:
-        if not stash_repo.set_stash_quantities(db, stash_id, after):
-            db.rollback()
-            raise StashNotFound
+        stash_repo.set_stash_quantities(db, stash_id, after)
         # Read the response while the locks are still held, then commit.
         response = _move_response(db, stash_id, after)
         db.commit()
@@ -209,7 +208,7 @@ def restore_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveRes
         raise StashNotFound
     ids = sorted(wanted)
     owned = stash_repo.lock_inventory_rows(db, ids)
-    if stash_repo.get_stash(db, stash_id) is None:
+    if not stash_repo.lock_stash(db, stash_id):
         db.rollback()
         raise StashNotFound
     totals = stash_repo.stashed_totals(db, ids)
@@ -219,9 +218,7 @@ def restore_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveRes
     held = stash_repo.stash_quantities(db, stash_id, ids)
     after = {v: held.get(v, 0) + wanted[v] for v in ids}
     try:
-        if not stash_repo.set_stash_quantities(db, stash_id, after):
-            db.rollback()
-            raise StashNotFound
+        stash_repo.set_stash_quantities(db, stash_id, after)
         response = _move_response(db, stash_id, after)
         db.commit()
     except DBAPIError as exc:

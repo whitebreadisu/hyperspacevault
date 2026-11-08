@@ -169,6 +169,38 @@ describe("the stash menu", () => {
     expect(stashes).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("Escape with focus on Stashes closes it; tabbing away and back opens it again", async () => {
+    await mount();
+    const stashes = screen.getByRole("button", { name: "Stashes" });
+    // Keyboard focus on Stashes opens the menu.
+    act(() => stashes.focus());
+    expect(menu()).toHaveClass("pod-menu--open");
+    fireEvent.keyDown(stashes, { key: "Escape" });
+    expect(menu()).not.toHaveClass("pod-menu--open");
+    expect(document.activeElement).toBe(stashes);
+    // No leftover flag: tab away and back, the menu opens.
+    vi.useFakeTimers();
+    const collection = screen.getByRole("button", { name: "Collection" });
+    act(() => collection.focus());
+    act(() => void vi.advanceTimersByTime(200));
+    expect(menu()).not.toHaveClass("pod-menu--open");
+    act(() => stashes.focus());
+    expect(menu()).toHaveClass("pod-menu--open");
+  });
+
+  it("Escape typed in an unrelated field closes the menu but does not move focus", async () => {
+    await mount();
+    const field = document.createElement("input");
+    document.body.appendChild(field);
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Stashes" }).parentElement!);
+    expect(menu()).toHaveClass("pod-menu--open");
+    act(() => field.focus());
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(menu()).not.toHaveClass("pod-menu--open");
+    expect(document.activeElement).toBe(field);
+    field.remove();
+  });
+
   it("opens from the keyboard too (focus)", async () => {
     await mount();
     fireEvent.focus(screen.getByRole("button", { name: "Stashes" }));
