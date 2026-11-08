@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createGlide, GLIDE_MS } from "./podGlide";
+import { createGlide, GLIDE_MS, MAX_STEP_MS } from "./podGlide";
 import type { GlideDeps, PodGeom } from "./podGlide";
 
 // The pod glide's lifecycle (owner 2026-11-08, R2-1), with a fake frame
@@ -17,6 +17,7 @@ let live: PodGeom;
 let writes: { g: PodGeom; moving: boolean }[];
 let reduced = false;
 let ends = 0;
+let hiddenCount = 0;
 
 function deps(): GlideDeps {
   return {
@@ -38,6 +39,7 @@ function deps(): GlideDeps {
       frames.delete(id);
     },
     now: () => now,
+    hiddenCount: () => hiddenCount,
   };
 }
 
@@ -56,6 +58,7 @@ beforeEach(() => {
   writes = [];
   reduced = false;
   ends = 0;
+  hiddenCount = 0;
 });
 
 describe("the pod glide", () => {
@@ -64,7 +67,7 @@ describe("the pod glide", () => {
     glide.apply(g(100), true);
     expect(glide.running()).toBe(true);
     const seen: number[] = [total(live)];
-    for (let t = 1016; t <= 1000 + GLIDE_MS + 16; t += 16) {
+    for (let t = 1016; t <= 1000 + GLIDE_MS + 64; t += 16) {
       frameAt(t);
       seen.push(total(live));
     }
@@ -101,7 +104,7 @@ describe("the pod glide", () => {
     expect(frames.size).toBe(1); // the old frame was cancelled
     frameAt(1160 + 16);
     expect(live.subs[0]).toBeGreaterThan(mid);
-    frameAt(1160 + GLIDE_MS + 16);
+    for (let t = 1192; t <= 1160 + GLIDE_MS + 64; t += 16) frameAt(t);
     expect(live).toEqual(g(300));
   });
 
@@ -119,7 +122,8 @@ describe("the pod glide", () => {
   it("a hidden tab (no frames) completes on its first frame back", () => {
     const glide = createGlide(deps());
     glide.apply(g(100), true);
-    frameAt(1000 + 60_000); // the tab was hidden a minute
+    hiddenCount += 1; // the tab was hidden (a minute) ...
+    frameAt(1000 + 60_000); // ... and its first frame back finishes the glide
     expect(live).toEqual(g(100));
     expect(glide.running()).toBe(false);
     expect(ends).toBe(1);
@@ -142,5 +146,40 @@ describe("the pod glide", () => {
     glide.apply({ ...g(100), tops: [88, 88, 104] }, true);
     expect(live.tops).toEqual([88, 88, 104]);
     expect(frames.size).toBe(0);
+  });
+
+  // CI fold-in (run 42529668091): on a slow runner the first frame came
+  // late and the glide snapped. The clock starts at the first frame and a
+  // frame advances it by at most MAX_STEP_MS.
+  it("a first frame 400 ms after the switch is the glide's start, not its end", () => {
+    const glide = createGlide(deps());
+    glide.apply(g(100), true);
+    frameAt(1400);
+    expect(live.subs[0]).toBeGreaterThan(100);
+    expect(live.subs[0]).toBeLessThan(200);
+    expect(glide.running()).toBe(true);
+  });
+
+  it("slow frames (200 ms apart) still show a glide of several frames", () => {
+    const glide = createGlide(deps());
+    glide.apply(g(100), true);
+    const seen: number[] = [];
+    for (let t = 1200; glide.running() && t < 20_000; t += 200) {
+      frameAt(t);
+      seen.push(live.subs[0]);
+    }
+    expect(seen.filter((x) => x > 100 && x < 200).length).toBeGreaterThanOrEqual(
+      Math.floor(GLIDE_MS / MAX_STEP_MS) - 1
+    );
+    expect(live).toEqual(g(100));
+  });
+
+  it("a long gap alone (a slow device, not a hidden tab) does not finish it", () => {
+    const glide = createGlide(deps());
+    glide.apply(g(100), true);
+    frameAt(1016);
+    frameAt(3000); // a 2 s frame
+    expect(glide.running()).toBe(true);
+    expect(live.subs[0]).toBeGreaterThan(100);
   });
 });

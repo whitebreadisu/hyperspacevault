@@ -418,53 +418,77 @@ test.describe("the pod glides between menu states", () => {
   test.use({ storageState: "e2e/.auth/phone.json" });
 
   /** Click a top item and sample the pod's width every frame for 700 ms. */
+  /** Click a top item and sample the pod's width every frame until it has
+   * moved and then held still for 10 frames (at most 5 s): a slow runner's
+   * glide takes longer than 320 ms by design (podGlide.ts MAX_STEP_MS). */
   async function switchAndSample(page: Page, top: string) {
     await page.evaluate(() => {
-      const w = window as unknown as { __samples: number[] };
+      const w = window as unknown as { __samples: number[]; __done: boolean };
       w.__samples = [];
+      w.__done = false;
       const t0 = performance.now();
+      let still = 0;
       const tick = () => {
-        w.__samples.push(document.querySelector(".pod")!.getBoundingClientRect().width);
-        if (performance.now() - t0 < 700) requestAnimationFrame(tick);
+        const x = document.querySelector(".pod")!.getBoundingClientRect().width;
+        const s = w.__samples;
+        const moved = s.length > 0 && Math.abs(x - s[0]) > 0.5;
+        still = s.length > 0 && Math.abs(x - s[s.length - 1]) < 0.01 ? still + 1 : 0;
+        s.push(x);
+        if ((moved && still >= 10) || performance.now() - t0 > 5000) w.__done = true;
+        else requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     });
     await page.locator(`[data-top="${top}"]`).click();
-    await page.waitForTimeout(800);
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __done: boolean }).__done), {
+        timeout: 8000,
+      })
+      .toBe(true);
     return page.evaluate(() => (window as unknown as { __samples: number[] }).__samples);
   }
 
-  for (const width of [1440, 1000])
-    test(`r1-01-pod-glides-monotonically-at-${width}`, async ({ page }) => {
-      await page.goto("/");
-      await expect(page.locator('[data-sub="collection"]')).toBeVisible();
-      await page.setViewportSize({ width, height: 700 });
-      await frames(page, 30);
-      for (const top of ["decks", "vault", "decks", "vault"]) {
-        const samples = await switchAndSample(page, top);
-        const from = samples[0];
-        const to = samples[samples.length - 1];
-        const lo = Math.min(from, to) - 0.5;
-        const hi = Math.max(from, to) + 0.5;
-        const at = `${width} -> ${top}: ${samples.map((x) => Math.round(x)).join(" ")}`;
-        expect(Math.abs(to - from), at).toBeGreaterThan(1); // the switch does resize
-        for (const x of samples) {
-          expect(x, at).toBeGreaterThanOrEqual(lo);
-          expect(x, at).toBeLessThanOrEqual(hi);
+  // Each width plain and under 6x CPU throttling (Chromium's CDP): a slow
+  // runner's late first frame must start the glide, not end it (CI run
+  // 42529668091 sampled 453 for 11 frames, then 541).
+  for (const throttle of [1, 6])
+    for (const width of [1440, 1000])
+      test(`r1-01-pod-glides-monotonically-at-${width}${throttle > 1 ? `-cpu-x${throttle}` : ""}`, async ({
+        page,
+      }) => {
+        await page.goto("/");
+        await expect(page.locator('[data-sub="collection"]')).toBeVisible();
+        await page.setViewportSize({ width, height: 700 });
+        await frames(page, 30);
+        if (throttle > 1) {
+          const cdp = await page.context().newCDPSession(page);
+          await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
         }
-        const dir = Math.sign(to - from);
-        for (let i = 1; i < samples.length; i++)
-          expect(dir * (samples[i] - samples[i - 1]), at).toBeGreaterThanOrEqual(-0.5);
-        // A glide, not a jump: some frames sit strictly between the ends.
-        expect(samples.filter((x) => x > lo + 2 && x < hi - 2).length, at).toBeGreaterThan(2);
-        // It ends on the target the header measures (the settled width).
-        await frames(page, 2);
-        const settled = await page.evaluate(
-          () => document.querySelector(".pod")!.getBoundingClientRect().width
-        );
-        expect(Math.abs(settled - to), at).toBeLessThan(0.5);
-      }
-    });
+        for (const top of ["decks", "vault", "decks", "vault"]) {
+          const samples = await switchAndSample(page, top);
+          const from = samples[0];
+          const to = samples[samples.length - 1];
+          const lo = Math.min(from, to) - 0.5;
+          const hi = Math.max(from, to) + 0.5;
+          const at = `${width} -> ${top}: ${samples.map((x) => Math.round(x)).join(" ")}`;
+          expect(Math.abs(to - from), at).toBeGreaterThan(1); // the switch does resize
+          for (const x of samples) {
+            expect(x, at).toBeGreaterThanOrEqual(lo);
+            expect(x, at).toBeLessThanOrEqual(hi);
+          }
+          const dir = Math.sign(to - from);
+          for (let i = 1; i < samples.length; i++)
+            expect(dir * (samples[i] - samples[i - 1]), at).toBeGreaterThanOrEqual(-0.5);
+          // A glide, not a jump: some frames sit strictly between the ends.
+          expect(samples.filter((x) => x > lo + 2 && x < hi - 2).length, at).toBeGreaterThan(2);
+          // It ends on the target the header measures (the settled width).
+          await frames(page, 2);
+          const settled = await page.evaluate(
+            () => document.querySelector(".pod")!.getBoundingClientRect().width
+          );
+          expect(Math.abs(settled - to), at).toBeLessThan(0.5);
+        }
+      });
 
   test("r1-01-pod-reduced-motion-is-instant", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });

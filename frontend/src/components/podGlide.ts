@@ -17,6 +17,10 @@ export interface PodGeom {
 
 /** The pod's glide: its 320 ms and its curve (NavPod.css --pod-ease). */
 export const GLIDE_MS = 320;
+/** The glide's first frame counts as one 60 Hz frame of progress. */
+export const FIRST_STEP_MS = 1000 / 60;
+/** The most one frame may advance the glide (two 60 Hz frames). */
+export const MAX_STEP_MS = 34;
 
 export function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
   const at = (a: number, b: number, t: number) =>
@@ -69,10 +73,20 @@ export interface GlideDeps {
   /** A glide finished (Header re-fits once: something else may have
    * changed size while it ran, e.g. a web font loading). */
   onEnd: () => void;
+  /** How many times the page has been hidden (visibilitychange). */
+  hiddenCount: () => number;
   raf: (cb: (now: number) => void) => number;
   caf: (id: number) => void;
   now: () => number;
 }
+
+/** The page's hidden count, for GlideDeps.hiddenCount. */
+let hidden = 0;
+if (typeof document !== "undefined")
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") hidden += 1;
+  });
+export const pageHiddenCount = () => hidden;
 
 export interface Glide {
   /** Go to `target`: glide when `animate`, else at once. A glide already
@@ -100,13 +114,23 @@ export function createGlide(d: GlideDeps): Glide {
         d.write(target, false);
         return;
       }
-      const t0 = d.now();
+      // The clock: elapsed time is counted from the glide's first frame (the
+      // measure and the re-render before it can take a slow device a few
+      // hundred ms, which must not eat the glide), and each frame adds at
+      // most MAX_STEP_MS, so a slow device sees a slower glide, never a snap.
+      // A tab hidden meanwhile (the page's hidden count moved): nobody
+      // watched, so the next frame finishes it. A long gap alone is not
+      // that -- a slow device's frames are long too.
+      const hiddenAtStart = d.hiddenCount();
+      let last: number | null = null;
+      let elapsed = 0;
       const mine: { frame: number; target: PodGeom } = { frame: 0, target };
       const step = (now: number) => {
         if (run !== mine) return;
-        // A hidden tab gets no frames: its first frame back is past the end
-        // and completes the glide.
-        const p = Math.min(1, (now - t0) / GLIDE_MS);
+        if (d.hiddenCount() !== hiddenAtStart) elapsed = GLIDE_MS;
+        else elapsed += last === null ? FIRST_STEP_MS : Math.min(now - last, MAX_STEP_MS);
+        last = now;
+        const p = Math.min(1, elapsed / GLIDE_MS);
         if (p < 1) {
           d.write(lerpGeom(from, target, glideEase(p)), true);
           mine.frame = d.raf(step);

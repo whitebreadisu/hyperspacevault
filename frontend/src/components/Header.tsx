@@ -8,7 +8,7 @@ import logoFull3x from "../assets/brand/hsv-logo-full@3x.webp";
 import { TitleChooser } from "../mobile/TitleChooser";
 import { useStashes } from "../stashes/StashContext";
 import { NavPod } from "./NavPod";
-import { createGlide } from "./podGlide";
+import { createGlide, pageHiddenCount } from "./podGlide";
 import type { PodGeom } from "./podGlide";
 import type { PodSub, PodTop } from "./NavPod";
 
@@ -254,6 +254,7 @@ export function Header({
       },
       reduced: reducedMotion,
       onEnd: () => later(),
+      hiddenCount: pageHiddenCount,
       raf: (cb) => requestAnimationFrame(cb),
       caf: (id) => cancelAnimationFrame(id),
       now: () => performance.now(),
