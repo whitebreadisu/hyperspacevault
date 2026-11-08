@@ -892,3 +892,25 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### §25.6 — status screen, desktop clause (verbatim)
 
 > (desktop keeps its header tabs)
+
+## Archived 2026-11-08 — §10.6 fallback tie-break: earliest-released set (BL-349, ADR-0039)
+
+**Disposition:** → archive. IC27 (Icons 2027 Edition) reprints Echo Base as its own Standard root, so `GG_2 Echo Base` matched two non-token Standards (`SOR_24`, `IC27_10`) and the "unique match or stop" rule halted the whole ingestion. Owner decision 2026-11-08: several matches anchor to the earliest-released set by (release date, set code); ingestion still stops when that order cannot decide. The variant-mapping spec and the exceptions report have no archive file of their own; their superseded text is kept here, labelled by source document.
+
+### Mapping spec §6 — Definition sentence (verbatim)
+
+> **Definition (refined 2026-06-21, BL-27):** a card is a standard-anchor exception if and only if it is a root (`variant_of_uuid: null`) whose own `variant_type` is not `"Standard"` **and** it has no unique non-token `(name, subtitle)` match to a Standard root elsewhere in the corpus (i.e. the fallback below cannot resolve it).
+
+### Mapping spec §6 — fallback uniqueness clause (verbatim)
+
+> — `variant_of_uuid` remains the authoritative within-set anchoring mechanism for everything else — and must return a **unique non-token match**; if it returns 0 or >1, stop and decide manually.
+
+### App Spec §10.6 — tokens bullet, manual-stop sentence (verbatim)
+
+> **If the fallback ever returns 0 or >1 non-token matches for a future card, stop and decide manually** (don't guess).
+
+### Exceptions report — definition clause and footer clause (verbatim)
+
+> **and** it has **no unique non-token `(name, subtitle)` match** to a Standard root elsewhere in the corpus (i.e. the fallback below cannot resolve it).
+
+> A card lands here only if the §6 fallback finds no unique non-token Standard match.*

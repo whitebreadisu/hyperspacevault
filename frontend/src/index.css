@@ -125,7 +125,7 @@ body {
 /* Starfield center strip under a left-to-right dark gradient. The art is
  * randomly selected once per app open --
  * App sets `--header-starfield` on the document root at mount
- * (utils/headerStarfield.ts, no-repeat-of-last pool of the ten shipped
+ * (utils/headerStarfield.ts, no-repeat-of-last pool of the eleven shipped
  * starfields); ASH stays the no-JS/no-var fallback via var()'s second
  * argument. A pseudo-element rather than an extra DOM node: it's
  * absolutely positioned (inset:0) with z-index:auto, which -- per CSS
@@ -409,26 +409,14 @@ body {
   z-index: 3;
 }
 
-/* Header density steps (NavPod.css narrows the pod in the
-   same steps). Header.tsx measures the row and sets `data-density` to the
-   roomiest step whose content fits the window -- full, compact, tight --
-   so the steps follow what the row holds (signed in or out, [HSV] Updates,
-   a share's name), not a fixed width. Compact: the side columns lose half
+/* Header density steps (NavPod.css narrows the pod in the same steps).
+   Header.tsx measures the row (on a copy of the pod in its final state,
+   NavPod.css .pod--measure) and sets `data-density` to the roomiest step
+   whose content fits the window -- full, compact, tight, minimal -- so the
+   steps follow what the row holds (signed in or out, [HSV] Updates, a
+   share's name), not a fixed width. Compact: the side columns lose half
    their edge padding. Tight: the logo steps down to 38 px and "Leave
-   Feedback" reads "Feedback" (its accessible name stays "Leave Feedback").
-   While measuring, an open sub-item group shows its whole width (its
-   animated max-width may lag a step change)... */
-.app-header[data-measuring] .pod__subs--open {
-  max-width: none !important;
-}
-/* ...a closing group counts as closed (its max-width may still be on its
-   way down), and the stash menu (hidden or not) is not part of the row. */
-.app-header[data-measuring] .pod__subs:not(.pod__subs--open) {
-  max-width: 0 !important;
-}
-.app-header[data-measuring] .pod-menu {
-  display: none !important;
-}
+   Feedback" reads "Feedback" (its accessible name stays "Leave Feedback"). */
 .app-header:is([data-density="compact"], [data-density="tight"], [data-density="minimal"])
   .app-header__brand {
   padding-left: 16px;

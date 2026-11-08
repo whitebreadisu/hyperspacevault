@@ -47,7 +47,11 @@ export interface SetLogoArt {
  *    bounding box past the wordmark, so without a nudge the mark reads ~6 px
  *    left of the column; the nudge moves it half-way back (the wordmark and
  *    the whole mark both stay near the centre line);
- *  - SOR -- the 11 : 1 wordmark is held by the box's width (no scale helps). */
+ *  - SOR -- the 11 : 1 wordmark is held by the box's width (no scale helps);
+ *  - IC27 0.82 -- a solid white badge (ink .88, the densest mark) reads
+ *    heavier than the open wordmarks at equal area; just inside the
+ *    evenness band (fr3-chooser holds area >= 0.8 of the median), still to
+ *    be checked by eye on a phone. */
 export const SET_LOGO_ART: Readonly<Record<string, SetLogoArt>> = {
   HMW: { w: 1000, h: 404, l: 0.048, t: 0.1559, aw: 0.905, ah: 0.6238, scale: 1 },
   ASH: { w: 1973, h: 557, l: 0, t: 0, aw: 0.9995, ah: 1, scale: 1 },
@@ -60,6 +64,7 @@ export const SET_LOGO_ART: Readonly<Record<string, SetLogoArt>> = {
   SOR: { w: 2565, h: 347, l: 0.0682, t: 0.2104, aw: 0.8632, ah: 0.5821, scale: 1 },
   IBH: { w: 2000, h: 690, l: 0.0435, t: 0.129, aw: 0.913, ah: 0.742, scale: 1 },
   TS26: { w: 1000, h: 325, l: 0.077, t: 0.0769, aw: 0.847, ah: 0.8462, scale: 1 },
+  IC27: { w: 1000, h: 404, l: 0.063, t: 0.0767, aw: 0.883, ah: 0.8441, scale: 0.82 },
 };
 
 /** The share of the logo box an artwork's area takes before any cap. */

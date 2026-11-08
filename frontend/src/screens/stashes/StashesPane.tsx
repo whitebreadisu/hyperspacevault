@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 import type { ReactNode } from "react";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
+import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { useStashes } from "../../stashes/StashContext";
 import {
   DEFAULT_STASH_SORT,
@@ -63,8 +65,29 @@ interface Props {
   onFilterSlot?: (el: HTMLElement | null) => void;
 }
 
-/** The rail's collapsed state, per viewer (the tableWidthTier pattern:
- * best-effort localStorage; missing or unreadable = expanded). */
+/** The rail docks beside the card list -- and its fold / unfold reflows the
+ * list -- only when both fit; narrower, it floats like the Vault's filter
+ * sidebar (FilterPanel's docked / overlay model, R2-2). The arithmetic, at
+ * the threshold:
+ *   app padding (index.css .app-main, 32 px each side)      64
+ * + the rail (.sp-rail) + its gap (.sp-layout)          292 + 20
+ * + the filters' edge-tab gutter (.sp-list__filters)          36
+ * + the table's column ratios (StashTable COLS, 92+212+130+150+140+148) 872
+ * = 1284: the table keeps its natural column widths. Measured against the
+ * layout width (documentElement.clientWidth), which excludes a classic
+ * scrollbar -- window.innerWidth includes it (~17 px on Windows); jsdom has
+ * no layout, so it falls back to innerWidth there.
+ * The filters dock on their own rule (FilterPanel, >= 1918 x 1052), so the
+ * rail docks first and the filters float until there is room for both. */
+export const RAIL_DOCK_MIN_WIDTH = 1284;
+function railFits(): boolean {
+  if (typeof window === "undefined") return true;
+  const width = document.documentElement.clientWidth || window.innerWidth;
+  return width >= RAIL_DOCK_MIN_WIDTH;
+}
+
+/** The docked rail's collapsed state, per viewer (the tableWidthTier
+ * pattern: best-effort localStorage; missing or unreadable = expanded). */
 export const RAIL_KEY = "swu.stashes.railCollapsed";
 function loadRailCollapsed(): boolean {
   try {
@@ -103,6 +126,7 @@ function Rail({
   onNew,
   flyout = false,
   onFold,
+  foldRef,
 }: {
   stashes: Stash[];
   selectedId: number;
@@ -111,12 +135,14 @@ function Rail({
   onPriceKind: (k: PriceMode) => void;
   onSelect: (id: number) => void;
   onNew: () => void;
-  /** Floated over the pane from the collapsed tab. */
+  /** Floated over the pane from the edge tab (narrow windows). */
   flyout?: boolean;
-  /** Docked: collapse. Flyout: keep the rail open (expand). */
+  /** Docked: collapse (the list widens). Flyout: close it. */
   onFold: () => void;
+  /** The chevron, for focus moves (docked unfold). */
+  foldRef?: RefObject<HTMLButtonElement | null>;
 }) {
-  const fold = flyout ? "Keep the stash list open" : "Collapse the stash list";
+  const fold = flyout ? "Hide the stash list" : "Collapse the stash list";
   return (
     <aside
       className={"sp-rail" + (flyout ? " sp-rail--flyout" : "")}
@@ -128,13 +154,14 @@ function Rail({
           <h1 className="sp-rail__title">Stashes</h1>
           <CardsValueKindToggle kind={priceKind} onChange={onPriceKind} />
           <button
+            ref={foldRef}
             type="button"
             className="sp-rail__fold"
             onClick={onFold}
             aria-label={fold}
             title={fold}
           >
-            <ChevronIcon dir={flyout ? "right" : "left"} />
+            <ChevronIcon dir="left" />
           </button>
         </div>
         <div className="sp-rail__list">
@@ -183,18 +210,32 @@ function Rail({
   );
 }
 
-/** The collapsed rail: the Vault's edge tab (FilterPanel's
- * `ifp-sidebar-tab`) with the stash count and "Stashes"; a click floats the
- * full list over the pane, so every stash stays one click away. */
-function RailTab({ count, open, onOpen }: { count: number; open: boolean; onOpen: () => void }) {
+/** The folded rail: the Vault's edge tab (FilterPanel's `ifp-sidebar-tab`)
+ * with the stash count and "Stashes". Docked, a click unfolds the rail (the
+ * list narrows back); narrow, it floats the full list over the pane. Either
+ * way every stash stays one click away. */
+function RailTab({
+  count,
+  open,
+  floating,
+  onOpen,
+  tabRef,
+}: {
+  count: number;
+  open: boolean;
+  floating: boolean;
+  onOpen: () => void;
+  tabRef?: RefObject<HTMLButtonElement | null>;
+}) {
   return (
     <span className="ifp-sidebar-tab-ring sp-railtab">
       <button
+        ref={tabRef}
         type="button"
         className="ifp-sidebar-tab"
         onClick={onOpen}
         aria-expanded={open}
-        aria-controls={open ? "sp-rail-flyout" : undefined}
+        aria-controls={open && floating ? "sp-rail-flyout" : undefined}
         aria-label={`Stashes, ${count}: show the list`}
       >
         <span className="sp-railtab__count">{count}</span>
@@ -321,7 +362,35 @@ export function StashesPane({
   const [deleting, setDeleting] = useState<{ next: number | null } | null>(null);
   const [collapsed, setCollapsed] = useState(loadRailCollapsed);
   const [flyout, setFlyout] = useState(false);
+  // Where focus goes after a rail change removes the focused control: the
+  // edge tab (flyout closed, docked fold), the docked chevron (unfold, or
+  // docking while the flyout was open) or the stash heading (a pick from
+  // the flyout). Applied after the render, and only when focus was lost --
+  // a click outside that focused something else keeps that focus.
+  const focusNext = useRef<"tab" | "fold" | "heading" | "rail" | null>(null);
+  // Docked or floating, tracked live like FilterPanel's `docked`; the flag
+  // flips only at the breakpoint, so per-pixel resizes bail.
+  const [fits, setFits] = useState(railFits);
+  const fitsRef = useRef(fits);
+  useEffect(() => {
+    const onResize = () => {
+      const next = railFits();
+      if (next === fitsRef.current) return;
+      // Crossing the threshold drops an open flyout; focus goes to the rail
+      // control that is there after the switch (tab or chevron). In the
+      // handler, never inside a state updater.
+      fitsRef.current = next;
+      focusNext.current = "rail";
+      setFlyout(false);
+      setFits(next);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const railRef = useRef<HTMLDivElement>(null);
+  const tabRef = useRef<HTMLButtonElement>(null);
+  const foldRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const stash = ctx.stashes.find((s) => s.id === selectedId) ?? ctx.stashes[0] ?? null;
   const id = stash?.id ?? null;
@@ -334,28 +403,56 @@ export function StashesPane({
     setEditing(false);
   }
 
+  // Docked: fold / unfold, remembered per viewer. Floating: never folds
+  // the docked state; the tab opens the flyout.
   const fold = (on: boolean) => {
     setCollapsed(on);
     setFlyout(false);
     saveRailCollapsed(on);
+    focusNext.current = on ? "tab" : "fold";
   };
+  const docked = fits && !collapsed;
+  const closeFlyout = useCallback((to: "tab" | "heading" = "tab") => {
+    setFlyout(false);
+    focusNext.current = to;
+  }, []);
 
-  // The flyout closes on a click outside it or Escape.
+  useLayoutEffect(() => {
+    const to = focusNext.current;
+    if (!to) return;
+    focusNext.current = null;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    const el =
+      to === "tab"
+        ? tabRef.current
+        : to === "fold"
+          ? foldRef.current
+          : to === "heading"
+            ? headingRef.current
+            : (tabRef.current ?? foldRef.current);
+    el?.focus();
+  });
+
+  // The flyout closes on a click outside it.
   useEffect(() => {
     if (!flyout) return undefined;
     const outside = (e: MouseEvent) => {
-      if (railRef.current && !railRef.current.contains(e.target as Node)) setFlyout(false);
-    };
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFlyout(false);
+      if (railRef.current && !railRef.current.contains(e.target as Node)) closeFlyout();
     };
     document.addEventListener("mousedown", outside);
-    window.addEventListener("keydown", key);
-    return () => {
-      document.removeEventListener("mousedown", outside);
-      window.removeEventListener("keydown", key);
-    };
-  }, [flyout]);
+    return () => document.removeEventListener("mousedown", outside);
+  }, [flyout, closeFlyout]);
+  // Escape through the app's one dismissal hook (useModalDismiss). Every
+  // overlay there listens on its own, so one Escape would close all of
+  // them; the flyout yields when something sits above it -- an open modal
+  // dialog (the card detail, the stash modals) or a Set | # menu -- so a
+  // single Escape closes only the topmost layer.
+  const escapeFlyout = useCallback(() => {
+    if (document.querySelector('[aria-modal="true"], .sp-numsort__menu')) return;
+    closeFlyout();
+  }, [closeFlyout]);
+  useModalDismiss(escapeFlyout, { enabled: flyout });
 
   // The FilterPanel slot is the card list's corner; it unmounts with the list.
   const slotRef = useCallback((el: HTMLDivElement | null) => onFilterSlot?.(el), [onFilterSlot]);
@@ -468,25 +565,32 @@ export function StashesPane({
   const zero = all.length === 0;
   return (
     <div className="cards-content sp-page">
-      <div className={"sp-layout" + (collapsed ? " sp-layout--folded" : "")}>
-        {collapsed ? (
+      <div className={"sp-layout" + (docked ? "" : " sp-layout--folded")}>
+        {docked ? (
+          <div className="sp-railwrap">
+            <Rail {...railProps} onSelect={onSelect} onFold={() => fold(true)} foldRef={foldRef} />
+          </div>
+        ) : (
           <div className="sp-railwrap sp-railwrap--folded" ref={railRef}>
-            <RailTab count={ctx.stashes.length} open={flyout} onOpen={() => setFlyout((o) => !o)} />
-            {flyout ? (
+            <RailTab
+              count={ctx.stashes.length}
+              open={flyout}
+              floating={!fits}
+              tabRef={tabRef}
+              onOpen={() => (fits ? fold(false) : setFlyout((o) => !o))}
+            />
+            {flyout && !fits ? (
               <Rail
                 {...railProps}
                 flyout
-                onFold={() => fold(false)}
+                onFold={() => closeFlyout()}
                 onSelect={(sid) => {
-                  setFlyout(false);
+                  // The pick's result is the stash shown: focus its heading.
+                  closeFlyout("heading");
                   onSelect(sid);
                 }}
               />
             ) : null}
-          </div>
-        ) : (
-          <div className="sp-railwrap">
-            <Rail {...railProps} onSelect={onSelect} onFold={() => fold(true)} />
           </div>
         )}
         <section className="sp-content" aria-label={stash.name}>
@@ -502,7 +606,9 @@ export function StashesPane({
                 />
               ) : (
                 <div className="sp-read">
-                  <h2 className="sp-read__name">{stash.name}</h2>
+                  <h2 className="sp-read__name" ref={headingRef} tabIndex={-1}>
+                    {stash.name}
+                  </h2>
                   <span className="sp-read__descline">
                     <span
                       className={

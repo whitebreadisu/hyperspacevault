@@ -9,12 +9,14 @@ test.beforeEach(() => {
   test.skip(!test.info().project.name.startsWith("phone"), "phone by-set sheet");
 });
 
-test("fr2-06 Completion by set: HMW first, IBH then TS26 last", async ({ page }) => {
+// PORT (BL-349): IC27 follows TS26 at the end.
+test("fr2-06 Completion by set: HMW first, IBH, TS26 then IC27 last", async ({ page }) => {
   await page.goto("/#/vault?sheet=sets");
   await expect(page.locator(".m-sheet")).toBeVisible();
   const rows = page.locator(".m-setrow--r2");
   await expect(rows.first()).toHaveAttribute("data-set", "HMW");
-  await expect(rows.last()).toHaveAttribute("data-set", "TS26");
-  await expect(rows.nth(-2)).toHaveAttribute("data-set", "IBH");
-  await expect(rows.nth(-3)).toHaveAttribute("data-set", "SOR");
+  await expect(rows.last()).toHaveAttribute("data-set", "IC27");
+  await expect(rows.nth(-2)).toHaveAttribute("data-set", "TS26");
+  await expect(rows.nth(-3)).toHaveAttribute("data-set", "IBH");
+  await expect(rows.nth(-4)).toHaveAttribute("data-set", "SOR");
 });

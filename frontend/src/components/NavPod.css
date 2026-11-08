@@ -140,7 +140,11 @@
   align-items: stretch;
   overflow-x: visible;
   overflow-y: visible;
-  transition: max-width 320ms var(--pod-ease);
+}
+/* A closed group takes no room. Header.tsx then writes every group's width
+   (and the top items' and the row's padding) inline and glides them. */
+.pod__subs:not(.pod__subs--open) {
+  max-width: 0;
 }
 .pod__subs:not(.pod__subs--open),
 .pod__subs--clip {
@@ -461,4 +465,30 @@
 }
 .app-header[data-density="minimal"] .pod__sub[data-sub="shared"] {
   max-width: min(64px, var(--pod-sub-max, 64px));
+}
+
+/* The header's measuring copy (Header.tsx): the pod in its final state --
+   open groups at full width, closed ones at none, nothing animating, the
+   stash menu out -- off-flow and invisible, present only while measuring. */
+.pod--measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.pod--measure,
+.pod--measure * {
+  transition: none !important;
+  animation: none !important;
+}
+.pod--measure .pod__subs {
+  max-width: 0 !important;
+  overflow: hidden !important;
+}
+.pod--measure .pod__subs--open {
+  max-width: none !important;
+}
+.pod--measure .pod-menu {
+  display: none !important;
 }

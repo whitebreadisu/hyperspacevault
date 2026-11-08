@@ -58,7 +58,7 @@ export type SetOrderMap = Record<string, string | null>;
 /** Display rank for one set code (App Spec §5.1, ADR-0031: newest main sets
  * first). Precedence: (a) a base set -> its index in `BASE_SET_ORDER`
  * (utils/setGrouping.ts, the single definition: main block newest first, then
- * IBH, TS26); (b) a Weekly Play code whose base is in that list -> directly
+ * IBH, TS26, IC27); (b) a Weekly Play code whose base is in that list -> directly
  * after its base; (c) anything else sorts after every (a)/(b) set --
  * `release_date` ascending when present, else alphabetical.
  * An explicit `release_date` never reorders (a)/(b) sets. Shared by

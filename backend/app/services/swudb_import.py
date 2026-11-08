@@ -68,6 +68,11 @@ SET_CODE_MAP: dict[str, str] = {
     "ASH": "ASH",
     "C26": "C26",
     "IBH": "IBH",
+    # IC27 (2026-11-08): spot-checked before street date -- all 57
+    # numbered rows SWUDB lists (api.swu-db.com/cards/ic27) match the
+    # catalog's (number, name), e.g. #10 Echo Base, #57 Director Krennic,
+    # #150 Frozen in Carbonite. No Weekly Play program, so no IC27P.
+    "IC27": "IC27",
     "J25": "J25",
     "JTL": "JTL",
     "JTLP": "JTLP",

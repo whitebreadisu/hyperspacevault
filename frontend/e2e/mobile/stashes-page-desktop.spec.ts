@@ -316,23 +316,30 @@ test.describe("many stashes", () => {
     await expect(list.locator(".sp-railrow").last()).toBeVisible();
     await shot(page, "rail-50");
 
-    // Fold: the edge tab; the list stays one click away; remembered.
+    await page.locator('.sp-railrow[data-stash="50"]').click();
+    await expect(page.locator(".sp-read__name")).toHaveText("W".repeat(40));
+
+    // Docked at 1440 (R2-2): fold to the edge tab, remembered per viewer;
+    // the tab unfolds the docked rail again.
     await page.getByRole("button", { name: "Collapse the stash list" }).click();
     await expect(page.locator(".sp-rail")).toHaveCount(0);
-    const before = await page.locator(".sp-content").boundingBox();
     await shot(page, "rail-folded");
-    await page.getByRole("button", { name: "Stashes, 50: show the list" }).click();
-    await expect(page.locator(".sp-rail--flyout .sp-railrow")).toHaveCount(50);
-    // The flyout floats: the pane does not move.
-    const after = await page.locator(".sp-content").boundingBox();
-    expect(Math.round(after!.x)).toBe(Math.round(before!.x));
-    await shot(page, "rail-flyout");
-    await page.locator('.sp-rail--flyout .sp-railrow[data-stash="50"]').click();
-    await expect(page.locator(".sp-read__name")).toHaveText("W".repeat(40));
-    await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
     // A fresh visit opens folded (per viewer).
     await openStashes(page);
-    await expect(page.getByRole("button", { name: "Stashes, 50: show the list" })).toBeVisible();
+    const tab = page.getByRole("button", { name: "Stashes, 50: show the list" });
+    await expect(tab).toBeVisible();
+    await tab.click();
+    await expect(page.locator(".sp-rail .sp-railrow")).toHaveCount(50);
+    await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
+
+    // Narrow, the 50-stash rail floats and scrolls inside the window.
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.getByRole("button", { name: "Stashes, 50: show the list" }).click();
+    const flyout = page.locator(".sp-rail--flyout");
+    await expect(flyout.locator(".sp-railrow")).toHaveCount(50);
+    const fb = (await flyout.boundingBox())!;
+    expect(fb.y + fb.height).toBeLessThanOrEqual(900 + 1);
+    await shot(page, "rail-flyout");
   });
 });
 
@@ -379,6 +386,111 @@ for (const width of [1280, 1920]) {
   }
 }
 
+// R2-2: the rail works like the Vault's filter sidebar. Wide enough
+// (layout width >= RAIL_DOCK_MIN_WIDTH, 1284) it docks beside the list, and folding /
+// unfolding reflows the list both ways; narrower it is the edge tab and
+// floats over the list without moving it. No sideways scroll either way.
+const listWidth = async (page: Page) => (await page.locator(".sp-list__body").boundingBox())!.width;
+const sideways = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+
+// 1920 x 1080 also docks the filter sidebar (FilterPanel: >= 1918 x 1052):
+// rail and filters both docked beside the list.
+for (const [width, height] of [
+  [1284, 1000],
+  [1440, 1000],
+  [1920, 1000],
+  [1920, 1080],
+  [2560, 1440],
+] as const) {
+  test.describe(`rail docked at ${width}x${height}`, () => {
+    test.use({ stashSeed: SEED, viewport: { width, height } });
+    test(`stashes-desktop-rail-docked-reflows-${width}x${height}`, async ({ page }) => {
+      await openStashes(page);
+      await expect(page.locator(".sp-rail")).toBeVisible();
+      await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
+      const w0 = await listWidth(page);
+      await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      await expect(page.locator(".sp-rail")).toHaveCount(0);
+      const w1 = await listWidth(page);
+      expect(w1).toBeGreaterThan(w0 + 200);
+      expect(await sideways(page)).toBeLessThanOrEqual(0);
+      await shot(page, `rail-docked-folded-${width}x${height}`);
+      // Unfold: the rail docks again and the list returns to its width.
+      await page.getByRole("button", { name: "Stashes, 3: show the list" }).click();
+      await expect(page.locator(".sp-rail")).toBeVisible();
+      await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
+      expect(Math.round(await listWidth(page))).toBe(Math.round(w0));
+      // And once more, both ways.
+      await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      expect(Math.round(await listWidth(page))).toBe(Math.round(w1));
+      await page.getByRole("button", { name: "Stashes, 3: show the list" }).click();
+      expect(Math.round(await listWidth(page))).toBe(Math.round(w0));
+      expect(await sideways(page)).toBeLessThanOrEqual(0);
+      await shot(page, `rail-docked-${width}x${height}`);
+      // The gallery reflows the same way.
+      await page.getByRole("button", { name: "Gallery" }).click();
+      const g0 = await listWidth(page);
+      await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      expect(await listWidth(page)).toBeGreaterThan(g0 + 200);
+      await page.getByRole("button", { name: "Stashes, 3: show the list" }).click();
+      expect(Math.round(await listWidth(page))).toBe(Math.round(g0));
+    });
+  });
+}
+
+for (const width of [1024, 1283]) {
+  test.describe(`rail floating at ${width}`, () => {
+    test.use({ stashSeed: SEED, viewport: { width, height: 900 } });
+    test(`stashes-desktop-rail-floats-${width}`, async ({ page }) => {
+      await openStashes(page);
+      // Too narrow for both: the rail starts as the edge tab.
+      await expect(page.locator(".sp-rail")).toHaveCount(0);
+      const tab = page.getByRole("button", { name: "Stashes, 3: show the list" });
+      await expect(tab).toBeVisible();
+      const w0 = await listWidth(page);
+      const x0 = (await page.locator(".sp-list__body").boundingBox())!.x;
+      await tab.click();
+      const flyout = page.locator(".sp-rail--flyout");
+      await expect(flyout).toBeVisible();
+      // It overlays the pane: the list neither moves nor narrows.
+      expect(Math.round(await listWidth(page))).toBe(Math.round(w0));
+      expect(Math.round((await page.locator(".sp-list__body").boundingBox())!.x)).toBe(
+        Math.round(x0)
+      );
+      expect(await sideways(page)).toBeLessThanOrEqual(0);
+      await shot(page, `rail-floating-${width}`);
+      // A pick closes it and shows that stash; the tab stays.
+      await flyout.locator('.sp-railrow[data-stash="2"]').click();
+      await expect(page.locator(".sp-read__name")).toHaveText("Trade stash");
+      await expect(flyout).toHaveCount(0);
+      // The chevron and a click outside close it too.
+      await tab.click();
+      await page.getByRole("button", { name: "Hide the stash list" }).click();
+      await expect(flyout).toHaveCount(0);
+      await tab.click();
+      await page.locator(".sp-read__name").click();
+      await expect(flyout).toHaveCount(0);
+      expect(Math.round(await listWidth(page))).toBe(Math.round(w0));
+    });
+  });
+}
+
+test.describe("rail across the threshold", () => {
+  test.use({ stashSeed: SEED, viewport: { width: 1440, height: 1000 } });
+  test("stashes-desktop-rail-resize-docks-and-floats", async ({ page }) => {
+    await openStashes(page);
+    await expect(page.locator(".sp-rail")).toBeVisible();
+    await page.setViewportSize({ width: 1200, height: 1000 });
+    await expect(page.locator(".sp-rail")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Stashes, 3: show the list" })).toBeVisible();
+    expect(await sideways(page)).toBeLessThanOrEqual(0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.locator(".sp-rail")).toBeVisible();
+    await expect(page.locator(".sp-rail--flyout")).toHaveCount(0);
+  });
+});
+
 // R1-8: the page never scrolls sideways, at any desktop width (the table
 // scrolls inside its own wrapper, the head wraps).
 for (const width of [768, 1024, 1280, 1920]) {
@@ -399,7 +511,10 @@ for (const width of [768, 1024, 1280, 1920]) {
       await page.getByRole("button", { name: "Gallery" }).click();
       expect(await over()).toBeLessThanOrEqual(0);
       await page.getByRole("button", { name: "Table" }).click();
-      await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      // Docked widths fold the rail; narrower ones open the floating rail.
+      if (width >= 1284)
+        await page.getByRole("button", { name: "Collapse the stash list" }).click();
+      else await page.getByRole("button", { name: "Stashes, 3: show the list" }).click();
       expect(await over()).toBeLessThanOrEqual(0);
       await shot(page, `overflow-${width}`, true);
     });

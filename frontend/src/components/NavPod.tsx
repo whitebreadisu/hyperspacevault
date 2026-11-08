@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Stash } from "../api/stashes";
 import "./NavPod.css";
@@ -7,8 +7,10 @@ import "./NavPod.css";
 // steel-ring pod hanging from the header's top edge with the top-level
 // items Vault · Decks · [HSV] Updates (Updates only while an update is
 // unread or it is the view, as the old tab). The active item's subsections unfold
-// in place beside it: the wrapper's max-width animates from 0 to its measured
-// content width (the pod re-centres as it grows), the sub items fade in after
+// in place beside it: Header.tsx glides every part of the pod (each group's
+// width, each top item, the row padding) from where it is to the measured
+// target in one 320 ms step, so the pod's width moves straight from its old
+// size to its new one (the pod re-centres as it grows); the sub items fade in after
 // a 90 ms delay, and every underline scales from its centre. The wrapper
 // clips horizontally while it moves and stops clipping 650 ms after the
 // active item changes, so the Stashes menu can hang below it. Hovering
@@ -160,19 +162,6 @@ function Subs({
   setMenuOpen: (open: boolean) => void;
   menu: ((open: boolean) => ReactNode) | null;
 }) {
-  const inner = useRef<HTMLSpanElement>(null);
-  const [width, setWidth] = useState(0);
-  // The real content width (fonts, labels, a share's name), not an estimate.
-  useLayoutEffect(() => {
-    const el = inner.current;
-    if (!el) return undefined;
-    const measure = () => setWidth(Math.ceil(el.scrollWidth));
-    measure();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(closeTimer.current), []);
   const enter = useCallback(() => {
@@ -187,10 +176,9 @@ function Subs({
   return (
     <span
       className={"pod__subs" + (open ? " pod__subs--open" : "") + (clip ? " pod__subs--clip" : "")}
-      style={{ maxWidth: open ? width || "none" : 0 }}
       aria-hidden={open ? undefined : true}
     >
-      <span className="pod__subsinner" ref={inner}>
+      <span className="pod__subsinner">
         <span className="pod__divider" aria-hidden="true" />
         {subs.map((s) => (
           <span

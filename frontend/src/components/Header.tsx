@@ -8,6 +8,8 @@ import logoFull3x from "../assets/brand/hsv-logo-full@3x.webp";
 import { TitleChooser } from "../mobile/TitleChooser";
 import { useStashes } from "../stashes/StashContext";
 import { NavPod } from "./NavPod";
+import { createGlide } from "./podGlide";
+import type { PodGeom } from "./podGlide";
 import type { PodSub, PodTop } from "./NavPod";
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
@@ -16,6 +18,50 @@ type Density = "full" | "compact" | "tight" | "minimal";
 const DENSITIES: Density[] = ["full", "compact", "tight", "minimal"];
 /** The narrowest a sub item gets at the minimal step's last resort. */
 const SUB_FLOOR_PX = 24;
+
+function reducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function geomOf(root: HTMLElement, natural: boolean): PodGeom | null {
+  const row = root.querySelector<HTMLElement>(".pod__row");
+  if (!row) return null;
+  const cs = getComputedStyle(row);
+  const w = (n: Element | null) => (n ? n.getBoundingClientRect().width : 0);
+  return {
+    padL: parseFloat(cs.paddingLeft) || 0,
+    padR: parseFloat(cs.paddingRight) || 0,
+    tops: Array.from(root.querySelectorAll(".pod__top")).map(w),
+    subs: Array.from(root.querySelectorAll(".pod__subs")).map((g) =>
+      natural
+        ? g.classList.contains("pod__subs--open")
+          ? w(g.querySelector(".pod__subsinner"))
+          : 0
+        : w(g)
+    ),
+  };
+}
+
+/** Write the geometry inline on the live pod; `moving` clips each group's
+ * content to its gliding width (at rest an open group lets the stash menu
+ * hang out of it). */
+function writeGeom(pod: HTMLElement, g: PodGeom, moving: boolean) {
+  const row = pod.querySelector<HTMLElement>(".pod__row");
+  if (!row) return;
+  row.style.paddingLeft = `${g.padL}px`;
+  row.style.paddingRight = `${g.padR}px`;
+  pod.querySelectorAll<HTMLElement>(".pod__top").forEach((t, i) => {
+    t.style.width = `${g.tops[i]}px`;
+  });
+  pod.querySelectorAll<HTMLElement>(".pod__subs").forEach((s, i) => {
+    s.style.width = `${g.subs[i]}px`;
+    s.style.maxWidth = "none";
+    s.style.overflowX = moving ? "clip" : "";
+  });
+}
 
 // The views the shell shows (App.tsx). "cards" is the Vault's Collection and
 // "stashes" the Vault's Stashes page (signed in, own vault only);
@@ -156,27 +202,78 @@ export function Header({
   const closeChooser = useCallback(() => setChooser(false), []);
 
   // Header density (index.css): the roomiest step -- full, compact, tight,
-  // minimal --
-  // whose content fits the bar on one row. Measured, not a fixed width, so
-  // a share's name, [HSV] Updates or the signed-out account slot move the
-  // step. Written to the DOM directly (no re-render), with each open sub-item
-  // group measured at its whole width (`data-measuring`), so the result does
-  // not depend on the step already shown and cannot oscillate. Re-measured
-  // whenever the bar, the brand, the pod or the account slot changes size.
+  // minimal -- whose content fits the bar on one row. Measured, not a fixed
+  // width, so a share's name, [HSV] Updates or the signed-out account slot
+  // move the step. Measured on a copy of the pod in its final state, so the
+  // result never depends on the step shown or on a glide in progress.
+  // Re-measured whenever the bar, the brand, the pod or the account slot
+  // changes size, and when what the pod holds changes.
   const headerRef = useRef<HTMLElement>(null);
   // The step shown, for what renders differently in it (the minimal step's
   // tooltips); the CSS reads the attribute written below.
   const [density, setDensity] = useState<Density>("full");
+  const fitRef = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     const el = headerRef.current;
     if (!el) return undefined;
-    const overflows = () => el.scrollWidth > el.clientWidth;
+    // The row's width at the step being tried, measured on a detached copy
+    // of the pod laid out in its final state (open groups at full width,
+    // closed ones at none, no transitions): the live pod may be mid-glide,
+    // and nothing here touches it, so a measure never disturbs an animation
+    // and never depends on how far one has got.
+    const brandOf = () => el.querySelector<HTMLElement>(".app-header__brand");
+    const accountOf = () => el.querySelector<HTMLElement>(".app-header__account");
+    let clone: HTMLElement | null = null;
+    // The sum below is the grid's own fit only because (index.css): the
+    // brand and the account slot are pinned to their content width
+    // (justify-self start / end, so their box is their max-content), the
+    // nav wrapper has no padding, and the header has no horizontal padding
+    // of its own. r1-01-header-widths.spec.ts asserts these.
+    const over = () => {
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      const w = (n: HTMLElement | null) => (n ? n.getBoundingClientRect().width : 0);
+      return w(brandOf()) + w(accountOf()) + w(clone) + 2 * gap - el.clientWidth;
+    };
+    const overflows = () => over() > 0.5;
     // The boxes watched for a change, and their sizes when the last fit ended.
     let observed: HTMLElement[] = [];
     const settled = new WeakMap<Element, string>();
     const sizeOf = (n: HTMLElement) => `${n.offsetWidth}x${n.offsetHeight}`;
-    const fit = () => {
-      el.setAttribute("data-measuring", "");
+    // The glide (podGlide.ts). When one ends, the header re-fits once:
+    // reports that came in while it ran were set aside (every box changes
+    // each frame by design), so a real change meanwhile -- a web font
+    // loading, the account slot or the brand changing -- is measured then.
+    const glide = createGlide({
+      read: () => {
+        const pod = el.querySelector<HTMLElement>(".pod");
+        return pod ? geomOf(pod, false) : null;
+      },
+      write: (g, moving) => {
+        const pod = el.querySelector<HTMLElement>(".pod");
+        if (pod) writeGeom(pod, g, moving);
+      },
+      reduced: reducedMotion,
+      onEnd: () => later(),
+      raf: (cb) => requestAnimationFrame(cb),
+      caf: (id) => cancelAnimationFrame(id),
+      now: () => performance.now(),
+    });
+    const apply = (target: PodGeom, animate: boolean) => glide.apply(target, animate);
+    const fit = (animate = false) => {
+      const pod = el.querySelector<HTMLElement>(".pod");
+      if (pod) {
+        clone = pod.cloneNode(true) as HTMLElement;
+        clone.classList.add("pod--measure");
+        clone.removeAttribute("data-testid");
+        clone.setAttribute("aria-hidden", "true");
+        // The copy lays out at its natural (final) sizes, not the live
+        // pod's glide values.
+        for (const n of Array.from(
+          clone.querySelectorAll<HTMLElement>(".pod__row, .pod__top, .pod__subs")
+        ))
+          n.removeAttribute("style");
+        el.appendChild(clone);
+      }
       el.style.removeProperty("--pod-sub-max");
       let chosen: Density = "minimal";
       for (const d of DENSITIES) {
@@ -191,8 +288,8 @@ export function Header({
       // wider font metrics than ours, a long share name -- so cap every sub
       // item at the widest width that fits (binary search, whole pixels),
       // down to a 24 px floor.
-      if (chosen === "minimal" && overflows()) {
-        const subs = Array.from(el.querySelectorAll<HTMLElement>(".pod__subs--open .pod__sub"));
+      if (chosen === "minimal" && overflows() && clone) {
+        const subs = Array.from(clone.querySelectorAll<HTMLElement>(".pod__subs--open .pod__sub"));
         let hi = Math.max(0, ...subs.map((s) => Math.ceil(s.getBoundingClientRect().width)));
         let lo = SUB_FLOOR_PX;
         const at = (px: number) => el.style.setProperty("--pod-sub-max", `${px}px`);
@@ -209,8 +306,11 @@ export function Header({
           at(lo);
         }
       }
-      el.removeAttribute("data-measuring");
+      const target = clone ? geomOf(clone, true) : null;
+      clone?.remove();
+      clone = null;
       setDensity(chosen);
+      if (target) apply(target, animate);
       // What the fit left behind: an observer report of exactly these
       // sizes is the fit's own doing, not a change to measure again.
       for (const node of observed) settled.set(node, sizeOf(node));
@@ -223,7 +323,7 @@ export function Header({
     let frame = 0;
     const later = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(fit);
+      frame = requestAnimationFrame(() => fit(false));
     };
     window.addEventListener("resize", later);
     // A report is acted on only when a box's size differs from the one the
@@ -232,6 +332,9 @@ export function Header({
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver((entries) => {
+            // Mid-glide every box changes each frame by design; the glide's
+            // end re-fits once instead.
+            if (glide.running()) return;
             const changed = entries.some(
               (e) => settled.get(e.target) !== sizeOf(e.target as HTMLElement)
             );
@@ -249,21 +352,40 @@ export function Header({
     };
     observeAll();
     fit();
+    fitRef.current = () => fit(true);
     const mo =
       typeof MutationObserver === "undefined"
         ? null
-        : new MutationObserver(() => {
+        : new MutationObserver((records) => {
+            // The fit's own measuring copy coming and going is not a change.
+            const isCopy = (n: Node) =>
+              n instanceof HTMLElement && n.classList.contains("pod--measure");
+            const real = records.some(
+              (r) =>
+                ![...Array.from(r.addedNodes), ...Array.from(r.removedNodes)].every(isCopy) ||
+                (r.addedNodes.length === 0 && r.removedNodes.length === 0)
+            );
+            if (!real) return;
             observeAll();
             later();
           });
     mo?.observe(el, { childList: true, subtree: true });
     return () => {
+      fitRef.current = null;
+      glide.cancel();
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", later);
       ro?.disconnect();
       mo?.disconnect();
     };
   }, []);
+
+  // A change of what the pod holds (the view, a share, Updates, sign-in)
+  // is measured in the same frame, before paint: the step for the new state
+  // is chosen as its glide starts, never part-way through it.
+  useLayoutEffect(() => {
+    fitRef.current?.();
+  }, [view, shareName, hasUnread, stashesOn, userEmail]);
 
   return (
     <header className="app-header" ref={headerRef}>

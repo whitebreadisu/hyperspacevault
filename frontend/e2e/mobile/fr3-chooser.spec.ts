@@ -244,8 +244,12 @@ test.describe("FR3-01 set logos centred and optically even", () => {
       expect(art.h, `deck ${p.code} artwork height`).toBeGreaterThanOrEqual(5.8);
       expect(art.w, `deck ${p.code} artwork width`).toBeGreaterThanOrEqual(54);
     }
-    // The 23 rows show every one of the 11 logos.
-    expect(new Set(probes.map((p) => p.code))).toEqual(new Set(BASE_SET_ORDER));
+    // The 23 rows show the logo of every base set that has a precon deck.
+    // PORT (BL-349): IC27 is a base set with no precon product, so the deck
+    // list carries 11 of the 12 logos.
+    expect(new Set(probes.map((p) => p.code))).toEqual(
+      new Set(BASE_SET_ORDER.filter((c) => c !== "IC27"))
+    );
   });
 });
 

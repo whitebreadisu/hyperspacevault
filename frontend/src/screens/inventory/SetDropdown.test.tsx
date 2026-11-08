@@ -109,7 +109,8 @@ describe("SetDropdown", () => {
   });
 
   // CREATE (BL-258): FR2-04 -- literal rendered order, not derived from the constant.
-  it("fr2-04 base-only view lists HMW first ... SOR, then IBH, TS26", () => {
+  // PORT (BL-349): IC27 appended after TS26 in both views.
+  it("fr2-04 base-only view lists HMW first ... SOR, then IBH, TS26, IC27", () => {
     render(<SetDropdown sets={ALL_TEN} onChoose={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Set" }));
     const codes = screen
@@ -127,6 +128,7 @@ describe("SetDropdown", () => {
       "SOR",
       "IBH",
       "TS26",
+      "IC27",
     ]);
   });
 
@@ -158,6 +160,7 @@ describe("SetDropdown", () => {
       "SORP",
       "IBH",
       "TS26",
+      "IC27",
       "C24",
       "J24",
     ]);

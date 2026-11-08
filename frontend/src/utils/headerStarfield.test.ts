@@ -6,8 +6,10 @@ import { HEADER_STARFIELD_CODES, pickHeaderStarfield } from "./headerStarfield";
 // picker and are exercised implicitly by App's mount (no jsdom asset loading to
 // assert against); the pool/no-repeat rules are the behavior worth pinning.
 describe("pickHeaderStarfield", () => {
-  it("draws from the ten shipped starfield codes (no TS26 until its asset exists)", () => {
-    expect(HEADER_STARFIELD_CODES).toHaveLength(10);
+  // PORT (BL-349): IC27's starfield shipped, so the pool is eleven (appended).
+  it("draws from the eleven shipped starfield codes (no TS26 until its asset exists)", () => {
+    expect(HEADER_STARFIELD_CODES).toHaveLength(11);
+    expect(HEADER_STARFIELD_CODES[10]).toBe("IC27");
     expect(HEADER_STARFIELD_CODES).not.toContain("TS26");
     const picked = pickHeaderStarfield(null);
     expect(HEADER_STARFIELD_CODES).toContain(picked);
@@ -24,7 +26,8 @@ describe("pickHeaderStarfield", () => {
   it("degrades to the full pool when the stored value is not a pool member", () => {
     // random() pinned to the last slot: with a bogus `last` nothing is
     // excluded, so the last index must still be reachable.
-    expect(pickHeaderStarfield("BOGUS", () => 0.999)).toBe(HEADER_STARFIELD_CODES[9]);
+    // PORT (BL-349): the last slot is index 10 now the pool is eleven.
+    expect(pickHeaderStarfield("BOGUS", () => 0.999)).toBe(HEADER_STARFIELD_CODES[10]);
     expect(pickHeaderStarfield(null, () => 0)).toBe(HEADER_STARFIELD_CODES[0]);
   });
 

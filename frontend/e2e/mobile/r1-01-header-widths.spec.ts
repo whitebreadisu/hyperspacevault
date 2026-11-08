@@ -78,19 +78,36 @@ async function measure(page: Page) {
 }
 
 /** Whether a step roomier than the one shown would also fit (it should not). */
+/** Whether a step roomier than the one shown would also fit (it should
+ * not): the row's width at that step, measured as Header.tsx does, on a
+ * copy of the pod in its final state. */
 function roomierFits(page: Page) {
   return page.evaluate(() => {
     const el = document.querySelector(".app-header") as HTMLElement;
+    const pod = el.querySelector(".pod") as HTMLElement;
     const order = ["full", "compact", "tight", "minimal"];
     const shown = el.getAttribute("data-density") ?? "full";
+    const copy = pod.cloneNode(true) as HTMLElement;
+    copy.classList.add("pod--measure");
+    copy.removeAttribute("data-testid");
+    copy
+      .querySelectorAll(".pod__row, .pod__top, .pod__subs")
+      .forEach((n) => n.removeAttribute("style"));
+    el.appendChild(copy);
+    const w = (s: string) => (el.querySelector(s) as HTMLElement).getBoundingClientRect().width;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
     let fits = false;
-    el.setAttribute("data-measuring", "");
     for (const d of order.slice(0, order.indexOf(shown))) {
       el.setAttribute("data-density", d);
-      if (el.scrollWidth <= el.clientWidth) fits = true;
+      const need =
+        w(".app-header__brand") +
+        w(".app-header__account") +
+        copy.getBoundingClientRect().width +
+        2 * gap;
+      if (need <= el.clientWidth + 0.5) fits = true;
     }
     el.setAttribute("data-density", shown);
-    el.removeAttribute("data-measuring");
+    copy.remove();
     return fits;
   });
 }
@@ -210,11 +227,31 @@ test.describe("signed in", () => {
       const h = document.querySelector(".app-header")!;
       const w = window as unknown as { __fits: number };
       w.__fits = 0;
+      // Each measure adds the header's measuring copy of the pod.
       new MutationObserver((ms) => {
         for (const m of ms)
-          if (m.attributeName === "data-measuring" && h.hasAttribute("data-measuring"))
-            w.__fits += 1;
-      }).observe(h, { attributes: true });
+          m.addedNodes.forEach((n) => {
+            if (n instanceof HTMLElement && n.classList.contains("pod--measure")) w.__fits += 1;
+          });
+      }).observe(h, { childList: true });
+    });
+    // The invariants Header.tsx's fit sum relies on (its `over`): brand and
+    // account slot pinned to their content width, no padding on the nav
+    // wrapper or the header's sides.
+    const layout = await page.evaluate(() => {
+      const cs = (s: string) => getComputedStyle(document.querySelector(s)!);
+      return {
+        brand: cs(".app-header__brand").justifySelf,
+        account: cs(".app-header__account").justifySelf,
+        navPad: [cs(".app-header__nav").paddingLeft, cs(".app-header__nav").paddingRight],
+        headerPad: [cs(".app-header").paddingLeft, cs(".app-header").paddingRight],
+      };
+    });
+    expect(layout).toEqual({
+      brand: "start",
+      account: "end",
+      navPad: ["0px", "0px"],
+      headerPad: ["0px", "0px"],
     });
     for (const width of [1920, 1100, 900, 768]) {
       await page.setViewportSize({ width, height: 700 });
@@ -370,4 +407,77 @@ test.describe("with wider font metrics", () => {
       const after = await state(page);
       expect({ ...after, fits: 0 }).toEqual({ ...before, fits: 0 });
     });
+});
+
+// Owner, 2026-11-08: switching Vault <-> Decks must glide -- the pod's width
+// moves straight from its old size to its new one (no frame wider than the
+// larger or narrower than the smaller, never back the other way) and ends
+// on the target. Sampled every frame at 1440 and at 1000 (where the switch
+// also changes the density step). Reduced motion: the final width at once.
+test.describe("the pod glides between menu states", () => {
+  test.use({ storageState: "e2e/.auth/phone.json" });
+
+  /** Click a top item and sample the pod's width every frame for 700 ms. */
+  async function switchAndSample(page: Page, top: string) {
+    await page.evaluate(() => {
+      const w = window as unknown as { __samples: number[] };
+      w.__samples = [];
+      const t0 = performance.now();
+      const tick = () => {
+        w.__samples.push(document.querySelector(".pod")!.getBoundingClientRect().width);
+        if (performance.now() - t0 < 700) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.locator(`[data-top="${top}"]`).click();
+    await page.waitForTimeout(800);
+    return page.evaluate(() => (window as unknown as { __samples: number[] }).__samples);
+  }
+
+  for (const width of [1440, 1000])
+    test(`r1-01-pod-glides-monotonically-at-${width}`, async ({ page }) => {
+      await page.goto("/");
+      await expect(page.locator('[data-sub="collection"]')).toBeVisible();
+      await page.setViewportSize({ width, height: 700 });
+      await frames(page, 30);
+      for (const top of ["decks", "vault", "decks", "vault"]) {
+        const samples = await switchAndSample(page, top);
+        const from = samples[0];
+        const to = samples[samples.length - 1];
+        const lo = Math.min(from, to) - 0.5;
+        const hi = Math.max(from, to) + 0.5;
+        const at = `${width} -> ${top}: ${samples.map((x) => Math.round(x)).join(" ")}`;
+        expect(Math.abs(to - from), at).toBeGreaterThan(1); // the switch does resize
+        for (const x of samples) {
+          expect(x, at).toBeGreaterThanOrEqual(lo);
+          expect(x, at).toBeLessThanOrEqual(hi);
+        }
+        const dir = Math.sign(to - from);
+        for (let i = 1; i < samples.length; i++)
+          expect(dir * (samples[i] - samples[i - 1]), at).toBeGreaterThanOrEqual(-0.5);
+        // A glide, not a jump: some frames sit strictly between the ends.
+        expect(samples.filter((x) => x > lo + 2 && x < hi - 2).length, at).toBeGreaterThan(2);
+        // It ends on the target the header measures (the settled width).
+        await frames(page, 2);
+        const settled = await page.evaluate(
+          () => document.querySelector(".pod")!.getBoundingClientRect().width
+        );
+        expect(Math.abs(settled - to), at).toBeLessThan(0.5);
+      }
+    });
+
+  test("r1-01-pod-reduced-motion-is-instant", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await expect(page.locator('[data-sub="collection"]')).toBeVisible();
+    await frames(page, 30);
+    for (const top of ["decks", "vault"]) {
+      const samples = await switchAndSample(page, top);
+      const from = samples[0];
+      const to = samples[samples.length - 1];
+      // Every frame is either the old width or the new one.
+      for (const x of samples)
+        expect(Math.min(Math.abs(x - from), Math.abs(x - to)), top).toBeLessThan(0.5);
+    }
+  });
 });

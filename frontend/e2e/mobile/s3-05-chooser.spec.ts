@@ -15,7 +15,7 @@ test.beforeEach(() => {
 
 // PORT (BL-258): the main block is newest first.
 const CANON = ["HMW", "ASH", "LAW", "SEC", "LOF", "JTL", "TWI", "SHD", "SOR"];
-const SECOND = ["IBH", "TS26"];
+const SECOND = ["IBH", "TS26", "IC27"]; // PORT (BL-349)
 const EX: [string, string[]][] = [
   ["Convention Exclusives", ["C24", "C25", "C26"]],
   ["Judge Program", ["J24", "J25"]],

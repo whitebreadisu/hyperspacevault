@@ -70,6 +70,7 @@ class TestSetCodeMap:
             "IBH",
             "TS26",
             "HMW",
+            "IC27",  # BL-349: added at onboarding, 3/3 spot-checked
         ):
             assert swi.SET_CODE_MAP[code] == code
 
