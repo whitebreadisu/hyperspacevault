@@ -109,7 +109,11 @@ async function expectPlatesAligned(page: Page) {
     expect(p.right).toBeGreaterThanOrEqual(12);
     expect(p.right).toBeLessThanOrEqual(14);
     expect(p.order).toBe(true);
-    expect(p.centre, `count vs finish ink offset ${p.centre}`).toBeLessThanOrEqual(1);
+    // Ink centres are measured in quarter pixels and depend on the platform's
+    // font rasteriser: the R3-5 CSS gives 0.25-0.75 on Windows Chromium and
+    // up to 1.25 on CI's Linux Chromium; the pre-R3-5 CSS gives 1.5 on
+    // Windows (fails here). 1.25 is the tightest bound both platforms hold.
+    expect(p.centre, `count vs finish ink offset ${p.centre}`).toBeLessThanOrEqual(1.25);
   }
 }
 
