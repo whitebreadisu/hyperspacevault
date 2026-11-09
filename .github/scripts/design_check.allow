@@ -1,0 +1,49 @@
+# design-check allow-list (Controls Register: Platform Spec 2.8; skill swu-design-language).
+# Format: rule | path | selector-or-class | reason   (rule = clip, ring or font)
+#   clip: the CSS file and the full selector of the rule holding the polygon.
+#   ring: the CSS file and the full selector of the rule drawing the steel border.
+#   font: the CSS file of the font-size rule and its class (no dot).
+# A reason is required. An entry that matches no hit fails as stale: delete it.
+# Add an entry only for a named exception the skill allows, never to pass a new panel.
+
+# clip - single-corner (top-left uncut) polygons the skill names as exceptions
+clip | frontend/src/components/FilterPanel.css | .ifp-sidebar-tab-ring | edge-attached sidebar tab: flat against the panel edge, bottom-right cut only (skill exception)
+clip | frontend/src/components/FilterPanel.css | .ifp-sidebar-tab | inner layer of the same edge-attached sidebar tab
+clip | frontend/src/components/NavPod.css | .pod::before | Command pod: edge-attached to the page top, flat top, both bottom corners cut (outer steel layer)
+clip | frontend/src/components/NavPod.css | .pod::after | inner surface layer of the same edge-attached Command pod
+clip | frontend/src/screens/cards/CardPopup.css | .cp-rail__item | list-row chip cut top-right only (skill exception)
+clip | frontend/src/mobile/card/card.css | .m-app .cp-rail__item | phone twin of the .cp-rail__item list-row chip, top-right cut only
+clip | frontend/src/screens/stashes/stashes.css | .sp-railrow | stash rail row reuses the .cp-rail__item list-row shape, top-right cut only
+# clip - bottom-attached phone surfaces: flat bottom on the screen edge, both top corners cut,
+# so the bottom-right corner is square by design (a full-screen phone sheet is a full shell)
+clip | frontend/src/mobile/sheet.css | .m-app .m-sheet | bottom sheet: attached to the screen bottom, both top corners cut (outer steel layer)
+clip | frontend/src/mobile/sheet.css | .m-app .m-sheet__inner | inner circuit layer of the same bottom sheet
+clip | frontend/src/mobile/camera/camera.css | .m-app .m-cam__panel | camera result panel: attached to the screen bottom, both top corners cut (outer steel layer)
+clip | frontend/src/mobile/camera/camera.css | .m-app .m-cam__panelin | inner circuit layer of the same camera panel
+clip | frontend/src/mobile/tool/tool.css | .m-app .m-pad__deck | keypad deck: attached to the screen bottom, both top corners cut (outer steel layer)
+clip | frontend/src/mobile/tool/tool.css | .m-app .m-pad__deck::before | inner circuit layer of the same keypad deck
+clip | frontend/src/mobile/tool/tool.css | .m-app .m-padfold__face | keypad fold tab: a trapezoid sitting on the deck's top edge (skill: 76 x 22 steel-ring tab), flat bottom
+clip | frontend/src/mobile/tool/tool.css | .m-app .m-padfold__face::before | inner circuit layer of the same fold tab
+
+# ring - steel borders on small low-emphasis controls with a plain border-radius (skill: "Plain
+# border-radius (2-8px) is for small low-emphasis controls only"), not panels
+ring | frontend/src/mobile/more/importexport.css | .m-app .m-ie .m-ie-radio__dot | 16px round radio dot (border-radius 50%), a control not a panel
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-d1-radio__dot | 16px round radio dot (border-radius 50%), a control not a panel
+ring | frontend/src/mobile/sheet.css | .m-app .m-check__box | 24px checkbox, border-radius 2px, a control not a panel
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-padset__code | set-code tag, border-radius 3px, a small label not a panel
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-logbtn | small control button, border-radius 3px
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-padidle__frame | dashed empty-state card placeholder, border-radius 7px
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-deckart__base | card-art frame (radius 3px from the shared .m-deckart__base/__leader rule); a card edge, not a panel ring
+ring | frontend/src/mobile/tool/tool.css | .m-app .m-deckart__leader | card-art frame (radius 3px from the shared rule); a card edge, not a panel ring
+ring | frontend/src/mobile/vault/vault.css | .m-app .m-search__input | search input field, border-radius 2px
+ring | frontend/src/mobile/vault/vault.css | .m-app .m-filterbtn | filter control button, border-radius 2px
+ring | frontend/src/screens/inventory/AddCardsModal.css | .ac-input, .ac-select | form fields, border-radius 2px
+ring | frontend/src/screens/inventory/AddCardsModal.css | .ac-chip | entry-row chip, border-radius 2px
+ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__trigger | dropdown trigger field, border-radius 2px
+ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview-base | card-art preview frame, border-radius 5px; a card edge, not a panel ring
+ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview-leader | card-art preview frame, border-radius 5px; a card edge, not a panel ring
+
+# ring - known violations: a steel border on a clip-path panel (the border cannot follow the cut).
+# Listed for the owner; redrawing them as the two-layer ring is his call
+ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__panel | known violation, owner call (BL-347): precon picker panel, steel border under a clip-path
+ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview | known violation, owner call (BL-347): precon preview panel, steel border under a clip-path

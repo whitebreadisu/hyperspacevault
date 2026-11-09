@@ -550,10 +550,15 @@
   display: inline-flex;
 }
 
-/* The flyout expands OVER the table header, so it needs an elevated-menu
- * treatment to avoid melting into it (same surface color): darker panel,
- * steel-ring border (the console menu family), and a real drop shadow so it
- * reads as floating chrome, not table rows. */
+/* The flyout expands OVER the table header, so it is a console menu: the
+ * nav pod menu's panel (NavPod.css .pod-menu__panel) - a steel 0.42 outer
+ * layer and a #0b0e18 + 260px circuit-tile inner layer inset 1.5px, both
+ * clipped to the two-corner cut - scaled to the skill's small-control cut
+ * (6px outer, 5px inner; the pod menu is a mid panel at 12/11px). The values
+ * are kept identical to the pod menu's; a shared class would need NavPod.css
+ * and InventorySummary.tsx. A drop shadow that follows the cut shape keeps it
+ * reading as floating chrome over the table, and the 8px block padding keeps
+ * the rows clear of the corner cuts. */
 .inv-summary__table-flyout {
   display: none;
   position: absolute;
@@ -563,9 +568,27 @@
   flex-direction: column;
   align-items: stretch;
   min-width: calc(100% + 2px);
-  border: 1px solid rgba(211, 211, 212, 0.45);
-  background: var(--bg-surface-alt);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.65);
+  padding: 8px 1.5px;
+  isolation: isolate;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.65));
+}
+.inv-summary__table-flyout::before,
+.inv-summary__table-flyout::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+}
+.inv-summary__table-flyout::before {
+  inset: 0;
+  background: rgba(211, 211, 212, 0.42);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.inv-summary__table-flyout::after {
+  inset: 1.5px;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
 }
 
 .inv-summary__table-split:hover .inv-summary__table-flyout,

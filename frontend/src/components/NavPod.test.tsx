@@ -11,7 +11,11 @@ import type { AppView } from "./Header";
 // All stashes the page; the glide's clip phase lifts 650 ms after a route
 // change and never starts under prefers-reduced-motion.
 
-const api = vi.hoisted(() => ({ getStashes: vi.fn(), getStashItems: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getStashes: vi.fn(),
+  getStashItems: vi.fn(),
+  createStash: vi.fn(),
+}));
 vi.mock("../api/stashes", async (orig) => ({
   ...(await orig<typeof import("../api/stashes")>()),
   ...api,
@@ -155,6 +159,54 @@ describe("the stash menu", () => {
     fireEvent.mouseEnter(wrap);
     fireEvent.click(within(menu()).getByRole("button", { name: "All stashes" }));
     expect(onNavigateStashes).toHaveBeenLastCalledWith(null);
+  });
+
+  // CREATE (owner 2026-11-09): "+ New stash" pinned after "All stashes"
+  // opens the Stashes page's create dialog; closing it (Escape here)
+  // returns focus to the pod's Stashes entry without reopening the menu,
+  // and a created stash opens on the Stashes page.
+  it("New stash opens the create dialog; Escape returns focus to Stashes, menu shut", async () => {
+    await mount();
+    const stashes = screen.getByRole("button", { name: "Stashes" });
+    fireEvent.mouseEnter(stashes.parentElement!);
+    const items = within(menu())
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(items.slice(-2)).toEqual(["All stashes", "+New stash"]);
+    fireEvent.click(within(menu()).getByRole("button", { name: /new stash/i }));
+    expect(menu()).not.toHaveClass("pod-menu--open");
+    expect(screen.getByRole("dialog", { name: "New stash" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "Escape" });
+    });
+    expect(screen.queryByRole("dialog", { name: "New stash" })).toBeNull();
+    expect(document.activeElement).toBe(stashes);
+    expect(menu()).not.toHaveClass("pod-menu--open");
+  });
+
+  it("a stash created from the menu opens on the Stashes page; focus back on Stashes", async () => {
+    api.createStash.mockResolvedValue({
+      id: 9,
+      name: "Fresh binder",
+      description: null,
+      created_at: "3",
+      copies: 0,
+    });
+    const { onNavigateStashes } = await mount();
+    const stashes = screen.getByRole("button", { name: "Stashes" });
+    fireEvent.mouseEnter(stashes.parentElement!);
+    fireEvent.click(within(menu()).getByRole("button", { name: /new stash/i }));
+    const dialog = screen.getByRole("dialog", { name: "New stash" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Fresh binder" },
+    });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Create stash" }));
+    });
+    expect(api.createStash).toHaveBeenCalledWith("Fresh binder", null);
+    expect(onNavigateStashes).toHaveBeenLastCalledWith(9);
+    expect(screen.queryByRole("dialog", { name: "New stash" })).toBeNull();
+    expect(document.activeElement).toBe(stashes);
   });
 
   it("Escape closes it and returns focus to Stashes, without reopening it", async () => {

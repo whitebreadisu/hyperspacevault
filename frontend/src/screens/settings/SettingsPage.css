@@ -167,6 +167,7 @@
   border: none;
   border-radius: 3px;
   color: #ffffff;
+  font: inherit;
   font-size: 15px;
   line-height: 1;
   cursor: pointer;

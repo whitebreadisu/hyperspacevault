@@ -617,8 +617,12 @@
 .m-app .m-stash__name {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-body);
-  font-size: 15px;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
@@ -652,7 +656,7 @@
     visibility 0s linear;
 }
 .m-app .m-dreg3__pinned .m-stash__name {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 /* The sheet: rows mode */
@@ -668,7 +672,7 @@
   border-top: 1px solid rgba(211, 211, 212, 0.1);
 }
 .m-app .m-stash__row .m-stash__name {
-  font-size: 16px;
+  font-size: 18px;
 }
 .m-app .m-stash__vault {
   flex: none;

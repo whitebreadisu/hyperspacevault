@@ -104,6 +104,7 @@
   background: transparent;
   border: 1px solid transparent;
   color: var(--color-text-muted);
+  font: inherit;
   font-size: 18px;
   line-height: 1;
   width: 28px;
@@ -874,6 +875,7 @@
   background: transparent;
   border: none;
   color: var(--color-text-muted);
+  font: inherit;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;

@@ -51,4 +51,4 @@ A decision earns an ADR when it is *most* of: structural / cross-cutting · expe
 | [0036](0036-instruction-layer-ownership-and-read-path-budgets.md) | Instruction-layer ownership and read-path budgets | Accepted |
 | [0037](0037-release-train-and-promote-policy.md) | The verification gate replaces the hand ladder; what promotes without the word | Accepted |
 | [0038](0038-image-scanning-in-ci.md) | Backend image scanning runs in CI, not in Artifact Registry | Accepted |
-| [0039](0039-fallback-tie-break-earliest-released-set.md) | Name-and-subtitle fallback — several matches anchor to the earliest-released set | Proposed |
+| [0039](0039-fallback-tie-break-earliest-released-set.md) | Name-and-subtitle fallback — several matches anchor to the earliest-released set | Accepted |

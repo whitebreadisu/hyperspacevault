@@ -1,0 +1,17 @@
+# design-check hex ratchet: per-file count of hex literals equal to a :root token in
+# frontend/src/index.css (use the var() instead). Format: path count. A count may fall,
+# never rise; lower an entry when you remove hits (node .github/scripts/design_check.mjs --lower-baseline).
+frontend/src/mobile/camera/camera.css 6
+frontend/src/mobile/card/card.css 1
+frontend/src/mobile/feedback.css 1
+frontend/src/mobile/filters/filters.css 1
+frontend/src/mobile/mobile.css 1
+frontend/src/mobile/rotate.css 1
+frontend/src/mobile/tool/tool.css 2
+frontend/src/mobile/vault/vault.css 5
+frontend/src/screens/auth/AuthModal.css 1
+frontend/src/screens/cards/CardPopup.css 1
+frontend/src/screens/cards/cards.css 6
+frontend/src/screens/feedback/FeedbackModal.css 1
+frontend/src/screens/importexport/ImportExportPage.css 1
+frontend/src/screens/inventory/AddCardsModal.css 3

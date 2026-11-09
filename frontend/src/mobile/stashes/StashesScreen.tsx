@@ -11,7 +11,6 @@ import { formatMoney } from "../../utils/completion";
 import { formatVersionLabel } from "../../utils/version";
 import { useVaultData } from "../../vault/useVaultData";
 import { BrandLogo } from "../BrandLogo";
-import { MIcon } from "../icons";
 import { usePriceKind } from "../priceKind";
 import { go } from "../router";
 import { PriceSeg } from "../vault/CompletionHeader";
@@ -23,7 +22,8 @@ import "./stashes.css";
 // "Stashes" title (no back arrow, no X: it is a Vault subsection, reached
 // from the bottom bar's Vault menu), "Your stashes" with Market | Low, one
 // row per stash in creation order (name + description · copies over value ·
-// pencil · chevron; the row opens the stash, the pencil the Edit sheet),
+// pencil; the row opens the stash, the pencil the Edit sheet; no chevron,
+// R2-8),
 // then New stash. No stashes: one sentence and New stash.
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
@@ -155,9 +155,6 @@ export function StashesScreen({
                 >
                   <PencilIcon size={17} />
                 </button>
-                <span className="m-stashrow__chev" aria-hidden="true">
-                  <MIcon name="fwd" size={18} />
-                </span>
               </div>
             ))}
             {newButton}
