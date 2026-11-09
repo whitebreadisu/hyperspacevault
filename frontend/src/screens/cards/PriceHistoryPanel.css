@@ -82,6 +82,7 @@
   background: none;
   border: none;
   color: var(--color-text-muted);
+  font: inherit;
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;

@@ -159,6 +159,7 @@
   background: none;
   border: none;
   color: var(--color-text-muted);
+  font: inherit;
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -209,6 +210,7 @@
   background: none;
   border: none;
   color: var(--color-text-muted);
+  font: inherit;
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
@@ -445,6 +447,8 @@
   flex-direction: column;
   gap: 14px;
   align-items: center;
+  /* While the stash rows are open, useStashImageBudget.ts replaces this cap
+     with the room the shell actually leaves and sets --cp-image-hmax. */
   max-height: calc(100vh - 260px);
   overflow-y: auto;
 }
@@ -452,6 +456,20 @@
 .cp-image-wrap {
   width: 100%;
   perspective: 1400px;
+  /* With the stash rows open (useStashImageBudget.ts sets --cp-image-hmax):
+     width capped by that height budget times the image's own aspect
+     (useCardFlip, inline; a portrait card's 0.716 until it loads), so the
+     image scales down whole -- portrait or landscape -- and keeps its
+     shape; the flip morph measures this box, so it follows. Otherwise
+     (signed out, read mode, the public card page) no cap at all. */
+  max-width: calc(var(--cp-image-hmax, 100000px) * var(--cp-image-aspect, 0.716));
+}
+/* Only the plate gives way when the column is full (the stash list scrolls
+   inside it); the image, the flip button and everything else keep their
+   size. */
+.cp-center > :not(.cp-plate),
+.cp-plate__inner > :not(.cp-stash__list):not(.cp-stash__rows) {
+  flex-shrink: 0;
 }
 
 /* A "flip" that ever RESTS (or animates past) rotateY(90deg) mirrors the flat
@@ -542,6 +560,13 @@
 /* ── Inventory plate (signed-in stepper / signed-out message) ─ */
 .cp-plate {
   width: 100%;
+  /* While the stash rows are open (.cp-center--budget, below) the plate
+     takes what the column leaves under the image and shrinks first: a long
+     list scrolls inside it while the image stays put. Otherwise it keeps
+     its full height (the column scrolls, as before). */
+  flex: none;
+  display: flex;
+  flex-direction: column;
   background: rgba(211, 211, 212, 0.28);
   padding: 1.5px;
   clip-path: polygon(
@@ -555,6 +580,7 @@
 }
 
 .cp-plate__inner {
+  flex: none;
   background-color: #0b0e18;
   background-image: url("/images/circuit-tile.webp");
   background-size: 260px auto;
@@ -616,6 +642,7 @@
   background: var(--color-primary);
   border: none;
   color: #ffffff;
+  font: inherit;
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -796,8 +823,12 @@
 .cp-stash__name {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-body);
-  font-size: 14.5px;
+  /* Stash names: Barlow Condensed, case as typed (R2-6, owner 2026-11-08). */
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -805,6 +836,51 @@
 }
 .cp-stash__name--vault {
   color: #9fb0cc;
+}
+
+/* The stash rows' own scroller (edit rows and the read-only list): the
+   only part of the card detail that scrolls for a long list; never under
+   two rows tall. */
+.cp-stash__scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 84px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cp-stash__list,
+.cp-stash__rows {
+  flex: none;
+}
+/* The stash rows open (useStashImageBudget.ts): plate, its inner, the rows
+   give way down to the list's floor; only the list scrolls. */
+.cp-center--budget .cp-plate,
+.cp-center--budget .cp-plate__inner,
+.cp-center--budget .cp-stash__rows {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+/* Too little room even for the 160 px image floor, the pinned parts and the
+   rows (useStashImageBudget.ts): the plate keeps its full height and the
+   column keeps its own scroll as the last resort -- New stash and Done are
+   never clipped. */
+.cp-center--tight .cp-plate,
+.cp-center--tight .cp-plate__inner,
+.cp-center--tight .cp-stash__list,
+.cp-center--tight .cp-stash__rows {
+  flex-shrink: 0;
+}
+.cp-center--tight .cp-stash__scroll {
+  max-height: 126px;
+}
+.cp-stash__row,
+.cp-stash__readrow,
+.cp-stash__listhead,
+.cp-stash__new,
+.cp-stash__foot,
+.cp-stash__saveerror {
+  flex: none;
 }
 
 /* edit mode */
@@ -845,6 +921,7 @@
   background: var(--color-primary);
   color: #fff;
   border: none;
+  font: inherit;
   font-size: 17px;
   line-height: 1;
   padding: 0 0 2px;

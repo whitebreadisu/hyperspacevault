@@ -675,6 +675,45 @@ jobs:
       - name: Comment-check on the tree
         run: node .github/scripts/comment_check.mjs
 
+  # ── BL-347: HSV design-language drift check ────────────────────────────
+  # Fails on a clip-path polygon leaving the top-left or bottom-right corner
+  # square, or a steel ring drawn with `border` (clipped or not), outside
+  # design_check.allow; a <button> class that sets font-size with no font
+  # family; and a rise in the per-file count of hex literals equal to an
+  # index.css :root token (design_check.baseline ratchet, also compared with
+  # the base branch's baseline on PRs). Scans frontend/src CSS and TSX.
+  # Ungated like comment-check; plain Node, no install. Required in BOTH
+  # ci-ok branches. Controls Register: Platform Spec 2.8.
+  design-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Design-check tests
+        run: node --test .github/scripts/design_check.test.mjs
+
+      - name: Design-check on the tree
+        run: node .github/scripts/design_check.mjs
+
+      # The hex ratchet must not be loosened by editing the baseline itself: compare
+      # it with the base branch's copy (none there yet = first introduction).
+      - name: Design-check baseline vs the base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          if git show "FETCH_HEAD:.github/scripts/design_check.baseline" > "$RUNNER_TEMP/base.baseline" 2>/dev/null; then
+            node .github/scripts/design_check.mjs --compare-baseline "$RUNNER_TEMP/base.baseline"
+          else
+            echo "design-check: no baseline on $BASE_REF yet (first introduction); nothing to compare"
+          fi
+
   # ── BL-178: the single required status check ────────────────────────────
   # Branch protection on main requires exactly this check ("ci-ok"), not the
   # heavy jobs individually — that's what lets docs-only PRs merge cleanly
@@ -685,7 +724,7 @@ jobs:
   # existing pipeline unchanged.
 
   ci-ok:
-    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, journeys, terraform-fmt, docs-check, comment-check]
+    needs: [classify-pr, backend, frontend, frontend-e2e-mobile, journeys, terraform-fmt, docs-check, comment-check, design-check]
     if: ${{ always() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
 
@@ -704,9 +743,10 @@ jobs:
           TERRAFORM_FMT_RESULT: ${{ needs.terraform-fmt.result }}
           DOCS_CHECK_RESULT: ${{ needs.docs-check.result }}
           COMMENT_CHECK_RESULT: ${{ needs.comment-check.result }}
+          DESIGN_CHECK_RESULT: ${{ needs.design-check.result }}
         run: |
           echo "classify-pr=$CLASSIFY_RESULT code_changed=$CODE_CHANGED backend_changed=$BACKEND_CHANGED frontend_changed=$FRONTEND_CHANGED terraform_changed=$TERRAFORM_CHANGED"
-          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT journeys=$JOURNEYS_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT"
+          echo "backend=$BACKEND_RESULT frontend=$FRONTEND_RESULT frontend-e2e-mobile=$FRONTEND_E2E_MOBILE_RESULT journeys=$JOURNEYS_RESULT terraform-fmt=$TERRAFORM_FMT_RESULT docs-check=$DOCS_CHECK_RESULT comment-check=$COMMENT_CHECK_RESULT design-check=$DESIGN_CHECK_RESULT"
 
           if [ "$CLASSIFY_RESULT" != "success" ]; then
             echo "::error::classify-pr did not succeed — cannot trust the docs-only classification."
@@ -722,6 +762,12 @@ jobs:
           # BL-279 W2-16: comment-check is required in BOTH branches (never skipped).
           if [ "$COMMENT_CHECK_RESULT" != "success" ]; then
             echo "::error::comment-check did not succeed (run node .github/scripts/comment_check.mjs locally)."
+            exit 1
+          fi
+
+          # BL-347: design-check is required in BOTH branches (never skipped).
+          if [ "$DESIGN_CHECK_RESULT" != "success" ]; then
+            echo "::error::design-check did not succeed (run node .github/scripts/design_check.mjs locally)."
             exit 1
           fi
 

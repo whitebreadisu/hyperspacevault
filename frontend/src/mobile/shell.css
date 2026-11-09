@@ -166,8 +166,9 @@
 .m-app .m-navmenu__inner {
   display: flex;
   flex-direction: column;
+  /* A fallback: MobileNav.tsx caps it to the room below the header. */
   max-height: 60vh;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 4px 0 8px;
   background-color: #0b0e18;
   background-image: url("/images/circuit-tile.webp");
@@ -180,6 +181,22 @@
     0 100%,
     0 13px
   );
+}
+/* Only the stash rows scroll; the entries above keep their full height (a
+   squeezed 48 px entry drew its blue underline through its own text). */
+.m-app .m-navmenu__list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.m-app .m-navmenu__head,
+.m-app .m-navmenu__rule,
+.m-app .m-navmenu__label,
+.m-app .m-navmenu__row {
+  flex: none;
 }
 .m-app .m-navmenu__head {
   position: relative;
@@ -242,8 +259,12 @@
 }
 .m-app .m-navmenu__name {
   min-width: 0;
-  font-family: var(--font-body);
-  font-size: 16px;
+  /* Stash names: Barlow Condensed, case as typed (R2-6, owner 2026-11-08). */
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

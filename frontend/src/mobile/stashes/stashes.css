@@ -88,8 +88,12 @@
   gap: 3px;
 }
 .m-app .m-stashrow__name {
-  font-size: 16px;
-  font-weight: 500;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,11 +137,6 @@
 .m-app .m-stashrow__pencil:active {
   background: rgba(37, 99, 235, 0.2);
 }
-.m-app .m-stashrow__chev {
-  flex: none;
-  display: inline-flex;
-  color: #9fb0cc;
-}
 
 /* ── Inside a stash: the panel and the collapsed strip ────────────────── */
 .m-app .m-stashpanel {
@@ -158,9 +157,12 @@
   padding-top: 4px;
 }
 .m-app .m-stashpanel__name {
-  font-family: var(--font-body);
-  font-size: 20px;
-  font-weight: 600;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   line-height: 1.2;
   color: var(--color-text);
   white-space: nowrap;
@@ -265,9 +267,12 @@
 }
 .m-app .m-stashstrip__name {
   min-width: 0;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 500;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1.1;
   color: var(--color-text);
   white-space: nowrap;

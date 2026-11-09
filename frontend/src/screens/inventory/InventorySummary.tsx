@@ -7,6 +7,7 @@ import { useModalDismiss } from "../../hooks/useModalDismiss";
 import { ValueSwitch } from "../cards/VariantScopeControls";
 import type { WidthTier } from "../../utils/tableWidthTier";
 import { capture } from "../../analytics/analytics";
+import "../cards/setLogoDesktop.css";
 
 /** The completion panel (App Spec §5.13, §5.15) -- four clipped-corner
  * "blocks" (Playset complete %, Set complete %, Cards, Collection value)
@@ -519,6 +520,7 @@ export function InventorySummary({
                       >
                         <img
                           className="inv-summary__popover-logo"
+                          data-set={row.code}
                           src={`/images/set_${row.code}.png`}
                           alt={row.name}
                           title={row.name}

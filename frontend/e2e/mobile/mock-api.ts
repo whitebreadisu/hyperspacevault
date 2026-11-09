@@ -613,6 +613,8 @@ export async function installApiMocks(
           };
           if (stashes.some((s) => s.name.toLowerCase() === name.trim().toLowerCase()))
             return ok(route, { detail: "duplicate_name" }, 409);
+          // The server's cap (50 per user).
+          if (stashes.length >= 50) return ok(route, { detail: "stash_limit" }, 409);
           const s = {
             id: ++stashSeq,
             name: name.trim(),

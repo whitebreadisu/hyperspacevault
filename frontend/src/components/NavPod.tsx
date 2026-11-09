@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Stash } from "../api/stashes";
 import "./NavPod.css";
@@ -52,12 +52,16 @@ interface Props {
   stashes: Stash[] | null;
   onOpenStash: (id: number) => void;
   onAllStashes: () => void;
+  /** The menu's "New stash": opens the create dialog (Header.tsx). */
+  onNewStash: () => void;
   /** The header's minimal step: the top items show their glyph alone, so
    * each carries its name as a tooltip too. */
   iconOnly?: boolean;
 }
 
 const CLIP_MS = 650;
+/** The stash menu ends this far above the window's bottom. */
+const MENU_MARGIN_PX = 16;
 const MENU_CLOSE_MS = 120;
 
 function reducedMotion(): boolean {
@@ -107,40 +111,85 @@ function StashMenu({
   stashes,
   onOpenStash,
   onAllStashes,
+  onNewStash,
 }: {
   open: boolean;
   stashes: Stash[];
   onOpenStash: (id: number) => void;
   onAllStashes: () => void;
+  onNewStash: () => void;
 }) {
   const tab = open ? undefined : -1;
+  // A long list (the owner has 50 stashes) must end above the window's
+  // bottom: the panel is capped to the room below it (16 px margin) and
+  // only the stash list scrolls; the heading and "All stashes" stay put.
+  const panel = useRef<HTMLDivElement>(null);
+  const [maxH, setMaxH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const fit = () => {
+      const el = panel.current;
+      const menu = el?.parentElement;
+      const anchor = menu?.parentElement;
+      if (!el || !menu || !anchor) return;
+      // Where the panel rests (the menu hangs from its anchor's bottom, then
+      // its own top padding), not where the opening slide has it right now.
+      const top =
+        anchor.getBoundingClientRect().bottom + parseFloat(getComputedStyle(menu).paddingTop);
+      // The measured room, even when small: the list scrolls rather than
+      // the panel running past the window's margin.
+      setMaxH(Math.max(0, Math.floor(window.innerHeight - top - MENU_MARGIN_PX)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [open]);
   return (
     <div
       className={"pod-menu" + (open ? " pod-menu--open" : "")}
       aria-hidden={open ? undefined : true}
       data-testid="stash-menu"
     >
-      <div className="pod-menu__panel">
+      <div
+        className="pod-menu__panel"
+        ref={panel}
+        style={maxH != null ? { maxHeight: maxH } : undefined}
+      >
         <span className="pod-menu__head" aria-hidden="true">
           <span>Your stashes</span>
           <span>Copies</span>
         </span>
-        {stashes.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className="pod-menu__row"
-            tabIndex={tab}
-            onClick={() => onOpenStash(s.id)}
-            aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
-          >
-            <span className="pod-menu__name">{s.name}</span>
-            <span className="pod-menu__count">{s.copies}</span>
-          </button>
-        ))}
+        <div className="pod-menu__list">
+          {stashes.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="pod-menu__row"
+              tabIndex={tab}
+              onClick={() => onOpenStash(s.id)}
+              aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
+            >
+              <span className="pod-menu__name">{s.name}</span>
+              <span className="pod-menu__count">{s.copies}</span>
+            </button>
+          ))}
+        </div>
         <span className="pod-menu__rule" aria-hidden="true" />
         <button type="button" className="pod-menu__all" tabIndex={tab} onClick={onAllStashes}>
           All stashes
+        </button>
+        {/* Pinned last, as the Stashes page's rail ends in "+ New stash"
+            (owner 2026-11-09); opens the page's own create dialog. */}
+        <button
+          type="button"
+          className="pod-menu__all pod-menu__new"
+          tabIndex={tab}
+          onClick={onNewStash}
+        >
+          <span className="pod-menu__plus" aria-hidden="true">
+            +
+          </span>
+          New stash
         </button>
       </div>
     </div>
@@ -295,6 +344,7 @@ export function NavPod({
   stashes,
   onOpenStash,
   onAllStashes,
+  onNewStash,
   iconOnly = false,
 }: Props) {
   // The clip phase: on while the subsections move, lifted CLIP_MS after the
@@ -350,6 +400,10 @@ export function NavPod({
           onAllStashes={() => {
             setMenuOpen(false);
             onAllStashes();
+          }}
+          onNewStash={() => {
+            setMenuOpen(false);
+            onNewStash();
           }}
         />
       )

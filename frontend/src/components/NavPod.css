@@ -286,6 +286,32 @@
     0 11px
   );
 }
+/* The stash rows scroll inside the capped panel (NavPod.tsx); the heading
+   and "All stashes" are pinned. */
+.pod-menu__list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.pod-menu__head,
+.pod-menu__rule,
+.pod-menu__all {
+  flex: none;
+}
+/* "+ New stash" under "All stashes" (the Stashes page rail's entry). */
+.pod-menu__all.pod-menu__new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+}
+.pod-menu__plus {
+  font-size: 15px;
+  line-height: 1;
+}
 .pod-menu__head {
   display: flex;
   justify-content: space-between;
@@ -318,10 +344,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0;
+  /* Stash names: Barlow Condensed, case as typed (R2-6, owner 2026-11-08). */
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: none;
 }
 .pod-menu__count {

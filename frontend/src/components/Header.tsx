@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SWUButton } from "./SWUButton";
 import { UserMenu } from "./UserMenu";
@@ -8,6 +8,10 @@ import logoFull3x from "../assets/brand/hsv-logo-full@3x.webp";
 import { TitleChooser } from "../mobile/TitleChooser";
 import { useStashes } from "../stashes/StashContext";
 import { NavPod } from "./NavPod";
+import { CreateStashModal } from "../screens/stashes/StashModals";
+import "../screens/stashes/stashes.css";
+import { useStashMeta } from "../stashes/useStashMeta";
+import type { Stash } from "../api/stashes";
 import { createGlide, pageHiddenCount } from "./podGlide";
 import type { PodGeom } from "./podGlide";
 import type { PodSub, PodTop } from "./NavPod";
@@ -200,6 +204,30 @@ export function Header({
   ];
   const [chooser, setChooser] = useState(false);
   const closeChooser = useCallback(() => setChooser(false), []);
+  // The stash menu's "New stash": the Stashes page's own create dialog; a
+  // created stash opens on the Stashes page, as the page's own "+ New
+  // stash" selects it (owner 2026-11-09).
+  const [creatingStash, setCreatingStash] = useState(false);
+  // When it closes (Cancel, X, Escape, the scrim, or a created stash), focus
+  // goes back to the pod's Stashes entry it was opened from, without
+  // reopening the stash menu (NavPod's `escaped` flag, as its Escape does).
+  // The app's transactional dialogs have no focus trap (useModalDismiss);
+  // this one follows them.
+  const [stashFocusBack, setStashFocusBack] = useState(false);
+  const endCreatingStash = useCallback(() => {
+    setCreatingStash(false);
+    setStashFocusBack(true);
+  }, []);
+  useEffect(() => {
+    if (!stashFocusBack) return;
+    setStashFocusBack(false);
+    const pod = headerRef.current?.querySelector<HTMLElement>(".pod");
+    const trigger = pod?.querySelector<HTMLElement>('[data-sub="stashes"]');
+    if (!pod || !trigger) return;
+    pod.dataset.escaped = "1";
+    trigger.focus();
+    if (document.activeElement !== trigger) delete pod.dataset.escaped;
+  }, [stashFocusBack]);
 
   // Header density (index.css): the roomiest step -- full, compact, tight,
   // minimal -- whose content fits the bar on one row. Measured, not a fixed
@@ -419,6 +447,18 @@ export function Header({
             Unofficial Fan Project <span className="app-header__version">{VERSION}</span>
           </span>
         </button>
+        {creatingStash && stashesOn
+          ? createPortal(
+              <NewStashDialog
+                onClose={endCreatingStash}
+                onCreated={(created) => {
+                  endCreatingStash();
+                  onNavigateStashes?.(created.id);
+                }}
+              />,
+              document.body
+            )
+          : null}
         {/* Portalled to <body>: the brand column's uppercase / text-shadow
             styling must not reach the dialog. */}
         {chooser
@@ -455,6 +495,7 @@ export function Header({
           stashes={stashesOn && !inShared ? stash.stashes : null}
           onOpenStash={(id) => onNavigateStashes?.(id)}
           onAllStashes={() => onNavigateStashes?.(null)}
+          onNewStash={() => setCreatingStash(true)}
           iconOnly={density === "minimal"}
         />
       </nav>
@@ -484,4 +525,17 @@ export function Header({
       </div>
     </header>
   );
+}
+
+/** The Stashes page's create dialog, mounted only while open (its stash
+ * meta state -- busy, the name error -- starts fresh each time). */
+function NewStashDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (stash: Stash) => void;
+}) {
+  const meta = useStashMeta();
+  return <CreateStashModal meta={meta} onClose={onClose} onCreated={onCreated} />;
 }

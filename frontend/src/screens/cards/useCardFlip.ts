@@ -39,6 +39,10 @@ export interface CardFlip {
   displayedImages: CardImageProps | null;
   /** Explicit image height during the leader morph; null = CSS auto. */
   flipHeight: number | null;
+  /** The shown (or flipping-to) side's width / height, once loaded: the
+   * popup caps the image's width by it so a short window scales the image
+   * down instead of scrolling the column (CardPopup.css .cp-image-wrap). */
+  imageAspect: number | null;
   onFlipClick: () => void;
   onFlipAnimationEnd: () => void;
   onImageLoad: (e: SyntheticEvent<HTMLImageElement>) => void;
@@ -182,8 +186,16 @@ export function useCardFlip(
     };
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [hasDisplayedImage]);
+    // The wrap's width also follows the window's height and the image's
+    // aspect (the short-window cap): watch the box itself too.
+    const el = imageWrapRef.current;
+    const ro = el && typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (el) ro?.observe(el);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro?.disconnect();
+    };
+  }, [hasDisplayedImage, imageWrapRef]);
 
   /** Captures the currently-visible <img>'s aspect from its own onLoad. In
    * practice this only ever observes the FRONT side loading -- the back side
@@ -233,6 +245,7 @@ export function useCardFlip(
     canFlip,
     displayedImages,
     flipHeight,
+    imageAspect: targetAspect,
     onFlipClick,
     onFlipAnimationEnd,
     onImageLoad,

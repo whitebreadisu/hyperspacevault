@@ -189,9 +189,12 @@
 .sp-railrow__name {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 500;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -290,12 +293,14 @@
 }
 .sp-read__name {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1.15;
+  /* Stash names are Barlow Condensed (R2-6, owner 2026-11-08), as typed:
+     user text, so no forced uppercase. */
+  font-family: var(--font-ui);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
   overflow-wrap: anywhere;
 }
 .sp-read__descline {

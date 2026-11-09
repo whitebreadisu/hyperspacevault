@@ -1,7 +1,7 @@
 # ADR-0039: Name-and-subtitle fallback — several matches anchor to the earliest-released set
 
 ## Status
-Proposed — 2026-11-08 (BL-349; owner decision during the Icons 2027 onboarding; the owner ratifies)
+Accepted (owner, 2026-11-08) — BL-349; owner decision during the Icons 2027 onboarding, ratified the same night.
 
 ## Context
 A small number of swuapi cards are roots (`variant_of_uuid: null`) whose own

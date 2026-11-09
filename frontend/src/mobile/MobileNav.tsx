@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Stash } from "../api/stashes";
 import { useStashes } from "../stashes/StashContext";
 import { SectionSeparator } from "../components/SectionSeparator";
@@ -204,6 +204,9 @@ function VaultSwitch({
   );
 }
 
+/** The Vault menu stops this far below the screen's header... */
+const MENU_GAP_PX = 8;
+
 /** The Vault tab's menu: a plain list of buttons (no menu role). Focus moves
  * to the current entry on open; Escape closes it and returns focus to the
  * tab (`onClose(true)`). */
@@ -220,6 +223,36 @@ function VaultMenu({
   share?: NavShare | null;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
+  // The menu grows up from the bar and must stop below the screen's header
+  // (owner 2026-11-08: with 50 stashes "Collection" sat behind it): it is
+  // capped to the room between its anchor and the header's bottom, and only
+  // the stash list scrolls; Collection and Stashes stay put.
+  const [maxH, setMaxH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const menu = listRef.current;
+      if (!menu) return;
+      const head = document.querySelector<HTMLElement>(
+        ".m-app__screen:not(.m-app__screen--parked) .m-vh, " +
+          ".m-app__screen:not(.m-app__screen--parked) .m-shell__head"
+      );
+      const top = head ? head.getBoundingClientRect().bottom : 0;
+      // Where the menu rests (10 px above its bar, shell.css), not where
+      // its opening slide has it right now.
+      const bar = menu.offsetParent;
+      const bottom = bar
+        ? bar.getBoundingClientRect().top -
+          parseFloat(getComputedStyle(menu).bottom) +
+          bar.getBoundingClientRect().height
+        : menu.getBoundingClientRect().bottom;
+      // The measured room, even when small: the list scrolls rather than
+      // the menu running into the header.
+      setMaxH(Math.max(0, Math.floor(bottom - top - MENU_GAP_PX)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
   }, []);
@@ -238,7 +271,7 @@ function VaultMenu({
     <>
       <div className="m-navmenu-scrim" onClick={() => onClose()} aria-hidden="true" />
       <div className="m-navmenu" role="group" aria-label="Vault menu" ref={listRef}>
-        <div className="m-navmenu__inner">
+        <div className="m-navmenu__inner" style={maxH != null ? { maxHeight: maxH } : undefined}>
           <button
             type="button"
             className={"m-navmenu__head" + (onStashes ? "" : " m-navmenu__head--on")}
@@ -276,18 +309,20 @@ function VaultMenu({
                 <span>Your stashes</span>
                 <span>Copies</span>
               </span>
-              {stashes.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="m-navmenu__row"
-                  onClick={pick("#/stashes/" + s.id)}
-                  aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
-                >
-                  <span className="m-navmenu__name">{s.name}</span>
-                  <span className="m-navmenu__count">{s.copies}</span>
-                </button>
-              ))}
+              <div className="m-navmenu__list">
+                {stashes.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="m-navmenu__row"
+                    onClick={pick("#/stashes/" + s.id)}
+                    aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
+                  >
+                    <span className="m-navmenu__name">{s.name}</span>
+                    <span className="m-navmenu__count">{s.copies}</span>
+                  </button>
+                ))}
+              </div>
             </>
           ) : null}
         </div>

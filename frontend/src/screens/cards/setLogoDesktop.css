@@ -1,0 +1,43 @@
+/* Desktop set logos: per-set optical scale (R2-5, owner 2026-11-08).
+   The desktop draws each set_*.png at a fixed height (the Vault's "by set"
+   popover rows, cards.css .inv-summary__popover-logo; the card detail
+   header, CardPopup.css .cp-header__setlogo). PNGs whose artwork sits in a
+   wide transparent margin (HMW, LOF, TWI, JTL, IBH, TS26, IC27) then read
+   smaller than SOR / SHD / SEC / LAW / ASH, whose artwork fills the file.
+   Each gets a small scale toward the others' ink size -- drawn as a
+   transform (the margin is transparent), so no row or header changes size.
+   Keyed by the element's data-set. The phone keeps its own equal-area rule
+   (mobile/setLogoArt.ts) and does not load this file's selectors. */
+.inv-summary__popover-logo,
+.cp-header__setlogo {
+  --set-logo-k: 1;
+  transform: scale(var(--set-logo-k));
+}
+.inv-summary__popover-logo {
+  transform-origin: center;
+}
+.cp-header__setlogo {
+  transform-origin: right center;
+}
+.inv-summary__popover-logo[data-set="HMW"],
+.cp-header__setlogo[data-set="HMW"] {
+  --set-logo-k: 1.35;
+}
+.inv-summary__popover-logo[data-set="LOF"],
+.cp-header__setlogo[data-set="LOF"],
+.inv-summary__popover-logo[data-set="TWI"],
+.cp-header__setlogo[data-set="TWI"] {
+  --set-logo-k: 1.25;
+}
+.inv-summary__popover-logo[data-set="JTL"],
+.cp-header__setlogo[data-set="JTL"],
+.inv-summary__popover-logo[data-set="IBH"],
+.cp-header__setlogo[data-set="IBH"],
+.inv-summary__popover-logo[data-set="IC27"],
+.cp-header__setlogo[data-set="IC27"] {
+  --set-logo-k: 1.15;
+}
+.inv-summary__popover-logo[data-set="TS26"],
+.cp-header__setlogo[data-set="TS26"] {
+  --set-logo-k: 1.12;
+}

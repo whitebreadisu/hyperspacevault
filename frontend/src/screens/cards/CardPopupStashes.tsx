@@ -139,12 +139,14 @@ export function CardPopupStashes({
           Edit
         </button>
       </div>
-      {editor.holding.map(({ stash, qty }) => (
-        <div key={stash.id} className="cp-stash__readrow">
-          <span className="cp-stash__name">{stash.name}</span>
-          <span className={playsetChipClass(qty, playsetSize)}>{qty}</span>
-        </div>
-      ))}
+      <div className="cp-stash__scroll">
+        {editor.holding.map(({ stash, qty }) => (
+          <div key={stash.id} className="cp-stash__readrow">
+            <span className="cp-stash__name">{stash.name}</span>
+            <span className={playsetChipClass(qty, playsetSize)}>{qty}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -210,34 +212,38 @@ function EditRows({ editor, printingLabel }: { editor: StashEditor; printingLabe
           {vault}
         </span>
       </div>
-      {editor.rows(printingLabel).map((r) => (
-        <div key={r.stash.id} className="cp-stash__row" data-stash={r.stash.id}>
-          <span className="cp-stash__name">{r.stash.name}</span>
-          <span className="cp-stash__stepper">
-            <button
-              type="button"
-              className="cp-stash__step"
-              aria-disabled={r.canDec ? undefined : true}
-              aria-label={r.decLabel}
-              onClick={() => r.canDec && editor.dec(r.stash.id)}
-            >
-              −
-            </button>
-            <span className={"cp-stash__num" + (r.qty > 0 ? " cp-stash__num--on" : "")}>
-              {r.qty}
+      {/* Only the stash rows scroll (owner 2026-11-08, 50 stashes): the
+          card image, the Vault row, "New stash" and Done stay put. */}
+      <div className="cp-stash__scroll">
+        {editor.rows(printingLabel).map((r) => (
+          <div key={r.stash.id} className="cp-stash__row" data-stash={r.stash.id}>
+            <span className="cp-stash__name">{r.stash.name}</span>
+            <span className="cp-stash__stepper">
+              <button
+                type="button"
+                className="cp-stash__step"
+                aria-disabled={r.canDec ? undefined : true}
+                aria-label={r.decLabel}
+                onClick={() => r.canDec && editor.dec(r.stash.id)}
+              >
+                −
+              </button>
+              <span className={"cp-stash__num" + (r.qty > 0 ? " cp-stash__num--on" : "")}>
+                {r.qty}
+              </span>
+              <button
+                type="button"
+                className="cp-stash__step"
+                aria-disabled={r.canInc ? undefined : true}
+                aria-label={r.incLabel}
+                onClick={() => r.canInc && editor.inc(r.stash.id)}
+              >
+                +
+              </button>
             </span>
-            <button
-              type="button"
-              className="cp-stash__step"
-              aria-disabled={r.canInc ? undefined : true}
-              aria-label={r.incLabel}
-              onClick={() => r.canInc && editor.inc(r.stash.id)}
-            >
-              +
-            </button>
-          </span>
-        </div>
-      ))}
+          </div>
+        ))}
+      </div>
       <button type="button" className="cp-stash__text cp-stash__new" onClick={editor.newStash}>
         <span className="cp-stash__plus" aria-hidden="true">
           +

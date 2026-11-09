@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import type { CSSProperties } from "react";
 import type { ReactNode, RefObject } from "react";
 import type { BaseCardDetail, VariantDetail } from "../../api/baseCards";
 import { AspectIcon } from "../../components/AspectIcon";
@@ -10,6 +12,8 @@ import { repairText } from "../../utils/mojibake";
 import { CardPopupRail, type PriceRailMode } from "./CardPopupRail";
 import type { CardFlip } from "./useCardFlip";
 import "./CardPopup.css";
+import "./setLogoDesktop.css";
+import { useStashImageBudget } from "./useStashImageBudget";
 
 /** The card popup's view: header, separator, and the three-column body
  * (printings rail, image column, card info). It takes the card as props and
@@ -140,7 +144,10 @@ export function CardPopupView({
   imageNote,
   imagePlaceholder,
 }: CardPopupViewProps) {
-  const { displayedImages, canFlip, showBack, flipPhase, flipHeight } = flip;
+  const { displayedImages, canFlip, showBack, flipPhase, flipHeight, imageAspect } = flip;
+  // The stash rows' room: a short window scales the image, not the column.
+  const centerRef = useRef<HTMLDivElement>(null);
+  useStashImageBudget(centerRef, []);
   const headerArt = starfieldSrc(detail.set_code);
   const isBaseSelected = selectedVariant.source_set_code === detail.set_code;
   const setLogo = setLogoSrc(selectedVariant.source_set_code) ?? setLogoSrc(detail.set_code);
@@ -175,7 +182,12 @@ export function CardPopupView({
           </Title>
           {detail.subtitle && <div className="cp-subtitle">{detail.subtitle}</div>}
           {setLogo && (
-            <img className="cp-header__setlogo" src={setLogo} alt={`${detail.set_code} logo`} />
+            <img
+              className="cp-header__setlogo"
+              data-set={setLogo.match(/set_([^.]+)\.png$/)?.[1]}
+              src={setLogo}
+              alt={`${detail.set_code} logo`}
+            />
           )}
         </div>
         {/* Prev/next nav flanks the close button in one
@@ -203,9 +215,17 @@ export function CardPopupView({
           baseSetLabel={baseSetLabel}
         />
 
-        <div className="cp-center">
+        <div className="cp-center" ref={centerRef}>
           {displayedImages && (
-            <div className="cp-image-wrap" ref={imageWrapRef}>
+            <div
+              className="cp-image-wrap"
+              ref={imageWrapRef}
+              style={
+                imageAspect != null
+                  ? ({ "--cp-image-aspect": imageAspect } as CSSProperties)
+                  : undefined
+              }
+            >
               {/* A flat <img> literally rotated to rest at
                 rotateY(180deg) would render mirrored (there's no
                 real "back face" -- it's the same plane seen from

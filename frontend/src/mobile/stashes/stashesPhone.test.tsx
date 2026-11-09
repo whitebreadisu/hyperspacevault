@@ -371,6 +371,8 @@ describe("the Stashes list", () => {
     expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     expect(document.querySelector(".m-stashrow__value")!.textContent).toBe("$19.00");
+    // R2-8: no chevron at the row's right; the row itself opens the stash.
+    expect(document.querySelector(".m-stashrow__chev")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Red binder, 4 copies" }));
     expect(window.location.hash).toBe("#/stashes/1");
   });
