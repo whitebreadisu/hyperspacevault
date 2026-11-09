@@ -164,21 +164,23 @@ export function PreconDropdown({ entries, sets, catalog, onChoose }: Props) {
               ...(pos.flip ? { right: pos.right ?? 0 } : { left: pos.left ?? 0 }),
             }}
           >
-            <div
-              className="acx-pdd__panel"
-              role="listbox"
-              aria-label="Precon Deck"
-              style={{ maxHeight: pos.maxH }}
-              onMouseLeave={() => setHoverKey(null)}
-            >
-              {groups.map((g) => (
-                <div className="acx-pdd__rgroup" key={g.code}>
-                  <div className="acx-pdd__rlogo">
-                    <img src={`/images/set_${g.code}.png`} alt={`${g.code} logo`} />
+            <div className="acx-pdd__ring">
+              <div
+                className="acx-pdd__panel"
+                role="listbox"
+                aria-label="Precon Deck"
+                style={{ maxHeight: pos.maxH }}
+                onMouseLeave={() => setHoverKey(null)}
+              >
+                {groups.map((g) => (
+                  <div className="acx-pdd__rgroup" key={g.code}>
+                    <div className="acx-pdd__rlogo">
+                      <img src={`/images/set_${g.code}.png`} alt={`${g.code} logo`} />
+                    </div>
+                    <div className="acx-pdd__rdecks">{g.items.map(row)}</div>
                   </div>
-                  <div className="acx-pdd__rdecks">{g.items.map(row)}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             {hovered && hoveredPreview && (
               // Multi-leader kinds (Twin Suns dual, IBH box) WIDEN the panel

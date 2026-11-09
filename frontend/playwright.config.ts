@@ -67,6 +67,7 @@ export default defineConfig({
         /s2-12-sheet\.spec\.ts$/, // filter sheet Set-row chips wrap onto more than one line
         /s6-shared\.spec\.ts$/, // long-name ellipsis (textOverflow) and the vault switch centred on innerWidth
         /fr5-06-landscape\.spec\.ts$/, // landscape turns and narrow/short windows
+        /r3-nav-and-table\.spec\.ts$/, // R3-6: the Vault menu underline at 430 too (owner, 2026-11-09)
       ],
       testIgnore: /s7-.*\.spec\.ts|[/](journeys|verify|cards)[/]/, // journeys/verify run under playwright.verify.config.ts (WS-3); cards under playwright.cards.config.ts (v2.3)
       dependencies: ["setup"],

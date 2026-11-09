@@ -138,6 +138,37 @@ test.describe("seeded", () => {
     // C2: the gallery, one tile per printing with its own art.
     await page.getByRole("button", { name: "Gallery" }).click();
     await expect(page.locator(".sp-gallery .gallery-cell")).toHaveCount(6);
+    // R3-4: on every plate, the count, finish and price share one centre
+    // line: the visible glyphs' vertical centres within 1 px.
+    const spread = await page.locator(".sp-gallery .gallery-plate__inner").evaluateAll((plates) => {
+      // The ink's vertical centre (not the line box's): the baseline from the
+      // text run's box and the font's ascent, minus half the glyphs' own
+      // ascent - descent, measured with the element's font on a canvas.
+      const ink = (el: Element) => {
+        const cs = getComputedStyle(el);
+        const ctx = document.createElement("canvas").getContext("2d")!;
+        ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        let t = el.textContent ?? "";
+        if (cs.textTransform === "uppercase") t = t.toUpperCase();
+        const m = ctx.measureText(t);
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const r = range.getBoundingClientRect();
+        const content = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
+        const baseline = r.top + (r.height - content) / 2 + m.fontBoundingBoxAscent;
+        return baseline - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+      };
+      return plates.map((p) => {
+        const mids = [...p.children].map(ink);
+        return mids.map((m) => Math.round((m - mids[1]) * 100) / 100);
+      });
+    });
+    expect(spread.length).toBe(6);
+    for (const offsets of spread)
+      expect(
+        Math.max(...offsets) - Math.min(...offsets),
+        JSON.stringify(offsets)
+      ).toBeLessThanOrEqual(1);
     await shot(page, "c2-gallery", true);
 
     // A row click opens the card detail on that printing.
@@ -240,7 +271,7 @@ test.describe("seeded", () => {
     // C3: an empty stash.
     await page.locator('.sp-railrow[data-stash="3"]').click();
     await expect(page.locator(".sp-zero")).toHaveText(
-      "New box has no copies. Copies go into a stash from a card’s detail."
+      "New box has no cards. Cards go into a stash from a card’s detail."
     );
     await shot(page, "c3-zero");
 
@@ -269,7 +300,7 @@ test.describe("seeded", () => {
     await page.getByRole("button", { name: "Delete stash" }).click();
     const dlg = page.getByRole("alertdialog");
     await expect(dlg).toContainText("Delete Red binder?");
-    await expect(dlg).toContainText("Every card in it returns to your Vault: 12 copies.");
+    await expect(dlg).toContainText("Every card in it returns to your Vault: 12 cards.");
     await shot(page, "e3-delete");
     await dlg.getByRole("button", { name: "Delete stash" }).click();
     await expect(page.locator(".sp-railrow")).toHaveCount(2);
@@ -524,7 +555,7 @@ for (const width of [768, 1024, 1280, 1920]) {
 test("stashes-desktop-no-stashes", async ({ page }) => {
   await openStashes(page);
   await expect(page.locator(".sp-empty__text")).toHaveText(
-    "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+    "You have no stashes. A stash records where cards are kept, like a binder or a trade box."
   );
   await shot(page, "b1-empty");
 });

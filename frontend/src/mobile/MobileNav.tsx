@@ -28,7 +28,7 @@ import type { Route } from "./router";
 //
 // Tapping the Vault tab again while it is lit (the Collection or the Stashes
 // page) opens its menu above the bar: Collection · Stashes, then the stash
-// list ("Your stashes ... Copies"), over a scrim that dims the screen. A tap
+// list ("Your stashes ... Cards"), over a scrim that dims the screen. A tap
 // outside or on a choice closes it, as do Escape (focus back on the tab) and
 // any route change. It is a plain list of buttons (no menu role); focus
 // moves to the current entry when it opens.
@@ -278,7 +278,7 @@ function VaultMenu({
             aria-current={onStashes ? undefined : "page"}
             onClick={pick("#/vault")}
           >
-            Collection
+            <span className="m-navmenu__headtext">Collection</span>
           </button>
           <button
             type="button"
@@ -286,7 +286,7 @@ function VaultMenu({
             aria-current={onStashes ? "page" : undefined}
             onClick={pick("#/stashes")}
           >
-            Stashes
+            <span className="m-navmenu__headtext">Stashes</span>
           </button>
           {share?.name ? (
             <button
@@ -307,7 +307,7 @@ function VaultMenu({
               <span className="m-navmenu__rule" aria-hidden="true" />
               <span className="m-navmenu__label" aria-hidden="true">
                 <span>Your stashes</span>
-                <span>Copies</span>
+                <span>Cards</span>
               </span>
               <div className="m-navmenu__list">
                 {stashes.map((s) => (
@@ -316,7 +316,7 @@ function VaultMenu({
                     type="button"
                     className="m-navmenu__row"
                     onClick={pick("#/stashes/" + s.id)}
-                    aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
+                    aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "card" : "cards"}`}
                   >
                     <span className="m-navmenu__name">{s.name}</span>
                     <span className="m-navmenu__count">{s.copies}</span>

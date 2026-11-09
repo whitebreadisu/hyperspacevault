@@ -105,12 +105,13 @@
   border: 1px solid transparent;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   width: 28px;
   height: 28px;
   border-radius: 2px;
   cursor: pointer;
+  padding: 0 0 5px;
 }
 .ac-modal__close:hover {
   color: var(--color-text);
@@ -876,13 +877,13 @@
   border: none;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 16px;
-  line-height: 1;
+  font-size: 20px;
+  line-height: 12px;
   cursor: pointer;
   width: 22px;
   height: 22px;
   border-radius: 3px;
-  padding: 0;
+  padding: 0 0 2px;
 }
 .ac-chip__del:hover {
   color: var(--aspect-aggression);
@@ -1156,14 +1157,25 @@
   flex-direction: row-reverse;
 }
 .acx-pdd__panel {
-  width: 384px;
-  max-width: 82vw;
+  /* The inner layer of the steel-ring panel; .acx-pdd__ring (the wrapper in
+     PreconDropdown / SetDropdown) is the outer layer. The ring sits outside
+     this scroll container, so it never scrolls away. 381 + 2 x 1.5 = 384. */
+  width: 381px;
+  max-width: calc(82vw - 3px);
   max-height: 396px;
   overflow-y: auto;
-  background: #0b0e18 url("/images/circuit-tile.webp");
-  background-size: 420px auto;
-  border: 1px solid rgba(211, 211, 212, 0.28);
-  box-shadow: 0 24px 56px -8px rgba(0, 0, 0, 0.85);
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+/* Steel-ring panel, the nav pod menu's values (NavPod.css .pod-menu__panel):
+   steel 0.42 outer layer padded 1.5px, inner layer (the panel) at a 1px
+   smaller cut over #0b0e18 + the 260px circuit tile. Cut 10px / 9px. */
+.acx-pdd__ring {
+  flex: none;
+  padding: 1.5px;
+  background: rgba(211, 211, 212, 0.42);
   clip-path: polygon(
     10px 0,
     100% 0,
@@ -1183,6 +1195,9 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid rgba(211, 211, 212, 0.06);
+  /* Desktop has no global button font reset; the row's two spans set their
+     own roles (product: --font-ui, name: --font-body). */
+  font: inherit;
   cursor: pointer;
   text-align: left;
   transition:
@@ -1262,11 +1277,23 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #0b0e18 url("/images/circuit-tile.webp");
-  background-size: 420px auto;
-  border: 1px solid rgba(211, 211, 212, 0.28);
-  box-shadow: 0 24px 56px -8px rgba(0, 0, 0, 0.85);
+  /* Steel-ring panel, the nav pod menu's values: this box is the steel 0.42
+     outer layer (cut 8px); ::before is the inner layer inset 1.5px at a 7px
+     cut over #0b0e18 + the 260px circuit tile, painted under the content. */
+  position: relative;
+  isolation: isolate;
+  background: rgba(211, 211, 212, 0.42);
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.acx-pdd__preview::before {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  z-index: -1;
+  background-color: #0b0e18;
+  background-image: url("/images/circuit-tile.webp");
+  background-size: 260px auto;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
 }
 .acx-pdd__preview-logo {
   align-self: flex-start;

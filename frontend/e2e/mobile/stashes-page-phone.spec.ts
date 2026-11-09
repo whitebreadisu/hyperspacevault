@@ -7,7 +7,7 @@ import { CARDS, QTY } from "./card-helpers";
 // bar's tap-again Vault menu, end to end against the mocked API's stashes
 // double: the menu (Collection · Stashes · the stash list), the list
 // screen, inside a stash with the panel collapsing by the Vault's mechanism
-// (collapsed COPIES / VALUE in the header bar slot), the resting Return ->
+// (collapsed CARDS / VALUE in the header bar slot), the resting Return ->
 // active row (− / chip / trash) reverting on scroll, Undo, the gallery,
 // the stash's own sort, the description popover, the edit / duplicate /
 // delete sheets, delete from inside a stash, and no Stashes entries signed
@@ -57,6 +57,65 @@ const RED_COPIES = SEED.stashItems
 
 const SCROLL = ".m-app__screen:not(.m-app__screen--parked) .m-vault__scroll";
 const LUKE = '.m-stashline[data-variant="17"]'; // ASH 112 Standard, 2 in the stash
+
+// R3-5: on every phone stash plate, the count at the left and the finish at
+// the right, each inset 12 px from the plate's edges, on one centre line
+// (within 1 px). A long finish is cut with an ellipsis: its visible right
+// edge is the span's, not the unclipped text run's.
+async function expectPlatesAligned(page: Page) {
+  const plates = await page.locator(".m-stashgrid .gallery-plate").evaluateAll((els) => {
+    // The ink's vertical centre (not the line box's): the baseline from the
+    // text run's box and the font's ascent, minus half the glyphs' own
+    // ascent - descent, measured with the element's font on a canvas.
+    const ink = (el: Element) => {
+      const cs = getComputedStyle(el);
+      const ctx = document.createElement("canvas").getContext("2d")!;
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      let t = el.textContent ?? "";
+      if (cs.textTransform === "uppercase") t = t.toUpperCase();
+      const m = ctx.measureText(t);
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const r = range.getBoundingClientRect();
+      const content = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
+      const baseline = r.top + (r.height - content) / 2 + m.fontBoundingBoxAscent;
+      return baseline - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
+    };
+    return els.map((plate) => {
+      const box = plate.getBoundingClientRect();
+      const text = (sel: string) => {
+        const range = document.createRange();
+        range.selectNodeContents(plate.querySelector(sel)!);
+        return range.getBoundingClientRect();
+      };
+      const count = text(".gallery-plate__total");
+      const fin = text(".m-stashtile__fin");
+      const finBox = plate.querySelector(".m-stashtile__fin")!.getBoundingClientRect();
+      return {
+        left: count.left - box.left,
+        right: box.right - Math.min(fin.right, finBox.right),
+        order: fin.left > count.right,
+        centre: Math.abs(
+          ink(plate.querySelector(".gallery-plate__total")!) -
+            ink(plate.querySelector(".m-stashtile__fin")!)
+        ),
+      };
+    });
+  });
+  expect(plates.length).toBeGreaterThan(0);
+  for (const p of plates) {
+    expect(p.left).toBeGreaterThanOrEqual(12);
+    expect(p.left).toBeLessThanOrEqual(14);
+    expect(p.right).toBeGreaterThanOrEqual(12);
+    expect(p.right).toBeLessThanOrEqual(14);
+    expect(p.order).toBe(true);
+    // Ink centres are measured in quarter pixels and depend on the platform's
+    // font rasteriser: the R3-5 CSS gives 0.25-0.75 on Windows Chromium and
+    // up to 1.25 on CI's Linux Chromium; the pre-R3-5 CSS gives 1.5 on
+    // Windows (fails here). 1.25 is the tightest bound both platforms hold.
+    expect(p.centre, `count vs finish ink offset ${p.centre}`).toBeLessThanOrEqual(1.25);
+  }
+}
 
 test.describe("seeded", () => {
   test.use({ stashSeed: SEED });
@@ -167,9 +226,9 @@ test.describe("seeded", () => {
     await scrollBy(page, SCROLL, 420);
     await expect(page.locator(".m-stashline--active")).toHaveCount(0);
     await expect(page.locator(".m-vh--collapsed")).toBeAttached();
-    // R1-12: two lines -- the stash name over copies and value.
+    // R1-12: two lines -- the stash name over cards and value.
     await expect(page.locator(".m-vh__strip .m-stashstrip__name")).toHaveText("Red binder");
-    await expect(page.locator(".m-vh__strip .m-stashstrip")).toContainText("copies");
+    await expect(page.locator(".m-vh__strip .m-stashstrip")).toContainText("cards");
     await expect(page.locator(".m-vh__strip .m-vh__n")).toHaveText(String(RED_COPIES));
     await shot(page, "collapsed");
     // Back at the top it stays collapsed (never re-expands on scroll).
@@ -216,6 +275,7 @@ test.describe("seeded", () => {
     await page.getByRole("button", { name: "Gallery" }).click();
     await expect(page.locator(".m-stashgrid .m-cell").first()).toBeVisible();
     await expect(page.locator(".m-stashgrid .gallery-plate").first()).toBeVisible();
+    await expectPlatesAligned(page);
     await shot(page, "gallery");
 
     // A tile opens the card detail on that printing.
@@ -227,7 +287,7 @@ test.describe("seeded", () => {
     await page.getByRole("button", { name: "Delete Trade stash" }).click();
     const del = page.locator(".m-stashsheet");
     await expect(del.locator(".m-sheet__title")).toHaveText("Delete Trade stash?");
-    await expect(del).toContainText("Every card in it returns to your Vault: 2 copies.");
+    await expect(del).toContainText("Every card in it returns to your Vault: 2 cards.");
     await settle(page);
     await shot(page, "delete-inside");
     await del.locator(".m-stashsheet__destroy").click();
@@ -252,6 +312,19 @@ test.describe("seeded", () => {
     expect(await top()).toBeGreaterThan(0);
     await expect(page.locator(".m-vh--collapsed")).toBeAttached();
     await shot(page, "collapsed-two-line");
+  });
+
+  // R3-5 at 430 (phone-430 runs only its explicit list, so the width is
+  // set here, inside the phone project).
+  test.describe("at 430", () => {
+    test.use({ viewport: { width: 430, height: 932 } });
+    test("stashes-phone-gallery-plates-430", async ({ page }) => {
+      await page.goto("/#/stashes/1");
+      await expect(page.locator(".m-stashline").first()).toBeVisible();
+      await page.getByRole("button", { name: "Gallery" }).click();
+      await expect(page.locator(".m-stashgrid .gallery-plate").first()).toBeVisible();
+      await expectPlatesAligned(page);
+    });
   });
 
   test("stashes-phone-share-own-vault-menu", async ({ page }) => {
@@ -283,7 +356,7 @@ test.describe("seeded", () => {
   test("stashes-phone-empty-stash", async ({ page }) => {
     await page.goto("/#/stashes/3");
     await expect(page.locator(".m-stashes__zero")).toHaveText(
-      "New box has no copies. Copies go into a stash from a card’s detail."
+      "New box has no cards. Cards go into a stash from a card’s detail."
     );
     await shot(page, "zero");
   });
@@ -292,7 +365,7 @@ test.describe("seeded", () => {
 test("stashes-phone-no-stashes", async ({ page }) => {
   await page.goto("/#/stashes");
   await expect(page.locator(".m-stashes__emptytext")).toHaveText(
-    "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+    "You have no stashes. A stash records where cards are kept, like a binder or a trade box."
   );
   await shot(page, "b-empty");
 });

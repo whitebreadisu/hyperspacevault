@@ -217,12 +217,19 @@
 .m-app .m-navmenu__head--on {
   color: #ffffff;
 }
-.m-app .m-navmenu__head--on::after {
+/* The lit entry's underline spans its label's text exactly (R3-6, owner
+   2026-11-09): drawn under the text span, not a fixed 36 px. */
+.m-app .m-navmenu__headtext {
+  position: relative;
+}
+.m-app .m-navmenu__head--on .m-navmenu__headtext::after {
   content: "";
   position: absolute;
-  left: 18px;
-  bottom: 8px;
-  width: 36px;
+  left: 0;
+  /* End at the last glyph: the text box carries the label's trailing
+     letter-spacing (0.12em, .m-navmenu__head). */
+  right: 0.12em;
+  bottom: -7px;
   height: 2px;
   background: var(--color-primary);
 }

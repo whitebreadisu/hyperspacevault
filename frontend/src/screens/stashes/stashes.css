@@ -621,9 +621,26 @@
   gap: 14px;
   padding: 2px 0 12px;
 }
+/* R3-4: count, finish and price share one centre line -- each a one-line
+   box (line-height 1) centred by the plate's flex row, as the Vault plate's
+   own pips and total are. */
 .sp-plate__inner {
   gap: 6px;
   justify-content: flex-start;
+  align-items: center;
+}
+.sp-plate__inner > * {
+  line-height: 1;
+}
+/* Optical centring (measured on the glyphs, e2e R3-4): Russo One's digits
+   sit high in their line box, the mono price a little high. */
+.sp-plate__inner .gallery-plate__total {
+  position: relative;
+  top: 1.5px;
+}
+.sp-plate__price {
+  position: relative;
+  top: 0.5px;
 }
 .sp-plate__fin {
   flex: 1;

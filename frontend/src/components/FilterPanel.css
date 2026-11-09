@@ -205,10 +205,11 @@
   color: var(--color-text-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 6px;
+  font-size: 20px;
+  line-height: 16px;
+  padding: 0 6px 4px;
   transition: color 0.15s;
+  width: 20.6px;
 }
 
 .ifp-sidebar__collapse:hover {
@@ -453,10 +454,11 @@
   color: var(--color-text-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0;
+  font-size: 17px;
+  line-height: 11px;
+  padding: 0 0 3px;
   flex: none;
+  width: 5.9px;
 }
 
 .ifp-search__clear:hover {
@@ -674,10 +676,10 @@
   width: 20px;
   height: 20px;
   font: inherit;
-  font-size: 16px;
-  line-height: 1;
+  font-size: 20px;
+  line-height: 12px;
   cursor: pointer;
-  padding: 0;
+  padding: 0 0 3px;
   border-radius: 3px;
 }
 

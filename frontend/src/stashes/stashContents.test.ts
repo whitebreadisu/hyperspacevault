@@ -280,6 +280,6 @@ describe("returnSentence", () => {
         { row: std, quantity: 2 },
         { row: hyp, quantity: 1 },
       ])
-    ).toBe("3 copies are back in your Vault.");
+    ).toBe("3 cards are back in your Vault.");
   });
 });

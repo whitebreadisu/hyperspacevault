@@ -850,10 +850,13 @@
    itself never takes hyperlink styling on hover (an unwanted
    blue-link-on-hover look). Focus-visible styling on .card-name-link is
    retained so keyboard users still get a visible indicator. */
+/* No transition and no radius on the wash (R3-7, owner 2026-11-09): a
+   table cell's background mid-transition, with the hover popovers below
+   opening and closing over neighbouring rows, could be left painted after
+   the pointer had gone ("only the Name cell lit"). The wash now switches
+   with :hover alone, as the row's own does. */
 .td-name--clickable {
   cursor: pointer;
-  border-radius: 3px;
-  transition: background 0.12s ease;
 }
 .td-name--clickable:hover {
   background: rgba(37, 99, 235, 0.12);
@@ -957,8 +960,6 @@
 }
 .td-playset--clickable {
   cursor: pointer;
-  border-radius: 3px;
-  transition: background 0.12s ease;
 }
 .td-playset--clickable:hover {
   background: rgba(37, 99, 235, 0.12);

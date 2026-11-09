@@ -160,11 +160,12 @@
   border: none;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 20px;
-  line-height: 1;
+  font-size: 24px;
+  line-height: 20px;
   cursor: pointer;
-  padding: 4px 7px;
+  padding: 1px 7px 7px;
   opacity: 0.6;
+  width: 21.9px;
 }
 .cp-nav-btn:hover:not(:disabled) {
   color: var(--color-text);
@@ -187,6 +188,7 @@
   display: inline-flex;
   align-items: center;
   padding: 6px 7px;
+  width: auto;
 }
 .cp-link-note {
   position: absolute;
@@ -211,10 +213,11 @@
   border: none;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 28px;
-  line-height: 1;
+  font-size: 34px;
+  line-height: 28px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2.5px 8px 5.5px;
+  width: 27.8px;
 }
 .cp-close:hover {
   color: var(--color-text);
@@ -643,10 +646,11 @@
   border: none;
   color: #ffffff;
   font: inherit;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  padding: 0 0 4px;
 }
 .cp-plate__step:hover:not(:disabled) {
   background: var(--color-primary-dim);
@@ -922,9 +926,9 @@
   color: #fff;
   border: none;
   font: inherit;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1;
-  padding: 0 0 2px;
+  padding: 0 0 4px;
   cursor: pointer;
   clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
   transition: background 0.12s ease;

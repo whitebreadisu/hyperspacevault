@@ -42,8 +42,3 @@ ring | frontend/src/screens/inventory/AddCardsModal.css | .ac-chip | entry-row c
 ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__trigger | dropdown trigger field, border-radius 2px
 ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview-base | card-art preview frame, border-radius 5px; a card edge, not a panel ring
 ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview-leader | card-art preview frame, border-radius 5px; a card edge, not a panel ring
-
-# ring - known violations: a steel border on a clip-path panel (the border cannot follow the cut).
-# Listed for the owner; redrawing them as the two-layer ring is his call
-ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__panel | known violation, owner call (BL-347): precon picker panel, steel border under a clip-path
-ring | frontend/src/screens/inventory/AddCardsModal.css | .acx-pdd__preview | known violation, owner call (BL-347): precon preview panel, steel border under a clip-path

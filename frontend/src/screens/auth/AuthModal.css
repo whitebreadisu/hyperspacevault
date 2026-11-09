@@ -39,12 +39,13 @@
   background: transparent;
   border: none;
   font: inherit;
-  font-size: 20px;
-  line-height: 1;
+  font-size: 25px;
+  line-height: 20px;
   color: var(--color-text-muted);
   cursor: pointer;
-  padding: 4px;
+  padding: 2px 4px 6px;
   transition: color 0.15s;
+  width: 16.5px;
 }
 
 .auth-modal-close:hover {

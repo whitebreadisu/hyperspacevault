@@ -470,10 +470,18 @@
   gap: 14px 10px;
   padding: 14px 12px 16px;
 }
-.m-app .m-stashtile__plate {
-  justify-content: flex-start;
+/* R3-5: the count at the left, the finish at the right, both on the
+   plate's centre line, inset 12 px from each edge (clear of the 7 px corner
+   cut; the Vault phone plate's own inset is 10 / 8 px). Scoped under
+   .m-stashtile to outrank vault.css's .m-app .gallery-plate__inner. */
+.m-app .m-stashtile .m-stashtile__plate {
+  justify-content: space-between;
+  align-items: center;
   gap: 6px;
-  padding: 0 6px 0 8px;
+  padding: 0 12px;
+}
+.m-app .m-stashtile .m-stashtile__plate > * {
+  line-height: 1;
 }
 .m-app .m-stashtile .gallery-plate__total {
   font-size: 13px;
@@ -489,7 +497,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: left;
+  text-align: right;
 }
 .m-app .m-stashtile__price {
   margin-top: -2px;

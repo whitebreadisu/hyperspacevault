@@ -157,7 +157,7 @@ function StashMenu({
       >
         <span className="pod-menu__head" aria-hidden="true">
           <span>Your stashes</span>
-          <span>Copies</span>
+          <span>Cards</span>
         </span>
         <div className="pod-menu__list">
           {stashes.map((s) => (
@@ -167,7 +167,7 @@ function StashMenu({
               className="pod-menu__row"
               tabIndex={tab}
               onClick={() => onOpenStash(s.id)}
-              aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
+              aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "card" : "cards"}`}
             >
               <span className="pod-menu__name">{s.name}</span>
               <span className="pod-menu__count">{s.copies}</span>

@@ -92,10 +92,15 @@
   color: var(--color-text);
 }
 .php-expand {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 13px;
+  width: 14px;
 }
 .php-close {
-  font-size: 20px;
+  font-size: 25px;
+  line-height: 16px;
+  padding: 0 2px 4px;
+  width: 12.5px;
 }
 
 .php-status {

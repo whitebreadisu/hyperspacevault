@@ -190,7 +190,7 @@ const settle = () => act(async () => {});
 describe("the bottom bar's Vault menu (tap the lit tab again)", () => {
   const vaultTab = () => screen.getByRole("button", { name: "Vault" });
 
-  it("signed in: Collection · Stashes, then the stash list with copies", async () => {
+  it("signed in: Collection · Stashes, then the stash list with cards", async () => {
     render(
       <Shell>
         <MobileNav route={parseHash("#/vault")} />
@@ -205,6 +205,9 @@ describe("the bottom bar's Vault menu (tap the lit tab again)", () => {
         .getAllByRole("button")
         .map((b) => b.textContent)
     ).toEqual(["Collection", "Stashes", "Red binder4", "Trade stash0"]);
+    // R3-1: the count column and the rows' names say cards, not copies.
+    expect(menu.querySelector(".m-navmenu__label")!.textContent).toBe("Your stashesCards");
+    expect(within(menu).getByRole("button", { name: "Red binder, 4 cards" })).toBeTruthy();
     expect(within(menu).getByRole("button", { name: "Collection" })).toHaveAttribute(
       "aria-current",
       "page"
@@ -365,7 +368,7 @@ describe("the Stashes list", () => {
 
   it("one row per stash with copies and value; a row opens the stash", async () => {
     list();
-    await screen.findByRole("button", { name: "Red binder, 4 copies" });
+    await screen.findByRole("button", { name: "Red binder, 4 cards" });
     expect(screen.getByRole("heading", { name: "Stashes" })).toBeInTheDocument();
     // No back chevron, no X: a Vault subsection.
     expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
@@ -373,7 +376,7 @@ describe("the Stashes list", () => {
     expect(document.querySelector(".m-stashrow__value")!.textContent).toBe("$19.00");
     // R2-8: no chevron at the row's right; the row itself opens the stash.
     expect(document.querySelector(".m-stashrow__chev")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Red binder, 4 copies" }));
+    fireEvent.click(screen.getByRole("button", { name: "Red binder, 4 cards" }));
     expect(window.location.hash).toBe("#/stashes/1");
   });
 
@@ -391,7 +394,7 @@ describe("the Stashes list", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: "Delete stash" }));
     const del = await screen.findByRole("dialog", { name: "Delete Trade stash?" });
     // Copy replaced (R1-9, 2026-11-08): every card returns, with the count.
-    expect(del).toHaveTextContent("It holds no copies.");
+    expect(del).toHaveTextContent("It holds no cards.");
     await act(async () => {
       fireEvent.click(within(del).getByRole("button", { name: "Delete stash" }));
     });
@@ -405,7 +408,7 @@ describe("the Stashes list", () => {
     list();
     expect(
       await screen.findByText(
-        "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+        "You have no stashes. A stash records where cards are kept, like a binder or a trade box."
       )
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "New stash" }));
@@ -486,7 +489,7 @@ describe("inside a stash", () => {
       fireEvent.scroll(scroller);
     });
     expect(document.querySelector(".m-vh--collapsed")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Red binder: copies 4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Red binder: cards 4/ }));
     expect(document.querySelector(".m-vh--collapsed")).toBeNull();
   });
 
@@ -597,7 +600,7 @@ describe("inside a stash", () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
     const del = await screen.findByRole("dialog", { name: "Delete Red binder?" });
-    expect(del).toHaveTextContent("Every card in it returns to your Vault: 4 copies.");
+    expect(del).toHaveTextContent("Every card in it returns to your Vault: 4 cards.");
     await act(async () => {
       fireEvent.click(within(del).getByRole("button", { name: "Delete stash" }));
     });
@@ -696,7 +699,7 @@ describe("inside a stash", () => {
     inside(2);
     expect(
       await screen.findByText(
-        "Trade stash has no copies. Copies go into a stash from a card’s detail."
+        "Trade stash has no cards. Cards go into a stash from a card’s detail."
       )
     ).toBeInTheDocument();
   });
@@ -712,7 +715,7 @@ describe("R1-10: scale on the phone", () => {
       </Shell>
     );
     await screen.findByRole("button", {
-      name: "Stash number 1, 4 copies",
+      name: "Stash number 1, 4 cards",
     });
     expect(document.querySelectorAll(".m-stashrow")).toHaveLength(60);
     expect(screen.getByRole("button", { name: new RegExp("^y{40},") })).toBeInTheDocument();
