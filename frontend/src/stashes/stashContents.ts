@@ -17,9 +17,8 @@ import { getRarityLabel } from "../utils/variants";
 
 /** The Stashes page's copy, both layouts. */
 export const STASH_COPY = {
-  empty:
-    "You have no stashes. A stash records where copies are kept, like a binder or a trade box.",
-  zero: (name: string) => `${name} has no copies. Copies go into a stash from a card’s detail.`,
+  empty: "You have no stashes. A stash records where cards are kept, like a binder or a trade box.",
+  zero: (name: string) => `${name} has no cards. Cards go into a stash from a card’s detail.`,
   filtered: "No cards match the current filters.",
   noDescription: "No description",
   loading: "Loading stashes…",
@@ -27,11 +26,11 @@ export const STASH_COPY = {
   staleFailed: "The stash list did not refresh.",
   retry: "Try again",
   /** The delete confirm (R1-9): every card in the stash returns to the
-   * Vault, with the count. */
-  deleteLead: (copies: number) =>
-    copies === 0
-      ? "It holds no copies."
-      : `Every card in it returns to your Vault: ${copies.toLocaleString()} ${copies === 1 ? "copy" : "copies"}.`,
+   * Vault, with the count -- a stash's total reads "cards" (R3-1). */
+  deleteLead: (cards: number) =>
+    cards === 0
+      ? "It holds no cards."
+      : `Every card in it returns to your Vault: ${cards.toLocaleString()} ${cards === 1 ? "card" : "cards"}.`,
   deleteFine: "You still own every copy. Only the stash and its name and description are deleted.",
 };
 
@@ -343,5 +342,5 @@ export function returnSentence(rows: { row: StashPrinting; quantity: number }[])
     const { row, quantity } = rows[0];
     return `${quantity} ${printingLabel(row)} ${quantity === 1 ? "is" : "are"} back in your Vault.`;
   }
-  return `${copies} ${copies === 1 ? "copy is" : "copies are"} back in your Vault.`;
+  return `${copies} ${copies === 1 ? "card is" : "cards are"} back in your Vault.`;
 }

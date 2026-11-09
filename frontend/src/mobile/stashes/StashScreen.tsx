@@ -46,8 +46,8 @@ import "./stashes.css";
 // same collapse, hold and pull as the Vault panel and the card-detail art
 // (R1-12). The expanded panel below the header bar holds the name, the
 // one-line description (a tap opens the full text in a popover), Market |
-// Low and COPIES / VALUE (the Vault panel's `m-metric` tiles); collapsed,
-// the header bar's strip carries two lines -- the stash name over COPIES and
+// Low and CARDS / VALUE (the Vault panel's `m-metric` tiles); collapsed,
+// the header bar's strip carries two lines -- the stash name over CARDS and
 // VALUE, the Vault readout's own type roles. Below: the Vault's status rows
 // (search, Filters; count, pencil, trash, sort, list / gallery), the return
 // feedback line, then one row per printing (the Vault row's `m-row__*`
@@ -60,7 +60,7 @@ import "./stashes.css";
 
 type SheetName = "filters" | "sort" | "edit" | "delete" | null;
 
-/** The collapsed strip: the stash name over the Vault readout's copies
+/** The collapsed strip: the stash name over the Vault readout's cards
  * fact and value (header.css m-vh__fact / m-vh__n / m-vh__value). */
 function Readout({ name, copies, value }: { name: string; copies: string; value: string }) {
   return (
@@ -68,7 +68,7 @@ function Readout({ name, copies, value }: { name: string; copies: string; value:
       <span className="m-stashstrip__name">{name}</span>
       <span className="m-stashstrip__facts">
         <span className="m-vh__fact m-vh__fact--cards">
-          <span className="m-vh__n">{copies}</span> copies
+          <span className="m-vh__n">{copies}</span> cards
         </span>
         <span className="m-vh__value">{value}</span>
       </span>
@@ -134,7 +134,7 @@ function Panel({
         </div>
         <div className="m-stashpanel__stats">
           <span className="m-metric">
-            <span className="m-metric__label">Copies</span>
+            <span className="m-metric__label">Cards</span>
             <span className="m-metric__value">{copies}</span>
             <span className="m-metric__sub m-stashpanel__sub">{sub ?? ""}</span>
           </span>
@@ -560,7 +560,7 @@ export function StashScreen({
         summary={{ pct: 0, copies: totals.copies, value: totals.value, narrowed: false }}
         readout={{
           content: <Readout name={stash.name} copies={copies} value={value} />,
-          label: `${stash.name}: copies ${copies}, value ${value}`,
+          label: `${stash.name}: cards ${copies}, value ${value}`,
         }}
         panel={
           <Panel

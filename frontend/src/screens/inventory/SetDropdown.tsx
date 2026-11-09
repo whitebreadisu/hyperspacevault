@@ -150,21 +150,23 @@ export function SetDropdown({ sets, onChoose }: Props) {
             className="acx-pdd__pop"
             style={{ position: "fixed", top: pos.top, left: pos.left }}
           >
-            <div
-              className="acx-pdd__panel"
-              role="listbox"
-              aria-label="Set"
-              style={{ maxHeight: pos.maxH }}
-            >
-              {body}
-              <div className="acx-sdd__foot">
-                <button
-                  type="button"
-                  className="ac-setbar__change"
-                  onClick={() => setShowAllSets((v) => !v)}
-                >
-                  {showAllSets ? "Base sets only" : "Show all sets"}
-                </button>
+            <div className="acx-pdd__ring">
+              <div
+                className="acx-pdd__panel"
+                role="listbox"
+                aria-label="Set"
+                style={{ maxHeight: pos.maxH }}
+              >
+                {body}
+                <div className="acx-sdd__foot">
+                  <button
+                    type="button"
+                    className="ac-setbar__change"
+                    onClick={() => setShowAllSets((v) => !v)}
+                  >
+                    {showAllSets ? "Base sets only" : "Show all sets"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>,

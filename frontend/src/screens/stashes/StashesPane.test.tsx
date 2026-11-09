@@ -380,7 +380,7 @@ describe("C2 / C3", () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /New box/ }));
     expect(
-      screen.getByText("New box has no copies. Copies go into a stash from a card’s detail.")
+      screen.getByText("New box has no cards. Cards go into a stash from a card’s detail.")
     ).toBeInTheDocument();
   });
 });
@@ -392,7 +392,7 @@ describe("B1 / B2", () => {
     render(<Harness />);
     expect(
       await screen.findByText(
-        "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+        "You have no stashes. A stash records where cards are kept, like a binder or a trade box."
       )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New stash" })).toBeInTheDocument();
@@ -609,7 +609,7 @@ describe("E1 / E2 / E3", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete stash" }));
     const dlg = screen.getByRole("alertdialog");
     expect(dlg).toHaveTextContent("Delete Red binder?");
-    expect(dlg).toHaveTextContent("Every card in it returns to your Vault: 4 copies.");
+    expect(dlg).toHaveTextContent("Every card in it returns to your Vault: 4 cards.");
     expect(dlg).toHaveTextContent(
       "You still own every copy. Only the stash and its name and description are deleted."
     );
@@ -637,7 +637,7 @@ describe("R1-9: delete from the Stashes screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete New box" }));
     const dlg = screen.getByRole("alertdialog");
     expect(dlg).toHaveTextContent("Delete New box?");
-    expect(dlg).toHaveTextContent("It holds no copies.");
+    expect(dlg).toHaveTextContent("It holds no cards.");
     await act(async () => {
       fireEvent.click(within(dlg).getByRole("button", { name: "Delete stash" }));
     });
@@ -655,7 +655,7 @@ describe("R1-9: delete from the Stashes screen", () => {
     await ready();
     fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent(
-      "Every card in it returns to your Vault: 4 copies."
+      "Every card in it returns to your Vault: 4 cards."
     );
     await act(async () => {
       fireEvent.click(
@@ -664,7 +664,7 @@ describe("R1-9: delete from the Stashes screen", () => {
     });
     expect(
       await screen.findByText(
-        "You have no stashes. A stash records where copies are kept, like a binder or a trade box."
+        "You have no stashes. A stash records where cards are kept, like a binder or a trade box."
       )
     ).toBeInTheDocument();
   });
@@ -895,7 +895,7 @@ describe("R1-5: the filters' slot", () => {
     expect(el.className).toBe("sp-list__filters");
     expect(el.parentElement!.className).toBe("sp-list");
     fireEvent.click(screen.getByRole("button", { name: /New box/ }));
-    expect(screen.getByText(/New box has no copies/)).toBeInTheDocument();
+    expect(screen.getByText(/New box has no cards/)).toBeInTheDocument();
     const after = slot.mock.lastCall![0] as HTMLElement;
     expect(after).not.toBeNull();
     expect(after.className).toBe("sp-list__filters");

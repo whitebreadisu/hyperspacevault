@@ -121,7 +121,7 @@ describe("Stashes entries", () => {
 });
 
 describe("the stash menu", () => {
-  it("drops on hover with the stash list and copies, closes 120 ms after leaving", async () => {
+  it("drops on hover with the stash list and cards, closes 120 ms after leaving", async () => {
     await mount();
     expect(menu()).not.toHaveClass("pod-menu--open");
     expect(menu()).toHaveAttribute("aria-hidden", "true");
@@ -133,6 +133,8 @@ describe("the stash menu", () => {
       "Red binder",
       "Trade stash",
     ]);
+    // R3-1: the count column says cards, not copies.
+    expect(menu().querySelector(".pod-menu__head")!.textContent).toBe("Your stashesCards");
     expect([...menu().querySelectorAll(".pod-menu__count")].map((e) => e.textContent)).toEqual([
       "12",
       "2",
@@ -153,7 +155,7 @@ describe("the stash menu", () => {
     const { onNavigateStashes } = await mount();
     const wrap = screen.getByRole("button", { name: "Stashes" }).parentElement!;
     fireEvent.mouseEnter(wrap);
-    fireEvent.click(within(menu()).getByRole("button", { name: "Trade stash, 2 copies" }));
+    fireEvent.click(within(menu()).getByRole("button", { name: "Trade stash, 2 cards" }));
     expect(onNavigateStashes).toHaveBeenCalledWith(2);
     expect(menu()).not.toHaveClass("pod-menu--open");
     fireEvent.mouseEnter(wrap);
@@ -213,7 +215,7 @@ describe("the stash menu", () => {
     await mount();
     const stashes = screen.getByRole("button", { name: "Stashes" });
     fireEvent.mouseEnter(stashes.parentElement!);
-    const row = within(menu()).getByRole("button", { name: "Red binder, 12 copies" });
+    const row = within(menu()).getByRole("button", { name: "Red binder, 12 cards" });
     row.focus();
     fireEvent.keyDown(row, { key: "Escape" });
     expect(menu()).not.toHaveClass("pod-menu--open");

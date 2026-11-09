@@ -123,7 +123,7 @@ export function StashesScreen({
                   type="button"
                   className="m-stashrow__main"
                   onClick={() => go("#/stashes/" + s.id)}
-                  aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "copy" : "copies"}`}
+                  aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "card" : "cards"}`}
                 >
                   <span className="m-stashrow__text">
                     <span className="m-stashrow__name">{s.name}</span>

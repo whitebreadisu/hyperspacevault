@@ -264,7 +264,13 @@ describe("App shell (BL-56 §5.5)", () => {
     expect(screen.getByRole("menuitem", { name: /log out/i })).toBeInTheDocument();
     expect(screen.getByText("Vault")).toBeInTheDocument();
     expect(screen.queryByText("Catalog")).not.toBeInTheDocument();
-    expect(screen.queryByText("Cards")).not.toBeInTheDocument();
+    // PORT: the stash menu's column heading now reads "Cards" (a count
+    // column, aria-hidden); the protected behaviour is "no Cards nav tab",
+    // so only accessible text counts.
+    const visibleCards = screen
+      .queryAllByText("Cards")
+      .filter((el) => !el.closest('[aria-hidden="true"]'));
+    expect(visibleCards).toHaveLength(0);
     expect(screen.queryByText("Inventory")).not.toBeInTheDocument();
   });
 
