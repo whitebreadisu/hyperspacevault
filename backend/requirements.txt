@@ -1,12 +1,12 @@
 # Runtime dependencies — everything the shipped container imports (RR-11).
 # Test/lint tooling lives in requirements-dev.txt; the Dockerfile's `runtime`
 # stage installs only this file.
-fastapi==0.162.0
+fastapi==0.162.2
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.6
+sqlalchemy==2.1.8
 psycopg2-binary==2.9.13
 alembic==1.20.1
-pydantic==2.14.1
+pydantic==2.14.3
 httpx==0.28.1
 # BL-54 S2 (§7.2): POST /api/inventory/import is multipart (file + form
 # fields) -- FastAPI's Form()/File() params require python-multipart
