@@ -275,9 +275,25 @@ describe("UpdateBanner", () => {
       t += FOCUS_THROTTLE_MS;
       await focus();
       expect(captured()).toHaveLength(2);
+      let capturedAtReload = -1;
+      reload.mockImplementation(() => void (capturedAtReload = captured().length));
       fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
       expect(captured()[2]).toEqual(["app_update_banner", { action: "refresh", source: "check" }]);
       expect(reload).toHaveBeenCalledTimes(1);
+      // The refresh event is recorded before the page reloads.
+      expect(capturedAtReload).toBe(3);
+    });
+
+    it("a remount or a desktop/phone flip does not re-fire shown for the same build", async () => {
+      const fetcher = fetcherFor(() => "b2");
+      const first = render(<UpdateBanner bakedBuild="b1" fetcher={fetcher} />);
+      await focus();
+      expect(captured()).toHaveLength(1);
+      first.unmount();
+      render(<UpdateBanner phone bakedBuild="b1" fetcher={fetcher} />);
+      await focus();
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
+      expect(captured()).toHaveLength(1);
     });
 
     it("fires dismiss, and the phone adds layout phone", async () => {
