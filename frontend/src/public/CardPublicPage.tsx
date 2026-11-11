@@ -24,6 +24,7 @@ import {
   PageBar,
   PageFooter,
   SetNav,
+  Signpost,
   SignUpPlate,
 } from "./PublicFrame";
 
@@ -205,6 +206,7 @@ export function DesktopCardPage({ data }: { data: CardPageData }) {
           />
         </div>
       </div>
+      <Signpost />
       <PageFooter />
     </div>
   );
@@ -279,6 +281,7 @@ export function PhoneCardPage({ data }: { data: CardPageData }) {
               baseSetLabel={data.setName}
               bodyEnd={
                 <div className="pc-phone__end">
+                  <Signpost />
                   <Breadcrumbs crumbs={crumbsFor(data)} />
                   <SetNav prev={data.prev} next={data.next} />
                   <PageFooter />
