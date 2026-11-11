@@ -3,7 +3,12 @@ import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { SCREEN_VIEWED_SCREENS, VIEW_MODE_CHANGED_MODES } from "../analytics/analytics";
+import {
+  SCREEN_VIEWED_SCREENS,
+  UPDATE_BANNER_ACTIONS,
+  UPDATE_BANNER_SOURCES,
+  VIEW_MODE_CHANGED_MODES,
+} from "../analytics/analytics";
 import { PICK_REASONS } from "./camera/scanAnalytics";
 import { ADJUST_METHODS } from "./tool/commit";
 import { PAD_KEYPAD_STATES } from "./tool/toolAnalytics";
@@ -190,6 +195,7 @@ describe("S6-10 App Spec §22 lists every phone event and property", () => {
     check("scan_pick_shown", PICK_REASONS);
     check("add_cards_committed", ADJUST_METHODS);
     check("pad_keypad_toggled", PAD_KEYPAD_STATES);
+    check("app_update_banner", [...UPDATE_BANNER_ACTIONS, ...UPDATE_BANNER_SOURCES]);
     // No exported array for these: listed beside the test.
     check("scan_decision", ["add", "details", "wrong_card", "pick"]);
     check("scan_recognised", ["paddle", "tesseract", "weak", "strong"]);

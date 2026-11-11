@@ -9,9 +9,20 @@ import {
   shouldCheck,
 } from "../utils/buildCheck";
 import type { CheckReason, GuardStorage } from "../utils/buildCheck";
+import { capture } from "../analytics/analytics";
+import type { UpdateBannerAction, UpdateBannerSource } from "../analytics/analytics";
 import { SWUButton } from "./SWUButton";
 import "./VerifyEmailBanner.css";
 import "./UpdateBanner.css";
+
+/** Banner keys (a published build id, or "chunk") already reported as shown
+ * on this page load; module scope, so it outlives a remount. */
+const shownKeys = new Set<string>();
+
+/** Test seam: forget what this page load has reported. */
+export function resetShownForTests(): void {
+  shownKeys.clear();
+}
 
 /** sessionStorage, or null where reading it throws (blocked site data). */
 function sessionGuard(): GuardStorage | null {
@@ -120,7 +131,15 @@ export function useBuildUpdate({
   const show = key != null && key !== dismissed;
   const refresh = useCallback(() => opts.current.reload(), []);
   const dismiss = useCallback(() => setDismissed(key), [key]);
-  return { show, refresh, dismiss };
+  // Why it shows: a check found a newer build, or only the chunk guard did.
+  const source: UpdateBannerSource = published != null ? "check" : "chunk";
+  return { show, refresh, dismiss, key, source };
+}
+
+/** app_update_banner (App Spec §22): enums only. The phone adds
+ * `layout: "phone"` explicitly, as every phone event does. */
+function captureBanner(action: UpdateBannerAction, source: UpdateBannerSource, phone: boolean) {
+  capture("app_update_banner", phone ? { action, source, layout: "phone" } : { action, source });
 }
 
 /** The slim, non-blocking "new version ready" banner (App Spec §20): under
@@ -128,17 +147,33 @@ export function useBuildUpdate({
  * banner's strip layout on a neutral surface; its two actions are SWUButtons
  * (Refresh the lit primary, Dismiss the off state), 44 px on the phone. */
 export function UpdateBanner({ phone = false, ...opts }: BuildUpdateOptions & { phone?: boolean }) {
-  const { show, refresh, dismiss } = useBuildUpdate(opts);
+  const { show, refresh, dismiss, key, source } = useBuildUpdate(opts);
+  // "shown" once per build per page load: the first render that shows the
+  // banner for a key, never again for it (a re-render, a remount on a layout
+  // switch, or a later check that finds the same build).
+  useEffect(() => {
+    if (!show || key == null || shownKeys.has(key)) return;
+    shownKeys.add(key);
+    captureBanner("shown", source, phone);
+  }, [show, key, source, phone]);
   if (!show) return null;
   const size = phone ? "touch" : "sm";
+  const onRefresh = () => {
+    captureBanner("refresh", source, phone);
+    refresh();
+  };
+  const onDismiss = () => {
+    captureBanner("dismiss", source, phone);
+    dismiss();
+  };
   return (
     <div className="verify-email-banner app-update-banner" role="status">
       <span className="verify-email-banner__text">A new version of HyperspaceVault is ready.</span>
       <span className="verify-email-banner__actions">
-        <SWUButton size={size} active={false} onClick={dismiss}>
+        <SWUButton size={size} active={false} onClick={onDismiss}>
           Dismiss
         </SWUButton>
-        <SWUButton size={size} onClick={refresh}>
+        <SWUButton size={size} onClick={onRefresh}>
           Refresh
         </SWUButton>
       </span>

@@ -49,7 +49,9 @@ export type AnalyticsEvent =
   | "scan_pick_shown"
   | "scan_fallback_keypad"
   // the phone keypad's fold tab (user-chosen deck size)
-  | "pad_keypad_toggled";
+  | "pad_keypad_toggled"
+  // the "new version ready" banner (App Spec §20), desktop and phone
+  | "app_update_banner";
 
 // Property values are enums/counts only -- no raw user-typed text, no PII
 // (taxonomy property standard). The type can't prove "no free text", but it
@@ -104,6 +106,16 @@ export const VIEW_MODE_CHANGED_MODES = [
   "gallery_3",
 ] as const;
 export type ViewModeChangedMode = (typeof VIEW_MODE_CHANGED_MODES)[number];
+
+/** app_update_banner.action: the banner first rendered for a build on this
+ * page load, or one of its two buttons was clicked. */
+export const UPDATE_BANNER_ACTIONS = ["shown", "refresh", "dismiss"] as const;
+export type UpdateBannerAction = (typeof UPDATE_BANNER_ACTIONS)[number];
+
+/** app_update_banner.source: a build-file check found a newer build, or a
+ * chunk failure hit the guard that had already reloaded once. */
+export const UPDATE_BANNER_SOURCES = ["check", "chunk"] as const;
+export type UpdateBannerSource = (typeof UPDATE_BANNER_SOURCES)[number];
 
 /** `layout` is the phone gate itself -- the one function `isPhoneLayout()`
  * (mobile/useIsPhone.ts; App Spec §25.0, ADR-0030), which is not a single

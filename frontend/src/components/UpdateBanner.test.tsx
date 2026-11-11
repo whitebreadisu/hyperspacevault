@@ -1,10 +1,19 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { UpdateBanner } from "./UpdateBanner";
+import { UpdateBanner, resetShownForTests } from "./UpdateBanner";
+import { capture } from "../analytics/analytics";
 import { FOCUS_THROTTLE_MS, INTERVAL_MS, chunkReloadKey } from "../utils/buildCheck";
 import type { GuardStorage } from "../utils/buildCheck";
 
-// App Spec §20: the banner's triggers, dismissal and the chunk guard.
+// App Spec §20: the banner's triggers, dismissal and the chunk guard; §22:
+// its app_update_banner event.
+
+vi.mock("../analytics/analytics", async (orig) => ({
+  ...(await orig<typeof import("../analytics/analytics")>()),
+  capture: vi.fn(),
+}));
+const captured = () =>
+  vi.mocked(capture).mock.calls.filter(([event]) => event === "app_update_banner");
 
 const TEXT = "A new version of HyperspaceVault is ready.";
 
@@ -33,7 +42,11 @@ async function focus() {
   await flush();
 }
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.mocked(capture).mockClear();
+  resetShownForTests();
+});
 
 describe("UpdateBanner", () => {
   it("shows nothing until a check finds a different build", async () => {
@@ -238,5 +251,57 @@ describe("UpdateBanner", () => {
     Object.defineProperty(other, "reason", { value: new Error("boom") });
     act(() => void window.dispatchEvent(other));
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  describe("app_update_banner", () => {
+    it("fires shown once per build, then refresh with source check", async () => {
+      let t = 0;
+      let published = "b2";
+      const reload = vi.fn();
+      const fetcher = fetcherFor(() => published);
+      const { rerender } = render(
+        <UpdateBanner bakedBuild="b1" fetcher={fetcher} reload={reload} now={() => t} />
+      );
+      expect(captured()).toEqual([]);
+      await focus();
+      expect(captured()).toEqual([["app_update_banner", { action: "shown", source: "check" }]]);
+      // A re-render and a later check finding the same build do not re-fire it.
+      rerender(<UpdateBanner bakedBuild="b1" fetcher={fetcher} reload={reload} now={() => t} />);
+      t += FOCUS_THROTTLE_MS;
+      await focus();
+      expect(captured()).toHaveLength(1);
+      // A newer build is a new banner: shown again.
+      published = "b3";
+      t += FOCUS_THROTTLE_MS;
+      await focus();
+      expect(captured()).toHaveLength(2);
+      fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+      expect(captured()[2]).toEqual(["app_update_banner", { action: "refresh", source: "check" }]);
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires dismiss, and the phone adds layout phone", async () => {
+      const fetcher = fetcherFor(() => "b2");
+      render(<UpdateBanner phone bakedBuild="b1" fetcher={fetcher} />);
+      await focus();
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+      expect(captured()).toEqual([
+        ["app_update_banner", { action: "shown", source: "check", layout: "phone" }],
+        ["app_update_banner", { action: "dismiss", source: "check", layout: "phone" }],
+      ]);
+    });
+
+    it("a banner from the chunk guard reports source chunk; no event for the reload", async () => {
+      const storage = memoryStorage();
+      const reload = vi.fn();
+      render(<UpdateBanner bakedBuild="b1" reload={reload} storage={() => storage} />);
+      act(() => void window.dispatchEvent(new Event("vite:preloadError", { cancelable: true })));
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(captured()).toEqual([]);
+      act(() => void window.dispatchEvent(new Event("vite:preloadError", { cancelable: true })));
+      expect(captured()).toEqual([["app_update_banner", { action: "shown", source: "chunk" }]]);
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+      expect(captured()[1]).toEqual(["app_update_banner", { action: "dismiss", source: "chunk" }]);
+    });
   });
 });
