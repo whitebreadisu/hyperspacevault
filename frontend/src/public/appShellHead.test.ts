@@ -41,6 +41,8 @@ describe("index.html head (/)", () => {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     });
     expect(typeof ld.applicationCategory).toBe("string");
+    expect(ld.description).toEqual(expect.any(String));
+    expect(ld.featureList).toEqual(expect.arrayContaining([expect.stringMatching(/camera/i)]));
     // No fabricated reviews or ratings (Google's structured-data policy).
     expect(JSON.stringify(ld)).not.toMatch(/"(aggregateRating|reviewRating|review|rating)"/i);
   });

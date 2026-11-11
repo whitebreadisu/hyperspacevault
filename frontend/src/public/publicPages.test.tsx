@@ -16,7 +16,6 @@ import {
   type PublicCatalog,
 } from "./publicCatalog";
 import { renderCardBody, renderIndexBody, renderSetBody } from "./render";
-import { SIGNPOST_TEXT } from "./PublicFrame";
 import {
   isAllowedPublicEvent,
   publicAnalyticsEnabled,
@@ -299,7 +298,10 @@ describe("card page calls to action", () => {
       const signposts = tree.querySelectorAll(".pc-signpost a");
       expect(signposts).toHaveLength(1);
       expect(signposts[0].getAttribute("href")).toBe("/");
-      expect(signposts[0].textContent).toBe(SIGNPOST_TEXT);
+      // Literal on purpose: the wording is owner-approved search copy.
+      expect(signposts[0].textContent).toBe(
+        "Track your Star Wars: Unlimited collection with HyperspaceVault"
+      );
     }
     // The phone tree's previous / next text links open the neighbour in the
     // app, as the desktop header chevrons do.
