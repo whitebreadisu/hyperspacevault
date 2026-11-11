@@ -922,3 +922,11 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### App Spec §20 — Surface bullet, entry-point sentence (verbatim)
 
 > an `[HSV] Updates` nav tab appears while the newest entry is unseen (amber cue) and steps aside once read; the header's version label (rendered from `frontend/package.json` via `utils/version.ts`'s `formatVersionLabel` — `1.4.0` → `v1.4`) reopens the notes anytime.
+
+## Archived 2026-11-11 — §26 Stashes page Filters sentence (spec drift)
+
+**Disposition:** → archive. Since feel-check round 1 (BL-344 R1-5) StashesPane always draws the list area for a shown stash, an empty stash included, so the Filters panel keeps its corner anchor. The sentence below described an earlier build. Replacement text in App Spec §26 states the current behaviour; no behaviour changed (found during the BL-360 build, 2026-11-11).
+
+### App Spec §26 — Filters (R1-5) bullet, empty-stash sentence (verbatim)
+
+> An empty stash has no list, and the panel falls back to its Vault place.

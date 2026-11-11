@@ -66,4 +66,28 @@ describe("InSlot", () => {
     expect(r.getByTestId("child").closest(".home")).not.toBeNull();
     expect(mounts).toBe(1);
   });
+
+  it("hidden hides the host without remounting; shown again keeps state", () => {
+    mounts = 0;
+    const r = render(
+      <InSlot slot={null} hidden>
+        <Child />
+      </InSlot>
+    );
+    const host = () => r.getByTestId("child").closest<HTMLElement>(".filter-host")!;
+    expect(host().style.display).toBe("none");
+    r.rerender(
+      <InSlot slot={null}>
+        <Child />
+      </InSlot>
+    );
+    expect(host().style.display).toBe("contents");
+    r.rerender(
+      <InSlot slot={null} hidden>
+        <Child />
+      </InSlot>
+    );
+    expect(host().style.display).toBe("none");
+    expect(mounts).toBe(1);
+  });
 });
