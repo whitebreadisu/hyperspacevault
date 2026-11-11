@@ -44,6 +44,10 @@
         "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
       },
       {
+        "source": "/build.json",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
         "source": "/scan/**",
         "headers": [
           { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },

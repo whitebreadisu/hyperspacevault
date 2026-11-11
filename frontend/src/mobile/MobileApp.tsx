@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
+import { UpdateBanner } from "../components/UpdateBanner";
 import { LimitsProvider } from "../context/LimitsContext";
 import { hasPasswordProvider } from "../utils/googleAuth";
 import { AccountSlot } from "./AccountSlot";
@@ -572,6 +573,9 @@ export function MobileApp() {
                 {inShare ? <FinishSheetHost /> : null}
               </ShareScope>
             ) : null}
+            {/* App Spec §20: a newer build is live -- in the flow
+              above the bar, so it covers neither the bar nor the header. */}
+            <UpdateBanner phone />
             <div
               className="m-app__nav"
               inert={cardId != null || toolShown || acctLayer != null}

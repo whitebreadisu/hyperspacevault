@@ -914,3 +914,11 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 > **and** it has **no unique non-token `(name, subtitle)` match** to a Standard root elsewhere in the corpus (i.e. the fallback below cannot resolve it).
 
 > A card lands here only if the §6 fallback finds no unique non-token Standard match.*
+
+## Archived 2026-11-11 — §20 release-notes entry points (spec drift)
+
+**Disposition:** → archive. Since v2.4 (BL-340) and v3.0 on dev (BL-341) the header's version label is plain text inside the tag line; the logo and tag line open the brand chooser, whose [HSV] Updates button opens the notes, and the navigation pod carries the [HSV] Updates item. The sentence below described the v1.4 header. Replacement text in App Spec §20 states the current entry points; no behaviour changed (found during the BL-358 build, 2026-11-11).
+
+### App Spec §20 — Surface bullet, entry-point sentence (verbatim)
+
+> an `[HSV] Updates` nav tab appears while the newest entry is unseen (amber cue) and steps aside once read; the header's version label (rendered from `frontend/package.json` via `utils/version.ts`'s `formatVersionLabel` — `1.4.0` → `v1.4`) reopens the notes anytime.
