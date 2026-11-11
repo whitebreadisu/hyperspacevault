@@ -4,6 +4,7 @@ import { Header } from "./components/Header";
 import type { AppView } from "./components/Header";
 import { SectionSeparator } from "./components/SectionSeparator";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { CardsPage } from "./screens/cards/CardsPage";
 import { DeckCheckPage } from "./screens/deckcheck/DeckCheckPage";
 import { SettingsPage } from "./screens/settings/SettingsPage";
@@ -87,7 +88,8 @@ function AppContent() {
   // Whether an unseen release-notes entry exists -- computed once at mount
   // from localStorage (utils/releaseNotesSeen.ts's hasUnread), then owned as
   // App state so opening the notes view (openNotes below) can clear it
-  // everywhere it's consumed (Header's nav-tab cue + version-label cue) in
+  // everywhere it's consumed (the navigation pod's Updates cue, the tag-line
+  // pulse and the brand chooser's Updates button) in
   // the same render, rather than each consumer re-reading storage itself.
   const [notesUnread, setNotesUnread] = useState(() => hasUnread(RELEASE_NOTES));
   // The tab's current share session (App Spec §19.1) -- token + owner-chosen
@@ -136,9 +138,10 @@ function AppContent() {
     setActiveView("stashes");
   }, []);
 
-  // Opens the "New Arrivals" view from either entry point (Header's nav tab
-  // and its version label share this one handler). Marks the latest entry
-  // seen immediately -- before the view switch even -- so the cue clears in
+  // Opens the "New Arrivals" view from either entry point (the navigation
+  // pod's [HSV] Updates item and the [HSV] Updates button of the brand chooser,
+  // which the header's logo and tag line open, share this one handler). Marks
+  // the latest entry seen immediately -- before the view switch even -- so the cue clears in
   // the same click that opens the view, rather than waiting on the notes
   // screen's own mount. No anonymous guard: unlike settings/import-export,
   // this view has no gated content.
@@ -322,6 +325,8 @@ function AppContent() {
           onNavigateShared={() => setActiveView("shared")}
         />
         <VerifyEmailBanner />
+        {/* App Spec §20: a newer build is live -- never covers the header. */}
+        <UpdateBanner />
         <SectionSeparator />
         <main className="app-main">
           {/* display:contents keeps each pane wrapper out of the flex layout

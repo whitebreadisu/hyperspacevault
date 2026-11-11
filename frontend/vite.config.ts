@@ -54,15 +54,38 @@ const pkg = JSON.parse(
 // %VITE_GIT_SHA% placeholder.
 process.env.VITE_GIT_SHA ||= "local";
 
+// App Spec §20: the build identity. The same id is baked into the
+// bundle (__BUILD_ID__) and published as dist/build.json (served no-cache,
+// firebase.json), so an open tab can tell that a newer build is live. The id
+// is the commit SHA a deploy build sets as VITE_GIT_SHA (ci.yml deploy-dev,
+// the promote-prod action), else "local". Never GITHUB_SHA: every Actions job
+// sets it, so the e2e dev server would bake a SHA no build file names.
+const BUILD_ID: string = process.env.VITE_GIT_SHA ?? "local";
+
+function buildIdentity(): Plugin {
+  return {
+    name: "hsv-build-identity",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "build.json",
+        source: JSON.stringify({ build: BUILD_ID, version: pkg.version }) + "\n",
+      });
+    },
+  };
+}
+
 // BL-279 WS-3 W3-07: the dev server proxies /api and /images/cards to the
 // compose backend by default; the CI local stack points it at uvicorn on
 // localhost instead.
 const API_PROXY_TARGET = process.env.VITE_API_PROXY_TARGET ?? "http://backend:8000";
 
 export default defineConfig({
-  plugins: [react(), scanDocument()],
+  plugins: [react(), scanDocument(), buildIdentity()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   build: {
     // S7-01: two entries -- the app and the isolated scanner document.

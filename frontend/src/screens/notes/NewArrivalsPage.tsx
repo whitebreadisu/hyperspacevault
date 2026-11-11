@@ -10,7 +10,8 @@ import "./NewArrivalsPage.css";
  * those panes, App itself owns NOTHING about unread state here -- the seen-
  * marking (utils/releaseNotesSeen.ts's saveLastSeenKey) happens the instant
  * the view is OPENED (App's openNotes handler, fired from either the
- * Header's "[HSV] Updates" nav tab or its version label), not on this
+ * navigation pod's "[HSV] Updates" item or the "[HSV] Updates" button of the
+ * brand chooser that the header's logo and tag line open), not on this
  * component's own
  * mount effect, so the cue clears in lockstep with the click rather than a
  * render tick later.

@@ -1,0 +1,37 @@
+/* ── UpdateBanner (.app-update-banner) ─────────────────────────────────────
+   App Spec §20. The verify-email banner's strip layout
+   (VerifyEmailBanner.css) on a neutral raised surface, actions as SWUButtons:
+   an update is news, not a warning, and amber means "this view is
+   narrowed". Desktop: in the flow under the header. Phone: in the flow above
+   the bottom bar.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.verify-email-banner.app-update-banner {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--color-border);
+  /* Desktop: the circuit seam under it (SectionSeparator, 2560:70, pulled up
+     half its height) straddles the banner's bottom edge; keep the text and
+     buttons clear of the seam's upper half (35/2560 of the layout width). */
+  padding-bottom: calc(10px + 100% * 35 / 2560);
+}
+.app-update-banner .verify-email-banner__actions {
+  align-items: center;
+}
+
+/* Phone: above the bar, so it never covers the bar or the header. Two rows:
+   the line and both 44 px buttons do not fit one 390 px row. */
+.m-app > .app-update-banner {
+  flex: none;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: none;
+}
+.m-app > .app-update-banner .verify-email-banner__text {
+  flex: 1 1 100%;
+  font-size: 13.5px;
+}
+/* Search mode hands the frame to the keyboard. */
+.m-app.m-app--search > .app-update-banner {
+  display: none;
+}
