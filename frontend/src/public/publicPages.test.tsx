@@ -293,6 +293,15 @@ describe("card page calls to action", () => {
         ["/cards/", "/cards/sor/"]
       );
       expect(tree.querySelector(".pc-foot a")!.getAttribute("href")).toBe("/");
+      // The signpost names the app, so it opens the front door, not
+      // this card (robots.txt keeps `/?card=` out of the crawl).
+      const signposts = tree.querySelectorAll(".pc-signpost a");
+      expect(signposts).toHaveLength(1);
+      expect(signposts[0].getAttribute("href")).toBe("/");
+      // Literal on purpose: the wording is owner-approved search copy.
+      expect(signposts[0].textContent).toBe(
+        "Track your Star Wars: Unlimited collection with HyperspaceVault"
+      );
     }
     // The phone tree's previous / next text links open the neighbour in the
     // app, as the desktop header chevrons do.
@@ -631,6 +640,34 @@ describe("set pages and the set index", () => {
     expect(
       [...document.querySelectorAll("a.pc-list__row")].map((a) => a.getAttribute("href"))
     ).toEqual(["/cards/hmw/", "/cards/sor/", "/cards/ibh/", "/cards/gg/", "/cards/zz/"]);
+    document.body.innerHTML = "";
+  });
+
+  it("the set pages and the index carry a visible intro in the static HTML", () => {
+    const sor = buildSetPages(multi).find((s) => s.code === "SOR")!;
+    const setHtml = renderSetBody(sor);
+    expect(setHtml).toContain(
+      "Every Star Wars: Unlimited card in Spark of Rebellion (SOR), with prices and printings."
+    );
+    document.body.innerHTML = setHtml;
+    let intro = document.querySelectorAll(".pc-intro");
+    expect(intro).toHaveLength(1);
+    expect(intro[0].textContent).toBe(
+      "Every Star Wars: Unlimited card in Spark of Rebellion (SOR), with prices and printings. " +
+        "Track your collection in HyperspaceVault."
+    );
+    expect(intro[0].querySelector("a")!.getAttribute("href")).toBe("/");
+    // Before the shell: the first text a reader meets after the breadcrumb.
+    expect(intro[0].previousElementSibling!.className).toBe("pc-crumbs");
+
+    document.body.innerHTML = renderIndexBody(buildIndexPage(multi));
+    intro = document.querySelectorAll(".pc-intro");
+    expect(intro).toHaveLength(1);
+    expect(intro[0].textContent).toBe(
+      "Every Star Wars: Unlimited card with prices and printings, set by set. " +
+        "Track your collection in HyperspaceVault."
+    );
+    expect(intro[0].querySelector("a")!.getAttribute("href")).toBe("/");
     document.body.innerHTML = "";
   });
 

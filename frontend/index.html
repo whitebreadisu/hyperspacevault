@@ -13,23 +13,56 @@
     <meta name="build-sha" content="%VITE_GIT_SHA%" />
     <link rel="icon" href="/favicon.ico?v=2.4" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2.4" />
-    <title>HyperspaceVault</title>
+    <!-- The search-facing head of `/` (App Spec §5.3). Title,
+         description, og:* and twitter:* say the same thing; the JSON-LD
+         describes the app truthfully (free, web, collection + prices +
+         phone camera scanner) and carries no rating. No og:image yet: the
+         app has no logo/wordmark asset sized for link previews. -->
+    <title>HyperspaceVault - Star Wars: Unlimited collection tracker &amp; card prices</title>
     <meta
       name="description"
-      content="HyperspaceVault — an unofficial collection manager and price tracker for Star Wars: Unlimited."
+      content="HyperspaceVault is a free, unofficial Star Wars: Unlimited collection tracker. Record every card and printing you own, see current TCGplayer prices, and add cards by number or with your phone's camera."
     />
-    <!-- Link-preview metadata (iMessage, Slack, Discord, social). No og:image
-         yet: the app has no logo/wordmark asset (deliberately out of BL-138's
-         scope); add one alongside future branding art. -->
     <meta property="og:site_name" content="HyperspaceVault" />
-    <meta property="og:title" content="HyperspaceVault" />
+    <meta
+      property="og:title"
+      content="HyperspaceVault - Star Wars: Unlimited collection tracker &amp; card prices"
+    />
     <meta
       property="og:description"
-      content="An unofficial collection manager and price tracker for Star Wars: Unlimited."
+      content="HyperspaceVault is a free, unofficial Star Wars: Unlimited collection tracker. Record every card and printing you own, see current TCGplayer prices, and add cards by number or with your phone's camera."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.hyperspacevault.com/" />
     <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content="HyperspaceVault - Star Wars: Unlimited collection tracker &amp; card prices"
+    />
+    <meta
+      name="twitter:description"
+      content="HyperspaceVault is a free, unofficial Star Wars: Unlimited collection tracker. Record every card and printing you own, see current TCGplayer prices, and add cards by number or with your phone's camera."
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "HyperspaceVault",
+        "url": "https://www.hyperspacevault.com/",
+        "description": "A free, unofficial collection tracker for the Star Wars: Unlimited trading card game: record every card and printing you own, see current TCGplayer prices, and add cards by number or with a phone camera scanner.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Web",
+        "browserRequirements": "Requires JavaScript",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Star Wars: Unlimited collection tracking by card and printing",
+          "Current TCGplayer market and low prices",
+          "Add cards by card number on a keypad",
+          "Phone camera card scanner"
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -119,6 +119,36 @@ export function ArtNotice() {
   );
 }
 
+/** The card pages' signpost, one visible line under the card that
+ * links the app's front door with descriptive anchor text. It opens `/`, not
+ * this card's `/?card=` link: it names the app, not the card (the page's own
+ * calls to action already open the card), and robots.txt keeps `/?card=` out
+ * of the crawl, so only a link to `/` tells a crawler what the app is. */
+export const SIGNPOST_TEXT = "Track your Star Wars: Unlimited collection with HyperspaceVault";
+
+export function Signpost() {
+  return (
+    <p className="pc-signpost">
+      <a href={APP_URL} onClick={() => ctaClicked("open_app")}>
+        {SIGNPOST_TEXT}
+      </a>
+    </p>
+  );
+}
+
+/** The set pages' and the index's visible intro, real text a search
+ * engine can match (the static HTML carries it; nothing is hidden). Its last
+ * sentence links the app's front door. */
+export const INTRO_LINK_TEXT = "Track your collection in HyperspaceVault.";
+
+export function PageIntro({ lead }: { lead: string }) {
+  return (
+    <p className="pc-intro">
+      {lead} <a href={APP_URL}>{INTRO_LINK_TEXT}</a>
+    </p>
+  );
+}
+
 /** The signed-out plate as the sign-up call to action (row 10, D4): same
  * plate shape and slot, one SWUButton, a quiet "Sign in" text link. Sign in
  * opens `appHref` (a card page passes this card's `/?card=` link); Create

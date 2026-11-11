@@ -2,7 +2,7 @@ import { RarityBadge } from "../components/RarityBadge";
 import { SectionSeparator } from "../components/SectionSeparator";
 import { setLogoSrc, starfieldSrc } from "../mobile/card/cardDetailModel";
 import type { IndexPageData, SetPageData } from "./publicCatalog";
-import { Breadcrumbs, PageBar, PageFooter } from "./PublicFrame";
+import { Breadcrumbs, PageBar, PageFooter, PageIntro } from "./PublicFrame";
 
 // The set pages (`/cards/sor/`) and the set index (`/cards/`), design note §5
 // "Internal linking": static pages in the public frame, no hydration. A set
@@ -10,7 +10,15 @@ import { Breadcrumbs, PageBar, PageFooter } from "./PublicFrame";
 // link to its page); the index lists the sets newest first (ADR-0031). Both
 // sit in the card detail's steel-ring console shell (.cp-shell / .cp-modal)
 // with its starfield header, so they read as the same family as the card
-// pages. Each has one <h1>.
+// pages. Each has one <h1>. A short visible intro sits between the
+// breadcrumb and the shell.
+
+/** The intros' first sentence; PageIntro adds the link sentence. */
+export const INDEX_INTRO_LEAD =
+  "Every Star Wars: Unlimited card with prices and printings, set by set.";
+export function setIntroLead(data: Pick<SetPageData, "name" | "code">): string {
+  return `Every Star Wars: Unlimited card in ${data.name} (${data.code}), with prices and printings.`;
+}
 
 function ShellHeader({
   code,
@@ -49,6 +57,7 @@ export function SetPage({ data }: { data: SetPageData }) {
     <div className="pc-page">
       <PageBar />
       <Breadcrumbs crumbs={[{ label: "Cards", href: "/cards/" }, { label: data.name }]} />
+      <PageIntro lead={setIntroLead(data)} />
       <div className="cp-shell pc-shell">
         <div className="cp-modal pc-modal">
           <ShellHeader code={data.code} title={data.name} aside={`${data.code} · ${count}`} />
@@ -82,6 +91,7 @@ export function CardsIndexPage({ data }: { data: IndexPageData }) {
     <div className="pc-page">
       <PageBar />
       <Breadcrumbs crumbs={[{ label: "Cards" }]} />
+      <PageIntro lead={INDEX_INTRO_LEAD} />
       <div className="cp-shell pc-shell">
         <div className="cp-modal pc-modal">
           <ShellHeader

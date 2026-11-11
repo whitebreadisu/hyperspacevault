@@ -206,6 +206,41 @@ a.cp-nav-btn:focus-visible {
   color: #9fb0cc;
 }
 
+/* The set pages' and the index's intro (page prose, between the
+ * breadcrumb and the shell) and the card pages' signpost line (under the
+ * card, above the footer). Body face, visible, no panel of their own. A link
+ * is the console label colour, underlined, and does not turn blue on hover
+ * (design language, owner decision); it lifts to the text colour as the
+ * breadcrumb and set-nav links do. */
+.pc-intro,
+.pc-signpost {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #cfd6e4;
+}
+.pc-intro {
+  max-width: 760px;
+  padding: 0 4px 14px;
+}
+.pc-signpost {
+  padding: 18px 4px 0;
+}
+.pc-intro a,
+.pc-signpost a {
+  color: #9fb0cc;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+.pc-intro a:hover,
+.pc-intro a:focus-visible,
+.pc-signpost a:hover,
+.pc-signpost a:focus-visible {
+  color: var(--color-text);
+}
+
 /* ── Phone page ────────────────────────────────────────── */
 /* The page bar sits where the app's X / "n of m" bar sits, over the
  * header's 44 px bar space (row 1). */
@@ -263,6 +298,14 @@ a.cp-nav-btn:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.m-app .pc-phone__end .pc-signpost {
+  padding: 12px 0 0;
+}
+.m-app .pc-phone__end .pc-signpost a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 .m-app .pc-phone__end .pc-crumbs,
 .m-app .pc-phone__end .pc-setnav,
