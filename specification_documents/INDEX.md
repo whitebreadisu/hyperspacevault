@@ -1,11 +1,11 @@
-<!-- generated 2026-11-11 by .github/scripts/docs_index.mjs from 4fa7f14 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-11 by .github/scripts/docs_index.mjs from a01c973 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 315,745 B (LF) · 26 h2 · 77 h3
+Total 315,798 B (LF) · 26 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -93,7 +93,7 @@ Total 315,745 B (LF) · 26 h2 · 77 h3
 | h2 | [§19. Collection Lists & Sharing (§19.1 sharing as built, v1.4; lists and binders design-stage)](SWU_Application_Spec.md#19-collection-lists--sharing-191-sharing-as-built-v14-lists-and-binders-design-stage) | 803 | 5,783 |  | 0019, 0020 | `specification_documents/planning/design/AppSpec_19_Lists_Binders_design_2026-08-11.md` | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§19.1 Sharing model (BL-205 — as-built, v1.4)](SWU_Application_Spec.md#191-sharing-model-bl-205--as-built-v14) | 807 | 4,693 |  | 0008, 0019 |  |  |
 | h3 | [§19.4 Decisions record](SWU_Application_Spec.md#194-decisions-record) | 819 | 271 |  | 0019 |  |  |
-| h2 | [§20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)](SWU_Application_Spec.md#20-release-notes-system-bl-184-v13--promote-gate--releases-mirror-bl-210-v14) | 823 | 5,260 |  |  | `frontend/dist/build.json`, `frontend/e2e/mobile/bl358-update-banner.spec.ts`, `frontend/package.json`, `frontend/src/components/UpdateBanner.test.tsx`, `frontend/src/components/UpdateBanner.tsx`, `frontend/src/content/releaseNotes.ts`, `frontend/src/screens/notes/NewArrivalsPage.tsx`, `frontend/src/utils/buildCheck.test.ts`, `frontend/src/utils/buildCheck.ts`, `frontend/src/utils/releaseNotesSeen.ts`, `frontend/src/utils/version.ts` | "Archived 2026-11-11 — §20 release-notes entry points (spec drift)" |
+| h2 | [§20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)](SWU_Application_Spec.md#20-release-notes-system-bl-184-v13--promote-gate--releases-mirror-bl-210-v14) | 823 | 5,313 |  |  | `frontend/e2e/mobile/bl358-update-banner.spec.ts`, `frontend/package.json`, `frontend/src/components/UpdateBanner.test.tsx`, `frontend/src/components/UpdateBanner.tsx`, `frontend/src/content/releaseNotes.ts`, `frontend/src/screens/notes/NewArrivalsPage.tsx`, `frontend/src/utils/buildCheck.test.ts`, `frontend/src/utils/buildCheck.ts`, `frontend/src/utils/releaseNotesSeen.ts`, `frontend/src/utils/version.ts` | "Archived 2026-11-11 — §20 release-notes entry points (spec drift)" |
 | h2 | [§21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")](SWU_Application_Spec.md#21-v14-vault-batch-shipped-prod-2026-08-16--your-vault-shareable) | 833 | 483 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h2 | [§22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)](SWU_Application_Spec.md#22-product-analytics-bl-235-2026-08-26--posthog-via-first-party-relay) | 837 | 9,680 |  | 0027, 0030 | `backend/app/routers/relay.py`, `frontend/src/analytics/analytics.ts`, `frontend/src/public/publicAnalytics.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
 | h2 | [§23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)](SWU_Application_Spec.md#23-homeworlds-onboarding-bl-239-v15--shipped-prod-2026-10-02) | 891 | 2,705 |  | 0031 | `frontend/public/images`, `frontend/public/images/starfields` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
