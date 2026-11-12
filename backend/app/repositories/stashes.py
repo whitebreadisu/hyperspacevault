@@ -316,3 +316,58 @@ def set_stash_quantities(db: Session, stash_id: int, after: dict[int, int]) -> N
                 )
             )
     db.flush()
+
+
+def revoke_stash_share(db: Session, stash_id: int) -> None:
+    """Revoke the stash's active share link (soft, like every revoke).
+    Called inside the stash delete's transaction, so the link dies with
+    the stash. Does not commit."""
+    db.execute(
+        text(
+            "UPDATE shares SET revoked_at = NOW() "
+            "WHERE scope = 'stash' AND target_id = :id AND revoked_at IS NULL"
+        ),
+        {"id": stash_id},
+    )
+
+
+def stashes_by_id(db: Session, stash_ids: list[int]) -> dict[int, Stash]:
+    """{stash_id: Stash} for the caller's stashes among these ids."""
+    if not stash_ids:
+        return {}
+    return {s.id: s for s in db.query(Stash).filter(Stash.id.in_(stash_ids))}
+
+
+def shared_stash_rows(db: Session, stash_id: int):
+    """One stash's printings for its share view: (variant_id, quantity,
+    stashed_at, base_card_id), by variant_id. Only this stash's rows."""
+    return (
+        db.query(
+            StashItem.variant_id,
+            StashItem.quantity,
+            StashItem.stashed_at,
+            CardVariant.base_card_id,
+        )
+        .join(CardVariant, StashItem.variant_id == CardVariant.id)
+        .filter(StashItem.stash_id == stash_id, StashItem.quantity > 0)
+        .order_by(StashItem.variant_id)
+        .all()
+    )
+
+
+def standard_variant_ids(db: Session, base_card_ids: list[int]) -> dict[int, int]:
+    """{base_card_id: its Standard printing's variant id} for these cards."""
+    if not base_card_ids:
+        return {}
+    rows = (
+        db.query(CardVariant.base_card_id, CardVariant.id)
+        .filter(
+            CardVariant.base_card_id.in_(base_card_ids),
+            CardVariant.variant_type == "Standard",
+        )
+        .order_by(CardVariant.id)
+    )
+    out: dict[int, int] = {}
+    for r in rows:
+        out.setdefault(r.base_card_id, r.id)
+    return out

@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 
 from fastapi import Depends, Request
 from sqlalchemy import Connection, create_engine, text
@@ -221,6 +222,11 @@ def get_shared_db(token: str, request: Request):
     if the owner were reading -- and app.share_token is cleared again so
     the share row itself stops being visible past resolution.
 
+    That tenant scope is the owner's WHOLE tenant, whatever the share's
+    scope. Routes never depend on this directly: they take one of the
+    scope gates below (get_shared_inventory_db, get_shared_stash), which
+    decide what the token may read inside the tenant.
+
     Per-IP rate limiting runs BEFORE any DB work (the cheap-tier
     sliding-window limiter in app/rate_limit.py, 300 calls per hour; the
     key is the client IP -- an IPv6 address collapsed to its /64
@@ -252,14 +258,15 @@ def get_shared_db(token: str, request: Request):
             {"token": token},
         )
         row = db.execute(
-            text("SELECT id, tenant_id, scope, name FROM shares WHERE token = :token"),
+            text(
+                "SELECT id, tenant_id, scope, target_id, name FROM shares "
+                "WHERE token = :token"
+            ),
             {"token": token},
         ).first()
         db.execute(text("SELECT set_config('app.share_token', '', false)"))
         if row is None:
-            from fastapi import HTTPException
-
-            raise HTTPException(status_code=404, detail="Not found")
+            raise shared_not_found()
         db.execute(
             text("SELECT set_config('app.current_tenant_id', :tenant_id, false)"),
             {"tenant_id": str(row.tenant_id)},
@@ -270,6 +277,71 @@ def get_shared_db(token: str, request: Request):
     finally:
         db.close()
         conn.close()
+
+
+def shared_not_found():
+    """The one 404 every dead share link gets: unknown, revoked, wrong
+    scope for the route, or a stash that no longer exists all answer with
+    this exact status and body (App Spec §19.1)."""
+    from fastapi import HTTPException
+
+    return HTTPException(status_code=404, detail="Not found")
+
+
+# The scope choke point. get_shared_db scopes the session to the share
+# owner's WHOLE tenant (RLS isolates tenants, not stashes), so what a token
+# may read inside that tenant is decided here, in app code. Every
+# /api/shared route depends on exactly one of the two gates below and never
+# on get_shared_db directly (test_shared_scope.py asserts it).
+
+
+def get_shared_inventory_db(
+    request: Request, db: Session = Depends(get_shared_db)
+) -> Session:
+    """The vault-share gate: the session for an 'inventory'-scope token,
+    404 (the same 404 as an unknown token) for any other scope, so a stash
+    token can never read the vault routes."""
+    if request.state.share.scope != "inventory":
+        raise shared_not_found()
+    return db
+
+
+@dataclass(frozen=True)
+class SharedStash:
+    """What a stash-share route may use: the owner-tenant session, the ONE
+    stash the share names (its id taken from the share row, never the
+    request; its current name and description), and the share's name."""
+
+    db: Session
+    stash_id: int
+    stash_name: str
+    stash_description: str | None
+    share_name: str
+
+
+def get_shared_stash(
+    request: Request, db: Session = Depends(get_shared_db)
+) -> SharedStash:
+    """The stash-share gate: a 'stash'-scope token whose stash still exists,
+    else the same 404 as an unknown token. Deleting a stash revokes its
+    share in the same transaction; the existence check here is the second
+    line for a share row that somehow outlives its stash."""
+    share = request.state.share
+    if share.scope != "stash" or share.target_id is None:
+        raise shared_not_found()
+    stash = db.execute(
+        text("SELECT id, name, description FROM stashes WHERE id = :id"),
+        {"id": share.target_id},
+    ).first()
+    if stash is None:
+        raise shared_not_found()
+    return SharedStash(
+        db=db,
+        stash_id=int(stash.id),
+        stash_name=stash.name,
+        stash_description=stash.description,
+        share_name=share.name,
+    )
 
 
 def get_optional_db(

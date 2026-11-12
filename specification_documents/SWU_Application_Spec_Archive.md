@@ -930,3 +930,15 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### App Spec §26 — Filters (R1-5) bullet, empty-stash sentence (verbatim)
 
 > An empty stash has no list, and the panel falls back to its Vault place.
+
+## Archived 2026-11-12 — §19.1 share record and read surface before stash links (BL-209)
+
+**Disposition:** → archive. BL-209 slice (a) added the `stash` share scope (migration 0034), one active link per stash, and a fourth token-scoped read, `GET /api/shared/{token}/stash`; the vault routes now refuse a stash token. The two passages below said only `inventory` was implemented, that the enum would never need a migration, and that the public surface was three endpoints. Replacement text: App Spec §19.1 (share record, stash links, read surface) and the §12 Shares table. Why: [ADR-0019](../docs/decisions/0019-sharing-secret-link-trust-model.md) amendment 2026-11-12.
+
+### App Spec §19.1 — Share record bullet (verbatim)
+
+> **Share record:** `shares(id, tenant_id, token, scope, name, created_at, revoked_at)`. `token` ≥128-bit URL-safe random, unguessable, the sole credential. `scope` enum `inventory | wanted | list` **from day one** (BL-205 implements only `inventory`; the enum exists so the token table — public-facing — never needs a schema migration). `name` is owner-chosen at creation (≤30 chars, plain text, sanitized): it is the **viewer's header label**, and the only owner identity a viewer ever sees. **Owner-ruled (2026-08-11):** at most **one active share per scope target** (one inventory share per tenant; later, one per binder) — rename and token-rotation cover every use case a second concurrent share would; revoke-and-recreate is the rotation gesture. Multiple named links to identical content add management surface without adding capability.
+
+### App Spec §19.1 — Read surface, endpoint sentences (verbatim)
+
+> The new public surface is exactly three token-scoped endpoints: **resolve** (`token → {name, scope}`; validity is the HTTP status), **shared quantities** (the owner-tenant rows `/api/inventory/quantities` returns for the owner), and **shared limits** (the display-affecting subset of `/api/settings/limits` the Vault needs for playset/keep-limit rendering). Nothing else. Token-scoped reads resolve the share row, then run the existing repository paths **under the owner-tenant RLS context set explicitly after token validation** — same RLS rails, no bypass, FORCE RLS untouched.

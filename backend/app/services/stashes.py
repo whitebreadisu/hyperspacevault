@@ -9,7 +9,14 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.stash import Stash
+from app.repositories import pricing as pricing_repo
 from app.repositories import stashes as stash_repo
+from app.schemas.share_schema import (
+    SharedStashInfo,
+    SharedStashResponse,
+    SharedStashRow,
+    SharedStashTotals,
+)
 from app.schemas.stash_schema import (
     AllocationResponse,
     MoveResponse,
@@ -18,6 +25,7 @@ from app.schemas.stash_schema import (
     StashItemResponse,
     StashResponse,
 )
+from app.services.pricing import to_price_info
 
 
 class StashNotFound(Exception):
@@ -115,6 +123,8 @@ def delete_stash(db: Session, stash_id: int) -> None:
         raise StashNotFound
     stash_repo.lock_inventory_rows(db, stash_repo.stash_variant_ids(db, stash_id))
     stash_repo.delete_stash(db, stash)
+    # Its share link dies in the same transaction (App Spec §19.1).
+    stash_repo.revoke_stash_share(db, stash_id)
     db.commit()
 
 
@@ -258,3 +268,54 @@ def restore_items(db: Session, stash_id: int, wanted: dict[int, int]) -> MoveRes
             raise StashNotFound from exc
         raise
     return response
+
+
+def shared_view(
+    db: Session, stash: SharedStashInfo, stash_id: int, share_name: str
+) -> SharedStashResponse:
+    """A stash share's viewer read (App Spec §19.1): the stash's name and
+    description, its printing rows with unit prices, and the totals. The
+    caller (the get_shared_stash gate) supplies the stash, its id taken
+    from the share row. Unit price per kind: the printing's own, else its
+    card's Standard printing's, else none (the Stashes page's rule, App
+    Spec §5.13); totals sum unit x copies over the priced rows."""
+    items = stash_repo.shared_stash_rows(db, stash_id)
+    standard = stash_repo.standard_variant_ids(
+        db, sorted({r.base_card_id for r in items})
+    )
+    prices = {
+        vid: to_price_info(row)
+        for vid, row in pricing_repo.get_latest_prices(
+            db, sorted({r.variant_id for r in items} | set(standard.values()))
+        ).items()
+    }
+
+    def unit(variant_id: int, base_card_id: int, kind: str) -> float | None:
+        for vid in (variant_id, standard.get(base_card_id)):
+            price = prices.get(vid) if vid is not None else None
+            value = getattr(price, kind) if price is not None else None
+            if value is not None:
+                return value
+        return None
+
+    rows = [
+        SharedStashRow(
+            variant_id=r.variant_id,
+            quantity=r.quantity,
+            stashed_at=r.stashed_at,
+            market=unit(r.variant_id, r.base_card_id, "market"),
+            low=unit(r.variant_id, r.base_card_id, "low"),
+        )
+        for r in items
+    ]
+    return SharedStashResponse(
+        share_name=share_name,
+        stash=stash,
+        rows=rows,
+        totals=SharedStashTotals(
+            printings=len(rows),
+            copies=sum(r.quantity for r in rows),
+            value_market=round(sum((r.market or 0) * r.quantity for r in rows), 2),
+            value_low=round(sum((r.low or 0) * r.quantity for r in rows), 2),
+        ),
+    )
