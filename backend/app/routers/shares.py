@@ -222,7 +222,10 @@ def revoke_share(share_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 
-def _no_store(response: Response) -> None:
+def _viewer_cache(response: Response) -> None:
+    """Private (never a shared or CDN cache), but the viewer's own browser
+    may reuse it for 30 s -- so a rotated or revoked link can show from
+    that browser's cache for up to 30 s (App Spec §12 Shares)."""
     response.headers["Cache-Control"] = "private, max-age=30"
 
 
@@ -235,7 +238,7 @@ def resolve_share(
     """Vault token -> header label + scope. Everything an anonymous viewer
     ever learns about the share itself. A stash token is a 404 here: its
     label comes with the stash read below."""
-    _no_store(response)
+    _viewer_cache(response)
     share = request.state.share
     return SharedResolveResponse(name=share.name, scope=share.scope)
 
@@ -246,7 +249,7 @@ def shared_quantities(
 ):
     """The owner's sparse quantities list -- the same service read the
     owner's own Vault makes, under the share-scoped session."""
-    _no_store(response)
+    _viewer_cache(response)
     return inventory_service.get_quantities(db)
 
 
@@ -255,7 +258,7 @@ def shared_limits(response: Response, db: Session = Depends(get_shared_inventory
     """The owner's effective keep-limit config -- the display input the
     Vault's playset math needs (§19.1: the display-affecting subset IS
     the effective-limits read)."""
-    _no_store(response)
+    _viewer_cache(response)
     return settings_service.get_effective_limits(db)
 
 
@@ -268,7 +271,7 @@ def shared_stash(response: Response, shared: SharedStash = Depends(get_shared_st
     the URL or query can name another. The read-only card detail takes a
     printing's in-stash count from these rows, as the vault viewer's card
     detail takes its count from /quantities."""
-    _no_store(response)
+    _viewer_cache(response)
     return stash_service.shared_view(
         shared.db,
         SharedStashInfo(name=shared.stash_name, description=shared.stash_description),

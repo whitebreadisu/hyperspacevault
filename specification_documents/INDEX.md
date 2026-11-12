@@ -1,11 +1,11 @@
-<!-- generated 2026-11-12 by .github/scripts/docs_index.mjs from b556b13 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-12 by .github/scripts/docs_index.mjs from fd076c0 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 325,141 B (LF) · 26 h2 · 77 h3
+Total 325,411 B (LF) · 26 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -62,12 +62,12 @@ Total 325,141 B (LF) · 26 h2 · 77 h3
 | h3 | [§10.10 Remaining open](SWU_Application_Spec.md#1010-remaining-open) | 499 | 639 |  |  | `backend/alembic/versions` |  |
 | h3 | [§10.11 Product-structure facts (salvaged from `CARD_RULES.md` — BL-160; verified against the live catalogue 2026-10-19)](SWU_Application_Spec.md#1011-product-structure-facts-salvaged-from-card_rulesmd--bl-160-verified-against-the-live-catalogue-2026-10-19) | 506 | 7,936 |  | 0002, 0014 | `frontend/scripts/public-pages/check-output.mjs`, `frontend/src/components/CardText.css`, `frontend/src/components/CardText.tsx`, `frontend/src/utils/cardText.ts`, `frontend/src/utils/cardTextTokens.json`, `frontend/src/utils/epicAction.ts`, `frontend/src/utils/mojibake.ts` |  |
 | h2 | [§11. Backend architecture & tech stack](SWU_Application_Spec.md#11-backend-architecture--tech-stack) | 523 | 2,865 |  |  | `backend/app`, `backend/app/db_url.py` |  |
-| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 546 | 24,347 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
+| h2 | [§12. API reference](SWU_Application_Spec.md#12-api-reference) | 546 | 24,617 | 2026-07-10 Retired | 0008 | `backend/app/routers` |  |
 | h3 | [§Sets — `/api/sets`](SWU_Application_Spec.md#sets--apisets) | 560 | 256 |  |  |  |  |
 | h3 | [§Base cards (list + detail) — `/api/base-cards`](SWU_Application_Spec.md#base-cards-list--detail--apibase-cards) | 568 | 5,635 | 2026-07-22 Prices are embedded, additively | 0008, 0012 | `frontend/src/utils/cardImages.ts` | "Archived 2026-11-01 — spec drift and comment-held rules (BL-317)" |
 | h3 | [§Inventory — `/api/inventory`](SWU_Application_Spec.md#inventory--apiinventory) | 581 | 3,604 |  | 0034 |  | "Archived 2026-11-01 — spec drift and comment-held rules (BL-317)" |
 | h3 | [§Settings — `/api/settings`](SWU_Application_Spec.md#settings--apisettings) | 604 | 1,003 |  | 0034 |  | "Archived 2026-11-01 — spec drift and comment-held rules (BL-317)" |
-| h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 612 | 2,747 |  |  |  |  |
+| h3 | [§Shares — `/api/shares` (owner CRUD) + `/api/shared` (token-scoped public reads) — BL-205, v1.4](SWU_Application_Spec.md#shares--apishares-owner-crud--apishared-token-scoped-public-reads--bl-205-v14) | 612 | 3,017 |  |  |  |  |
 | h3 | [§Deck check — `/api/deck-check`](SWU_Application_Spec.md#deck-check--apideck-check) | 630 | 2,910 |  | 0015 |  |  |
 | h3 | [§Account — `/api/account`](SWU_Application_Spec.md#account--apiaccount) | 645 | 1,860 |  |  |  |  |
 | h3 | [§Feedback — `/api/feedback`](SWU_Application_Spec.md#feedback--apifeedback) | 652 | 2,669 |  | 0008 | `backend/app/rate_limit.py`, `backend/app/services/feedback.py`, `backend/app/services/github_notify.py`, `specification_documents/backlog` |  |

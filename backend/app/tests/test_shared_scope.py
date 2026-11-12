@@ -19,6 +19,11 @@ negative test names the guard it covers; removing that guard fails it:
 - G11 the shared-read rate limiter in get_shared_db, which both gates wrap.
 - G12 every /api/shared route declares exactly one scope gate.
 - G13 rotate replaces the token.
+- G14 create_share's stash row lock (lock_stash): create vs delete.
+- G15 create_share's IntegrityError -> 409: racing creates.
+- G16 rate limiting before any DB session in get_shared_db.
+- G17 get_shared_stash's REPEATABLE READ snapshot over check and read.
+- G18 RLS on shares + _owned_active_share: other tenants' share ids.
 
 Every test runs as throwaway tenants; tenant #1's fixture data is untouched.
 make_client swaps the app-global identity, so each block re-selects the
@@ -30,14 +35,19 @@ Run inside the backend container:
 
 import json
 import os
+import threading
+import time
+from types import SimpleNamespace
 
 import pytest
+from fastapi import APIRouter, Depends
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from app import rate_limit
+from app import database, rate_limit
 from app.main import app
+from app.services import stashes as stash_service
 from app.tests.conftest import delete_provisioned_identity
 
 pytestmark = pytest.mark.skipif(
@@ -49,6 +59,8 @@ A = ("bl209-tenant-a", "bl209-a@example.com")
 B = ("bl209-tenant-b", "bl209-b@example.com")
 VAULT_ROUTES = ("", "/quantities", "/limits")
 NOT_FOUND = {"detail": "Not found"}
+# Per-request response headers, ignored when comparing dead-link answers.
+VOLATILE = {"date", "x-request-id", "x-cloud-trace-context", "traceparent"}
 
 
 def _variant(db, swuapi_id: str) -> int:
@@ -304,7 +316,11 @@ def test_reserved_scope_token_with_a_target_is_404_everywhere(world, anon, db, s
 
 def test_stash_token_reads_only_its_own_stash(world, anon):
     """G4 + G5: the Trade token never returns Keep's rows (same tenant) or
-    tenant B's, whatever the query string says."""
+    tenant B's. G4 is the share-row source of the stash id plus the
+    stash_id filter on the row read: removing the filter fails the bare
+    request below. The `?stash_id=` / `?target_id=` probes only document a
+    property (the route reads no stash id from the request; FastAPI drops
+    unknown query parameters); they guard nothing on their own."""
     a = world["as"]("a")
     share = _share(a, "Jeremy", world["trade"]["id"])
     for query in (
@@ -355,13 +371,21 @@ def test_dead_links_are_indistinguishable(world, anon, db):
     ).scalar_one()
     assert revoked_at is not None  # G6: revoked in the delete's transaction
 
+    vault = _share(a, "Jeremy")
     answers = [
         _stash_view(anon, revoked["token"]),
         _stash_view(anon, "no-such-token-at-all"),
         _stash_view(anon, doomed["token"]),
+        _stash_view(anon, vault["token"]),  # wrong scope
     ]
     assert {r.status_code for r in answers} == {404}
     assert {r.text for r in answers} == {json.dumps(NOT_FOUND, separators=(",", ":"))}
+    # Headers too: nothing but per-request stamps may differ.
+    headers = [
+        sorted((k, v) for k, v in r.headers.items() if k.lower() not in VOLATILE)
+        for r in answers
+    ]
+    assert all(h == headers[0] for h in headers), headers
 
 
 def test_share_outliving_its_stash_is_404(world, anon, db):
@@ -573,27 +597,359 @@ def test_stash_reads_share_the_vault_read_rate_limit(world, anon):
     assert int(limited.headers["retry-after"]) > 0
 
 
-def _shared_routes():
-    for route in app.routes:
-        if isinstance(route, APIRoute) and route.path.startswith("/api/shared/"):
-            yield route
+def test_rate_limit_runs_before_any_db_session(world, anon, monkeypatch):
+    """G11 ordering: a limited request opens no DB session. The positive
+    control (one session per allowed read) proves the spy is wired."""
+    a = world["as"]("a")
+    share = _share(a, "Jeremy", world["trade"]["id"])
+    opened = []
+    real_open = database._open_catalog_session
+
+    def spy():
+        opened.append(1)
+        return real_open()
+
+    monkeypatch.setattr(database, "_open_catalog_session", spy)
+    assert _stash_view(anon, share["token"]).status_code == 200
+    assert len(opened) == 1
+    key = rate_limit.client_ip_key("testclient")
+    while (
+        rate_limit.check_tenant_rate_limit(
+            "shared_read", key, max_calls=300, window_seconds=3600
+        )
+        is None
+    ):
+        pass
+    opened.clear()
+    for path in ("/stash", "", "/quantities", "/limits"):
+        assert anon.get(f"/api/shared/{share['token']}{path}").status_code == 429
+    assert opened == []
+
+
+def test_stash_read_runs_in_one_repeatable_read_snapshot(world, anon, monkeypatch):
+    """The gate's existence check and the row read share one snapshot."""
+    a = world["as"]("a")
+    share = _share(a, "Jeremy", world["trade"]["id"])
+    seen = []
+    real_view = stash_service.shared_view
+
+    def spy(db, *args):
+        seen.append(db.execute(text("SHOW transaction_isolation")).scalar_one())
+        return real_view(db, *args)
+
+    monkeypatch.setattr(stash_service, "shared_view", spy)
+    assert _stash_view(anon, share["token"]).status_code == 200
+    assert seen == ["repeatable read"]
+
+
+# ---------------------------------------------------------------------------
+# The choke point, structurally
+# ---------------------------------------------------------------------------
+
+GATES = (database.get_shared_inventory_db, database.get_shared_stash)
+
+
+def _iter_route_dependants(routes):
+    """(label, dependant) for every API route, flattened or lazily included
+    (the same two shapes test_route_registry walks)."""
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield f"{sorted(route.methods)} {route.path}", route.dependant
         elif hasattr(route, "effective_route_contexts"):
             for ctx in route.effective_route_contexts():
-                if ctx.path.startswith("/api/shared/"):
-                    yield ctx
+                yield f"{sorted(ctx.methods)} {ctx.path}", ctx.dependant
 
 
-def test_every_shared_route_declares_exactly_one_scope_gate():
-    """G12: the choke point holds structurally. A new /api/shared route on
-    get_shared_db directly (no scope gate) would read the owner's whole
-    tenant for any token; this fails it."""
-    gates = {"get_shared_inventory_db", "get_shared_stash"}
-    routes = list(_shared_routes())
-    assert len(routes) == 4
-    for route in routes:
-        direct = {
-            getattr(d.call, "__name__", repr(d.call))
-            for d in route.dependant.dependencies
-        }
-        assert len(direct & gates) == 1, (route.path, direct)
-        assert "get_shared_db" not in direct, route.path
+def _reaches(dependant, target) -> bool:
+    return any(d.call is target or _reaches(d, target) for d in dependant.dependencies)
+
+
+def _unguarded_paths(dependant, trail=()) -> list[tuple]:
+    """Every dependency path that reaches get_shared_db without passing
+    through a scope gate (a wrapper or a direct dependency on it)."""
+    found = []
+    for d in dependant.dependencies:
+        step = (*trail, getattr(d.call, "__name__", repr(d.call)))
+        if d.call in GATES:
+            continue
+        if d.call is database.get_shared_db:
+            found.append(step)
+        else:
+            found.extend(_unguarded_paths(d, step))
+    return found
+
+
+def _scope_violations(routes) -> tuple[list[str], int]:
+    """(problems, number of routes reaching get_shared_db) over the FULL
+    dependency tree of every route given."""
+    problems, reaching = [], 0
+    for label, dependant in _iter_route_dependants(routes):
+        if not _reaches(dependant, database.get_shared_db):
+            continue
+        reaching += 1
+        direct_gates = [d.call for d in dependant.dependencies if d.call in GATES]
+        if len(direct_gates) != 1:
+            problems.append(f"{label}: {len(direct_gates)} direct scope gates")
+        for path in _unguarded_paths(dependant):
+            problems.append(f"{label}: unguarded {' -> '.join(path)}")
+    return problems, reaching
+
+
+def test_every_route_reaching_get_shared_db_goes_through_one_scope_gate():
+    """G12: the choke point holds structurally, over every app route and
+    its whole dependency tree. A route reaching get_shared_db outside a
+    gate (directly, or through any wrapper) would read the owner's whole
+    tenant for any token; so would one with no gate or two."""
+    problems, reaching = _scope_violations(app.routes)
+    assert problems == []
+    assert reaching == 4
+
+
+def test_scope_check_catches_a_wrapper_around_get_shared_db():
+    """The checker itself bites: a throwaway route whose helper wraps
+    get_shared_db (no gate) is flagged, as is one that adds a wrapper next
+    to a gate; a gated route is clean."""
+
+    def sneaky_helper(db=Depends(database.get_shared_db)):
+        return db
+
+    router = APIRouter()
+
+    @router.get("/api/shared/{token}/sneaky")
+    def sneaky(db=Depends(sneaky_helper)):
+        return {}
+
+    @router.get("/api/shared/{token}/both")
+    def both(
+        gated=Depends(database.get_shared_inventory_db),
+        db=Depends(sneaky_helper),
+    ):
+        return {}
+
+    @router.get("/api/shared/{token}/fine")
+    def fine(gated=Depends(database.get_shared_stash)):
+        return {}
+
+    problems, reaching = _scope_violations(router.routes)
+    assert reaching == 3
+    assert any("sneaky" in p and "0 direct scope gates" in p for p in problems)
+    assert any(
+        "sneaky" in p and "sneaky_helper -> get_shared_db" in p for p in problems
+    )
+    assert any("/both" in p and "unguarded" in p for p in problems)
+    assert not any("/fine" in p for p in problems)
+
+
+# ---------------------------------------------------------------------------
+# Owner actions across tenants
+# ---------------------------------------------------------------------------
+
+
+def _share_row(db, share_id):
+    db.rollback()
+    return db.execute(
+        text("SELECT token, name, revoked_at FROM shares WHERE id = :id"),
+        {"id": share_id},
+    ).one()
+
+
+def test_other_tenant_cannot_rename_rotate_or_revoke(world, db):
+    """RLS on shares (shares_tenant_all) + _owned_active_share: tenant B
+    gets 404 on each of tenant A's share ids, vault and stash, and the
+    rows stay as they were."""
+    a = world["as"]("a")
+    targets = [_share(a, "Jeremy"), _share(a, "Jeremy", world["trade"]["id"])]
+    before = {s["id"]: _share_row(db, s["id"]) for s in targets}
+    b = world["as"]("b")
+    for s in targets:
+        sid = s["id"]
+        assert b.patch(f"/api/shares/{sid}", json={"name": "Bee"}).status_code == 404
+        assert b.post(f"/api/shares/{sid}/rotate").status_code == 404
+        assert b.delete(f"/api/shares/{sid}").status_code == 404
+        assert _share_row(db, sid) == before[sid]
+        assert before[sid].revoked_at is None
+
+
+def test_owner_list_requires_auth(world):
+    """Anonymous GET /api/shares is 401, as for every get_db route."""
+    from app.auth import get_current_identity, get_optional_identity
+
+    app.dependency_overrides.pop(get_current_identity, None)
+    app.dependency_overrides.pop(get_optional_identity, None)
+    bare = TestClient(app)
+    assert bare.get("/api/shares").status_code == 401
+    assert bare.post("/api/shares", json={"name": "x"}).status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Concurrency: create vs delete, create vs create
+# ---------------------------------------------------------------------------
+#
+# Deterministic two-connection races. One side runs the real code on its
+# own swu_app session whose commit() is held at a barrier (after its writes
+# are flushed, so its row locks are held); the other side runs through the
+# API in a thread and is observed blocked on a lock (pg_stat_activity)
+# before the first side is released.
+
+
+def _owner_session(uid):
+    req = SimpleNamespace(state=SimpleNamespace())
+    db, conn = database._open_authenticated_session(req, uid, "x@example.com")
+    return db, conn
+
+
+def _hold_commit(session):
+    """Make session.commit() flush, signal `reached`, wait for `release`,
+    then really commit."""
+    reached, release = threading.Event(), threading.Event()
+    real_commit = session.commit
+
+    def held():
+        session.flush()
+        reached.set()
+        assert release.wait(20), "release never came"
+        real_commit()
+
+    session.commit = held
+    return reached, release
+
+
+def _wait_until_blocked_on_lock(db, timeout=20.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        db.rollback()
+        blocked = db.execute(
+            text(
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE usename = 'swu_app' AND wait_event_type = 'Lock'"
+            )
+        ).scalar_one()
+        if blocked:
+            return
+        time.sleep(0.05)
+    raise AssertionError("the second side never blocked on a lock")
+
+
+def _in_thread(fn):
+    out = {}
+
+    def run():
+        try:
+            out["value"] = fn()
+        except BaseException as exc:  # surfaced by the caller
+            out["error"] = exc
+
+    t = threading.Thread(target=run)
+    t.start()
+    return t, out
+
+
+def _live_links_to(db, stash_id):
+    db.rollback()
+    return db.execute(
+        text(
+            "SELECT count(*) FROM shares WHERE scope = 'stash' "
+            "AND target_id = :s AND revoked_at IS NULL"
+        ),
+        {"s": stash_id},
+    ).scalar_one()
+
+
+def test_delete_holding_the_stash_then_create_gets_404(world, db):
+    """The delete commits first: the create, blocked on lock_stash, finds
+    the stash gone -> 404, no link."""
+    a = world["as"]("a")
+    sid = world["keep"]["id"]
+    owner_db, owner_conn = _owner_session(A[0])
+    try:
+        reached, release = _hold_commit(owner_db)
+        deleter, d_out = _in_thread(lambda: stash_service.delete_stash(owner_db, sid))
+        assert reached.wait(20)
+        creator, c_out = _in_thread(
+            lambda: a.post("/api/shares", json={"name": "J", "stash_id": sid})
+        )
+        _wait_until_blocked_on_lock(db)
+        release.set()
+        deleter.join(20)
+        creator.join(20)
+        assert "error" not in d_out and "error" not in c_out, (d_out, c_out)
+        assert c_out["value"].status_code == 404
+    finally:
+        release.set()  # never leave the held side waiting on a failure
+        owner_db.close()
+        owner_conn.close()
+    assert _live_links_to(db, sid) == 0
+
+
+def test_create_holding_the_stash_then_delete_revokes_it(world, db):
+    """The create commits first: the delete, blocked on the stash row,
+    then revokes the new link in its own transaction -> no live link."""
+    from app.routers import shares as shares_router
+    from app.schemas.share_schema import ShareCreateRequest
+
+    a = world["as"]("a")
+    sid = world["keep"]["id"]
+    owner_db, owner_conn = _owner_session(A[0])
+    try:
+        reached, release = _hold_commit(owner_db)
+        creator, c_out = _in_thread(
+            lambda: shares_router.create_share(
+                ShareCreateRequest(name="J", stash_id=sid), owner_db
+            )
+        )
+        assert reached.wait(20)
+        deleter, d_out = _in_thread(lambda: a.delete(f"/api/stashes/{sid}"))
+        _wait_until_blocked_on_lock(db)
+        release.set()
+        creator.join(20)
+        deleter.join(20)
+        assert "error" not in c_out and "error" not in d_out, (c_out, d_out)
+        assert c_out["value"].target_id == sid
+        assert d_out["value"].status_code == 204
+    finally:
+        release.set()  # never leave the held side waiting on a failure
+        owner_db.close()
+        owner_conn.close()
+    assert _live_links_to(db, sid) == 0
+
+
+@pytest.mark.parametrize("scope", ["inventory", "stash"])
+def test_racing_creates_give_one_link_and_a_409(world, db, scope):
+    """Two creates for one target. Vault: both pass the pre-check, the
+    second INSERT waits on uq_shares_one_active_per_target and its
+    IntegrityError becomes 409. Stash: the second waits on lock_stash, then
+    its pre-check says 409. Never a 500, always exactly one live link."""
+    from app.routers import shares as shares_router
+    from app.schemas.share_schema import ShareCreateRequest
+
+    a = world["as"]("a")
+    stash_id = world["trade"]["id"] if scope == "stash" else None
+    body = {"name": "J"} | ({"stash_id": stash_id} if stash_id else {})
+    owner_db, owner_conn = _owner_session(A[0])
+    try:
+        reached, release = _hold_commit(owner_db)
+        first, f_out = _in_thread(
+            lambda: shares_router.create_share(ShareCreateRequest(**body), owner_db)
+        )
+        assert reached.wait(20)
+        second, s_out = _in_thread(lambda: a.post("/api/shares", json=body))
+        _wait_until_blocked_on_lock(db)
+        release.set()
+        first.join(20)
+        second.join(20)
+        assert "error" not in f_out and "error" not in s_out, (f_out, s_out)
+        assert s_out["value"].status_code == 409
+        assert s_out["value"].json() == {"detail": "An active share already exists"}
+    finally:
+        release.set()  # never leave the held side waiting on a failure
+        owner_db.close()
+        owner_conn.close()
+    db.rollback()
+    live = db.execute(
+        text(
+            "SELECT count(*) FROM shares WHERE tenant_id = :t AND scope = :s "
+            "AND revoked_at IS NULL"
+        ),
+        {"t": world["ta"], "s": scope},
+    ).scalar_one()
+    assert live == 1

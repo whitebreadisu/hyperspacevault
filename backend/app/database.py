@@ -325,10 +325,17 @@ def get_shared_stash(
     """The stash-share gate: a 'stash'-scope token whose stash still exists,
     else the same 404 as an unknown token. Deleting a stash revokes its
     share in the same transaction; the existence check here is the second
-    line for a share row that somehow outlives its stash."""
+    line for a share row that somehow outlives its stash.
+
+    The existence check and the route's row read share one REPEATABLE READ
+    snapshot (a fresh read-only transaction begun here; the session GUCs
+    are connection-level and survive the commit), so a stash deleted in
+    between cannot answer with its name over an empty row list."""
     share = request.state.share
     if share.scope != "stash" or share.target_id is None:
         raise shared_not_found()
+    db.commit()
+    db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
     stash = db.execute(
         text("SELECT id, name, description FROM stashes WHERE id = :id"),
         {"id": share.target_id},
