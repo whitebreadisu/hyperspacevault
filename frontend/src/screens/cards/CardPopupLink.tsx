@@ -39,6 +39,8 @@ export function CardPopupLinkButton({ url }: { url: string }) {
       <button
         type="button"
         className="cp-nav-btn cp-link-btn"
+        data-tour="card-share"
+        data-tour-align="end"
         aria-label="Copy link to this card"
         title="Copy link to this card"
         onClick={onClick}

@@ -149,6 +149,7 @@ function StashMenu({
       className={"pod-menu" + (open ? " pod-menu--open" : "")}
       aria-hidden={open ? undefined : true}
       data-testid="stash-menu"
+      data-tour-busy={open ? "" : undefined}
     >
       <div
         className="pod-menu__panel"
@@ -267,6 +268,9 @@ function Subs({
               aria-haspopup={s.menu && menu ? "true" : undefined}
               aria-expanded={s.menu && menu ? menuOpen : undefined}
               data-sub={s.key}
+              // The feature tour's target for Stashes (content/featureTours.ts).
+              data-tour={s.menu && menu ? "nav-stashes" : undefined}
+              data-tour-gap={s.menu && menu ? 6 : undefined}
             >
               {s.label}
               <span className="pod__subbar" aria-hidden="true" />

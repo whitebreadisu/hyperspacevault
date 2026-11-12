@@ -25,6 +25,7 @@ import { getPlaysetSize } from "../../utils/inventory";
 import { useStashEditor } from "../../stashes/useStashEditor";
 import { CardPopupStashes } from "./CardPopupStashes";
 import { variantLabel } from "./cardPopupShared";
+import { useTourPage } from "../../tour/FeatureTour";
 import "./CardPopup.css";
 
 export type { CardPopupNavigation };
@@ -150,6 +151,9 @@ export function CardPopup({
   source = "table",
   keysSuspended = false,
 }: Props) {
+  // The feature tour's card page: the own vault's card window, with no
+  // dialog over it (App Spec §20).
+  useTourPage(readOnly || keysSuspended ? null : "card", readOnly);
   const { limits, capMode } = useLimits();
   const [detail, setDetail] = useState<BaseCardDetail | null>(null);
   const [variants, setVariants] = useState<VariantDetail[]>([]);

@@ -207,6 +207,8 @@ describe("the bottom bar's Vault menu (tap the lit tab again)", () => {
     ).toEqual(["Collection", "Stashes", "Red binder4", "Trade stash0"]);
     // R3-1: the count column and the rows' names say cards, not copies.
     expect(menu.querySelector(".m-navmenu__label")!.textContent).toBe("Your stashesCards");
+    // Open, it holds the feature tour's next tip back (App Spec §20).
+    expect(menu).toHaveAttribute("data-tour-busy");
     expect(within(menu).getByRole("button", { name: "Red binder, 4 cards" })).toBeTruthy();
     expect(within(menu).getByRole("button", { name: "Collection" })).toHaveAttribute(
       "aria-current",

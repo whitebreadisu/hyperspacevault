@@ -51,7 +51,9 @@ export type AnalyticsEvent =
   // the phone keypad's fold tab (user-chosen deck size)
   | "pad_keypad_toggled"
   // the "new version ready" banner (App Spec §20), desktop and phone
-  | "app_update_banner";
+  | "app_update_banner"
+  // the feature tour's tips (App Spec §20), desktop and phone
+  | "feature_tour";
 
 // Property values are enums/counts only -- no raw user-typed text, no PII
 // (taxonomy property standard). The type can't prove "no free text", but it
@@ -116,6 +118,22 @@ export type UpdateBannerAction = (typeof UPDATE_BANNER_ACTIONS)[number];
  * chunk failure hit the guard that had already reloaded once. */
 export const UPDATE_BANNER_SOURCES = ["check", "chunk"] as const;
 export type UpdateBannerSource = (typeof UPDATE_BANNER_SOURCES)[number];
+
+/** feature_tour.action: a tip first showed on this visit, its Next / Done /
+ * Skip tour was pressed, its target was used, or it was closed by an
+ * empty-page click or Escape without being marked seen. */
+export const FEATURE_TOUR_ACTIONS = [
+  "shown",
+  "next",
+  "done",
+  "skip",
+  "target_used",
+  "dismissed",
+] as const;
+export type FeatureTourAction = (typeof FEATURE_TOUR_ACTIONS)[number];
+
+/** feature_tour.page: the tour page the tip belongs to. */
+export const FEATURE_TOUR_PAGES = ["collection", "card", "stashes"] as const;
 
 /** `layout` is the phone gate itself -- the one function `isPhoneLayout()`
  * (mobile/useIsPhone.ts; App Spec §25.0, ADR-0030), which is not a single

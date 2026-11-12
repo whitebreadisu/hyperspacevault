@@ -146,6 +146,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
+        data-tour-busy=""
       >
         <div className="m-sheet-scrim" onClick={close} />
         <div

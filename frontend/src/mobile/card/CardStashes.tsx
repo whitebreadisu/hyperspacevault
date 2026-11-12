@@ -39,7 +39,7 @@ function StashList({
 }) {
   return (
     <div className="m-stash__list" aria-label="Stashes">
-      <div className="m-stash__head">
+      <div className="m-stash__head" data-tour="card-stash-list">
         <span className="m-stash__heading">Stashes</span>
         <button type="button" className="m-stash__textbtn m-stash__edit" onClick={onEdit}>
           <PencilIcon size={14} />
@@ -69,7 +69,12 @@ export function StashPlateBlock({
 }) {
   if (holding.length === 0) {
     return (
-      <button type="button" className="m-stash__entry" onClick={onOpen}>
+      <button
+        type="button"
+        className="m-stash__entry"
+        onClick={onOpen}
+        data-tour="card-stash-copies"
+      >
         <BoxIcon size={16} />
         <span className="m-stash__entrylabel">Stash copies</span>
         <MIcon name="fwd" size={16} />

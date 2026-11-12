@@ -31,6 +31,7 @@ import { capture } from "./analytics/analytics";
 import { MobileApp } from "./mobile/MobileApp";
 import { useIsPhone } from "./mobile/useIsPhone";
 import { StashProvider } from "./stashes/StashContext";
+import { FeatureTourProvider, useTourPage } from "./tour/FeatureTour";
 
 /** The app does not gate on auth: anonymous visitors get the same shell
  * (Header + the Cards list) as signed-in users, and sign-in is a modal
@@ -292,6 +293,26 @@ function AppContent() {
     capture("screen_viewed", { screen: screenByView[view] });
   }, [view, loading, isPhone]);
 
+  // The feature tour's page (App Spec §20): the Vault's Collection or its
+  // Stashes page, with no shell dialog over it (the card window registers
+  // its own page). The phone tree registers in MobileApp.
+  const shellModal =
+    authModalOpen ||
+    changePasswordModalOpen ||
+    deleteAccountModalOpen ||
+    aboutModalOpen ||
+    feedbackModalOpen;
+  useTourPage(
+    loading || isPhone || shellModal
+      ? null
+      : view === "cards"
+        ? "collection"
+        : view === "stashes"
+          ? "stashes"
+          : null,
+    !isPhone && view === "shared"
+  );
+
   if (loading) {
     return <p className="loading-text">Loading…</p>;
   }
@@ -447,7 +468,9 @@ function App() {
   return (
     <AuthProvider>
       <LimitsGate>
-        <AppContent />
+        <FeatureTourProvider>
+          <AppContent />
+        </FeatureTourProvider>
       </LimitsGate>
     </AuthProvider>
   );

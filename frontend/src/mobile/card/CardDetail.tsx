@@ -561,6 +561,8 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
             <button
               type="button"
               className="m-iconbtn m-hdr__share"
+              data-tour="card-share"
+              data-tour-align="start"
               onClick={() => share(card.name, cardPageUrl(card, variant))}
               aria-label="Share link to this card"
             >

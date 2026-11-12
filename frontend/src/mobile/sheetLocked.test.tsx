@@ -14,6 +14,12 @@ describe("Sheet locked", () => {
       </SheetHost>
     );
 
+  it("an open sheet holds the feature tour's next tip back (data-tour-busy)", async () => {
+    mount(false, vi.fn());
+    await act(async () => {});
+    expect(document.querySelector(".m-sheet-layer")).toHaveAttribute("data-tour-busy");
+  });
+
   it("ignores Escape and the scrim while locked", async () => {
     vi.useFakeTimers();
     const onClose = vi.fn();

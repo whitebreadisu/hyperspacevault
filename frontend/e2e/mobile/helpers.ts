@@ -21,6 +21,14 @@ export function hideEmulatorBanner() {
   else document.addEventListener("DOMContentLoaded", add);
 }
 
+/** The feature tour (App Spec §20) is off in the harness: its tips would sit
+ * over the controls other specs drive. The dev server honours the switch
+ * (src/tour/FeatureTour.tsx); a tour spec turns it on with a later init script
+ * (`tourOn`), which runs after this one. */
+export function tourOff() {
+  (window as unknown as { __hsvTour?: { on: boolean } }).__hsvTour = { on: false };
+}
+
 /** True when a Playwright storageState (a file path or the object) carries a
  * Firebase Auth session (auth.setup.ts saves one in IndexedDB). */
 export function hasStoredSession(state: unknown): boolean {
@@ -94,6 +102,7 @@ export async function harnessPage(
 ): Promise<Recorder> {
   const rec = await installApiMocks(page, { fixture: opts.fixture, ...opts.stashSeed });
   await page.addInitScript(hideEmulatorBanner);
+  await page.addInitScript(tourOff);
   if (opts.session) {
     const goto = page.goto.bind(page);
     page.goto = (async (url, options) => {

@@ -1,0 +1,182 @@
+/* ── Feature tour tip (App Spec §20; design handoff A′) ─────────────────────
+   The panel is the Stashes hover menu's steel-ring panel (.pod-menu__panel,
+   NavPod.css: ring, circuit fill, both corners cut), widened and padded for a
+   tip. Mounted on <body> (FeatureTour.tsx), fixed, over the page and the card
+   window (.modal-overlay 100) and under nested dialogs (200); it keeps off
+   the update banner's box instead of covering it. Tips are often anchored to
+   uppercase controls, so the root resets the inherited text styles. */
+
+.tour-tip {
+  position: fixed;
+  z-index: 150;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  font-family: var(--font-body);
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+  animation: tour-tip-in 0.15s ease;
+}
+@keyframes tour-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tour-tip .pod-menu__panel.tour-tip__panel {
+  width: auto;
+  gap: 8px;
+  padding: 14px 18px 12px;
+}
+.tour-tip--phone .pod-menu__panel.tour-tip__panel {
+  padding: 16px 18px 14px;
+}
+
+.tour-tip__label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.tour-tip__new {
+  flex: 1;
+  color: #e8d9b5;
+}
+.tour-tip__count {
+  color: #9fb0cc;
+}
+.tour-tip__title {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 21px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #fff;
+}
+.tour-tip__body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: #cfd6e4;
+  text-wrap: pretty;
+}
+.tour-tip__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 6px;
+}
+.tour-tip__spacer {
+  flex: 1;
+}
+.tour-tip__skip {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.tour-tip__skip:hover {
+  color: var(--color-text);
+}
+.tour-tip__skip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tour-tip--phone .tour-tip__label {
+  font-size: 13px;
+}
+.tour-tip--phone .tour-tip__title {
+  font-size: 24px;
+}
+.tour-tip--phone .tour-tip__body {
+  font-size: 16px;
+}
+.tour-tip--phone .tour-tip__skip {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+/* The notch: a square turned 45°, the panel's interior fill, its two outward
+   sides in the panel's ring steel (.pod-menu__panel::before), straddling the
+   panel edge on the target's side. Its inner half lies flat over the circuit
+   texture: a 6 px triangle, which the faint tile does not show as a seam. */
+.tour-tip__notch {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  transform: rotate(45deg);
+  background: #0b0e18;
+}
+.tour-tip--up .tour-tip__notch {
+  top: -7px;
+  border-left: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-top: 1.5px solid rgba(211, 211, 212, 0.42);
+}
+.tour-tip--down .tour-tip__notch {
+  bottom: -7px;
+  border-right: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-bottom: 1.5px solid rgba(211, 211, 212, 0.42);
+}
+.tour-tip--left .tour-tip__notch {
+  left: -7px;
+  border-left: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-bottom: 1.5px solid rgba(211, 211, 212, 0.42);
+}
+
+/* The target's glow while its tip is open: the unread cue's cream (index.css
+   na-cue-pulse) as a ring plus a soft halo whose opacity alone pulses on the
+   shared unread-cue keyframes (d2-cue-glow, mobile/shell.css, as the phone
+   logo box's cue). A separate box over the target, so the target itself is
+   untouched. No dimming. */
+.tour-glow {
+  position: fixed;
+  z-index: 149;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.5px rgba(235, 226, 198, 0.9);
+}
+.tour-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 0 16px 3px rgba(235, 226, 198, 0.5);
+  opacity: 0;
+  will-change: opacity;
+  animation: d2-cue-glow 2s ease-in-out infinite;
+}
+
+/* Reduced motion: no fade, a steady glow (the unread cue's own rule). */
+.tour-tip--still {
+  animation: none;
+}
+.tour-glow--still::after {
+  animation: none;
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-tip {
+    animation: none;
+  }
+  .tour-glow::after {
+    animation: none;
+    opacity: 0.85;
+  }
+}

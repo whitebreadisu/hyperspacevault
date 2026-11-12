@@ -19,9 +19,34 @@ import "./UpdateBanner.css";
  * on this page load; module scope, so it outlives a remount. */
 const shownKeys = new Set<string>();
 
+/** This page load has learned that a newer build is live (or a chunk is
+ * gone): the tab runs an old version, so the feature tour starts no tip
+ * (App Spec §20). Sticky for the page load, whether or not the banner was
+ * dismissed. */
+let newerBuildKnown = false;
+const newerBuildListeners = new Set<() => void>();
+
+export function isNewerBuildKnown(): boolean {
+  return newerBuildKnown;
+}
+
+export function subscribeNewerBuild(listener: () => void): () => void {
+  newerBuildListeners.add(listener);
+  return () => {
+    newerBuildListeners.delete(listener);
+  };
+}
+
+function noteNewerBuild(): void {
+  if (newerBuildKnown) return;
+  newerBuildKnown = true;
+  for (const l of [...newerBuildListeners]) l();
+}
+
 /** Test seam: forget what this page load has reported. */
 export function resetShownForTests(): void {
   shownKeys.clear();
+  newerBuildKnown = false;
 }
 
 /** sessionStorage, or null where reading it throws (blocked site data). */
@@ -148,6 +173,9 @@ function captureBanner(action: UpdateBannerAction, source: UpdateBannerSource, p
  * (Refresh the lit primary, Dismiss the off state), 44 px on the phone. */
 export function UpdateBanner({ phone = false, ...opts }: BuildUpdateOptions & { phone?: boolean }) {
   const { show, refresh, dismiss, key, source } = useBuildUpdate(opts);
+  useEffect(() => {
+    if (key != null) noteNewerBuild();
+  }, [key]);
   // "shown" once per build per page load: the first render that shows the
   // banner for a key, never again for it (a re-render, a remount on a layout
   // switch, or a later check that finds the same build).

@@ -124,7 +124,13 @@ export function CardPopupStashes({
   if (editor.mode === "edit") return <EditRows editor={editor} printingLabel={printingLabel} />;
   if (editor.holding.length === 0) {
     return (
-      <button type="button" className="cp-stash__quiet" onClick={editor.open}>
+      <button
+        type="button"
+        className="cp-stash__quiet"
+        onClick={editor.open}
+        data-tour="card-stash-copies"
+        data-tour-place="right"
+      >
         <BoxIcon />
         Stash copies
       </button>
@@ -132,7 +138,7 @@ export function CardPopupStashes({
   }
   return (
     <div className="cp-stash__list" aria-label="Stashes">
-      <div className="cp-stash__listhead">
+      <div className="cp-stash__listhead" data-tour="card-stash-list" data-tour-place="right">
         <span className="cp-stash__heading">Stashes</span>
         <button type="button" className="cp-stash__quiet cp-stash__edit" onClick={editor.edit}>
           <PencilIcon />
@@ -157,6 +163,7 @@ function CreateForm({ editor }: { editor: StashEditor }) {
   const ready = name.trim().length > 0 && !editor.busy;
   return (
     <form
+      data-tour-busy=""
       className="cp-stash__create"
       aria-label="New stash"
       onSubmit={(e) => {
@@ -198,7 +205,7 @@ function CreateForm({ editor }: { editor: StashEditor }) {
 function EditRows({ editor, printingLabel }: { editor: StashEditor; printingLabel: string }) {
   const { vault } = editor;
   return (
-    <div className="cp-stash__rows" aria-label="Stash copies">
+    <div className="cp-stash__rows" aria-label="Stash copies" data-tour-busy="">
       <div className="cp-stash__row">
         <span className="cp-stash__name cp-stash__name--vault">Vault</span>
         <span
