@@ -32,7 +32,14 @@ from app.main import app
 # Exactly zero or one of these per route -> the "session" column.
 SESSION_DEPS = {"get_db", "get_catalog_db", "get_optional_db", "get_shared_db"}
 # Zero or more -> the "extra gates" column.
-GATE_DEPS = {"require_verified_email", "require_recent_auth"}
+GATE_DEPS = {
+    "require_verified_email",
+    "require_recent_auth",
+    # The share-scope gates over get_shared_db (app/database.py): which
+    # share scope a /api/shared route accepts.
+    "get_shared_inventory_db",
+    "get_shared_stash",
+}
 # Known and deliberately not recorded: identity resolution is reached
 # transitively through get_db / get_optional_db / the gates; the cache
 # header helpers and the images bucket handle do not change who may call.

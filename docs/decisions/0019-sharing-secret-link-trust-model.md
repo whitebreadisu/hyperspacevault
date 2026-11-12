@@ -81,5 +81,32 @@ around them:
   conditionally false at ship time — handled by the CLAUDE.md
   enforcement-behavior doc-sweep rule, which this feature exercised first.
 
+## Amendment 2026-11-12 — stash links (BL-209)
+
+Stashes (BL-344) are the binder concept, so binder sharing became **stash
+sharing**: each stash can have one active link of its own, separate from
+the vault link. Decided by the owner (2026-11-11/12):
+
+- A new scope value `stash` (`target_id` = the stash id), not the reserved
+  `list`. The "never needs a schema migration" intent above did not hold:
+  the CHECK constraint names the values, so migration 0034 widened it. The
+  change is constraint-only (no table rewrite, no RLS or index change), and
+  `stash` names the table `target_id` points into; `list` stays reserved
+  for the lists design (BL-206/208).
+- The stash link's share name is fixed at creation (rename is refused);
+  renaming the stash renames what viewers see. Rotate and revoke are as on
+  the vault link. Deleting a stash revokes its link in the same
+  transaction. Revoked, unknown, wrong-scope and deleted-stash tokens give
+  the same 404.
+- The vault link stays stash-free.
+
+**Consequence for the trust model:** `get_shared_db` still scopes a
+token's session to the owner's whole tenant (RLS isolates tenants, not
+stashes). Share scope is therefore enforced in **app code**, at one choke
+point per scope in `app/database.py` (`get_shared_inventory_db`,
+`get_shared_stash`); every `/api/shared` route declares exactly one, and a
+structural test fails a route that does not. The public surface is four
+token-scoped endpoints.
+
 Current-state mechanics live in Application Spec §19.1 (as-built) and §12
 (endpoint reference); the security evidence is the BL-232 review artifact.

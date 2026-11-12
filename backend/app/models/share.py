@@ -19,9 +19,10 @@ class Share(Base):
     """A secret-link share of tenant data (App Spec §19.1). `token`
     is the viewer's sole credential; `name` (owner-chosen, <=30 chars) is
     the viewer's header label and the only owner identity ever exposed.
-    `scope` carries the full enum; only 'inventory' is implemented (the
-    routes create no other scope). `target_id` is the future list-scope binder
-    reference (NULL for inventory/wanted). Revocation is soft (revoked_at)
+    `scope` carries the full enum; 'inventory' (the vault link) and 'stash'
+    (one stash's link, migration 0034) are implemented, 'wanted' and 'list'
+    are reserved. `target_id` is the stash id for a stash share (NULL for
+    inventory). Revocation is soft (revoked_at)
     so a once-issued token can never be silently re-activated; the
     one-active-share-per-target cardinality is the partial unique index
     declared below (mirrors migration 0030, so `alembic check` is clean)."""
@@ -29,7 +30,8 @@ class Share(Base):
     __tablename__ = "shares"
     __table_args__ = (
         CheckConstraint(
-            "scope IN ('inventory', 'wanted', 'list')", name="ck_shares_scope"
+            "scope IN ('inventory', 'wanted', 'list', 'stash')",
+            name="ck_shares_scope",
         ),
         Index("uq_shares_token", "token", unique=True),
         Index(
