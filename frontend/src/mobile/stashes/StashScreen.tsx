@@ -62,7 +62,7 @@ type SheetName = "filters" | "sort" | "edit" | "delete" | null;
 
 /** The collapsed strip: the stash name over the Vault readout's cards
  * fact and value (header.css m-vh__fact / m-vh__n / m-vh__value). */
-function Readout({ name, copies, value }: { name: string; copies: string; value: string }) {
+export function Readout({ name, copies, value }: { name: string; copies: string; value: string }) {
   return (
     <span className="m-stashstrip">
       <span className="m-stashstrip__name">{name}</span>
@@ -76,20 +76,26 @@ function Readout({ name, copies, value }: { name: string; copies: string; value:
   );
 }
 
-function Panel({
+/** The stash panel. With `eyebrow` (a stash link's viewer, App Spec §19.1)
+ * the head row is that label with Market | Low, the name and description sit
+ * under it, and an empty description is omitted (viewers never see "No
+ * description"). */
+export function Panel({
   stash,
   copies,
   value,
   sub,
   priceKind,
   onPriceKind,
+  eyebrow,
 }: {
-  stash: Stash;
+  stash: Pick<Stash, "name" | "description">;
   copies: string;
   value: string;
   sub: string | null;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
+  eyebrow?: string;
 }) {
   const [popover, setPopover] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
@@ -109,29 +115,44 @@ function Panel({
     };
   }, [popover]);
   const desc = stash.description;
+  const titles = (
+    <span className="m-stashpanel__titles">
+      <span className="m-stashpanel__name">{stash.name}</span>
+      {desc || !eyebrow ? (
+        <button
+          type="button"
+          className={
+            "m-stashpanel__desc" +
+            (desc ? "" : " m-stashpanel__desc--none") +
+            (popover ? " m-stashpanel__desc--open" : "")
+          }
+          onClick={() => desc && setPopover(true)}
+          aria-disabled={desc ? undefined : true}
+          aria-expanded={desc ? popover : undefined}
+          aria-label={desc ? "Description: show all" : "No description"}
+        >
+          {desc || "No description"}
+        </button>
+      ) : null}
+    </span>
+  );
   return (
-    <div className="m-summary m-stashpanel">
+    <div className={"m-summary m-stashpanel" + (eyebrow ? " m-stashpanel--viewer" : "")}>
       <div className="m-summary__inner">
-        <div className="m-summary__head m-stashpanel__head">
-          <span className="m-stashpanel__titles">
-            <span className="m-stashpanel__name">{stash.name}</span>
-            <button
-              type="button"
-              className={
-                "m-stashpanel__desc" +
-                (desc ? "" : " m-stashpanel__desc--none") +
-                (popover ? " m-stashpanel__desc--open" : "")
-              }
-              onClick={() => desc && setPopover(true)}
-              aria-disabled={desc ? undefined : true}
-              aria-expanded={desc ? popover : undefined}
-              aria-label={desc ? "Description: show all" : "No description"}
-            >
-              {desc || "No description"}
-            </button>
-          </span>
-          <PriceSeg mode={priceKind} onChange={onPriceKind} />
-        </div>
+        {eyebrow ? (
+          <>
+            <div className="m-summary__head">
+              <span className="m-summary__label">{eyebrow}</span>
+              <PriceSeg mode={priceKind} onChange={onPriceKind} />
+            </div>
+            {titles}
+          </>
+        ) : (
+          <div className="m-summary__head m-stashpanel__head">
+            {titles}
+            <PriceSeg mode={priceKind} onChange={onPriceKind} />
+          </div>
+        )}
         <div className="m-stashpanel__stats">
           <span className="m-metric">
             <span className="m-metric__label">Cards</span>
@@ -185,22 +206,24 @@ function Thumb({ row }: { row: StashPrinting }) {
   );
 }
 
-function Line({
+/** One printing row. Without `onReturn` (a stash link's viewer) the side is
+ * the value over the count chip alone: no Return, never active. */
+export function Line({
   row,
   priceKind,
-  active,
-  busy,
+  active = false,
+  busy = false,
   onOpen,
   onActivate,
   onReturn,
 }: {
   row: StashPrinting;
   priceKind: PriceMode;
-  active: boolean;
-  busy: boolean;
+  active?: boolean;
+  busy?: boolean;
   onOpen: () => void;
-  onActivate: () => void;
-  onReturn: (quantity: number) => void;
+  onActivate?: () => void;
+  onReturn?: (quantity: number) => void;
 }) {
   const { displayName, subtitle } = parseCardDisplay(row.card);
   const label = printingLabel(row);
@@ -232,7 +255,7 @@ function Line({
           {formatCardValue(total)}
         </span>
         <span className="m-stashline__ctl">
-          {active ? (
+          {active && onReturn ? (
             <button
               type="button"
               className="m-stashline__minus"
@@ -244,7 +267,7 @@ function Line({
             </button>
           ) : null}
           <span className={stashChipClass(row.qty, row.card)}>{row.qty}</span>
-          {active ? (
+          {!onReturn ? null : active ? (
             <button
               type="button"
               className="m-stashline__trash"
@@ -273,7 +296,7 @@ function Line({
 /** A gallery tile: the Vault's `m-cell` / `m-cell__frame` over the Vault's
  * phone plate (`gallery-plate m-plate`, green ring at a playset) with the
  * count, the finish and, under it, the unit price. */
-function Tile({
+export function Tile({
   row,
   priceKind,
   onOpen,

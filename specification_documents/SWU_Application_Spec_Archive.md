@@ -942,3 +942,16 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 ### App Spec §19.1 — Read surface, endpoint sentences (verbatim)
 
 > The new public surface is exactly three token-scoped endpoints: **resolve** (`token → {name, scope}`; validity is the HTTP status), **shared quantities** (the owner-tenant rows `/api/inventory/quantities` returns for the owner), and **shared limits** (the display-affecting subset of `/api/settings/limits` the Vault needs for playset/keep-limit rendering). Nothing else. Token-scoped reads resolve the share row, then run the existing repository paths **under the owner-tenant RLS context set explicitly after token validation** — same RLS rails, no bypass, FORCE RLS untouched.
+
+## Archived 2026-11-12 — stash link viewer and phone dead links (BL-209 slice c, BL-357)
+
+**Disposition:** → archive. BL-209 slice (c) built the stash link's viewer screens (desktop and phone), and BL-357 (folded in) fixed the phone's dead-link view, where the parked own vault's collection panel painted over the "no longer available" sentence. The two passages below said the viewer screens were not built and described the parked pane without the transparency the fix added. Replacement text: App Spec §19 intro, §19.1 "Stash link viewer", §25.6 "Two panes" and "Stash links".
+
+### App Spec §19 intro — stash sharing status sentence (verbatim)
+
+> and sharing a stash (BL-209) is part of §19.1; its server side is built (2026-11-12) and its owner and viewer screens are not yet.
+
+### App Spec §25.6 "Two panes" — parked pane clause (verbatim)
+
+> the hidden one is parked (absolute, hidden, inert, `aria-hidden`; not `display: none`, so its scroll position survives).
+

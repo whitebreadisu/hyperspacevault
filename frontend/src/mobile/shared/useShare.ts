@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { resolveShare, ShareResolveError } from "../../api/sharedView";
+import {
+  getSharedStash,
+  resolveShare,
+  ShareResolveError,
+  stashShareLabel,
+} from "../../api/sharedView";
+import type { SharedStashView } from "../../api/sharedView";
 import { loadShareSession, saveShareSession } from "../../utils/shareSession";
-import { parseShareRouteToken } from "../../utils/shareRoute";
+import { parseShareRoute } from "../../utils/shareRoute";
+import type { ShareKind } from "../../utils/shareRoute";
 import { capturePhone } from "../phoneAnalytics";
 
 // The phone's share session (App Spec §25.6) -- desktop App.tsx's
@@ -16,13 +23,21 @@ import { capturePhone } from "../phoneAnalytics";
 //   - The token resolves via api/sharedView.ts (GET /api/shared/{token}, no
 //     auth) whenever one is held, as SharedVaultPage does on mount; success
 //     persists the session (saveShareSession) and reports share_link_viewed.
+//   - A stash link (`/shared/stash/{token}`, or a session of kind "stash")
+//     takes the stash read instead (GET /api/shared/{token}/stash, desktop's
+//     SharedStashPage): `stash` holds it and `name` is "<share name> ·
+//     <stash name>".
 // Status copy lives in SharedStatus.tsx, verbatim from
-// SharedVaultPage.tsx.
+// SharedVaultPage.tsx / SharedStashPage.tsx.
 
 export type ShareStatus = "loading" | "ready" | "invalid" | "rate-limited";
 
 export interface ShareState {
   token: string | null;
+  /** Which read the token takes (a vault link or a stash link). */
+  kind: ShareKind;
+  /** A stash link's read once ready (null for a vault link). */
+  stash: SharedStashView | null;
   /** The owner-chosen name -- the switch's label; null until known. */
   name: string | null;
   status: ShareStatus;
@@ -31,18 +46,29 @@ export interface ShareState {
   setShown: (on: boolean) => void;
 }
 
-function initial() {
-  const routeToken =
-    typeof window === "undefined" ? null : parseShareRouteToken(window.location.pathname);
-  if (routeToken) return { token: routeToken, name: null, shown: true };
+function initial(): {
+  token: string | null;
+  kind: ShareKind;
+  name: string | null;
+  shown: boolean;
+} {
+  const route = typeof window === "undefined" ? null : parseShareRoute(window.location.pathname);
+  if (route) return { token: route.token, kind: route.kind, name: null, shown: true };
   const s = loadShareSession();
-  return { token: s?.token ?? null, name: s?.name ?? null, shown: false };
+  return {
+    token: s?.token ?? null,
+    kind: s?.kind ?? "vault",
+    name: s?.name ?? null,
+    shown: false,
+  };
 }
 
 export function useShare(): ShareState {
   const [init] = useState(initial);
   const [token] = useState<string | null>(init.token);
+  const [kind] = useState<ShareKind>(init.kind);
   const [name, setName] = useState<string | null>(init.name);
+  const [stash, setStash] = useState<SharedStashView | null>(null);
   const [status, setStatus] = useState<ShareStatus>("loading");
   const [shown, setShownState] = useState(init.shown);
 
@@ -50,11 +76,18 @@ export function useShare(): ShareState {
     if (!token) return undefined;
     let cancelled = false;
     setStatus("loading");
-    resolveShare(token)
+    const read: Promise<{ name: string; stash: SharedStashView | null }> =
+      kind === "stash"
+        ? getSharedStash(token).then((v) => ({ name: stashShareLabel(v), stash: v }))
+        : resolveShare(token).then((r) => ({ name: r.name, stash: null }));
+    read
       .then((data) => {
         if (cancelled) return;
         setName(data.name);
-        saveShareSession({ token, name: data.name });
+        setStash(data.stash);
+        saveShareSession(
+          kind === "stash" ? { token, name: data.name, kind } : { token, name: data.name }
+        );
         setStatus("ready");
         // Desktop's event (SharedVaultPage), + layout.
         capturePhone("share_link_viewed");
@@ -70,8 +103,8 @@ export function useShare(): ShareState {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, kind]);
 
   const setShown = useCallback((on: boolean) => setShownState(on), []);
-  return { token, name, status, shown: shown && token != null, setShown };
+  return { token, kind, stash, name, status, shown: shown && token != null, setShown };
 }

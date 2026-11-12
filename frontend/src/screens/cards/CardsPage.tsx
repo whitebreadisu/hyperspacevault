@@ -43,6 +43,9 @@ import {
 import type { CollectionToggles, VaultFilterState } from "../../vault/vaultModel";
 import { InSlot } from "../stashes/InSlot";
 import { StashesPane } from "../stashes/StashesPane";
+import { SharedStashPane } from "../shared/SharedStashPane";
+import { stashQuantities } from "../../api/sharedView";
+import type { SharedStashView } from "../../api/sharedView";
 import "./cards.css";
 
 interface Props {
@@ -106,6 +109,12 @@ interface Props {
    * Collection toggles). Sort, view mode and every other
    * setting are kept, and a visit to another pane clears nothing. */
   vaultPage?: "collection" | "stashes";
+  /** A stash link's read (SharedStashPage; App Spec §19.1): this instance is
+   * that stash's read-only viewer -- the content column is SharedStashPane
+   * under the same filters, the quantities are the in-stash counts (no
+   * quantities fetch: a stash token has no vault reads) and the card detail
+   * shows the in-stash count. Set with `shareToken`. */
+  sharedStash?: SharedStashView | null;
 }
 
 /** Unified Cards view -- one list for everyone, inventory data layered on by
@@ -130,6 +139,7 @@ export function CardsPage({
   popupKeysSuspended = false,
   stashPage = null,
   vaultPage = "collection",
+  sharedStash = null,
 }: Props) {
   // `readOnly` gates the genuinely MUTATING affordances (Add Cards,
   // Import/Export, the popup's quantity stepper) -- these key off
@@ -139,8 +149,14 @@ export function CardsPage({
   // caller is signed into their OWN Vault OR this is a shared read-only view,
   // so those checks use `hasData` instead of the raw `isAuthenticated`. See
   // the `shareToken` prop's own doc comment for the full rationale.
-  const readOnly = shareToken != null;
+  const readOnly = shareToken != null || sharedStash != null;
   const hasData = isAuthenticated || readOnly;
+  // A stash link's counts, merged in as the quantities (memoised on the
+  // read, so a fresh read -- a rename, a count change -- re-merges).
+  const stashCounts = useMemo(
+    () => (sharedStash ? stashQuantities(sharedStash) : null),
+    [sharedStash]
+  );
   // The tenant's (or, in read-only viewer mode, the share owner's --
   // LimitsProvider's own shareToken seam) effective keep-limit matrix, with
   // the same null-means-code-defaults fallback every other limits consumer
@@ -157,7 +173,7 @@ export function CardsPage({
     loading,
     error,
     refreshQuantities,
-  } = useVaultDataSource(isAuthenticated, shareToken ?? null);
+  } = useVaultDataSource(isAuthenticated, stashCounts ? null : (shareToken ?? null), stashCounts);
   // Facets, finish scope and the four Collection toggles, as the shared
   // model's state. The search box writes `filters.search` (FilterPanel owns
   // that field); `query` stays empty here and the model is handed
@@ -184,7 +200,8 @@ export function CardsPage({
   // governs which component below renders `list` -- FilterPanel only
   // displays/controls the value (see its ViewMode prop).
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  // The Stashes page's card-list corner, where the FilterPanel goes there.
+  // The Stashes page's card-list corner, where the FilterPanel goes there
+  // (the owner's Stashes page and a stash link's viewer pane alike).
   const [filterSlot, setFilterSlot] = useState<HTMLElement | null>(null);
   // ONE unified popup state: every opener (table name click, table
   // Playset-cell click, gallery cell click) targets the same popup. The Name
@@ -590,6 +607,10 @@ export function CardsPage({
 
   if (error) return <p className="loading-text">Error: {error}</p>;
 
+  // A stash pane shows (the owner's Stashes page, or a stash link's
+  // viewer): the filters go in its card-list corner.
+  const stashPane = sharedStash != null || (stashPage != null && !readOnly);
+
   return (
     <div className="screen">
       {loading ? (
@@ -610,10 +631,7 @@ export function CardsPage({
         // state, loading, load error) and nothing to filter, so the panel is
         // hidden, not unmounted: it keeps its state.
         <div className="cards-layout">
-          <InSlot
-            slot={stashPage && !readOnly ? filterSlot : null}
-            hidden={Boolean(stashPage && !readOnly) && filterSlot === null}
-          >
+          <InSlot slot={stashPane ? filterSlot : null} hidden={stashPane && filterSlot === null}>
             <FilterPanel
               filters={filters}
               setFilters={handleFilterPanelChange}
@@ -704,7 +722,19 @@ export function CardsPage({
               </div>
             </FilterPanel>
           </InSlot>
-          {stashPage && !readOnly ? (
+          {sharedStash ? (
+            <SharedStashPane
+              view={sharedStash}
+              cards={cards}
+              list={list}
+              finishes={filters.finish}
+              setOrder={setOrder}
+              priceKind={priceKind}
+              onPriceKind={handlePriceKindChange}
+              onOpenPrinting={openPrinting}
+              onFilterSlot={setFilterSlot}
+            />
+          ) : stashPage && !readOnly ? (
             <StashesPane
               cards={cards}
               list={list}
@@ -877,6 +907,8 @@ export function CardsPage({
           // shared vault the popup must display the share owner's quantities --
           // the same map the table renders from -- not the response's.
           quantityOverrides={readOnly ? quantities : undefined}
+          // A stash link: the count is the in-stash count, nothing else.
+          countKind={sharedStash ? "stash" : "owned"}
           setNameByCode={setNameByCode}
           onClose={closePopup}
           onChanged={() => {

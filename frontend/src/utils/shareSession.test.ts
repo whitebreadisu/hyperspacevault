@@ -65,4 +65,17 @@ describe("share session persistence (loadShareSession/saveShareSession)", () => 
     expect(() => saveShareSession({ token: "tok-1", name: "X" })).not.toThrow();
     spy.mockRestore();
   });
+
+  // BL-209 slice (c): a stash link's session remembers its kind; a session
+  // stored before stash links (no kind) still loads as a vault link.
+  it("round-trips a stash link's kind and rejects an unknown kind", () => {
+    saveShareSession({ token: "stok-1", name: "Rowan · Trade binder", kind: "stash" });
+    expect(loadShareSession()).toEqual({
+      token: "stok-1",
+      name: "Rowan · Trade binder",
+      kind: "stash",
+    });
+    window.sessionStorage.setItem(KEY, JSON.stringify({ token: "t", name: "n", kind: "list" }));
+    expect(loadShareSession()).toBeNull();
+  });
 });

@@ -21,10 +21,12 @@ import { AboutModal } from "./screens/about/AboutModal";
 import { FeedbackModal } from "./screens/feedback/FeedbackModal";
 import { NewArrivalsPage } from "./screens/notes/NewArrivalsPage";
 import { SharedVaultPage } from "./screens/shared/SharedVaultPage";
+import { SharedStashPage } from "./screens/shared/SharedStashPage";
 import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
 import { loadShareSession, saveShareSession } from "./utils/shareSession";
-import { parseShareRouteToken } from "./utils/shareRoute";
+import { parseShareRoute } from "./utils/shareRoute";
+import type { ShareKind } from "./utils/shareRoute";
 import { bootSignupParam, clearSignupParam, parseCardParam } from "./utils/cardParam";
 import { markAppSeen } from "./utils/appSeen";
 import { capture } from "./analytics/analytics";
@@ -108,6 +110,9 @@ function AppContent() {
     () => loadShareSession()?.token ?? null
   );
   const [shareName, setShareName] = useState<string | null>(() => loadShareSession()?.name ?? null);
+  // Which read the token takes: a vault link's or a stash link's
+  // (`/shared/stash/{token}`; App Spec §19.1). Changes with the token.
+  const [shareKind, setShareKind] = useState<ShareKind>(() => loadShareSession()?.kind ?? "vault");
   const [signupInFlight, setSignupInFlight] = useState(false);
   // See AppContent's doc comment above.
   const [googleLinkedInFlight, setGoogleLinkedInFlight] = useState(false);
@@ -193,15 +198,15 @@ function AppContent() {
   // opened via the header tab later in the session goes through
   // handleShareResolved/setActiveView directly, not this route parse.
   useEffect(() => {
-    const routeToken = parseShareRouteToken(window.location.pathname);
-    if (!routeToken) return;
-    setShareToken(routeToken);
+    const route = parseShareRoute(window.location.pathname);
+    if (!route) return;
+    setShareToken(route.token);
+    setShareKind(route.kind);
     // Unknown until SharedVaultPage's own resolve completes -- clears any
     // stale name a PREVIOUS share session left behind, so the header tab
     // doesn't flash the old name while the new token resolves.
     setShareName(null);
     setActiveView("shared");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // `/?card=sor-005` (design note §9 "Optional extra"; a public card page's
@@ -227,6 +232,12 @@ function AppContent() {
   const handleShareResolved = useCallback((resolvedToken: string, name: string) => {
     setShareName(name);
     saveShareSession({ token: resolvedToken, name });
+  }, []);
+  /** SharedStashPage's counterpart: the label is "<share name> · <stash
+   * name>" and the session remembers the link is a stash link. */
+  const handleStashResolved = useCallback((resolvedToken: string, name: string) => {
+    setShareName(name);
+    saveShareSession({ token: resolvedToken, name, kind: "stash" });
   }, []);
 
   // Successful login updates `user` via onAuthStateChanged; close the modal
@@ -399,7 +410,11 @@ function AppContent() {
             anonymous viewers see the share). */}
           {shareToken && (
             <div style={{ display: view === "shared" ? "contents" : "none" }}>
-              <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
+              {shareKind === "stash" ? (
+                <SharedStashPage token={shareToken} onResolved={handleStashResolved} />
+              ) : (
+                <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
+              )}
             </div>
           )}
           {user && (

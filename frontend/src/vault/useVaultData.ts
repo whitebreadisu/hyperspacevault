@@ -70,12 +70,17 @@ export function mergeQuantities(
  * mounts a second CardsPage with `shareToken`; the phone builds one in
  * MobileApp's share scope). It reads the share owner's quantities
  * (GET /api/shared/{token}/quantities, plain fetch, no auth) and is
- * read-only. The catalogue and sets are fetched per instance. */
+ * read-only. The catalogue and sets are fetched per instance.
+ * `fixedQuantities`: a stash link's in-stash counts, already read with the
+ * stash (GET /api/shared/{token}/stash) -- merged in as the quantities with
+ * no quantities fetch (a stash token has no vault reads); read-only too. A
+ * new map (the next stash read) is merged in on arrival. */
 export function useVaultDataSource(
   isAuthenticated: boolean,
-  shareToken: string | null = null
+  shareToken: string | null = null,
+  fixedQuantities: Record<number, number> | null = null
 ): VaultData {
-  const readOnly = shareToken != null;
+  const readOnly = shareToken != null || fixedQuantities != null;
   const hasData = isAuthenticated || readOnly;
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -109,6 +114,10 @@ export function useVaultDataSource(
   }, []);
 
   const refreshQuantities = useCallback(async () => {
+    if (fixedQuantities) {
+      setQuantities(fixedQuantities);
+      return;
+    }
     // shareToken wins outright, checked before auth.
     if (!readOnly && !isAuthenticated) {
       setQuantities({});
@@ -118,7 +127,7 @@ export function useVaultDataSource(
     const map: Record<number, number> = {};
     for (const r of rows) map[r.variant_id] = r.quantity;
     setQuantities(map);
-  }, [isAuthenticated, readOnly, shareToken]);
+  }, [isAuthenticated, readOnly, shareToken, fixedQuantities]);
 
   useEffect(() => {
     let live = true;

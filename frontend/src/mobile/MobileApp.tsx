@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import { UpdateBanner } from "../components/UpdateBanner";
@@ -19,6 +19,9 @@ import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
 import type { NavShare } from "./MobileNav";
 import { SharedStatus } from "./shared/SharedStatus";
+import { SharedStashScreen } from "./shared/SharedStashScreen";
+import { stashQuantities } from "../api/sharedView";
+import type { SharedStashView } from "../api/sharedView";
 import { useShare } from "./shared/useShare";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
@@ -117,11 +120,22 @@ const BLOCKED_IN_SHARE = new Set([
  * share has resolved (an invalid / rate-limited token or an unswitched
  * restored session downloads nothing, as desktop mounts CardsPage
  * only when ready); read by the shared pane, its card layer and its
- * Owned-by-finish host. */
-function ShareScope({ token, children }: { token: string; children: ReactNode }) {
-  const value = useVaultDataSource(false, token);
+ * Owned-by-finish host. A stash link's scope (`stash` set) merges the
+ * stash read's in-stash counts instead (no quantities or limits read: a
+ * stash token has neither, desktop SharedStashPage). */
+function ShareScope({
+  token,
+  stash,
+  children,
+}: {
+  token: string;
+  stash: SharedStashView | null;
+  children: ReactNode;
+}) {
+  const counts = useMemo(() => (stash ? stashQuantities(stash) : null), [stash]);
+  const value = useVaultDataSource(false, counts ? null : token, counts);
   return (
-    <LimitsProvider isAuthenticated={false} shareToken={token}>
+    <LimitsProvider isAuthenticated={false} shareToken={counts ? undefined : token}>
       {/* nothing under a share reads or fetches stash data. */}
       <StashProvider enabled={false}>
         <VaultDataValue value={value}>{children}</VaultDataValue>
@@ -233,8 +247,11 @@ export function MobileApp() {
     if (window.location.hash.includes("?")) go("#/vault", true);
     setShareShown(shared);
   };
+  // A stash link's bar: signed out, the amber chip carries the share name;
+  // signed in, the switch's share face reads "<share name> · <stash name>".
+  const navName = share.stash && !user ? share.stash.share_name : share.name;
   const navShare: NavShare | null = share.token
-    ? { name: share.name, shown: inShare, onPick: pickVault }
+    ? { name: navName, shown: inShare, onPick: pickVault }
     : null;
 
   const account = (
@@ -482,7 +499,17 @@ export function MobileApp() {
       aria-hidden={inShare ? undefined : true}
       inert={!inShare || cardId != null || acctLayer != null}
     >
-      {share.status === "ready" ? (
+      {share.status === "ready" && share.stash ? (
+        <SharedStashScreen
+          view={share.stash}
+          account={account}
+          unread={cue.unread}
+          onOpenChooser={openChooser}
+          onOpenFeedback={() => go("#/more/feedback")}
+          onSearchMode={setSearchMode}
+          onRequestSignIn={openSignIn}
+        />
+      ) : share.status === "ready" ? (
         <Vault
           params={inShare ? vaultParams : sharedParams}
           account={account}
@@ -494,7 +521,7 @@ export function MobileApp() {
           collectionLabel={`${share.name ?? ""}'s collection`}
         />
       ) : (
-        <SharedStatus status={share.status} account={account} />
+        <SharedStatus status={share.status} account={account} kind={share.kind} />
       )}
     </div>
   ) : null;
@@ -577,7 +604,7 @@ export function MobileApp() {
             </div>
             {share.token && share.status !== "ready" ? sharedPane : null}
             {share.token && share.status === "ready" ? (
-              <ShareScope token={share.token}>
+              <ShareScope token={share.token} stash={share.stash}>
                 {sharedPane}
                 {inShare && cardId != null ? (
                   <CardDetail

@@ -26,7 +26,8 @@ import { TrashIcon } from "./stashIcons";
 // row leaves). There is no + here: the − sits beside the stash count, never
 // the owned count. Column widths are ratios (table-layout: fixed stretches
 // them to the table's width, cards.css), balanced so Name does not take all
-// the slack (R1-8).
+// the slack (R1-8). Without `onReturn` (a stash link's viewer, App Spec
+// §19.1) the In-stash cell is the count chip alone: no −, no trash.
 
 export type ValueUnit = "unit" | "total";
 
@@ -46,7 +47,7 @@ export function StashTable({
   priceKind,
   valueUnit,
   onValueUnit,
-  busy,
+  busy = false,
   onOpen,
   onReturn,
 }: {
@@ -56,9 +57,10 @@ export function StashTable({
   priceKind: PriceMode;
   valueUnit: ValueUnit;
   onValueUnit: (u: ValueUnit) => void;
-  busy: boolean;
+  busy?: boolean;
   onOpen: (row: StashPrinting) => void;
-  onReturn: (row: StashPrinting, quantity: number) => void;
+  /** Absent = read-only: the count chip without − and trash. */
+  onReturn?: (row: StashPrinting, quantity: number) => void;
 }) {
   const [pressed, setPressed] = useState<number | null>(null);
   const isTotal = valueUnit === "total";
@@ -148,35 +150,44 @@ export function StashTable({
                   {subtitle ? <span className="card-subtitle">{subtitle}</span> : null}
                 </td>
                 <td className="sp-td--printing">{finishName(r.variant)}</td>
-                <td className="sp-td--qty" onClick={(e) => e.stopPropagation()}>
-                  <span className="sp-ctl">
-                    <button
-                      type="button"
-                      className={"sp-minus" + (pressed === vid ? " sp-minus--pressed" : "")}
-                      aria-label={`Return one ${label} to the Vault`}
-                      aria-disabled={busy || undefined}
-                      onPointerDown={() => setPressed(vid)}
-                      onPointerUp={() => setPressed(null)}
-                      onPointerLeave={() => setPressed(null)}
-                      onClick={() => {
-                        if (!busy) onReturn(r, 1);
-                      }}
-                    >
-                      −
-                    </button>
-                    <span className={stashChipClass(r.qty, r.card)}>{r.qty}</span>
-                    <button
-                      type="button"
-                      className="sp-trash"
-                      aria-label={`Return all ${r.qty} ${label} to the Vault`}
-                      aria-disabled={busy || undefined}
-                      onClick={() => {
-                        if (!busy) onReturn(r, r.qty);
-                      }}
-                    >
-                      <TrashIcon />
-                    </button>
-                  </span>
+                <td
+                  className="sp-td--qty"
+                  onClick={onReturn ? (e) => e.stopPropagation() : undefined}
+                >
+                  {onReturn ? (
+                    <span className="sp-ctl">
+                      <button
+                        type="button"
+                        className={"sp-minus" + (pressed === vid ? " sp-minus--pressed" : "")}
+                        aria-label={`Return one ${label} to the Vault`}
+                        aria-disabled={busy || undefined}
+                        onPointerDown={() => setPressed(vid)}
+                        onPointerUp={() => setPressed(null)}
+                        onPointerLeave={() => setPressed(null)}
+                        onClick={() => {
+                          if (!busy) onReturn(r, 1);
+                        }}
+                      >
+                        −
+                      </button>
+                      <span className={stashChipClass(r.qty, r.card)}>{r.qty}</span>
+                      <button
+                        type="button"
+                        className="sp-trash"
+                        aria-label={`Return all ${r.qty} ${label} to the Vault`}
+                        aria-disabled={busy || undefined}
+                        onClick={() => {
+                          if (!busy) onReturn(r, r.qty);
+                        }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="sp-ctl">
+                      <span className={stashChipClass(r.qty, r.card)}>{r.qty}</span>
+                    </span>
+                  )}
                 </td>
                 <td className={"td-value" + (price == null ? " cell-muted" : "")}>
                   {formatCardValue(price)}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseShareRouteToken } from "./shareRoute";
+import { parseShareRoute, parseShareRouteToken } from "./shareRoute";
 
 describe("parseShareRouteToken", () => {
   it("extracts the token from a /shared/{token} pathname", () => {
@@ -33,5 +33,31 @@ describe("parseShareRouteToken", () => {
 
   it("returns null for a malformed percent-escape rather than throwing", () => {
     expect(parseShareRouteToken("/shared/%")).toBeNull();
+  });
+});
+
+// BL-209 slice (c): stash links have their own route, `/shared/stash/{token}`.
+describe("parseShareRoute", () => {
+  it("reads a vault link as kind vault", () => {
+    expect(parseShareRoute("/shared/abc123")).toEqual({ kind: "vault", token: "abc123" });
+  });
+
+  it("reads a stash link as kind stash, with or without a trailing slash", () => {
+    expect(parseShareRoute("/shared/stash/abc123")).toEqual({ kind: "stash", token: "abc123" });
+    expect(parseShareRoute("/shared/stash/abc%2Fdef/")).toEqual({
+      kind: "stash",
+      token: "abc/def",
+    });
+  });
+
+  it("a stash link is never read as a vault link", () => {
+    expect(parseShareRouteToken("/shared/stash/abc123")).toBeNull();
+  });
+
+  it("returns null for other paths, an empty stash token and malformed escapes", () => {
+    expect(parseShareRoute("/")).toBeNull();
+    expect(parseShareRoute("/shared/stash/")).toBeNull();
+    expect(parseShareRoute("/shared/stash/abc/extra")).toBeNull();
+    expect(parseShareRoute("/shared/stash/%")).toBeNull();
   });
 });

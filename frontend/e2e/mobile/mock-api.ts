@@ -563,10 +563,52 @@ export async function installApiMocks(
       // every third catalogue card, x2 -- distinct from the caller's own);
       // `tok-long` carries a 30-character name; `tok-slow` answers after
       // 1.5 s; `tok-404` / `tok-429` are the invalid and rate-limited answers.
-      const shared = path.match(/^\/api\/shared\/([^/]+)(\/quantities|\/limits)?$/);
+      const shared = path.match(/^\/api\/shared\/([^/]+)(\/quantities|\/limits|\/stash)?$/);
       if (method === "GET" && shared) {
         rec.sharedReads.push(path);
         const tok = decodeURIComponent(shared[1]);
+        // BL-209 slice (c): stash links (GET /api/shared/{token}/stash). `stok-1`
+        // = Rowan's "Trade binder" (a description; the first printing of every
+        // fifth catalogue card, x1..x3); `stok-empty` = Rowan's "Spare box", no
+        // description, no rows; `stok-404` / `stok-429` the dead and
+        // rate-limited answers. A stash token's resolve and vault reads are
+        // 404, as on the server; a vault token's stash read is 404.
+        const stashes: Record<string, { name: string; description: string | null }> = {
+          "stok-1": { name: "Trade binder", description: "Doubles for trading at locals." },
+          "stok-empty": { name: "Spare box", description: null },
+        };
+        if (tok === "stok-429")
+          return route.fulfill({
+            status: 429,
+            headers: { "Retry-After": "30" },
+            contentType: "application/json",
+            body: '{"detail":"rate limited"}',
+          });
+        if (shared[2] === "/stash") {
+          const st = stashes[tok];
+          if (!st) return ok(route, { detail: "Not found" }, 404);
+          const rows =
+            tok === "stok-1"
+              ? cards
+                  .filter((_, i) => i % 5 === 0)
+                  .slice(0, 40)
+                  .map((c, i) => ({
+                    variant_id: c.variants[0].variant_id,
+                    quantity: (i % 3) + 1,
+                    stashed_at: new Date(Date.UTC(2026, 10, 1 + (i % 28))).toISOString(),
+                    market: null,
+                    low: null,
+                  }))
+              : [];
+          const copies = rows.reduce((n, r) => n + r.quantity, 0);
+          return ok(route, {
+            share_name: "Rowan",
+            stash: st,
+            rows,
+            totals: { printings: rows.length, copies, value_market: 0, value_low: 0 },
+          });
+        }
+        if (stashes[tok]) return ok(route, { detail: "Not found" }, 404);
         const names: Record<string, string> = {
           "tok-1": "Rowan",
           "tok-slow": "Rowan",

@@ -203,6 +203,24 @@ vi.mock("./screens/shared/SharedVaultPage", () => ({
     </div>
   ),
 }));
+// BL-209 slice (c): a stash link's pane, stubbed the same way (its own suite
+// is SharedStashPage.test.tsx).
+vi.mock("./screens/shared/SharedStashPage", () => ({
+  SharedStashPage: ({
+    token,
+    onResolved,
+  }: {
+    token: string;
+    onResolved: (token: string, name: string) => void;
+  }) => (
+    <div>
+      <p>shared-stash-page:{token}</p>
+      <button onClick={() => onResolved(token, `Rowan · Stash ${token}`)}>
+        trigger-stash-resolved
+      </button>
+    </div>
+  ),
+}));
 
 // BL-184: utils/releaseNotesSeen.ts has its own dedicated unit-test file
 // (storage available/denied/corrupt matrix) -- mocked here so App's own
@@ -1078,6 +1096,36 @@ describe("App shared-vault pane (BL-205)", () => {
     expect(screen.getByRole("button", { name: "Restored share" })).toBeInTheDocument();
     // But the view itself still defaults to Vault, not the shared pane.
     expect(screen.getByText("cards-page:anon")).toBeVisible();
+  });
+
+  it("landing on /shared/stash/{token} mounts the stash pane (not the vault pane) and keeps a stash session", () => {
+    saveShareSession({ token: "old-tok", name: "Old share" });
+    window.history.pushState({}, "", "/shared/stash/stok-1");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("shared-stash-page:stok-1")).toBeVisible();
+    expect(screen.queryByText(/shared-vault-page:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Old share" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("trigger-stash-resolved"));
+    const tab = screen.getByRole("button", { name: "Rowan · Stash stok-1" });
+    expect(tab).toHaveAttribute("aria-current", "page");
+    expect(loadShareSession()).toEqual({
+      token: "stok-1",
+      name: "Rowan · Stash stok-1",
+      kind: "stash",
+    });
+  });
+
+  it("a stored stash session comes back as the stash pane on a fresh mount", () => {
+    saveShareSession({ token: "stok-2", name: "Rowan · Spare box", kind: "stash" });
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Rowan · Spare box" })).toBeInTheDocument();
+    expect(screen.getByText("shared-stash-page:stok-2")).not.toBeVisible();
+    expect(screen.queryByText(/shared-vault-page:/)).not.toBeInTheDocument();
   });
 
   it("landing on a NEW /shared/{token2} URL replaces a previously stored session (newest wins)", () => {

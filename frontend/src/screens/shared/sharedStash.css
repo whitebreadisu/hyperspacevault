@@ -1,0 +1,31 @@
+/* A stash link's viewer pane (SharedStashPane.tsx). Everything but the head
+   is the owner's Stashes-page pane (stashes.css: sp-read, sp-stats, the
+   view toggle, sp-list, the table and gallery). The head adds the amber
+   eyebrow -- amber = narrowed to someone else's view (the shared frame's
+   amber, Header pod) -- and the description at its full length, never the
+   owner's "No description". */
+
+.ss-eyebrow {
+  margin: 0 0 2px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+.ss-desc {
+  margin: 0;
+  font-size: 15.5px;
+}
+
+/* The dead-link sentence (revoked, unknown and deleted-stash links alike):
+   one label-type line under the header. */
+.ss-dead {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}

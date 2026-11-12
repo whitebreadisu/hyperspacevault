@@ -16,15 +16,22 @@ const SHARE_SESSION_KEY = "swu.share.session";
 
 export interface ShareSession {
   token: string;
+  /** The viewer's label for it: the share name, or for a stash link
+   * "<share name> · <stash name>". */
   name: string;
+  /** "stash" for a stash link (its token takes the stash read); absent or
+   * "vault" for the vault link -- a session stored before stash links read
+   * as a vault link. */
+  kind?: "vault" | "stash";
 }
 
 function isShareSession(value: unknown): value is ShareSession {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as ShareSession;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as ShareSession).token === "string" &&
-    typeof (value as ShareSession).name === "string"
+    typeof v.token === "string" &&
+    typeof v.name === "string" &&
+    (v.kind === undefined || v.kind === "vault" || v.kind === "stash")
   );
 }
 

@@ -227,6 +227,11 @@
   );
   filter: drop-shadow(0 16px 36px rgba(0, 0, 0, 0.7));
 }
+/* A stash link's viewer panel has the eyebrow row above the name, so its
+   description line, and the popover under it, sit one row lower. */
+.m-app .m-stashpanel--viewer .m-stashpop {
+  top: 126px;
+}
 .m-app .m-stashpop__inner {
   display: flex;
   align-items: flex-start;
