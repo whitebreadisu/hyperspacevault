@@ -37,6 +37,9 @@ export interface VaultData {
   /** The share's data (CardsPage `readOnly`): the quantities are the share
    * owner's, nothing here may mutate them. */
   readOnly: boolean;
+  /** What a quantity counts: copies owned, or (a stash link's instance,
+   * `fixedQuantities`) copies in that stash. Absent = owned. */
+  countKind?: "owned" | "stash";
   sets: CardSet[];
   setOrder: SetOrderMap;
   setNameByCode: Record<string, string>;
@@ -74,13 +77,15 @@ export function mergeQuantities(
  * `fixedQuantities`: a stash link's in-stash counts, already read with the
  * stash (GET /api/shared/{token}/stash) -- merged in as the quantities with
  * no quantities fetch (a stash token has no vault reads); read-only too. A
- * new map (the next stash read) is merged in on arrival. */
+ * new map (the next stash read) is merged in on arrival, with no loading
+ * state in between, so the viewer's pane keeps its sort, view and scroll. */
 export function useVaultDataSource(
   isAuthenticated: boolean,
   shareToken: string | null = null,
   fixedQuantities: Record<number, number> | null = null
 ): VaultData {
-  const readOnly = shareToken != null || fixedQuantities != null;
+  const fixed = fixedQuantities != null;
+  const readOnly = shareToken != null || fixed;
   const hasData = isAuthenticated || readOnly;
   const [catalog, setCatalog] = useState<BaseCardCatalog[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -114,10 +119,7 @@ export function useVaultDataSource(
   }, []);
 
   const refreshQuantities = useCallback(async () => {
-    if (fixedQuantities) {
-      setQuantities(fixedQuantities);
-      return;
-    }
+    if (fixed) return;
     // shareToken wins outright, checked before auth.
     if (!readOnly && !isAuthenticated) {
       setQuantities({});
@@ -127,9 +129,10 @@ export function useVaultDataSource(
     const map: Record<number, number> = {};
     for (const r of rows) map[r.variant_id] = r.quantity;
     setQuantities(map);
-  }, [isAuthenticated, readOnly, shareToken, fixedQuantities]);
+  }, [isAuthenticated, readOnly, shareToken, fixed]);
 
   useEffect(() => {
+    if (fixed) return undefined;
     let live = true;
     setQuantitiesLoading(hasData);
     refreshQuantities()
@@ -142,7 +145,7 @@ export function useVaultDataSource(
     return () => {
       live = false;
     };
-  }, [refreshQuantities, hasData]);
+  }, [refreshQuantities, hasData, fixed]);
 
   const patchQuantity = useCallback((variantId: number, quantity: number) => {
     setQuantities((prev) =>
@@ -160,9 +163,11 @@ export function useVaultDataSource(
     return { setOrder: order, setNameByCode: names };
   }, [sets]);
 
+  // A stash link's counts are the quantities as they are; nothing is fetched.
+  const shownQuantities = fixedQuantities ?? quantities;
   const catalogWithQuantities = useMemo(
-    () => mergeQuantities(catalog, quantities),
-    [catalog, quantities]
+    () => mergeQuantities(catalog, shownQuantities),
+    [catalog, shownQuantities]
   );
   const cards = useMemo(
     () => toInventoryCards(catalogWithQuantities, setOrder),
@@ -172,11 +177,12 @@ export function useVaultDataSource(
   return {
     cards,
     catalogWithQuantities,
-    quantities,
+    quantities: shownQuantities,
     sets,
     setOrder,
     setNameByCode,
     readOnly,
+    countKind: fixed ? "stash" : "owned",
     isAuthenticated: hasData,
     loading: catalogLoading || quantitiesLoading,
     error,

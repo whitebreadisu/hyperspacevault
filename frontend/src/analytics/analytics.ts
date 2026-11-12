@@ -9,6 +9,7 @@
 import posthog from "posthog-js";
 import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
 import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH, publicBootstrap } from "./posthogConfig";
+import { redactShareEvent } from "./redactShare";
 
 // The v1 event registry. Adding an event = extend this union AND the App
 // Spec section in the same PR. Names are permanent (renames orphan history);
@@ -188,6 +189,9 @@ export function initAnalytics(): void {
       // Masking rider: every input masked in replay, not just passwords.
       maskAllInputs: true,
     },
+    // A share link's token never leaves the browser: every URL-bearing
+    // property is redacted to `/shared/:token` (redactShare.ts).
+    before_send: (cr) => redactShareEvent(cr),
     ...(bootstrap ? { bootstrap } : {}),
   });
   posthog.register({ app_version: __APP_VERSION__ });

@@ -182,6 +182,23 @@ function useRehydrateOnPageShow(): void {
   }, []);
 }
 
+/** A stash link's spoken name in the bar ("Rowan's stash Trade binder"),
+ * from the read, else from the stored "<share> · <stash>" label; undefined
+ * for a vault link (the bar's default, "<name>'s vault"). */
+function stashSpoken(share: {
+  kind: string;
+  stash: SharedStashView | null;
+  name: string | null;
+  shareName: string | null;
+}): string | undefined {
+  if (share.kind !== "stash") return undefined;
+  if (share.stash) return `${share.stash.share_name}'s stash ${share.stash.stash.name}`;
+  const prefix = share.shareName ? `${share.shareName} · ` : null;
+  if (prefix && share.name?.startsWith(prefix))
+    return `${share.shareName}'s stash ${share.name.slice(prefix.length)}`;
+  return share.name ?? undefined;
+}
+
 export function MobileApp() {
   const route = useRoute();
   useRehydrateOnPageShow();
@@ -249,9 +266,11 @@ export function MobileApp() {
   };
   // A stash link's bar: signed out, the amber chip carries the share name;
   // signed in, the switch's share face reads "<share name> · <stash name>".
-  const navName = share.stash && !user ? share.stash.share_name : share.name;
+  // The same while the read is in flight (a restored session's stored names)
+  // as after it; a dead link has no name, so the bar shows the plain tab.
+  const navName = share.kind === "stash" && !user ? (share.shareName ?? share.name) : share.name;
   const navShare: NavShare | null = share.token
-    ? { name: navName, shown: inShare, onPick: pickVault }
+    ? { name: navName, spoken: stashSpoken(share), shown: inShare, onPick: pickVault }
     : null;
 
   const account = (

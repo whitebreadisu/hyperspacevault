@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SharedStashPage } from "./SharedStashPage";
 import { ShareResolveError } from "../../api/sharedView";
 import type { SharedStashView } from "../../api/sharedView";
@@ -250,7 +250,9 @@ describe("SharedStashPage (BL-209 slice c)", () => {
     );
   });
 
-  it("a new read shows a rename and new counts (the next fetch is live)", async () => {
+  // PORT (fold-in): this case reads a new token; the same-token live reads are
+  // the "live updates" block below.
+  it("a new token's read shows its stash (token change re-reads)", async () => {
     getSharedStash.mockResolvedValue(view());
     const { container, rerender } = await renderPage("stok-1");
     await waitFor(() =>
@@ -271,5 +273,95 @@ describe("SharedStashPage (BL-209 slice c)", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Trade box" })).toBeVisible());
     expect(container.querySelectorAll(".sp-table tbody tr")).toHaveLength(1);
     expect(onResolved).toHaveBeenCalledWith("stok-2", "Rowan · Trade box");
+  });
+
+  describe("live updates: a re-read when the viewer returns to the tab", () => {
+    let now = 1_000_000;
+    beforeEach(() => {
+      now = 1_000_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const returnToTab = async (kind: "focus" | "visible") => {
+      await act(async () => {
+        if (kind === "focus") window.dispatchEvent(new Event("focus"));
+        else document.dispatchEvent(new Event("visibilitychange"));
+      });
+    };
+
+    it("same token: a rename and a count change reach the open viewer, keeping the pane", async () => {
+      getSharedStash.mockResolvedValue(view());
+      const onResolved = vi.fn();
+      const { container } = await renderPage("stok-1", onResolved);
+      await waitFor(() => expect(container.querySelectorAll(".sp-table tbody tr")).toHaveLength(2));
+      fireEvent.click(screen.getByRole("button", { name: "Gallery" }));
+      getSharedStash.mockResolvedValue(
+        view({
+          stash: { name: "Trade box", description: "Renamed." },
+          rows: [
+            { variant_id: 1, quantity: 1, stashed_at: "2026-11-01T00:00:00Z", market: 2, low: 1 },
+          ],
+        })
+      );
+      // Within 30 s of the last read: nothing.
+      now += 10_000;
+      await returnToTab("focus");
+      expect(getSharedStash).toHaveBeenCalledTimes(1);
+      // Past 30 s: the tab becoming visible re-reads.
+      now += 25_000;
+      await returnToTab("visible");
+      await waitFor(() => expect(screen.getByRole("heading", { name: "Trade box" })).toBeVisible());
+      expect(getSharedStash).toHaveBeenCalledTimes(2);
+      expect(getSharedStash).toHaveBeenLastCalledWith("stok-1");
+      expect(screen.getByText("Renamed.")).toBeInTheDocument();
+      const values = [...container.querySelectorAll(".ss-page .inv-summary__value")].map(
+        (e) => e.textContent
+      );
+      expect(values).toEqual(["1", "$2.00"]);
+      // The pane was kept, not remounted: still on Gallery.
+      expect(screen.getByRole("button", { name: "Gallery" })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      expect(onResolved).toHaveBeenLastCalledWith("stok-1", "Rowan · Trade box");
+    });
+
+    it("same token: a revocation (404) turns the open viewer into the dead link", async () => {
+      getSharedStash.mockResolvedValue(view());
+      const onGone = vi.fn();
+      let utils!: ReturnType<typeof render>;
+      await act(async () => {
+        utils = render(<SharedStashPage token="stok-1" onResolved={vi.fn()} onGone={onGone} />);
+      });
+      await waitFor(() =>
+        expect(utils.container.querySelectorAll(".sp-table tbody tr")).toHaveLength(2)
+      );
+      getSharedStash.mockRejectedValue(new ShareResolveError("not_found", 404));
+      now += 31_000;
+      await returnToTab("focus");
+      await waitFor(() =>
+        expect(screen.getByText("This shared stash is no longer available.")).toBeInTheDocument()
+      );
+      expect(utils.container.querySelector(".ss-page")).toBeNull();
+      expect(onGone).toHaveBeenCalledWith("stok-1");
+    });
+
+    it("a later 429 or other failure keeps what is shown", async () => {
+      getSharedStash.mockResolvedValue(view());
+      const { container } = await renderPage();
+      await waitFor(() => expect(container.querySelectorAll(".sp-table tbody tr")).toHaveLength(2));
+      getSharedStash.mockRejectedValue(new ShareResolveError("rate_limited", 429));
+      now += 31_000;
+      await returnToTab("focus");
+      getSharedStash.mockRejectedValue(new ShareResolveError("unknown", 500));
+      now += 31_000;
+      await returnToTab("focus");
+      expect(getSharedStash).toHaveBeenCalledTimes(3);
+      expect(screen.getByRole("heading", { name: "Trade binder" })).toBeVisible();
+      expect(container.querySelectorAll(".sp-table tbody tr")).toHaveLength(2);
+    });
   });
 });

@@ -84,7 +84,13 @@ export function SharedStashScreen({
     [all, vv.list, vv.state.filters.finish, sort, setOrder, vv.priceKind]
   );
 
-  const totals = stashTotals(all, vv.priceKind);
+  // Until the catalogue is in (the rows join to it), the read's own totals.
+  const totals = loading
+    ? {
+        copies: view.totals.copies,
+        value: vv.priceKind === "low" ? view.totals.value_low : view.totals.value_market,
+      }
+    : stashTotals(all, vv.priceKind);
   const copies = totals.copies.toLocaleString();
   const value = totals.copies === 0 ? "—" : formatMoney(totals.value);
   const { stash } = view;
@@ -105,8 +111,9 @@ export function SharedStashScreen({
     go("#/card/" + r.card.base_card_id + "?v=" + r.variant.variant_id);
   };
 
-  const zero = all.length === 0;
-  const n = rows.length;
+  // Empty is the read's own answer, never a catalogue still loading.
+  const zero = view.rows.length === 0;
+  const n = loading ? view.rows.length : rows.length;
   const controls = (
     <div className="m-vault__controls m-stashctl">
       <div className="m-vault__searchrow">
@@ -202,7 +209,11 @@ export function SharedStashScreen({
       >
         {zero ? (
           <p className="m-stashes__note m-stashes__zero">{SHARED_STASH_COPY.zero(stash.name)}</p>
-        ) : rows.length === 0 && !loading ? (
+        ) : loading ? (
+          <p className="m-stashes__note" role="status">
+            {SHARED_STASH_COPY.loading}
+          </p>
+        ) : rows.length === 0 ? (
           <div className="m-empty m-empty--list">
             <p>{STASH_COPY.filtered}</p>
           </div>

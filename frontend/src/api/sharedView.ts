@@ -73,9 +73,9 @@ function shareError(res: Response): ShareResolveError {
  * and the noindex header for every `/shared/**` path (firebase.json). */
 export const STASH_SHARE_PREFIX = "/shared/stash/";
 
-/** The link the owner copies for a stash share. `origin` defaults to this
- * page's own (pass one in tests or for another host). The one builder: the
- * owner's share window calls it, and utils/shareRoute.ts parses it back. */
+/** The builder for a stash link's URL (`/shared/stash/{token}`).
+ * `origin` defaults to this page's own (pass one in tests or for another
+ * host). utils/shareRoute.ts parses it back. */
 export function stashShareUrl(token: string, origin: string = window.location.origin): string {
   return `${origin}${STASH_SHARE_PREFIX}${encodeURIComponent(token)}`;
 }

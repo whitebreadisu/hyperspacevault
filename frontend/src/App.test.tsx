@@ -1118,6 +1118,19 @@ describe("App shared-vault pane (BL-205)", () => {
     });
   });
 
+  it("a vault link opened over a stored stash session replaces it cleanly (vault pane, vault session)", () => {
+    saveShareSession({ token: "stok-1", name: "Rowan · Trade binder", kind: "stash" });
+    window.history.pushState({}, "", "/shared/tok-9");
+    mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });
+    render(<App />);
+
+    expect(screen.getByText("shared-vault-page:tok-9")).toBeVisible();
+    expect(screen.queryByText(/shared-stash-page:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rowan · Trade binder" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("trigger-share-resolved"));
+    expect(loadShareSession()).toEqual({ token: "tok-9", name: "Name for tok-9" });
+  });
+
   it("a stored stash session comes back as the stash pane on a fresh mount", () => {
     saveShareSession({ token: "stok-2", name: "Rowan · Spare box", kind: "stash" });
     mockUseAuth.mockReturnValue({ user: null, loading: false, logout: vi.fn() });

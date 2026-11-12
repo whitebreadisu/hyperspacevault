@@ -92,8 +92,19 @@ interface TouchState {
 }
 
 export function CardDetail({ id, params, onRequestSignIn }: Props) {
-  const { cards, setOrder, setNameByCode, isAuthenticated, loading, patchQuantity, readOnly } =
-    useVaultData();
+  const {
+    cards,
+    setOrder,
+    setNameByCode,
+    isAuthenticated,
+    loading,
+    patchQuantity,
+    readOnly,
+    countKind,
+  } = useVaultData();
+  // A stash link's card: the counts are the stash's (App Spec §19.1), so the
+  // plate shows the in-stash count alone and opens no Owned by finish.
+  const stashCount = countKind === "stash";
   const { limits, capMode } = useLimits();
   const [priceKind, setPriceKind] = usePriceKind();
   const byId = useMemo(() => new Map(cards.map((c) => [c.base_card_id, c])), [cards]);
@@ -423,6 +434,7 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
   const common = {
     isAuthenticated,
     readOnly,
+    stashCount,
     priceKind,
     onPriceKind: setPriceKind,
     setNameByCode,
@@ -483,7 +495,9 @@ export function CardDetail({ id, params, onRequestSignIn }: Props) {
               stepper={stepper}
               detail={detail}
               onSelect={select}
-              onOpenFinish={isAuthenticated ? () => setSheet({ kind: "finish" }) : undefined}
+              onOpenFinish={
+                isAuthenticated && !stashCount ? () => setSheet({ kind: "finish" }) : undefined
+              }
               onOpenAspects={(aspects) => setSheet({ kind: "aspects", aspects })}
               onChartEngage={chartEngage}
               stashBlock={

@@ -26,6 +26,7 @@ export function PrintingPlate({
   scope,
   isAuthenticated,
   onClick,
+  stashCount = false,
 }: {
   /** The card's name (the button's label). */
   name: string;
@@ -38,7 +39,33 @@ export function PrintingPlate({
   isAuthenticated: boolean;
   /** The plate opens Owned by finish. */
   onClick?: () => void;
+  /** A stash link's card (App Spec §19.1): the plate is the selected
+   * printing's in-stash count alone -- no pips, no playset state, no
+   * "owned", and it opens nothing. */
+  stashCount?: boolean;
 }) {
+  if (stashCount) {
+    const selected = variants.find((v) => (v.finish ?? v.variant_type) === scope);
+    const qty = selected?.quantity ?? 0;
+    return (
+      <div
+        className="m-plate-hit"
+        data-plate-qty={qty}
+        role="img"
+        aria-label={`${name}: ${qty} in this stash`}
+      >
+        <GalleryPlate
+          size={0}
+          filled={0}
+          scoped={false}
+          complete={false}
+          total={qty}
+          totalComplete={false}
+          isAuthenticated
+        />
+      </div>
+    );
+  }
   const s = plateState(variants, scope, type, isAuthenticated);
   const frame = (
     <GalleryPlate

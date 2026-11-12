@@ -53,6 +53,8 @@ interface Props {
   onPriceKind: (k: PriceMode) => void;
   /** The plate opens Owned by finish (signed in only). */
   onOpenFinish?: () => void;
+  /** A stash link's card: the plate is the in-stash count alone. */
+  stashCount?: boolean;
   /** Public card page (design note §4.0 row 10): drawn instead of the
    * printing plate, in both the expanded block and the collapsed row. */
   plateSlot?: ReactNode;
@@ -78,6 +80,7 @@ export function CardRegion({
   priceKind,
   onPriceKind,
   onOpenFinish,
+  stashCount = false,
   plateSlot,
   imageMode = "app",
   stashBlock,
@@ -119,6 +122,7 @@ export function CardRegion({
       scope={variant.finish ?? variant.variant_type}
       isAuthenticated={isAuthenticated}
       onClick={onOpenFinish}
+      stashCount={stashCount}
     />
   );
   // The page's slot replaces the expanded plate; its collapsed row keeps

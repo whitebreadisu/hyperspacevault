@@ -19,8 +19,11 @@ async function initOptions(): Promise<Record<string, unknown>> {
   return vi.mocked(posthog.init).mock.calls[0][1] as Record<string, unknown>;
 }
 
+// PORT (BL-209 slice c): before_send joined the usual options (the share-token
+// redaction, redactShare.ts); the bootstrap rule is unchanged.
 const USUAL_KEYS = [
   "api_host",
+  "before_send",
   "autocapture",
   "capture_pageleave",
   "capture_pageview",
@@ -66,5 +69,19 @@ describe("posthog bootstrap from the public pages' id", () => {
     expect(publicBootstrap(null)).toBeNull();
     const broken = { getItem: () => "{not json" } as Pick<Storage, "getItem">;
     expect(publicBootstrap(broken)).toBeNull();
+  });
+
+  it("the init's before_send strips a share token from an event (vault and stash links)", async () => {
+    const opts = await initOptions();
+    const send = opts.before_send as (cr: unknown) => unknown;
+    for (const path of ["/shared/tok-SECRET", "/shared/stash/tok-SECRET"]) {
+      const out = send({
+        uuid: "u",
+        event: "$pageleave",
+        properties: { $current_url: `https://www.hyperspacevault.com${path}`, $pathname: path },
+        $set_once: { $initial_pathname: path },
+      });
+      expect(JSON.stringify(out)).not.toContain("tok-SECRET");
+    }
   });
 });

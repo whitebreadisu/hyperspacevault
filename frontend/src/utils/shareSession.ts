@@ -23,6 +23,8 @@ export interface ShareSession {
    * "vault" for the vault link -- a session stored before stash links read
    * as a vault link. */
   kind?: "vault" | "stash";
+  /** A stash link's share name alone (the phone's signed-out bar chip). */
+  shareName?: string;
 }
 
 function isShareSession(value: unknown): value is ShareSession {
@@ -31,7 +33,8 @@ function isShareSession(value: unknown): value is ShareSession {
   return (
     typeof v.token === "string" &&
     typeof v.name === "string" &&
-    (v.kind === undefined || v.kind === "vault" || v.kind === "stash")
+    (v.kind === undefined || v.kind === "vault" || v.kind === "stash") &&
+    (v.shareName === undefined || typeof v.shareName === "string")
   );
 }
 

@@ -48,7 +48,7 @@ import { getSharedStash, resolveShare, ShareResolveError } from "../../api/share
 import { getBaseCardsList } from "../../api/baseCards";
 import { getSets } from "../../api/sets";
 import { resetMediaMatches, setMediaMatches } from "../../test/setup";
-import { loadShareSession } from "../../utils/shareSession";
+import { loadShareSession, saveShareSession } from "../../utils/shareSession";
 import { resetRouterForTest } from "../router";
 import { PHONE_QUERY } from "../useIsPhone";
 import { switchFace, switchStep } from "./vaultSwitch";
@@ -225,6 +225,8 @@ describe("BL-209 stash links on the phone", () => {
       token: "stok-1",
       name: "Rowan · Trade binder",
       kind: "stash",
+      // The share name alone rides along for the signed-out chip.
+      shareName: "Rowan",
     });
     const pane = document.querySelector('.m-app__screen[data-pane="shared"]')!;
     expect(pane.querySelector(".m-stashpanel .m-summary__label")!.textContent).toBe(
@@ -248,6 +250,8 @@ describe("BL-209 stash links on the phone", () => {
     expect(text.classList.contains("m-shared-status__text--dead")).toBe(true);
     const pane = document.querySelector('.m-app__screen[data-pane="shared"]')!;
     expect(pane.querySelector(".m-summary")).toBeNull();
+    // No name on a dead link: the bar's plain Vault tab, no switch.
+    expect(document.querySelector(".m-vswitch")).toBeNull();
   });
 
   it("a rate-limited stash link says so", async () => {
@@ -266,5 +270,72 @@ describe("BL-209 stash links on the phone", () => {
     expect(pane.textContent).not.toMatch(/stash/i);
     expect(pane.querySelector('[class*="stash"]')).toBeNull();
     expect(getSharedStash).not.toHaveBeenCalled();
+  });
+
+  it("a restored stash session: the stash read, the share name on the chip, the stash in its spoken name", async () => {
+    saveShareSession({
+      token: "stok-9",
+      name: "Rowan · Spare box",
+      kind: "stash",
+      shareName: "Rowan",
+    });
+    vi.mocked(getSharedStash).mockResolvedValueOnce({
+      share_name: "Rowan",
+      stash: { name: "Spare box", description: null },
+      rows: [],
+      totals: { printings: 0, copies: 0, value_market: 0, value_low: 0 },
+    });
+    await bootShared("/");
+    expect(getSharedStash).toHaveBeenCalledWith("stok-9");
+    expect(resolveShare).not.toHaveBeenCalled();
+    // Own vault shown; the switch expands to the stash, named as a stash.
+    fireEvent.click(screen.getByRole("button", { name: "Vault: switch vault" }));
+    const pick = screen.getByRole("button", { name: "Rowan's stash Spare box" });
+    expect(pick.textContent).toBe("Rowan");
+    fireEvent.click(pick);
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Rowan: switch vault" }).textContent).toBe("Rowan");
+  });
+
+  it("a stored session with no kind is a vault link", async () => {
+    window.sessionStorage.setItem(
+      "swu.share.session",
+      JSON.stringify({ token: "tok-old", name: "Rowan" })
+    );
+    await bootShared("/");
+    expect(resolveShare).toHaveBeenCalledWith("tok-old");
+    expect(getSharedStash).not.toHaveBeenCalled();
+  });
+
+  it("live: returning to the tab re-reads the same stash (rename), then a revocation kills it", async () => {
+    let now = 5_000_000;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    try {
+      await bootShared("/shared/stash/stok-1");
+      const pane = () => document.querySelector('.m-app__screen[data-pane="shared"]')!;
+      expect(pane().querySelector(".m-stashpanel__name")!.textContent).toBe("Trade binder");
+      vi.mocked(getSharedStash).mockResolvedValueOnce({
+        share_name: "Rowan",
+        stash: { name: "Trade box", description: "Renamed." },
+        rows: [],
+        totals: { printings: 0, copies: 0, value_market: 0, value_low: 0 },
+      });
+      now += 31_000;
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      expect(getSharedStash).toHaveBeenLastCalledWith("stok-1");
+      expect(pane().querySelector(".m-stashpanel__name")!.textContent).toBe("Trade box");
+      expect(pane().querySelector(".m-stashpanel__desc")!.textContent).toBe("Renamed.");
+      vi.mocked(getSharedStash).mockRejectedValueOnce(new ShareResolveError("not_found", 404));
+      now += 31_000;
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      expect(screen.getByText("This shared stash is no longer available.")).toBeTruthy();
+      expect(document.querySelector(".m-vswitch")).toBeNull();
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

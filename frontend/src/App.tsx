@@ -239,6 +239,9 @@ function AppContent() {
     setShareName(name);
     saveShareSession({ token: resolvedToken, name, kind: "stash" });
   }, []);
+  /** A stash link found dead (first read or a later one): the pod drops
+   * the share item and shows My vault only. */
+  const handleStashGone = useCallback(() => setShareName(null), []);
 
   // Successful login updates `user` via onAuthStateChanged; close the modal
   // here rather than in the modal itself, so it closes regardless of *how*
@@ -411,7 +414,11 @@ function AppContent() {
           {shareToken && (
             <div style={{ display: view === "shared" ? "contents" : "none" }}>
               {shareKind === "stash" ? (
-                <SharedStashPage token={shareToken} onResolved={handleStashResolved} />
+                <SharedStashPage
+                  token={shareToken}
+                  onResolved={handleStashResolved}
+                  onGone={handleStashGone}
+                />
               ) : (
                 <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
               )}
