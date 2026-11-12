@@ -151,7 +151,9 @@ function Rail({
     >
       <div className="sp-rail__inner">
         <div className="sp-rail__head">
-          <h1 className="sp-rail__title">Stashes</h1>
+          <h1 className="sp-rail__title" data-tour="stashes-heading">
+            Stashes
+          </h1>
           <CardsValueKindToggle kind={priceKind} onChange={onPriceKind} />
           <button
             ref={foldRef}
@@ -538,7 +540,9 @@ export function StashesPane({
     return (
       <div className="cards-content sp-page">
         <div className="sp-empty">
-          <h1 className="sp-empty__title">Stashes</h1>
+          <h1 className="sp-empty__title" data-tour="stashes-heading">
+            Stashes
+          </h1>
           <p className="sp-empty__text">{STASH_COPY.empty}</p>
           <SWUButton size="sm" onClick={() => setCreating(true)}>
             New stash

@@ -65,6 +65,9 @@ function Tab({
       onClick={onClick}
       aria-current={on ? "page" : undefined}
       aria-expanded={expanded}
+      // The feature tour's target for Stashes, which live under Vault.
+      data-tour={icon === "vault" ? "nav-stashes" : undefined}
+      data-tour-place={icon === "vault" ? "above" : undefined}
     >
       <MIcon name={icon} size={24} />
       <span className="m-tab__label">{label}</span>
@@ -270,7 +273,13 @@ function VaultMenu({
   return (
     <>
       <div className="m-navmenu-scrim" onClick={() => onClose()} aria-hidden="true" />
-      <div className="m-navmenu" role="group" aria-label="Vault menu" ref={listRef}>
+      <div
+        className="m-navmenu"
+        role="group"
+        aria-label="Vault menu"
+        ref={listRef}
+        data-tour-busy=""
+      >
         <div className="m-navmenu__inner" style={maxH != null ? { maxHeight: maxH } : undefined}>
           <button
             type="button"

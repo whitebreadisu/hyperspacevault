@@ -44,6 +44,8 @@ import { CardParamBoot } from "./CardParamBoot";
 import { bootSignupParam, clearSignupParam } from "../utils/cardParam";
 import { Vault } from "./vault/Vault";
 import { StashesScreen } from "./stashes/StashesScreen";
+import { useTourPage } from "../tour/FeatureTour";
+import type { TourPage } from "../content/featureTours";
 import { StashScreen } from "./stashes/StashScreen";
 import "./mobile.css";
 import "./shell.css";
@@ -496,6 +498,21 @@ export function MobileApp() {
       )}
     </div>
   ) : null;
+
+  // The feature tour's page (App Spec §20): the card detail over the Vault,
+  // the own Vault, or the Stashes list; nothing under a layer, a dialog or a
+  // shared vault.
+  const tourPage: TourPage | null =
+    inShare || toolShown || acctLayer != null || authOpen || chooserOpen
+      ? null
+      : cardId != null
+        ? "card"
+        : key === "vault"
+          ? "collection"
+          : key === "stashes"
+            ? "stashes"
+            : null;
+  useTourPage(tourPage, inShare);
 
   // screen_viewed from the router, once per screen (not per param change).
   // Reaching More notes it for the Updates-row rule (useReleaseCue).

@@ -4,6 +4,8 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
+  FEATURE_TOUR_ACTIONS,
+  FEATURE_TOUR_PAGES,
   SCREEN_VIEWED_SCREENS,
   UPDATE_BANNER_ACTIONS,
   UPDATE_BANNER_SOURCES,
@@ -196,6 +198,7 @@ describe("S6-10 App Spec §22 lists every phone event and property", () => {
     check("add_cards_committed", ADJUST_METHODS);
     check("pad_keypad_toggled", PAD_KEYPAD_STATES);
     check("app_update_banner", [...UPDATE_BANNER_ACTIONS, ...UPDATE_BANNER_SOURCES]);
+    check("feature_tour", [...FEATURE_TOUR_ACTIONS, ...FEATURE_TOUR_PAGES]);
     // No exported array for these: listed beside the test.
     check("scan_decision", ["add", "details", "wrong_card", "pick"]);
     check("scan_recognised", ["paddle", "tesseract", "weak", "strong"]);

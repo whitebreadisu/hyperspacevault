@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test as setup } from "@playwright/test";
+import { FEATURE_TOURS } from "../../src/content/featureTours";
 
 // BL-279 WS-3 W3-06: sign the verification user in through the app's own
 // sign-in UI (phone account slot -> the shared AuthModal, as
@@ -28,6 +29,18 @@ setup("verify-setup sign in as the verification user", async ({ page }) => {
   await dialog.getByRole("button", { name: "Log In", exact: true }).click();
   await expect(page.locator(".m-acct__hit")).toBeVisible({ timeout: 20000 });
   await expect(dialog).toBeHidden();
+
+  // The verification user is a returning account, so a deployed non-prod
+  // build would show it the newest feature tour (App Spec §20) over the
+  // controls the journeys drive. Every tour is marked skipped in the saved
+  // state, through the app's own per-browser record.
+  await page.evaluate(
+    (versions) => {
+      const skipped = Object.fromEntries(versions.map((v) => [v, true]));
+      localStorage.setItem("swu.tour.skipped", JSON.stringify(skipped));
+    },
+    FEATURE_TOURS.map((t) => t.version)
+  );
 
   mkdirSync("e2e/.auth", { recursive: true });
   await page.context().storageState({ path: AUTH_FILE, indexedDB: true });

@@ -94,7 +94,9 @@ export function StashesScreen({
       <div className="m-scroll m-more__scroll">
         <header className="m-shell__head m-stashes__head">
           <span className="m-shell__bal" aria-hidden="true" />
-          <h1 className="m-shell__title">Stashes</h1>
+          <h1 className="m-shell__title" data-tour="stashes-heading">
+            Stashes
+          </h1>
           <span className="m-shell__bal" aria-hidden="true" />
         </header>
         {!ctx.ready && ctx.failed ? (
