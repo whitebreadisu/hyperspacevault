@@ -17,7 +17,7 @@ interface Props {
   /** Reports the viewer label ("<share name> · <stash name>") up to App for
    * the header pod, as SharedVaultPage reports the vault share's name. Takes
    * `token` first so App keeps its identity stable (see SharedVaultPage). */
-  onResolved: (token: string, name: string) => void;
+  onResolved: (token: string, name: string, shareName?: string) => void;
   /** The link is dead (404 on a read, first or later): App drops the pod's
    * share item, so the pod shows My vault only. Stable identity, as
    * onResolved. */
@@ -42,16 +42,21 @@ export function SharedStashPage({ token, onResolved, onGone }: Props) {
   const [view, setView] = useState<SharedStashView | null>(null);
   // The read in flight belongs to this token; a newer read supersedes it.
   const seq = useRef(0);
+  // The current effect's lifetime: false once it is cleaned up (unmount or a
+  // token change). Every read -- the first and each refresh -- checks it, so
+  // a slow answer never lands on an unmounted viewer or a newer token.
+  const alive = useRef<() => boolean>(() => false);
 
   const read = useCallback(
-    (first: boolean, live: () => boolean = () => true) => {
+    (first: boolean) => {
       const mine = ++seq.current;
+      const live = alive.current;
       if (first) setStatus("loading");
       getSharedStash(token)
         .then((data) => {
           if (mine !== seq.current || !live()) return;
           setView(data);
-          onResolved(token, stashShareLabel(data));
+          onResolved(token, stashShareLabel(data), data.share_name);
           setStatus("ready");
           if (first) capture("share_link_viewed", {});
         })
@@ -75,8 +80,9 @@ export function SharedStashPage({ token, onResolved, onGone }: Props) {
 
   useEffect(() => {
     let live = true;
+    alive.current = () => live;
     markRead();
-    read(true, () => live);
+    read(true);
     return () => {
       live = false;
     };

@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("posthog-js", () => ({
-  default: { init: vi.fn(), capture: vi.fn(), register: vi.fn() },
+  default: { init: vi.fn(), capture: vi.fn(), register: vi.fn(), register_once: vi.fn() },
 }));
 
 import posthog from "posthog-js";
@@ -21,7 +21,9 @@ async function initOptions(): Promise<Record<string, unknown>> {
 
 // PORT (BL-209 slice c): before_send joined the usual options (the share-token
 // redaction, redactShare.ts); the bootstrap rule is unchanged.
+// PORT (r2): advanced_disable_feature_flags joined them (no /flags request).
 const USUAL_KEYS = [
+  "advanced_disable_feature_flags",
   "api_host",
   "before_send",
   "autocapture",
@@ -38,6 +40,9 @@ describe("posthog bootstrap from the public pages' id", () => {
     vi.stubEnv("PROD", true);
     vi.resetModules();
     vi.mocked(posthog.init).mockClear();
+    vi.mocked(posthog.register_once).mockClear();
+    window.sessionStorage.clear();
+    window.history.replaceState(null, "", "/");
     window.localStorage.clear();
   });
   afterEach(() => {
@@ -83,5 +88,57 @@ describe("posthog bootstrap from the public pages' id", () => {
       });
       expect(JSON.stringify(out)).not.toContain("tok-SECRET");
     }
+  });
+
+  it("no /flags request: feature flags are off (the remote config load stays on)", async () => {
+    const opts = await initOptions();
+    expect(opts.advanced_disable_feature_flags).toBe(true);
+    // advanced_disable_flags would also stop the remote config session replay needs.
+    expect(opts).not.toHaveProperty("advanced_disable_flags");
+    expect(opts).not.toHaveProperty("advanced_disable_decide");
+  });
+
+  it("scrubs a persisted initial person info holding a share URL before init", async () => {
+    window.localStorage.setItem(
+      POSTHOG_STORE_KEY,
+      JSON.stringify({
+        distinct_id: "ph-id",
+        $initial_person_info: {
+          r: "$direct",
+          u: "https://www.hyperspacevault.com/shared/stash/tok-SECRET",
+        },
+      })
+    );
+    await initOptions();
+    const stored = window.localStorage.getItem(POSTHOG_STORE_KEY)!;
+    expect(stored).not.toContain("tok-SECRET");
+    expect(JSON.parse(stored).$initial_person_info.u).toBe(
+      "https://www.hyperspacevault.com/shared/stash/:token"
+    );
+  });
+
+  it("on a share page, records the first-page info with the token redacted", async () => {
+    window.history.replaceState(null, "", "/shared/stash/tok-SECRET#/vault");
+    await initOptions();
+    expect(posthog.register_once).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(posthog.register_once).mock.calls[0][0] as Record<string, unknown>;
+    expect(JSON.stringify(arg)).not.toContain("tok-SECRET");
+    expect(arg).toEqual({
+      $initial_person_info: {
+        r: "$direct",
+        u: "https://www.hyperspacevault.com/shared/stash/:token#/vault",
+      },
+    });
+  });
+
+  it("before_send also redacts a session-known token on another page", async () => {
+    window.sessionStorage.setItem(
+      "swu.share.session",
+      JSON.stringify({ token: "tok-SECRET", name: "Rowan", kind: "vault" })
+    );
+    const opts = await initOptions();
+    const send = opts.before_send as (cr: unknown) => unknown;
+    const out = send({ uuid: "u", event: "$autocapture", properties: { $el_text: "tok-SECRET" } });
+    expect(JSON.stringify(out)).not.toContain("tok-SECRET");
   });
 });

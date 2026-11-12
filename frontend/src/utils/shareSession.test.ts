@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadShareSession, saveShareSession } from "./shareSession";
+import { clearShareSession, loadShareSession, saveShareSession } from "./shareSession";
 
 // BL-205: unit coverage for the share-session sessionStorage util, mirroring
 // releaseNotesSeen.test.ts's "last-seen persistence" describe block shape
@@ -76,6 +76,14 @@ describe("share session persistence (loadShareSession/saveShareSession)", () => 
       kind: "stash",
     });
     window.sessionStorage.setItem(KEY, JSON.stringify({ token: "t", name: "n", kind: "list" }));
+    expect(loadShareSession()).toBeNull();
+  });
+
+  it("clearShareSession drops only that token's session", () => {
+    saveShareSession({ token: "tok-2", name: "Newer" });
+    clearShareSession("tok-1");
+    expect(loadShareSession()).toEqual({ token: "tok-2", name: "Newer" });
+    clearShareSession("tok-2");
     expect(loadShareSession()).toBeNull();
   });
 });

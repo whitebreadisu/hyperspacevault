@@ -65,3 +65,14 @@ export function saveShareSession(session: ShareSession): void {
     /* best-effort, same as saveLastSeenKey's own store */
   }
 }
+
+/** Drops the tab's session when it is `token`'s (a link found dead): a
+ * reload then neither restores the dead link nor shows its name. A newer
+ * session (another link opened since) is left alone. Best-effort. */
+export function clearShareSession(token: string): void {
+  try {
+    if (loadShareSession()?.token === token) window.sessionStorage.removeItem(SHARE_SESSION_KEY);
+  } catch {
+    /* best-effort, as saveShareSession */
+  }
+}

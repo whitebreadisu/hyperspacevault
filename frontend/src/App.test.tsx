@@ -209,15 +209,18 @@ vi.mock("./screens/shared/SharedStashPage", () => ({
   SharedStashPage: ({
     token,
     onResolved,
+    onGone,
   }: {
     token: string;
-    onResolved: (token: string, name: string) => void;
+    onResolved: (token: string, name: string, shareName?: string) => void;
+    onGone?: (token: string) => void;
   }) => (
     <div>
       <p>shared-stash-page:{token}</p>
-      <button onClick={() => onResolved(token, `Rowan · Stash ${token}`)}>
+      <button onClick={() => onResolved(token, `Rowan · Stash ${token}`, "Rowan")}>
         trigger-stash-resolved
       </button>
+      <button onClick={() => onGone?.(token)}>trigger-stash-gone</button>
     </div>
   ),
 }));
@@ -1115,7 +1118,13 @@ describe("App shared-vault pane (BL-205)", () => {
       token: "stok-1",
       name: "Rowan · Stash stok-1",
       kind: "stash",
+      shareName: "Rowan",
     });
+
+    // Found dead (a later read's 404): the pod drops the item, the tab forgets it.
+    fireEvent.click(screen.getByText("trigger-stash-gone"));
+    expect(screen.queryByRole("button", { name: "Rowan · Stash stok-1" })).not.toBeInTheDocument();
+    expect(loadShareSession()).toBeNull();
   });
 
   it("a vault link opened over a stored stash session replaces it cleanly (vault pane, vault session)", () => {

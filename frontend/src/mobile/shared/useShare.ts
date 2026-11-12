@@ -6,7 +6,7 @@ import {
   stashShareLabel,
 } from "../../api/sharedView";
 import type { SharedStashView } from "../../api/sharedView";
-import { loadShareSession, saveShareSession } from "../../utils/shareSession";
+import { clearShareSession, loadShareSession, saveShareSession } from "../../utils/shareSession";
 import { parseShareRoute } from "../../utils/shareRoute";
 import type { ShareKind } from "../../utils/shareRoute";
 import { capturePhone } from "../phoneAnalytics";
@@ -82,6 +82,10 @@ export function useShare(): ShareState {
   const [shown, setShownState] = useState(init.shown);
   // The read in flight; a newer read (or unmount) supersedes it.
   const seq = useRef(0);
+  // The current effect's lifetime: false once it is cleaned up (unmount or a
+  // token change). Every read -- the first and each refresh -- checks it, so
+  // a slow answer never lands on an unmounted viewer or a newer token.
+  const alive = useRef<() => boolean>(() => false);
 
   // One read of the token: the resolve for a vault link, the stash read for
   // a stash link. A stash link reads again when the viewer returns to the
@@ -89,9 +93,10 @@ export function useShare(): ShareState {
   // (revoked, or the stash deleted) changes the state, to the dead link,
   // which drops the name so the bar shows the plain Vault tab.
   const read = useCallback(
-    (first: boolean, live: () => boolean = () => true) => {
+    (first: boolean) => {
       if (!token) return;
       const mine = ++seq.current;
+      const live = alive.current;
       if (first) setStatus("loading");
       const req: Promise<{
         name: string;
@@ -133,6 +138,7 @@ export function useShare(): ShareState {
             setStash(null);
             setName(null);
             setShareName(null);
+            clearShareSession(token);
           }
         });
     },
@@ -146,8 +152,9 @@ export function useShare(): ShareState {
   useEffect(() => {
     if (!token) return undefined;
     let live = true;
+    alive.current = () => live;
     markRead();
-    read(true, () => live);
+    read(true);
     return () => {
       live = false;
     };

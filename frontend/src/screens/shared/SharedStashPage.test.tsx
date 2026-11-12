@@ -138,7 +138,7 @@ describe("SharedStashPage (BL-209 slice c)", () => {
     );
     expect(container.querySelector(".ss-eyebrow")!.textContent).toBe("Rowan's stash · Read only");
     expect(screen.getByText("Doubles for locals.")).toBeInTheDocument();
-    expect(onResolved).toHaveBeenCalledWith("stok-1", "Rowan · Trade binder");
+    expect(onResolved).toHaveBeenCalledWith("stok-1", "Rowan · Trade binder", "Rowan");
     // The stash read is the only share read: no resolve, no quantities.
     expect(getSharedStash).toHaveBeenCalledWith("stok-1");
     expect(resolveShare).not.toHaveBeenCalled();
@@ -272,7 +272,7 @@ describe("SharedStashPage (BL-209 slice c)", () => {
     });
     await waitFor(() => expect(screen.getByRole("heading", { name: "Trade box" })).toBeVisible());
     expect(container.querySelectorAll(".sp-table tbody tr")).toHaveLength(1);
-    expect(onResolved).toHaveBeenCalledWith("stok-2", "Rowan · Trade box");
+    expect(onResolved).toHaveBeenCalledWith("stok-2", "Rowan · Trade box", "Rowan");
   });
 
   describe("live updates: a re-read when the viewer returns to the tab", () => {
@@ -326,7 +326,7 @@ describe("SharedStashPage (BL-209 slice c)", () => {
         "aria-pressed",
         "true"
       );
-      expect(onResolved).toHaveBeenLastCalledWith("stok-1", "Rowan · Trade box");
+      expect(onResolved).toHaveBeenLastCalledWith("stok-1", "Rowan · Trade box", "Rowan");
     });
 
     it("same token: a revocation (404) turns the open viewer into the dead link", async () => {
@@ -347,6 +347,66 @@ describe("SharedStashPage (BL-209 slice c)", () => {
       );
       expect(utils.container.querySelector(".ss-page")).toBeNull();
       expect(onGone).toHaveBeenCalledWith("stok-1");
+    });
+
+    it("a slow refresh answering after unmount reports nothing", async () => {
+      getSharedStash.mockResolvedValue(view());
+      const onResolved = vi.fn();
+      const onGone = vi.fn();
+      let utils!: ReturnType<typeof render>;
+      await act(async () => {
+        utils = render(<SharedStashPage token="stok-1" onResolved={onResolved} onGone={onGone} />);
+      });
+      await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1));
+      let answer!: (v: SharedStashView) => void;
+      let fail!: (e: unknown) => void;
+      getSharedStash.mockImplementationOnce(
+        () =>
+          new Promise<SharedStashView>((res, rej) => {
+            answer = res;
+            fail = rej;
+          })
+      );
+      now += 31_000;
+      await returnToTab("focus");
+      utils.unmount();
+      await act(async () => {
+        answer(view({ stash: { name: "Late", description: null } }));
+      });
+      expect(onResolved).toHaveBeenCalledTimes(1);
+      void fail;
+      expect(onGone).not.toHaveBeenCalled();
+    });
+
+    it("a slow refresh of the old token answering after a token change does nothing", async () => {
+      getSharedStash.mockResolvedValue(view());
+      const onResolved = vi.fn();
+      const onGone = vi.fn();
+      let utils!: ReturnType<typeof render>;
+      await act(async () => {
+        utils = render(<SharedStashPage token="stok-1" onResolved={onResolved} onGone={onGone} />);
+      });
+      await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1));
+      let fail!: (e: unknown) => void;
+      getSharedStash.mockImplementationOnce(
+        () =>
+          new Promise<SharedStashView>((_res, rej) => {
+            fail = rej;
+          })
+      );
+      now += 31_000;
+      await returnToTab("focus");
+      getSharedStash.mockResolvedValue(view({ stash: { name: "Second", description: null } }));
+      await act(async () => {
+        utils.rerender(<SharedStashPage token="stok-2" onResolved={onResolved} onGone={onGone} />);
+      });
+      await waitFor(() => expect(screen.getByRole("heading", { name: "Second" })).toBeVisible());
+      // The old token's refresh now answers 404: no dead link, no onGone.
+      await act(async () => {
+        fail(new ShareResolveError("not_found", 404));
+      });
+      expect(onGone).not.toHaveBeenCalled();
+      expect(screen.getByRole("heading", { name: "Second" })).toBeVisible();
     });
 
     it("a later 429 or other failure keeps what is shown", async () => {

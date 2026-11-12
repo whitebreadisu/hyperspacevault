@@ -338,4 +338,43 @@ describe("BL-209 stash links on the phone", () => {
       clock.mockRestore();
     }
   });
+
+  it("a slow refresh answering after unmount writes nothing (no session, no state)", async () => {
+    let now = 9_000_000;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+    try {
+      const r = await bootShared("/shared/stash/stok-1");
+      let answer!: (v: Awaited<ReturnType<typeof getSharedStash>>) => void;
+      vi.mocked(getSharedStash).mockImplementationOnce(
+        () =>
+          new Promise((res) => {
+            answer = res;
+          })
+      );
+      now += 31_000;
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      r.unmount();
+      window.sessionStorage.clear();
+      await act(async () => {
+        answer({
+          share_name: "Rowan",
+          stash: { name: "Late", description: null },
+          rows: [],
+          totals: { printings: 0, copies: 0, value_market: 0, value_low: 0 },
+        });
+      });
+      expect(loadShareSession()).toBeNull();
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("a dead stash link forgets the tab's session", async () => {
+    vi.mocked(getSharedStash).mockRejectedValueOnce(new ShareResolveError("not_found", 404));
+    saveShareSession({ token: "dead", name: "Rowan · Gone", kind: "stash", shareName: "Rowan" });
+    await bootShared("/shared/stash/dead");
+    expect(loadShareSession()).toBeNull();
+  });
 });

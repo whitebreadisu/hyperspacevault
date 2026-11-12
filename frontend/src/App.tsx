@@ -24,7 +24,7 @@ import { SharedVaultPage } from "./screens/shared/SharedVaultPage";
 import { SharedStashPage } from "./screens/shared/SharedStashPage";
 import { RELEASE_NOTES } from "./content/releaseNotes";
 import { hasUnread, latestEntryKey, saveLastSeenKey } from "./utils/releaseNotesSeen";
-import { loadShareSession, saveShareSession } from "./utils/shareSession";
+import { clearShareSession, loadShareSession, saveShareSession } from "./utils/shareSession";
 import { parseShareRoute } from "./utils/shareRoute";
 import type { ShareKind } from "./utils/shareRoute";
 import { bootSignupParam, clearSignupParam, parseCardParam } from "./utils/cardParam";
@@ -235,13 +235,19 @@ function AppContent() {
   }, []);
   /** SharedStashPage's counterpart: the label is "<share name> · <stash
    * name>" and the session remembers the link is a stash link. */
-  const handleStashResolved = useCallback((resolvedToken: string, name: string) => {
-    setShareName(name);
-    saveShareSession({ token: resolvedToken, name, kind: "stash" });
-  }, []);
+  const handleStashResolved = useCallback(
+    (resolvedToken: string, name: string, linkShareName?: string) => {
+      setShareName(name);
+      saveShareSession({ token: resolvedToken, name, kind: "stash", shareName: linkShareName });
+    },
+    []
+  );
   /** A stash link found dead (first read or a later one): the pod drops
-   * the share item and shows My vault only. */
-  const handleStashGone = useCallback(() => setShareName(null), []);
+   * the share item and shows My vault only, and the tab forgets the link. */
+  const handleStashGone = useCallback((goneToken: string) => {
+    setShareName(null);
+    clearShareSession(goneToken);
+  }, []);
 
   // Successful login updates `user` via onAuthStateChanged; close the modal
   // here rather than in the modal itself, so it closes regardless of *how*
