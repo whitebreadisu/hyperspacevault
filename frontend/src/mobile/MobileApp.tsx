@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import { UpdateBanner } from "../components/UpdateBanner";
@@ -19,6 +19,9 @@ import { SheetHost } from "./Sheet";
 import { MobileNav } from "./MobileNav";
 import type { NavShare } from "./MobileNav";
 import { SharedStatus } from "./shared/SharedStatus";
+import { SharedStashScreen } from "./shared/SharedStashScreen";
+import { stashQuantities } from "../api/sharedView";
+import type { SharedStashView } from "../api/sharedView";
 import { useShare } from "./shared/useShare";
 import type { ScreenViewedScreen } from "../analytics/analytics";
 import { phoneScreenViewed } from "./phoneAnalytics";
@@ -117,11 +120,22 @@ const BLOCKED_IN_SHARE = new Set([
  * share has resolved (an invalid / rate-limited token or an unswitched
  * restored session downloads nothing, as desktop mounts CardsPage
  * only when ready); read by the shared pane, its card layer and its
- * Owned-by-finish host. */
-function ShareScope({ token, children }: { token: string; children: ReactNode }) {
-  const value = useVaultDataSource(false, token);
+ * Owned-by-finish host. A stash link's scope (`stash` set) merges the
+ * stash read's in-stash counts instead (no quantities or limits read: a
+ * stash token has neither, desktop SharedStashPage). */
+function ShareScope({
+  token,
+  stash,
+  children,
+}: {
+  token: string;
+  stash: SharedStashView | null;
+  children: ReactNode;
+}) {
+  const counts = useMemo(() => (stash ? stashQuantities(stash) : null), [stash]);
+  const value = useVaultDataSource(false, counts ? null : token, counts);
   return (
-    <LimitsProvider isAuthenticated={false} shareToken={token}>
+    <LimitsProvider isAuthenticated={false} shareToken={counts ? undefined : token}>
       {/* nothing under a share reads or fetches stash data. */}
       <StashProvider enabled={false}>
         <VaultDataValue value={value}>{children}</VaultDataValue>
@@ -166,6 +180,23 @@ function useRehydrateOnPageShow(): void {
     window.addEventListener("pageshow", on);
     return () => window.removeEventListener("pageshow", on);
   }, []);
+}
+
+/** A stash link's spoken name in the bar ("Rowan's stash Trade binder"),
+ * from the read, else from the stored "<share> · <stash>" label; undefined
+ * for a vault link (the bar's default, "<name>'s vault"). */
+function stashSpoken(share: {
+  kind: string;
+  stash: SharedStashView | null;
+  name: string | null;
+  shareName: string | null;
+}): string | undefined {
+  if (share.kind !== "stash") return undefined;
+  if (share.stash) return `${share.stash.share_name}'s stash ${share.stash.stash.name}`;
+  const prefix = share.shareName ? `${share.shareName} · ` : null;
+  if (prefix && share.name?.startsWith(prefix))
+    return `${share.shareName}'s stash ${share.name.slice(prefix.length)}`;
+  return share.name ?? undefined;
 }
 
 export function MobileApp() {
@@ -233,8 +264,13 @@ export function MobileApp() {
     if (window.location.hash.includes("?")) go("#/vault", true);
     setShareShown(shared);
   };
+  // A stash link's bar: signed out, the amber chip carries the share name;
+  // signed in, the switch's share face reads "<share name> · <stash name>".
+  // The same while the read is in flight (a restored session's stored names)
+  // as after it; a dead link has no name, so the bar shows the plain tab.
+  const navName = share.kind === "stash" && !user ? (share.shareName ?? share.name) : share.name;
   const navShare: NavShare | null = share.token
-    ? { name: share.name, shown: inShare, onPick: pickVault }
+    ? { name: navName, spoken: stashSpoken(share), shown: inShare, onPick: pickVault }
     : null;
 
   const account = (
@@ -482,7 +518,17 @@ export function MobileApp() {
       aria-hidden={inShare ? undefined : true}
       inert={!inShare || cardId != null || acctLayer != null}
     >
-      {share.status === "ready" ? (
+      {share.status === "ready" && share.stash ? (
+        <SharedStashScreen
+          view={share.stash}
+          account={account}
+          unread={cue.unread}
+          onOpenChooser={openChooser}
+          onOpenFeedback={() => go("#/more/feedback")}
+          onSearchMode={setSearchMode}
+          onRequestSignIn={openSignIn}
+        />
+      ) : share.status === "ready" ? (
         <Vault
           params={inShare ? vaultParams : sharedParams}
           account={account}
@@ -494,7 +540,7 @@ export function MobileApp() {
           collectionLabel={`${share.name ?? ""}'s collection`}
         />
       ) : (
-        <SharedStatus status={share.status} account={account} />
+        <SharedStatus status={share.status} account={account} kind={share.kind} />
       )}
     </div>
   ) : null;
@@ -577,7 +623,7 @@ export function MobileApp() {
             </div>
             {share.token && share.status !== "ready" ? sharedPane : null}
             {share.token && share.status === "ready" ? (
-              <ShareScope token={share.token}>
+              <ShareScope token={share.token} stash={share.stash}>
                 {sharedPane}
                 {inShare && cardId != null ? (
                   <CardDetail

@@ -58,6 +58,8 @@ export interface CardPageProps {
   onChartEngage?: () => void;
   /** A shared vault's card (×N, no stepper). */
   readOnly?: boolean;
+  /** A stash link's card: the plate is the in-stash count alone. */
+  stashCount?: boolean;
   /** Public card page (design note §4.0): the sign-up plate (row 10), the
    * 320 px art (row 9), "SOR 005" and the Aspects row (rows 5, 6), the
    * base set's real name on its printings group (row 4) and the page's own
@@ -118,6 +120,7 @@ export function CardPage(p: CardPageProps) {
           priceKind={p.priceKind}
           onPriceKind={p.onPriceKind}
           onOpenFinish={ghost ? undefined : p.onOpenFinish}
+          stashCount={p.stashCount}
           plateSlot={p.plateSlot}
           imageMode={p.imageMode}
           stashBlock={p.stashBlock}

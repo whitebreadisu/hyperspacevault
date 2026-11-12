@@ -155,12 +155,25 @@
   line-height: 1.5;
   color: var(--color-text-muted);
 }
+/* A dead link (revoked, unknown, deleted stash): the sentence in label type. */
+.m-app .m-shared-status__text--dead {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+}
 
 /* ── The parked vault: the other vault stays mounted (its filters,
- * scope and scroll survive), out of sight and out of reach. */
+ * scope and scroll survive), out of sight and out of reach. Opacity as well
+ * as visibility: a descendant that sets `visibility: visible` (the vault
+ * header's panel, header.css) would otherwise show through over the shown
+ * pane -- the empty collection panel over a dead link's sentence. */
 .m-app .m-app__screen--parked {
   position: absolute;
   inset: 0;
   visibility: hidden;
+  opacity: 0;
   pointer-events: none;
 }

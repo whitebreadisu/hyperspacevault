@@ -46,6 +46,9 @@ interface InventoryPlateProps {
    * viewer sees the OWNER's real quantity, not a "sign in" prompt. Defaults
    * to false (interactive stepper). */
   readOnly?: boolean;
+  /** Read-only only: "stash" (a stash link's viewer) labels the count IN
+   * STASH and shows it alone -- the stash's count has no keep limit. */
+  countKind?: "owned" | "stash";
   /** the lowest owned count `-` may reach (the printing's stashed
    * copies). At the floor (above 0) `-` is aria-disabled with the hint. */
   decFloor?: number;
@@ -79,11 +82,13 @@ function InventoryPlate({
   onIncrement,
   onDecrement,
   readOnly = false,
+  countKind = "owned",
   decFloor = 0,
   stashSlot,
 }: InventoryPlateProps) {
+  const inStash = readOnly && countKind === "stash";
   const bucket = limitBucketOf(variant.finish, variant.channel);
-  const rawLimit = effectiveLimit(limits, typeCategory, bucket);
+  const rawLimit = inStash ? null : effectiveLimit(limits, typeCategory, bucket);
   const cap = enforcementCap(limits, typeCategory, bucket);
   const qty = variant.quantity;
 
@@ -154,7 +159,9 @@ function InventoryPlate({
         )}
         <div className="cp-plate__readout">
           <div className="cp-plate__readout-row">
-            <span className="cp-plate__owned-label">OWNED — {label}</span>
+            <span className="cp-plate__owned-label">
+              {inStash ? "IN STASH" : "OWNED"} — {label}
+            </span>
             <span
               className={`cp-plate__count${pastLimit ? " cp-plate__count--at-limit" : ""}${
                 softOverLimit ? " cp-plate__count--over-limit" : ""
@@ -410,6 +417,7 @@ export function useInventoryMutation(
 export function CardPopupInventoryControls({
   isAuthenticated,
   readOnly = false,
+  countKind = "owned",
   variant,
   typeCategory,
   limits,
@@ -427,6 +435,8 @@ export function CardPopupInventoryControls({
    * `isAuthenticated=true` here, see CardsPage's `hasData` -- readOnly is what
    * then keeps the stepper from being interactive). Defaults to false. */
   readOnly?: boolean;
+  /** Forwarded to InventoryPlate. */
+  countKind?: "owned" | "stash";
   variant: VariantDetail;
   typeCategory: TypeCategory;
   limits: LimitsMatrix | null;
@@ -466,6 +476,7 @@ export function CardPopupInventoryControls({
       onIncrement={onIncrement}
       onDecrement={onDecrement}
       readOnly={readOnly}
+      countKind={countKind}
       decFloor={readOnly ? 0 : decFloor}
       stashSlot={readOnly ? null : stashSlot}
     />

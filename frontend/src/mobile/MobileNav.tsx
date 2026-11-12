@@ -39,6 +39,9 @@ import type { Route } from "./router";
 export interface NavShare {
   /** The share's owner-chosen name (desktop's header tab text); null while unknown. */
   name: string | null;
+  /** The share's spoken name where it is picked (default "<name>'s vault");
+   * a stash link's is "<share name>'s stash <stash name>". */
+  spoken?: string;
   /** The shared vault is the vault shown. */
   shown: boolean;
   onPick: (shared: boolean) => void;
@@ -196,7 +199,7 @@ function VaultSwitch({
             className="m-vswitch__share"
             onClick={() => pick(true)}
             aria-pressed={share.shown}
-            aria-label={`${share.name}'s vault`}
+            aria-label={share.spoken ?? `${share.name}'s vault`}
           >
             <MIcon name="vault" size={22} />
             <span className="m-vswitch__full">{share.name}</span>
@@ -301,7 +304,7 @@ function VaultMenu({
             <button
               type="button"
               className="m-navmenu__head m-navmenu__share"
-              aria-label={`${share.name}'s vault`}
+              aria-label={share.spoken ?? `${share.name}'s vault`}
               onClick={() => {
                 onClose();
                 share.onPick(true);

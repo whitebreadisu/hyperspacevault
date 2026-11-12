@@ -8,7 +8,20 @@
 // lockstep with it.
 import posthog from "posthog-js";
 import { isPhoneLayout, watchPhoneLayout } from "../mobile/useIsPhone";
-import { ANALYTICS_HOSTNAMES, POSTHOG_TOKEN, RELAY_PATH, publicBootstrap } from "./posthogConfig";
+import {
+  ANALYTICS_HOSTNAMES,
+  POSTHOG_STORE_KEY,
+  POSTHOG_TOKEN,
+  RELAY_PATH,
+  publicBootstrap,
+} from "./posthogConfig";
+import {
+  knownShareTokens,
+  redactShareEvent,
+  redactShareText,
+  scrubStoredShareTokens,
+} from "./redactShare";
+import { loadShareSession } from "../utils/shareSession";
 
 // The v1 event registry. Adding an event = extend this union AND the App
 // Spec section in the same PR. Names are permanent (renames orphan history);
@@ -159,6 +172,40 @@ function localStore(): Storage | null {
   }
 }
 
+function sessionStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The share tokens this tab knows right now (the page's, the session's).
+ * Never throws: on any failure the list is empty and redaction falls back
+ * to the share-path patterns alone. */
+function shareTokens(): string[] {
+  try {
+    return knownShareTokens(window.location.pathname, loadShareSession()?.token ?? null);
+  } catch {
+    return [];
+  }
+}
+
+/** redactShareEvent, never throwing: if redaction with the known tokens
+ * fails, it is retried with the path patterns only; if that fails too the
+ * event is dropped, never sent unredacted. */
+function safeRedact<E extends { event: string }>(cr: E | null): E | null {
+  try {
+    return redactShareEvent(cr, shareTokens());
+  } catch {
+    try {
+      return redactShareEvent(cr);
+    } catch {
+      return null;
+    }
+  }
+}
+
 export function initAnalytics(): void {
   if (initialized) return;
   if (!import.meta.env.PROD) return;
@@ -167,6 +214,14 @@ export function initAnalytics(): void {
   // A first visit that arrived through a public card page starts from that
   // page's anonymous id; every other init is exactly as before.
   const bootstrap = publicBootstrap(localStore());
+  // posthog-js keeps the first page's raw URL ($initial_person_info) for good;
+  // a share page may have been that page. Clean what it stored before it
+  // loads it.
+  try {
+    scrubStoredShareTokens(POSTHOG_STORE_KEY, [localStore(), sessionStore()], shareTokens());
+  } catch {
+    /* never stops init; events are still redacted by before_send */
+  }
   posthog.init(POSTHOG_TOKEN, {
     // First-party path: same-origin through the Hosting /api/** rewrite to
     // the backend relay (app/routers/relay.py). Adblock-resilience rider.
@@ -188,8 +243,35 @@ export function initAnalytics(): void {
       // Masking rider: every input masked in replay, not just passwords.
       maskAllInputs: true,
     },
+    // A share link's token never leaves the browser: every URL-bearing
+    // property is redacted to `/shared/:token` (redactShare.ts).
+    before_send: (cr) => safeRedact(cr),
+    // No heatmaps: nothing in the app uses them, and posthog-js keys their
+    // data by the page URL (redacted by key too, belt and braces).
+    capture_heatmaps: false,
+    // No /flags request at all: the app uses no feature flags, and that
+    // request carries the persisted $initial_* person properties outside
+    // before_send. (advanced_disable_flags would also stop the remote
+    // config load, which session replay needs to start.)
+    advanced_disable_feature_flags: true,
     ...(bootstrap ? { bootstrap } : {}),
   });
+  // On a share page, record the first-page info posthog-js would record on
+  // its first capture -- with the token redacted. Its own write is
+  // write-once, so this one stands.
+  try {
+    const tokens = shareTokens();
+    if (tokens.length && window.location.pathname.startsWith("/shared/")) {
+      posthog.register_once({
+        $initial_person_info: {
+          r: redactShareText(document.referrer || "$direct", tokens).substring(0, 1000),
+          u: redactShareText(window.location.href, tokens).substring(0, 1000),
+        },
+      });
+    }
+  } catch {
+    /* never stops init; before_send still redacts the $initial_* values */
+  }
   posthog.register({ app_version: __APP_VERSION__ });
   registerLayout();
   initialized = true;

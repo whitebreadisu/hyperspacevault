@@ -3,8 +3,13 @@ import {
   resolveShare,
   getSharedQuantities,
   getSharedLimits,
+  getSharedStash,
   ShareResolveError,
+  stashQuantities,
+  stashShareLabel,
+  stashShareUrl,
 } from "./sharedView";
+import { parseShareRoute } from "../utils/shareRoute";
 
 // BL-205: this module intentionally uses plain `fetch`, never authedFetch --
 // §19.1's whole point is that these three endpoints are the platform's first
@@ -141,5 +146,62 @@ describe("getSharedLimits", () => {
       name: "ApiError",
       status: 404,
     });
+  });
+});
+
+// BL-209 slice (c): a stash link's read, its route and its quantities.
+describe("stash links (getSharedStash, stashShareUrl, stashQuantities)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const VIEW = {
+    share_name: "Rowan",
+    stash: { name: "Trade binder", description: null },
+    rows: [
+      { variant_id: 11, quantity: 2, stashed_at: "2026-11-01T00:00:00Z", market: 1, low: 0.5 },
+      { variant_id: 12, quantity: 0, stashed_at: "2026-11-02T00:00:00Z", market: null, low: null },
+    ],
+    totals: { printings: 2, copies: 2, value_market: 2, value_low: 1 },
+  };
+
+  it("GETs /api/shared/{token}/stash with no Authorization header", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(VIEW));
+    expect(await getSharedStash("stok/1")).toEqual(VIEW);
+    expect(fetchSpy).toHaveBeenCalledWith("/api/shared/stok%2F1/stash");
+    expect(fetchSpy.mock.calls[0][1]).toBeUndefined();
+  });
+
+  it("maps 404 / 429 (with Retry-After) / other to the resolve error codes", async () => {
+    const spy = vi.spyOn(globalThis, "fetch");
+    spy.mockResolvedValueOnce(jsonResponse({ detail: "Not found" }, 404));
+    await expect(getSharedStash("x")).rejects.toMatchObject({ code: "not_found", status: 404 });
+    spy.mockResolvedValueOnce(jsonResponse({}, 429, { "Retry-After": "30" }));
+    await expect(getSharedStash("x")).rejects.toMatchObject({
+      code: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+    spy.mockResolvedValueOnce(jsonResponse({}, 500));
+    const err = await getSharedStash("x").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ShareResolveError);
+    expect(err).toMatchObject({ code: "unknown" });
+  });
+
+  it("builds /shared/stash/{token} links that parse back to the same token", () => {
+    for (const token of ["abc_DEF-123", "a/b c%"]) {
+      const url = stashShareUrl(token, "https://www.example.test");
+      expect(url.startsWith("https://www.example.test/shared/stash/")).toBe(true);
+      expect(parseShareRoute(new URL(url).pathname)).toEqual({ kind: "stash", token });
+    }
+    // Default origin: this page's own.
+    expect(stashShareUrl("t1")).toBe(`${window.location.origin}/shared/stash/t1`);
+  });
+
+  it("stashQuantities maps each printing to its in-stash count (zero rows dropped)", () => {
+    expect(stashQuantities(VIEW)).toEqual({ 11: 2 });
+  });
+
+  it("stashShareLabel is '<share name> · <stash name>'", () => {
+    expect(stashShareLabel(VIEW)).toBe("Rowan · Trade binder");
   });
 });

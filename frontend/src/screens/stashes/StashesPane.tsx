@@ -249,7 +249,7 @@ function RailTab({
 
 /** A Vault collection tile (InventorySummary's `inv-summary__block`). Not
  * clickable here, so it keeps its resting ring on hover (sp-stat). */
-function StatTile({
+export function StatTile({
   label,
   value,
   sub,

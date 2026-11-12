@@ -34,6 +34,18 @@ export const STASH_COPY = {
   deleteFine: "You still own every copy. Only the stash and its name and description are deleted.",
 };
 
+/** A stash link's viewer copy (App Spec §19.1), both layouts. The empty
+ * sentence carries no hint about card details (that is owner copy). */
+export const SHARED_STASH_COPY = {
+  eyebrow: (shareName: string) => `${shareName}'s stash`,
+  readOnly: "Read only",
+  zero: (name: string) => `${name} has no cards right now.`,
+  loading: "Loading shared stash…",
+  rateLimited:
+    "This shared stash is getting a lot of traffic right now — please try again in a moment.",
+  invalid: "This shared stash is no longer available.",
+};
+
 export interface StashPrinting {
   card: InventoryCard;
   variant: InventoryVariant;

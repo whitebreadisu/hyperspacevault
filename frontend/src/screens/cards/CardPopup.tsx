@@ -104,6 +104,10 @@ interface Props {
    * Undefined = normal owner/anonymous behavior, response quantities
    * untouched. */
   quantityOverrides?: Record<number, number>;
+  /** What the read-only count is: "owned" (default) or, for a stash link's
+   * viewer, "stash" -- the plate then reads IN STASH with the count alone
+   * (no keep-limit fraction or bar). */
+  countKind?: "owned" | "stash";
   /** code -> full set name, built from getSets() -- already fetched by
    * CardsPage for VariantsTooltip, reused here rather than re-fetching. */
   setNameByCode: Record<string, string>;
@@ -141,6 +145,7 @@ export function CardPopup({
   isAuthenticated,
   readOnly = false,
   quantityOverrides,
+  countKind = "owned",
   setNameByCode,
   onClose,
   onChanged,
@@ -376,6 +381,7 @@ export function CardPopup({
                   <CardPopupInventoryControls
                     isAuthenticated={isAuthenticated}
                     readOnly={readOnly}
+                    countKind={countKind}
                     variant={selectedVariant}
                     typeCategory={typeCategory}
                     limits={limits}

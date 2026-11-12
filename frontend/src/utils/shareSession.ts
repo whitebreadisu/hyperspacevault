@@ -16,15 +16,25 @@ const SHARE_SESSION_KEY = "swu.share.session";
 
 export interface ShareSession {
   token: string;
+  /** The viewer's label for it: the share name, or for a stash link
+   * "<share name> · <stash name>". */
   name: string;
+  /** "stash" for a stash link (its token takes the stash read); absent or
+   * "vault" for the vault link -- a session stored before stash links read
+   * as a vault link. */
+  kind?: "vault" | "stash";
+  /** A stash link's share name alone (the phone's signed-out bar chip). */
+  shareName?: string;
 }
 
 function isShareSession(value: unknown): value is ShareSession {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as ShareSession;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as ShareSession).token === "string" &&
-    typeof (value as ShareSession).name === "string"
+    typeof v.token === "string" &&
+    typeof v.name === "string" &&
+    (v.kind === undefined || v.kind === "vault" || v.kind === "stash") &&
+    (v.shareName === undefined || typeof v.shareName === "string")
   );
 }
 
@@ -53,5 +63,16 @@ export function saveShareSession(session: ShareSession): void {
     window.sessionStorage.setItem(SHARE_SESSION_KEY, JSON.stringify(session));
   } catch {
     /* best-effort, same as saveLastSeenKey's own store */
+  }
+}
+
+/** Drops the tab's session when it is `token`'s (a link found dead): a
+ * reload then neither restores the dead link nor shows its name. A newer
+ * session (another link opened since) is left alone. Best-effort. */
+export function clearShareSession(token: string): void {
+  try {
+    if (loadShareSession()?.token === token) window.sessionStorage.removeItem(SHARE_SESSION_KEY);
+  } catch {
+    /* best-effort, as saveShareSession */
   }
 }
