@@ -21,11 +21,13 @@ async function initOptions(): Promise<Record<string, unknown>> {
 
 // PORT (BL-209 slice c): before_send joined the usual options (the share-token
 // redaction, redactShare.ts); the bootstrap rule is unchanged.
-// PORT (r2): advanced_disable_feature_flags joined them (no /flags request).
+// PORT (r2, r3): advanced_disable_feature_flags (no /flags request) and
+// capture_heatmaps: false joined them.
 const USUAL_KEYS = [
   "advanced_disable_feature_flags",
   "api_host",
   "before_send",
+  "capture_heatmaps",
   "autocapture",
   "capture_pageleave",
   "capture_pageview",
@@ -140,5 +142,33 @@ describe("posthog bootstrap from the public pages' id", () => {
     const send = opts.before_send as (cr: unknown) => unknown;
     const out = send({ uuid: "u", event: "$autocapture", properties: { $el_text: "tok-SECRET" } });
     expect(JSON.stringify(out)).not.toContain("tok-SECRET");
+  });
+
+  it("heatmaps are off", async () => {
+    const opts = await initOptions();
+    expect(opts.capture_heatmaps).toBe(false);
+  });
+
+  it("a lone-surrogate token in the stored session never stops init or leaks", async () => {
+    const odd = "bad\ud800tok";
+    window.sessionStorage.setItem(
+      "swu.share.session",
+      JSON.stringify({ token: odd, name: "Rowan" })
+    );
+    window.history.replaceState(null, "", "/shared/stash/tok-SECRET");
+    const opts = await initOptions();
+    const { analyticsActive } = await import("./analytics");
+    expect(analyticsActive()).toBe(true);
+    const send = opts.before_send as (cr: unknown) => { properties: Record<string, string> };
+    const out = send({
+      uuid: "u",
+      event: "$pageleave",
+      properties: {
+        $current_url: "https://www.hyperspacevault.com/shared/stash/tok-SECRET",
+        $el_text: `x ${odd} y`,
+      },
+    });
+    expect(out.properties.$current_url).toBe("https://www.hyperspacevault.com/shared/stash/:token");
+    expect(out.properties.$el_text).toBe("x :token y");
   });
 });

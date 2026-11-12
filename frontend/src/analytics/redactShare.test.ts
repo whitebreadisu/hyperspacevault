@@ -174,3 +174,44 @@ describe("scrubStoredShareTokens (posthog-js's persisted state)", () => {
     expect(broken.m.get("ph_key")).toBe("{not json /shared/x");
   });
 });
+
+describe("object keys (posthog-js keys $heatmap_data by page URL)", () => {
+  it("redacts share URLs used as keys, vault and stash links", () => {
+    const ev = {
+      event: "$$heatmap",
+      properties: {
+        $heatmap_data: {
+          [`https://www.hyperspacevault.com/shared/${TOKEN}`]: [{ x: 1, y: 2, type: "click" }],
+          [`https://www.hyperspacevault.com/shared/stash/${TOKEN}#/vault`]: [{ x: 3, y: 4 }],
+        },
+      },
+    };
+    const out = redactShareEvent(ev)!;
+    expect(JSON.stringify(out)).not.toContain(TOKEN);
+    expect(Object.keys(out.properties.$heatmap_data)).toEqual([
+      "https://www.hyperspacevault.com/shared/:token",
+      "https://www.hyperspacevault.com/shared/stash/:token#/vault",
+    ]);
+  });
+
+  it("two keys collapsing to one merge: arrays concatenate, otherwise the later wins", () => {
+    const out = redactShareValue({
+      "/shared/aaa": [1, 2],
+      "/shared/bbb": [3],
+      n: { "/shared/ccc": "first", "/shared/ddd": "second" },
+    }) as Record<string, unknown>;
+    expect(out["/shared/:token"]).toEqual([1, 2, 3]);
+    expect(out.n).toEqual({ "/shared/:token": "second" });
+  });
+});
+
+describe("a token that cannot be URI-encoded (a lone surrogate)", () => {
+  it("is still redacted raw, and nothing throws", () => {
+    const odd = "ab\ud800cd";
+    expect(() => redactShareText(`x ${odd} y`, [odd])).not.toThrow();
+    expect(redactShareText(`x ${odd} y`, [odd])).toBe("x :token y");
+    expect(redactShareText("/shared/t1 and nothing else", [odd])).toBe(
+      "/shared/:token and nothing else"
+    );
+  });
+});

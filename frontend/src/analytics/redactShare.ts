@@ -39,6 +39,15 @@ function tokensIn(text: string): string[] {
   return out;
 }
 
+/** `t` URI-encoded, or null when it cannot be (a lone surrogate throws). */
+function encoded(t: string): string | null {
+  try {
+    return encodeURIComponent(t);
+  } catch {
+    return null;
+  }
+}
+
 function replaceAll(text: string, find: string, by: string): string {
   return find ? text.split(find).join(by) : text;
 }
@@ -51,15 +60,19 @@ export function redactShareText(text: string, known: readonly string[] = []): st
   const hasPath = text.includes("/shared/") || lower.includes("%2fshared%2f");
   if (
     !hasPath &&
-    !known.some((t) => t && (text.includes(t) || text.includes(encodeURIComponent(t))))
+    !known.some((t) => {
+      if (!t) return false;
+      const enc = encoded(t);
+      return text.includes(t) || (enc != null && text.includes(enc));
+    })
   )
     return text;
   const tokens = new Set([...known.filter(Boolean), ...(hasPath ? tokensIn(text) : [])]);
   let out = text;
   for (const t of tokens) {
     out = replaceAll(out, t, TOKEN_MARK);
-    const enc = encodeURIComponent(t);
-    if (enc !== t) out = replaceAll(out, enc, TOKEN_MARK);
+    const enc = encoded(t);
+    if (enc != null && enc !== t) out = replaceAll(out, enc, TOKEN_MARK);
   }
   return out;
 }
@@ -90,12 +103,18 @@ function walk(
       }
       return changed ? out : value;
     }
+    // Keys are redacted too: posthog-js keys some data by the page URL
+    // ($heatmap_data). Two keys that redact to the same key merge: arrays
+    // concatenate, anything else -- the later key's value wins.
     let changed = false;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const key = redactShareText(k, known);
       const r = walk(v, known, depth + 1, seen);
-      if (r !== v) changed = true;
-      if (r !== DROP) out[k] = r;
+      if (r !== v || key !== k) changed = true;
+      if (r === DROP) continue;
+      const prev = out[key];
+      out[key] = key in out && Array.isArray(prev) && Array.isArray(r) ? [...prev, ...r] : r;
     }
     return changed ? out : value;
   } finally {
@@ -103,7 +122,8 @@ function walk(
   }
 }
 
-/** Every string inside `value` (objects and arrays, recursively) redacted;
+/** Every string inside `value` (objects and arrays, recursively), object
+ * keys included, redacted;
  * other values unchanged. Returns the same reference when nothing changed.
  * Bounded: a cycle or anything nested deeper than MAX_REDACT_DEPTH is
  * dropped (never thrown). */

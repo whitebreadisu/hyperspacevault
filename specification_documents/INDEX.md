@@ -1,11 +1,11 @@
-<!-- generated 2026-11-12 by .github/scripts/docs_index.mjs from d68d3cf — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-12 by .github/scripts/docs_index.mjs from fe2a034 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 333,139 B (LF) · 26 h2 · 77 h3
+Total 333,535 B (LF) · 26 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -95,7 +95,7 @@ Total 333,139 B (LF) · 26 h2 · 77 h3
 | h3 | [§19.4 Decisions record](SWU_Application_Spec.md#194-decisions-record) | 825 | 271 |  | 0019 |  |  |
 | h2 | [§20. Release-notes system (BL-184, v1.3) + promote gate & Releases mirror (BL-210, v1.4)](SWU_Application_Spec.md#20-release-notes-system-bl-184-v13--promote-gate--releases-mirror-bl-210-v14) | 829 | 10,327 |  |  | `frontend/e2e/mobile/bl358-update-banner.spec.ts`, `frontend/e2e/mobile/bl359-feature-tour.spec.ts`, `frontend/package.json`, `frontend/src/components/UpdateBanner.test.tsx`, `frontend/src/components/UpdateBanner.tsx`, `frontend/src/content/featureTours.ts`, `frontend/src/content/releaseNotes.ts`, `frontend/src/screens/notes/NewArrivalsPage.tsx`, `frontend/src/tour/FeatureTour.test.tsx`, `frontend/src/tour/anchors.test.ts`, `frontend/src/tour/tourModel.test.ts`, `frontend/src/utils/buildCheck.test.ts`, `frontend/src/utils/buildCheck.ts`, `frontend/src/utils/releaseNotesSeen.ts`, `frontend/src/utils/version.ts` | "Archived 2026-11-11 — §20 release-notes entry points (spec drift)" |
 | h2 | [§21. v1.4 Vault batch (shipped prod 2026-08-16 — "Your Vault, shareable")](SWU_Application_Spec.md#21-v14-vault-batch-shipped-prod-2026-08-16--your-vault-shareable) | 840 | 483 |  |  |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
-| h2 | [§22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)](SWU_Application_Spec.md#22-product-analytics-bl-235-2026-08-26--posthog-via-first-party-relay) | 844 | 12,342 |  | 0027, 0030 | `backend/app/routers/relay.py`, `frontend/src/analytics/analytics.ts`, `frontend/src/analytics/redactShare.ts`, `frontend/src/public/publicAnalytics.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
+| h2 | [§22. Product Analytics (BL-235, 2026-08-26 — PostHog via first-party relay)](SWU_Application_Spec.md#22-product-analytics-bl-235-2026-08-26--posthog-via-first-party-relay) | 844 | 12,738 |  | 0027, 0030 | `backend/app/routers/relay.py`, `frontend/src/analytics/analytics.ts`, `frontend/src/analytics/redactShare.ts`, `frontend/src/public/publicAnalytics.ts` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)" |
 | h2 | [§23. Homeworlds onboarding (BL-239, v1.5 — shipped prod 2026-10-02)](SWU_Application_Spec.md#23-homeworlds-onboarding-bl-239-v15--shipped-prod-2026-10-02) | 907 | 2,705 |  | 0031 | `frontend/public/images`, `frontend/public/images/starfields` | "Archived 2026-10-12 — set-order sentences superseded by newest-first (BL-258, ADR-0031)" |
 | h2 | [§24. Card scanning — rules and geometry (as built; mechanics in §25.7)](SWU_Application_Spec.md#24-card-scanning--rules-and-geometry-as-built-mechanics-in-257) | 920 | 8,667 |  | 0029 |  | "Archived 2026-10-18 — tier purity round 2 (BL-271 Phase C)" |
 | h3 | [§24.1 What it is](SWU_Application_Spec.md#241-what-it-is) | 924 | 734 |  |  |  | "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)" |

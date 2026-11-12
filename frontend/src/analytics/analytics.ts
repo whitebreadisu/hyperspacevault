@@ -180,9 +180,30 @@ function sessionStore(): Storage | null {
   }
 }
 
-/** The share tokens this tab knows right now (the page's, the session's). */
+/** The share tokens this tab knows right now (the page's, the session's).
+ * Never throws: on any failure the list is empty and redaction falls back
+ * to the share-path patterns alone. */
 function shareTokens(): string[] {
-  return knownShareTokens(window.location.pathname, loadShareSession()?.token ?? null);
+  try {
+    return knownShareTokens(window.location.pathname, loadShareSession()?.token ?? null);
+  } catch {
+    return [];
+  }
+}
+
+/** redactShareEvent, never throwing: if redaction with the known tokens
+ * fails, it is retried with the path patterns only; if that fails too the
+ * event is dropped, never sent unredacted. */
+function safeRedact<E extends { event: string }>(cr: E | null): E | null {
+  try {
+    return redactShareEvent(cr, shareTokens());
+  } catch {
+    try {
+      return redactShareEvent(cr);
+    } catch {
+      return null;
+    }
+  }
 }
 
 export function initAnalytics(): void {
@@ -196,7 +217,11 @@ export function initAnalytics(): void {
   // posthog-js keeps the first page's raw URL ($initial_person_info) for good;
   // a share page may have been that page. Clean what it stored before it
   // loads it.
-  scrubStoredShareTokens(POSTHOG_STORE_KEY, [localStore(), sessionStore()], shareTokens());
+  try {
+    scrubStoredShareTokens(POSTHOG_STORE_KEY, [localStore(), sessionStore()], shareTokens());
+  } catch {
+    /* never stops init; events are still redacted by before_send */
+  }
   posthog.init(POSTHOG_TOKEN, {
     // First-party path: same-origin through the Hosting /api/** rewrite to
     // the backend relay (app/routers/relay.py). Adblock-resilience rider.
@@ -220,7 +245,10 @@ export function initAnalytics(): void {
     },
     // A share link's token never leaves the browser: every URL-bearing
     // property is redacted to `/shared/:token` (redactShare.ts).
-    before_send: (cr) => redactShareEvent(cr, shareTokens()),
+    before_send: (cr) => safeRedact(cr),
+    // No heatmaps: nothing in the app uses them, and posthog-js keys their
+    // data by the page URL (redacted by key too, belt and braces).
+    capture_heatmaps: false,
     // No /flags request at all: the app uses no feature flags, and that
     // request carries the persisted $initial_* person properties outside
     // before_send. (advanced_disable_flags would also stop the remote
@@ -231,14 +259,18 @@ export function initAnalytics(): void {
   // On a share page, record the first-page info posthog-js would record on
   // its first capture -- with the token redacted. Its own write is
   // write-once, so this one stands.
-  const tokens = shareTokens();
-  if (tokens.length && window.location.pathname.startsWith("/shared/")) {
-    posthog.register_once({
-      $initial_person_info: {
-        r: redactShareText(document.referrer || "$direct", tokens).substring(0, 1000),
-        u: redactShareText(window.location.href, tokens).substring(0, 1000),
-      },
-    });
+  try {
+    const tokens = shareTokens();
+    if (tokens.length && window.location.pathname.startsWith("/shared/")) {
+      posthog.register_once({
+        $initial_person_info: {
+          r: redactShareText(document.referrer || "$direct", tokens).substring(0, 1000),
+          u: redactShareText(window.location.href, tokens).substring(0, 1000),
+        },
+      });
+    }
+  } catch {
+    /* never stops init; before_send still redacts the $initial_* values */
   }
   posthog.register({ app_version: __APP_VERSION__ });
   registerLayout();
