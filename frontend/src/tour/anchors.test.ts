@@ -25,6 +25,13 @@ function tsxFiles(dir: string): string[] {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** The source without its comments (block, JSX block and line comments), so
+ * an anchor named only in a comment does not count. A `//` after a colon or a
+ * quote (a URL, a string) is kept. */
+export function stripComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/.*$/gm, "$1");
+}
+
 /** Where `data-tour` names the anchor, as files relative to src. */
 function anchorSites(anchor: string, sources: [string, string][]): string[] {
   const a = escape(anchor);
@@ -33,7 +40,9 @@ function anchorSites(anchor: string, sources: [string, string][]): string[] {
 }
 
 describe("feature tour anchors", () => {
-  const sources = tsxFiles(SRC).map((p) => [p, readFileSync(p, "utf8")] as [string, string]);
+  const sources = tsxFiles(SRC).map(
+    (p) => [p, stripComments(readFileSync(p, "utf8"))] as [string, string]
+  );
 
   it("scans the app source", () => {
     expect(sources.length).toBeGreaterThan(50);
@@ -46,6 +55,22 @@ describe("feature tour anchors", () => {
       });
     }
   }
+
+  it("an anchor named only in a comment does not count", () => {
+    const text = stripComments(
+      [
+        '// <button data-tour="in-line-comment">',
+        '/* <div data-tour="in-block-comment" /> */',
+        '{/* <span data-tour="in-jsx-comment" /> */}',
+        '<a href="https://x.test" data-tour="real-one">',
+      ].join("\n")
+    );
+    const one: [string, string][] = [["src/x.tsx", text]];
+    expect(anchorSites("in-line-comment", one)).toEqual([]);
+    expect(anchorSites("in-block-comment", one)).toEqual([]);
+    expect(anchorSites("in-jsx-comment", one)).toEqual([]);
+    expect(anchorSites("real-one", one)).toEqual(["x.tsx"]);
+  });
 
   it("the matcher misses an anchor no file carries", () => {
     expect(anchorSites("no-such-anchor-ever", sources)).toEqual([]);

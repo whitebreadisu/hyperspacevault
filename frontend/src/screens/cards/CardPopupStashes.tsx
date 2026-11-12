@@ -137,13 +137,8 @@ export function CardPopupStashes({
     );
   }
   return (
-    <div
-      className="cp-stash__list"
-      aria-label="Stashes"
-      data-tour="card-stash-list"
-      data-tour-place="right"
-    >
-      <div className="cp-stash__listhead">
+    <div className="cp-stash__list" aria-label="Stashes">
+      <div className="cp-stash__listhead" data-tour="card-stash-list" data-tour-place="right">
         <span className="cp-stash__heading">Stashes</span>
         <button type="button" className="cp-stash__quiet cp-stash__edit" onClick={editor.edit}>
           <PencilIcon />

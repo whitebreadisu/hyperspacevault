@@ -2,7 +2,13 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FeatureTour, TourPage } from "../content/featureTours";
-import { FeatureTourProvider, TOUR_RESUME_MS, TOUR_SETTLE_MS, useTourPage } from "./FeatureTour";
+import {
+  FeatureTourProvider,
+  TOUR_RESUME_MS,
+  TOUR_SETTLE_MS,
+  resolveTour,
+  useTourPage,
+} from "./FeatureTour";
 import { TOUR_SEEN_KEY, TOUR_SKIPPED_KEY } from "./tourModel";
 
 // The feature tour's runtime (App Spec §20): settle timing, the page list,
@@ -21,10 +27,21 @@ vi.mock("../context/AuthContext", () => ({ useAuth: () => ({ user: auth.user }) 
 const phone = vi.hoisted(() => ({ on: false }));
 vi.mock("../mobile/useIsPhone", () => ({ useIsPhone: () => phone.on }));
 
-const banner = vi.hoisted(() => ({ newer: false }));
+const banner = vi.hoisted(() => ({
+  newer: false,
+  listeners: new Set<() => void>(),
+  /** A newer build becomes known while the page is open. */
+  learn() {
+    this.newer = true;
+    for (const l of this.listeners) l();
+  },
+}));
 vi.mock("../components/UpdateBanner", () => ({
   isNewerBuildKnown: () => banner.newer,
-  subscribeNewerBuild: () => () => {},
+  subscribeNewerBuild: (l: () => void) => {
+    banner.listeners.add(l);
+    return () => banner.listeners.delete(l);
+  },
 }));
 
 const captured = vi.hoisted(() => [] as [string, Record<string, unknown>][]);
@@ -122,7 +139,7 @@ const cardPage = (
 );
 
 const settle = () => act(() => void vi.advanceTimersByTime(TOUR_SETTLE_MS + 50));
-const tip = () => screen.queryByRole("dialog");
+const tip = () => document.querySelector<HTMLElement>(".tour-tip");
 const seen = () => JSON.parse(store.data[TOUR_SEEN_KEY] ?? "{}") as Record<string, string[]>;
 
 beforeEach(() => {
@@ -132,9 +149,16 @@ beforeEach(() => {
   auth.user = { uid: "u1", metadata: { creationTime: "Mon, 01 Jun 2026 10:00:00 GMT" } };
   phone.on = false;
   banner.newer = false;
+  banner.listeners.clear();
   window.__hsvTour = { on: true };
-  // jsdom has no layout: every anchor gets a box in view, nothing else does.
+  // jsdom has no layout: every anchor gets a box in view, nothing else does;
+  // `data-box="x,y,w,h"` gives an element its own box.
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+    const box = this.getAttribute("data-box");
+    if (box) {
+      const [x, y, w, h] = box.split(",").map(Number);
+      return new DOMRect(x, y, w, h);
+    }
     return this.hasAttribute("data-tour") ? new DOMRect(100, 100, 80, 30) : new DOMRect(0, 0, 0, 0);
   });
 });
@@ -143,6 +167,28 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   delete window.__hsvTour;
+});
+
+describe("resolveTour: the build's prod / non-prod switch", () => {
+  const future: FeatureTour = { version: "9.9", since: "2030-01-01", tips: [] };
+  const env = (projectId: string) => ({
+    DEV: false,
+    MODE: "production",
+    VITE_FIREBASE_PROJECT_ID: projectId,
+  });
+
+  it("the prod project never runs a tour ahead of the app's version", () => {
+    expect(resolveTour([future], env("swu-prod"))).toBeNull();
+  });
+
+  it("any other project (the dev deploy) previews it", () => {
+    expect(resolveTour([future], env("swu-dev-jbapps"))?.version).toBe("9.9");
+  });
+
+  it("a production build ignores the test switch", () => {
+    window.__hsvTour = { on: false };
+    expect(resolveTour([future], env("swu-dev-jbapps"))?.version).toBe("9.9");
+  });
 });
 
 describe("FeatureTour", () => {
@@ -306,14 +352,139 @@ describe("FeatureTour", () => {
     document.removeEventListener("keydown", underneath);
   });
 
-  it("Next, Done and Skip tour are keyboard-reachable buttons", () => {
+  it("inside a modal dialog the tip mounts in it, after its content", () => {
+    renderTour(
+      <Page page="card">
+        <div role="dialog" aria-modal="true" aria-label="Card" data-testid="modal">
+          <button type="button" data-tour="copies">
+            Stash copies
+          </button>
+          <button type="button">Close</button>
+        </div>
+      </Page>
+    );
+    settle();
+    const d = screen.getByRole("dialog", { name: "Stash copies" });
+    const modal = screen.getByTestId("modal");
+    expect(d.parentElement).toBe(modal);
+    // In Tab order after the modal's own controls (no focus is moved).
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(close.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.activeElement).toBe(document.body);
+    // The glow stays a page-level overlay.
+    expect(document.querySelector(".tour-glow")!.parentElement).toBe(document.body);
+  });
+
+  it("outside a dialog the tip mounts on the body", () => {
     renderTour(cardPage);
     settle();
-    for (const name of ["Next", "Skip tour"]) {
-      const b = screen.getByRole("button", { name });
-      expect(b.tagName).toBe("BUTTON");
-      expect(b).not.toHaveAttribute("tabindex", "-1");
-    }
+    expect(tip()!.parentElement).toBe(document.body);
+  });
+
+  it("Escape passes through to a focused field and to a dialog opened over the tip", () => {
+    renderTour(
+      <>
+        {cardPage}
+        <input aria-label="Search" />
+      </>
+    );
+    settle();
+    const input = screen.getByRole("textbox", { name: "Search" });
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(tip()).not.toBeNull();
+    input.blur();
+    const over = document.createElement("div");
+    over.setAttribute("role", "dialog");
+    over.setAttribute("aria-modal", "true");
+    document.body.append(over);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(tip()).not.toBeNull();
+    over.remove();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(tip()).toBeNull();
+  });
+
+  it("a target taller than the screen still starts its tip", () => {
+    renderTour(
+      <Page page="card">
+        <div data-tour="list" data-box="100,300,300,3000">
+          Stashes Edit
+        </div>
+      </Page>
+    );
+    settle();
+    expect(screen.getByRole("dialog", { name: "Your stashed copies" })).toBeInTheDocument();
+  });
+
+  it("a target scrolled out of its scroll container is not in view", () => {
+    renderTour(
+      <Page page="card">
+        <div style={{ overflowY: "auto" }} data-box="0,0,400,200">
+          <button type="button" data-tour="share" data-box="100,500,40,40">
+            L
+          </button>
+        </div>
+      </Page>
+    );
+    settle();
+    expect(tip()).toBeNull();
+    expect(document.documentElement.dataset.tourPhase).toBe("card:show");
+  });
+
+  it("a phone screen target behind the bottom tab bar is not in view", () => {
+    renderTour(
+      <>
+        <div className="m-app__screen">
+          <Page page="stashes">
+            <h1 data-tour="later" data-box="0,0,0,0">
+              x
+            </h1>
+          </Page>
+          <Page page="card">
+            <button type="button" data-tour="share" data-box="100,780,40,40">
+              L
+            </button>
+          </Page>
+        </div>
+        <nav className="m-nav" data-box="0,770,390,74" />
+      </>
+    );
+    settle();
+    expect(tip()).toBeNull();
+  });
+
+  it("a tip waiting for its target never starts once a newer build is known", () => {
+    renderTour(
+      <Page page="card">
+        <button type="button" data-tour="share" data-box="100,2000,40,40">
+          L
+        </button>
+      </Page>
+    );
+    settle();
+    // Waiting: below the screen.
+    expect(tip()).toBeNull();
+    act(() => banner.learn());
+    const target = document.querySelector<HTMLElement>('[data-tour="share"]')!;
+    target.setAttribute("data-box", "100,100,40,40");
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+      document.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(200);
+    });
+    expect(tip()).toBeNull();
+  });
+
+  it("an open tip may finish after a newer build is known; no next tip starts", () => {
+    renderTour(cardPage);
+    settle();
+    expect(screen.getByRole("dialog", { name: "Stash copies" })).toBeInTheDocument();
+    act(() => banner.learn());
+    expect(screen.getByRole("dialog", { name: "Stash copies" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(tip()).toBeNull();
+    expect(seen()).toEqual({ "2.5": ["copies"] });
   });
 
   it("reduced motion: no fade and a steady glow", () => {

@@ -38,8 +38,8 @@ function StashList({
   onEdit?: () => void;
 }) {
   return (
-    <div className="m-stash__list" aria-label="Stashes" data-tour="card-stash-list">
-      <div className="m-stash__head">
+    <div className="m-stash__list" aria-label="Stashes">
+      <div className="m-stash__head" data-tour="card-stash-list">
         <span className="m-stash__heading">Stashes</span>
         <button type="button" className="m-stash__textbtn m-stash__edit" onClick={onEdit}>
           <PencilIcon size={14} />

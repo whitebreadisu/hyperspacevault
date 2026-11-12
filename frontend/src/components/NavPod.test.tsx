@@ -127,8 +127,11 @@ describe("the stash menu", () => {
     expect(menu()).toHaveAttribute("aria-hidden", "true");
     vi.useFakeTimers();
     const wrap = screen.getByRole("button", { name: "Stashes" }).parentElement!;
+    expect(menu()).not.toHaveAttribute("data-tour-busy");
     fireEvent.mouseEnter(wrap);
     expect(menu()).toHaveClass("pod-menu--open");
+    // Open, it holds the feature tour's next tip back (App Spec §20).
+    expect(menu()).toHaveAttribute("data-tour-busy");
     expect([...menu().querySelectorAll(".pod-menu__name")].map((e) => e.textContent)).toEqual([
       "Red binder",
       "Trade stash",

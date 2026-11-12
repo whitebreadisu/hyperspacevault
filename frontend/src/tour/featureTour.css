@@ -116,7 +116,9 @@
 }
 
 /* The notch: a square turned 45°, the panel's interior fill, its two outward
-   sides in the ring's steel, straddling the panel edge on the target's side. */
+   sides in the panel's ring steel (.pod-menu__panel::before), straddling the
+   panel edge on the target's side. Its inner half lies flat over the circuit
+   texture: a 6 px triangle, which the faint tile does not show as a seam. */
 .tour-tip__notch {
   position: absolute;
   width: 13px;
@@ -126,18 +128,18 @@
 }
 .tour-tip--up .tour-tip__notch {
   top: -7px;
-  border-left: 1.5px solid rgba(211, 211, 212, 0.5);
-  border-top: 1.5px solid rgba(211, 211, 212, 0.5);
+  border-left: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-top: 1.5px solid rgba(211, 211, 212, 0.42);
 }
 .tour-tip--down .tour-tip__notch {
   bottom: -7px;
-  border-right: 1.5px solid rgba(211, 211, 212, 0.5);
-  border-bottom: 1.5px solid rgba(211, 211, 212, 0.5);
+  border-right: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-bottom: 1.5px solid rgba(211, 211, 212, 0.42);
 }
 .tour-tip--left .tour-tip__notch {
   left: -7px;
-  border-left: 1.5px solid rgba(211, 211, 212, 0.5);
-  border-bottom: 1.5px solid rgba(211, 211, 212, 0.5);
+  border-left: 1.5px solid rgba(211, 211, 212, 0.42);
+  border-bottom: 1.5px solid rgba(211, 211, 212, 0.42);
 }
 
 /* The target's glow while its tip is open: the unread cue's cream (index.css

@@ -52,7 +52,8 @@ import "./featureTour.css";
 // (TOUR_SETTLE_MS with no element added or removed and nothing marked
 // `data-tour-busy` open), its list is built from the tips whose target
 // (`data-tour="<anchor>"`) is rendered, and the tips show one at a time. A
-// tip waits for its target to be in view and never scrolls or navigates.
+// tip waits until enough of its target is in view (TOUR_MIN_VISIBLE_PX) and
+// never scrolls or navigates.
 // Next / Done / using the target mark it seen; an empty-page click or Escape
 // closes it without marking; Skip tour marks the whole release seen.
 
@@ -85,19 +86,34 @@ declare global {
   }
 }
 
-function readOverride(): TourOverride | null {
-  if (!(import.meta.env.DEV || import.meta.env.MODE === "test")) return null;
+/** The build facts the tour reads (import.meta.env; tests pass their own). */
+export interface TourBuildEnv {
+  DEV: boolean;
+  MODE: string;
+  VITE_FIREBASE_PROJECT_ID?: string;
+}
+
+/** A prod deploy build: the prod Firebase project (as main.tsx's title). */
+export function isProdBuild(env: TourBuildEnv): boolean {
+  return env.VITE_FIREBASE_PROJECT_ID === "swu-prod";
+}
+
+function readOverride(env: TourBuildEnv): TourOverride | null {
+  if (!(env.DEV || env.MODE === "test")) return null;
   const o = typeof window === "undefined" ? undefined : window.__hsvTour;
   return o && typeof o === "object" && typeof o.on === "boolean" ? o : null;
 }
 
 /** The tour this tab runs (tourModel.activeTour with this build's facts). */
-export function resolveTour(tours: FeatureTour[] = FEATURE_TOURS): FeatureTour | null {
+export function resolveTour(
+  tours: FeatureTour[] = FEATURE_TOURS,
+  env: TourBuildEnv = import.meta.env
+): FeatureTour | null {
   return activeTour(tours, {
     appVersion: __APP_VERSION__,
-    prodBuild: import.meta.env.VITE_FIREBASE_PROJECT_ID === "swu-prod",
-    testMode: import.meta.env.MODE === "test",
-    override: readOverride(),
+    prodBuild: isProdBuild(env),
+    testMode: env.MODE === "test",
+    override: readOverride(env),
   });
 }
 
@@ -142,9 +158,50 @@ function rectOf(el: Element): Rect {
   };
 }
 
-function inView(r: Rect): boolean {
-  return r.top >= 0 && r.bottom <= window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+/** The part of `el` a user can see: the viewport, cut by every ancestor that
+ * clips (a scroll container such as `.m-scroll`), and on a phone screen by the
+ * bottom tab bar that sits over its lower edge. Null when none of it shows. */
+export function visibleRect(el: HTMLElement): Rect | null {
+  const r = rectOf(el);
+  let top = Math.max(r.top, 0);
+  let bottom = Math.min(r.bottom, window.innerHeight);
+  let left = Math.max(r.left, 0);
+  let right = Math.min(r.right, window.innerWidth);
+  for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+    const cs = getComputedStyle(a);
+    if (!/auto|scroll|hidden|clip/.test(cs.overflowX + " " + cs.overflowY)) continue;
+    const ar = a.getBoundingClientRect();
+    top = Math.max(top, ar.top);
+    bottom = Math.min(bottom, ar.bottom);
+    left = Math.max(left, ar.left);
+    right = Math.min(right, ar.right);
+  }
+  if (el.closest(".m-app__screen")) {
+    const nav = document.querySelector(".m-nav");
+    const nr = nav?.getBoundingClientRect();
+    if (nr && nr.height > 0) bottom = Math.min(bottom, nr.top);
+  }
+  if (bottom <= top || right <= left) return null;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
+
+/** How much of a target must show for its tip to start: all of a small one,
+ * this much of a large one (a tall list need not fit the screen). */
+export const TOUR_MIN_VISIBLE_PX = 40;
+
+/** In view: enough of the target shows, both ways. */
+export function inView(el: HTMLElement): boolean {
+  const v = visibleRect(el);
+  if (!v) return false;
+  const r = rectOf(el);
+  const need = (full: number) => Math.min(full, TOUR_MIN_VISIBLE_PX) - 0.5;
+  return v.height >= need(r.height) && v.width >= need(r.width);
+}
+
+const MODAL = '[role="dialog"][aria-modal="true"]';
+
+/** Inputs keep Escape (it clears or closes what they own). */
+const KEEPS_ESCAPE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
 
 /** The update banner on screen, a box the tip keeps off. */
 function bannerRect(): Rect | null {
@@ -386,6 +443,7 @@ function TourRunner({
       count={countLabel(index, list.length)}
       primary={primaryLabel(index, list.length)}
       skip={canSkip(tour, device, rec, tip)}
+      blocked={blocked}
       onMissing={() => advance(index)}
       onShown={() => report("shown", tip, tour, page)}
       onPrimary={() => {
@@ -427,6 +485,16 @@ function samePlace(a: Placement, b: Placement): boolean {
   );
 }
 
+/** The placement, the target's box for the glow, the tip's height it was
+ * placed with, and the containing block's origin (ox, oy). */
+interface Pos {
+  place: Placement;
+  glow: Rect;
+  h: number;
+  ox: number;
+  oy: number;
+}
+
 function sameRect(a: Rect, b: Rect): boolean {
   return a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
 }
@@ -439,6 +507,7 @@ function TipView({
   count,
   primary,
   skip,
+  blocked,
   onMissing,
   onShown,
   onPrimary,
@@ -452,6 +521,8 @@ function TipView({
   count: string | null;
   primary: "Next" | "Done";
   skip: boolean;
+  /** A newer build is known: a tip that has not appeared yet never does. */
+  blocked: boolean;
   onMissing: () => void;
   onShown: () => void;
   onPrimary: () => void;
@@ -463,20 +534,31 @@ function TipView({
   const bodyId = useId();
   const tipRef = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  // Where the tip mounts: inside the modal dialog that holds its target (the
+  // card window), so it is announced with it and reached by Tab after it;
+  // else on <body>.
+  const [host, setHost] = useState<Element | null>(null);
   const [visible, setVisible] = useState(false);
-  const [pos, setPos] = useState<{ place: Placement; glow: Rect; h: number } | null>(null);
+  const [pos, setPos] = useState<Pos | null>(null);
   const [still] = useState(prefersReducedMotion);
   const measureRef = useRef<(() => void) | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+  const blockedRef = useRef(blocked);
   const handlers = useRef({ onMissing, onShown, onUsed, onDismiss });
   useEffect(() => {
     handlers.current = { onMissing, onShown, onUsed, onDismiss };
+    blockedRef.current = blocked;
   });
 
-  // Find the target, wait for it to be in view, keep the tip glued to it.
+  // Find the target, wait for enough of it to be in view, keep the tip on
+  // it. Measured when something can have moved it -- a scroll anywhere, a
+  // resize, the target or the tip changing size, an element added or removed,
+  // a transition or animation ending -- at most once a frame.
   useLayoutEffect(() => {
-    let frame = 0;
     let shown = false;
     let lost = false;
+    let frame = 0;
+    let observed: Element | null = null;
     const measure = () => {
       const el = findTarget(tip.anchor);
       if (!el) {
@@ -487,20 +569,28 @@ function TipView({
         }
         return;
       }
+      if (el !== observed) {
+        if (observed) ro?.unobserve(observed);
+        ro?.observe(el);
+        observed = el;
+      }
       setTarget((cur) => (cur === el ? cur : el));
-      const r = rectOf(el);
       if (!shown) {
-        if (!inView(r)) return;
+        // Never START a tip once a newer build is known.
+        if (blockedRef.current || !inView(el)) return;
         shown = true;
+        setHost(el.closest(MODAL) ?? document.body);
         setVisible(true);
         handlers.current.onShown();
       }
+      const r = rectOf(el);
       const place = el.dataset.tourPlace as TipPlace | undefined;
       const align = el.dataset.tourAlign as TipAlign | undefined;
       const gap = el.dataset.tourGap != null ? Number(el.dataset.tourGap) : undefined;
       // The tip's own height places it; until it has rendered once it is
       // laid out hidden.
-      const h = tipRef.current?.offsetHeight ?? 0;
+      const node = tipRef.current;
+      const h = node?.offsetHeight ?? 0;
       const next = placeTip({
         target: r,
         height: h,
@@ -511,29 +601,68 @@ function TipView({
         gap: gap != null && Number.isFinite(gap) ? gap : undefined,
         avoid: bannerRect(),
       });
+      // `left` / `top` are against the tip's containing block, which inside
+      // a dialog's backdrop-filtered overlay is that overlay, not the
+      // viewport: measure its origin from where the tip now sits.
+      let ox = 0;
+      let oy = 0;
+      if (node && node.parentElement !== document.body) {
+        const b = node.getBoundingClientRect();
+        ox = b.left - (parseFloat(node.style.left) || 0);
+        oy = b.top - (parseFloat(node.style.top) || 0);
+      }
       setPos((cur) =>
-        cur && cur.h === h && samePlace(cur.place, next) && sameRect(cur.glow, r)
+        cur &&
+        cur.h === h &&
+        cur.ox === ox &&
+        cur.oy === oy &&
+        samePlace(cur.place, next) &&
+        sameRect(cur.glow, r)
           ? cur
-          : { place: next, glow: r, h }
+          : { place: next, glow: r, h, ox, oy }
       );
     };
-    const loop = () => {
-      measure();
-      frame = requestAnimationFrame(loop);
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
     };
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+    roRef.current = ro;
+    ro?.observe(document.documentElement);
+    const mo = new MutationObserver((records) => {
+      const own = (n: Node) => n instanceof Element && !!n.closest(".tour-tip, .tour-glow");
+      if (records.some((rec) => !own(rec.target))) schedule();
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", schedule);
+    document.addEventListener("scroll", schedule, true);
+    document.addEventListener("transitionend", schedule, true);
+    document.addEventListener("animationend", schedule, true);
     measureRef.current = measure;
     measure();
-    frame = requestAnimationFrame(loop);
     return () => {
       measureRef.current = null;
+      roRef.current = null;
       cancelAnimationFrame(frame);
+      ro?.disconnect();
+      mo.disconnect();
+      window.removeEventListener("resize", schedule);
+      document.removeEventListener("scroll", schedule, true);
+      document.removeEventListener("transitionend", schedule, true);
+      document.removeEventListener("animationend", schedule, true);
     };
   }, [tip.anchor, phone]);
 
-  // The tip's first render has a height: place it before it paints.
+  // The tip's first render has a height: place it before it paints, and
+  // follow its own size from then on.
   useLayoutEffect(() => {
-    if (visible) measureRef.current?.();
-  }, [visible]);
+    if (!visible) return;
+    measureRef.current?.();
+    if (tipRef.current) roRef.current?.observe(tipRef.current);
+  }, [visible, host]);
 
   // Using the target, an empty-page click and Escape.
   useEffect(() => {
@@ -556,8 +685,15 @@ function TipView({
       if (menu && onTarget(e.target)) handlers.current.onUsed();
     };
     // Escape closes the tip only: the dialog under it keeps its own Escape.
+    // It passes through to a field that has focus and to a dialog opened
+    // over the tip.
     const key = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      const active = document.activeElement;
+      if (active instanceof Element && active.matches(KEEPS_ESCAPE)) return;
+      const self = tipRef.current;
+      const over = [...document.querySelectorAll(MODAL)].some((d) => !self || !d.contains(self));
+      if (over) return;
       e.stopPropagation();
       e.preventDefault();
       handlers.current.onDismiss();
@@ -576,68 +712,75 @@ function TipView({
     };
   }, [visible, target]);
 
-  if (!visible) return null;
+  if (!visible || !host) return null;
   const place = pos && pos.h > 0 ? pos.place : null;
   const notchStyle =
     place?.notch === "left" ? { top: place.notchAt } : place ? { left: place.notchAt } : undefined;
-  return createPortal(
+  return (
     <>
-      {pos && place ? (
-        <span
-          className={"tour-glow" + (still ? " tour-glow--still" : "")}
-          aria-hidden="true"
-          style={{
-            left: pos.glow.left,
-            top: pos.glow.top,
-            width: pos.glow.width,
-            height: pos.glow.height,
-          }}
-        />
-      ) : null}
-      <div
-        ref={tipRef}
-        className={
-          "tour-tip" +
-          (phone ? " tour-tip--phone" : "") +
-          (place ? ` tour-tip--${place.notch}` : "") +
-          (still ? " tour-tip--still" : "")
-        }
-        role="dialog"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        data-tip={tip.id}
-        style={
-          place
-            ? { left: place.left, top: place.top, width: place.width }
-            : { left: 0, top: 0, visibility: "hidden" }
-        }
-      >
-        <div className="pod-menu__panel tour-tip__panel">
-          <span className="tour-tip__label">
-            <span className="tour-tip__new">New in v{tour.version}</span>
-            {count ? <span className="tour-tip__count">{count}</span> : null}
-          </span>
-          <span className="tour-tip__title" id={titleId}>
-            {phone ? (tip.titlePhone ?? tip.title) : tip.title}
-          </span>
-          <p className="tour-tip__body" id={bodyId}>
-            {phone ? (tip.bodyPhone ?? tip.body) : tip.body}
-          </p>
-          <span className="tour-tip__foot">
-            {skip ? (
-              <button type="button" className="tour-tip__skip" onClick={onSkip}>
-                Skip tour
-              </button>
-            ) : null}
-            <span className="tour-tip__spacer" />
-            <SWUButton size={phone ? "touch" : "sm"} onClick={onPrimary}>
-              {primary}
-            </SWUButton>
-          </span>
-        </div>
-        {place ? <span className="tour-tip__notch" aria-hidden="true" style={notchStyle} /> : null}
-      </div>
-    </>,
-    document.body
+      {pos && place
+        ? createPortal(
+            <span
+              className={"tour-glow" + (still ? " tour-glow--still" : "")}
+              aria-hidden="true"
+              style={{
+                left: pos.glow.left,
+                top: pos.glow.top,
+                width: pos.glow.width,
+                height: pos.glow.height,
+              }}
+            />,
+            document.body
+          )
+        : null}
+      {createPortal(
+        <div
+          ref={tipRef}
+          className={
+            "tour-tip" +
+            (phone ? " tour-tip--phone" : "") +
+            (place ? ` tour-tip--${place.notch}` : "") +
+            (still ? " tour-tip--still" : "")
+          }
+          role="dialog"
+          aria-labelledby={titleId}
+          aria-describedby={bodyId}
+          data-tip={tip.id}
+          style={
+            place && pos
+              ? { left: place.left - pos.ox, top: place.top - pos.oy, width: place.width }
+              : { left: 0, top: 0, visibility: "hidden" }
+          }
+        >
+          <div className="pod-menu__panel tour-tip__panel">
+            <span className="tour-tip__label">
+              <span className="tour-tip__new">New in v{tour.version}</span>
+              {count ? <span className="tour-tip__count">{count}</span> : null}
+            </span>
+            <span className="tour-tip__title" id={titleId}>
+              {phone ? (tip.titlePhone ?? tip.title) : tip.title}
+            </span>
+            <p className="tour-tip__body" id={bodyId}>
+              {phone ? (tip.bodyPhone ?? tip.body) : tip.body}
+            </p>
+            <span className="tour-tip__foot">
+              {skip ? (
+                <button type="button" className="tour-tip__skip" onClick={onSkip}>
+                  Skip tour
+                </button>
+              ) : null}
+              <span className="tour-tip__spacer" />
+              <SWUButton size={phone ? "touch" : "sm"} onClick={onPrimary}>
+                {primary}
+              </SWUButton>
+            </span>
+          </div>
+          {place ? (
+            <span className="tour-tip__notch" aria-hidden="true" style={notchStyle} />
+          ) : null}
+        </div>,
+        host
+      )}
+    </>
   );
 }

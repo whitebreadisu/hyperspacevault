@@ -46,6 +46,44 @@ async function tourOn(page: Page, opts: { since?: string; seen?: string[] } = {}
 
 const phase = (page: Page) => page.locator("html");
 
+type PhaseEntry = { v: string; t: number; tip: boolean };
+
+/** Records every <html data-tour-phase> value with the page clock and whether
+ * a tip was on screen then. Call before the page loads. */
+async function recordPhases(page: Page) {
+  await page.addInitScript(() => {
+    const log: { v: string; t: number; tip: boolean }[] = [];
+    (window as unknown as { __phases: typeof log }).__phases = log;
+    new MutationObserver(() => {
+      const v = document.documentElement.dataset.tourPhase ?? "";
+      if (log[log.length - 1]?.v === v) return;
+      log.push({ v, t: performance.now(), tip: !!document.querySelector(".tour-tip") });
+    }).observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-tour-phase"],
+    });
+  });
+}
+
+const phases = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __phases: PhaseEntry[] }).__phases);
+
+/** From the card window's link button, presses Tab until the tip's button
+ * named `name` has focus (bounded). */
+async function tabTo(page: Page, name: string) {
+  await page.locator('[data-tour="card-share"]').focus();
+  for (let i = 0; i < 80; i++) {
+    await page.keyboard.press("Tab");
+    const hit = await page.evaluate((n) => {
+      const a = document.activeElement;
+      return !!a?.closest(".tour-tip") && (a.textContent ?? "").trim() === n;
+    }, name);
+    if (hit) return;
+  }
+  throw new Error(`Tab never reached the tip's ${name}`);
+}
+
 async function shot(page: Page, name: string) {
   const dir = process.env.BL359_SHOTS;
   if (!dir) return;
@@ -70,13 +108,19 @@ test.describe("desktop", () => {
 
   test("bl359-desk-collection-tip-after-settle-then-done", async ({ page }) => {
     await tourOn(page);
+    await recordPhases(page);
     await page.goto("/");
     await expect(page.locator(".app-layout")).toBeVisible();
-    const t0 = Date.now();
     const tip = page.getByRole("dialog", { name: "Stashes" });
     await expect(tip).toBeVisible();
-    // About a second after the page settles, never at once.
-    expect(Date.now() - t0).toBeGreaterThanOrEqual(900);
+    // About a second after the page settles, never at once: settle -> show,
+    // on the page's own clock, with no tip while settling.
+    const log = await phases(page);
+    const show = log.findIndex((e) => e.v === "collection:show");
+    const settle = log.slice(0, show).findLastIndex((e) => e.v === "collection:settle");
+    expect(settle, JSON.stringify(log)).toBeGreaterThanOrEqual(0);
+    expect(log[settle].tip).toBe(false);
+    expect(log[show].t - log[settle].t).toBeGreaterThanOrEqual(1000);
     await expect(tip).toContainText("New in v2.5");
     await expect(tip).toContainText("Point at Stashes to see yours or start one.");
     await expect(tip).not.toContainText(/\d of \d/);
@@ -131,6 +175,40 @@ test.describe("desktop", () => {
     });
     // The card window keeps its own Escape (the tip took none).
     await expect(page.locator(".cp-modal[role=dialog]")).toBeVisible();
+  });
+
+  test("bl359-desk-keyboard-reaches-and-activates-the-buttons", async ({ page }) => {
+    await tourOn(page, { seen: ["stashes-nav"] });
+    await page.goto("/?card=ash-112");
+    const first = page.getByRole("dialog", { name: "Stash copies" });
+    await expect(first).toBeVisible();
+    // Inside the card window (announced with it), after its content.
+    expect(await first.evaluate((el) => !!el.closest(".cp-modal[aria-modal=true]"))).toBe(true);
+    // Focus was not moved to the tip.
+    expect(await page.evaluate(() => !!document.activeElement?.closest(".tour-tip"))).toBe(false);
+    // Tab reaches Next; Enter activates it.
+    await tabTo(page, "Next");
+    await page.keyboard.press("Enter");
+    const second = page.getByRole("dialog", { name: "Share this card" });
+    await expect(second).toContainText("2 of 2");
+    // Tab reaches Done; Space activates it.
+    await tabTo(page, "Done");
+    await page.keyboard.press(" ");
+    await expect(page.locator(TIP)).toHaveCount(0);
+    expect(await seenRecord(page)).toEqual({
+      "2.5": ["stashes-nav", "stash-copies", "share-card"],
+    });
+    await expect(page.locator(".cp-modal[role=dialog]")).toBeVisible();
+  });
+
+  test("bl359-desk-keyboard-skip-tour", async ({ page }) => {
+    await tourOn(page, { seen: ["stashes-nav"] });
+    await page.goto("/?card=ash-112");
+    await expect(page.getByRole("dialog", { name: "Stash copies" })).toBeVisible();
+    await tabTo(page, "Skip tour");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(TIP)).toHaveCount(0);
+    expect(await page.evaluate((k) => localStorage.getItem(k), SKIPPED)).toBe('{"2.5":true}');
   });
 
   test.describe("stashed copies", () => {
