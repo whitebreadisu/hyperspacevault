@@ -87,7 +87,8 @@ describe("activeTour", () => {
       ["stashed-copies", "card", true],
       ["share-card", "card", true],
       ["stashes-page", "stashes", true],
-      ["share-stash", "stashes", false],
+      // Live since stash sharing's owner screens (v2.5).
+      ["share-stash", "stashes", true],
     ]);
   });
 });
@@ -235,9 +236,16 @@ describe("a page's list", () => {
     expect(buildPageList(V25, "card", "desktop", withSkipped(EMPTY, "2.5"), all)).toEqual([]);
   });
 
-  it("tip 5 (share a stash) is registered but disabled: the Stashes page shows tip 3 alone", () => {
+  it("tip 5 (share a stash) follows tip 3 on the Stashes page: 1 of 2, 2 of 2", () => {
     const list = buildPageList(V25, "stashes", "desktop", EMPTY, all);
-    expect(list.map((t) => t.id)).toEqual(["stashes-page"]);
+    expect(list.map((t) => t.id)).toEqual(["stashes-page", "share-stash"]);
+    expect(countLabel(0, list.length)).toBe("1 of 2");
+    expect(countLabel(1, list.length)).toBe("2 of 2");
+  });
+
+  it("inside a phone stash (no Stashes heading) tip 5 shows alone", () => {
+    const list = buildPageList(V25, "stashes", "phone", EMPTY, (a) => a === "stash-share");
+    expect(list.map((t) => t.id)).toEqual(["share-stash"]);
     expect(countLabel(0, list.length)).toBeNull();
   });
 
@@ -275,13 +283,24 @@ describe("Skip tour", () => {
 
   it("the very last unseen tip of the release shows Done only", () => {
     let rec = EMPTY;
-    for (const id of ["stashes-nav", "stash-copies", "stashes-page"])
+    for (const id of ["stashes-nav", "stash-copies", "stashes-page", "share-stash"])
       rec = withSeen(rec, "2.5", id);
     expect(canSkip(V25, "desktop", rec, tip("share-card"))).toBe(false);
     // 2b counts as the same step as 2: still last.
     expect(canSkip(V25, "desktop", rec, tip("share-card"))).toBe(false);
-    // A disabled tip never keeps Skip alive.
-    expect(V25.tips.find((t) => t.id === "share-stash")!.enabled).toBe(false);
+  });
+
+  it("a disabled tip never keeps Skip alive", () => {
+    // The same tour with "Share a stash" switched off and left unseen.
+    const off = {
+      ...V25,
+      tips: V25.tips.map((t) => (t.id === "share-stash" ? { ...t, enabled: false } : t)),
+    };
+    let rec = EMPTY;
+    for (const id of ["stashes-nav", "stash-copies", "stashes-page"])
+      rec = withSeen(rec, "2.5", id);
+    expect(canSkip(off, "desktop", rec, tip("share-card"))).toBe(false);
+    expect(canSkip(V25, "desktop", rec, tip("share-card"))).toBe(true);
   });
 
   it("skip marks every tip of the release seen", () => {

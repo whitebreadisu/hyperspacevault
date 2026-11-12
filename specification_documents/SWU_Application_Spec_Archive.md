@@ -955,3 +955,30 @@ The owner moved the desktop logo and tag line onto the brand chooser and the pho
 
 > the hidden one is parked (absolute, hidden, inert, `aria-hidden`; not `display: none`, so its scroll position survives).
 
+## Archived 2026-11-12 — stash sharing owner screens (BL-209)
+
+**Disposition:** → archive. BL-209 slice (b) built the owner screens of stash sharing: one share window for the vault link and every stash link (Create / Link / Confirm, Rename stash, the "Your links" list), the stash Share entry points, the rail and phone-list link marks, the "Link on" lines, the delete-confirm line, `share_created`'s `what` property and the feature tour's tip 5. The passages below described the window before stash links (one shape per vault link, "Rotate Link"), the tour's tip 5 as disabled and the slice as not built. Replacement text: App Spec §19, §19.1 (Owner-side management, Owner screens), §20, §22, §25.5 and §26. Why: the owner's concept C choice and decisions recorded in BL-209 (2026-11-11/12).
+
+### App Spec §19 — intro, BL-209 status clause (verbatim)
+
+> its server side is built (2026-11-12) and its owner and viewer screens are not yet.
+
+### App Spec §19.1 — Owner-side management bullet (verbatim)
+
+> - **Owner-side management (authed API):** create (with name), rename, rotate token, revoke, list. UI lives in the Vault header area (share affordance) — final placement is a build-time HMR-round call, not a spec constraint.
+
+### App Spec §20 — Feature tour, the v2.5 tips' last sentence (verbatim)
+
+> Share a stash is registered disabled until stash sharing ships.
+
+### App Spec §22 — `share_created` row (verbatim)
+
+> | `share_created` | — |
+
+### App Spec §25.5 — Sharing bullet (verbatim)
+
+> - **Sharing** (`#/more/sharing`). Desktop `ShareManageModal`, unchanged, in the same layer over More (or the Vault, from wherever it was opened). Empty state = the create form (name, <= 30 characters); the active share shows its name with Rename, the secret link with Copy (`navigator.clipboard.writeText` inside the tap handler; if it fails the desktop message appears and the link field selects its text on focus), Rotate Link and Revoke, the last two behind desktop's red confirm gates; at most one active share (§19.1). Loading and error copy are desktop's. Share management needs only a signed-in account (no verified email), as on desktop.
+
+### App Spec §26 — Phone bullet, status-row sentence (verbatim)
+
+> The status row has the count, pencil (edit), trash (delete), sort and list / gallery.

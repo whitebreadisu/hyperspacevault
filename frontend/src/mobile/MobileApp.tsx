@@ -42,6 +42,7 @@ import { rehydrateTool } from "./tool/toolStore";
 import { TitleChooser } from "./TitleChooser";
 import { useReleaseCue } from "./useReleaseCue";
 import { VaultDataProvider, VaultDataValue, useVaultDataSource } from "../vault/useVaultData";
+import { ShareLinksProvider } from "../shares/ShareLinksContext";
 import { StashProvider } from "../stashes/StashContext";
 import { CardParamBoot } from "./CardParamBoot";
 import { bootSignupParam, clearSignupParam } from "../utils/cardParam";
@@ -371,6 +372,11 @@ export function MobileApp() {
       : rawKey === "more/settings" && screenRoute.segs[1] === "delete"
         ? "delete"
         : null;
+  // A stash's Share opens the layer on that stash's link.
+  const sharingStash =
+    isSharing && /^\d+$/.test(screenRoute.params.stash ?? "")
+      ? Number(screenRoute.params.stash)
+      : undefined;
   const overLayer = isPassword || isSharing;
   const [layerBase, setLayerBase] = useState("more");
   if (!overLayer && rawKey !== layerBase) setLayerBase(rawKey);
@@ -546,8 +552,8 @@ export function MobileApp() {
   ) : null;
 
   // The feature tour's page (App Spec §20): the card detail over the Vault,
-  // the own Vault, or the Stashes list; nothing under a layer, a dialog or a
-  // shared vault.
+  // the own Vault, or the Stashes list or a stash (its Share is a Stashes
+  // tip); nothing under a layer, a dialog or a shared vault.
   const tourPage: TourPage | null =
     inShare || toolShown || acctLayer != null || authOpen || chooserOpen
       ? null
@@ -555,10 +561,13 @@ export function MobileApp() {
         ? "card"
         : key === "vault"
           ? "collection"
-          : key === "stashes"
+          : key === "stashes" || key.startsWith("stashes/")
             ? "stashes"
             : null;
-  useTourPage(tourPage, inShare);
+  // The Stashes list and the stash screens are one tour page, but every
+  // stash screen and every return to the list is its own visit (each builds
+  // its own list: the heading's tip on the list, the Share tip in a stash).
+  useTourPage(tourPage, inShare, tourPage === "stashes" ? key : "");
 
   // screen_viewed from the router, once per screen (not per param change).
   // Reaching More notes it for the Updates-row rule (useReleaseCue).
@@ -601,104 +610,109 @@ export function MobileApp() {
     <VaultDataProvider isAuthenticated={!!user}>
       {/* the caller's own stashes, signed in and on the own vault only. */}
       <StashProvider enabled={!!user} paused={inShare} uid={user?.uid ?? null}>
-        <CardParamBoot disabled={inShare} />
-        <div
-          className={
-            "m-app" +
-            (searchMode && (screen.key === "vault" || screen.key.startsWith("stashes/"))
-              ? " m-app--search"
-              : "")
-          }
-          data-share={inShare ? "shown" : undefined}
-        >
-          <SheetHost>
-            <div
-              className={"m-app__screen" + (ownParked ? " m-app__screen--parked" : "")}
-              key={screen.key}
-              data-pane={screen.key === "vault" ? "own" : undefined}
-              aria-hidden={ownParked ? true : undefined}
-              inert={cardId != null || toolShown || acctLayer != null || ownParked}
-            >
-              {screen.el}
-            </div>
-            {share.token && share.status !== "ready" ? sharedPane : null}
-            {share.token && share.status === "ready" ? (
-              <ShareScope token={share.token} stash={share.stash}>
-                {sharedPane}
-                {inShare && cardId != null ? (
-                  <CardDetail
-                    key={cardId}
-                    id={cardId}
-                    params={route.params}
-                    onRequestSignIn={openSignIn}
-                  />
-                ) : null}
-                {inShare ? <FinishSheetHost /> : null}
-              </ShareScope>
-            ) : null}
-            {/* App Spec §20: a newer build is live -- in the flow
+        {/* the owner's share links (read on first use): the sharing layer's
+            list and the stash screens' link marks. */}
+        <ShareLinksProvider enabled={!!user} paused={inShare} uid={user?.uid ?? null}>
+          <CardParamBoot disabled={inShare} />
+          <div
+            className={
+              "m-app" +
+              (searchMode && (screen.key === "vault" || screen.key.startsWith("stashes/"))
+                ? " m-app--search"
+                : "")
+            }
+            data-share={inShare ? "shown" : undefined}
+          >
+            <SheetHost>
+              <div
+                className={"m-app__screen" + (ownParked ? " m-app__screen--parked" : "")}
+                key={screen.key}
+                data-pane={screen.key === "vault" ? "own" : undefined}
+                aria-hidden={ownParked ? true : undefined}
+                inert={cardId != null || toolShown || acctLayer != null || ownParked}
+              >
+                {screen.el}
+              </div>
+              {share.token && share.status !== "ready" ? sharedPane : null}
+              {share.token && share.status === "ready" ? (
+                <ShareScope token={share.token} stash={share.stash}>
+                  {sharedPane}
+                  {inShare && cardId != null ? (
+                    <CardDetail
+                      key={cardId}
+                      id={cardId}
+                      params={route.params}
+                      onRequestSignIn={openSignIn}
+                    />
+                  ) : null}
+                  {inShare ? <FinishSheetHost /> : null}
+                </ShareScope>
+              ) : null}
+              {/* App Spec §20: a newer build is live -- in the flow
               above the bar, so it covers neither the bar nor the header. */}
-            <UpdateBanner phone />
-            <div
-              className="m-app__nav"
-              inert={cardId != null || toolShown || acctLayer != null}
-              style={{ display: "contents" }}
-            >
-              <MobileNav route={navRoute} share={navShare} />
-            </div>
-            {toolShown && !inShare ? (
-              <ToolLayer
-                params={isTool ? route.params : {}}
-                camera={cameraShown}
-                covered={cardId != null}
-                onRequestSignIn={openSignIn}
-              />
-            ) : null}
-            {cardId != null && !inShare ? (
-              <CardDetail
-                key={cardId}
-                id={cardId}
-                params={route.params}
-                onRequestSignIn={openSignIn}
-              />
-            ) : null}
-            {/* Owned by finish opened from a Vault row. */}
-            {inShare ? null : <FinishSheetHost />}
-            {chooserOpen ? (
-              <TitleChooser
-                unread={cue.unread}
-                onClose={closeChooser}
-                onAbout={() => {
-                  setChooserOpen(false);
-                  go("#/about");
-                }}
-                onUpdates={() => {
-                  setChooserOpen(false);
-                  go("#/more/updates");
-                }}
-              />
-            ) : null}
-            {/* A signed-out visitor is being redirected (guard above): the layer
+              <UpdateBanner phone />
+              <div
+                className="m-app__nav"
+                inert={cardId != null || toolShown || acctLayer != null}
+                style={{ display: "contents" }}
+              >
+                <MobileNav route={navRoute} share={navShare} />
+              </div>
+              {toolShown && !inShare ? (
+                <ToolLayer
+                  params={isTool ? route.params : {}}
+                  camera={cameraShown}
+                  covered={cardId != null}
+                  onRequestSignIn={openSignIn}
+                />
+              ) : null}
+              {cardId != null && !inShare ? (
+                <CardDetail
+                  key={cardId}
+                  id={cardId}
+                  params={route.params}
+                  onRequestSignIn={openSignIn}
+                />
+              ) : null}
+              {/* Owned by finish opened from a Vault row. */}
+              {inShare ? null : <FinishSheetHost />}
+              {chooserOpen ? (
+                <TitleChooser
+                  unread={cue.unread}
+                  onClose={closeChooser}
+                  onAbout={() => {
+                    setChooserOpen(false);
+                    go("#/about");
+                  }}
+                  onUpdates={() => {
+                    setChooserOpen(false);
+                    go("#/more/updates");
+                  }}
+                />
+              ) : null}
+              {/* A signed-out visitor is being redirected (guard above): the layer
               would otherwise mount for a frame and call its API unauthenticated. */}
-            {acctLayer && user && !inShare ? (
-              <AccountLayer
-                key={acctLayer}
-                kind={acctLayer}
-                onClose={() => backOr(acctLayer === "delete" ? "#/more/settings" : "#/more")}
-              />
-            ) : null}
-            {authOpen ? (
-              <AuthLayer
-                initialMode={authMode}
-                onClose={closeAuth}
-                onSignedUp={() => setSignupInFlight(true)}
-                onGoogleLinked={() => setGoogleLinkedInFlight(true)}
-              />
-            ) : null}
-          </SheetHost>
-        </div>
-        {/* A phone on its side (App Spec §25.0) -- the app above stays mounted. */}
-        <RotateScreen />
+              {acctLayer && user && !inShare ? (
+                <AccountLayer
+                  key={acctLayer + (sharingStash ?? "")}
+                  kind={acctLayer}
+                  stashId={sharingStash}
+                  onClose={() => backOr(acctLayer === "delete" ? "#/more/settings" : "#/more")}
+                />
+              ) : null}
+              {authOpen ? (
+                <AuthLayer
+                  initialMode={authMode}
+                  onClose={closeAuth}
+                  onSignedUp={() => setSignupInFlight(true)}
+                  onGoogleLinked={() => setGoogleLinkedInFlight(true)}
+                />
+              ) : null}
+            </SheetHost>
+          </div>
+          {/* A phone on its side (App Spec §25.0) -- the app above stays mounted. */}
+          <RotateScreen />
+        </ShareLinksProvider>
       </StashProvider>
     </VaultDataProvider>
   );

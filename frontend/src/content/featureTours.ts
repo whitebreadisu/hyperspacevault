@@ -99,7 +99,7 @@ export const FEATURE_TOURS: FeatureTour[] = [
         anchor: "stash-share",
         title: "Share a stash",
         body: "Send a read-only link to just this stash, handy before trade night.",
-        enabled: false,
+        enabled: true,
       },
     ],
   },

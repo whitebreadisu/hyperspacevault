@@ -53,3 +53,14 @@ export function ReturnIcon({ size = 18 }: { size?: number }) {
     </Svg>
   );
 }
+
+/** The share-link mark (the card window's copy-link glyph, CardPopupLink):
+ * the stash Share buttons, the rail / list marks and the "Link on" lines. */
+export function LinkIcon({ size = 13, width = 2.4 }: { size?: number; width?: number }) {
+  return (
+    <Svg size={size} width={width}>
+      <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L11.6 6" />
+      <path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.6-1.6" />
+    </Svg>
+  );
+}

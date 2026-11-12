@@ -103,13 +103,15 @@ function memoryStore() {
 function Page({
   page,
   shared = false,
+  visit = "",
   children,
 }: {
   page: TourPage;
   shared?: boolean;
+  visit?: string;
   children: ReactNode;
 }) {
-  useTourPage(page, shared);
+  useTourPage(page, shared, visit);
   return <>{children}</>;
 }
 
@@ -518,6 +520,57 @@ describe("FeatureTour", () => {
     );
     settle();
     expect(screen.getByRole("dialog")).toHaveTextContent("Phone share");
+  });
+
+  it("a new visit of the same page (the phone's Stashes list, then a stash) builds its list again", () => {
+    // The phone's Stashes page has two screens: the list carries the heading's
+    // tip, a stash's own screen the Share tip.
+    const stashesTour: FeatureTour = {
+      version: "2.5",
+      since: "2026-11-12",
+      tips: [
+        {
+          id: "heading",
+          page: "stashes",
+          anchor: "heading",
+          title: "Your stashes",
+          body: "h",
+          enabled: true,
+        },
+        {
+          id: "share",
+          page: "stashes",
+          anchor: "stash-share",
+          title: "Share a stash",
+          body: "s",
+          enabled: true,
+        },
+      ],
+    };
+    const screenOf = (visit: string) => (
+      <FeatureTourProvider tours={[stashesTour]} storage={() => store}>
+        <Page page="stashes" visit={visit}>
+          {visit === "stashes" ? (
+            <h1 data-tour="heading">Stashes</h1>
+          ) : (
+            <button type="button" data-tour="stash-share">
+              Share
+            </button>
+          )}
+        </Page>
+      </FeatureTourProvider>
+    );
+    const r = render(screenOf("stashes"));
+    settle();
+    const first = screen.getByRole("dialog", { name: "Your stashes" });
+    expect(first).not.toHaveTextContent(/\d of \d/);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(tip()).toBeNull();
+    // Into a stash: a new visit, so the Share tip starts there.
+    r.rerender(screenOf("stashes/1"));
+    settle();
+    expect(screen.getByRole("dialog", { name: "Share a stash" })).toBeInTheDocument();
+    expect(seen()).toEqual({ "2.5": ["heading"] });
   });
 
   it("the card window over the Vault wins", () => {

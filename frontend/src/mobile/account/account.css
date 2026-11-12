@@ -212,7 +212,13 @@
   min-height: 44px;
   min-width: 44px;
   padding: 0 0 0 8px;
+  /* The phone's button reset (.m-app button: font / color inherit) outranks
+     the desktop class: restate the label's face and blue. */
+  font-family: var(--font-ui);
   font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--color-primary);
 }
 .m-app .m-acctlayer .share-modal__link-input {
   min-height: 44px;
@@ -226,6 +232,41 @@
 .m-app .m-acctlayer .share-modal__hint {
   font-size: 13px;
   line-height: 1.45;
+}
+.m-app .m-acctlayer .share-modal__count {
+  font-size: 12px;
+}
+/* Your links at phone scale: 48 px rows, Copy at the 44 px floor; the list
+   is the full card width, so about four rows show before it scrolls. */
+.m-app .m-acctlayer .share-links__row {
+  min-height: 48px;
+}
+.m-app .m-acctlayer .share-links__name {
+  font-size: 16px;
+}
+.m-app .m-acctlayer .share-links__open {
+  min-height: 44px;
+  align-items: center;
+}
+.m-app .m-acctlayer .share-links__copy {
+  height: auto;
+  min-height: 44px;
+  min-width: 64px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #cfd6e4;
+}
+.m-app .m-acctlayer .share-links__list {
+  max-height: 196px;
+}
+.m-app .m-acctlayer .sp-field__box {
+  min-height: 44px;
+}
+.m-app .m-acctlayer .sp-field__input {
+  min-height: 42px;
+  font-size: 16px;
 }
 
 /* -- Verify-email banner: VerifyEmailBanner.css at phone scale, the first

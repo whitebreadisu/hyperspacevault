@@ -119,6 +119,21 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+/* "Shared · N" under the rail head: count only, shown from one. */
+.sp-rail__legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.sp-rail__legend svg {
+  color: #3b82f6;
+}
 .sp-rail__fold {
   flex: none;
   width: 28px;
@@ -202,6 +217,19 @@
 .sp-railrow--on .sp-railrow__name {
   color: #ffffff;
 }
+/* A shared stash's link mark, between the name and the count: the light
+   blue on resting rows, the lighter blue on the selected row (blue = the
+   owner's own shared things, never amber). */
+.sp-railrow__link {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  color: #3b82f6;
+}
+.sp-railrow--on .sp-railrow__link {
+  color: #93b4ff;
+}
 .sp-railrow__copies {
   font-family: "Russo One", sans-serif;
   font-size: 13px;
@@ -284,6 +312,27 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* The head row in read mode: name + description at the left, Share (and
+   "Link on" under it) right-aligned opposite. */
+.sp-headrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.sp-headrow .sp-read {
+  flex: 1;
+  min-width: 0;
+}
+.sp-share {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.sp-share__btn {
+  display: inline-flex;
 }
 .sp-read {
   display: flex;

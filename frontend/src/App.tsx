@@ -32,6 +32,7 @@ import { markAppSeen } from "./utils/appSeen";
 import { capture } from "./analytics/analytics";
 import { MobileApp } from "./mobile/MobileApp";
 import { useIsPhone } from "./mobile/useIsPhone";
+import { ShareLinksProvider } from "./shares/ShareLinksContext";
 import { StashProvider } from "./stashes/StashContext";
 import { FeatureTourProvider, useTourPage } from "./tour/FeatureTour";
 
@@ -346,69 +347,74 @@ function AppContent() {
   // vault pane shows.
   return (
     <StashProvider enabled={!!user} paused={view === "shared"} uid={user?.uid ?? null}>
-      <div className="app-layout">
-        <Header
-          userEmail={user?.email ?? null}
-          onLogout={logout}
-          onSignIn={() => setAuthModalOpen(true)}
-          onChangePassword={() => setChangePasswordModalOpen(true)}
-          onOpenSettings={() => setActiveView("settings")}
-          onOpenAbout={() => setAboutModalOpen(true)}
-          onOpenFeedback={() => setFeedbackModalOpen(true)}
-          view={view}
-          onNavigateCards={() => setActiveView("cards")}
-          onNavigateStashes={openStashes}
-          onNavigateDeckCheck={() => setActiveView("deck-check")}
-          hasPasswordProvider={hasPasswordProvider(user)}
-          onOpenNotes={openNotes}
-          hasUnread={notesUnread}
-          shareName={shareName}
-          onNavigateShared={() => setActiveView("shared")}
-        />
-        <VerifyEmailBanner />
-        {/* App Spec §20: a newer build is live -- never covers the header. */}
-        <UpdateBanner />
-        <SectionSeparator />
-        <main className="app-main">
-          {/* display:contents keeps each pane wrapper out of the flex layout
+      {/* The owner's share links (read on first use): the share window's list
+          and the Stashes page's link marks. */}
+      <ShareLinksProvider enabled={!!user} paused={view === "shared"} uid={user?.uid ?? null}>
+        <div className="app-layout">
+          <Header
+            userEmail={user?.email ?? null}
+            onLogout={logout}
+            onSignIn={() => setAuthModalOpen(true)}
+            onChangePassword={() => setChangePasswordModalOpen(true)}
+            onOpenSettings={() => setActiveView("settings")}
+            onOpenAbout={() => setAboutModalOpen(true)}
+            onOpenFeedback={() => setFeedbackModalOpen(true)}
+            view={view}
+            onNavigateCards={() => setActiveView("cards")}
+            onNavigateStashes={openStashes}
+            onNavigateDeckCheck={() => setActiveView("deck-check")}
+            hasPasswordProvider={hasPasswordProvider(user)}
+            onOpenNotes={openNotes}
+            hasUnread={notesUnread}
+            shareName={shareName}
+            onNavigateShared={() => setActiveView("shared")}
+          />
+          <VerifyEmailBanner />
+          {/* App Spec §20: a newer build is live -- never covers the header. */}
+          <UpdateBanner />
+          <SectionSeparator />
+          <main className="app-main">
+            {/* display:contents keeps each pane wrapper out of the flex layout
             while visible (CardsPage's .screen is a direct flex child of
             .app-main by design); display:none hides the inactive pane
             without unmounting it. */}
-          {/* The Collection and the Stashes page are one CardsPage: the
+            {/* The Collection and the Stashes page are one CardsPage: the
             Stashes page is the Vault narrowed to a stash, under the same
             filters (CardsPage `stashPage`). */}
-          <div style={{ display: view === "cards" || view === "stashes" ? "contents" : "none" }}>
-            <CardsPage
-              stashPage={view === "stashes" ? { selectedId: stashId, onSelect: setStashId } : null}
-              vaultPage={vaultPage}
-              isAuthenticated={!!user}
-              onRequestSignIn={() => setAuthModalOpen(true)}
-              isEmailVerified={emailVerified}
-              onOpenImportExport={() => setActiveView("import-export")}
-              onQuantitiesRefreshReady={registerQuantitiesRefresh}
-              openCardOnLoad={bootCard}
-              popupKeysSuspended={authModalOpen}
-            />
-          </div>
-          {/* DeckCheckPage is always mounted (like CardsPage above), never
+            <div style={{ display: view === "cards" || view === "stashes" ? "contents" : "none" }}>
+              <CardsPage
+                stashPage={
+                  view === "stashes" ? { selectedId: stashId, onSelect: setStashId } : null
+                }
+                vaultPage={vaultPage}
+                isAuthenticated={!!user}
+                onRequestSignIn={() => setAuthModalOpen(true)}
+                isEmailVerified={emailVerified}
+                onOpenImportExport={() => setActiveView("import-export")}
+                onQuantitiesRefreshReady={registerQuantitiesRefresh}
+                openCardOnLoad={bootCard}
+                popupKeysSuspended={authModalOpen}
+              />
+            </div>
+            {/* DeckCheckPage is always mounted (like CardsPage above), never
             gated by `user &&` (unlike SettingsPage below) -- an anonymous
             visitor can select the Deck Check tab and see its own sign-in
             prompt, matching the peer-nav framing (a real tab, not an
             authenticated-only page that silently doesn't exist). */}
-          <div style={{ display: view === "deck-check" ? "contents" : "none" }}>
-            <DeckCheckPage
-              isAuthenticated={!!user}
-              onRequestSignIn={() => setAuthModalOpen(true)}
-            />
-          </div>
-          {/* NewArrivalsPage is always mounted too (like CardsPage/
+            <div style={{ display: view === "deck-check" ? "contents" : "none" }}>
+              <DeckCheckPage
+                isAuthenticated={!!user}
+                onRequestSignIn={() => setAuthModalOpen(true)}
+              />
+            </div>
+            {/* NewArrivalsPage is always mounted too (like CardsPage/
             DeckCheckPage above), never gated by `user &&` -- reachable
             anonymous, no sign-in gate of its own to render (static content
             from content/releaseNotes.ts, nothing to fetch; App Spec §20). */}
-          <div style={{ display: view === "new-arrivals" ? "contents" : "none" }}>
-            <NewArrivalsPage onOpenAbout={() => setAboutModalOpen(true)} />
-          </div>
-          {/* Mounted only once there's a token to show (mirrors the
+            <div style={{ display: view === "new-arrivals" ? "contents" : "none" }}>
+              <NewArrivalsPage onOpenAbout={() => setAboutModalOpen(true)} />
+            </div>
+            {/* Mounted only once there's a token to show (mirrors the
             `{user && ...}` gating Settings/ImportExport use below for their
             own "nothing to mount yet" case), then display-toggled like
             every other pane above so its OWN filter/scroll state stays
@@ -417,27 +423,27 @@ function AppContent() {
             `user &&` -- reachable anonymous, same as CardsPage/
             DeckCheckPage/NewArrivalsPage above (§19.1: no viewer accounts;
             anonymous viewers see the share). */}
-          {shareToken && (
-            <div style={{ display: view === "shared" ? "contents" : "none" }}>
-              {shareKind === "stash" ? (
-                <SharedStashPage
-                  token={shareToken}
-                  onResolved={handleStashResolved}
-                  onGone={handleStashGone}
-                />
-              ) : (
-                <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
-              )}
-            </div>
-          )}
-          {user && (
-            <div style={{ display: view === "settings" ? "contents" : "none" }}>
-              {/* Delete Account's trigger is this pane's danger zone; the
+            {shareToken && (
+              <div style={{ display: view === "shared" ? "contents" : "none" }}>
+                {shareKind === "stash" ? (
+                  <SharedStashPage
+                    token={shareToken}
+                    onResolved={handleStashResolved}
+                    onGone={handleStashGone}
+                  />
+                ) : (
+                  <SharedVaultPage token={shareToken} onResolved={handleShareResolved} />
+                )}
+              </div>
+            )}
+            {user && (
+              <div style={{ display: view === "settings" ? "contents" : "none" }}>
+                {/* Delete Account's trigger is this pane's danger zone; the
                 modal itself is App-owned (deleteAccountModalOpen). */}
-              <SettingsPage onDeleteAccount={() => setDeleteAccountModalOpen(true)} />
-            </div>
-          )}
-          {/* App Spec §17.3: mounted only once user && emailVerified, like
+                <SettingsPage onDeleteAccount={() => setDeleteAccountModalOpen(true)} />
+              </div>
+            )}
+            {/* App Spec §17.3: mounted only once user && emailVerified, like
             SettingsPage above is mounted only once `user` -- the whole
             surface is gated on verified email (import AND export), so
             there's nothing for this pane to fetch/render until both hold.
@@ -446,45 +452,46 @@ function AppContent() {
             own -- CardsPage's Import / Export button is the only entry
             point, and it never calls onOpenImportExport unless already
             verified (see its own doc comment). */}
-          {user && emailVerified && (
-            <div style={{ display: view === "import-export" ? "contents" : "none" }}>
-              <ImportExportPage
-                onBackToVault={() => setActiveView("cards")}
-                onImported={() => quantitiesRefreshRef.current()}
-              />
-            </div>
+            {user && emailVerified && (
+              <div style={{ display: view === "import-export" ? "contents" : "none" }}>
+                <ImportExportPage
+                  onBackToVault={() => setActiveView("cards")}
+                  onImported={() => quantitiesRefreshRef.current()}
+                />
+              </div>
+            )}
+          </main>
+          {authModalOpen && (
+            <AuthModal
+              initialMode={authMode}
+              onClose={() => {
+                setSignupInFlight(false);
+                setGoogleLinkedInFlight(false);
+                setAuthModalOpen(false);
+                setAuthMode("login");
+              }}
+              onSignedUp={() => setSignupInFlight(true)}
+              onGoogleLinked={() => setGoogleLinkedInFlight(true)}
+            />
           )}
-        </main>
-        {authModalOpen && (
-          <AuthModal
-            initialMode={authMode}
-            onClose={() => {
-              setSignupInFlight(false);
-              setGoogleLinkedInFlight(false);
-              setAuthModalOpen(false);
-              setAuthMode("login");
-            }}
-            onSignedUp={() => setSignupInFlight(true)}
-            onGoogleLinked={() => setGoogleLinkedInFlight(true)}
-          />
-        )}
-        {changePasswordModalOpen && (
-          <ChangePasswordModal onClose={() => setChangePasswordModalOpen(false)} />
-        )}
-        {deleteAccountModalOpen && (
-          <DeleteAccountModal onClose={() => setDeleteAccountModalOpen(false)} />
-        )}
-        {aboutModalOpen && <AboutModal onClose={() => setAboutModalOpen(false)} />}
-        {feedbackModalOpen && <FeedbackModal onClose={() => setFeedbackModalOpen(false)} />}
-        {/* Mounted unconditionally (renders null unless the URL carries a
+          {changePasswordModalOpen && (
+            <ChangePasswordModal onClose={() => setChangePasswordModalOpen(false)} />
+          )}
+          {deleteAccountModalOpen && (
+            <DeleteAccountModal onClose={() => setDeleteAccountModalOpen(false)} />
+          )}
+          {aboutModalOpen && <AboutModal onClose={() => setAboutModalOpen(false)} />}
+          {feedbackModalOpen && <FeedbackModal onClose={() => setFeedbackModalOpen(false)} />}
+          {/* Mounted unconditionally (renders null unless the URL carries a
           Firebase action link's mode/oobCode params) -- placed after the
           `loading` gate above returns, so auth.currentUser is already
           settled by the time its effect reads it. onRequestSignIn mirrors
           CardsPage's onRequestSignIn wiring above -- lets the password-reset
           success/invalid-code screens hand the user back to AuthModal
           without VerifyEmailAction owning any modal-open state of its own. */}
-        <VerifyEmailAction onRequestSignIn={() => setAuthModalOpen(true)} />
-      </div>
+          <VerifyEmailAction onRequestSignIn={() => setAuthModalOpen(true)} />
+        </div>
+      </ShareLinksProvider>
     </StashProvider>
   );
 }

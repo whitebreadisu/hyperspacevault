@@ -8,20 +8,23 @@ import { ShareManageModal } from "../../screens/shares/ShareManageModal";
 // card width / 16 px inputs / 44 px controls / X top-right apply; account.css
 // adds the Cancel / destructive-confirm buttons AuthModal does not have).
 // Open state is the route (`#/more/password`, `#/more/delete`, `#/more/sharing`), so the
-// browser Back button closes it.
+// browser Back button closes it. `#/more/sharing?stash=<id>` (a stash's Share,
+// over that stash) opens the share window on that stash's link.
 
 interface Props {
   kind: "password" | "delete" | "sharing";
   onClose: () => void;
+  /** Sharing: open on this stash's link (absent = the vault link). */
+  stashId?: number;
 }
 
-export function AccountLayer({ kind, onClose }: Props) {
+export function AccountLayer({ kind, onClose, stashId }: Props) {
   return (
     <div className="m-authlayer m-acctlayer" data-layer={kind}>
       {kind === "password" ? (
         <ChangePasswordModal onClose={onClose} />
       ) : kind === "sharing" ? (
-        <ShareManageModal onClose={onClose} />
+        <ShareManageModal onClose={onClose} stashId={stashId} />
       ) : (
         <DeleteAccountModal onClose={onClose} />
       )}

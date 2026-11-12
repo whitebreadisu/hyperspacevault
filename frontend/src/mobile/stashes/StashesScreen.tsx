@@ -3,7 +3,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { SectionSeparator } from "../../components/SectionSeparator";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
-import { PencilIcon } from "../../screens/stashes/stashIcons";
+import { LinkIcon, PencilIcon } from "../../screens/stashes/stashIcons";
+import { useShareLinks } from "../../shares/ShareLinksContext";
 import { useStashes } from "../../stashes/StashContext";
 import { STASH_COPY, usePrintingIndex, useStashValues } from "../../stashes/stashContents";
 import { useStashMeta } from "../../stashes/useStashMeta";
@@ -23,8 +24,8 @@ import "./stashes.css";
 // from the bottom bar's Vault menu), "Your stashes" with Market | Low, one
 // row per stash in creation order (name + description · copies over value ·
 // pencil; the row opens the stash, the pencil the Edit sheet; no chevron,
-// R2-8),
-// then New stash. No stashes: one sentence and New stash.
+// R2-8; a shared stash's name carries the link mark, and the group label
+// counts the stashes and, at the right, the shared ones), then New stash. No stashes: one sentence and New stash.
 
 const VERSION = formatVersionLabel(__APP_VERSION__);
 
@@ -43,6 +44,7 @@ export function StashesScreen({
   const { cards } = useVaultData();
   const [priceKind, setPriceKind] = usePriceKind();
   const meta = useStashMeta();
+  const links = useShareLinks();
   const [sheet, setSheet] = useState<SheetState>(null);
 
   const values = useStashValues(usePrintingIndex(cards), ctx, priceKind);
@@ -116,7 +118,15 @@ export function StashesScreen({
         ) : (
           <section className="m-stashes__group" aria-label="Your stashes">
             <div className="m-summary__head m-stashes__grouphead">
-              <h2 className="m-summary__label m-stashes__label">Your stashes</h2>
+              <h2 className="m-summary__label m-stashes__label">
+                Your stashes · {ctx.stashes.length}
+              </h2>
+              {links.sharedStashes > 0 ? (
+                <span className="m-stashes__shared">
+                  <LinkIcon size={14} />
+                  {links.sharedStashes} shared
+                </span>
+              ) : null}
               <PriceSeg mode={priceKind} onChange={setPriceKind} />
             </div>
             {ctx.stashes.map((s) => (
@@ -125,10 +135,17 @@ export function StashesScreen({
                   type="button"
                   className="m-stashrow__main"
                   onClick={() => go("#/stashes/" + s.id)}
-                  aria-label={`${s.name}, ${s.copies} ${s.copies === 1 ? "card" : "cards"}`}
+                  aria-label={`${s.name}${links.forStash(s.id) ? ", shared" : ""}, ${s.copies} ${s.copies === 1 ? "card" : "cards"}`}
                 >
                   <span className="m-stashrow__text">
-                    <span className="m-stashrow__name">{s.name}</span>
+                    <span className="m-stashrow__nameline">
+                      <span className="m-stashrow__name">{s.name}</span>
+                      {links.forStash(s.id) ? (
+                        <span className="m-stashrow__link">
+                          <LinkIcon size={14} />
+                        </span>
+                      ) : null}
+                    </span>
                     {s.description ? (
                       <span className="m-stashrow__desc">{s.description}</span>
                     ) : null}

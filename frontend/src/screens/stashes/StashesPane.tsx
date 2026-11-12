@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
 import { useModalDismiss } from "../../hooks/useModalDismiss";
+import { useShareLinks } from "../../shares/ShareLinksContext";
 import { useStashes } from "../../stashes/StashContext";
 import {
   DEFAULT_STASH_SORT,
@@ -26,7 +27,9 @@ import type { SetOrderMap } from "../../utils/catalog";
 import type { InventoryCard } from "../../utils/inventory";
 import type { PriceMode } from "../../utils/variantScope";
 import { CardsValueKindToggle } from "../cards/VariantScopeControls";
-import { CheckIcon, PencilIcon, TrashIcon } from "./stashIcons";
+import { ShareManageModal } from "../shares/ShareManageModal";
+import { LinkOnLine } from "./LinkOnLine";
+import { CheckIcon, LinkIcon, PencilIcon, TrashIcon } from "./stashIcons";
 import { CreateStashModal, DeleteStashModal, MetaErrorLine, StashNameFields } from "./StashModals";
 import { StashGallery } from "./StashGallery";
 import { StashSortBar } from "./StashSort";
@@ -44,7 +47,10 @@ import "./stashes.css";
 // with Undo, and the printing-level table or gallery. The Vault's filters
 // (CardsPage's FilterPanel, portalled into `onFilterSlot`, R1-5) float at
 // the card list's top-left and narrow the rows. This page never adds copies
-// and never changes an owned count.
+// and never changes an owned count. Sharing (App Spec §19.1, owner screens):
+// the head's Share opens the share window on the stash's link, with "Link on
+// · <share name>" under it while one is live; the rail marks shared stashes
+// with a link icon and counts them under its head ("Shared · N").
 
 interface Props {
   /** The catalogue with the caller's quantities (every card). */
@@ -119,6 +125,8 @@ function ChevronIcon({ dir }: { dir: "left" | "right" }) {
 function Rail({
   stashes,
   selectedId,
+  isShared,
+  sharedCount,
   valueOf,
   priceKind,
   onPriceKind,
@@ -130,6 +138,10 @@ function Rail({
 }: {
   stashes: Stash[];
   selectedId: number;
+  /** The stash has a live share link (the rail's link mark). */
+  isShared: (id: number) => boolean;
+  /** Shared stashes, for the legend (shown from 1). */
+  sharedCount: number;
   valueOf: (s: Stash) => number;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
@@ -166,6 +178,12 @@ function Rail({
             <ChevronIcon dir="left" />
           </button>
         </div>
+        {sharedCount > 0 ? (
+          <span className="sp-rail__legend">
+            <LinkIcon size={13} />
+            Shared · {sharedCount}
+          </span>
+        ) : null}
         <div className="sp-rail__list">
           {stashes.map((s) => {
             const on = s.id === selectedId;
@@ -181,6 +199,11 @@ function Rail({
               >
                 <span className="sp-railrow__line">
                   <span className="sp-railrow__name">{s.name}</span>
+                  {isShared(s.id) ? (
+                    <span className="sp-railrow__link" role="img" aria-label="Shared">
+                      <LinkIcon size={13} />
+                    </span>
+                  ) : null}
                   <span
                     className={
                       "sp-railrow__copies" + (s.copies === 0 ? " sp-railrow__copies--zero" : "")
@@ -355,6 +378,8 @@ export function StashesPane({
 }: Props) {
   const ctx = useStashes();
   const meta = useStashMeta();
+  const links = useShareLinks();
+  const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"table" | "gallery">("table");
   const [sort, setSort] = useState<StashSort>(DEFAULT_STASH_SORT);
   const [valueUnit, setValueUnit] = useState<ValueUnit>("total");
@@ -502,6 +527,9 @@ export function StashesPane({
           }}
         />
       ) : null}
+      {sharing && stash ? (
+        <ShareManageModal stashId={stash.id} onClose={() => setSharing(false)} />
+      ) : null}
       {deleting && stash ? (
         <DeleteStashModal
           stash={stash}
@@ -561,12 +589,15 @@ export function StashesPane({
   const railProps = {
     stashes: ctx.stashes,
     selectedId: stash.id,
+    isShared: (sid: number) => links.forStash(sid) != null,
+    sharedCount: links.sharedStashes,
     valueOf,
     priceKind,
     onPriceKind,
     onNew: newStash,
   };
   const zero = all.length === 0;
+  const shareLink = links.forStash(stash.id);
   return (
     <div className="cards-content sp-page">
       <div className={"sp-layout" + (docked ? "" : " sp-layout--folded")}>
@@ -609,40 +640,50 @@ export function StashesPane({
                   onDelete={startDelete}
                 />
               ) : (
-                <div className="sp-read">
-                  <h2 className="sp-read__name" ref={headingRef} tabIndex={-1}>
-                    {stash.name}
-                  </h2>
-                  <span className="sp-read__descline">
-                    <span
-                      className={
-                        "sp-read__desc" + (stash.description ? "" : " sp-read__desc--none")
-                      }
-                    >
-                      {stash.description || STASH_COPY.noDescription}
+                <div className="sp-headrow">
+                  <div className="sp-read">
+                    <h2 className="sp-read__name" ref={headingRef} tabIndex={-1}>
+                      {stash.name}
+                    </h2>
+                    <span className="sp-read__descline">
+                      <span
+                        className={
+                          "sp-read__desc" + (stash.description ? "" : " sp-read__desc--none")
+                        }
+                      >
+                        {stash.description || STASH_COPY.noDescription}
+                      </span>
+                      <button
+                        type="button"
+                        className="sp-pencil"
+                        aria-label="Edit name and description"
+                        title="Edit name and description"
+                        onClick={() => {
+                          meta.clearError();
+                          setEditing(true);
+                        }}
+                      >
+                        <PencilIcon size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="sp-pencil sp-pencil--danger"
+                        aria-label={`Delete ${stash.name}`}
+                        title="Delete stash"
+                        onClick={startDelete}
+                      >
+                        <TrashIcon size={15} />
+                      </button>
                     </span>
-                    <button
-                      type="button"
-                      className="sp-pencil"
-                      aria-label="Edit name and description"
-                      title="Edit name and description"
-                      onClick={() => {
-                        meta.clearError();
-                        setEditing(true);
-                      }}
-                    >
-                      <PencilIcon size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      className="sp-pencil sp-pencil--danger"
-                      aria-label={`Delete ${stash.name}`}
-                      title="Delete stash"
-                      onClick={startDelete}
-                    >
-                      <TrashIcon size={15} />
-                    </button>
-                  </span>
+                  </div>
+                  <div className="sp-share">
+                    <span className="sp-share__btn" data-tour="stash-share">
+                      <SWUButton size="sm" onClick={() => setSharing(true)}>
+                        Share
+                      </SWUButton>
+                    </span>
+                    {shareLink ? <LinkOnLine name={shareLink.name} /> : null}
+                  </div>
                 </div>
               )}
               <div className="sp-stats">

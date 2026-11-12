@@ -47,6 +47,24 @@
   flex: 1;
   margin: 0;
 }
+/* "N shared" at the right of the group label (count only), before Market |
+   Low; the link mark is the owner's blue. */
+.m-app .m-stashes__shared {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+.m-app .m-stashes__shared svg {
+  color: #3b82f6;
+}
 .m-app .m-stashes__new {
   display: flex;
   justify-content: center;
@@ -97,6 +115,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* The name line: the name (ellipsis) then, on a shared stash, the link mark. */
+.m-app .m-stashrow__nameline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.m-app .m-stashrow__nameline .m-stashrow__name {
+  min-width: 0;
+}
+.m-app .m-stashrow__link {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: #3b82f6;
 }
 .m-app .m-stashrow__desc {
   font-size: 13px;
@@ -207,6 +241,12 @@
   min-height: 15px;
   color: var(--aspect-command);
 }
+/* "Link on · <share name>" under VALUE, in the metric sub's slot. */
+.m-app .m-stashpanel__linkon {
+  max-width: 100%;
+  min-height: 15px;
+  padding-top: 2px;
+}
 /* The description popover: steel ring cut at both corners, X top-right; a
    tap outside closes. */
 .m-app .m-stashpop {
@@ -311,6 +351,16 @@
 }
 .m-app .m-stashctl__icon:active {
   background: rgba(37, 99, 235, 0.2);
+}
+/* Share with a live link: filled (deep blue, the primary edge, white glyph);
+   with none it is outlined like its neighbours. */
+.m-app .m-stashctl__icon--on {
+  background: #1e3a8a;
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+.m-app .m-stashctl__icon--on:active {
+  background: var(--color-primary-dim);
 }
 .m-app .m-stashctl__icon--danger:active {
   background: rgba(248, 113, 113, 0.14);

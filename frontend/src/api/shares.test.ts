@@ -94,6 +94,34 @@ describe("createShare", () => {
       status: 500,
     });
   });
+
+  it("with a stash id, POSTs {name, stash_id} for that stash's link", async () => {
+    const stashRecord = { ...RECORD, scope: "stash" as const, target_id: 4, stash_name: "Trade" };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(stashRecord, 201));
+
+    const result = await createShare("Jeremy", 4);
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({
+      name: "Jeremy",
+      stash_id: 4,
+    });
+    expect(result).toEqual(stashRecord);
+  });
+
+  it("a stash create's 404 is a coded stash_not_found (the vault create's 404 stays unknown)", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response(null, { status: 404 })
+    );
+
+    await expect(createShare("X", 4)).rejects.toMatchObject({
+      code: "stash_not_found",
+      message: "This stash no longer exists.",
+      status: 404,
+    });
+    await expect(createShare("X")).rejects.toMatchObject({ code: "unknown", status: 404 });
+  });
 });
 
 describe("renameShare", () => {

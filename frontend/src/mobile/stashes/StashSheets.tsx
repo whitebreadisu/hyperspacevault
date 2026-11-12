@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SWUButton } from "../../components/SWUButton";
 import type { Stash } from "../../api/stashes";
 import { MetaErrorLine, StashNameFields } from "../../screens/stashes/StashModals";
+import { useShareLinks } from "../../shares/ShareLinksContext";
 import { STASH_COPY } from "../../stashes/stashContents";
 import type { StashMeta } from "../../stashes/useStashMeta";
 import { Sheet, useSheetClose } from "../Sheet";
@@ -214,6 +215,7 @@ export function DeleteStashSheet({
   onClose: () => void;
   onDeleted?: () => void;
 }) {
+  const shared = useShareLinks().forStash(stash.id) != null;
   return (
     <Sheet
       title={`Delete ${stash.name}?`}
@@ -237,6 +239,7 @@ export function DeleteStashSheet({
       <div className="m-stashsheet__body">
         <p className="m-stashsheet__lead">{STASH_COPY.deleteLead(stash.copies)}</p>
         <p className="m-stashsheet__fine">{STASH_COPY.deleteFine}</p>
+        {shared ? <p className="m-stashsheet__fine">{STASH_COPY.deleteShared}</p> : null}
         <MetaErrorLine error={meta.error} />
       </div>
     </Sheet>
