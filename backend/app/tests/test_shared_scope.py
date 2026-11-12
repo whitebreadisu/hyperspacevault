@@ -37,15 +37,17 @@ import json
 import os
 import threading
 import time
-from types import SimpleNamespace
 
 import pytest
 from fastapi import APIRouter, Depends
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import NullPool
 
 from app import database, rate_limit
+from app.db_url import sa_url
 from app.main import app
 from app.services import stashes as stash_service
 from app.tests.conftest import delete_provisioned_identity
@@ -626,20 +628,39 @@ def test_rate_limit_runs_before_any_db_session(world, anon, monkeypatch):
     assert opened == []
 
 
-def test_stash_read_runs_in_one_repeatable_read_snapshot(world, anon, monkeypatch):
-    """The gate's existence check and the row read share one snapshot."""
+def test_stash_read_runs_in_one_repeatable_read_snapshot(world, anon, db, monkeypatch):
+    """G17: the gate's existence check and the row read share one snapshot.
+    Between the two, another connection commits the stash's deletion (its
+    rows cascade); the read still answers with the pre-delete contents,
+    never the stash's name over an empty row list."""
+    from app.repositories import stashes as stash_repo
+
     a = world["as"]("a")
-    share = _share(a, "Jeremy", world["trade"]["id"])
-    seen = []
-    real_view = stash_service.shared_view
+    sid = world["trade"]["id"]
+    share = _share(a, "Jeremy", sid)
+    real_rows = stash_repo.shared_stash_rows
+    deleted = []
 
-    def spy(db, *args):
-        seen.append(db.execute(text("SHOW transaction_isolation")).scalar_one())
-        return real_view(db, *args)
+    def delete_then_read(session, stash_id):
+        db.rollback()
+        db.execute(text("DELETE FROM stashes WHERE id = :id"), {"id": stash_id})
+        db.commit()
+        deleted.append(stash_id)
+        return real_rows(session, stash_id)
 
-    monkeypatch.setattr(stash_service, "shared_view", spy)
-    assert _stash_view(anon, share["token"]).status_code == 200
-    assert seen == ["repeatable read"]
+    monkeypatch.setattr(stash_repo, "shared_stash_rows", delete_then_read)
+    resp = _stash_view(anon, share["token"])
+    assert deleted == [sid]
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["stash"]["name"] == "Trade"
+    assert sorted((r["variant_id"], r["quantity"]) for r in body["rows"]) == sorted(
+        [(world["v4"], 2), (world["v5"], 1)]
+    )
+    assert body["totals"]["copies"] == 3
+    # The deletion really committed: the next read is a dead link.
+    monkeypatch.setattr(stash_repo, "shared_stash_rows", real_rows)
+    assert _stash_view(anon, share["token"]).status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -785,17 +806,44 @@ def test_owner_list_requires_auth(world):
 # Concurrency: create vs delete, create vs create
 # ---------------------------------------------------------------------------
 #
-# Deterministic two-connection races. One side runs the real code on its
-# own swu_app session whose commit() is held at a barrier (after its writes
-# are flushed, so its row locks are held); the other side runs through the
-# API in a thread and is observed blocked on a lock (pg_stat_activity)
-# before the first side is released.
+# Deterministic two-connection races, both sides running the real code on
+# their own swu_app sessions (NullPool: nothing set here outlives the test).
+# The holder's commit() is held at a barrier after its writes are flushed,
+# so its row locks are held. The contender starts in a second thread and is
+# observed blocked BY THE HOLDER (pg_blocking_pids) before the holder is
+# released. The contender carries a lock_timeout so a stuck lock fails fast;
+# every worker is joined, with a bound, before any session is closed.
+
+LOCK_TIMEOUT = "10s"
+JOIN_SECONDS = 30.0
+WAIT_SECONDS = 20.0
 
 
-def _owner_session(uid):
-    req = SimpleNamespace(state=SimpleNamespace())
-    db, conn = database._open_authenticated_session(req, uid, "x@example.com")
-    return db, conn
+@pytest.fixture
+def race_engine():
+    engine = create_engine(sa_url(os.environ["APP_DATABASE_URL"]), poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+def _tenant_session(engine, tenant_id, lock_timeout=None):
+    """A swu_app session scoped to tenant_id on its own connection, and its
+    backend pid."""
+    conn = engine.connect()
+    session = Session(bind=conn)
+    session.execute(
+        text("SELECT set_config('app.current_tenant_id', :t, false)"),
+        {"t": str(tenant_id)},
+    )
+    if lock_timeout:
+        session.execute(
+            text("SELECT set_config('lock_timeout', :v, false)"), {"v": lock_timeout}
+        )
+    pid = session.execute(text("SELECT pg_backend_pid()")).scalar_one()
+    session.commit()
+    return session, conn, pid
 
 
 def _hold_commit(session):
@@ -807,27 +855,29 @@ def _hold_commit(session):
     def held():
         session.flush()
         reached.set()
-        assert release.wait(20), "release never came"
+        assert release.wait(WAIT_SECONDS), "release never came"
         real_commit()
 
     session.commit = held
     return reached, release
 
 
-def _wait_until_blocked_on_lock(db, timeout=20.0):
-    deadline = time.monotonic() + timeout
+def _wait_until_blocked_by(db, contender_pid, holder_pid):
+    """Poll until the contender's backend is waiting on a lock the holder's
+    backend holds."""
+    deadline = time.monotonic() + WAIT_SECONDS
     while time.monotonic() < deadline:
         db.rollback()
         blocked = db.execute(
-            text(
-                "SELECT count(*) FROM pg_stat_activity "
-                "WHERE usename = 'swu_app' AND wait_event_type = 'Lock'"
-            )
+            text("SELECT :h = ANY(pg_blocking_pids(:c))"),
+            {"h": holder_pid, "c": contender_pid},
         ).scalar_one()
         if blocked:
             return
         time.sleep(0.05)
-    raise AssertionError("the second side never blocked on a lock")
+    raise AssertionError(
+        f"contender pid {contender_pid} never blocked on holder pid {holder_pid}"
+    )
 
 
 def _in_thread(fn):
@@ -836,12 +886,54 @@ def _in_thread(fn):
     def run():
         try:
             out["value"] = fn()
-        except BaseException as exc:  # surfaced by the caller
+        except BaseException as exc:  # read by the caller
             out["error"] = exc
 
-    t = threading.Thread(target=run)
+    t = threading.Thread(target=run, daemon=True)
     t.start()
     return t, out
+
+
+def _race(engine, admin_db, tenant_id, holder_fn, contender_fn):
+    """Run holder_fn(holder_session) to its held commit, start
+    contender_fn(contender_session), wait until the contender is blocked by
+    the holder, release. Returns (holder_out, contender_out)."""
+    holder, holder_conn, holder_pid = _tenant_session(engine, tenant_id)
+    contender, contender_conn, contender_pid = _tenant_session(
+        engine, tenant_id, lock_timeout=LOCK_TIMEOUT
+    )
+    reached, release = _hold_commit(holder)
+    workers = []
+    try:
+        h, h_out = _in_thread(lambda: holder_fn(holder))
+        workers.append(h)
+        assert reached.wait(WAIT_SECONDS), ("holder never reached its commit", h_out)
+        c, c_out = _in_thread(lambda: contender_fn(contender))
+        workers.append(c)
+        _wait_until_blocked_by(admin_db, contender_pid, holder_pid)
+    finally:
+        release.set()  # never leave the holder waiting, pass or fail
+        for t in workers:
+            t.join(JOIN_SECONDS)
+        stuck = [t.name for t in workers if t.is_alive()]
+        if not stuck:
+            for s, conn in ((holder, holder_conn), (contender, contender_conn)):
+                s.close()
+                conn.close()
+    assert not stuck, f"worker threads still running after {JOIN_SECONDS}s: {stuck}"
+    return h_out, c_out
+
+
+def _http_status(out):
+    """The status a router call ended with: 2xx when it returned, the
+    HTTPException's status when it raised one; anything else fails."""
+    from fastapi import HTTPException
+
+    if "error" in out:
+        assert isinstance(out["error"], HTTPException), out["error"]
+        return out["error"].status_code
+    assert "value" in out, out
+    return 200
 
 
 def _live_links_to(db, stash_id):
@@ -855,95 +947,69 @@ def _live_links_to(db, stash_id):
     ).scalar_one()
 
 
-def test_delete_holding_the_stash_then_create_gets_404(world, db):
-    """The delete commits first: the create, blocked on lock_stash, finds
-    the stash gone -> 404, no link."""
-    a = world["as"]("a")
-    sid = world["keep"]["id"]
-    owner_db, owner_conn = _owner_session(A[0])
-    try:
-        reached, release = _hold_commit(owner_db)
-        deleter, d_out = _in_thread(lambda: stash_service.delete_stash(owner_db, sid))
-        assert reached.wait(20)
-        creator, c_out = _in_thread(
-            lambda: a.post("/api/shares", json={"name": "J", "stash_id": sid})
-        )
-        _wait_until_blocked_on_lock(db)
-        release.set()
-        deleter.join(20)
-        creator.join(20)
-        assert "error" not in d_out and "error" not in c_out, (d_out, c_out)
-        assert c_out["value"].status_code == 404
-    finally:
-        release.set()  # never leave the held side waiting on a failure
-        owner_db.close()
-        owner_conn.close()
-    assert _live_links_to(db, sid) == 0
-
-
-def test_create_holding_the_stash_then_delete_revokes_it(world, db):
-    """The create commits first: the delete, blocked on the stash row,
-    then revokes the new link in its own transaction -> no live link."""
+def test_delete_holding_the_stash_then_create_gets_404(world, db, race_engine):
+    """G14: the delete commits first; the create, blocked by the delete on
+    lock_stash, finds the stash gone -> 404, no link."""
     from app.routers import shares as shares_router
     from app.schemas.share_schema import ShareCreateRequest
 
-    a = world["as"]("a")
     sid = world["keep"]["id"]
-    owner_db, owner_conn = _owner_session(A[0])
-    try:
-        reached, release = _hold_commit(owner_db)
-        creator, c_out = _in_thread(
-            lambda: shares_router.create_share(
-                ShareCreateRequest(name="J", stash_id=sid), owner_db
-            )
-        )
-        assert reached.wait(20)
-        deleter, d_out = _in_thread(lambda: a.delete(f"/api/stashes/{sid}"))
-        _wait_until_blocked_on_lock(db)
-        release.set()
-        creator.join(20)
-        deleter.join(20)
-        assert "error" not in c_out and "error" not in d_out, (c_out, d_out)
-        assert c_out["value"].target_id == sid
-        assert d_out["value"].status_code == 204
-    finally:
-        release.set()  # never leave the held side waiting on a failure
-        owner_db.close()
-        owner_conn.close()
+    d_out, c_out = _race(
+        race_engine,
+        db,
+        world["ta"],
+        lambda s: stash_service.delete_stash(s, sid),
+        lambda s: shares_router.create_share(
+            ShareCreateRequest(name="J", stash_id=sid), s
+        ),
+    )
+    assert "error" not in d_out, d_out
+    assert _http_status(c_out) == 404
+    assert _live_links_to(db, sid) == 0
+
+
+def test_create_holding_the_stash_then_delete_revokes_it(world, db, race_engine):
+    """G14 + G6: the create commits first; the delete, blocked by the create
+    on the stash row, then revokes the new link in its own transaction ->
+    no live link."""
+    from app.routers import shares as shares_router
+    from app.schemas.share_schema import ShareCreateRequest
+
+    sid = world["keep"]["id"]
+    c_out, d_out = _race(
+        race_engine,
+        db,
+        world["ta"],
+        lambda s: shares_router.create_share(
+            ShareCreateRequest(name="J", stash_id=sid), s
+        ),
+        lambda s: stash_service.delete_stash(s, sid),
+    )
+    assert "error" not in c_out and "error" not in d_out, (c_out, d_out)
+    assert c_out["value"].target_id == sid
     assert _live_links_to(db, sid) == 0
 
 
 @pytest.mark.parametrize("scope", ["inventory", "stash"])
-def test_racing_creates_give_one_link_and_a_409(world, db, scope):
-    """Two creates for one target. Vault: both pass the pre-check, the
-    second INSERT waits on uq_shares_one_active_per_target and its
-    IntegrityError becomes 409. Stash: the second waits on lock_stash, then
-    its pre-check says 409. Never a 500, always exactly one live link."""
+def test_racing_creates_give_one_link_and_a_409(world, db, race_engine, scope):
+    """G15 (vault): both creates pass the pre-check, the second INSERT waits
+    on uq_shares_one_active_per_target held by the first, and its
+    IntegrityError becomes 409. G14 (stash): the second waits on lock_stash,
+    then its pre-check says 409. Never anything but 409, always exactly one
+    live link."""
     from app.routers import shares as shares_router
     from app.schemas.share_schema import ShareCreateRequest
 
-    a = world["as"]("a")
     stash_id = world["trade"]["id"] if scope == "stash" else None
     body = {"name": "J"} | ({"stash_id": stash_id} if stash_id else {})
-    owner_db, owner_conn = _owner_session(A[0])
-    try:
-        reached, release = _hold_commit(owner_db)
-        first, f_out = _in_thread(
-            lambda: shares_router.create_share(ShareCreateRequest(**body), owner_db)
-        )
-        assert reached.wait(20)
-        second, s_out = _in_thread(lambda: a.post("/api/shares", json=body))
-        _wait_until_blocked_on_lock(db)
-        release.set()
-        first.join(20)
-        second.join(20)
-        assert "error" not in f_out and "error" not in s_out, (f_out, s_out)
-        assert s_out["value"].status_code == 409
-        assert s_out["value"].json() == {"detail": "An active share already exists"}
-    finally:
-        release.set()  # never leave the held side waiting on a failure
-        owner_db.close()
-        owner_conn.close()
+
+    def create(session):
+        return shares_router.create_share(ShareCreateRequest(**body), session)
+
+    f_out, s_out = _race(race_engine, db, world["ta"], create, create)
+    assert "error" not in f_out, f_out
+    assert _http_status(s_out) == 409
+    assert s_out["error"].detail == "An active share already exists"
     db.rollback()
     live = db.execute(
         text(
