@@ -1,11 +1,11 @@
-<!-- generated 2026-11-11 by .github/scripts/docs_index.mjs from a01c973 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
+<!-- generated 2026-11-11 by .github/scripts/docs_index.mjs from c47d272 — do not hand-edit; regenerate with: node .github/scripts/docs_index.mjs --write -->
 # Documentation index (generated)
 
 Generated section-level index of the three public specs, for retrieval and for the doc-currency audit: one row per `##` / `###` section, with its starting line, its size (`Bytes (LF)`, LF-normalised UTF-8 so Windows and Linux agree; a `##` row includes its `###` children), the first dated banner line in the section's own text, the ADRs it mentions, the code paths it cites in backticks (historical citations excluded) and the archive headings its tombstones quote. Regenerate with `node .github/scripts/docs_index.mjs --write`; CI fails when the committed file is stale; never hand-edit.
 
 ## SWU_Application_Spec.md
 
-Total 315,798 B (LF) · 26 h2 · 77 h3
+Total 315,899 B (LF) · 26 h2 · 77 h3
 
 | § | Section | Line | Bytes (LF) | Dated banner | ADRs | Code paths cited | Archive headings quoted |
 |---|---|---|---|---|---|---|---|
@@ -112,7 +112,7 @@ Total 315,798 B (LF) · 26 h2 · 77 h3
 | h3 | [§25.5 Account: Settings, Change Password, Delete Account, Sharing, verify banner (BL-251)](SWU_Application_Spec.md#255-account-settings-change-password-delete-account-sharing-verify-banner-bl-251) | 1133 | 4,156 |  |  | `frontend/src/mobile/account` |  |
 | h3 | [§25.6 Shared vault (BL-252)](SWU_Application_Spec.md#256-shared-vault-bl-252) | 1145 | 5,715 |  |  | `frontend/src/api/sharedView.ts`, `frontend/src/mobile/shared` | "Archived 2026-11-08 — v3.0 navigation pod and Stashes page (BL-341, BL-344)", "Archived 2026-11-07 — header logos and one-line brand tag (BL-340)" |
 | h3 | [§25.7 Camera (BL-253)](SWU_Application_Spec.md#257-camera-bl-253) | 1157 | 18,405 |  | 0029, 0030 | `frontend/e2e/mobile/scan-fixture.ts`, `frontend/public/vendor/scan`, `frontend/scan.html`, `frontend/src/mobile/camera`, `frontend/src/scan.tsx` | "Archived 2026-10-12 — round 2: phone gate and landscape (BL-257, F-18)", "Archived 2026-10-13 — camera Fast add, hold and suppression (BL-262)", "Archived 2026-10-12 — §25.2 plate idiom and limit colour superseded by the owner finish round (BL-257)" |
-| h2 | [§26. Stashes (BL-344, v3.0 — slice 1 on dev; Stashes page = slice 2)](SWU_Application_Spec.md#26-stashes-bl-344-v30--slice-1-on-dev-stashes-page--slice-2) | 1183 | 15,641 | 2026-11-07 Lowering owned |  | `backend/alembic/versions/0032_add_stashes.py`, `frontend/src/mobile/card/CardStashes.tsx`, `frontend/src/screens/cards/CardPopupStashes.tsx`, `frontend/src/stashes/StashContext.tsx`, `frontend/src/stashes/stashSaveStore.ts`, `frontend/src/stashes/useStashEditor.ts`, `frontend/src/utils/ownedSettle.ts` | "Archived 2026-11-08 — dev feel-check round 1: header widths, stash saves, filter clear (BL-341, BL-344)" |
+| h2 | [§26. Stashes (BL-344, v3.0 — slice 1 on dev; Stashes page = slice 2)](SWU_Application_Spec.md#26-stashes-bl-344-v30--slice-1-on-dev-stashes-page--slice-2) | 1183 | 15,742 | 2026-11-07 Lowering owned |  | `backend/alembic/versions/0032_add_stashes.py`, `frontend/src/mobile/card/CardStashes.tsx`, `frontend/src/screens/cards/CardPopupStashes.tsx`, `frontend/src/stashes/StashContext.tsx`, `frontend/src/stashes/stashSaveStore.ts`, `frontend/src/stashes/useStashEditor.ts`, `frontend/src/utils/ownedSettle.ts` | "Archived 2026-11-08 — dev feel-check round 1: header widths, stash saves, filter clear (BL-341, BL-344)" |
 
 ## SWU_Platform_Spec.md
 

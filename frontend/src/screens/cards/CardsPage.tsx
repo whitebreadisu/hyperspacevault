@@ -606,9 +606,14 @@ export function CardsPage({
         // the breakpoint arithmetic in FilterPanel.css. On the Stashes page
         // the same FilterPanel is portalled into the pane's card-list corner
         // (StashesPane onFilterSlot), so it floats over the stash's cards,
-        // not the page's left edge.
+        // not the page's left edge. With no stash shown there is no slot (empty
+        // state, loading, load error) and nothing to filter, so the panel is
+        // hidden, not unmounted: it keeps its state.
         <div className="cards-layout">
-          <InSlot slot={stashPage && !readOnly ? filterSlot : null}>
+          <InSlot
+            slot={stashPage && !readOnly ? filterSlot : null}
+            hidden={Boolean(stashPage && !readOnly) && filterSlot === null}
+          >
             <FilterPanel
               filters={filters}
               setFilters={handleFilterPanelChange}

@@ -104,6 +104,15 @@ vi.mock("../../analytics/analytics", () => ({
   capture: (...args: unknown[]) => mockCapture(...args),
 }));
 
+// The Stashes page's pane stands in for the real one (which needs the stash
+// provider): "empty" reports no filter slot (no stash shown), "stash" reports a
+// card-list corner like the real pane does for a shown stash.
+let stashPaneMode: "empty" | "stash" = "empty";
+vi.mock("../stashes/StashesPane", () => ({
+  StashesPane: ({ onFilterSlot }: { onFilterSlot?: (el: HTMLElement | null) => void }) =>
+    stashPaneMode === "stash" ? <div className="sp-list__filters" ref={onFilterSlot} /> : null,
+}));
+
 const mockGetBaseCardsList = vi.fn();
 const mockGetBaseCardDetail = vi.fn();
 // BL-140 design-conformance pass: CardPopup's compact history panel is now
@@ -3275,5 +3284,60 @@ describe("CardsPage vaultPage switch clears the filters (R1-13)", () => {
     });
     expect(screen.getByRole("button", { name: "Set — All sets" })).toBeInTheDocument();
     expect(owned()).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+// The Filters panel on the Stashes page: hidden (not unmounted) whenever the
+// pane shows no stash, so it cannot overlap the empty state at the page edge.
+describe("CardsPage Filters panel on the Stashes page", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetBaseCardsList.mockResolvedValue([]);
+    mockGetSharedQuantities.mockResolvedValue([]);
+  });
+
+  const host = (c: HTMLElement) => c.querySelector<HTMLElement>(".filter-host")!;
+  const stashPage = { selectedId: null, onSelect: () => undefined };
+
+  it("is hidden with no stash shown, and the panel stays mounted", async () => {
+    stashPaneMode = "empty";
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(<CardsPage isAuthenticated stashPage={stashPage} />);
+    });
+    expect(host(utils.container).style.display).toBe("none");
+    expect(utils.container.querySelector(".ifp-sidebar")).not.toBeNull();
+  });
+
+  it("is shown on the Collection page", async () => {
+    stashPaneMode = "empty";
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(<CardsPage isAuthenticated vaultPage="collection" />);
+    });
+    expect(host(utils.container).style.display).toBe("contents");
+    expect(utils.container.querySelector(".ifp-sidebar")).not.toBeNull();
+  });
+
+  it("is not hidden in a shared vault, even with a stashPage", async () => {
+    stashPaneMode = "empty";
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(
+        <CardsPage isAuthenticated={false} shareToken="tok-1" stashPage={stashPage} />
+      );
+    });
+    expect(host(utils.container).style.display).toBe("contents");
+  });
+
+  it("sits in the card-list corner, shown, once a stash is shown", async () => {
+    stashPaneMode = "stash";
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(<CardsPage isAuthenticated stashPage={{ ...stashPage, selectedId: 1 }} />);
+    });
+    const h = host(utils.container);
+    expect(h.parentElement?.classList.contains("sp-list__filters")).toBe(true);
+    expect(h.style.display).toBe("contents");
   });
 });

@@ -99,3 +99,40 @@ test.describe("seeded", () => {
     ]);
   });
 });
+
+// A signed-in user with no stashes: nothing to filter, so the Filters panel
+// is hidden (it must not overlap the empty state at the page's left edge);
+// the first stash brings the edge tab back into the card-list corner.
+for (const width of [1024, 1280, 1440, 1920]) {
+  test(`stashes-empty-state-no-filters-overlap-${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await page.locator('[data-sub="stashes"]').click();
+    const empty = page.locator(".sp-empty");
+    await expect(empty).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator(".ifp-sidebar-tab")).toBeHidden();
+
+    const box = async (loc: ReturnType<Page["locator"]>) => (await loc.boundingBox())!;
+    const heading = await box(page.locator(".sp-empty__title"));
+    const text = await box(page.locator(".sp-empty__text"));
+    const btn = await box(empty.getByRole("button", { name: "New stash" }));
+    const column = await box(page.locator(".cards-content.sp-page"));
+    expect(heading.x).toBeGreaterThanOrEqual(column.x);
+    const visible = await page.locator("[class*='ifp-sidebar']").evaluateAll((els) =>
+      els
+        .filter((e) => (e as HTMLElement).getClientRects().length > 0)
+        .map((e) => e.getBoundingClientRect())
+        .map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height }))
+    );
+    expect(visible).toEqual([]);
+    for (const b of [heading, text, btn]) expect(b.width).toBeGreaterThan(0);
+
+    await empty.getByRole("button", { name: "New stash" }).click();
+    const create = page.getByRole("dialog", { name: "New stash" });
+    await create.locator(".sp-field__input").fill("Red binder");
+    await create.getByRole("button", { name: "Create stash" }).click();
+    const corner = page.locator(".sp-list__filters .ifp-sidebar-tab");
+    await expect(corner).toBeVisible();
+  });
+}
