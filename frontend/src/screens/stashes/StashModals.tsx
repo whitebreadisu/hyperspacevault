@@ -4,6 +4,7 @@ import { useModalDismiss } from "../../hooks/useModalDismiss";
 import type { Stash } from "../../api/stashes";
 import { DESCRIPTION_MAX, NAME_MAX } from "../../stashes/useStashMeta";
 import type { MetaError, StashMeta } from "../../stashes/useStashMeta";
+import { useShareLinks } from "../../shares/ShareLinksContext";
 import { STASH_COPY } from "../../stashes/stashContents";
 import "../../stashes/stashFields.css";
 import "../auth/AuthModal.css";
@@ -25,6 +26,7 @@ export function StashNameFields({
   error,
   autoFocus = true,
   big = false,
+  nameOnly = false,
 }: {
   idPrefix: string;
   name: string;
@@ -35,6 +37,8 @@ export function StashNameFields({
   autoFocus?: boolean;
   /** The in-place edit's larger name field (E1). */
   big?: boolean;
+  /** The name field alone (the share window's Rename stash). */
+  nameOnly?: boolean;
 }) {
   const nameErr = error?.field === "name" ? error : null;
   const errId = `${idPrefix}-name-error`;
@@ -69,23 +73,25 @@ export function StashNameFields({
           </span>
         ) : null}
       </label>
-      <label className="sp-field">
-        <span className="sp-field__label">
-          Description <span className="sp-field__opt">· optional</span>
-        </span>
-        <span className="sp-field__box sp-field__box--area">
-          <textarea
-            className="sp-field__textarea"
-            value={description}
-            maxLength={DESCRIPTION_MAX}
-            placeholder="Where it lives, what it’s for"
-            onChange={(e) => onDescription(e.target.value)}
-          />
-          <span className="sp-field__count" aria-hidden="true">
-            {description.length}/{DESCRIPTION_MAX}
+      {nameOnly ? null : (
+        <label className="sp-field">
+          <span className="sp-field__label">
+            Description <span className="sp-field__opt">· optional</span>
           </span>
-        </span>
-      </label>
+          <span className="sp-field__box sp-field__box--area">
+            <textarea
+              className="sp-field__textarea"
+              value={description}
+              maxLength={DESCRIPTION_MAX}
+              placeholder="Where it lives, what it’s for"
+              onChange={(e) => onDescription(e.target.value)}
+            />
+            <span className="sp-field__count" aria-hidden="true">
+              {description.length}/{DESCRIPTION_MAX}
+            </span>
+          </span>
+        </label>
+      )}
     </>
   );
 }
@@ -182,6 +188,7 @@ export function DeleteStashModal({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const shared = useShareLinks().forStash(stash.id) != null;
   const close = useCallback(() => {
     if (!meta.busy) {
       meta.clearError();
@@ -210,6 +217,7 @@ export function DeleteStashModal({
             {STASH_COPY.deleteLead(stash.copies)}
           </p>
           <p className="auth-danger-warning">{STASH_COPY.deleteFine}</p>
+          {shared ? <p className="auth-danger-warning">{STASH_COPY.deleteShared}</p> : null}
         </div>
         <MetaErrorLine error={meta.error} />
         <div className="auth-modal-actions">

@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Stash } from "../../api/stashes";
-import { CheckIcon, PencilIcon, ReturnIcon, TrashIcon } from "../../screens/stashes/stashIcons";
+import { LinkOnLine } from "../../screens/stashes/LinkOnLine";
+import {
+  CheckIcon,
+  LinkIcon,
+  PencilIcon,
+  ReturnIcon,
+  TrashIcon,
+} from "../../screens/stashes/stashIcons";
+import { useShareLinks } from "../../shares/ShareLinksContext";
 import { useStashes } from "../../stashes/StashContext";
 import {
   DEFAULT_STASH_SORT,
@@ -49,7 +57,10 @@ import "./stashes.css";
 // Low and CARDS / VALUE (the Vault panel's `m-metric` tiles); collapsed,
 // the header bar's strip carries two lines -- the stash name over CARDS and
 // VALUE, the Vault readout's own type roles. Below: the Vault's status rows
-// (search, Filters; count, pencil, trash, sort, list / gallery), the return
+// (search, Filters; count, share, pencil, trash, sort, list / gallery: share
+// opens the sharing layer (#/more/sharing?stash=<id>, over this screen) on
+// the stash's link, filled while one is live, with
+// "Link on · <share name>" under VALUE in the panel), the return
 // feedback line, then one row per printing (the Vault row's `m-row__*`
 // classes). A row's resting control is its count chip + Return; Return
 // makes the row active with desktop's − / chip / trash, and the row goes
@@ -85,6 +96,7 @@ export function Panel({
   copies,
   value,
   sub,
+  linkName = null,
   priceKind,
   onPriceKind,
   eyebrow,
@@ -93,6 +105,10 @@ export function Panel({
   copies: string;
   value: string;
   sub: string | null;
+  /** The live link's share name ("Link on · <name>" under VALUE). */
+  /** The owner's live link's share name ("Link on · <name>" under VALUE);
+   * absent in the shared viewer. */
+  linkName?: string | null;
   priceKind: PriceMode;
   onPriceKind: (k: PriceMode) => void;
   eyebrow?: string;
@@ -162,7 +178,11 @@ export function Panel({
           <span className="m-metric">
             <span className="m-metric__label">Value</span>
             <span className="m-metric__value m-metric__value--money">{value}</span>
-            <span className="m-metric__sub" />
+            {linkName != null ? (
+              <LinkOnLine name={linkName} className="m-stashpanel__linkon" />
+            ) : (
+              <span className="m-metric__sub" />
+            )}
           </span>
         </div>
       </div>
@@ -370,6 +390,7 @@ export function StashScreen({
   const stash = ctx.stashes.find((s) => s.id === stashId) ?? null;
   const ret = useStashReturn(stash ? stashId : null);
   const meta = useStashMeta();
+  const links = useShareLinks();
   const [view, setView] = useState<"rows" | "gallery">("rows");
   const [sheet, setSheet] = useState<SheetName>(null);
   const [sort, setSort] = useState<StashSort>(DEFAULT_STASH_SORT);
@@ -459,6 +480,7 @@ export function StashScreen({
 
   const zero = all.length === 0;
   const n = rows.length;
+  const shareLink = links.forStash(stashId);
   const controls = (
     <div className="m-vault__controls m-stashctl">
       <div className="m-vault__searchrow">
@@ -491,6 +513,15 @@ export function StashScreen({
         <span className={"m-count" + (vv.narrowed ? " m-count--narrowed" : "")}>
           {n} {n === 1 ? "printing" : "printings"}
         </span>
+        <button
+          type="button"
+          className={"m-stashctl__icon" + (shareLink ? " m-stashctl__icon--on" : "")}
+          data-tour="stash-share"
+          aria-label={shareLink ? `Share ${stash.name}: link on` : `Share ${stash.name}`}
+          onClick={() => go(`#/more/sharing?stash=${stash.id}`)}
+        >
+          <LinkIcon size={20} width={2} />
+        </button>
         <button
           type="button"
           className="m-stashctl__icon"
@@ -591,6 +622,7 @@ export function StashScreen({
             copies={copies}
             value={value}
             sub={ret.last ? `${ret.last.copies} back in Vault` : null}
+            linkName={shareLink?.name ?? null}
             priceKind={vv.priceKind}
             onPriceKind={vv.setPriceKind}
           />

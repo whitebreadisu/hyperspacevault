@@ -1,0 +1,22 @@
+/* "Link on · <share name>" (desktop head, phone stash panel). */
+.sp-linkon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #93b4ff;
+}
+.sp-linkon svg {
+  flex: none;
+}
+.sp-linkon__text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Stash, StashItem } from "../../api/stashes";
 import { LimitsProvider } from "../../context/LimitsContext";
+import type { ShareRecord } from "../../api/shares";
+import { ShareLinksProvider } from "../../shares/ShareLinksContext";
 import { StashProvider } from "../../stashes/StashContext";
 import type { InventoryCard } from "../../utils/inventory";
 import { VaultDataValue } from "../../vault/useVaultData";
@@ -36,6 +38,13 @@ const api = vi.hoisted(() => ({
 vi.mock("../../api/stashes", async (orig) => ({
   ...(await orig<typeof import("../../api/stashes")>()),
   ...api,
+}));
+// The owner's share links (the list marks, the stash's Share, the delete
+// line): empty unless a test sets `shares`.
+const shareApi = vi.hoisted(() => ({ listShares: vi.fn() }));
+vi.mock("../../api/shares", async (orig) => ({
+  ...(await orig<typeof import("../../api/shares")>()),
+  ...shareApi,
 }));
 vi.mock("../../context/AuthContext", async (orig) => ({
   ...(await orig<typeof import("../../context/AuthContext")>()),
@@ -81,6 +90,16 @@ const CARDS = [LUKE, VADER];
 
 let stashes: Stash[];
 let items: StashItem[];
+let shares: ShareRecord[];
+const stashLink = (stashId: number, name = "Jeremy"): ShareRecord => ({
+  id: 100 + stashId,
+  name,
+  scope: "stash",
+  token: "tok-s" + stashId,
+  created_at: "2026-11-12T00:00:00Z",
+  revoked: false,
+  target_id: stashId,
+});
 const mk = (id: number, name: string, description: string | null = null): Stash => ({
   id,
   name,
@@ -105,6 +124,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetRouterForTest();
   window.location.hash = "";
+  shares = [];
+  shareApi.listShares.mockImplementation(async () => shares.map((x) => ({ ...x })));
   stashes = [
     mk(1, "Red binder", "Blue binder on the shelf, sleeved, by set"),
     mk(2, "Trade stash"),
@@ -177,9 +198,11 @@ function Shell({ children, enabled = true }: { children: ReactNode; enabled?: bo
     <LimitsProvider isAuthenticated={false}>
       <VaultDataValue value={data(CARDS)}>
         <StashProvider enabled={enabled}>
-          <div className="m-app">
-            <SheetHost>{children}</SheetHost>
-          </div>
+          <ShareLinksProvider enabled={enabled}>
+            <div className="m-app">
+              <SheetHost>{children}</SheetHost>
+            </div>
+          </ShareLinksProvider>
         </StashProvider>
       </VaultDataValue>
     </LimitsProvider>
@@ -766,5 +789,107 @@ describe("R1-10: scale on the phone", () => {
       .slice(0, 2)
       .map((e) => e.getAttribute("data-variant"));
     expect(first).toEqual(["1000", "1001"]);
+  });
+});
+
+// App Spec §19.1 owner screens on the phone: the Stashes list's link marks
+// and "N shared", the stash's Share in the status row (tip 5's target),
+// "Link on" under VALUE, and the delete sheet's link line.
+describe("sharing a stash on the phone (owner screens)", () => {
+  const list = () =>
+    render(
+      <Shell>
+        <StashesScreen account={null} unread={false} onOpenChooser={() => {}} />
+      </Shell>
+    );
+  function inside(id = 1) {
+    return render(
+      <Shell>
+        <StashScreen
+          stashId={id}
+          account={null}
+          unread={false}
+          onOpenChooser={() => {}}
+          onOpenFeedback={() => {}}
+          onSearchMode={() => {}}
+        />
+      </Shell>
+    );
+  }
+
+  it("the list: the group label counts stashes; no links, no marks and no shared count", async () => {
+    list();
+    await screen.findByRole("button", { name: "Red binder, 4 cards" });
+    await waitFor(() => expect(shareApi.listShares).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { name: "Your stashes · 2" })).toBeInTheDocument();
+    expect(document.querySelector(".m-stashrow__link")).toBeNull();
+    expect(document.querySelector(".m-stashes__shared")).toBeNull();
+  });
+
+  it("the list: a link mark after each shared stash's name and 'N shared' at the right", async () => {
+    shares = [stashLink(2)];
+    list();
+    await screen.findByRole("button", { name: "Trade stash, shared, 0 cards" });
+    const row = document.querySelector('.m-stashrow[data-stash="2"]')!;
+    const nameline = row.querySelector(".m-stashrow__nameline")!;
+    expect([...nameline.children].map((c) => c.className)).toEqual([
+      "m-stashrow__name",
+      "m-stashrow__link",
+    ]);
+    expect(document.querySelector('.m-stashrow[data-stash="1"] .m-stashrow__link')).toBeNull();
+    expect(document.querySelector(".m-stashes__shared")!.textContent).toBe("1 shared");
+  });
+
+  it("inside: the status row is printings · share · edit · delete · sort · view; share outlined with no link", async () => {
+    inside();
+    await waitFor(() => expect(document.querySelector(".m-stashline")).not.toBeNull());
+    const status = document.querySelector(".m-stashctl__status")!;
+    const parts = [...status.children].map(
+      (c) => c.getAttribute("aria-label") ?? c.className.split(" ")[0]
+    );
+    expect(parts).toEqual([
+      "m-count",
+      "Share Red binder",
+      "Edit stash",
+      "Delete Red binder",
+      expect.stringMatching(/^Sort/),
+      "View",
+    ]);
+    const share = screen.getByRole("button", { name: "Share Red binder" });
+    expect(share.className).toBe("m-stashctl__icon");
+    expect(share.getAttribute("data-tour")).toBe("stash-share");
+    expect(document.querySelector(".m-stashpanel .sp-linkon")).toBeNull();
+  });
+
+  it("inside: with a link on, Share is filled and 'Link on · <name>' sits under VALUE", async () => {
+    shares = [stashLink(1, "Sam")];
+    inside();
+    const share = await screen.findByRole("button", { name: "Share Red binder: link on" });
+    expect(share.className).toContain("m-stashctl__icon--on");
+    const line = document.querySelector(".m-stashpanel .sp-linkon")!;
+    expect(line.textContent).toBe("Link on · Sam");
+    expect(line.closest(".m-metric")!.querySelector(".m-metric__label")!.textContent).toBe("Value");
+  });
+
+  it("inside: Share opens the sharing layer on this stash's link", async () => {
+    inside();
+    fireEvent.click(await screen.findByRole("button", { name: "Share Red binder" }));
+    expect(window.location.hash).toBe("#/more/sharing?stash=1");
+  });
+
+  it("the delete sheet adds 'Its share link stops working.' only for a shared stash", async () => {
+    shares = [stashLink(1)];
+    const r = inside();
+    await screen.findByRole("button", { name: "Share Red binder: link on" });
+    fireEvent.click(screen.getByRole("button", { name: "Delete Red binder" }));
+    const del = await screen.findByRole("dialog", { name: "Delete Red binder?" });
+    expect(within(del).getByText("Its share link stops working.")).toBeInTheDocument();
+    r.unmount();
+
+    inside(2);
+    await screen.findByRole("button", { name: "Share Trade stash" });
+    fireEvent.click(screen.getByRole("button", { name: "Delete Trade stash" }));
+    const del2 = await screen.findByRole("dialog", { name: "Delete Trade stash?" });
+    expect(within(del2).queryByText("Its share link stops working.")).toBeNull();
   });
 });

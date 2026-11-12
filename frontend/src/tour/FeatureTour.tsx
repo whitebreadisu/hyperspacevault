@@ -220,6 +220,9 @@ function report(action: FeatureTourAction, tip: TourTip, tour: FeatureTour, page
 interface Registration {
   page: TourPage | null;
   shared: boolean;
+  /** Which screen of the page (a new value is a new visit); "" when the page
+   * has one screen. */
+  visit: string;
 }
 
 interface TourContextValue {
@@ -231,13 +234,16 @@ const TourContext = createContext<TourContextValue | null>(null);
 
 /** A page says it is showing (`page`), or that it shows nothing a tour
  * covers (null: a modal over it, a shared vault). `shared`: a shared vault is
- * the view, so no tips at all. No-op outside a FeatureTourProvider. */
-export function useTourPage(page: TourPage | null, shared = false): void {
+ * the view, so no tips at all. `visit` names the screen when one page has
+ * several (the phone's Stashes list and a stash's own screen): moving between
+ * them is a new visit, so the page's list is built again for the new screen's
+ * targets. No-op outside a FeatureTourProvider. */
+export function useTourPage(page: TourPage | null, shared = false, visit = ""): void {
   const ctx = useContext(TourContext);
   const id = useId();
   useEffect(() => {
-    ctx?.register(id, { page, shared });
-  }, [ctx, id, page, shared]);
+    ctx?.register(id, { page, shared, visit });
+  }, [ctx, id, page, shared, visit]);
   useEffect(() => () => ctx?.unregister(id), [ctx, id]);
 }
 
@@ -265,7 +271,9 @@ export function FeatureTourProvider({
     () => ({
       register: (id, reg) =>
         setRegs((r) =>
-          r[id]?.page === reg.page && r[id]?.shared === reg.shared ? r : { ...r, [id]: reg }
+          r[id]?.page === reg.page && r[id]?.shared === reg.shared && r[id]?.visit === reg.visit
+            ? r
+            : { ...r, [id]: reg }
         ),
       unregister: (id) =>
         setRegs((r) => {
@@ -290,8 +298,12 @@ export function FeatureTourProvider({
   const values = Object.values(regs);
   const sharedView = values.some((r) => r.shared);
   let top: TourPage | null = null;
+  let visit = "";
   for (const r of values)
-    if (r.page && (top == null || PAGE_RANK[r.page] > PAGE_RANK[top])) top = r.page;
+    if (r.page && (top == null || PAGE_RANK[r.page] > PAGE_RANK[top])) {
+      top = r.page;
+      visit = r.visit;
+    }
 
   // The banner gate is the runner's (a visible tip may finish); the rest
   // decides whether a page tour runs at all.
@@ -315,8 +327,8 @@ export function FeatureTourProvider({
       {children}
       {running && top && tour && rec ? (
         <TourRunner
-          // A new visit to a page (or the page changing) starts over.
-          key={top}
+          // A new visit to a page (the page or its screen changing) starts over.
+          key={top + "|" + visit}
           tour={tour}
           page={top}
           device={phone ? "phone" : "desktop"}

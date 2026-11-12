@@ -250,6 +250,41 @@ test.describe("desktop", () => {
     await shot(page, "05_desk_tip3");
   });
 
+  // Tip 5 (stash sharing's owner screens, v2.5): with a stash shown, the
+  // Stashes page has two tips, the heading then the head's Share.
+  test.describe("tip 5, share a stash", () => {
+    test.use({
+      stashSeed: {
+        stashes: [
+          { id: 1, name: "Red binder", description: null, created_at: "2026-11-01T00:00:00Z" },
+        ],
+      },
+    });
+
+    test("bl359-desk-stashes-page-tip5-share", async ({ page }) => {
+      await tourOn(page, { seen: ["stashes-nav"] });
+      await page.goto("/");
+      await expect(phase(page)).toHaveAttribute("data-tour-phase", "collection:empty");
+      await page.locator('[data-sub="stashes"]').click();
+      const first = page.getByRole("dialog", { name: "Your stashes" });
+      await expect(first).toContainText("1 of 2");
+      await first.getByRole("button", { name: "Next" }).click();
+      const tip = page.getByRole("dialog", { name: "Share a stash" });
+      await expect(tip).toContainText("2 of 2");
+      await expect(tip).toContainText(
+        "Send a read-only link to just this stash, handy before trade night."
+      );
+      const { t, g } = await boxes(tip, page.locator('[data-tour="stash-share"]'));
+      expect(t.y).toBeGreaterThanOrEqual(g.y + g.height);
+      await shot(page, "10_desk_tip5");
+      await tip.getByRole("button", { name: "Done" }).click();
+      await expect(page.locator(TIP)).toHaveCount(0);
+      expect(await seenRecord(page)).toEqual({
+        "2.5": ["stashes-nav", "stashes-page", "share-stash"],
+      });
+    });
+  });
+
   test("bl359-desk-skip-tour-ends-it-everywhere", async ({ page }) => {
     await tourOn(page);
     await page.goto("/");
@@ -344,6 +379,40 @@ test.describe("phone", () => {
     const { t, g } = await boxes(tip, page.locator('[data-tour="stashes-heading"]'));
     expect(t.y).toBeGreaterThanOrEqual(g.y + g.height);
     await shot(page, "09_phone_tip3");
+  });
+
+  test.describe("tip 5, share a stash", () => {
+    test.use({
+      stashSeed: {
+        stashes: [
+          { id: 1, name: "Red binder", description: null, created_at: "2026-11-01T00:00:00Z" },
+        ],
+      },
+    });
+
+    test("bl359-phone-stash-tip5-share", async ({ page }) => {
+      await tourOn(page, { seen: ["stashes-nav"] });
+      // Inside a stash: no Stashes heading, so tip 5 shows alone.
+      await page.goto("/#/stashes/1");
+      const tip = page.getByRole("dialog", { name: "Share a stash" });
+      await expect(tip).toBeVisible();
+      await expect(tip).not.toContainText(/\d of \d/);
+      const { t, g } = await boxes(tip, page.locator('[data-tour="stash-share"]'));
+      expect(t.y).toBeGreaterThanOrEqual(g.y + g.height);
+      await shot(page, "11_phone_tip5");
+    });
+
+    test("bl359-phone-list-then-stash-tip5-same-visit", async ({ page }) => {
+      await tourOn(page, { seen: ["stashes-nav"] });
+      await page.goto("/#/stashes");
+      const heading = page.getByRole("dialog", { name: "Your stashes" });
+      await heading.getByRole("button", { name: "Done" }).click();
+      await expect(page.locator(TIP)).toHaveCount(0);
+      // Into the stash in the same visit of the Stashes page: tip 5 starts.
+      await page.locator('.m-stashrow[data-stash="1"] .m-stashrow__main').click();
+      await expect(page).toHaveURL(/#\/stashes\/1$/);
+      await expect(page.getByRole("dialog", { name: "Share a stash" })).toBeVisible();
+    });
   });
 
   test("bl359-phone-new-account-sees-nothing", async ({ page }) => {

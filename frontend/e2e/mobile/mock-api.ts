@@ -35,7 +35,8 @@ export interface Recorder {
   /** BL-251 S5-01: PUT /api/settings/limits bodies, in order. */
   limitPuts: { limits: unknown[]; cap_mode?: string }[];
   /** BL-251 S5-07: share calls ("create Name" | "rename Name" | "rotate" |
-   * "revoke"), in order. */
+   * "revoke"), in order; a stash link's create is "create Name stash=<id>"
+   * and its rotate / revoke "rotate stash=<id>" / "revoke stash=<id>". */
   shares: string[];
   /** BL-249 S3-15: POST /api/inventory/import calls (multipart fields + the
    * file's JSON), in order. */
@@ -363,6 +364,9 @@ export async function installApiMocks(
     fixture?: CardsFixture;
     /** BL-344: stashes (and their items) the double starts with. */
     stashes?: { id: number; name: string; description: string | null; created_at: string }[];
+    /** Share links the double starts with: the vault link's share name
+     * and / or stash links (stash id + share name). */
+    shares?: { vault?: string; stashes?: { stashId: number; name: string }[] };
     stashItems?: { stash_id: number; variant_id: number; quantity: number }[];
   } = {}
 ): Promise<Recorder> {
@@ -459,17 +463,23 @@ export async function installApiMocks(
       }),
     };
   };
-  // S5-07: the shares double -- one active inventory share at most (§19.1),
-  // starting empty; rotate mints a new token, revoke clears it.
+  // S5-07 + stash links: the shares double -- one live vault link at most and
+  // one per stash (§19.1), starting from opts.shares (else empty). GET lists
+  // the live links, vault first then stash links in stash order, each stash
+  // link with its stash's current name; rotate mints a new token, revoke
+  // drops the row, a stash link's rename is 409 share_name_fixed and deleting
+  // a stash drops its link.
   type ShareRow = {
     id: number;
     name: string;
-    scope: "inventory";
+    scope: "inventory" | "stash";
     token: string;
     created_at: string;
     revoked: boolean;
+    target_id: number | null;
   };
-  let share: ShareRow | null = null;
+  let shares: ShareRow[] = [];
+  let shareSeq = 0;
   // BL-344: the stashes double (slice 1 contract). Starts with none; POST
   // appends, PUT replaces a printing's split (409 exceeds_owned past owned).
   // `seedStashes` (below) lets a spec start from a stashed state.
@@ -488,6 +498,25 @@ export async function installApiMocks(
     [...stashItems].filter(([k]) => k.startsWith(id + ":")).reduce((n, [, q]) => n + q, 0);
   let tokenSeq = 0;
   const nextToken = () => `e2e-share-token-${++tokenSeq}`;
+  const newShare = (name: string, stashId: number | null): ShareRow => ({
+    id: ++shareSeq,
+    name,
+    scope: stashId == null ? "inventory" : "stash",
+    token: nextToken(),
+    created_at: "2026-10-11T12:00:00Z",
+    revoked: false,
+    target_id: stashId,
+  });
+  if (opts.shares?.vault) shares.push(newShare(opts.shares.vault, null));
+  for (const l of opts.shares?.stashes ?? []) shares.push(newShare(l.name, l.stashId));
+  const shareOut = (r: ShareRow) => ({
+    ...r,
+    stash_name: r.target_id == null ? null : stashes.find((x) => x.id === r.target_id)?.name,
+  });
+  const liveShares = () => [
+    ...shares.filter((r) => r.target_id == null),
+    ...stashes.flatMap((st) => shares.filter((r) => r.target_id === st.id)),
+  ];
   const ok = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
@@ -522,36 +551,38 @@ export async function installApiMocks(
         if (body.cap_mode) limitsCapMode = body.cap_mode;
         return ok(route, limitsBody());
       }
-      if (path === "/api/shares" && method === "GET") return ok(route, share ? [share] : []);
+      if (path === "/api/shares" && method === "GET") return ok(route, liveShares().map(shareOut));
       if (path === "/api/shares" && method === "POST") {
-        const { name } = req.postDataJSON() as { name: string };
-        rec.shares.push("create " + name);
-        share = {
-          id: 1,
-          name,
-          scope: "inventory",
-          token: nextToken(),
-          created_at: "2026-10-11T12:00:00Z",
-          revoked: false,
-        };
-        return ok(route, share, 201);
+        const { name, stash_id } = req.postDataJSON() as { name: string; stash_id?: number };
+        const stashId = stash_id ?? null;
+        if (stashId != null && !stashes.some((x) => x.id === stashId))
+          return ok(route, { detail: "Stash not found" }, 404);
+        if (shares.some((r) => r.target_id === stashId))
+          return ok(route, { detail: "An active share already exists" }, 409);
+        rec.shares.push("create " + name + (stashId == null ? "" : ` stash=${stashId}`));
+        const made = newShare(name, stashId);
+        shares.push(made);
+        return ok(route, shareOut(made), 201);
       }
       const shareId = path.match(/^\/api\/shares\/(\d+)(\/rotate)?$/);
+      const share = shareId ? shares.find((r) => r.id === Number(shareId[1])) : undefined;
       if (shareId && share) {
+        const tag = share.target_id == null ? "" : ` stash=${share.target_id}`;
         if (method === "PATCH") {
+          if (share.target_id != null) return ok(route, { detail: "share_name_fixed" }, 409);
           const { name } = req.postDataJSON() as { name: string };
           rec.shares.push("rename " + name);
-          share = { ...share, name };
-          return ok(route, share);
+          share.name = name;
+          return ok(route, shareOut(share));
         }
         if (method === "POST" && shareId[2]) {
-          rec.shares.push("rotate");
-          share = { ...share, token: nextToken() };
-          return ok(route, share);
+          rec.shares.push("rotate" + tag);
+          share.token = nextToken();
+          return ok(route, shareOut(share));
         }
         if (method === "DELETE") {
-          rec.shares.push("revoke");
-          share = null;
+          rec.shares.push("revoke" + tag);
+          shares = shares.filter((r) => r !== share);
           // The real endpoint answers 204. F4 (2026-10-11): fulfill({ status: 204 }) with no
           // body still aborts in Chromium (ERR_ABORTED, "failed requests"); revokeShare only
           // checks res.ok -- so 200 + {}.
@@ -573,10 +604,49 @@ export async function installApiMocks(
         // description, no rows; `stok-404` / `stok-429` the dead and
         // rate-limited answers. A stash token's resolve and vault reads are
         // 404, as on the server; a vault token's stash read is 404.
-        const stashes: Record<string, { name: string; description: string | null }> = {
+        const stashFixtures: Record<string, { name: string; description: string | null }> = {
           "stok-1": { name: "Trade binder", description: "Doubles for trading at locals." },
           "stok-empty": { name: "Spare box", description: null },
         };
+        // A link the owner made in this run (the shares double): its token
+        // reads what the owner's own doubles hold now, so an owner-to-viewer
+        // test sees its own stash. Same scope rules as the fixtures.
+        const own = shares.find((r) => r.token === tok);
+        if (own && own.target_id != null) {
+          const st = stashes.find((x) => x.id === own.target_id);
+          if (shared[2] !== "/stash" || !st) return ok(route, { detail: "Not found" }, 404);
+          const rows = [...stashItems]
+            .filter(([k]) => k.startsWith(st.id + ":"))
+            .map(([k, quantity]) => {
+              const variant_id = Number(k.split(":")[1]);
+              return {
+                variant_id,
+                quantity,
+                stashed_at: "2026-11-12T00:00:00Z",
+                market: markets.get(variant_id) ?? null,
+                low: null,
+              };
+            });
+          const copies = rows.reduce((n, r) => n + r.quantity, 0);
+          const value = rows.reduce((n, r) => n + (r.market ?? 0) * r.quantity, 0);
+          return ok(route, {
+            share_name: own.name,
+            stash: { name: st.name, description: st.description },
+            rows,
+            totals: { printings: rows.length, copies, value_market: value, value_low: 0 },
+          });
+        }
+        if (own) {
+          // The owner's vault link: the owner's own quantities.
+          if (shared[2] === "/stash") return ok(route, { detail: "Not found" }, 404);
+          if (shared[2] === "/quantities")
+            return ok(
+              route,
+              [...qtyById].map(([variant_id, quantity]) => ({ variant_id, quantity }))
+            );
+          if (shared[2] === "/limits") return ok(route, limitsBody());
+          return ok(route, { name: own.name, scope: "inventory" });
+        }
         if (tok === "stok-429")
           return route.fulfill({
             status: 429,
@@ -585,7 +655,7 @@ export async function installApiMocks(
             body: '{"detail":"rate limited"}',
           });
         if (shared[2] === "/stash") {
-          const st = stashes[tok];
+          const st = stashFixtures[tok];
           if (!st) return ok(route, { detail: "Not found" }, 404);
           const rows =
             tok === "stok-1"
@@ -608,7 +678,7 @@ export async function installApiMocks(
             totals: { printings: rows.length, copies, value_market: 0, value_low: 0 },
           });
         }
-        if (stashes[tok]) return ok(route, { detail: "Not found" }, 404);
+        if (stashFixtures[tok]) return ok(route, { detail: "Not found" }, 404);
         const names: Record<string, string> = {
           "tok-1": "Rowan",
           "tok-slow": "Rowan",
@@ -706,6 +776,8 @@ export async function installApiMocks(
         }
         if (method === "DELETE" && one_) {
           stashes.splice(stashes.indexOf(one_), 1);
+          // Deleting a stash revokes its share link (§19.1).
+          shares = shares.filter((r) => r.target_id !== one_.id);
           for (const k of [...stashItems.keys()])
             if (k.startsWith(one_.id + ":")) stashItems.delete(k);
           // The real endpoint answers 204 with no body.

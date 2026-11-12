@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { EmailNotVerifiedError } from "../api/inventory";
 import { StashApiError } from "../api/stashes";
 import type { Stash } from "../api/stashes";
+import { useShareLinksContext } from "../shares/ShareLinksContext";
 import { useStashes } from "./StashContext";
 import { DESCRIPTION_MAX, NAME_MAX } from "./useStashEditor";
 
@@ -10,7 +11,9 @@ import { DESCRIPTION_MAX, NAME_MAX } from "./useStashEditor";
 // A duplicate name is an inline error on the name field ("You already have a
 // stash named Trade stash." + "Pick another name."); Save / Create stay
 // aria-disabled until the name is changed. Deleting returns the stash's
-// copies to the Vault (owned unchanged).
+// copies to the Vault (owned unchanged). A rename or delete re-reads the
+// owner's share links (a stash link carries its stash's name; deleting a
+// stash kills its link).
 
 export { DESCRIPTION_MAX, NAME_MAX };
 
@@ -74,6 +77,7 @@ export interface StashMeta {
 
 export function useStashMeta(): StashMeta {
   const ctx = useStashes();
+  const links = useShareLinksContext();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MetaError | null>(null);
   const busyRef = useRef(false);
@@ -130,23 +134,27 @@ export function useStashMeta(): StashMeta {
     save: useCallback(
       async (id: number, name: string, description: string) => {
         if (duplicate(name, id)) return false;
+        const session = links.session();
         const r = await run(
           () => ctx.update(id, { name: name.trim(), description: description.trim() || null }),
           (e) => toError(e, name)
         );
+        if (r) void links.refresh(session);
         return r != null;
       },
-      [ctx, run, duplicate]
+      [ctx, run, duplicate, links]
     ),
     remove: useCallback(
       async (id: number) => {
+        const session = links.session();
         const r = await run(
           () => ctx.remove(id),
           (e) => toError(e, "", true)
         );
+        if (r) void links.refresh(session);
         return r != null;
       },
-      [ctx, run]
+      [ctx, run, links]
     ),
   };
 }

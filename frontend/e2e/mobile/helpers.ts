@@ -137,6 +137,8 @@ export function expectNoInternet(rec: Recorder): void {
 export interface StashSeed {
   stashes?: { id: number; name: string; description: string | null; created_at: string }[];
   stashItems?: { stash_id: number; variant_id: number; quantity: number }[];
+  /** Share links the double starts with (mock-api.ts installApiMocks). */
+  shares?: { vault?: string; stashes?: { stashId: number; name: string }[] };
 }
 
 export const test = base.extend<{ cardsFixture: CardsFixture; stashSeed: StashSeed }>({

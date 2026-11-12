@@ -1,8 +1,31 @@
 /* The layout AuthModal.css's shared `.auth-*` family doesn't cover -- the
-   active share's name+rename row, the link+copy row and the hint line.
-   Everything else (overlay, card, form, field, buttons,
-   danger-warning/danger-submit) reuses AuthModal.css as-is (see
-   ShareManageModal.tsx's own doc comment for why). */
+   live link's name + rename row, the link + copy row, the hint / note, the
+   create field's counter and the "Your links" list. Everything else
+   (overlay, card, title, form, field, buttons, danger-warning/danger-submit)
+   reuses AuthModal.css as-is (see ShareManageModal.tsx's own doc comment). */
+
+/* A stash name in the title can be long (40 characters). */
+.share-modal__title {
+  overflow-wrap: anywhere;
+}
+
+.share-modal__lead {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.share-modal__labelrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.share-modal__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
 
 .share-modal__name {
   display: flex;
@@ -10,20 +33,46 @@
   justify-content: space-between;
   gap: 12px;
   margin: 0;
+}
+
+.share-modal__names {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
+.share-modal__sharename {
   font-family: var(--font-body);
   font-size: 16px;
   font-weight: 600;
   color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* A stash link's stash, after its share name: stash names are Barlow
+   Condensed, as typed (no forced uppercase). */
+.share-modal__stashname {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #cfd6e4;
+  overflow-wrap: anywhere;
 }
 
 .share-modal__rename-link {
+  flex: none;
   background: none;
   border: none;
   padding: 0;
+  /* Rename / Rename stash: 12/700/.14em on both layouts. */
   font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-primary);
   cursor: pointer;
@@ -54,5 +103,143 @@
   margin: 0;
   font-family: var(--font-body);
   font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+/* "Jeremy · Trade stash" in the create hint: what viewers will read. */
+.share-modal__hint-strong {
+  color: var(--color-text);
+}
+
+/* -- Your links · N ------------------------------------------------------
+   Under the link block, above a hairline; only while a link shows and the
+   owner has more than one. The list scrolls on its own (about five rows);
+   the link block and buttons above stay put. */
+.share-links {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.share-links__head {
+  margin: 0;
+  padding-bottom: 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+
+.share-links__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 206px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.share-links__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 4px 0 13px;
+  border-top: 1px solid rgba(211, 211, 212, 0.08);
+}
+
+.share-links__row:first-child {
+  border-top: none;
+}
+
+/* The shown link: the rail's selected-row treatment (blue edge + wash). */
+.share-links__row--on {
+  padding: 0 8px 0 10px;
+  border-left: 3px solid var(--color-primary);
+  background: rgba(37, 99, 235, 0.28);
+}
+
+.share-links__row:not(.share-links__row--on):hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.share-links__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-links__row--on .share-links__name {
+  color: #ffffff;
+}
+
+.share-links__showing {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb0cc;
+}
+
+/* The whole row swaps the window to its link: the name button's hit area is
+   stretched over the row; Copy sits above it. */
+.share-links__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.share-links__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.share-links__copy {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  height: 30px;
+  padding: 0 8px;
+  background: none;
+  border: 1px solid #2a3558;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cfd6e4;
+  cursor: pointer;
+}
+
+.share-links__copy:hover {
+  border-color: var(--color-primary);
+}
+
+.share-links__chev {
+  flex: none;
+  display: grid;
+  place-items: center;
   color: var(--color-text-muted);
 }

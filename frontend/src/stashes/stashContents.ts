@@ -32,6 +32,8 @@ export const STASH_COPY = {
       ? "It holds no cards."
       : `Every card in it returns to your Vault: ${cards.toLocaleString()} ${cards === 1 ? "card" : "cards"}.`,
   deleteFine: "You still own every copy. Only the stash and its name and description are deleted.",
+  /** The delete confirm's extra line while the stash has a share link. */
+  deleteShared: "Its share link stops working.",
 };
 
 /** A stash link's viewer copy (App Spec §19.1), both layouts. The empty

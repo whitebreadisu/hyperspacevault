@@ -25,6 +25,13 @@ vi.mock("../../context/AuthContext", () => ({
 vi.mock("../../api/baseCards", () => ({ getBaseCardsList: vi.fn().mockResolvedValue([]) }));
 vi.mock("../../api/sets", () => ({ getSets: vi.fn().mockResolvedValue([]) }));
 vi.mock("../../api/inventory", () => ({ getQuantities: vi.fn().mockResolvedValue([]) }));
+// The caller's stashes (a stash's Share opens this layer on its link).
+const stashList = vi.hoisted(() => ({ rows: [] as unknown[] }));
+vi.mock("../../api/stashes", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/stashes")>()),
+  getStashes: vi.fn(async () => stashList.rows),
+  getStashItems: vi.fn(async () => []),
+}));
 vi.mock("../../api/shares", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/shares")>()),
   listShares: vi.fn(),
@@ -60,7 +67,9 @@ async function goHash(h: string) {
   });
 }
 
-const dialog = () => screen.getByRole("dialog", { name: "Share Your Vault" });
+// The share window's vault title (App Spec §19.1 owner screens: "Share your
+// Vault"; it was "Share Your Vault" before stash links).
+const dialog = () => screen.getByRole("dialog", { name: "Share your Vault" });
 
 describe("S5-07 Sharing layer", () => {
   beforeEach(() => {
@@ -73,11 +82,15 @@ describe("S5-07 Sharing layer", () => {
   });
 
   it("More's Sharing row opens desktop's modal over More: empty -> create -> active -> rename -> rotate gate -> revoke gate -> empty", async () => {
-    vi.mocked(listShares).mockResolvedValue([]);
-    vi.mocked(createShare).mockResolvedValue(share());
-    vi.mocked(renameShare).mockImplementation(async (_id, name) => share({ name }));
-    vi.mocked(rotateShare).mockResolvedValue(share({ token: "tok-2" }));
-    vi.mocked(revokeShare).mockResolvedValue();
+    // A stateful double: the window re-reads the links after every write.
+    let live: ShareRecord | null = null;
+    vi.mocked(listShares).mockImplementation(async () => (live ? [live] : []));
+    vi.mocked(createShare).mockImplementation(async () => (live = share()));
+    vi.mocked(renameShare).mockImplementation(async (_id, name) => (live = share({ name })));
+    vi.mocked(rotateShare).mockImplementation(async () => (live = share({ token: "tok-2" })));
+    vi.mocked(revokeShare).mockImplementation(async () => {
+      live = null;
+    });
     render(<MobileApp />);
     await act(async () => {});
     fireEvent.click(document.querySelector('[data-more="sharing"]')!);
@@ -90,12 +103,12 @@ describe("S5-07 Sharing layer", () => {
 
     // Empty state = the create form; Create stays locked until a name is typed.
     const d = dialog();
-    const create = await within(d).findByRole("button", { name: "Create Share" });
+    const create = await within(d).findByRole("button", { name: "Create share" });
     expect((create as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(within(d).getByLabelText("Share Name"), { target: { value: "Bobs vault" } });
+    fireEvent.change(within(d).getByLabelText("Share name"), { target: { value: "Bobs vault" } });
     fireEvent.click(create);
 
-    // Active: the name, the link, Copy / Rotate Link / Revoke.
+    // Active: the name, the link, Copy / New link / Revoke.
     const link = (await within(d).findByDisplayValue(/\/shared\/tok-1$/)) as HTMLInputElement;
     expect(link.readOnly).toBe(true);
     expect(within(d).getByText("Bobs vault")).toBeTruthy();
@@ -109,20 +122,20 @@ describe("S5-07 Sharing layer", () => {
     expect(renameShare).toHaveBeenCalledWith(1, "Renamed");
 
     // Rotate: confirm gate first (Cancel backs out), then the new token.
-    fireEvent.click(within(d).getByRole("button", { name: "Rotate Link" }));
-    expect(within(d).getByText(/immediately breaks the old one/)).toBeTruthy();
+    fireEvent.click(within(d).getByRole("button", { name: "New link" }));
+    expect(within(d).getByText(/The old link stops working at once/)).toBeTruthy();
     fireEvent.click(within(d).getByRole("button", { name: "Cancel" }));
     expect(rotateShare).not.toHaveBeenCalled();
-    fireEvent.click(within(d).getByRole("button", { name: "Rotate Link" }));
-    fireEvent.click(within(d).getByRole("button", { name: "Rotate Link" }));
+    fireEvent.click(within(d).getByRole("button", { name: "New link" }));
+    fireEvent.click(within(d).getByRole("button", { name: "New link" }));
     expect(await within(d).findByDisplayValue(/\/shared\/tok-2$/)).toBeTruthy();
 
     // Revoke: confirm gate, then back to the empty create form.
     fireEvent.click(within(d).getByRole("button", { name: "Revoke" }));
-    expect(within(d).getByText(/Revoking immediately breaks the link/)).toBeTruthy();
+    expect(within(d).getByText(/Revoking breaks the link at once/)).toBeTruthy();
     expect(revokeShare).not.toHaveBeenCalled();
     fireEvent.click(within(d).getByRole("button", { name: "Revoke" }));
-    expect(await within(d).findByRole("button", { name: "Create Share" })).toBeTruthy();
+    expect(await within(d).findByRole("button", { name: "Create share" })).toBeTruthy();
     expect(revokeShare).toHaveBeenCalledWith(1);
 
     // X closes the layer back onto More.
@@ -130,6 +143,26 @@ describe("S5-07 Sharing layer", () => {
     await waitFor(() => expect(window.location.hash).toBe("#/more"));
     await goHash(window.location.hash);
     expect(document.querySelector(".m-acctlayer")).toBeNull();
+  });
+
+  it("#/more/sharing?stash=<id> opens the window on that stash's link, over the screen beneath", async () => {
+    stashList.rows = [
+      { id: 2, name: "Trade stash", description: null, created_at: "2026-11-02", copies: 0 },
+    ];
+    vi.mocked(listShares).mockResolvedValue([
+      share({ name: "Jeremy" }),
+      share({ id: 7, scope: "stash", target_id: 2, token: "tok-s2", name: "Jeremy" }),
+    ]);
+    window.location.hash = "#/more/sharing?stash=2";
+    render(<MobileApp />);
+    await act(async () => {});
+    const d = await screen.findByRole("dialog", { name: "Share Trade stash" });
+    expect(await within(d).findByDisplayValue(/\/shared\/stash\/tok-s2$/)).toBeTruthy();
+    expect(within(d).getByRole("button", { name: "Rename stash" })).toBeTruthy();
+    // The vault link is one row of "Your links" away.
+    fireEvent.click(within(d).getByRole("button", { name: "Show the Vault link" }));
+    expect(screen.getByRole("dialog", { name: "Share your Vault" })).toBeTruthy();
+    stashList.rows = [];
   });
 
   it("loading and error states are desktop's own", async () => {
@@ -263,14 +296,14 @@ describe("S5-10 analytics for Sharing", () => {
     vi.mocked(createShare).mockResolvedValue(share());
   });
 
-  it("screen_viewed {sharing, phone} once (not again on close); share_created is desktop's own event", async () => {
+  it("screen_viewed {sharing, phone} once (not again on close); share_created {what: vault} is desktop's own event", async () => {
     render(<MobileApp />);
     await act(async () => {});
     await goHash("#/more/sharing");
     const d = dialog();
-    fireEvent.change(await within(d).findByLabelText("Share Name"), { target: { value: "X" } });
-    fireEvent.click(within(d).getByRole("button", { name: "Create Share" }));
-    await waitFor(() => expect(spy).toHaveBeenCalledWith("share_created", {}));
+    fireEvent.change(await within(d).findByLabelText("Share name"), { target: { value: "X" } });
+    fireEvent.click(within(d).getByRole("button", { name: "Create share" }));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("share_created", { what: "vault" }));
     await goHash("#/more");
     expect(views()).toEqual([
       { screen: "more", layout: "phone" },
