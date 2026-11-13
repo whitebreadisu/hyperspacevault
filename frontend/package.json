@@ -25,9 +25,9 @@
     "e2e:mobile:ui": "playwright test --ui"
   },
   "dependencies": {
-    "@tanstack/react-virtual": "^3.14.9",
-    "firebase": "^13.0.0",
-    "posthog-js": "^1.421.0",
+    "@tanstack/react-virtual": "^3.14.26",
+    "firebase": "^13.2.0",
+    "posthog-js": "^1.447.9",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
