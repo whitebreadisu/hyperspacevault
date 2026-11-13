@@ -45,8 +45,8 @@ export interface FeatureTour {
 export const FEATURE_TOURS: FeatureTour[] = [
   {
     version: "2.5",
-    // Placeholder until the 2.5 promote: set to the promote date then.
-    since: "2026-11-12",
+    // The 2.5 promote date (owner "promote to prod", 2026-11-13).
+    since: "2026-11-13",
     tips: [
       {
         id: "stashes-nav",
