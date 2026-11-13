@@ -4,7 +4,7 @@
 
 A React single-page app — rendered as a desktop shell or a phone app from the same bundle, plus a second, isolated document for the camera scanner — talks to one FastAPI service over REST; PostgreSQL holds both the shared catalog and per-tenant vaults, with tenant isolation enforced by the database itself. Around that core sit the ingestion pipelines that keep catalog, images, and prices current.
 
-*Prepared 2026-07-28 · Updated 2026-11-07 — as of release v2.4 (promoted 2026-11-07) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
+*Prepared 2026-07-28 · Updated 2026-11-13 — as of release v2.5 (promoted 2026-11-13) · Companion views: [Conceptual](Architecture_Conceptual.md) (domain & actors) · [Physical](Architecture_Physical.md) (deployment & delivery)*
 
 ## Component layering
 
@@ -202,4 +202,4 @@ flowchart LR
 
 ---
 
-*Prepared 2026-07-28 · Updated 2026-11-07 — as of release v2.4 (promoted 2026-11-07), from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*
+*Prepared 2026-07-28 · Updated 2026-11-13 — as of release v2.5 (promoted 2026-11-13), from the as-built system; companion views: [Conceptual](Architecture_Conceptual.md) · [Physical](Architecture_Physical.md)*

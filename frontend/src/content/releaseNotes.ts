@@ -38,6 +38,63 @@ export type ReleaseNotesEntry =
 
 export const RELEASE_NOTES: ReleaseNotesEntry[] = [
   {
+    // BL-344 (Stashes) + BL-341 (navigation) + BL-349 (Icons 2027 Edition) +
+    // BL-209 (stash sharing, with BL-357) + BL-338 (search discoverability) +
+    // BL-358 (new-version banner) + BL-359 (feature tour) + BL-360 + BL-354.
+    // Owner said "promote to prod" 2026-11-13; date = promote day
+    // (America/Chicago). Text owner-approved 2026-11-11 and 2026-11-13 (BL-355).
+    kind: "release",
+    key: "2.5",
+    version: "2.5",
+    date: "2026-11-13",
+    title: "A place for every card",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            title: "Stashes",
+            body: 'Your cards live in more than one place: a binder, a deck box, a shelf, a friend\'s trade pile. Now the Vault can tell you where. Open any card you own, make a stash ("Red binder", "Trade box", whatever you like) and move copies into it. Whatever isn\'t stashed stays in your Vault.',
+          },
+          {
+            title: "A Stashes page",
+            body: "See every stash in one place, look inside any of them with the same filters as your Vault, take copies out, and rename or delete stashes. Deleting a stash puts its cards back in your Vault.",
+          },
+          {
+            title: "Share a stash",
+            body: "Send someone a read-only link to just one stash, like your trade binder before trade night. They see what's in that stash and nothing else in your Vault, and you can turn the link off any time.",
+          },
+          {
+            title: "New navigation",
+            body: "On desktop the header has a new menu: Vault (Collection and Stashes), Decks (Deck Check) and Updates. On mobile, tap Vault again to reach your stashes. There's room in it for what's coming next.",
+          },
+          {
+            title: "Icons 2027 Edition",
+            body: "The new set is in, every printing included. Prices fill in once it's on sale.",
+          },
+        ],
+      },
+      {
+        heading: "Improvements",
+        items: [
+          {
+            title: "Imports that warn you",
+            body: "If an import would change cards you've stashed, you'll see exactly what changes before you confirm.",
+          },
+        ],
+      },
+      {
+        heading: "System upgrades",
+        items: [
+          {
+            title: "Under the hood",
+            body: "Security updates, cleanup and some work to help new players find us. Nothing you'll notice.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     // BL-339 (phone collapse hold) + BL-340 (HSV logos, brand chooser on
     // desktop, tab and home-screen icons) + BL-333 (analytics relay quiet on
     // PostHog failures). Owner said "promote to prod" 2026-11-07; date =
